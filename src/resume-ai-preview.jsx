@@ -418,6 +418,38 @@ const BRAND_STYLES = `
 @media (prefers-reduced-motion: reduce) {
   .pipe-pulse-h, .pipe-pulse-v { animation: none; }
 }
+
+/* ---------- Premium polish ---------- */
+/* Scroll reveal */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
+.reveal.reveal-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+
+/* Gradient hairlines */
+.hairline { height: 1px; background: linear-gradient(90deg, transparent, var(--line-strong) 20%, var(--line-strong) 80%, transparent); }
+.hairline-dark { height: 1px; background: linear-gradient(90deg, transparent, var(--navy-line) 15%, var(--navy-line) 85%, transparent); }
+
+/* Card lift on hover */
+.card-lift { transition: transform .24s cubic-bezier(.22,1,.36,1), box-shadow .24s ease, border-color .24s ease; will-change: transform; }
+.card-lift:hover { transform: translateY(-3px); box-shadow: 0 20px 44px -22px rgba(18,19,42,.24); border-color: var(--line-strong); }
+
+/* Soft layered shadows */
+.shadow-soft { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 10px 34px -20px rgba(18,19,42,.20); }
+.shadow-float { box-shadow: 0 2px 4px rgba(18,19,42,.05), 0 30px 70px -34px rgba(18,19,42,.30); }
+
+/* Subtle grain overlay for dark sections */
+.grain::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .04; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Live pulse dot */
+@keyframes livePulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.55); } 70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+.live-dot { animation: livePulse 2.4s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+
+/* Eyebrow label */
+.eyebrow { font-size: .8125rem; font-weight: 600; letter-spacing: .01em; }
 `;
 
 function Shell({ children }) {
@@ -647,6 +679,43 @@ function Pipeline({ steps }) {
   );
 }
 
+function Reveal({ children, as: Tag = "div", delay = 0, className = "", style, ...rest }) {
+  const ref = useRef(null);
+  const reduce =
+    typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [inView, setInView] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setInView(true);
+            obs.disconnect();
+          }
+        }),
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [reduce]);
+  return (
+    <Tag
+      ref={ref}
+      className={`reveal ${inView ? "reveal-in" : ""} ${className}`}
+      style={{ transitionDelay: inView ? `${delay}ms` : "0ms", ...style }}
+      {...rest}
+    >
+      {children}
+    </Tag>
+  );
+}
+
 function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
   const [cycle, setCycle] = useState("monthly");
   const [faqOpen, setFaqOpen] = useState(0);
@@ -749,6 +818,38 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
 
   const linkClass = "text-sm px-3 py-2 rounded-lg transition-colors";
 
+  const plans = [
+    { key: "free", name: "Free", col: "free", cta: "Get started", ghost: true,
+      price: "$0", sub: "forever", note: null,
+      tagline: "For trying Aster on a first role." },
+    { key: "starter", name: "Starter", col: "starter", cta: "Start Starter", ghost: true,
+      price: cycle === "yearly" ? "$28" : "$35",
+      sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
+      note: cycle === "yearly" ? "$336/yr · save 20%" : null,
+      tagline: "For small teams hiring steadily." },
+    { key: "professional", name: "Professional", col: "pro", cta: "Start Professional", popular: true,
+      price: cycle === "yearly" ? "$79" : "$99",
+      sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
+      note: cycle === "yearly" ? "$948/yr · save 20%" : null,
+      tagline: "For teams hiring at volume." },
+    { key: "enterprise", name: "Enterprise", col: "ent", cta: "Contact sales", ghost: true,
+      price: "Let's talk", sub: "", note: null,
+      tagline: "For orgs with security & scale needs." },
+  ];
+
+  // Render a single comparison value: check / dash / text
+  const renderCompareValue = (val) => {
+    if (val === true)
+      return (
+        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white brand-gradient">
+          <Icon name="check" className="w-3 h-3" />
+        </span>
+      );
+    if (val === false || val == null)
+      return <span className="text-neutral-300 text-lg leading-none">—</span>;
+    return <span className="text-sm font-semibold text-neutral-900">{val}</span>;
+  };
+
   return (
     <div style={{ background: "#fff", color: "var(--ink)" }}>
       {/* Shared gradient for the match rings */}
@@ -762,7 +863,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </svg>
 
       {/* Nav */}
-      <header className="sticky top-0 z-30" style={{ background: "rgba(5,6,15,0.72)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--navy-line)" }}>
+      <header className="sticky top-0 z-30 relative" style={{ background: "rgba(5,6,15,0.72)", backdropFilter: "blur(12px)" }}>
+        <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button onClick={() => navigate("landing")} aria-label="Aster home">
             <BrandLogo onDark logoUrl={logoUrl} />
@@ -772,7 +874,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             <a href="#pricing" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
             <a href="#faq" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
             <button onClick={() => navigate("login")} className={`hidden sm:block ${linkClass}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onClick={() => goSignup("free")} className="text-sm brand-gradient text-white font-medium px-4 py-2 rounded-xl hover:opacity-90 transition-opacity">
+            <button onClick={() => goSignup("free")} className="text-sm brand-gradient text-white font-medium px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
               Get started
             </button>
             <button
@@ -801,38 +903,62 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </header>
 
       {/* Hero — the AI match score is the thesis */}
-      <section className="relative overflow-hidden" style={{ background: "#070814" }}>
+      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(70% 55% at 78% 12%, rgba(90,120,248,0.35) 0%, transparent 60%), radial-gradient(60% 50% at 10% 90%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28 grid lg:grid-cols-2 gap-12 lg:gap-14 items-center">
           {/* Left: copy */}
           <div>
-            <span className="inline-block text-xs font-medium px-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}>
+            <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}>
+              <span className="live-dot w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
               AI recruitment platform for growing teams
             </span>
-            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.14, textWrap: "balance" }}>
+            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2.25rem, 4.8vw, 3.65rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>
               Hire the right person,{" "}
               <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>without reading every CV.</span>
             </h1>
-            <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "var(--navy-ink)" }}>
+            <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>
               Aster screens every resume, ranks applicants against the role, and handles interview scheduling. A shortlist that used to take two weeks now takes an afternoon.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button onClick={() => goSignup("free")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl hover:opacity-90 transition-opacity shadow-[0_12px_34px_-12px_rgba(151,59,247,0.9)]">
+              <button onClick={() => goSignup("free")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">
                 Start free trial
               </button>
               <a href="#pricing" className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>
                 See pricing
               </a>
             </div>
+            {/* Social proof row */}
+            <div className="mt-7 flex items-center gap-4 flex-wrap">
+              <div className="flex -space-x-2.5">
+                {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, i) => (
+                  <span key={i} className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold text-white"
+                    style={{ background: c, borderColor: "#070814" }}>
+                    {["A", "S", "D", "P"][i]}
+                  </span>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="flex gap-0.5" style={{ color: "#F5A623" }}>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <svg key={i} viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
+                      <path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" />
+                    </svg>
+                  ))}
+                </div>
+                <span className="text-xs" style={{ color: "var(--navy-ink)" }}>Loved by hiring teams worldwide</span>
+              </div>
+            </div>
             <p className="mt-4 text-xs" style={{ color: "var(--ink-3)" }}>No credit card to start · Set up in minutes</p>
           </div>
 
           {/* Right: the signature — live match ranking */}
-          <div className="rounded-2xl p-5 sm:p-6" style={{ background: "rgba(22,24,58,0.66)", border: "1px solid var(--navy-line)", backdropFilter: "blur(8px)", boxShadow: "0 40px 90px -40px rgba(0,0,0,0.75)" }}>
+          <div className="relative rounded-2xl p-5 sm:p-6" style={{ background: "linear-gradient(180deg, rgba(30,33,72,0.72), rgba(22,24,58,0.66))", border: "1px solid var(--navy-line)", backdropFilter: "blur(8px)", boxShadow: "0 2px 0 0 rgba(255,255,255,0.04) inset, 0 50px 100px -40px rgba(0,0,0,0.85)" }}>
+            {/* top edge highlight */}
+            <div className="pointer-events-none absolute inset-x-6 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.55), transparent)" }} />
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>Ranking for</p>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1" style={{ background: "rgba(151,59,247,0.18)", color: "#fff" }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI match
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "rgba(151,59,247,0.18)", color: "#fff" }}>
+                <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI match
               </span>
             </div>
             <p className="text-white font-semibold font-display mb-4">Senior Frontend Engineer</p>
@@ -867,17 +993,17 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Problem → solution */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
-        <div className="max-w-2xl mb-12">
-          <p className="text-sm font-semibold brand-text mb-2">Where hiring slows down</p>
-          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
+        <Reveal className="max-w-2xl mb-12">
+          <p className="eyebrow brand-text mb-2">Where hiring slows down</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Hiring always gets stuck in the same places.
           </h2>
           <p className="text-neutral-500 mt-3">Aster was designed around each of them.</p>
-        </div>
+        </Reveal>
         <div className="grid md:grid-cols-3 gap-4">
-          {problems.map((p) => (
-            <div key={p.pain} className="rounded-2xl border p-6 flex flex-col" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          {problems.map((p, i) => (
+            <Reveal key={p.pain} delay={i * 70} className="rounded-2xl border p-6 flex flex-col card-lift" style={{ borderColor: "var(--line)", background: "#fff" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(239,68,68,0.08)", color: "#DC2626" }}>
                 <Icon name={p.icon} className="w-5 h-5" />
               </div>
@@ -889,32 +1015,32 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 </span>
                 <p className="text-sm font-medium text-neutral-900 leading-snug">{p.result}</p>
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
 
         {/* compact stat band */}
-        <div className="mt-6 rounded-2xl border grid grid-cols-3 divide-x overflow-hidden" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+        <Reveal delay={120} className="mt-6 rounded-2xl border grid grid-cols-3 divide-x overflow-hidden shadow-soft" style={{ borderColor: "var(--line)", background: "#fff" }}>
           {[["3×", "faster shortlists"], ["46 → 3", "applicants to shortlist"], ["2 wks", "sooner to hire"]].map(([v, l]) => (
-            <div key={l} className="px-3 py-5 text-center" style={{ borderColor: "var(--line)" }}>
-              <p className="text-xl sm:text-2xl font-bold font-display brand-text">{v}</p>
+            <div key={l} className="px-3 py-6 text-center" style={{ borderColor: "var(--line)" }}>
+              <p className="text-2xl sm:text-3xl font-bold font-display brand-text" style={{ letterSpacing: "-0.02em" }}>{v}</p>
               <p className="text-[11px] sm:text-xs text-neutral-500 mt-1 leading-tight">{l}</p>
             </div>
           ))}
-        </div>
+        </Reveal>
       </section>
 
       {/* Features */}
-      <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-20">
-        <div className="max-w-2xl mb-12">
-          <p className="text-sm font-semibold brand-text mb-2">Everything in one place</p>
-          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+      <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-24 scroll-mt-20">
+        <Reveal className="max-w-2xl mb-12">
+          <p className="eyebrow brand-text mb-2">Everything in one place</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             The whole hiring pipeline, minus the spreadsheets.
           </h2>
-        </div>
-        <div className="grid md:grid-cols-3 gap-4 md:auto-rows-fr">
+        </Reveal>
+        <Reveal className="grid md:grid-cols-3 gap-4 md:auto-rows-fr">
           {/* AI resume parsing — quiet tile */}
-          <div className="rounded-2xl p-6 border card-hover h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <div className="rounded-2xl p-6 border card-lift h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
               <Icon name="doc" className="w-5 h-5" />
             </div>
@@ -953,7 +1079,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </div>
 
           {/* Interview scheduling — quiet tile */}
-          <div className="rounded-2xl p-6 border card-hover h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <div className="rounded-2xl p-6 border card-lift h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
               <Icon name="calendar" className="w-5 h-5" />
             </div>
@@ -962,7 +1088,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </div>
 
           {/* One shared pipeline — wide tile with real stages */}
-          <div className="md:col-span-3 rounded-2xl p-6 border card-hover" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <div className="md:col-span-3 rounded-2xl p-6 border card-lift" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="flex flex-col lg:flex-row lg:items-center gap-6">
               <div className="lg:max-w-xs">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
@@ -984,51 +1110,51 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               </div>
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* More capabilities */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-8 -mt-4">
-        <div className="max-w-2xl mb-10">
-          <p className="text-sm font-semibold brand-text mb-2">And everything around it</p>
-          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-8">
+        <Reveal className="max-w-2xl mb-10">
+          <p className="eyebrow brand-text mb-2">And everything around it</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", letterSpacing: "-0.02em" }}>
             From first application to signed offer.
           </h2>
-        </div>
+        </Reveal>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {moreFeatures.map((f) => (
-            <div key={f.title} className="rounded-2xl p-6 border card-hover h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          {moreFeatures.map((f, i) => (
+            <Reveal key={f.title} delay={(i % 3) * 70} className="rounded-2xl p-6 border card-lift h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                 <Icon name={f.icon} className="w-5 h-5" />
               </div>
               <h3 className="font-semibold text-neutral-900 mb-1.5">{f.title}</h3>
               <p className="text-sm text-neutral-500 leading-relaxed">{f.body}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* How it works */}
-      <section className="py-20" style={{ background: "var(--bg)" }}>
+      <section className="py-24" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <h2 className="font-display font-bold text-neutral-900 text-center mb-14" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+          <Reveal as="h2" className="font-display font-bold text-neutral-900 text-center mb-14" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             From open role to signed offer
-          </h2>
+          </Reveal>
           <Pipeline steps={steps} />
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
-        <div className="max-w-2xl mb-12">
-          <p className="text-sm font-semibold brand-text mb-2">What customers say</p>
-          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
+        <Reveal className="max-w-2xl mb-12">
+          <p className="eyebrow brand-text mb-2">What customers say</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Teams around the world hire faster with Aster.
           </h2>
-        </div>
+        </Reveal>
         <div className="grid md:grid-cols-3 gap-4">
-          {testimonials.map((t) => (
-            <figure key={t.name} className="rounded-2xl border p-6 flex flex-col h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          {testimonials.map((t, i) => (
+            <Reveal as="figure" key={t.name} delay={i * 80} className="rounded-2xl border p-6 flex flex-col h-full card-lift" style={{ borderColor: "var(--line)", background: "#fff" }}>
               <div className="flex gap-0.5 mb-4" style={{ color: "#F5A623" }}>
                 {[0, 1, 2, 3, 4].map((i) => (
                   <svg key={i} viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
@@ -1044,15 +1170,16 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                   <p className="text-xs text-neutral-500 truncate">{t.role}</p>
                 </div>
               </figcaption>
-            </figure>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-20">
-        <div className="text-center mb-8">
-          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>Pricing</h2>
+      <section id="pricing" className="max-w-6xl mx-auto px-4 sm:px-6 py-24 scroll-mt-20">
+        <Reveal className="text-center mb-8">
+          <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
           <p className="text-neutral-500 mt-2">Start free. Upgrade when you're hiring at volume. Prices in USD, before tax.</p>
           <div className="inline-flex rounded-full border p-0.5 mt-6" style={{ borderColor: "var(--line)" }}>
             {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
@@ -1067,61 +1194,48 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               );
             })}
           </div>
-        </div>
+        </Reveal>
 
-        {/* Full comparison — card layout */}
-        <div className="mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 items-stretch max-w-sm sm:max-w-none mx-auto">
-            {[
-              { key: "free", name: "Free", col: "free", cta: "Get started", ghost: true,
-                price: "$0", sub: "forever", rm: null, note: null },
-              { key: "starter", name: "Starter", col: "starter", cta: "Start Starter", ghost: true,
-                price: cycle === "yearly" ? "$28" : "$35",
-                sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-                rm: null,
-                note: cycle === "yearly" ? "$336/yr (save 20%)" : null },
-              { key: "professional", name: "Professional", col: "pro", cta: "Start Professional", popular: true,
-                price: cycle === "yearly" ? "$79" : "$99",
-                sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-                rm: null,
-                note: cycle === "yearly" ? "$948/yr (save 20%)" : null },
-              { key: "enterprise", name: "Enterprise", col: "ent", cta: "Contact sales", ghost: true,
-                price: "Let's talk", sub: "", rm: null, note: null },
-            ].map((plan) => (
-              <div key={plan.key} className="rounded-2xl border flex flex-col relative p-5 sm:p-6 h-full"
-                style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 26px 60px -24px rgba(151,59,247,0.4)" : undefined }}>
-                {plan.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] px-2.5 py-1 rounded-full brand-gradient text-white font-semibold whitespace-nowrap">Most popular</span>}
+        {/* ---------- Mobile / tablet: stacked plan cards ---------- */}
+        <div className="lg:hidden mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 items-stretch max-w-sm sm:max-w-none mx-auto">
+            {plans.map((plan) => (
+              <div key={plan.key} className={`rounded-2xl border flex flex-col relative p-5 sm:p-6 h-full ${plan.popular ? "" : "card-lift"}`}
+                style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 30px 66px -26px rgba(151,59,247,0.5)" : undefined }}>
+                {plan.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] px-2.5 py-1 rounded-full brand-gradient text-white font-semibold whitespace-nowrap shadow-[0_8px_20px_-8px_rgba(151,59,247,0.9)]">Most popular</span>}
                 <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.35rem" }}>
                   {plan.popular ? <span className="brand-text">{plan.name}</span> : plan.name}
                 </h4>
-                <div className="mt-2 flex items-end gap-1 flex-wrap">
+                <p className="text-sm text-neutral-500 mt-1">{plan.tagline}</p>
+                <div className="mt-3 flex items-end gap-1 flex-wrap">
                   <span className="font-bold font-display text-neutral-900" style={{ fontSize: "2rem" }}>{plan.price}</span>
                   {plan.sub && <span className="text-sm text-neutral-500 mb-1.5">{plan.sub}</span>}
                 </div>
-                {plan.rm && <p className="text-xs text-neutral-400 mt-0.5">{plan.rm} · charged in USD</p>}
-                {plan.note && <p className="text-xs font-medium mt-1" style={{ color: "#166534" }}>{plan.note}</p>}
+                <p className="text-xs font-medium mt-1" style={{ color: plan.note ? "#166534" : "transparent" }}>{plan.note || "placeholder"}</p>
+                <button onClick={() => goSignup(plan.key)}
+                  className={`w-full mt-4 rounded-xl text-sm font-semibold py-2.5 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90"}`}
+                  style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
+                  {plan.cta}
+                </button>
                 <div className="mt-5 mb-1 h-px" style={{ background: "var(--line)" }} />
-                <div className="flex-1 space-y-5">
+                <div className="flex-1 space-y-5 mt-4">
                   {compareGroups.map((g) => (
                     <div key={g.group}>
-                      <p className="text-xs font-semibold uppercase tracking-wide mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{g.group}</p>
+                      <p className="text-xs font-semibold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{g.group}</p>
                       <ul className="space-y-2.5">
                         {g.rows.map((r) => {
                           const val = r[plan.col];
+                          const off = val === false || val == null;
                           return (
-                            <li key={r.label} className="flex items-start gap-2.5" style={{ fontSize: "0.98rem" }}>
-                              {val === true ? (
+                            <li key={r.label} className="flex items-start gap-2.5 text-sm">
+                              {off ? (
+                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5 text-neutral-300 text-lg leading-none">—</span>
+                              ) : (
                                 <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-white brand-gradient">
                                   <Icon name="check" className="w-3 h-3" />
                                 </span>
-                              ) : val === false ? (
-                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5 text-neutral-300 text-lg leading-none">—</span>
-                              ) : (
-                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5" style={{ color: "var(--brand)" }}>
-                                  <Icon name="check" className="w-3 h-3" />
-                                </span>
                               )}
-                              <span className={val === false ? "text-neutral-400" : "text-neutral-700"}>
+                              <span className={off ? "text-neutral-400" : "text-neutral-700"}>
                                 {r.label}
                                 {typeof val === "string" && <span className="font-semibold text-neutral-900">: {val}</span>}
                               </span>
@@ -1132,27 +1246,106 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => goSignup(plan.key)}
-                  className={`w-full mt-6 rounded-xl text-sm font-semibold py-2.5 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90"}`}
-                  style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
-                  {plan.cta}
-                </button>
               </div>
             ))}
           </div>
-          <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Professional trial. full access, no card required.</p>
         </div>
+
+        {/* ---------- Desktop: aligned comparison table ---------- */}
+        <div className="hidden lg:block mt-6">
+          <div className="rounded-2xl border overflow-hidden shadow-soft" style={{ borderColor: "var(--line)" }}>
+            <table className="w-full border-separate" style={{ borderSpacing: 0 }}>
+              <colgroup>
+                <col style={{ width: "28%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="sticky top-16 z-10 text-left align-top p-5" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+                    <span className="text-xs font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Compare plans</span>
+                  </th>
+                  {plans.map((plan) => (
+                    <th key={plan.key} className="sticky top-16 z-10 text-left align-top p-4 xl:p-5"
+                      style={{
+                        background: plan.popular ? "var(--brand-soft)" : "#fff",
+                        borderBottom: `1px solid ${plan.popular ? "#E6D3FF" : "var(--line)"}`,
+                        borderTop: plan.popular ? "2px solid var(--brand)" : undefined,
+                        borderLeft: plan.popular ? "1px solid #E6D3FF" : undefined,
+                        borderRight: plan.popular ? "1px solid #E6D3FF" : undefined,
+                      }}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold font-display" style={{ fontSize: "1.05rem", color: plan.popular ? "var(--brand)" : "var(--ink)" }}>{plan.name}</span>
+                        {plan.popular && <span className="text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold whitespace-nowrap">Popular</span>}
+                      </div>
+                      <div className="mt-1.5 flex items-end gap-1 flex-wrap">
+                        <span className="font-bold font-display text-neutral-900 leading-none" style={{ fontSize: "1.6rem" }}>{plan.price}</span>
+                        {plan.sub && <span className="text-[11px] text-neutral-500 leading-tight max-w-[7rem]">{plan.sub}</span>}
+                      </div>
+                      <p className="text-[11px] font-medium mt-1" style={{ color: plan.note ? "#166534" : "transparent" }}>{plan.note || "—"}</p>
+                      <button onClick={() => goSignup(plan.key)}
+                        className={`w-full mt-3 rounded-lg text-xs font-semibold py-2 transition-all ${plan.ghost ? "border hover:bg-white" : "brand-gradient text-white hover:opacity-90"}`}
+                        style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)", background: "#fff" } : undefined}>
+                        {plan.cta}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {compareGroups.map((g) => (
+                  <Fragment key={g.group}>
+                    {/* group header row — keeps the Professional band continuous */}
+                    <tr>
+                      <td className="px-5 pt-6 pb-2 text-xs font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.06em" }}>{g.group}</td>
+                      {plans.map((plan) => (
+                        <td key={plan.key} className="pt-6 pb-2" style={plan.popular ? { background: "var(--brand-soft)", borderLeft: "1px solid #E6D3FF", borderRight: "1px solid #E6D3FF" } : undefined} />
+                      ))}
+                    </tr>
+                    {g.rows.map((r) => (
+                      <tr key={r.label} className="group">
+                        <td className="px-5 py-2.5 text-sm text-neutral-700 align-middle" style={{ borderTop: "1px solid var(--line)" }}>{r.label}</td>
+                        {plans.map((plan) => (
+                          <td key={plan.key} className="py-2.5 px-3 text-center align-middle"
+                            style={{
+                              borderTop: `1px solid ${plan.popular ? "#EBDCFF" : "var(--line)"}`,
+                              background: plan.popular ? "var(--brand-soft)" : undefined,
+                              borderLeft: plan.popular ? "1px solid #E6D3FF" : undefined,
+                              borderRight: plan.popular ? "1px solid #E6D3FF" : undefined,
+                            }}>
+                            {renderCompareValue(r[plan.col])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+                {/* closing row to seal the Professional band */}
+                <tr>
+                  <td />
+                  {plans.map((plan) => (
+                    <td key={plan.key} className="h-2" style={plan.popular ? { background: "var(--brand-soft)", borderBottom: "2px solid var(--brand)", borderLeft: "1px solid #E6D3FF", borderRight: "1px solid #E6D3FF" } : undefined} />
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Professional trial. Full access, no card required.</p>
       </section>
-      <section id="faq" className="py-20 scroll-mt-20" style={{ background: "var(--bg)" }}>
+      <section id="faq" className="py-24 scroll-mt-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <h2 className="font-display font-bold text-neutral-900 text-center mb-10" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+          <Reveal as="h2" className="font-display font-bold text-neutral-900 text-center mb-10" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Frequently asked questions
-          </h2>
+          </Reveal>
           <div className="space-y-3">
             {faqs.map((f, i) => {
               const open = faqOpen === i;
               return (
-                <div key={i} className="rounded-2xl bg-white border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+                <div key={i} className="rounded-2xl bg-white border overflow-hidden transition-colors" style={{ borderColor: open ? "var(--line-strong)" : "var(--line)", boxShadow: open ? "0 10px 30px -20px rgba(18,19,42,.2)" : undefined }}>
                   <button
                     onClick={() => setFaqOpen(open ? null : i)}
                     className="w-full flex items-center justify-between gap-3 text-left px-5 py-4"
@@ -1172,17 +1365,18 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Final CTA */}
-      <section className="px-4 sm:px-6 py-20" style={{ background: "#fff" }}>
-        <div className="max-w-6xl mx-auto rounded-3xl px-6 py-14 text-center relative overflow-hidden" style={{ background: "var(--navy)" }}>
-          <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(circle at 50% 0%, var(--brand-2) 0%, transparent 60%)" }} />
+      <section className="px-4 sm:px-6 py-24" style={{ background: "#fff" }}>
+        <Reveal className="max-w-6xl mx-auto rounded-3xl px-6 py-16 text-center relative overflow-hidden grain shadow-float" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
+          <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(60% 80% at 50% 0%, var(--brand-2) 0%, transparent 62%), radial-gradient(50% 60% at 100% 100%, rgba(151,59,247,0.35) 0%, transparent 60%)" }} />
+          <div className="pointer-events-none absolute inset-x-10 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.6), transparent)" }} />
           <div className="relative">
-            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 3.5vw, 2.25rem)" }}>Ready to make your next hire?</h2>
-            <p className="mt-3" style={{ color: "var(--navy-ink)" }}>Set up takes a few minutes. No credit card required.</p>
-            <button onClick={() => goSignup("free")} className="mt-7 brand-gradient text-white font-semibold px-7 py-3 rounded-xl hover:opacity-90 transition-opacity">
+            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Ready to make your next hire?</h2>
+            <p className="mt-3 max-w-md mx-auto" style={{ color: "var(--navy-ink)" }}>Set up takes a few minutes. No credit card required.</p>
+            <button onClick={() => goSignup("free")} className="mt-8 brand-gradient text-white font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-14px_rgba(151,59,247,0.95)]">
               Create your workspace
             </button>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
