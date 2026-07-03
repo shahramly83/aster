@@ -7209,7 +7209,6 @@ export default function ResumeAIPreview() {
   if (screen === "landing") {
     return (
       <Shell>
-        <PreviewBanner />
         <LandingScreen navigate={navigate} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} />
       </Shell>
     );
@@ -7218,7 +7217,6 @@ export default function ResumeAIPreview() {
   if (screen === "login") {
     return (
       <Shell>
-        <PreviewBanner />
         <LoginScreen onLogin={() => navigate("dashboard")} navigate={navigate} logoUrl={logoUrl} />
       </Shell>
     );
@@ -7227,7 +7225,6 @@ export default function ResumeAIPreview() {
   if (screen === "signup") {
     return (
       <Shell>
-        <PreviewBanner />
         <SignUpScreen
           navigate={navigate}
           logoUrl={logoUrl}
@@ -7246,7 +7243,6 @@ export default function ResumeAIPreview() {
   if (screen === "schedulePicker") {
     return (
       <Shell>
-        <PreviewBanner />
         <SchedulePickerScreen
           navigate={navigate}
           request={previewRequest}
@@ -7265,7 +7261,6 @@ export default function ResumeAIPreview() {
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
     return (
       <Shell>
-        <PreviewBanner />
         <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} />
       </Shell>
     );
@@ -7283,7 +7278,6 @@ export default function ResumeAIPreview() {
 
   return (
     <Shell>
-      <PreviewBanner />
       <SidebarLayout
         navigate={navigate}
         active={activeNav}
