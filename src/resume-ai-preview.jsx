@@ -351,7 +351,7 @@ const BRAND_STYLES = `
   --line-strong: #DEDEE3;
   --ink: #12132A;
   --ink-2: #56566A;
-  --ink-3: #8A8A99;
+  --ink-3: #6E6E7C;
   --brand: #973BF7;
   --brand-2: #5A78F8;
   --brand-0: #D65BFF;
@@ -1313,17 +1313,56 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             Teams around the world hire faster with Aster.
           </h2>
         </Reveal>
-        <div className="grid md:grid-cols-3 gap-4">
-          {testimonials.map((t, i) => (
+        {/* Featured testimonial — dark focal card */}
+        <Reveal as="figure" className="relative overflow-hidden grain rounded-3xl p-8 sm:p-10 mb-4 shadow-float" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
+          <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(50% 70% at 100% 0%, rgba(151,59,247,0.30) 0%, transparent 60%), radial-gradient(45% 60% at 0% 100%, rgba(90,120,248,0.24) 0%, transparent 60%)" }} />
+          <div className="pointer-events-none absolute inset-x-10 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.6), transparent)" }} />
+          <div className="relative grid lg:grid-cols-[1fr_auto] gap-8 lg:gap-10 items-center">
+            <div>
+              <span className="block font-display font-bold leading-none brand-text" style={{ fontSize: "3.5rem" }} aria-hidden="true">&ldquo;</span>
+              <blockquote className="-mt-3 text-white font-display font-semibold" style={{ fontSize: "clamp(1.25rem, 2.3vw, 1.7rem)", lineHeight: 1.4, letterSpacing: "-0.01em", textWrap: "balance" }}>
+                {testimonials[0].quote}
+              </blockquote>
+              <figcaption className="mt-6 flex items-center gap-3">
+                <span className="w-11 h-11 rounded-full brand-gradient text-white text-sm font-semibold font-display flex items-center justify-center shrink-0">{testimonials[0].initials}</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">{testimonials[0].name}</p>
+                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>{testimonials[0].role}</p>
+                </div>
+              </figcaption>
+            </div>
+            {/* Proof panel */}
+            <div className="flex lg:flex-col gap-8 lg:gap-5 lg:pl-10 lg:border-l" style={{ borderColor: "var(--navy-line)" }}>
+              <div>
+                <div className="flex gap-0.5 mb-1.5" style={{ color: "#F5A623" }}>
+                  {[0, 1, 2, 3, 4].map((s) => (
+                    <svg key={s} viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
+                      <path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" />
+                    </svg>
+                  ))}
+                </div>
+                <p className="text-xs" style={{ color: "var(--navy-ink)" }}>Rated by hiring teams</p>
+              </div>
+              <div>
+                <p className="font-display font-bold brand-text" style={{ fontSize: "1.9rem", letterSpacing: "-0.02em" }}>2 wks</p>
+                <p className="text-xs" style={{ color: "var(--navy-ink)" }}>faster to first hire</p>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+
+        {/* Supporting testimonials */}
+        <div className="grid sm:grid-cols-2 gap-4">
+          {testimonials.slice(1).map((t, i) => (
             <Reveal as="figure" key={t.name} delay={i * 80} className="rounded-2xl border p-6 flex flex-col h-full card-lift" style={{ borderColor: "var(--line)", background: "#fff" }}>
               <div className="flex gap-0.5 mb-4" style={{ color: "#F5A623" }}>
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <svg key={i} viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((s) => (
+                  <svg key={s} viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
                     <path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" />
                   </svg>
                 ))}
               </div>
-              <blockquote className="text-sm text-neutral-700 leading-relaxed flex-1">"{t.quote}"</blockquote>
+              <blockquote className="text-sm text-neutral-700 leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</blockquote>
               <figcaption className="mt-5 pt-4 flex items-center gap-3" style={{ borderTop: "1px solid var(--line)" }}>
                 <span className="w-9 h-9 rounded-full brand-gradient text-white text-xs font-semibold font-display flex items-center justify-center shrink-0">{t.initials}</span>
                 <div className="min-w-0">
@@ -1422,9 +1461,13 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 onClick={() => goToPlan(i)}
                 aria-label={`Show ${plan.name} plan`}
                 aria-current={activePlan === i}
-                className="h-2 rounded-full transition-all duration-300"
-                style={{ width: activePlan === i ? 22 : 8, background: activePlan === i ? "var(--brand)" : "var(--line-strong)" }}
-              />
+                className="flex items-center justify-center h-11 w-8 touch-manipulation"
+              >
+                <span
+                  className="block h-2 rounded-full transition-all duration-300"
+                  style={{ width: activePlan === i ? 22 : 8, background: activePlan === i ? "var(--brand)" : "var(--line-strong)" }}
+                />
+              </button>
             ))}
           </div>
         </div>
