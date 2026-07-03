@@ -450,6 +450,10 @@ const BRAND_STYLES = `
 
 /* Eyebrow label */
 .eyebrow { font-size: .8125rem; font-weight: 600; letter-spacing: .01em; }
+
+/* Horizontal snap carousel (mobile pricing) */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 `;
 
 function Shell({ children }) {
@@ -727,6 +731,28 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Mobile pricing carousel
+  const priceTrackRef = useRef(null);
+  const [activePlan, setActivePlan] = useState(0);
+  const onPriceScroll = () => {
+    const el = priceTrackRef.current;
+    if (!el) return;
+    const center = el.scrollLeft + el.clientWidth / 2;
+    let best = 0, bestDist = Infinity;
+    Array.from(el.children).forEach((child, i) => {
+      const c = child.offsetLeft + child.offsetWidth / 2;
+      const d = Math.abs(c - center);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    setActivePlan(best);
+  };
+  const goToPlan = (i) => {
+    const el = priceTrackRef.current;
+    const child = el && el.children[i];
+    if (!child) return;
+    el.scrollTo({ left: child.offsetLeft - (el.clientWidth - child.offsetWidth) / 2, behavior: "smooth" });
+  };
   const prefersReduced = () =>
     typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [shown, setShown] = useState(prefersReduced);
@@ -1223,11 +1249,15 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </div>
         </Reveal>
 
-        {/* ---------- Mobile / tablet: stacked plan cards ---------- */}
-        <div className="lg:hidden mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 items-stretch max-w-sm sm:max-w-none mx-auto">
+        {/* ---------- Mobile / tablet: swipeable plan carousel ---------- */}
+        <div className="lg:hidden mt-6">
+          <div
+            ref={priceTrackRef}
+            onScroll={onPriceScroll}
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-px-4 px-4 pt-4 pb-4 -mx-4 no-scrollbar items-stretch"
+          >
             {plans.map((plan) => (
-              <div key={plan.key} className={`rounded-2xl border flex flex-col relative p-5 sm:p-6 h-full ${plan.popular ? "" : "card-lift"}`}
+              <div key={plan.key} className={`snap-start shrink-0 w-[82%] sm:w-[46%] max-w-[340px] rounded-2xl border flex flex-col relative p-5 sm:p-6 ${plan.popular ? "" : "card-lift"}`}
                 style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 30px 66px -26px rgba(151,59,247,0.5)" : undefined }}>
                 {plan.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] px-2.5 py-1 rounded-full brand-gradient text-white font-semibold whitespace-nowrap shadow-[0_8px_20px_-8px_rgba(151,59,247,0.9)]">Most popular</span>}
                 <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.35rem" }}>
@@ -1274,6 +1304,19 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                   ))}
                 </div>
               </div>
+            ))}
+          </div>
+          {/* Dots */}
+          <div className="flex justify-center items-center gap-2 mt-3">
+            {plans.map((plan, i) => (
+              <button
+                key={plan.key}
+                onClick={() => goToPlan(i)}
+                aria-label={`Show ${plan.name} plan`}
+                aria-current={activePlan === i}
+                className="h-2 rounded-full transition-all duration-300"
+                style={{ width: activePlan === i ? 22 : 8, background: activePlan === i ? "var(--brand)" : "var(--line-strong)" }}
+              />
             ))}
           </div>
         </div>
