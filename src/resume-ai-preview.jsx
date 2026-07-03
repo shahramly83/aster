@@ -633,22 +633,107 @@ function Pipeline({ steps }) {
     boxShadow: "0 0 12px 3px rgba(178,116,255,0.85)",
   };
 
+  // Dark glass preview surface shared by every step card
+  const glass = {
+    background: "linear-gradient(180deg, rgba(30,33,72,0.66), rgba(22,24,58,0.6))",
+    border: "1px solid var(--navy-line)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    boxShadow: "0 2px 0 0 rgba(255,255,255,0.04) inset, 0 34px 66px -34px rgba(0,0,0,0.8)",
+  };
+  const innerTile = { background: "rgba(255,255,255,0.04)", border: "1px solid var(--navy-line)" };
+
+  // Each step gets a live product preview, told left → right
+  const previews = [
+    // 1 · Post a role
+    (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-white truncate">Senior Frontend Engineer</p>
+          <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-1" style={{ background: "rgba(34,197,94,0.16)", color: "#4ADE80" }}>
+            <span className="live-dot w-1 h-1 rounded-full" style={{ background: "#22C55E" }} /> Live
+          </span>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg px-2.5 py-2" style={innerTile}>
+          <span style={{ color: "var(--navy-ink)" }}><Icon name="briefcase" className="w-3.5 h-3.5" /></span>
+          <span className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>aster.co/apply/fe-eng</span>
+          <span className="ml-auto shrink-0 text-[10px] font-semibold brand-text">Copy</span>
+        </div>
+        <div className="flex items-center justify-between pt-0.5">
+          <div className="flex -space-x-2">
+            {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, k) => (
+              <span key={k} className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[9px] font-semibold text-white" style={{ background: c, borderColor: "#16183A" }}>
+                {["A", "S", "D", "P"][k]}
+              </span>
+            ))}
+          </div>
+          <span className="text-xs" style={{ color: "var(--navy-ink)" }}><b className="text-white tnum">24</b> applied</span>
+        </div>
+      </div>
+    ),
+    // 2 · Let AI screen — the signature ranked list
+    (
+      <div className="space-y-2">
+        {[
+          { name: "Amira Hassan", note: "React · 6 yrs", match: 91, top: true },
+          { name: "Siti Rahman", note: "Frontend · 5 yrs", match: 78 },
+          { name: "Daniel Teoh", note: "Junior", match: 42 },
+        ].map((c) => (
+          <div key={c.name} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5" style={{ background: c.top ? "rgba(151,59,247,0.16)" : "transparent", border: c.top ? "1px solid rgba(178,116,255,0.4)" : "1px solid transparent" }}>
+            <MatchRing value={c.match} size={34} stroke={4} filled gradient={c.top} />
+            <div className="min-w-0 flex-1 text-left">
+              <p className="text-xs font-semibold text-white truncate">{c.name}</p>
+              <p className="text-[11px] truncate" style={{ color: "var(--navy-ink)" }}>{c.note}</p>
+            </div>
+            {c.top && <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold">Top</span>}
+          </div>
+        ))}
+      </div>
+    ),
+    // 3 · Schedule & hire
+    (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="w-5 h-5 rounded-full brand-gradient text-white flex items-center justify-center shrink-0"><Icon name="check" className="w-3 h-3" /></span>
+          <p className="text-sm font-semibold text-white">Interview confirmed</p>
+        </div>
+        <div className="rounded-lg px-2.5 py-2.5 space-y-2.5" style={innerTile}>
+          <div className="flex items-center gap-2.5">
+            <span className="w-7 h-7 rounded-full brand-gradient text-white text-[10px] font-semibold flex items-center justify-center shrink-0">AH</span>
+            <div className="min-w-0 text-left">
+              <p className="text-xs font-semibold text-white truncate">Amira Hassan</p>
+              <p className="text-[11px]" style={{ color: "var(--navy-ink)" }}>Thu, Jul 10 · 2:00 PM</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md text-white" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)" }}>
+              <Icon name="calendar" className="w-3 h-3" /> Google Meet
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md" style={{ background: "rgba(34,197,94,0.16)", color: "#4ADE80" }}>
+              <Icon name="offer" className="w-3 h-3" /> Offer
+            </span>
+          </div>
+        </div>
+      </div>
+    ),
+  ];
+
   return (
     <div ref={ref} className="relative">
-      {/* Desktop: horizontal rail through the icon centers */}
+      {/* Desktop: horizontal rail through the badge centers */}
       <div className="hidden md:block absolute" style={{ top: 27, left: "16.66%", right: "16.66%" }}>
-        <div className="h-[3px] w-full rounded-full" style={{ background: "var(--line)" }} />
+        <div className="h-[3px] w-full rounded-full" style={{ background: "var(--navy-line)" }} />
         <div className="h-[3px] rounded-full absolute top-0 left-0 brand-gradient" style={{ width: visible ? "100%" : "0%", transition: "width 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
         {!reduce && visible && <span className="pipe-pulse-h absolute w-2.5 h-2.5 rounded-full" style={{ top: -3, ...pulseDot }} />}
       </div>
       {/* Mobile: vertical rail down the left */}
       <div className="md:hidden absolute" style={{ left: 27, top: 20, bottom: 20, width: 3 }}>
-        <div className="w-full h-full rounded-full" style={{ background: "var(--line)" }} />
+        <div className="w-full h-full rounded-full" style={{ background: "var(--navy-line)" }} />
         <div className="w-full rounded-full absolute top-0 left-0 brand-gradient" style={{ height: visible ? "100%" : "0%", transition: "height 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
         {!reduce && visible && <span className="pipe-pulse-v absolute w-2.5 h-2.5 rounded-full" style={{ left: -3.5, ...pulseDot }} />}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8 md:gap-6 relative">
+      <div className="grid md:grid-cols-3 gap-8 md:gap-6 relative items-start">
         {steps.map((s, i) => (
           <div
             key={s.title}
@@ -669,12 +754,25 @@ function Pipeline({ steps }) {
             >
               <Icon name={s.icon} className="w-6 h-6" />
             </div>
-            <div className="md:mt-5">
+            <div className="md:mt-5 min-w-0 flex-1 md:w-full">
               <div className="flex items-center gap-2 md:justify-center mb-1">
-                <span className="text-xs font-semibold tnum" style={{ color: "var(--brand)" }}>Step {s.n}</span>
+                <span className="text-[11px] font-semibold uppercase tnum brand-text" style={{ letterSpacing: "0.08em" }}>Step {s.n}</span>
               </div>
-              <h3 className="font-semibold text-neutral-900">{s.title}</h3>
-              <p className="text-sm text-neutral-500 leading-relaxed mt-1 md:max-w-[15rem] md:mx-auto">{s.body}</p>
+              <h3 className="font-semibold text-white">{s.title}</h3>
+              <p className="text-sm leading-relaxed mt-1 md:max-w-[16rem] md:mx-auto" style={{ color: "var(--navy-ink)" }}>{s.body}</p>
+              {/* Live product preview */}
+              <div
+                className="relative mt-5 rounded-2xl p-4 text-left overflow-hidden"
+                style={{
+                  ...glass,
+                  opacity: visible ? 1 : 0,
+                  transform: visible ? "translateY(0)" : "translateY(10px)",
+                  transition: `opacity .6s ease ${0.45 + i * 0.35}s, transform .6s ease ${0.45 + i * 0.35}s`,
+                }}
+              >
+                <div className="pointer-events-none absolute inset-x-5 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.5), transparent)" }} />
+                {previews[i]}
+              </div>
             </div>
           </div>
         ))}
@@ -1046,20 +1144,24 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         <div className="grid md:grid-cols-3 gap-4">
           {problems.map((p, i) => (
             <Reveal key={p.pain} delay={i * 70} className="rounded-2xl border flex flex-col overflow-hidden card-lift" style={{ borderColor: "var(--line)", background: "#fff" }}>
-              {/* Problem */}
-              <div className="p-6 pb-5">
+              {/* Problem — the "before", kept calm and muted */}
+              <div className="p-6 pb-6">
                 <div className="flex items-center gap-2.5 mb-3.5">
-                  <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(239,68,68,0.09)", color: "#DC2626" }}>
+                  <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
                     <Icon name={p.icon} className="w-[18px] h-[18px]" />
                   </span>
-                  <span className="text-[11px] font-semibold uppercase" style={{ color: "#DC2626", letterSpacing: "0.07em" }}>The problem</span>
+                  <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.07em" }}>The problem</span>
                 </div>
                 <h3 className="font-semibold text-neutral-900 mb-1.5">{p.pain}</h3>
                 <p className="text-sm text-neutral-500 leading-relaxed">{p.fix}</p>
               </div>
-              {/* Solution — pinned to the bottom so it aligns across cards */}
+              {/* Solution — the "after", vivid brand payoff, pinned to the bottom so it aligns across cards */}
               <div className="mt-auto px-6 py-5 relative" style={{ background: "var(--brand-soft)", borderTop: "1px solid #EBDCFF" }}>
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(151,59,247,0.35), transparent)" }} />
+                {/* transformation marker — problem flows into fix */}
+                <span className="absolute right-5 -top-3.5 w-7 h-7 rounded-full brand-gradient text-white flex items-center justify-center shadow-[0_6px_16px_-5px_rgba(151,59,247,0.85)]" style={{ border: "2px solid #fff" }} aria-hidden="true">
+                  <Icon name="chevronDown" className="w-4 h-4" />
+                </span>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="shrink-0 text-white rounded-full brand-gradient w-5 h-5 flex items-center justify-center shadow-[0_4px_10px_-4px_rgba(151,59,247,0.9)]">
                     <Icon name="check" className="w-3 h-3" />
@@ -1187,11 +1289,17 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-14 sm:py-24" style={{ background: "var(--bg)" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <Reveal as="h2" className="font-display font-bold text-neutral-900 text-center mb-10 sm:mb-14" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
-            From open role to signed offer
+      {/* How it works — dark "show the product working" band */}
+      <section className="relative overflow-hidden grain py-16 sm:py-28" style={{ background: "#0A0B1A" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 45% at 15% 0%, rgba(90,120,248,0.22) 0%, transparent 60%), radial-gradient(55% 50% at 90% 100%, rgba(151,59,247,0.20) 0%, transparent 60%)" }} />
+        <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
+          <Reveal className="max-w-2xl mx-auto text-center mb-12 sm:mb-16">
+            <p className="eyebrow brand-text mb-2">How it works</p>
+            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
+              From open role to signed offer
+            </h2>
+            <p className="mt-3" style={{ color: "var(--navy-ink)" }}>Three steps. Aster does the heavy lifting in between.</p>
           </Reveal>
           <Pipeline steps={steps} />
         </div>
