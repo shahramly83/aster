@@ -720,6 +720,13 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
   const [cycle, setCycle] = useState("monthly");
   const [faqOpen, setFaqOpen] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const prefersReduced = () =>
     typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [shown, setShown] = useState(prefersReduced);
@@ -862,24 +869,33 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         </defs>
       </svg>
 
-      {/* Nav */}
-      <header className="sticky top-0 z-30 relative" style={{ background: "rgba(5,6,15,0.72)", backdropFilter: "blur(12px)" }}>
+      {/* Nav — solid dark bar */}
+      <header
+        className="sticky top-0 z-30"
+        style={{
+          transition: "box-shadow .3s ease",
+          background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)",
+          backdropFilter: "blur(16px) saturate(150%)",
+          WebkitBackdropFilter: "blur(16px) saturate(150%)",
+          boxShadow: scrolled ? "0 10px 30px -18px rgba(0,0,0,0.8)" : "none",
+        }}
+      >
         <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button onClick={() => navigate("landing")} aria-label="Aster home">
             <BrandLogo onDark logoUrl={logoUrl} />
           </button>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <a href="#features" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Features</a>
-            <a href="#pricing" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
-            <a href="#faq" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
-            <button onClick={() => navigate("login")} className={`hidden sm:block ${linkClass}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onClick={() => goSignup("free")} className="text-sm brand-gradient text-white font-medium px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <a href="#features" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Features</a>
+            <a href="#pricing" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
+            <a href="#faq" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
+            <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "#fff" }}>Sign in</button>
+            <button onClick={() => goSignup("free")} className="ml-1.5 text-sm brand-gradient text-white font-medium px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
               Get started
             </button>
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="sm:hidden p-2 rounded-lg"
+              className="sm:hidden ml-1 p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
               style={{ color: "#fff" }}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
@@ -889,13 +905,13 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </div>
         </div>
         {menuOpen && (
-          <div className="sm:hidden px-4 pb-4 pt-1 space-y-1" style={{ borderTop: "1px solid var(--navy-line)" }}>
+          <div className="sm:hidden px-3 pb-3 pt-1 space-y-0.5">
             {[["Features", "#features"], ["Pricing", "#pricing"], ["FAQ", "#faq"]].map(([label, href]) => (
-              <a key={href} href={href} onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm" style={{ color: "var(--navy-ink)" }}>
+              <a key={href} href={href} onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm hover:bg-white/[0.06] transition-colors" style={{ color: "var(--navy-ink)" }}>
                 {label}
               </a>
             ))}
-            <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="block w-full text-left px-3 py-2.5 rounded-lg text-sm" style={{ color: "#fff" }}>
+            <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="block w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-white/[0.06] transition-colors" style={{ color: "#fff" }}>
               Sign in
             </button>
           </div>
@@ -1003,16 +1019,27 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         </Reveal>
         <div className="grid md:grid-cols-3 gap-4">
           {problems.map((p, i) => (
-            <Reveal key={p.pain} delay={i * 70} className="rounded-2xl border p-6 flex flex-col card-lift" style={{ borderColor: "var(--line)", background: "#fff" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(239,68,68,0.08)", color: "#DC2626" }}>
-                <Icon name={p.icon} className="w-5 h-5" />
+            <Reveal key={p.pain} delay={i * 70} className="rounded-2xl border flex flex-col overflow-hidden card-lift" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              {/* Problem */}
+              <div className="p-6 pb-5">
+                <div className="flex items-center gap-2.5 mb-3.5">
+                  <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(239,68,68,0.09)", color: "#DC2626" }}>
+                    <Icon name={p.icon} className="w-[18px] h-[18px]" />
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase" style={{ color: "#DC2626", letterSpacing: "0.07em" }}>The problem</span>
+                </div>
+                <h3 className="font-semibold text-neutral-900 mb-1.5">{p.pain}</h3>
+                <p className="text-sm text-neutral-500 leading-relaxed">{p.fix}</p>
               </div>
-              <h3 className="font-semibold text-neutral-900 mb-1.5">{p.pain}</h3>
-              <p className="text-sm text-neutral-500 leading-relaxed">{p.fix}</p>
-              <div className="mt-4 pt-4 flex items-start gap-2" style={{ borderTop: "1px solid var(--line)" }}>
-                <span className="mt-0.5 shrink-0 text-white rounded-full brand-gradient w-5 h-5 flex items-center justify-center">
-                  <Icon name="check" className="w-3 h-3" />
-                </span>
+              {/* Solution — pinned to the bottom so it aligns across cards */}
+              <div className="mt-auto px-6 py-5 relative" style={{ background: "var(--brand-soft)", borderTop: "1px solid #EBDCFF" }}>
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(151,59,247,0.35), transparent)" }} />
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="shrink-0 text-white rounded-full brand-gradient w-5 h-5 flex items-center justify-center shadow-[0_4px_10px_-4px_rgba(151,59,247,0.9)]">
+                    <Icon name="check" className="w-3 h-3" />
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase brand-text" style={{ letterSpacing: "0.07em" }}>With Aster</span>
+                </div>
                 <p className="text-sm font-medium text-neutral-900 leading-snug">{p.result}</p>
               </div>
             </Reveal>
