@@ -1,0 +1,7425 @@
+import { useState, useEffect, useRef, Fragment } from "react";
+
+// ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
+
+const MOCK_CANDIDATES = [
+  {
+    id: "c1",
+    fileName: "amira_hassan_resume.pdf",
+    status: "parsed",
+    hasPhoto: true,
+    parsed: {
+      name: "Amira Hassan",
+      email: "amira.hassan@email.com",
+      phone: "+60 12-345 6789",
+      location: "Kuala Lumpur, Malaysia",
+      linkedin_url: "https://linkedin.com/in/example",
+      portfolio_url: "https://amirahassan.dev",
+      summary: "Senior frontend engineer focused on design systems and component architecture, with a track record of shipping performant, accessible UI at scale.",
+      years_of_experience: 6,
+      salary_expectation: "RM 9,500 - 11,000 / month",
+      skills: ["React", "TypeScript", "Tailwind", "GraphQL", "Node.js", "Figma"],
+      languages: ["English", "Malay"],
+      certifications: ["AWS Certified Cloud Practitioner"],
+      experience: [
+        { title: "Senior Frontend Engineer", company: "Grabtech", duration: "2021–Present", summary: "Led design system rebuild, cut bundle size 40%." },
+        { title: "Frontend Developer", company: "Fave", duration: "2018–2021", summary: "Built checkout flows serving 2M+ MAU." },
+      ],
+      education: [{ degree: "B.Sc. Computer Science", institution: "Universiti Malaya", year: "2018" }],
+    },
+  },
+  {
+    id: "c2",
+    fileName: "daniel_teoh_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Daniel Teoh",
+      email: "daniel.teoh@email.com",
+      phone: "+60 16-234 5678",
+      location: "Penang, Malaysia",
+      linkedin_url: null,
+      portfolio_url: null,
+      summary: null,
+      years_of_experience: 4,
+      salary_expectation: null,
+      skills: ["Vue", "JavaScript", "CSS", "WordPress", "PHP"],
+      languages: ["English", "Mandarin", "Malay"],
+      certifications: [],
+      experience: [
+        { title: "Web Developer", company: "Freelance", duration: "2020–Present", summary: "Built 30+ SME sites for local Malaysian businesses." },
+      ],
+      education: [{ degree: "Diploma in IT", institution: "TAR UC", year: "2019" }],
+    },
+  },
+  {
+    id: "c3",
+    fileName: "siti_rahman_resume.pdf",
+    status: "parsed",
+    hasPhoto: true,
+    parsed: {
+      name: "Siti Rahman",
+      email: "siti.rahman@email.com",
+      phone: "+60 19-876 5432",
+      location: "Cyberjaya, Malaysia",
+      linkedin_url: "https://linkedin.com/in/example2",
+      portfolio_url: "https://sitirahman.design",
+      summary: "Creative frontend engineer blending 3D web experiences with production-grade React.",
+      years_of_experience: 3,
+      salary_expectation: null,
+      skills: ["React", "Next.js", "TypeScript", "Three.js", "GSAP", "WebGL"],
+      languages: ["English", "Malay"],
+      certifications: ["Meta Front-End Developer Professional Certificate"],
+      experience: [
+        { title: "Creative Frontend Engineer", company: "Studio Kite", duration: "2022–Present", summary: "Built award-nominated 3D portfolio sites for agency clients." },
+        { title: "Frontend Intern", company: "MDEC", duration: "2021–2022", summary: "Internal dashboard tooling." },
+      ],
+      education: [{ degree: "B.Sc. Software Engineering", institution: "Multimedia University", year: "2022" }],
+    },
+  },
+  {
+    id: "c4",
+    fileName: "wei_ming_resume.pdf",
+    status: "pending",
+    parsed: null,
+  },
+  {
+    id: "c5",
+    fileName: "nurul_aina_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Nurul Aina",
+      email: "nurul.aina@email.com",
+      phone: "+60 13-222 3344",
+      location: "Shah Alam, Malaysia",
+      summary: "Frontend developer with a focus on accessible, responsive interfaces.",
+      years_of_experience: 4,
+      skills: ["React", "JavaScript", "CSS", "Accessibility"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Frontend Developer", company: "Piktochart", duration: "2020–Present", summary: "Owned the component library." }],
+      education: [{ degree: "B.IT", institution: "UiTM", year: "2019" }],
+    },
+  },
+  {
+    id: "c6",
+    fileName: "arjun_menon_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Arjun Menon",
+      email: "arjun.menon@email.com",
+      phone: "+60 17-555 8899",
+      location: "George Town, Malaysia",
+      summary: "Full-stack engineer comfortable across React and Node.",
+      years_of_experience: 5,
+      skills: ["React", "Node.js", "PostgreSQL", "AWS"],
+      languages: ["English", "Tamil"],
+      experience: [{ title: "Software Engineer", company: "MoneyLion", duration: "2019–Present", summary: "Built internal tooling and APIs." }],
+      education: [{ degree: "B.Sc. Computer Science", institution: "USM", year: "2018" }],
+    },
+  },
+  {
+    id: "c7",
+    fileName: "lim_wei_jie_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Lim Wei Jie",
+      email: "weijie.lim@email.com",
+      phone: "+60 12-808 1122",
+      location: "Johor Bahru, Malaysia",
+      summary: "UI-focused developer who enjoys design systems work.",
+      years_of_experience: 3,
+      skills: ["React", "Tailwind", "Figma", "TypeScript"],
+      languages: ["English", "Mandarin", "Malay"],
+      experience: [{ title: "UI Engineer", company: "Setel", duration: "2021–Present", summary: "Shipped the design system." }],
+      education: [{ degree: "B.Des", institution: "UTM", year: "2020" }],
+    },
+  },
+  {
+    id: "c8",
+    fileName: "farah_iman_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Farah Iman",
+      email: "farah.iman@email.com",
+      phone: "+60 11-303 4455",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Frontend engineer with strong testing and performance habits.",
+      years_of_experience: 6,
+      skills: ["React", "TypeScript", "Testing", "Performance"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Senior Frontend Engineer", company: "Carsome", duration: "2018–Present", summary: "Led performance initiatives." }],
+      education: [{ degree: "B.Eng", institution: "UM", year: "2017" }],
+    },
+  },
+];
+
+const MOCK_JOBS = [
+  {
+    id: "j1",
+    title: "Senior Frontend Engineer (React)",
+    department: "Engineering",
+    location: "Kuala Lumpur",
+    employment_type: "full_time",
+    remote_type: "hybrid",
+    seniority_level: "senior",
+    salary_min: 9000,
+    salary_max: 13000,
+    salary_currency: "MYR",
+    status: "open",
+    description:
+      "We're looking for a senior frontend engineer to lead our design system and component architecture, working closely with our design and product teams.",
+    responsibilities: [
+      "Own and evolve our design system and shared component library",
+      "Lead frontend architecture decisions across the product",
+      "Partner with designers on Figma-to-code handoff and design QA",
+      "Mentor mid-level engineers and review pull requests",
+      "Champion accessibility and performance across the codebase",
+    ],
+    requirements: [
+      "5+ years building production React with TypeScript",
+      "Hands-on experience owning or scaling a design system",
+      "Strong, accessible, responsive CSS skills",
+      "Comfortable turning Figma designs into pixel-accurate UI",
+      "Clear communicator with good code-review habits",
+    ],
+    benefits: [
+      "Comprehensive health insurance",
+      "Flexible working hours",
+      "Annual learning & conference budget",
+      "Hybrid work from our KL office",
+      "Latest MacBook Pro",
+    ],
+  },
+  {
+    id: "j2",
+    title: "WordPress Developer",
+    department: "Engineering",
+    location: "Petaling Jaya",
+    employment_type: "full_time",
+    remote_type: "onsite",
+    seniority_level: "mid",
+    salary_min: 4500,
+    salary_max: 7000,
+    salary_currency: "MYR",
+    status: "open",
+    description:
+      "Build and maintain client websites on WordPress. You'll work across PHP themes, plugins, and the occasional custom build for our SME clients.",
+    responsibilities: [
+      "Build and maintain WordPress sites for SME clients",
+      "Develop custom themes and plugins in PHP",
+      "Set up WooCommerce stores and page-builder layouts",
+      "Handle site performance, security and backups",
+      "Work with designers to deliver pixel-accurate pages",
+    ],
+    requirements: [
+      "3+ years of professional WordPress development",
+      "Solid PHP, HTML, CSS and JavaScript",
+      "Experience with WooCommerce and popular page builders",
+      "Understanding of hosting, DNS and basic site security",
+      "Able to manage multiple client projects at once",
+    ],
+    benefits: ["EPF & SOCSO", "Medical coverage", "Parking allowance", "Team lunches", "Clear career path"],
+  },
+  {
+    id: "j3",
+    title: "Product Designer (UI/UX)",
+    department: "Design",
+    location: "Kuala Lumpur",
+    employment_type: "full_time",
+    remote_type: "remote",
+    seniority_level: "mid",
+    salary_min: 6000,
+    salary_max: 9500,
+    salary_currency: "MYR",
+    status: "open",
+    description:
+      "Own the end-to-end design of our products — from research and wireframes to polished UI in Figma. Partner closely with engineering on handoff.",
+    responsibilities: [
+      "Run discovery — user research, flows and wireframes",
+      "Design polished, accessible UI in Figma",
+      "Contribute to and maintain our design system",
+      "Prototype and test ideas before handoff",
+      "Partner with engineering to ship pixel-accurate work",
+    ],
+    requirements: [
+      "Strong Figma and prototyping skills",
+      "A portfolio of shipped product work",
+      "Experience contributing to design systems",
+      "Comfortable with user research and testing",
+      "Good written communication for async, remote work",
+    ],
+    benefits: ["Fully remote", "Home-office budget", "Flexible hours", "Annual leave 18 days", "Learning stipend"],
+  },
+  {
+    id: "j4",
+    title: "Creative Frontend Developer (3D / Motion)",
+    department: "Engineering",
+    location: "Kuala Lumpur",
+    employment_type: "contract",
+    remote_type: "hybrid",
+    seniority_level: "senior",
+    salary_min: 8000,
+    salary_max: 12000,
+    salary_currency: "MYR",
+    status: "closed",
+    description:
+      "Craft immersive, animated web experiences using React, Three.js and GSAP for our flagship marketing sites and product launches.",
+    responsibilities: [
+      "Build immersive, animated marketing sites",
+      "Develop 3D and WebGL scenes with Three.js",
+      "Create smooth motion and interactions with GSAP",
+      "Optimise creative work for performance across devices",
+      "Collaborate with designers on art direction",
+    ],
+    requirements: [
+      "Strong React and TypeScript",
+      "Production experience with Three.js and WebGL",
+      "Advanced animation skills (GSAP or similar)",
+      "An eye for motion and interaction detail",
+      "Portfolio of interactive or creative web work",
+    ],
+    benefits: ["Project completion bonus", "Latest hardware", "Creative freedom", "Flexible schedule", "Potential to extend"],
+  },
+];
+
+const MOCK_MATCHES = {
+  j1: [
+    { candidateId: "c1", score: 0.91, rationale: "Strong match — 5+ years of React/TypeScript with direct design system ownership at Grabtech, which maps closely to the role's core responsibility. Prior Figma experience is a clean fit for the design handoff workflow." },
+    { candidateId: "c3", score: 0.78, rationale: "Good technical overlap in React/TypeScript and strong creative engineering background, though experience skews toward 3D/animation work rather than design system architecture specifically." },
+    { candidateId: "c6", score: 0.74, rationale: "Solid full-stack React/Node background with production experience; slightly less design-system depth than the top candidates." },
+    { candidateId: "c8", score: 0.69, rationale: "Senior frontend with strong testing and performance habits — a dependable fit, though less design-system-specific evidence in the resume." },
+    { candidateId: "c5", score: 0.63, rationale: "Accessible, responsive UI focus is relevant, but fewer years and less TypeScript depth than the leading applicants." },
+    { candidateId: "c7", score: 0.57, rationale: "UI-focused with Tailwind and design-system exposure; earlier-career, so ramp-up on complex architecture is likely." },
+    { candidateId: "c2", score: 0.42, rationale: "Limited fit — primary stack is Vue/WordPress rather than React, and experience is freelance SME sites rather than large-scale design systems." },
+  ],
+};
+
+const INITIAL_INTERVIEWERS = [
+  { id: "iv1", name: "Jane Tan", email: "jane@company.com", timezone: "Asia/Kuala_Lumpur" },
+  { id: "iv2", name: "Ahmad Zulkifli", email: "ahmad@company.com", timezone: "Asia/Kuala_Lumpur" },
+];
+
+// Collaborative scorecards — structured interview feedback, one per interviewer.
+const SCORE_CRITERIA = [
+  { key: "technical", label: "Technical skills" },
+  { key: "communication", label: "Communication" },
+  { key: "cultureFit", label: "Culture fit" },
+  { key: "experience", label: "Experience" },
+];
+const RECOMMENDATIONS = [
+  { key: "strong_yes", label: "Strong yes", color: "#166534", bg: "#DCFCE7" },
+  { key: "yes", label: "Yes", color: "#15803D", bg: "#F0FDF4" },
+  { key: "no", label: "No", color: "#B91C1C", bg: "#FEF2F2" },
+  { key: "strong_no", label: "Strong no", color: "#991B1B", bg: "#FEE2E2" },
+];
+const SCORECARDS_BY_CANDIDATE = {
+  c1: [
+    { id: "sc1", interviewer: "Jane Tan", ratings: { technical: 4, communication: 4, cultureFit: 3, experience: 4 }, recommendation: "strong_yes", notes: "Excellent design-system depth — walked through real trade-offs clearly. I'd move fast to an offer.", submittedAt: "2d ago" },
+    { id: "sc2", interviewer: "Ahmad Zulkifli", ratings: { technical: 4, communication: 2, cultureFit: 3, experience: 3 }, recommendation: "yes", notes: "Strong technically but a little terse explaining decisions. Worth a second chat on collaboration style.", submittedAt: "1d ago" },
+  ],
+};
+
+// Applicants keyed by job id — the single source of truth for both the
+// Jobs card count and the Applicants screen. Base stages here; a shared
+// override (e.g. from a confirmed booking) can win at render time.
+const APPLICANTS_BY_JOB = {
+  j1: [
+    { candidateId: "c1", appliedAt: "today", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c3", appliedAt: "2d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "LinkedIn" },
+    { candidateId: "c2", appliedAt: "5d ago", baseStage: "rejected", rejectionEmailSent: true, source: "Referral" },
+    { candidateId: "c6", appliedAt: "1d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "LinkedIn" },
+    { candidateId: "c8", appliedAt: "3d ago", baseStage: "hired", rejectionEmailSent: false, source: "Referral" },
+    { candidateId: "c5", appliedAt: "4d ago", baseStage: "applied", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c7", appliedAt: "6d ago", baseStage: "applied", rejectionEmailSent: false, source: "JobStreet" },
+  ],
+};
+
+const applicantCountFor = (jobId) => (APPLICANTS_BY_JOB[jobId] || []).length;
+
+// ---------- Shared UI bits ----------
+
+const BRAND_STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+:root {
+  --bg: #FAFAFB;
+  --card: #FFFFFF;
+  --line: #ECECEF;
+  --line-strong: #DEDEE3;
+  --ink: #12132A;
+  --ink-2: #56566A;
+  --ink-3: #8A8A99;
+  --brand: #973BF7;
+  --brand-2: #5A78F8;
+  --brand-0: #D65BFF;
+  --brand-soft: #F6EEFF;
+  --navy: #16183A;
+  --navy-2: #1E2148;
+  --navy-line: #2A2D57;
+  --navy-ink: #AEB0CE;
+  --pink: #FCE7EA;
+  --pink-ink: #1C1E3A;
+}
+.font-display { font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
+.act-app, .act-app input, .act-app select, .act-app textarea, .act-app button {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+.act-app { font-feature-settings: 'cv05','ss01'; }
+.tnum { font-variant-numeric: tabular-nums; }
+.brand-gradient { background-image: linear-gradient(135deg, var(--brand-0) 0%, var(--brand) 48%, var(--brand-2) 100%); }
+.brand-text { background-image: linear-gradient(135deg, var(--brand-0) 0%, var(--brand) 48%, var(--brand-2) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.card-hover { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
+.card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
+.act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 1px 3px rgba(18,19,42,.02); }
+
+/* Login background animations */
+@keyframes loginKenBurns {
+  0%   { transform: scale(1.08) translate3d(0, 0, 0); }
+  50%  { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+  100% { transform: scale(1.08) translate3d(0, 0, 0); }
+}
+@keyframes loginDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(6%, -4%, 0) scale(1.15); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes loginDriftAlt {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-5%, 5%, 0) scale(1.1); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes loginGlowPulse {
+  0%, 100% { opacity: .10; }
+  50%      { opacity: .22; }
+}
+.login-bg-anim { animation: loginKenBurns 26s ease-in-out infinite; will-change: transform; }
+.login-orb-a { animation: loginDrift 22s ease-in-out infinite; will-change: transform; }
+.login-orb-b { animation: loginDriftAlt 28s ease-in-out infinite; will-change: transform; }
+.login-glow { animation: loginGlowPulse 12s ease-in-out infinite; will-change: opacity; }
+@media (prefers-reduced-motion: reduce) {
+  .login-bg-anim, .login-orb-a, .login-orb-b, .login-glow { animation: none; }
+}
+
+/* Accessibility: visible keyboard focus across interactive elements */
+.act-app a:focus-visible, .act-app button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Pipeline flow pulse (how-it-works) */
+@keyframes pipePulseH { 0% { left: -4%; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@keyframes pipePulseV { 0% { top: -4%; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.pipe-pulse-h { animation: pipePulseH 3.2s ease-in-out infinite; }
+.pipe-pulse-v { animation: pipePulseV 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pipe-pulse-h, .pipe-pulse-v { animation: none; }
+}
+`;
+
+function Shell({ children }) {
+  return (
+    <div className="act-app min-h-screen" style={{ background: "var(--bg)" }}>
+      <style dangerouslySetInnerHTML={{ __html: BRAND_STYLES }} />
+      {children}
+    </div>
+  );
+}
+
+function BackLink({ onClick, children }) {
+  return (
+    <button onClick={onClick} className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800 transition-colors">
+      {children}
+    </button>
+  );
+}
+
+function PreviewBanner() {
+  return (
+    <div className="border-b px-4 sm:px-6 py-2 text-center" style={{ background: "var(--brand-soft)", borderColor: "#EBDBFF" }}>
+      <p className="text-xs" style={{ color: "var(--brand-2)" }}>
+        In-chat preview — mock data only, no real backend calls
+      </p>
+    </div>
+  );
+}
+
+// ---------- Screens ----------
+
+function LoginScreen({ onLogin, navigate, logoUrl }) {
+  const [email, setEmail] = useState("shah@example.com");
+  const [password, setPassword] = useState("••••••••");
+  const field = "w-full rounded-xl bg-[#F5F5F7] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow";
+  const fieldStyle = { border: "1px solid var(--line)", color: "var(--ink)" };
+  const fieldDark = "w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow placeholder:text-[color:var(--navy-ink)]";
+  const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ background: "#05060F" }}>
+      {/* Animated image layer (Ken Burns) */}
+      <div
+        className="login-bg-anim pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: `url(${LOGIN_BG})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+      {/* Dark overlay for readability */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "linear-gradient(rgba(5,6,20,0.35), rgba(5,6,20,0.55))" }}
+      />
+      {/* Drifting glow orbs */}
+      <div
+        className="login-orb-a pointer-events-none absolute -top-24 -left-16 w-[520px] h-[520px] rounded-full blur-3xl opacity-[0.30]"
+        style={{ background: "radial-gradient(circle, #4F6BFF 0%, transparent 70%)" }}
+      />
+      <div
+        className="login-orb-b pointer-events-none absolute -bottom-28 -right-10 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.28]"
+        style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }}
+      />
+      {/* Soft brand glow behind the card */}
+      <div
+        className="login-glow pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full blur-3xl"
+        style={{ background: "radial-gradient(circle, var(--brand) 0%, var(--brand-2) 55%, transparent 72%)" }}
+      />
+      <div className="w-full max-w-sm rounded-3xl p-8 relative z-10 act-shadow" style={{ background: "rgba(30,33,72,0.85)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
+        <div className="mb-7">
+          <button onClick={() => navigate("landing")} aria-label="Back to Aster home">
+            <BrandLogo onDark logoUrl={logoUrl} />
+          </button>
+        </div>
+        <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Welcome back</h1>
+        <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>Sign in to your Aster dashboard.</p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1.5" style={{ color: "var(--navy-ink)" }}>Email</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} className={fieldDark} style={fieldDarkStyle} />
+          </div>
+          <div>
+            <label className="block text-sm mb-1.5" style={{ color: "var(--navy-ink)" }}>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldDark} style={fieldDarkStyle} />
+          </div>
+          <button
+            onClick={onLogin}
+            className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]"
+          >
+            Sign in
+          </button>
+          <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
+            Don't have an account?{" "}
+            <button onClick={() => navigate && navigate("signup")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>
+              Sign up
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MatchRing({ value, size = 52, stroke = 5, filled = true, delay = 0, gradient = false }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const target = circ * (1 - value / 100);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={gradient ? "url(#matchGrad)" : "rgba(174,176,206,0.7)"}
+          strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={filled ? target : circ}
+          style={{ transition: `stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1) ${delay}ms` }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-sm font-bold tnum" style={{ color: gradient ? "#fff" : "var(--navy-ink)" }}>
+          {value}<span className="text-[9px]">%</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Light-background version of the match ring, used in the in-app Search results.
+function ScoreRingLight({ value, size = 56, stroke = 5 }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const off = circ * (1 - value / 100);
+  const color = value >= 80 ? "#16A34A" : value >= 55 ? "var(--brand)" : "#8A8A99";
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line-strong)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={off}
+          style={{ transition: "stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-sm font-bold tnum" style={{ color: "var(--ink)" }}>
+          {value}<span className="text-[9px]">%</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Pipeline({ steps }) {
+  const ref = useRef(null);
+  const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [visible, setVisible] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const obs = new IntersectionObserver(
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }),
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [reduce]);
+
+  const pulseDot = {
+    background: "#fff",
+    boxShadow: "0 0 12px 3px rgba(178,116,255,0.85)",
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Desktop: horizontal rail through the icon centers */}
+      <div className="hidden md:block absolute" style={{ top: 27, left: "16.66%", right: "16.66%" }}>
+        <div className="h-[3px] w-full rounded-full" style={{ background: "var(--line)" }} />
+        <div className="h-[3px] rounded-full absolute top-0 left-0 brand-gradient" style={{ width: visible ? "100%" : "0%", transition: "width 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
+        {!reduce && visible && <span className="pipe-pulse-h absolute w-2.5 h-2.5 rounded-full" style={{ top: -3, ...pulseDot }} />}
+      </div>
+      {/* Mobile: vertical rail down the left */}
+      <div className="md:hidden absolute" style={{ left: 27, top: 20, bottom: 20, width: 3 }}>
+        <div className="w-full h-full rounded-full" style={{ background: "var(--line)" }} />
+        <div className="w-full rounded-full absolute top-0 left-0 brand-gradient" style={{ height: visible ? "100%" : "0%", transition: "height 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
+        {!reduce && visible && <span className="pipe-pulse-v absolute w-2.5 h-2.5 rounded-full" style={{ left: -3.5, ...pulseDot }} />}
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-8 md:gap-6 relative">
+        {steps.map((s, i) => (
+          <div
+            key={s.title}
+            className="flex md:flex-col items-start md:items-center gap-4 md:gap-0 text-left md:text-center"
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(12px)",
+              transition: `opacity .55s ease ${0.2 + i * 0.35}s, transform .55s ease ${0.2 + i * 0.35}s`,
+            }}
+          >
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center relative z-10 shrink-0 brand-gradient text-white"
+              style={{
+                boxShadow: visible ? "0 10px 24px -8px rgba(151,59,247,0.6)" : "none",
+                transform: visible ? "scale(1)" : "scale(.7)",
+                transition: `transform .5s cubic-bezier(.34,1.56,.64,1) ${0.25 + i * 0.35}s, box-shadow .5s ease ${0.25 + i * 0.35}s`,
+              }}
+            >
+              <Icon name={s.icon} className="w-6 h-6" />
+            </div>
+            <div className="md:mt-5">
+              <div className="flex items-center gap-2 md:justify-center mb-1">
+                <span className="text-xs font-semibold tnum" style={{ color: "var(--brand)" }}>Step {s.n}</span>
+              </div>
+              <h3 className="font-semibold text-neutral-900">{s.title}</h3>
+              <p className="text-sm text-neutral-500 leading-relaxed mt-1 md:max-w-[15rem] md:mx-auto">{s.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
+  const [cycle, setCycle] = useState("monthly");
+  const [faqOpen, setFaqOpen] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const prefersReduced = () =>
+    typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [shown, setShown] = useState(prefersReduced);
+  useEffect(() => {
+    if (prefersReduced()) return;
+    const t = setTimeout(() => setShown(true), 140);
+    return () => clearTimeout(t);
+  }, []);
+
+  const goSignup = (planKey) => {
+    setSignupPlan && setSignupPlan(planKey);
+    setSignupCycle && setSignupCycle(cycle);
+    navigate("signup");
+  };
+
+  const ranked = [
+    { name: "Amira Hassan", note: "React · 6 yrs · led a design system", match: 91, top: true },
+    { name: "Siti Rahman", note: "Product-minded frontend · 5 yrs", match: 78 },
+    { name: "Daniel Teoh", note: "Strong CSS, growing into React", match: 42 },
+  ];
+
+  const features = [
+    { icon: "doc", title: "AI resume parsing", body: "Drop in a CV and get structured skills, experience, and a summary in seconds. No manual data entry." },
+    { icon: "target", title: "Role-fit match score", body: "Every applicant is scored against the role, so the strongest fits rise to the top on their own." },
+    { icon: "calendar", title: "Interview scheduling", body: "Connect one workspace calendar and let candidates self-book. Google Meet and Teams links are created for you." },
+    { icon: "users", title: "One shared pipeline", body: "Track every candidate from applied to hired, with the whole team on the same board." },
+  ];
+
+  const steps = [
+    { n: "1", icon: "jobs", title: "Post a role", body: "Create the job and share the apply link, or upload the CVs you already have." },
+    { n: "2", icon: "target", title: "Let AI screen", body: "Aster reads and scores everything, so you start from a shortlist instead of a pile." },
+    { n: "3", icon: "hire", title: "Schedule & hire", body: "Send invites, let candidates pick a slot, and take the best one through to an offer." },
+  ];
+
+  const problems = [
+    { icon: "doc", pain: "Drowning in CVs", fix: "50+ resumes per role, each opened and read by hand.", result: "Aster reads every CV as it arrives and summarises skills, experience, and fit in a single line." },
+    { icon: "target", pain: "Good people slip through", fix: "The strongest fit is buried on page 3 of a spreadsheet.", result: "Every applicant gets a match score for the role. The strongest sit at the top of the list, with reasons rather than just a number." },
+    { icon: "calendar", pain: "Scheduling ping-pong", fix: "A dozen emails just to lock one interview slot.", result: "Send one link. The candidate picks a time from your live calendar, and the Meet or Teams invite is created automatically." },
+    { icon: "interview", pain: "Every interviewer improvises", fix: "No two interviews cover the same ground, so comparisons are guesswork.", result: "The moment an interview is booked, Aster drafts questions for that role and that candidate, so every panel covers the same ground." },
+    { icon: "users", pain: "Feedback scattered in DMs", fix: "Scores and gut-feels live in chats, sticky notes and inboxes.", result: "One scorecard per candidate. Everyone rates the same criteria, and you get a clear yes or no from the team." },
+    { icon: "dashboard", pain: "No read on the pipeline", fix: "Nobody can say how many are in play or where things stall.", result: "One dashboard shows what came in, who is at which stage, and where things are stalling." },
+  ];
+
+  const moreFeatures = [
+    { icon: "interview", title: "AI interview questions", body: "Questions written for the role and the person you're meeting, grouped by theme and ready the moment the interview is booked." },
+    { icon: "users", title: "Collaborative scorecards", body: "Everyone rates the same criteria and leaves notes. Aster adds it up into one team call." },
+    { icon: "briefcase", title: "Public apply pages", body: "Every role gets a shareable link. Post it on LinkedIn, JobStreet, or anywhere else, and applicants land straight in your pipeline." },
+    { icon: "chat", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
+    { icon: "interviewers", title: "Team seats & roles", body: "Add interviewers to your plan. They see only the candidates they're assessing, nothing else." },
+    { icon: "shield", title: "Privacy by default", body: "Your candidates' data stays yours: encrypted, in your workspace, and exportable or deletable whenever you want." },
+  ];
+
+  const compareGroups = [
+    { group: "Jobs & team", rows: [
+      { label: "Active job postings", free: "1", starter: "5", pro: "Unlimited", ent: "Unlimited" },
+      { label: "Team seats", free: "1 (just you)", starter: "3", pro: "Multiple", ent: "Unlimited" },
+      { label: "Public apply pages", free: true, starter: true, pro: true, ent: true },
+      { label: "Shared candidate pipeline", free: true, starter: true, pro: true, ent: true },
+    ]},
+    { group: "AI screening", rows: [
+      { label: "Resume parsing", free: "10 / month", starter: "100 / month", pro: "Unlimited", ent: "Unlimited" },
+      { label: "AI match runs", free: "3 / month", starter: "30 / month", pro: "Unlimited", ent: "Unlimited" },
+      { label: "Candidates ranked per run", free: "Top 3", starter: "Top 10", pro: "All applicants", ent: "All applicants" },
+      { label: "Match reasoning shown", free: false, starter: true, pro: true, ent: true },
+      { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
+    ]},
+    { group: "Interviews", rows: [
+      { label: "Interview scheduling", free: true, starter: true, pro: true, ent: true },
+      { label: "AI interview questions", free: true, starter: true, pro: true, ent: true },
+      { label: "Collaborative scorecards", free: false, starter: true, pro: true, ent: true },
+      { label: "WhatsApp Business reminders", free: false, starter: false, pro: true, ent: true },
+    ]},
+    { group: "Insights & support", rows: [
+      { label: "Hiring analytics dashboard", free: true, starter: true, pro: true, ent: true },
+      { label: "SSO & audit logs", free: false, starter: false, pro: false, ent: true },
+      { label: "Dedicated success manager", free: false, starter: false, pro: false, ent: true },
+      { label: "Custom SLAs & onboarding", free: false, starter: false, pro: false, ent: true },
+      { label: "Support", free: "Community", starter: "Email", pro: "Priority", ent: "Dedicated" },
+    ]},
+  ];
+
+  const testimonials = [
+    { quote: "We went from a shared spreadsheet and 40 open tabs to one ranked list. Our first good hire came two weeks faster.", name: "Sarah Chen", role: "Hiring Lead · Design studio, Singapore", initials: "SC" },
+    { quote: "Parsing alone saved my team hours a week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Tom Beckett", role: "Founder · SaaS startup, London", initials: "TB" },
+    { quote: "The match score isn't magic, but it's a genuinely good first pass. New reviewers trust the shortlist right away.", name: "Priya Nair", role: "People Ops · Fintech, Dubai", initials: "PN" },
+  ];
+
+
+  const faqs = [
+    { q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
+    { q: "Is my candidate data secure?", a: "Candidate data is encrypted in transit and at rest, with access limited to your workspace. You can export or delete it at any time." },
+    { q: "Can I cancel anytime?", a: "Yes. Cancel from Billing whenever you like. Your plan stays active until the end of the current period, with no lock-in." },
+    { q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
+    { q: "Do you work with Google and Microsoft?", a: "Both. Connect a Google or Microsoft workspace calendar, and interviews automatically create Meet or Teams links for everyone." },
+  ];
+
+  const linkClass = "text-sm px-3 py-2 rounded-lg transition-colors";
+
+  return (
+    <div style={{ background: "#fff", color: "var(--ink)" }}>
+      {/* Shared gradient for the match rings */}
+      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
+        <defs>
+          <linearGradient id="matchGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#D65BFF" />
+            <stop offset="100%" stopColor="#5A78F8" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      {/* Nav */}
+      <header className="sticky top-0 z-30" style={{ background: "rgba(5,6,15,0.72)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--navy-line)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <button onClick={() => navigate("landing")} aria-label="Aster home">
+            <BrandLogo onDark logoUrl={logoUrl} />
+          </button>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <a href="#features" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Features</a>
+            <a href="#pricing" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
+            <a href="#faq" className={`hidden sm:block ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
+            <button onClick={() => navigate("login")} className={`hidden sm:block ${linkClass}`} style={{ color: "#fff" }}>Sign in</button>
+            <button onClick={() => goSignup("free")} className="text-sm brand-gradient text-white font-medium px-4 py-2 rounded-xl hover:opacity-90 transition-opacity">
+              Get started
+            </button>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="sm:hidden p-2 rounded-lg"
+              style={{ color: "#fff" }}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+            >
+              <Icon name={menuOpen ? "close" : "menu"} className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        {menuOpen && (
+          <div className="sm:hidden px-4 pb-4 pt-1 space-y-1" style={{ borderTop: "1px solid var(--navy-line)" }}>
+            {[["Features", "#features"], ["Pricing", "#pricing"], ["FAQ", "#faq"]].map(([label, href]) => (
+              <a key={href} href={href} onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm" style={{ color: "var(--navy-ink)" }}>
+                {label}
+              </a>
+            ))}
+            <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="block w-full text-left px-3 py-2.5 rounded-lg text-sm" style={{ color: "#fff" }}>
+              Sign in
+            </button>
+          </div>
+        )}
+      </header>
+
+      {/* Hero — the AI match score is the thesis */}
+      <section className="relative overflow-hidden" style={{ background: "#070814" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(70% 55% at 78% 12%, rgba(90,120,248,0.35) 0%, transparent 60%), radial-gradient(60% 50% at 10% 90%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
+          {/* Left: copy */}
+          <div>
+            <span className="inline-block text-xs font-medium px-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}>
+              AI recruitment platform for growing teams
+            </span>
+            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.14, textWrap: "balance" }}>
+              Hire the right person,{" "}
+              <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>without reading every CV.</span>
+            </h1>
+            <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "var(--navy-ink)" }}>
+              Aster screens every resume, ranks applicants against the role, and handles interview scheduling. A shortlist that used to take two weeks now takes an afternoon.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <button onClick={() => goSignup("free")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl hover:opacity-90 transition-opacity shadow-[0_12px_34px_-12px_rgba(151,59,247,0.9)]">
+                Start free trial
+              </button>
+              <a href="#pricing" className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>
+                See pricing
+              </a>
+            </div>
+            <p className="mt-4 text-xs" style={{ color: "var(--ink-3)" }}>No credit card to start · Set up in minutes</p>
+          </div>
+
+          {/* Right: the signature — live match ranking */}
+          <div className="rounded-2xl p-5 sm:p-6" style={{ background: "rgba(22,24,58,0.66)", border: "1px solid var(--navy-line)", backdropFilter: "blur(8px)", boxShadow: "0 40px 90px -40px rgba(0,0,0,0.75)" }}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Ranking for</p>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1" style={{ background: "rgba(151,59,247,0.18)", color: "#fff" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI match
+              </span>
+            </div>
+            <p className="text-white font-semibold font-display mb-4">Senior Frontend Engineer</p>
+
+            <div className="space-y-2.5">
+              {ranked.map((c, i) => (
+                <div
+                  key={c.name}
+                  className="flex items-center gap-3 rounded-xl p-3"
+                  style={{
+                    background: c.top ? "rgba(151,59,247,0.14)" : "rgba(255,255,255,0.03)",
+                    border: c.top ? "1px solid rgba(178,116,255,0.5)" : "1px solid var(--navy-line)",
+                    opacity: shown ? 1 : 0,
+                    transform: shown ? "translateY(0)" : "translateY(8px)",
+                    transition: `opacity .5s ease ${120 + i * 130}ms, transform .5s ease ${120 + i * 130}ms`,
+                  }}
+                >
+                  <MatchRing value={c.match} filled={shown} delay={140 + i * 140} gradient={c.top} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                      {c.top && <span className="text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold shrink-0">Top match</span>}
+                    </div>
+                    <p className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>{c.note}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] mt-4" style={{ color: "var(--ink-3)" }}>Ranked from 46 applicants in 3 seconds.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Problem → solution */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+        <div className="max-w-2xl mb-12">
+          <p className="text-sm font-semibold brand-text mb-2">Where hiring slows down</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+            Hiring always gets stuck in the same places.
+          </h2>
+          <p className="text-neutral-500 mt-3">Aster was designed around each of them.</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          {problems.map((p) => (
+            <div key={p.pain} className="rounded-2xl border p-6 flex flex-col" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(239,68,68,0.08)", color: "#DC2626" }}>
+                <Icon name={p.icon} className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-neutral-900 mb-1.5">{p.pain}</h3>
+              <p className="text-sm text-neutral-500 leading-relaxed">{p.fix}</p>
+              <div className="mt-4 pt-4 flex items-start gap-2" style={{ borderTop: "1px solid var(--line)" }}>
+                <span className="mt-0.5 shrink-0 text-white rounded-full brand-gradient w-5 h-5 flex items-center justify-center">
+                  <Icon name="check" className="w-3 h-3" />
+                </span>
+                <p className="text-sm font-medium text-neutral-900 leading-snug">{p.result}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* compact stat band */}
+        <div className="mt-6 rounded-2xl border grid grid-cols-3 divide-x overflow-hidden" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+          {[["3×", "faster shortlists"], ["46 → 3", "applicants to shortlist"], ["2 wks", "sooner to hire"]].map(([v, l]) => (
+            <div key={l} className="px-3 py-5 text-center" style={{ borderColor: "var(--line)" }}>
+              <p className="text-xl sm:text-2xl font-bold font-display brand-text">{v}</p>
+              <p className="text-[11px] sm:text-xs text-neutral-500 mt-1 leading-tight">{l}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-20">
+        <div className="max-w-2xl mb-12">
+          <p className="text-sm font-semibold brand-text mb-2">Everything in one place</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+            The whole hiring pipeline, minus the spreadsheets.
+          </h2>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4 md:auto-rows-fr">
+          {/* AI resume parsing — quiet tile */}
+          <div className="rounded-2xl p-6 border card-hover h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name="doc" className="w-5 h-5" />
+            </div>
+            <h3 className="font-semibold text-neutral-900 mb-1.5">AI resume parsing</h3>
+            <p className="text-sm text-neutral-500 leading-relaxed">Drop in a CV and get structured skills, experience, and a summary in seconds. No manual data entry.</p>
+          </div>
+
+          {/* Role-fit match score — the signature, dark focal tile */}
+          <div className="md:col-span-2 md:row-span-2 rounded-2xl p-6 sm:p-7 flex flex-col relative overflow-hidden" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
+            <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(70% 60% at 85% 0%, rgba(90,120,248,0.4) 0%, transparent 60%)" }} />
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.18)", color: "#fff" }}>
+                <Icon name="target" className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-white text-lg mb-1.5">Role-fit match score</h3>
+              <p className="text-sm leading-relaxed max-w-md" style={{ color: "var(--navy-ink)" }}>
+                Every applicant is scored against the role, so the strongest fits rise to the top on their own. No more reading every CV in full.
+              </p>
+            </div>
+            <div className="relative mt-6 rounded-xl p-3 flex-1 flex flex-col justify-center gap-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+              {[
+                { name: "Amira Hassan", note: "React · 6 yrs", match: 91, top: true },
+                { name: "Siti Rahman", note: "Product-minded · 5 yrs", match: 78 },
+                { name: "Daniel Teoh", note: "Strong CSS, junior", match: 42 },
+              ].map((c) => (
+                <div key={c.name} className="flex items-center gap-3 rounded-lg px-2.5 py-2" style={{ background: c.top ? "rgba(151,59,247,0.16)" : "transparent" }}>
+                  <MatchRing value={c.match} size={40} stroke={4} filled gradient={c.top} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white truncate">{c.name}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>{c.note}</p>
+                  </div>
+                  {c.top && <span className="text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold shrink-0">Top</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Interview scheduling — quiet tile */}
+          <div className="rounded-2xl p-6 border card-hover h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name="calendar" className="w-5 h-5" />
+            </div>
+            <h3 className="font-semibold text-neutral-900 mb-1.5">Interview scheduling</h3>
+            <p className="text-sm text-neutral-500 leading-relaxed">Connect one workspace calendar and let candidates self-book. Google Meet and Teams links are created for you.</p>
+          </div>
+
+          {/* One shared pipeline — wide tile with real stages */}
+          <div className="md:col-span-3 rounded-2xl p-6 border card-hover" style={{ borderColor: "var(--line)", background: "#fff" }}>
+            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+              <div className="lg:max-w-xs">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                  <Icon name="users" className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-neutral-900 mb-1.5">One shared pipeline</h3>
+                <p className="text-sm text-neutral-500 leading-relaxed">Track every candidate from applied to hired, with the whole team looking at the same board.</p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap lg:flex-1 lg:justify-end">
+                {[["Applied", 24], ["Screening", 8], ["Interview", 3], ["Offer", 1]].map(([stage, n], i, arr) => (
+                  <div key={stage} className="flex items-center gap-2">
+                    <div className="rounded-xl px-3 py-2 text-center" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                      <p className="text-lg font-bold font-display tnum" style={{ color: i === arr.length - 1 ? "#16A34A" : "var(--brand)" }}>{n}</p>
+                      <p className="text-[11px] text-neutral-500 leading-none">{stage}</p>
+                    </div>
+                    {i < arr.length - 1 && <span className="text-neutral-300"><Icon name="chevronRight" className="w-4 h-4" /></span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* More capabilities */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-8 -mt-4">
+        <div className="max-w-2xl mb-10">
+          <p className="text-sm font-semibold brand-text mb-2">And everything around it</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}>
+            From first application to signed offer.
+          </h2>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {moreFeatures.map((f) => (
+            <div key={f.title} className="rounded-2xl p-6 border card-hover h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <Icon name={f.icon} className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-neutral-900 mb-1.5">{f.title}</h3>
+              <p className="text-sm text-neutral-500 leading-relaxed">{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-20" style={{ background: "var(--bg)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="font-display font-bold text-neutral-900 text-center mb-14" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+            From open role to signed offer
+          </h2>
+          <Pipeline steps={steps} />
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+        <div className="max-w-2xl mb-12">
+          <p className="text-sm font-semibold brand-text mb-2">What customers say</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+            Teams around the world hire faster with Aster.
+          </h2>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          {testimonials.map((t) => (
+            <figure key={t.name} className="rounded-2xl border p-6 flex flex-col h-full" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              <div className="flex gap-0.5 mb-4" style={{ color: "#F5A623" }}>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <svg key={i} viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
+                    <path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" />
+                  </svg>
+                ))}
+              </div>
+              <blockquote className="text-sm text-neutral-700 leading-relaxed flex-1">"{t.quote}"</blockquote>
+              <figcaption className="mt-5 pt-4 flex items-center gap-3" style={{ borderTop: "1px solid var(--line)" }}>
+                <span className="w-9 h-9 rounded-full brand-gradient text-white text-xs font-semibold font-display flex items-center justify-center shrink-0">{t.initials}</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-neutral-900 truncate">{t.name}</p>
+                  <p className="text-xs text-neutral-500 truncate">{t.role}</p>
+                </div>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-20">
+        <div className="text-center mb-8">
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>Pricing</h2>
+          <p className="text-neutral-500 mt-2">Start free. Upgrade when you're hiring at volume. Prices in USD, before tax.</p>
+          <div className="inline-flex rounded-full border p-0.5 mt-6" style={{ borderColor: "var(--line)" }}>
+            {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
+              const on = cycle === c.key;
+              return (
+                <button key={c.key} onClick={() => setCycle(c.key)}
+                  className={`text-sm px-4 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                  style={on ? { background: "var(--ink)" } : undefined}>
+                  {c.label}
+                  {c.key === "yearly" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>Save 20%</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Full comparison — card layout */}
+        <div className="mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 items-stretch max-w-sm sm:max-w-none mx-auto">
+            {[
+              { key: "free", name: "Free", col: "free", cta: "Get started", ghost: true,
+                price: "$0", sub: "forever", rm: null, note: null },
+              { key: "starter", name: "Starter", col: "starter", cta: "Start Starter", ghost: true,
+                price: cycle === "yearly" ? "$28" : "$35",
+                sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
+                rm: null,
+                note: cycle === "yearly" ? "$336/yr (save 20%)" : null },
+              { key: "professional", name: "Professional", col: "pro", cta: "Start Professional", popular: true,
+                price: cycle === "yearly" ? "$79" : "$99",
+                sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
+                rm: null,
+                note: cycle === "yearly" ? "$948/yr (save 20%)" : null },
+              { key: "enterprise", name: "Enterprise", col: "ent", cta: "Contact sales", ghost: true,
+                price: "Let's talk", sub: "", rm: null, note: null },
+            ].map((plan) => (
+              <div key={plan.key} className="rounded-2xl border flex flex-col relative p-5 sm:p-6 h-full"
+                style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 26px 60px -24px rgba(151,59,247,0.4)" : undefined }}>
+                {plan.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] px-2.5 py-1 rounded-full brand-gradient text-white font-semibold whitespace-nowrap">Most popular</span>}
+                <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.35rem" }}>
+                  {plan.popular ? <span className="brand-text">{plan.name}</span> : plan.name}
+                </h4>
+                <div className="mt-2 flex items-end gap-1 flex-wrap">
+                  <span className="font-bold font-display text-neutral-900" style={{ fontSize: "2rem" }}>{plan.price}</span>
+                  {plan.sub && <span className="text-sm text-neutral-500 mb-1.5">{plan.sub}</span>}
+                </div>
+                {plan.rm && <p className="text-xs text-neutral-400 mt-0.5">{plan.rm} · charged in USD</p>}
+                {plan.note && <p className="text-xs font-medium mt-1" style={{ color: "#166534" }}>{plan.note}</p>}
+                <div className="mt-5 mb-1 h-px" style={{ background: "var(--line)" }} />
+                <div className="flex-1 space-y-5">
+                  {compareGroups.map((g) => (
+                    <div key={g.group}>
+                      <p className="text-xs font-semibold uppercase tracking-wide mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{g.group}</p>
+                      <ul className="space-y-2.5">
+                        {g.rows.map((r) => {
+                          const val = r[plan.col];
+                          return (
+                            <li key={r.label} className="flex items-start gap-2.5" style={{ fontSize: "0.98rem" }}>
+                              {val === true ? (
+                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-white brand-gradient">
+                                  <Icon name="check" className="w-3 h-3" />
+                                </span>
+                              ) : val === false ? (
+                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5 text-neutral-300 text-lg leading-none">—</span>
+                              ) : (
+                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5" style={{ color: "var(--brand)" }}>
+                                  <Icon name="check" className="w-3 h-3" />
+                                </span>
+                              )}
+                              <span className={val === false ? "text-neutral-400" : "text-neutral-700"}>
+                                {r.label}
+                                {typeof val === "string" && <span className="font-semibold text-neutral-900">: {val}</span>}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => goSignup(plan.key)}
+                  className={`w-full mt-6 rounded-xl text-sm font-semibold py-2.5 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90"}`}
+                  style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
+                  {plan.cta}
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Professional trial. full access, no card required.</p>
+        </div>
+      </section>
+      <section id="faq" className="py-20 scroll-mt-20" style={{ background: "var(--bg)" }}>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          <h2 className="font-display font-bold text-neutral-900 text-center mb-10" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)" }}>
+            Frequently asked questions
+          </h2>
+          <div className="space-y-3">
+            {faqs.map((f, i) => {
+              const open = faqOpen === i;
+              return (
+                <div key={i} className="rounded-2xl bg-white border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+                  <button
+                    onClick={() => setFaqOpen(open ? null : i)}
+                    className="w-full flex items-center justify-between gap-3 text-left px-5 py-4"
+                    aria-expanded={open}
+                  >
+                    <span className="text-sm font-medium text-neutral-900">{f.q}</span>
+                    <span className="shrink-0 text-neutral-400 transition-transform" style={{ transform: open ? "rotate(180deg)" : "none" }}>
+                      <Icon name="chevronDown" className="w-4 h-4" />
+                    </span>
+                  </button>
+                  {open && <p className="px-5 pb-4 text-sm text-neutral-500 leading-relaxed">{f.a}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="px-4 sm:px-6 py-20" style={{ background: "#fff" }}>
+        <div className="max-w-6xl mx-auto rounded-3xl px-6 py-14 text-center relative overflow-hidden" style={{ background: "var(--navy)" }}>
+          <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(circle at 50% 0%, var(--brand-2) 0%, transparent 60%)" }} />
+          <div className="relative">
+            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 3.5vw, 2.25rem)" }}>Ready to make your next hire?</h2>
+            <p className="mt-3" style={{ color: "var(--navy-ink)" }}>Set up takes a few minutes. No credit card required.</p>
+            <button onClick={() => goSignup("free")} className="mt-7 brand-gradient text-white font-semibold px-7 py-3 rounded-xl hover:opacity-90 transition-opacity">
+              Create your workspace
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <BrandLogo onDark logoUrl={logoUrl} />
+          <div className="flex items-center gap-5 text-sm" style={{ color: "var(--navy-ink)" }}>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
+            <button onClick={() => navigate("login")}>Sign in</button>
+          </div>
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>© 2025 Aster · All rights reserved</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+
+function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", setPlan, setPlanCycle, setTrialDaysLeft }) {
+  const [companyName, setCompanyName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const planLabel = signupPlan === "professional" ? "Professional" : signupPlan === "starter" ? "Starter" : signupPlan === "enterprise" ? "Enterprise" : "Free";
+  const isFreeTrial = signupPlan === "free" || !["professional", "starter", "enterprise"].includes(signupPlan);
+  const planDetail =
+    signupPlan === "professional"
+      ? (signupCycle === "yearly" ? "$79/mo · billed yearly (20% off)" : "$99/month")
+      : signupPlan === "starter"
+        ? (signupCycle === "yearly" ? "$28/mo · billed yearly (20% off)" : "$35/month")
+      : signupPlan === "enterprise"
+        ? "Our team will reach out about pricing"
+        : "Full Professional features free for 14 days";
+
+  const fieldDark = "w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow placeholder:text-[color:var(--navy-ink)]";
+  const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+  const labelDark = "block text-sm mb-1.5";
+
+  const canSubmit = companyName.trim() && firstName.trim() && email.trim();
+
+  const handleSignUp = () => {
+    if (!canSubmit) return;
+    setCompany(companyName.trim());
+    setProfile({ firstName: firstName.trim(), lastName: lastName.trim(), role: "Hiring Manager" });
+    setPlan && setPlan(signupPlan);
+    setPlanCycle && setPlanCycle(signupCycle);
+    setTrialDaysLeft && setTrialDaysLeft(isFreeTrial ? 14 : 0);
+    navigate("dashboard");
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden" style={{ background: "#05060F" }}>
+      <div
+        className="login-bg-anim pointer-events-none absolute inset-0"
+        style={{ backgroundImage: `url(${LOGIN_BG})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
+      />
+      <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(rgba(5,6,20,0.35), rgba(5,6,20,0.55))" }} />
+      <div className="login-orb-a pointer-events-none absolute -top-24 -left-16 w-[520px] h-[520px] rounded-full blur-3xl opacity-[0.30]" style={{ background: "radial-gradient(circle, #4F6BFF 0%, transparent 70%)" }} />
+      <div className="login-orb-b pointer-events-none absolute -bottom-28 -right-10 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.28]" style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }} />
+      <div className="login-glow pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, var(--brand-2) 55%, transparent 72%)" }} />
+
+      <div className="w-full max-w-sm rounded-3xl p-8 relative z-10 act-shadow" style={{ background: "rgba(30,33,72,0.85)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
+        <div className="mb-7">
+          <button onClick={() => navigate("landing")} aria-label="Back to Aster home">
+            <BrandLogo onDark logoUrl={logoUrl} />
+          </button>
+        </div>
+        <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Create your workspace</h1>
+        <p className="text-sm mb-4" style={{ color: "var(--navy-ink)" }}>Create your Aster workspace.</p>
+
+        <div className="rounded-xl px-3 py-2.5 mb-5 flex items-center justify-between gap-2" style={{ background: "var(--navy-2)", border: "1px solid var(--navy-line)" }}>
+          <div className="min-w-0">
+            <p className="text-xs" style={{ color: "var(--navy-ink)" }}>Selected plan</p>
+            <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
+              <span>{planLabel}</span>
+              {isFreeTrial && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "rgba(151,59,247,0.25)", color: "#C7CCFF" }}>14-day free trial</span>
+              )}
+              <span className="font-normal truncate" style={{ color: "var(--navy-ink)" }}>· {planDetail}</span>
+            </p>
+          </div>
+          <button onClick={() => navigate("landing")} className="text-xs shrink-0 hover:opacity-80" style={{ color: "var(--navy-ink)" }}>Change</button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Company name</label>
+            <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelDark} style={{ color: "var(--navy-ink)" }}>First name</label>
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Shah" className={fieldDark} style={fieldDarkStyle} />
+            </div>
+            <div>
+              <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Last name</label>
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ramly" className={fieldDark} style={fieldDarkStyle} />
+            </div>
+          </div>
+          <div>
+            <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Email address</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
+          </div>
+          <div>
+            <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" className={fieldDark} style={fieldDarkStyle} />
+          </div>
+          <button
+            onClick={handleSignUp}
+            disabled={!canSubmit}
+            className="w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]"
+          >
+            {isFreeTrial ? "Start 14-day free trial" : "Create account"}
+          </button>
+          {isFreeTrial && (
+            <p className="text-xs text-center" style={{ color: "var(--navy-ink)" }}>No card required — full Professional access for 14 days, then Free.</p>
+          )}
+          <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
+            Already have an account?{" "}
+            <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>
+              Sign in
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const ACTIVYS_LOGO = "data:image/png;base64,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";
+
+const TONES = {
+  mint: "bg-emerald-100",
+  pink: "bg-pink-100",
+  yellow: "bg-amber-200",
+  lavender: "bg-violet-100",
+  neutral: "bg-neutral-100",
+};
+
+// ---------- Chart primitives (pure SVG, no libraries) ----------
+
+function Sparkline({ points = [8, 12, 9, 14, 11, 16, 13, 18], color = "#2563EB", width = 120, height = 40 }) {
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const flat = max === min;
+  const range = max - min || 1;
+  const stepX = width / (points.length - 1);
+  const coords = points.map((p, i) => [i * stepX, flat ? height / 2 : height - ((p - min) / range) * (height - 6) - 3]);
+  const path = coords.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TrendBadge({ delta }) {
+  // delta: positive number, negative number, or 0 (flat)
+  const flat = delta === 0;
+  const up = delta > 0;
+  const color = flat ? "text-neutral-500" : up ? "text-emerald-600" : "text-rose-600";
+  const arrow = flat ? "—" : up ? "↗" : "↘";
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${color}`}>
+      {arrow} {flat ? "0%" : `${Math.abs(delta)}%`}
+    </span>
+  );
+}
+
+function DonutChart({ segments, total, size = 120 }) {
+  // segments: [{ label, value, color }]
+  const radius = size / 2;
+  const stroke = size * 0.16;
+  const innerR = radius - stroke / 2;
+  const circumference = 2 * Math.PI * innerR;
+  const sum = segments.reduce((a, s) => a + s.value, 0) || 1;
+  let offset = 0;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        {segments.map((seg, i) => {
+          const frac = seg.value / sum;
+          const dash = frac * circumference;
+          const gap = circumference - dash;
+          const el = (
+            <circle
+              key={i}
+              cx={radius}
+              cy={radius}
+              r={innerR}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={stroke}
+              strokeDasharray={`${dash} ${gap}`}
+              strokeDashoffset={-offset}
+            />
+          );
+          offset += dash;
+          return el;
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xl font-bold text-neutral-900">{total}</span>
+        <span className="text-xs text-neutral-500">Total</span>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Icons (inline SVG, inherit currentColor) ----------
+
+function Icon({ name, className = "w-5 h-5" }) {
+  const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
+    upload: <><path d="M12 15V4" /><path d="M8 8l4-4 4 4" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></>,
+    jobs: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
+    matching: <><path d="M12 3l2.2 5 5.3.4-4 3.5 1.2 5.2L12 14.8 7.3 17l1.2-5.2-4-3.5 5.3-.4z" /></>,
+    search: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></>,
+    interview: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5" /><path d="M12 16.5h.01" /></>,
+    interviewers: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>,
+    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></>,
+    card: <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+    check: <><path d="M5 12l4.5 4.5L19 7" /></>,
+    star: <><path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" /></>,
+    menu: <><path d="M3 6h18M3 12h18M3 18h18" /></>,
+    close: <><path d="M6 6l12 12M18 6l-12 12" /></>,
+    chevronDown: <><path d="M6 9l6 6 6-6" /></>,
+    chevronLeft: <><path d="M15 18l-6-6 6-6" /></>,
+    chevronRight: <><path d="M9 18l6-6-6-6" /></>,
+    arrowUpRight: <><path d="M7 17L17 7" /><path d="M8 7h9v9" /></>,
+    users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>,
+    lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
+    doc: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></>,
+    chat: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
+    offer: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h4a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.4z" /><circle cx="7.5" cy="7.5" r="1" /></>,
+    hire: <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></>,
+  };
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...common} aria-hidden="true">
+      {paths[name] ?? null}
+    </svg>
+  );
+}
+
+// ---------- Brand logo ----------
+
+const ACTIVYS_LOGO_WHITE = "data:image/png;base64,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";
+const LOGIN_BG = "data:image/jpeg;base64,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";
+
+function BrandLogo({ logoUrl, compact = false, onDark = false }) {
+  // Shows the full Aster logo artwork. A user-uploaded logo (Settings)
+  // always wins. Otherwise we pick the colour variant for light contexts
+  // and the dedicated white wordmark for the dark navy sidebar — both are
+  // transparent PNGs, so no white box and no filter tricks.
+  const src = logoUrl || (onDark ? ACTIVYS_LOGO_WHITE : ACTIVYS_LOGO);
+  return (
+    <img
+      src={src}
+      alt="Aster — smarter hiring, stronger teams"
+      className={compact ? "h-7 w-auto object-contain" : "h-9 w-auto object-contain"}
+    />
+  );
+}
+
+// ---------- Sidebar layout ----------
+
+const NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { key: "upload", label: "Resume Upload", icon: "upload" },
+  { key: "jobs", label: "Job Postings", icon: "jobs" },
+  { key: "search", label: "Candidate Search", icon: "search" },
+  { key: "interviewers", label: "Interviewers", icon: "interviewers" },
+];
+
+function SidebarProfile({ avatarUrl, navigate, profile }) {
+  const fullName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "Your profile";
+  const init = initials(fullName);
+  return (
+    <button
+      onClick={() => navigate("settings")}
+      className="w-full flex md:flex-col items-center md:text-center gap-3 md:gap-0 pt-0 md:pt-2 group"
+    >
+      <div className="relative shrink-0">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="You" className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-white/10" />
+        ) : (
+          <div className="w-11 h-11 md:w-16 md:h-16 rounded-full brand-gradient flex items-center justify-center text-white text-sm md:text-lg font-semibold font-display ring-4 ring-white/10">
+            {init}
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 md:mt-3">
+        <p className="text-sm font-semibold text-white group-hover:text-white/90 truncate">{fullName}</p>
+        <p className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>{profile?.role || "—"}</p>
+      </div>
+    </button>
+  );
+}
+
+function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNavigate, profile, unreadCount = 0 }) {
+  const go = (key) => { navigate(key); if (onNavigate) onNavigate(); };
+  return (
+    <div className="flex flex-col h-full">
+      <div className="w-full mt-1 mb-9 hidden md:flex items-center justify-center">
+        <BrandLogo logoUrl={logoUrl} onDark />
+      </div>
+
+      <div className="flex items-center gap-2 pb-5 md:pb-6">
+        <div className="flex-1 min-w-0">
+          <SidebarProfile avatarUrl={avatarUrl} navigate={go} profile={profile} />
+        </div>
+        <button
+          onClick={onSignOut}
+          className="md:hidden shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+          style={{ color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}
+          aria-label="Log out"
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--navy-ink)")}
+        >
+          <Icon name="logout" className="w-5 h-5" />
+        </button>
+      </div>
+
+      <nav className="flex-1 space-y-1 overflow-y-auto mt-2 pb-1">
+        {NAV_ITEMS.map((item, i) => {
+          const on = active === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => go(item.key)}
+              className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
+              style={
+                on
+                  ? { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" }
+                  : { color: "var(--navy-ink)" }
+              }
+              onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#FFFFFF"; }}
+              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--navy-ink)"; }}
+            >
+              <Icon name={item.icon} className="w-5 h-5 shrink-0" />
+              <span className="truncate flex-1 text-left">{item.label}</span>
+              {on && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+              {item.key === "dashboard" && !on && unreadCount > 0 && (
+                <span className="min-w-5 h-5 px-1.5 rounded-full brand-gradient text-white text-[10px] font-semibold flex items-center justify-center shrink-0">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="pt-4 mt-4 space-y-1" style={{ borderTop: "1px solid var(--navy-line)" }}>
+        {[
+          { key: "settings", label: "Settings", icon: "settings" },
+          { key: "billing", label: "Billing", icon: "card" },
+        ].map((item) => {
+          const on = active === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => go(item.key)}
+              className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
+              style={on ? { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" } : { color: "var(--navy-ink)" }}
+              onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#FFFFFF"; }}
+              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--navy-ink)"; }}
+            >
+              <Icon name={item.icon} className="w-5 h-5 shrink-0" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+        <button
+          onClick={onSignOut}
+          className="hidden md:flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
+          style={{ color: "var(--navy-ink)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--navy-ink)")}
+        >
+          <Icon name="logout" className="w-5 h-5 shrink-0" />
+          <span>Log out</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profile, unreadCount = 0, activities = [], onOpenNotifications, children }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
+      {/* Desktop sidebar — fixed, full viewport height */}
+      <aside className="hidden md:flex w-64 shrink-0 flex-col px-4 py-6 sticky top-0 h-screen" style={{ background: "var(--navy)" }}>
+        <SidebarContent navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} />
+      </aside>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-72 px-4 py-6 flex flex-col" style={{ background: "var(--navy)" }}>
+            <SidebarContent navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} onNavigate={() => setMobileOpen(false)} />
+          </aside>
+        </div>
+      )}
+
+      {/* Main column */}
+      <div className="flex-1 min-w-0">
+        {/* Mobile top strip: hamburger + logo, always visible on mobile */}
+        <div className="md:hidden flex items-center gap-3 backdrop-blur px-4 py-3 sticky top-0 z-30" style={{ background: "var(--navy)", borderBottom: "1px solid var(--navy-line)" }}>
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-white"
+            style={{ border: "1px solid var(--navy-line)" }}
+            aria-label="Open menu"
+          >
+            <Icon name="menu" className="w-5 h-5" />
+          </button>
+          <BrandLogo logoUrl={logoUrl} onDark compact />
+          <div className="ml-auto">
+            <NotificationBell activities={activities} onOpen={onOpenNotifications} />
+          </div>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Date range popover ----------
+
+// ---------- Date range picker ----------
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function sameDay(a, b) {
+  return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function formatRange(start, end) {
+  if (!start) return "Select dates";
+  const s = `${MONTHS_SHORT[start.getMonth()]} ${start.getDate()}`;
+  if (!end || sameDay(start, end)) return `${s}, ${start.getFullYear()}`;
+  const e = `${MONTHS_SHORT[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+  return `${s} – ${e}`;
+}
+
+function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick }) {
+  const days = ["S", "M", "T", "W", "T", "F", "S"];
+  const year = month.getFullYear();
+  const m = month.getMonth();
+  const firstDay = new Date(year, m, 1).getDay();
+  const daysInMonth = new Date(year, m + 1, 0).getDate();
+  const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  const inRange = (day) => {
+    if (!day || !start || !end) return false;
+    const d = startOfDay(new Date(year, m, day));
+    return d >= startOfDay(start) && d <= startOfDay(end);
+  };
+  const isEndpoint = (day) => {
+    if (!day) return false;
+    const d = new Date(year, m, day);
+    return sameDay(d, start) || sameDay(d, end);
+  };
+
+  return (
+    <div className="px-1">
+      <div className="flex items-center justify-between mb-2">
+        <button onClick={onPrevMonth} className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-700">
+          <Icon name="chevronLeft" className="w-4 h-4" />
+        </button>
+        <span className="text-sm font-medium text-neutral-900">{MONTHS[m]} {year}</span>
+        <button onClick={onNextMonth} className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-700">
+          <Icon name="chevronRight" className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 text-center">
+        {days.map((d, i) => (
+          <span key={i} className="text-[10px] text-neutral-400 py-1">{d}</span>
+        ))}
+        {cells.map((day, i) => {
+          if (day == null) return <div key={i} />;
+          const endpoint = isEndpoint(day);
+          const between = inRange(day) && !endpoint;
+          return (
+            <button
+              key={i}
+              onClick={() => onPick(new Date(year, m, day))}
+              className="text-xs py-1 rounded-md transition-colors"
+              style={
+                endpoint
+                  ? { background: "var(--brand)", color: "#FFFFFF", fontWeight: 600 }
+                  : between
+                  ? { background: "var(--brand-soft)", color: "var(--brand)" }
+                  : { color: "var(--ink-2)" }
+              }
+              onMouseEnter={(e) => { if (!endpoint && !between) e.currentTarget.style.background = "var(--line)"; }}
+              onMouseLeave={(e) => { if (!endpoint && !between) e.currentTarget.style.background = "transparent"; }}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DateRangePicker({ range, setRange }) {
+  const [open, setOpen] = useState(false);
+  const [viewMonth, setViewMonth] = useState(startOfDay(range.end || new Date()));
+
+  const pick = (date) => {
+    // First click (or restarting) sets a new start; second click completes the range.
+    if (!range.start || (range.start && range.end)) {
+      setRange({ start: date, end: null });
+    } else if (date < range.start) {
+      setRange({ start: date, end: range.start });
+      setOpen(false);
+    } else {
+      setRange({ start: range.start, end: date });
+      setOpen(false);
+    }
+  };
+
+  const applyPreset = (kind) => {
+    const today = startOfDay(new Date());
+    if (kind === "today") setRange({ start: today, end: today });
+    else if (kind === "week") setRange({ start: addDays(today, -6), end: today });
+    else if (kind === "month") setRange({ start: new Date(today.getFullYear(), today.getMonth(), 1), end: today });
+    else if (kind === "last30") setRange({ start: addDays(today, -29), end: today });
+    setViewMonth(today);
+    setOpen(false);
+  };
+
+  const presets = [
+    { key: "today", label: "Today" },
+    { key: "week", label: "This week" },
+    { key: "month", label: "This month" },
+    { key: "last30", label: "Last 30 days" },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 rounded-xl bg-white border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:border-neutral-300 transition-colors"
+      >
+        <Icon name="calendar" className="w-4 h-4 text-neutral-500" />
+        <span className="hidden sm:inline whitespace-nowrap">{formatRange(range.start, range.end)}</span>
+        <span className="sm:hidden">Dates</span>
+        <Icon name="chevronDown" className={`w-4 h-4 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 right-0 mt-2 w-64 rounded-2xl border border-neutral-200 bg-white shadow-lg p-3">
+            <MiniCalendar
+              month={viewMonth}
+              onPrevMonth={() => setViewMonth((mo) => new Date(mo.getFullYear(), mo.getMonth() - 1, 1))}
+              onNextMonth={() => setViewMonth((mo) => new Date(mo.getFullYear(), mo.getMonth() + 1, 1))}
+              start={range.start}
+              end={range.end}
+              onPick={pick}
+            />
+            <p className="text-[11px] text-neutral-400 mt-2 px-1">
+              {range.start && !range.end ? "Pick an end date…" : "Tap a start then end date, or use a preset."}
+            </p>
+            <div className="mt-2 pt-2 border-t border-neutral-100 grid grid-cols-2 gap-1">
+              {presets.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => applyPreset(p.key)}
+                  className="text-left rounded-lg px-2.5 py-1.5 text-xs text-neutral-600 hover:bg-neutral-100 transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---------- Top bar (inside main column) ----------
+
+function NotificationBell({ activities, onOpen, onActivityClick }) {
+  const [open, setOpen] = useState(false);
+  const unread = activities.filter((a) => !a.read).length;
+
+  const toggle = () => {
+    setOpen((o) => {
+      const next = !o;
+      if (next) onOpen(); // mark read on open
+      return next;
+    });
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={toggle}
+        className="relative w-9 h-9 rounded-full bg-white flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+        style={{ border: "1px solid var(--line)" }}
+        aria-label="Notifications"
+      >
+        <Icon name="bell" className="w-4 h-4" />
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full brand-gradient text-white text-[10px] font-semibold flex items-center justify-center">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--line)" }}>
+              <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Recent activity</span>
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{activities.length} updates</span>
+            </div>
+            <div className="max-h-80 overflow-y-auto p-2 space-y-1">
+              {activities.map((a) => (
+                <ActivityRow
+                  key={a.id}
+                  initials={a.initials}
+                  title={a.title}
+                  desc={a.desc}
+                  time={a.time}
+                  dotColor={a.dotColor}
+                  onClick={() => { setOpen(false); onActivityClick(a); }}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityClick, range, setRange }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+      <div className="min-w-0">
+        <h1 className="text-xl sm:text-2xl font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h1>
+        {subtitle && <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{subtitle}</p>}
+      </div>
+      <div className="hidden md:flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="hidden md:block">
+          <DateRangePicker range={range} setRange={setRange} />
+        </div>
+        <div className="hidden md:block">
+          <NotificationBell
+            activities={activities}
+            onOpen={onOpenNotifications}
+            onActivityClick={onActivityClick}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, series, delta = 0, sparkColor = "#973BF7", icon, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group text-left rounded-2xl bg-white act-shadow card-hover px-4 sm:px-5 py-4"
+      style={{ border: "1px solid var(--line)" }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <span
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "var(--brand-soft)", color: "var(--brand)" }}
+        >
+          <Icon name={icon} className="w-5 h-5" />
+        </span>
+        <span
+          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors group-hover:text-neutral-700"
+          style={{ border: "1px solid var(--line)", color: "var(--ink-3)" }}
+        >
+          <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
+        </span>
+      </div>
+      <p className="text-2xl sm:text-3xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{value}</p>
+      <p className="text-sm mt-1.5 mb-3 truncate" style={{ color: "var(--ink-2)" }}>{label}</p>
+      <div className="flex items-center justify-between gap-2">
+        <TrendBadge delta={delta} />
+        {series && series.length > 1 && (
+          <Sparkline points={series} color={sparkColor} width={64} height={24} />
+        )}
+      </div>
+    </button>
+  );
+}
+
+function initials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}
+
+function CandidateAvatar({ name, hasPhoto, size = 40, showPhotoDot = true }) {
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <div
+        className="w-full h-full rounded-full flex items-center justify-center font-semibold font-display"
+        style={
+          hasPhoto
+            ? { background: "var(--brand-soft)", color: "var(--brand-2)", border: "1px solid #D9DDFF", fontSize: size * 0.34 }
+            : { background: "#F1F1F4", color: "var(--ink-2)", border: "1px solid var(--line)", fontSize: size * 0.34 }
+        }
+      >
+        {initials(name)}
+      </div>
+    </div>
+  );
+}
+
+// Shared activity feed used by both the header bell and the dashboard card.
+// `target` describes where a click should navigate.
+// Activity feed derived from the app's own data (applicants, matches, jobs),
+// so names and roles always match what's really in the workspace. The two
+// newest items start unread; opening the bell marks everything read.
+function buildActivities() {
+  const cand = (id) => MOCK_CANDIDATES.find((c) => c.id === id)?.parsed?.name || "A candidate";
+  const jobTitle = (id) => MOCK_JOBS.find((j) => j.id === id)?.title || "a role";
+  const ini = (name) => name.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  const apps = Object.entries(APPLICANTS_BY_JOB).flatMap(([jobId, arr]) => arr.map((a) => ({ ...a, jobId })));
+  const list = [];
+
+  // Newest application
+  if (apps[0]) {
+    const n = cand(apps[0].candidateId);
+    list.push({ initials: ini(n), title: "New application received", desc: `${n} applied for ${jobTitle(apps[0].jobId)}`, time: apps[0].appliedAt, dotColor: "bg-neutral-800", target: { screen: "candidates", filter: { source: "public_application" } } });
+  }
+  // An applicant currently in the interview stage
+  const interviewing = apps.find((a) => a.baseStage === "interviewing");
+  if (interviewing) {
+    const n = cand(interviewing.candidateId);
+    list.push({ initials: ini(n), title: "Interview scheduled", desc: `${n} · ${jobTitle(interviewing.jobId)}`, time: "1h ago", dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { interview: true } } });
+  }
+  // Top AI match
+  const [matchJobId, matches] = Object.entries(MOCK_MATCHES)[0] || [];
+  if (matches && matches[0]) {
+    const n = cand(matches[0].candidateId);
+    list.push({ initials: ini(n), title: "New match generated", desc: `${n} · ${jobTitle(matchJobId)} (${Math.round(matches[0].score * 100)}%)`, time: "3h ago", dotColor: "bg-neutral-800", target: { screen: "jobs", jobStatus: null } });
+  }
+  // A recently published open role (pick one not already surfaced above)
+  const openJobs = MOCK_JOBS.filter((j) => j.status === "open");
+  const publishedJob = openJobs[openJobs.length - 1] || openJobs[0];
+  if (publishedJob) {
+    list.push({ initials: ini(publishedJob.title), title: "Position published", desc: publishedJob.title, time: "5h ago", dotColor: "bg-neutral-300", target: { screen: "jobs", jobStatus: "open" } });
+  }
+
+  return list.map((it, i) => ({ id: `a${i + 1}`, read: i >= 2, ...it }));
+}
+
+function ActivityRow({ initials, title, desc, time, dotColor, onClick }) {
+  return (
+    <button onClick={onClick} className="w-full flex items-center gap-3 text-left rounded-xl -mx-1 px-1 py-1.5 hover:bg-neutral-50 transition-colors">
+      <div className="w-9 h-9 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-semibold shrink-0" style={{ color: "var(--ink-2)" }}>
+        {initials}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium truncate flex-1" style={{ color: "var(--ink)" }}>{title}</p>
+          <span className="text-xs shrink-0 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
+            {time}
+            <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          </span>
+        </div>
+        <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{desc}</p>
+      </div>
+    </button>
+  );
+}
+
+function LegendRow({ color, label, value }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <span className="text-neutral-700 truncate">{label}</span>
+      </div>
+      <span className="text-neutral-500 shrink-0">{value}</span>
+    </div>
+  );
+}
+
+function UpcomingRow({ month, day, title, person, time, provider, onClick }) {
+  return (
+    <button onClick={onClick} className="w-full flex items-center gap-3 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-neutral-50 transition-colors">
+      <div className="w-11 shrink-0 text-center rounded-xl bg-neutral-100 py-1.5">
+        <p className="text-[10px] text-neutral-500 uppercase tracking-wide">{month}</p>
+        <p className="text-sm font-bold text-neutral-900 leading-none">{day}</p>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-neutral-900 truncate">{title}</p>
+        <p className="text-xs text-neutral-500 truncate">{person}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-xs text-neutral-700 whitespace-nowrap">{time}</p>
+        <p className="text-xs text-neutral-400 flex items-center gap-1 justify-end whitespace-nowrap">
+          {provider} <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function ApplicationsChart({ applicants = [] }) {
+  // Real 7-day daily application counts, from applicants' appliedAt.
+  const rankDay = (t) => { const s = (t || "").toLowerCase(); if (s.includes("today")) return 0; const m = s.match(/(\d+)\s*d/); return m ? Number(m[1]) : null; };
+  const counts = [0, 0, 0, 0, 0, 0, 0];
+  applicants.forEach((a) => { const r = rankDay(a.appliedAt); if (r !== null && r >= 0 && r <= 6) counts[6 - r] += 1; });
+  const data = counts;
+  const labels = counts.map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" }); });
+  const [hover, setHover] = useState(6); // default to today
+
+  const w = 760, h = 300;
+  const padL = 40, padR = 20, padT = 24, padB = 40;
+  const gridStep = Math.max(1, Math.ceil(Math.max(...data, 1) / 4));
+  const max = gridStep * 4;
+  const grids = [0, gridStep, gridStep * 2, gridStep * 3, gridStep * 4];
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const stepX = plotW / (data.length - 1);
+  const xOf = (i) => padL + i * stepX;
+  const yOf = (v) => padT + plotH - (v / max) * plotH;
+  const coords = data.map((v, i) => [xOf(i), yOf(v)]);
+
+  // Smooth path via Catmull-Rom → cubic Bézier
+  const smooth = (pts) => {
+    if (pts.length < 2) return "";
+    let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+    }
+    return d;
+  };
+
+  const line = smooth(coords);
+  const area = `${line} L ${coords[coords.length - 1][0].toFixed(1)} ${padT + plotH} L ${coords[0][0].toFixed(1)} ${padT + plotH} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[960px] mx-auto block" style={{ aspectRatio: "760 / 300" }} preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="appsFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#973BF7" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#973BF7" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {grids.map((g) => {
+        const y = yOf(g);
+        return (
+          <g key={g}>
+            <line x1={padL} y1={y} x2={w - padR} y2={y} stroke="#F1F1F3" strokeWidth="1" />
+            <text x={padL - 8} y={y + 3} fontSize="11" fill="#B4B4B8" textAnchor="end">{g}</text>
+          </g>
+        );
+      })}
+
+      <path d={area} fill="url(#appsFill)" />
+      <path d={line} fill="none" stroke="#973BF7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Hover guide + tooltip */}
+      {hover != null && (
+        <g>
+          <line x1={coords[hover][0]} y1={padT} x2={coords[hover][0]} y2={padT + plotH} stroke="#E5E7EB" strokeWidth="1" strokeDasharray="3 3" />
+          <g transform={`translate(${Math.min(Math.max(coords[hover][0], padL + 52), w - padR - 52)}, ${padT + 6})`}>
+            <rect x="-52" y="-2" width="104" height="38" rx="9" fill="white" stroke="#E5E7EB" />
+            <text x="0" y="13" fontSize="12" fill="#111827" textAnchor="middle" fontWeight="600">{labels[hover]}</text>
+            <text x="0" y="28" fontSize="11" fill="#6B7280" textAnchor="middle">{data[hover]} Applications</text>
+          </g>
+        </g>
+      )}
+
+      {coords.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 3.5} fill="#973BF7" stroke="white" strokeWidth={hover === i ? 2 : 0} />
+      ))}
+
+      {/* Invisible hit areas for hover */}
+      {coords.map(([x], i) => (
+        <rect
+          key={`hit-${i}`}
+          x={x - stepX / 2}
+          y={padT}
+          width={stepX}
+          height={plotH}
+          fill="transparent"
+          onMouseEnter={() => setHover(i)}
+          style={{ cursor: "pointer" }}
+        />
+      ))}
+
+      {labels.map((l, i) => (
+        <text key={l} x={coords[i][0]} y={h - 12} fontSize="12" fill="#9A9AA0" textAnchor="middle">{l}</text>
+      ))}
+    </svg>
+  );
+}
+
+function InlineStat({ label, value, dir = "up", onClick }) {
+  const up = dir === "up";
+  return (
+    <button onClick={onClick} className="text-left group min-w-0">
+      <p className="text-sm mb-2 whitespace-nowrap truncate" style={{ color: "var(--ink-2)" }}>{label}</p>
+      <div className="flex items-center gap-2">
+        <span className="text-3xl font-bold font-display tnum leading-none group-hover:opacity-80 transition-opacity" style={{ color: "var(--ink)" }}>
+          {value}
+        </span>
+        <span
+          className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+          style={{ border: `1px solid ${up ? "#BBF7D0" : "#FECACA"}`, color: up ? "#16A34A" : "#DC2626" }}
+        >
+          <Icon name="chevronRight" className={`w-3 h-3 ${up ? "-rotate-90" : "rotate-90"}`} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function FeatureCard({ onAction }) {
+  return (
+    <div className="relative overflow-hidden rounded-3xl px-6 py-6" style={{ background: "var(--pink)" }}>
+      <div className="relative z-10 max-w-[62%]">
+        <p className="text-lg font-bold font-display leading-snug" style={{ color: "var(--pink-ink)" }}>
+          Scale your hiring
+        </p>
+        <p className="text-sm mt-1 mb-4" style={{ color: "#5B4A54" }}>
+          Post unlimited jobs, screen candidates automatically, and hire with confidence using AI-powered recruitment.
+        </p>
+        <button
+          onClick={onAction}
+          className="rounded-full bg-white/90 hover:bg-white text-sm font-semibold px-4 py-2 transition-colors"
+          style={{ color: "var(--pink-ink)" }}
+        >
+          Go Pro
+        </button>
+      </div>
+      {/* Decorative concentric arcs, echoing the reference */}
+      <svg viewBox="0 0 160 160" className="absolute right-3 bottom-0 w-40 h-40 opacity-90" aria-hidden="true">
+        {[
+          { r: 66, c: "#FBD38D", w: 12, from: 200, len: 90 },
+          { r: 52, c: "#973BF7", w: 12, from: 210, len: 110 },
+          { r: 38, c: "#111827", w: 12, from: 220, len: 80 },
+        ].map((a, i) => {
+          const circ = 2 * Math.PI * a.r;
+          return (
+            <circle
+              key={i}
+              cx="90" cy="150" r={a.r}
+              fill="none" stroke={a.c} strokeWidth={a.w} strokeLinecap="round"
+              strokeDasharray={`${(a.len / 360) * circ} ${circ}`}
+              transform={`rotate(${a.from} 90 150)`}
+            />
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ---------- Plan limits & upgrade gating ----------
+// Central definition of what each plan allows. Free manages its own pipeline
+// but is capped on AI depth/volume, jobs, and seats. Starter lifts those caps
+// and unlocks reasoning, scorecards & stored CVs. Professional is unlimited and
+// adds WhatsApp. Enterprise = Professional + SSO/SLA (handled in UI).
+const PLAN_LIMITS = {
+  free:         { maxJobs: 1,        canAddInterviewers: false, seats: 1,        visibleCandidates: Infinity, aiMatches: 3,        aiRunsPerMonth: 3,        showRationale: false, storeOriginal: false, resumeUploads: 10,       whatsapp: false },
+  starter:      { maxJobs: 5,        canAddInterviewers: true,  seats: 3,        visibleCandidates: Infinity, aiMatches: 10,       aiRunsPerMonth: 30,       showRationale: true,  storeOriginal: true,  resumeUploads: 100,      whatsapp: false },
+  professional: { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
+  enterprise:   { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
+};
+const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.professional;
+
+function LockBadge({ label = "Pro" }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+      <Icon name="lock" className="w-3 h-3" /> {label}
+    </span>
+  );
+}
+
+function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = false }) {
+  return (
+    <div className={`text-center px-4 ${compact ? "py-5" : "py-8"}`}>
+      <div className="w-11 h-11 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+        <Icon name="lock" className="w-5 h-5" />
+      </div>
+      <p className="text-sm font-semibold text-neutral-900">{title}</p>
+      {sub && <p className="text-xs text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">{sub}</p>}
+      <button onClick={() => navigate("billing")} className="mt-4 text-xs brand-gradient text-white font-semibold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity">
+        Upgrade
+      </button>
+    </div>
+  );
+}
+
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "free", trialDaysLeft = 0, onEndTrial, hiredIds = new Set() }) {
+  // Real scheduled interviews, derived from confirmed bookings.
+  const interviews = scheduledInterviewsFrom(bookings, candidates);
+
+  const allApplicants = Object.values(APPLICANTS_BY_JOB).flat();
+  // Hired candidates (a completed hire — the headline win). Global per candidate.
+  const hiredCandidates = candidates.filter((c) => hiredIds.has(c.id));
+  const stats = {
+    totalCandidates: candidates.length,
+    parsed: candidates.filter((c) => c.status === "parsed").length,
+    pending: candidates.filter((c) => c.status === "pending").length,
+    openJobs: jobs.filter((j) => j.status === "open").length,
+    closedJobs: jobs.filter((j) => j.status === "closed").length,
+    applications: allApplicants.length,
+    matches: MOCK_MATCHES.j1 ? MOCK_MATCHES.j1.length : 0,
+    inInterview: allApplicants.filter((a) => a.baseStage === "interviewing").length,
+    interviewsScheduled: interviews.length,
+    offersPending: allApplicants.filter((a) => a.baseStage === "offer").length,
+    hiresThisMonth: hiredIds.size,
+  };
+
+  // Real 7-day applications-per-day series for the sparklines.
+  const rankDay = (t) => { const s = (t || "").toLowerCase(); if (s.includes("today")) return 0; const m = s.match(/(\d+)\s*d/); return m ? Number(m[1]) : null; };
+  const appsSeries = [0, 0, 0, 0, 0, 0, 0];
+  allApplicants.forEach((a) => { const r = rankDay(a.appliedAt); if (r !== null && r >= 0 && r <= 6) appsSeries[6 - r] += 1; });
+  const flatSeries = (v) => [v, v, v, v, v, v, v];
+
+  // Previous-period snapshot. In production this comes from historical data;
+  // here it's a seeded baseline so the % change is *computed*, not hardcoded.
+  const prevPeriod = { totalCandidates: 6, openJobs: 2, applications: 4, interviewsScheduled: 1, offersPending: 0, hiresThisMonth: 0 };
+  const pctChange = (cur, prev) => (prev === 0 ? (cur === 0 ? 0 : 100) : Math.round(((cur - prev) / prev) * 100));
+
+  // The six headline KPIs shown as the main stat cards.
+  const kpis = [
+    { label: "Total Candidates", value: stats.totalCandidates, delta: pctChange(stats.totalCandidates, prevPeriod.totalCandidates), series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => goToCandidates(null) },
+    { label: "Open Positions", value: stats.openJobs, delta: pctChange(stats.openJobs, prevPeriod.openJobs), series: flatSeries(stats.openJobs), icon: "briefcase", onClick: () => goToJobs("open") },
+    { label: "New Applications", value: stats.applications, delta: pctChange(stats.applications, prevPeriod.applications), series: appsSeries, icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) },
+    { label: "Interviews Scheduled", value: stats.interviewsScheduled, delta: pctChange(stats.interviewsScheduled, prevPeriod.interviewsScheduled), series: flatSeries(stats.interviewsScheduled), icon: "calendar", onClick: () => goToCandidates({ interview: true }) },
+    { label: "Offers Pending", value: stats.offersPending, delta: pctChange(stats.offersPending, prevPeriod.offersPending), series: flatSeries(stats.offersPending), icon: "offer", onClick: () => goToJobs(null) },
+    { label: "Total Hires", value: stats.hiresThisMonth, delta: pctChange(stats.hiresThisMonth, prevPeriod.hiresThisMonth), series: flatSeries(stats.hiresThisMonth), icon: "hire", onClick: () => goToCandidates({ hired: true }) },
+  ];
+
+  const goToCandidates = (filter) => {
+    setCandidateFilter(filter);
+    navigate("candidates");
+  };
+  const goToJobs = (statusFilter) => {
+    setJobStatusFilter(statusFilter);
+    navigate("jobs");
+  };
+
+  // Route a clicked activity to the right screen based on its target.
+  const handleActivityClick = (a) => {
+    const t = a.target || {};
+    if (t.screen === "candidates") goToCandidates(t.filter ?? null);
+    else if (t.screen === "jobs") goToJobs(t.jobStatus ?? null);
+  };
+
+  // Greeting derives the first name from the profile and the time of day.
+  const hour = new Date().getHours();
+  const partOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const firstName = (profile?.firstName || "").trim() || "there";
+  const greeting = `Good ${partOfDay}, ${firstName}! 👋`;
+
+  const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+
+  const sectionHead = (title, action) => (
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h2>
+      {action}
+    </div>
+  );
+
+  const donutColors = ["#973BF7", "#3B82F6", "#93C5FD", "#D1D5DB"];
+
+  // Top Roles — applicants per role, derived from real applicant data.
+  const roleCounts = jobs
+    .map((j) => ({ label: j.title, value: applicantCountFor(j.id) }))
+    .filter((r) => r.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const roleSegments = [
+    ...roleCounts.slice(0, 3).map((r, i) => ({ ...r, color: donutColors[i] })),
+    ...(roleCounts.slice(3).reduce((s, r) => s + r.value, 0) > 0
+      ? [{ label: "Others", value: roleCounts.slice(3).reduce((s, r) => s + r.value, 0), color: donutColors[3] }]
+      : []),
+  ];
+  const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
+
+  // Application Source — distribution of where applicants came from.
+  const sourcePalette = { "Career Page": "#973BF7", LinkedIn: "#3B82F6", Referral: "#93C5FD", Database: "#A5B4FC", Others: "#D1D5DB" };
+  const sourceCounts = {};
+  Object.values(APPLICANTS_BY_JOB).flat().forEach((a) => {
+    const src = a.source || "Others";
+    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+  });
+  const sourceSegments = Object.entries(sourceCounts)
+    .map(([label, value]) => ({ label, value, color: sourcePalette[label] || "#D1D5DB" }))
+    .sort((a, b) => b.value - a.value);
+  const sourceTotal = sourceSegments.reduce((s, r) => s + r.value, 0);
+
+  const donutBody = (segments, total, emptyTitle, emptySub) =>
+    total === 0 ? (
+      <div className="py-8 text-center">
+        <p className="text-sm" style={{ color: "var(--ink-2)" }}>{emptyTitle}</p>
+        <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>{emptySub}</p>
+      </div>
+    ) : (
+      <div className="flex items-center gap-5">
+        <DonutChart total={total} segments={segments} />
+        <div className="flex-1 space-y-2 min-w-0">
+          {segments.map((s) => (
+            <LegendRow key={s.label} color={s.color} label={s.label} value={`${s.value} (${Math.round((s.value / total) * 100)}%)`} />
+          ))}
+        </div>
+      </div>
+    );
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="mx-auto w-full max-w-[1400px]">
+        {trialDaysLeft > 0 && (
+          <div className="mb-5 rounded-2xl px-4 py-3.5 flex items-center gap-3" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.22)", color: "#fff" }}>
+              <Icon name="target" className="w-4 h-4" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white leading-tight">{trialDaysLeft} days left in your free trial</p>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--navy-ink)" }}>Full Professional access — unlimited AI matching &amp; jobs.</p>
+            </div>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+          </div>
+        )}
+
+        <TopBar
+          title={greeting}
+          subtitle="Your hiring dashboard is up to date with today's latest activity."
+          activities={activities}
+          onOpenNotifications={onOpenNotifications}
+          onActivityClick={handleActivityClick}
+          range={range}
+          setRange={setRange}
+        />
+
+        {/* Feature banner — only shown to Free accounts (upsell to Pro) */}
+        {plan === "free" && (
+          <div className="mb-5">
+            <FeatureCard onAction={() => navigate("settings")} />
+          </div>
+        )}
+
+        {/* Recent hires — the headline win, all-time. Sits at the top. */}
+        {hiredCandidates.length > 0 && (
+          <div className="mb-5 rounded-2xl p-4 sm:p-5 border" style={{ borderColor: "#BBF7D0", background: "linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%)" }}>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎉</span>
+                <h3 className="text-sm font-semibold" style={{ color: "#166534" }}>
+                  {hiredCandidates.length} hire{hiredCandidates.length === 1 ? "" : "s"} all-time — nice work!
+                </h3>
+              </div>
+              <button onClick={() => goToCandidates({ hired: true })} className="text-xs font-medium hover:opacity-70 transition-opacity shrink-0" style={{ color: "#166534" }}>View all</button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {hiredCandidates.slice(0, 4).map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => goToCandidates({ hired: true })}
+                  className="flex items-center gap-3 rounded-xl bg-white/70 hover:bg-white border px-3 py-2 text-left transition-colors"
+                  style={{ borderColor: "#BBF7D0" }}
+                >
+                  <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.parsed.experience?.[0]?.title || "Hired"}</p>
+                  </div>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>Hired ✓</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Interviews — real scheduled interviews from bookings */}
+        <div className={`${cardClass} mb-5`}>
+          {sectionHead(
+            "Upcoming Interviews",
+            interviews.length > 0 ? (
+              <button onClick={() => navigate("interviews")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button>
+            ) : null
+          )}
+          {interviews.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+                Once a candidate confirms a time from their invite, it'll show up here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+              {interviews.slice(0, 3).map((iv) => (
+                <UpcomingRow
+                  key={iv.candidateId}
+                  month={iv.month}
+                  day={iv.day}
+                  title={iv.jobTitle}
+                  person={iv.candidateName}
+                  time={iv.time}
+                  provider={iv.provider}
+                  onClick={() => navigate("interviews")}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Date filter on mobile — sits below Upcoming Interviews */}
+        <div className="md:hidden flex justify-end mb-5">
+          <DateRangePicker range={range} setRange={setRange} />
+        </div>
+
+        {/* KPIs — the six headline metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
+          {kpis.map((k) => (
+            <StatCard
+              key={k.label}
+              label={k.label}
+              value={k.value}
+              series={k.series}
+              delta={k.delta}
+              sparkColor={k.value === 0 ? "#9CA3AF" : "#973BF7"}
+              icon={k.icon}
+              onClick={k.onClick}
+            />
+          ))}
+        </div>
+
+        <div className="mb-5">
+          <div className={`${cardClass} min-w-0 flex flex-col`}>
+            {sectionHead(
+              "Applications Overview",
+              <button
+                onClick={() => goToCandidates({ source: "public_application" })}
+                className="text-xs rounded-lg px-2.5 py-1 flex items-center gap-1 hover:opacity-70 transition-opacity"
+                style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}
+              >
+                This Week <Icon name="chevronDown" className="w-3 h-3" />
+              </button>
+            )}
+            <div className="flex-1 flex items-center min-h-[220px]">
+              <ApplicationsChart applicants={allApplicants} />
+            </div>
+          </div>
+        </div>
+
+        {/* Row 4: two donut charts, 50/50 on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+          <div className={cardClass}>
+            {sectionHead(
+              "Top Roles",
+              roleTotal > 0 ? (
+                <button onClick={() => goToJobs(null)} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button>
+              ) : null
+            )}
+            {donutBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
+          </div>
+
+          <div className={cardClass}>
+            {sectionHead(
+              "Application Source",
+              sourceTotal > 0 ? (
+                <button onClick={() => goToCandidates({ source: "public_application" })} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button>
+              ) : null
+            )}
+            {donutBody(sourceSegments, sourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
+  const limits = planLimits(plan);
+  const uploadLimit = limits.resumeUploads;
+  const storesOriginal = limits.storeOriginal;
+  const planName = plan === "starter" ? "Starter" : plan === "professional" ? "Professional" : plan === "enterprise" ? "Enterprise" : "Free";
+  const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
+  const [files, setFiles] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [skipped, setSkipped] = useState(0);
+  const [dupActions, setDupActions] = useState({}); // fileName -> "skip" | "update"
+
+  // Simulated batch: a realistic mix so every outcome shows. `person` carries the
+  // identity the AI would extract (name/email/phone) — used for duplicate detection.
+  //   parsed   — looks like a resume, structured fields extracted
+  //   flagged  — parsed but low confidence, needs a human to review
+  //   rejected — failed a gate (wrong type / no readable text / not a resume)
+  const SAMPLE_BATCH = [
+    { fileName: "priya_nair_resume.pdf", verdict: "parsed", confidence: 0.94, person: { name: "Priya Nair", email: "priya.nair@email.com", phone: "+60 12-111 2222" } },
+    { fileName: "amira_hassan_updated_cv.pdf", verdict: "parsed", confidence: 0.92, person: { name: "Amira Hassan", email: "amira.hassan@email.com", phone: "+60 12-345 6789" } },
+    { fileName: "hafiz_ismail_cv.pdf", verdict: "parsed", confidence: 0.89, person: { name: "Hafiz Ismail", email: "hafiz.ismail@email.com", phone: "+60 13-222 3333" } },
+    { fileName: "siti_r_2026.pdf", verdict: "parsed", confidence: 0.90, person: { name: "Siti Rahman", email: "siti.r@gmail.com", phone: "+60 19-876 5432" } },
+    { fileName: "farah_iman_cv.pdf", verdict: "parsed", confidence: 0.90, person: { name: "Farah Iman", email: "farah.iman@email.com", phone: "+60 11-303 4455" } },
+    { fileName: "priya_nair_(1).pdf", verdict: "parsed", confidence: 0.94, person: { name: "Priya Nair", email: "priya.nair@email.com", phone: "+60 12-111 2222" } },
+    { fileName: "portfolio_scan.pdf", verdict: "flagged", confidence: 0.41, reason: "This looks like a scan — we only found bits and pieces. Worth a quick look before you trust it." },
+    { fileName: "company_brochure.pdf", verdict: "rejected", reason: "This doesn't read like a resume — no contact details, work history or education anywhere in it." },
+    { fileName: "budget_2026.xlsx", verdict: "rejected", reason: "We can't take spreadsheets — send resumes as a PDF or Word file." },
+    { fileName: "ravi_kumar_cv.pdf", verdict: "parsed", confidence: 0.86, person: { name: "Ravi Kumar", email: "ravi.kumar@email.com", phone: "+60 14-555 6666" } },
+    { fileName: "lim_weijie_updated.pdf", verdict: "parsed", confidence: 0.88, person: { name: "Lim Wei Jie", email: "weijie.lim2@outlook.com", phone: "+60 16-777 8888" } },
+  ];
+
+  // Identity match — the AI cross-checks each parsed resume against people already
+  // in the system (and earlier files in the same batch) on email, phone and name.
+  const normEmail = (e) => (e || "").trim().toLowerCase();
+  // Canonicalize MY numbers so local (019…) and international (+6019…) forms
+  // of the same number reconcile — otherwise real duplicates slip through.
+  const normPhone = (p) => {
+    let d = (p || "").replace(/\D/g, "");
+    if (d.startsWith("60")) d = "0" + d.slice(2);
+    return d;
+  };
+  const normName = (n) => (n || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const findDuplicate = (person, seen) => {
+    if (!person) return null;
+    const email = normEmail(person.email), phone = normPhone(person.phone), name = normName(person.name);
+    const pool = [
+      ...MOCK_CANDIDATES.filter((c) => c.parsed).map((c) => ({ id: c.id, name: c.parsed.name, email: c.parsed.email, phone: c.parsed.phone, source: "existing" })),
+      ...seen,
+    ];
+    // Rule: email match ⇒ duplicate. No/other email ⇒ name + phone both ⇒
+    // duplicate. Weaker single-field hits (name-only, phone-only) ⇒ review.
+    for (const c of pool) {
+      const cE = normEmail(c.email), cP = normPhone(c.phone), cN = normName(c.name);
+      if (email && cE && email === cE) return { match: c, on: "email", confidence: 0.99, verdict: "duplicate" };
+      if (phone && cP && phone === cP && name && cN && name === cN) return { match: c, on: "name + phone", confidence: 0.93, verdict: "duplicate" };
+      if (phone && cP && phone === cP) return { match: c, on: "phone", confidence: 0.6, verdict: "review" };
+      if (name && cN && name === cN) return { match: c, on: "name", confidence: 0.5, verdict: "review" };
+    }
+    return null;
+  };
+
+  const pickFiles = () => {
+    const picked = SAMPLE_BATCH.slice(0, uploadLimit);
+    setFiles(picked);
+    setSkipped(SAMPLE_BATCH.length - picked.length);
+  };
+
+  const runBatch = () => {
+    setStage("uploading");
+    setRows(files.map((f) => ({ ...f, uploadStatus: "pending", parseStatus: "pending" })));
+
+    // AI identity match, computed in file order so an earlier file in the same
+    // batch can be the thing a later duplicate points to.
+    const seen = [];
+    const dupMap = {};
+    files.forEach((f) => {
+      if (f.verdict !== "parsed" || !f.person) return;
+      const dup = findDuplicate(f.person, seen);
+      if (dup) {
+        const isExisting = dup.match.source === "existing";
+        dupMap[f.fileName] = {
+          on: dup.on,
+          confidence: dup.confidence,
+          matchName: dup.match.name,
+          inBatch: !isExisting,
+          hired: isExisting && hiredIds.has(dup.match.id),
+          verdict: dup.verdict, // "duplicate" (auto) | "review" (needs a human)
+        };
+        // A soft "review" hit isn't a confirmed dupe — still treat it as a
+        // possible new person so later identical files can flag against it too.
+        if (dup.verdict !== "duplicate") {
+          seen.push({ id: f.fileName, name: f.person.name, email: f.person.email, phone: f.person.phone, source: "batch" });
+        }
+      } else {
+        seen.push({ id: f.fileName, name: f.person.name, email: f.person.email, phone: f.person.phone, source: "batch" });
+      }
+    });
+
+    let i = 0;
+    const uploadInterval = setInterval(() => {
+      setRows((prev) => {
+        const next = [...prev];
+        if (next[i]) {
+          // A file with an unsupported type never uploads — it's blocked at the gate.
+          const blockedAtUpload = next[i].verdict === "rejected" && /\.(xlsx|xls|csv|png|jpg|jpeg|zip)$/i.test(next[i].fileName);
+          next[i] = { ...next[i], uploadStatus: blockedAtUpload ? "blocked" : "done" };
+        }
+        return next;
+      });
+      i++;
+      if (i >= files.length) {
+        clearInterval(uploadInterval);
+        setStage("parsing");
+        let j = 0;
+        const parseInterval = setInterval(() => {
+          setRows((prev) => {
+            const next = [...prev];
+            if (next[j]) {
+              const r = next[j];
+              // Blocked → skipped. Otherwise a duplicate identity → "duplicate",
+              // else the file's own verdict (parsed / flagged).
+              const dup = dupMap[r.fileName] || null;
+              const parseStatus = r.uploadStatus === "blocked" ? "skipped" : dup ? (dup.verdict === "review" ? "review" : "duplicate") : r.verdict;
+              next[j] = { ...r, parseStatus, dup };
+            }
+            return next;
+          });
+          j++;
+          if (j >= files.length) {
+            clearInterval(parseInterval);
+            setStage("done");
+          }
+        }, 700);
+      }
+    }, 500);
+  };
+
+  const dupActionFor = (row) => (row.dup?.hired ? "skip" : dupActions[row.fileName] || "skip");
+
+  const summary = () => {
+    const parsed = rows.filter((r) => r.parseStatus === "parsed").length;
+    const flagged = rows.filter((r) => r.parseStatus === "flagged").length;
+    const rejected = rows.filter((r) => r.parseStatus === "rejected" || r.parseStatus === "skipped").length;
+    const duplicates = rows.filter((r) => r.parseStatus === "duplicate").length;
+    const review = rows.filter((r) => r.parseStatus === "review").length;
+    const updated = rows.filter((r) => r.parseStatus === "duplicate" && dupActionFor(r) === "update").length;
+    return { parsed, flagged, rejected, duplicates, review, updated };
+  };
+
+  const verdictBadge = (row) => {
+    if (row.parseStatus === "pending") return <span className="text-xs text-neutral-400">…</span>;
+    if (row.parseStatus === "parsed")
+      return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Parsed ✓</span>;
+    if (row.parseStatus === "duplicate")
+      return <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #C7CCFF" }}>Duplicate</span>;
+    if (row.parseStatus === "review")
+      return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">Possible match ?</span>;
+    if (row.parseStatus === "flagged")
+      return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">Needs review ⚠</span>;
+    // rejected or skipped
+    return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-100">Rejected ✗</span>;
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Bulk Resume Upload</h1>
+        <p className="text-sm text-neutral-600 mb-6">
+          Upload multiple PDF or Word resumes in one go. Our AI automatically extracts candidate information and creates profiles for each file. If a document can't be processed, we'll clearly explain why and flag it for your review instead of silently skipping it.
+        </p>
+
+        {uploadLimit !== Infinity && (
+          <div className="rounded-xl border p-3 mb-5 flex items-start justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              The {planName} plan parses up to <span className="font-semibold">{uploadLimit} resumes a month</span>
+              {storesOriginal
+                ? <>, and <span className="font-semibold">stores the original file</span> so you can download it anytime. Upgrade to Professional for unlimited parsing.</>
+                : <>, and keeps the parsed profile — <span className="font-semibold">the original PDF isn't stored</span>. Upgrade for unlimited parsing and to retain &amp; download originals.</>}
+            </p>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+          </div>
+        )}
+
+        {stage === "idle" && (
+          <>
+            <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-8 text-center">
+              <button
+                onClick={pickFiles}
+                className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-4 py-2 transition-colors"
+              >
+                Choose files (simulated)
+              </button>
+              {files.length > 0 && <p className="text-sm text-neutral-600 mt-3">{files.length} file(s) selected</p>}
+              {skipped > 0 && (
+                <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+                  {skipped} more skipped — the {planName} plan allows {uploadLimit} resumes a month.
+                </p>
+              )}
+              <button
+                onClick={runBatch}
+                disabled={files.length === 0}
+                className="mt-5 block mx-auto rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-medium px-4 py-2 transition-colors"
+              >
+                Upload &amp; Parse
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-white border border-[color:var(--line)] p-5">
+              <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">What we accept</h2>
+              <ol className="space-y-3 text-sm" style={{ color: "var(--ink-2)" }}>
+                <li className="flex gap-2">
+                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>1.</span>
+                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>PDF or Word resumes.</span> Upload resumes in PDF (.pdf) or Microsoft Word (.doc, .docx) format.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>2.</span>
+                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>Text-readable files.</span> Your resume must contain selectable text. Image-only files or scanned documents without readable text can't be parsed automatically.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>3.</span>
+                  <span>
+                    <span className="font-semibold" style={{ color: "var(--ink)" }}>Standard resume content.</span> The document should include basic candidate information, such as:
+                    <ul className="mt-1.5 ml-1 space-y-1 list-disc list-inside" style={{ color: "var(--ink-3)" }}>
+                      <li>Full name</li>
+                      <li>Contact details</li>
+                      <li>Work experience, education, or skills</li>
+                    </ul>
+                    <span className="block mt-1.5">Our AI analyzes each file and assigns a confidence score based on the extracted information.</span>
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>4.</span>
+                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>Manual review when needed.</span> If our AI can't confidently read a resume, we'll flag it as <span className="text-amber-700">Needs review</span> so you can check the details before trusting the parsed profile.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>5.</span>
+                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>Automatic duplicate check.</span> Each resume is matched against people already in your system — and others in the same batch. A matching <span className="font-medium">email</span> (or the same <span className="font-medium">name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for you to review. Anyone already hired is skipped automatically.</span>
+                </li>
+              </ol>
+            </div>
+          </>
+        )}
+
+        {stage !== "idle" && (
+          <div className="space-y-2">
+            <p className="text-sm text-neutral-600 mb-3">
+              {stage === "uploading" && "Uploading files…"}
+              {stage === "parsing" && "Reading through the files…"}
+              {stage === "done" && (() => { const s = summary(); return `All done — ${s.parsed} added, ${s.duplicates ? `${s.duplicates} duplicate${s.duplicates === 1 ? "" : "s"}, ` : ""}${s.review ? `${s.review} to review, ` : ""}${s.flagged} to look over, ${s.rejected} skipped.`; })()}
+            </p>
+            {rows.map((row) => (
+              <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-3 border border-[color:var(--line)]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-neutral-800 truncate flex-1">{row.fileName}</span>
+                  <div className="flex items-center gap-4 text-xs shrink-0">
+                    <span className={row.uploadStatus === "done" ? "text-emerald-600" : row.uploadStatus === "blocked" ? "text-rose-600" : "text-neutral-500"}>
+                      Upload: {row.uploadStatus === "done" ? "✓" : row.uploadStatus === "blocked" ? "blocked" : "…"}
+                    </span>
+                    {verdictBadge(row)}
+                  </div>
+                </div>
+                {(row.parseStatus === "flagged" || row.parseStatus === "rejected" || row.parseStatus === "skipped") && row.reason && (
+                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{row.reason}</p>
+                )}
+                {row.parseStatus === "parsed" && typeof row.confidence === "number" && (
+                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{Math.round(row.confidence * 100)}% sure</p>
+                )}
+                {row.parseStatus === "duplicate" && row.dup && (
+                  <div className="mt-2">
+                    <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+                      Matched to <span className="font-semibold">{row.dup.matchName}</span> — same <span className="font-medium">{row.dup.on}</span>
+                      {row.dup.inBatch ? " (already in this batch)" : ""}.
+                    </p>
+                    {row.dup.hired ? (
+                      <p className="text-xs mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>
+                        <Icon name="check" className="w-3 h-3" /> Already hired — not re-added
+                      </p>
+                    ) : (
+                      <div className="mt-2 inline-flex rounded-lg border p-0.5" style={{ borderColor: "var(--line-strong)" }}>
+                        {[
+                          { key: "skip", label: "Skip" },
+                          { key: "update", label: "Update existing" },
+                        ].map((opt) => {
+                          const on = dupActionFor(row) === opt.key;
+                          return (
+                            <button
+                              key={opt.key}
+                              onClick={() => setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key }))}
+                              className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                              style={on ? { background: "var(--brand)" } : undefined}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!row.dup.hired && (
+                      <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
+                        {dupActionFor(row) === "update"
+                          ? "The existing profile will be refreshed with this resume — pipeline stage and history are kept."
+                          : "Kept the existing profile. No duplicate created."}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {row.parseStatus === "review" && row.dup && (
+                  <div className="mt-2">
+                    <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+                      Possible match to <span className="font-semibold">{row.dup.matchName}</span> — same <span className="font-medium">{row.dup.on}</span>{row.dup.inBatch ? " (in this batch)" : ""}, but no matching email. Is this the same person?
+                    </p>
+                    <div className="mt-2 inline-flex rounded-lg border p-0.5" style={{ borderColor: "var(--line-strong)" }}>
+                      {[
+                        { key: "new", label: "Add as new" },
+                        { key: "merge", label: "Same person" },
+                      ].map((opt) => {
+                        const on = (dupActions[row.fileName] || "new") === opt.key;
+                        return (
+                          <button
+                            key={opt.key}
+                            onClick={() => setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key }))}
+                            className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                            style={on ? { background: "var(--brand)" } : undefined}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
+                      {(dupActions[row.fileName] || "new") === "merge"
+                        ? `Will update ${row.dup.matchName}'s profile instead of adding a new one.`
+                        : "Added as a separate candidate."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+            {stage === "done" && (
+              <button
+                onClick={() => {
+                  setStage("idle");
+                  setFiles([]);
+                  setRows([]);
+                }}
+                className="mt-4 text-sm text-indigo-600 hover:text-indigo-700"
+              >
+                Upload another batch
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatSalary(job) {
+  if (!job.salary_min && !job.salary_max) return null;
+  const fmt = (n) => n.toLocaleString();
+  if (job.salary_min && job.salary_max) return `${job.salary_currency} ${fmt(job.salary_min)}–${fmt(job.salary_max)}`;
+  return `${job.salary_currency} ${fmt(job.salary_min ?? job.salary_max)}+`;
+}
+
+function NewJobScreen({ navigate, jobs, setJobs, plan = "free" }) {
+  const limits = planLimits(plan);
+  const atJobLimit = jobs.length >= limits.maxJobs;
+  const [title, setTitle] = useState("");
+  const [department, setDepartment] = useState("");
+  const [location, setLocation] = useState("");
+  const [employmentType, setEmploymentType] = useState("full_time");
+  const [remoteType, setRemoteType] = useState("hybrid");
+  const [seniority, setSeniority] = useState("mid");
+  const [salaryMin, setSalaryMin] = useState("");
+  const [salaryMax, setSalaryMax] = useState("");
+  const [description, setDescription] = useState("");
+  const [responsibilities, setResponsibilities] = useState("");
+  const [requirements, setRequirements] = useState("");
+  const [benefits, setBenefits] = useState("");
+
+  // Textarea (one item per line) → clean array of bullets.
+  const toLines = (v) => v.split("\n").map((s) => s.trim().replace(/^[-•]\s*/, "")).filter(Boolean);
+
+  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const labelClass = "block text-sm text-neutral-700 mb-1";
+
+  const canCreate = title.trim() && description.trim();
+
+  const handleCreate = () => {
+    if (!canCreate) return;
+    const newJob = {
+      id: `j${jobs.length + 1}`,
+      title: title.trim(),
+      department: department || null,
+      location: location || null,
+      employment_type: employmentType,
+      remote_type: remoteType,
+      seniority_level: seniority,
+      salary_min: salaryMin ? Number(salaryMin) : null,
+      salary_max: salaryMax ? Number(salaryMax) : null,
+      salary_currency: "MYR",
+      status: "open",
+      description: description.trim(),
+      responsibilities: toLines(responsibilities),
+      requirements: toLines(requirements),
+      benefits: toLines(benefits),
+    };
+    setJobs([newJob, ...jobs]);
+    navigate("jobs");
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate("jobs")}>← Jobs</BackLink>
+        {atJobLimit ? (
+          <div className="rounded-2xl bg-white act-shadow border mt-3" style={{ borderColor: "var(--line)" }}>
+            <UpgradeLock
+              navigate={navigate}
+              title={`You've reached your plan's ${limits.maxJobs}-job limit`}
+              sub="Upgrade for more active roles, larger AI matching quotas, and more team seats."
+            />
+          </div>
+        ) : (
+          <>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>New job posting</h1>
+        <p className="text-sm text-neutral-600 mb-6">Fill in the role details. You can share the application link and rank applicants once it's live.</p>
+
+        <div className="rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)] space-y-4">
+          <div>
+            <label className={labelClass}>Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Department</label>
+              <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Engineering" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Location</label>
+              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>Employment type</label>
+              <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={inputClass}>
+                <option value="full_time">Full-time</option>
+                <option value="part_time">Part-time</option>
+                <option value="contract">Contract</option>
+                <option value="internship">Internship</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Work mode</label>
+              <select value={remoteType} onChange={(e) => setRemoteType(e.target.value)} className={inputClass}>
+                <option value="onsite">On-site</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="remote">Remote</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Seniority</label>
+              <select value={seniority} onChange={(e) => setSeniority(e.target.value)} className={inputClass}>
+                <option value="junior">Junior</option>
+                <option value="mid">Mid</option>
+                <option value="senior">Senior</option>
+                <option value="lead">Lead</option>
+                <option value="principal">Principal</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Salary min (MYR)</label>
+              <input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="6000" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Salary max (MYR)</label>
+              <input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Description</label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="A short summary of the role and team context…"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>What you'll do <span className="text-neutral-400 font-normal">(one per line)</span></label>
+            <textarea
+              rows={4}
+              value={responsibilities}
+              onChange={(e) => setResponsibilities(e.target.value)}
+              placeholder={"Own the design system\nLead frontend architecture\nMentor the team"}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>What we're looking for <span className="text-neutral-400 font-normal">(one per line)</span></label>
+            <textarea
+              rows={4}
+              value={requirements}
+              onChange={(e) => setRequirements(e.target.value)}
+              placeholder={"5+ years React & TypeScript\nDesign-system experience\nStrong CSS skills"}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>What we offer <span className="text-neutral-400 font-normal">(one per line)</span></label>
+            <textarea
+              rows={3}
+              value={benefits}
+              onChange={(e) => setBenefits(e.target.value)}
+              placeholder={"Health insurance\nFlexible hours\nLearning budget"}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={handleCreate}
+              disabled={!canCreate}
+              className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90"
+            >
+              Create job
+            </button>
+            <button
+              onClick={() => navigate("jobs")}
+              className="text-sm rounded-xl px-4 py-2 transition-colors"
+              style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId }) {
+  const limits = planLimits(plan);
+  const atJobLimit = jobs.length >= limits.maxJobs;
+  // When a plan is capped and holds more jobs than allowed, everything beyond the
+  // cap is paused (retained, but public apply links stop taking new applicants).
+  // The kept job is prioritised, then the earliest jobs fill the remaining slots.
+  const overJobLimit = limits.maxJobs !== Infinity && jobs.length > limits.maxJobs;
+  const keptSet = new Set();
+  if (overJobLimit) {
+    const ordered = [...jobs].sort((a, b) => (a.id === keptJobId ? -1 : b.id === keptJobId ? 1 : 0));
+    ordered.slice(0, limits.maxJobs).forEach((j) => keptSet.add(j.id));
+  }
+  const pausedIds = overJobLimit ? new Set(jobs.filter((j) => !keptSet.has(j.id)).map((j) => j.id)) : new Set();
+  // Link-source modal: which job we're generating a link for, and the source tag.
+  const [linkJob, setLinkJob] = useState(null); // job object or null
+  const [linkSource, setLinkSource] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const toggleStatus = (jobId) => {
+    setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: j.status === "open" ? "closed" : "open" } : j)));
+  };
+
+  // Turn a free-typed source into a clean URL slug: "LinkedIn Post" → "linkedin_post"
+  const slugifySource = (s) =>
+    s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
+  const buildLink = (jobId, source) => {
+    const base = `https://yourapp.com/apply/${jobId}`;
+    const slug = slugifySource(source);
+    return slug ? `${base}?source=${slug}` : base;
+  };
+
+  const openLinkModal = (job) => {
+    setLinkJob(job);
+    setLinkSource("");
+    setLinkCopied(false);
+  };
+
+  const copyTaggedLink = async () => {
+    const url = buildLink(linkJob.id, linkSource);
+    let ok = false;
+    // Try the modern clipboard API first…
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    // …fall back to a temporary textarea + execCommand, which works in more
+    // restricted/sandboxed environments where the clipboard API is blocked.
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch {
+        ok = false;
+      }
+    }
+    setLinkCopied(ok ? "ok" : "fail");
+    if (ok) {
+      setTimeout(() => {
+        setLinkJob(null);
+        setLinkCopied(false);
+      }, 1000);
+    }
+  };
+
+  const SOURCE_PRESETS = ["LinkedIn", "Career Page", "Referral", "JobStreet", "Facebook", "WhatsApp"];
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <div className="flex items-center justify-between mt-2 mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>
+            {jobStatusFilter ? `${jobStatusFilter === "open" ? "Open" : "Closed"} jobs` : "Jobs"}
+          </h1>
+          {atJobLimit ? (
+            <button
+              onClick={() => navigate("billing")}
+              className="text-sm rounded-xl border px-3 py-1.5 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
+              style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+            >
+              <Icon name="lock" className="w-3.5 h-3.5" /> New Job <LockBadge />
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("newJob")}
+              className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors"
+            >
+              + New Job
+            </button>
+          )}
+        </div>
+        {atJobLimit && (
+          <div className="rounded-xl border p-3 mb-5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+              Your plan includes <span className="font-semibold">{limits.maxJobs} active job{limits.maxJobs === 1 ? "" : "s"}</span>. Upgrade for more roles, seats, and AI runs.
+            </p>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {(jobStatusFilter ? jobs.filter((j) => j.status === jobStatusFilter) : jobs).map((job) => {
+            const salary = formatSalary(job);
+            const meta = [job.department, job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level, salary].filter(Boolean);
+            const paused = pausedIds.has(job.id);
+            return (
+              <div key={job.id} className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]" style={paused ? { opacity: 0.85 } : undefined}>
+                {paused && (
+                  <div className="flex items-center justify-between gap-2 mb-3 rounded-lg px-2.5 py-1.5" style={{ background: "#FEF3C7" }}>
+                    <span className="text-[11px] font-medium inline-flex items-center gap-1" style={{ color: "#92400E" }}>
+                      <Icon name="lock" className="w-3 h-3" /> Paused — over your plan's job limit
+                    </span>
+                    <button onClick={() => navigate("billing")} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-neutral-900 font-medium">{job.title}</p>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                          paused
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : job.status === "open"
+                              ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                              : "bg-neutral-100 text-neutral-600 border border-neutral-200"
+                        }`}
+                      >
+                        {paused ? "paused" : job.status}
+                      </span>
+                    </div>
+                    {meta.length > 0 && <p className="text-xs text-neutral-500 mt-1">{meta.join(" · ")}</p>}
+                    <p className="text-sm text-neutral-600 mt-1 line-clamp-2">{job.description}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {!paused && (
+                      <button onClick={() => toggleStatus(job.id)} className="text-xs text-neutral-500 hover:text-neutral-700">
+                        Mark {job.status === "open" ? "closed" : "open"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
+                  <button
+                    onClick={() => {
+                      setActiveJobId(job.id);
+                      navigate("applicants");
+                    }}
+                    className="text-sm text-indigo-600 hover:text-indigo-700"
+                  >
+                    Applicants{applicantCountFor(job.id) > 0 ? ` (${applicantCountFor(job.id)})` : ""}
+                  </button>
+                  {job.status === "open" && !paused && (
+                    <button
+                      onClick={() => openLinkModal(job)}
+                      className="text-sm text-neutral-500 hover:text-neutral-700"
+                    >
+                      Copy Job Link
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Copy application link — source tagging modal */}
+      {linkJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLinkJob(null)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-5 act-shadow border border-[color:var(--line)]">
+            <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Share application link</h2>
+            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+              Add where you're posting this so you can see which channels bring in the best applicants. Leave it blank for a plain link.
+            </p>
+
+            <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Source</label>
+            <input
+              value={linkSource}
+              onChange={(e) => setLinkSource(e.target.value)}
+              placeholder="e.g. LinkedIn, Referral, JobStreet"
+              className="w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+            />
+
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {SOURCE_PRESETS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setLinkSource(s)}
+                  className="text-xs rounded-full px-2.5 py-1 border transition-colors"
+                  style={
+                    linkSource === s
+                      ? { background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand)" }
+                      : { color: "var(--ink-2)", borderColor: "var(--line-strong)" }
+                  }
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-xl bg-neutral-50 border border-[color:var(--line)] px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide mb-0.5" style={{ color: "var(--ink-3)" }}>Link preview</p>
+              <p className="text-xs break-all select-all cursor-text" style={{ color: "var(--ink)" }}>{buildLink(linkJob.id, linkSource)}</p>
+            </div>
+
+            {linkCopied === "fail" && (
+              <p className="text-xs mt-2" style={{ color: "var(--ink-2)" }}>
+                Couldn't copy automatically here — tap the link above to select it, then copy.
+              </p>
+            )}
+
+            <button
+              onClick={() => { const j = linkJob; setLinkJob(null); onPreviewApply && onPreviewApply(j); }}
+              className="text-sm font-medium mt-3 hover:opacity-70 transition-opacity"
+              style={{ color: "var(--brand)" }}
+            >
+              Preview the application page →
+            </button>
+
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button
+                onClick={() => setLinkJob(null)}
+                className="text-sm rounded-xl px-4 py-2 transition-colors"
+                style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+              >
+                {linkCopied === "ok" ? "Done" : "Cancel"}
+              </button>
+              <button
+                onClick={copyTaggedLink}
+                className="text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90"
+              >
+                {linkCopied === "ok" ? "Copied ✓" : "Copy link"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, hiredIds = new Set() }) {
+  const limits = planLimits(plan);
+  const runLimit = limits.aiRunsPerMonth;
+  const runsLeft = Math.max(0, runLimit - matchRunsUsed);
+  const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
+  const [query, setQuery] = useState("");
+  // Matching against an open position, across the whole candidate database.
+  const [matchJobId, setMatchJobId] = useState("");
+  const [matching, setMatching] = useState(false);
+  const [matchScores, setMatchScores] = useState(null); // null | { [candidateId]: score }
+  const [invited, setInvited] = useState({}); // candidateId -> true once invite link generated
+  const [inviteBanner, setInviteBanner] = useState(null);
+
+  const parsed = candidates.filter((c) => c.parsed);
+  const openJobs = (jobs || []).filter((j) => j.status === "open");
+  const matchJob = jobs?.find((j) => j.id === matchJobId);
+
+  // Candidates who already applied to the selected position — exclude them,
+  // since inviting someone who's already in the pipeline makes no sense.
+  const alreadyApplied = matchJobId
+    ? new Set((APPLICANTS_BY_JOB[matchJobId] || []).map((a) => a.candidateId))
+    : new Set();
+
+  // Text filter across name, skills and roles. Empty query → everyone.
+  const q = query.trim().toLowerCase();
+  const terms = q.split(/[\s,]+/).filter((t) => t.length > 1);
+  let list = parsed.filter((c) => {
+    if (hiredIds.has(c.id)) return false; // hired candidates are off the market
+    if (alreadyApplied.has(c.id)) return false;
+    if (terms.length === 0) return true;
+    const name = c.parsed.name.toLowerCase();
+    const skills = c.parsed.skills.map((s) => s.toLowerCase());
+    const roles = c.parsed.experience.map((e) => e.title.toLowerCase());
+    return terms.some((t) =>
+      name.includes(t) || skills.some((s) => s.includes(t)) || roles.some((r) => r.includes(t))
+    );
+  });
+
+  // Score a candidate against a job by keyword overlap (skills + role vs the
+  // job title, requirements and description). Works for any job, not just seeded ones.
+  const scoreAgainstJob = (c, job) => {
+    if (!job) return 0;
+    const hay = `${job.title} ${job.requirements || ""} ${job.description || ""}`.toLowerCase();
+    const skills = c.parsed.skills || [];
+    const hits = skills.filter((s) => hay.includes(s.toLowerCase())).length;
+    const roleHit = (c.parsed.experience || []).some((e) => hay.includes((e.title || "").toLowerCase().split(" ")[0]));
+    // Normalize to a 0–1 fit score.
+    const raw = hits * 2 + (roleHit ? 2 : 0);
+    return Math.min(1, raw / Math.max(6, skills.length));
+  };
+
+  const runMatching = () => {
+    if (!matchJob) return;
+    if (outOfRuns) { navigate("billing"); return; }
+    setMatching(true);
+    setTimeout(() => {
+      const map = {};
+      parsed.forEach((c) => { map[c.id] = scoreAgainstJob(c, matchJob); });
+      setMatchScores(map);
+      setMatching(false);
+      if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) setMatchRunsUsed((n) => n + 1);
+    }, 1200);
+  };
+
+  // If matched, rank by score (highest first).
+  if (matchScores) {
+    list = [...list].sort((a, b) => (matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0));
+  }
+
+  // Free plan: when matched, view only the top 3; when browsing, the top 5.
+  const viewLimit = matchScores ? limits.aiMatches : limits.visibleCandidates;
+  const shownList = list.slice(0, viewLimit);
+  const lockedList = list.slice(viewLimit);
+
+  const inviteLink = (jobId) => `https://yourapp.com/apply/${jobId}?source=database`;
+
+  const sendInvite = async (candidateId) => {
+    if (!matchJob) return;
+    const url = inviteLink(matchJob.id);
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); ok = true; }
+    } catch { ok = false; }
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        ok = document.execCommand("copy"); document.body.removeChild(ta);
+      } catch { ok = false; }
+    }
+    setInvited((prev) => ({ ...prev, [candidateId]: true }));
+    const c = parsed.find((x) => x.id === candidateId);
+    setInviteBanner(
+      `${ok ? "Invite link copied" : "Invite link ready"} for ${c?.parsed?.name ?? "candidate"} → ${matchJob.title} (source: database).`
+    );
+    setTimeout(() => setInviteBanner(null), 4000);
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Candidate Search</h1>
+        <p className="text-sm text-neutral-600 mb-6">
+          Every candidate in your database. Search to narrow, or match them all against an open role and invite the best fits to apply.
+        </p>
+
+        {/* Search box */}
+        <div className="relative mb-3">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+            <Icon name="search" className="w-4 h-4" />
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name, skill, or role"
+            className="w-full rounded-xl bg-white border border-neutral-200 pl-9 pr-3 py-2.5 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+          />
+        </div>
+
+        {/* Quick skill suggestions */}
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <span className="text-xs text-neutral-400">Try:</span>
+          {["React", "TypeScript", "Figma", "Design systems"].map((chip) => (
+            <button
+              key={chip}
+              onClick={() => setQuery(chip)}
+              className="text-xs rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-600 hover:border-neutral-300 transition-colors"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        {/* Match-against-position bar */}
+        <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5">
+          <p className="text-sm font-semibold font-display mb-1" style={{ color: "var(--ink)" }}>Match against an open position</p>
+          <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>Rank every candidate by fit, then invite the strongest to apply — invites are tagged <span className="font-medium">source: database</span>.</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={matchJobId}
+              onChange={(e) => { setMatchJobId(e.target.value); setMatchScores(null); }}
+              className="flex-1 rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+            >
+              <option value="">Select an open position…</option>
+              {openJobs.map((j) => (
+                <option key={j.id} value={j.id}>{j.title}</option>
+              ))}
+            </select>
+            <button
+              onClick={runMatching}
+              disabled={!matchJobId || matching}
+              className="shrink-0 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 flex items-center justify-center gap-2 transition-opacity"
+            >
+              <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
+              {matching ? "Matching…" : outOfRuns ? "Upgrade for more runs" : "Run matching"}
+            </button>
+          </div>
+          {limits.aiRunsPerMonth !== Infinity && (
+            <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>
+              {outOfRuns
+                ? `You've used all ${limits.aiRunsPerMonth} match runs this month. Upgrade for unlimited runs and the full ranking.`
+                : `Your plan includes ${limits.aiRunsPerMonth} match runs a month (${runsLeft} left), showing the top ${limits.aiMatches} fits. Upgrade for unlimited runs and everyone.`}
+            </p>
+          )}
+          {openJobs.length === 0 && (
+            <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>No open positions yet — create one under Job Postings.</p>
+          )}
+        </div>
+
+        {inviteBanner && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+            <p className="text-xs text-emerald-700">{inviteBanner}</p>
+          </div>
+        )}
+
+        {/* Results */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm text-neutral-500">
+            {list.length} {list.length === 1 ? "candidate" : "candidates"}
+            {matchScores && matchJob ? ` · ranked for ${matchJob.title}` : q ? ` · matching "${query}"` : " in your database"}
+            {matchJob && alreadyApplied.size > 0 ? ` · ${alreadyApplied.size} already applied, hidden` : ""}
+          </p>
+          {(q || matchScores) && (
+            <button onClick={() => { setQuery(""); setMatchScores(null); setMatchJobId(""); }} className="text-xs text-neutral-500 hover:text-neutral-700">
+              Reset
+            </button>
+          )}
+        </div>
+
+        {list.length === 0 ? (
+          <p className="text-sm text-neutral-500">No candidates match "{query}". Try a different name, skill, or role.</p>
+        ) : (
+          <div className="space-y-2">
+            {shownList.map((c, idx) => {
+              const role = c.parsed.experience?.[0]?.title;
+              const score = matchScores?.[c.id];
+              const ranked = typeof score === "number";
+              const isTop = ranked && idx === 0;
+              // One-line descriptor, e.g. "React, TypeScript · 6 yrs".
+              const topSkills = (c.parsed.skills || []).slice(0, 2).join(", ");
+              const yrs = c.parsed.years_of_experience;
+              const descriptor = [topSkills, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+
+              if (ranked) {
+                return (
+                  <div key={c.id} className="rounded-2xl bg-white act-shadow px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : undefined }}>
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => onViewCandidate(c.id)} className="shrink-0">
+                        <ScoreRingLight value={Math.round(score * 100)} />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => onViewCandidate(c.id)} className="min-w-0 flex-1 text-left">
+                            <p className="text-sm font-semibold text-neutral-900 truncate hover:underline">{c.parsed.name}</p>
+                          </button>
+                          {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
+                        </div>
+                        <p className="text-xs text-neutral-500 truncate mt-0.5">{descriptor}</p>
+                        {matchJob && (
+                          <button
+                            onClick={() => sendInvite(c.id)}
+                            className="mt-2 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors"
+                            style={
+                              invited[c.id]
+                                ? { background: "var(--brand-soft)", color: "var(--brand)" }
+                                : { border: "1px solid var(--brand)", color: "var(--brand)" }
+                            }
+                          >
+                            {invited[c.id] ? "Invited ✓" : "Invite to apply"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Browse mode (no active ranking) — avatar + skills.
+              return (
+                <div key={c.id} className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => onViewCandidate(c.id)} className="shrink-0">
+                      <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={48} showPhotoDot={false} />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <button onClick={() => onViewCandidate(c.id)} className="min-w-0 text-left block w-full">
+                        <p className="text-sm font-semibold text-neutral-900 truncate hover:underline">{c.parsed.name}</p>
+                      </button>
+                      {role && <p className="text-xs text-neutral-500 truncate">{role}</p>}
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {c.parsed.skills.slice(0, 5).map((s) => (
+                          <span key={s} className="text-[11px] rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
+                  </div>
+                </div>
+              );
+            })}
+
+            {lockedList.length > 0 && (
+              <div className="relative pt-1">
+                <div className="space-y-2 blur-[3px] pointer-events-none select-none" aria-hidden="true">
+                  {lockedList.slice(0, 2).map((c, i) => (
+                    <div key={i} className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)] flex items-center gap-4">
+                      <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={48} showPhotoDot={false} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-neutral-900 truncate">{c.parsed.name}</p>
+                        {c.parsed.experience?.[0]?.title && <p className="text-xs text-neutral-500 truncate">{c.parsed.experience[0].title}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center px-4">
+                  <div className="rounded-2xl bg-white/85 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
+                    <UpgradeLock
+                      navigate={navigate}
+                      compact
+                      title={`${lockedList.length} more ${lockedList.length === 1 ? "match" : "matches"} hidden`}
+                      sub={`Your plan shows the top ${limits.aiMatches} matches. Upgrade for the full ranking.`}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {matchJob && (
+          <button
+            onClick={() => onPreviewApply && onPreviewApply(matchJob)}
+            className="text-sm font-medium mt-4 hover:opacity-70 transition-opacity"
+            style={{ color: "var(--brand)" }}
+          >
+            Preview the {matchJob.title} application page →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate }) {
+  const interviews = scheduledInterviewsFrom(bookings, candidates);
+
+  const jobForTitle = (title) => jobs.find((j) => j.title === title);
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-3xl mx-auto">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <div className="flex items-center justify-between mt-2 mb-1">
+          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Scheduled Interviews</h1>
+          <button
+            onClick={() => navigate("interviewers")}
+            className="text-sm font-medium hover:opacity-70 transition-opacity"
+            style={{ color: "var(--brand)" }}
+          >
+            Manage interviewers →
+          </button>
+        </div>
+        <p className="text-sm mb-6" style={{ color: "var(--ink-2)" }}>
+          {interviews.length > 0
+            ? `${interviews.length} interview${interviews.length > 1 ? "s" : ""} confirmed and on the calendar.`
+            : "Interviews a candidate has confirmed will appear here."}
+        </p>
+
+        {interviews.length === 0 ? (
+          <div className="rounded-2xl bg-white act-shadow border p-10 text-center" style={{ borderColor: "var(--line)" }}>
+            <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
+            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+              Send a candidate an interview invite — once they pick a time, it shows up here with the position and their details.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {interviews.map((iv) => {
+              const cand = candidates.find((c) => c.id === iv.candidateId);
+              const job = jobForTitle(iv.jobTitle);
+              const dateLine = iv.start.toLocaleString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              });
+              return (
+                <button
+                  key={iv.candidateId}
+                  onClick={() => onViewCandidate(iv.candidateId, job?.id ?? null)}
+                  className="w-full text-left rounded-2xl bg-white act-shadow border p-4 sm:p-5 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-4"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  {/* Date chip */}
+                  <div className="w-14 shrink-0 text-center rounded-xl py-2" style={{ background: "var(--brand-soft)" }}>
+                    <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--brand)" }}>{iv.month}</p>
+                    <p className="text-lg font-bold leading-none" style={{ color: "var(--ink)" }}>{iv.day}</p>
+                  </div>
+
+                  {/* Candidate + position */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{iv.jobTitle}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                      <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                        <Icon name="calendar" className="w-3 h-3" /> {dateLine}
+                      </span>
+                      <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                        <Icon name="clock" className="w-3 h-3" /> {iv.time}
+                      </span>
+                      {iv.interviewerName && (
+                        <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                          <Icon name="users" className="w-3 h-3" /> {iv.interviewerName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Provider + status */}
+                  <div className="text-right shrink-0 hidden sm:block">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1" style={{ background: "#ECFDF3", color: "#067647" }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#12B76A" }} /> Confirmed
+                    </span>
+                    <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{iv.provider}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "free", profile }) {
+  const limits = planLimits(plan);
+  const canAddInterviewers = limits.canAddInterviewers;
+  // Seats include the owner, so invitable teammates = seats − 1.
+  const seatCap = limits.seats === Infinity ? Infinity : Math.max(0, limits.seats - 1);
+  const atSeatCap = interviewers.length >= seatCap;
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [banner, setBanner] = useState(null);
+  const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
+
+  const ownerName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim();
+
+  // The meeting-link type and calendar are a single workspace choice, connected
+  // once in Settings — not something each interviewer sets up individually.
+  const meetLabel = defaultProvider === "microsoft" ? "Microsoft Teams" : "Google Meet";
+  const calSystem = defaultProvider === "microsoft" ? "Microsoft 365" : "Google Workspace";
+
+  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const labelClass = "block text-sm text-neutral-700 mb-1";
+
+  // How many confirmed interviews reference this interviewer (bookings link by name).
+  const scheduledCountFor = (iv) =>
+    Object.values(bookings).filter(
+      (b) => b && b.status === "scheduled" && b.request?.interviewerName === iv.name
+    ).length;
+
+  const handleAdd = () => {
+    if (!canAddInterviewers || !name || !email) return;
+    if (atSeatCap) {
+      setBanner(`Your plan includes ${limits.seats} seats. Upgrade to Professional for unlimited team members.`);
+      return;
+    }
+    setInterviewers([
+      ...interviewers,
+      {
+        id: `iv${interviewers.length + 1}`,
+        name,
+        email,
+        timezone: "Asia/Kuala_Lumpur",
+        status: "pending",
+      },
+    ]);
+    setBanner(`Invite sent to ${email}. They'll get a link to join your workspace and run interviews.`);
+    setName("");
+    setEmail("");
+    setShowForm(false);
+  };
+
+  const confirmRemove = () => {
+    if (!removing) return;
+    setInterviewers((prev) => prev.filter((x) => x.id !== removing.id));
+    setBanner(`${removing.name} was removed.`);
+    setRemoving(null);
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <div className="flex items-center justify-between mt-2 mb-1">
+          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Interviewers</h1>
+          {canAddInterviewers ? (
+            <button
+              onClick={() => (atSeatCap ? navigate("billing") : setShowForm((s) => !s))}
+              className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors"
+            >
+              {atSeatCap ? "Seats full — upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("billing")}
+              className="text-sm rounded-xl border px-3 py-1.5 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
+              style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+            >
+              <Icon name="lock" className="w-3.5 h-3.5" /> Invite teammate <LockBadge />
+            </button>
+          )}
+        </div>
+        {!canAddInterviewers && (
+          <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+              The Free plan includes <span className="font-semibold">1 seat — just you</span>. Upgrade to invite teammates, each with their own login.
+            </p>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+          </div>
+        )}
+        {canAddInterviewers && limits.seats !== Infinity && (
+          <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: atSeatCap ? "var(--brand-soft)" : "#fff" }}>
+            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+              Your plan includes <span className="font-semibold">{limits.seats} seats</span> — {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Professional for unlimited seats." : "."}
+            </p>
+            {atSeatCap && <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>}
+          </div>
+        )}
+        <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+          Your team. Invite teammates to run interviews — each gets their own login and sees only the interviews assigned to them. Availability and {meetLabel} links come from your workspace calendar, so there's no per-person setup.
+        </p>
+
+        {/* Workspace calendar status — one connection covers everyone */}
+        <div className="mb-6 rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: calendarConnected ? "#F0FDF4" : "#FFF7ED" }}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: calendarConnected ? "#16A34A" : "#B45309" }} />
+            <p className="text-sm min-w-0" style={{ color: calendarConnected ? "#166534" : "#92400E" }}>
+              {calendarConnected
+                ? `${calSystem} calendar connected — all interviewers are covered.`
+                : `Connect your ${calSystem} calendar to enable scheduling for everyone.`}
+            </p>
+          </div>
+          {!calendarConnected && (
+            <button onClick={() => navigate("settings")} className="text-xs font-medium shrink-0 hover:opacity-70" style={{ color: "var(--brand)" }}>
+              Connect in Settings →
+            </button>
+          )}
+        </div>
+
+        {banner && (
+          <div className="mb-4 rounded-xl bg-white act-shadow px-4 py-2 border border-[color:var(--line)]">
+            <p className="text-sm text-neutral-700">{banner}</p>
+          </div>
+        )}
+
+        {showForm && (
+          <div className="mb-6 rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)] space-y-3">
+            <p className="text-sm font-medium text-neutral-900">Invite a teammate</p>
+            <div>
+              <label className={labelClass}>Name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Tan" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Work email</label>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@company.com" className={inputClass} />
+            </div>
+            <button onClick={handleAdd} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">
+              Send invite
+            </button>
+            <p className="text-xs text-neutral-400">They'll get an email to join your workspace. Teammates are included in your plan — they don't buy their own.</p>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {/* Account owner — always a member, can't be removed */}
+          <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Owner · You</span>
+              </div>
+              <p className="text-xs text-neutral-500 truncate">{profile?.role || "Hiring Manager"} · {meetLabel}</p>
+            </div>
+          </div>
+
+          {interviewers.map((iv) => {
+            const upcoming = scheduledCountFor(iv);
+            const pending = iv.status === "pending";
+            return (
+              <div key={iv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={pending ? { background: "#FEF3C7", color: "#92400E" } : !canAddInterviewers ? { background: "#F1F1F4", color: "var(--ink-3)" } : { background: "#DCFCE7", color: "#166534" }}>
+                      {pending ? "Invite pending" : !canAddInterviewers ? "Access suspended" : "Active"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-500 truncate">
+                    {iv.email} · {iv.timezone} · {meetLabel}
+                  </p>
+                  {upcoming > 0 && (
+                    <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
+                      <Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming interview{upcoming > 1 ? "s" : ""}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <button
+                    onClick={() => setRemoving(iv)}
+                    className="text-xs text-neutral-400 hover:text-red-600 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Remove confirmation */}
+      {removing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setRemoving(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Remove {removing.name}?</h3>
+            {(() => {
+              const sched = scheduledCountFor(removing);
+              return (
+                <>
+                  <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
+                    This removes the interviewer from your workspace. Your job postings aren't affected.
+                  </p>
+                  {sched > 0 && (
+                    <div className="rounded-xl p-3 mb-4 text-sm" style={{ background: "#FFF7ED", border: "1px solid #FED7AA", color: "#9A3412" }}>
+                      They have <span className="font-semibold">{sched}</span> scheduled interview{sched > 1 ? "s" : ""}. You'll need to reassign {sched > 1 ? "those" : "it"} to another interviewer.
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setRemoving(null)} className="text-sm rounded-xl px-4 py-2 border transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                      Cancel
+                    </button>
+                    <button onClick={confirmRemove} className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">
+                      Remove interviewer
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Deterministic mock slots — five weekday afternoons/mornings spread across
+// the next two weeks, standing in for what find-available-slots computes
+// from real Google Calendar free/busy data + Claude's slot picks.
+function generateMockSlots() {
+  // Business-hours slots only: weekdays (Mon–Fri), start times between 9am
+  // and 4:30pm so a 30-min slot always ends by 5pm.
+  const slots = [];
+  const now = new Date();
+  const startHours = [9, 10, 11, 14, 15, 16]; // avoids lunch hour, all within 9–5
+  let dayOffset = 1;
+
+  while (slots.length < 5 && dayOffset < 21) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + dayOffset);
+    const weekday = d.getDay(); // 0 = Sun, 6 = Sat
+    if (weekday !== 0 && weekday !== 6) {
+      const hour = startHours[slots.length % startHours.length];
+      d.setHours(hour, 0, 0, 0);
+      const end = new Date(d.getTime() + 30 * 60000);
+      slots.push({ start: d.toISOString(), end: end.toISOString() });
+    }
+    dayOffset++;
+  }
+  return slots;
+}
+
+function formatSlotDisplay(iso) {
+  return new Date(iso).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// Derive the list of real scheduled interviews from the shared bookings map.
+// Only bookings the candidate has actually confirmed ('scheduled') count as
+// upcoming interviews. Returned sorted by soonest start time.
+function scheduledInterviewsFrom(bookings, candidates) {
+  const rows = Object.entries(bookings || {})
+    .filter(([, b]) => b && b.status === "scheduled" && b.confirmedSlot?.start)
+    .map(([candidateId, b]) => {
+      const cand = candidates.find((c) => c.id === candidateId);
+      const start = new Date(b.confirmedSlot.start);
+      return {
+        candidateId,
+        candidateName: cand?.parsed?.name || cand?.name || "Candidate",
+        jobTitle: b.request?.jobTitle || "Interview",
+        interviewerName: b.request?.interviewerName || null,
+        start,
+        month: start.toLocaleString("en-US", { month: "short" }),
+        day: String(start.getDate()),
+        time: start.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" }),
+        provider: (b.provider || "google") === "microsoft" ? "Teams" : "Google Meet",
+      };
+    })
+    .sort((a, b) => a.start - b.start);
+  return rows;
+}
+
+function buildQuestionPool(p, roleTitle) {
+  const s0 = p.skills?.[0] ?? "your core stack";
+  const s1 = p.skills?.[1] ?? "a key tool";
+  const s2 = p.skills?.[2] ?? s0;
+  const r0 = p.experience?.[0];
+  const r1 = p.experience?.[1];
+  const isFrontend = roleTitle.toLowerCase().includes("frontend") || roleTitle.toLowerCase().includes("engineer");
+
+  const pool = [
+    { category: "Technical", question: `Your resume lists ${s0} and ${s1}. For the ${roleTitle} role, walk me through a project where you combined them to ship something end-to-end.` },
+    r0 && { category: "Experience", question: `At ${r0.company} you were ${r0.title}. What was the hardest technical trade-off you made there, and how would it apply to what we're building?` },
+    { category: "Role fit", question: `This role leans on ${isFrontend ? "design systems and component architecture" : "the core responsibilities in the posting"}. Where's the biggest gap between your current experience and what this role needs?` },
+    { category: "Behavioral", question: `Tell me about a time you disagreed with a teammate on an approach. How did you resolve it?` },
+    { category: "Depth check", question: `You mention ${s0} — go deep on a limitation you've hit with it in production and how you worked around it.` },
+    { category: "Technical", question: `How do you decide when to reach for ${s1} versus building something yourself? Give a recent example.` },
+    r1 && { category: "Experience", question: `Before ${r0?.company ?? "your last role"}, you were at ${r1.company}. What made you move on, and what did you carry forward?` },
+    { category: "Role fit", question: `What would your first 30 days in the ${roleTitle} role look like if you wanted to make an early impact?` },
+    { category: "Behavioral", question: `Describe a project that slipped or failed. What did you learn, and what would you do differently?` },
+    { category: "Technical", question: `Walk me through how you'd debug a performance regression that only shows up in production, using ${s2}.` },
+    { category: "Collaboration", question: `How do you handle handoffs with design and backend? What does a smooth one look like to you?` },
+    { category: "Depth check", question: `If I gave you a legacy ${s0} codebase with no tests, what's your first week look like?` },
+    { category: "Motivation", question: `Why this role specifically, and why now? What are you hoping to grow into?` },
+    { category: "Technical", question: `What's an opinion you hold about ${s1} that not everyone on your team shared?` },
+    { category: "Role fit", question: `How do you keep up with changes in ${s0} and the wider ecosystem?` },
+  ].filter(Boolean);
+
+  // Group by category in a sensible order so questions read as coherent
+  // sections (and stay grouped as more are revealed), not a jumbled mix.
+  const CATEGORY_ORDER = ["Technical", "Depth check", "Experience", "Role fit", "Behavioral", "Collaboration", "Motivation"];
+  pool.sort((a, b) => {
+    const d = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+    return d !== 0 ? d : 0;
+  });
+
+  return pool;
+}
+
+function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled }) {
+  const openJobs = jobs.filter((j) => j.status === "open");
+  const fixedJob = contextJobId ? jobs.find((j) => j.id === contextJobId) : null;
+  const [jobId, setJobId] = useState(fixedJob?.id ?? openJobs[0]?.id ?? "");
+  const [pool, setPool] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(5);
+  const [generating, setGenerating] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+
+  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const activeJob = fixedJob ?? openJobs.find((j) => j.id === jobId);
+  const p = candidate.parsed;
+
+  const generate = () => {
+    setGenerating(true);
+    setTimeout(() => {
+      setPool(buildQuestionPool(p, activeJob?.title ?? "this role"));
+      setVisibleCount(5);
+      setGenerating(false);
+    }, 1000);
+  };
+
+  const loadMore = () => {
+    setLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount((n) => n + 5);
+      setLoadingMore(false);
+    }, 500);
+  };
+
+  const copyText = (text) => {
+    // Clipboard API may be unavailable in the preview sandbox; fall back quietly.
+    try {
+      navigator.clipboard?.writeText(text);
+    } catch (e) {}
+  };
+
+  const copyOne = (q, i) => {
+    copyText(`[${q.category}] ${q.question}`);
+    setCopiedIdx(i);
+    setTimeout(() => setCopiedIdx(null), 1500);
+  };
+
+  const copyAll = () => {
+    const visible = pool.slice(0, visibleCount);
+    const notes = `Interview questions — ${p.name}${activeJob ? ` · ${activeJob.title}` : ""}\n\n` +
+      visible.map((q, i) => `${i + 1}. [${q.category}] ${q.question}`).join("\n");
+    copyText(notes);
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 1500);
+  };
+
+  // Questions only become available once the interview is actually scheduled.
+  if (!isScheduled) {
+    return (
+      <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Interview Questions</h2>
+        <div className="flex items-start gap-2 mt-2">
+          <Icon name="clock" className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-neutral-500">
+            Available once the interview is scheduled. Book a time above and tailored questions for {p.name} will appear here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const visible = pool ? pool.slice(0, visibleCount) : [];
+  const hasMore = pool && visibleCount < pool.length;
+
+  return (
+    <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Interview Questions</h2>
+        {pool && (
+          <div className="flex items-center gap-3">
+            <button onClick={copyAll} className="text-xs text-neutral-600 hover:text-neutral-900">
+              {copiedAll ? "Copied ✓" : "Copy all to notes"}
+            </button>
+            <button onClick={generate} disabled={generating} className="text-xs text-indigo-600 hover:text-indigo-700">
+              {generating ? "Regenerating…" : "Regenerate"}
+            </button>
+          </div>
+        )}
+      </div>
+      <p className="text-sm text-neutral-500 mb-3">
+        Tailored to {p.name}'s experience{activeJob ? ` and the ${activeJob.title} role` : ""}.
+      </p>
+
+      {!fixedJob && openJobs.length > 0 && !pool && (
+        <div className="mb-3">
+          <label className="block text-xs text-neutral-500 mb-1">Role</label>
+          <select value={jobId} onChange={(e) => setJobId(e.target.value)} className={inputClass}>
+            {openJobs.map((j) => (
+              <option key={j.id} value={j.id}>{j.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {!pool ? (
+        <button
+          onClick={generate}
+          disabled={generating || !activeJob}
+          className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
+        >
+          {generating ? "Generating…" : "Generate interview questions"}
+        </button>
+      ) : (
+        <>
+          <div className="space-y-4">
+            {(() => {
+              // Build contiguous category groups from the visible (category-sorted) slice.
+              const groups = [];
+              visible.forEach((q, i) => {
+                const item = { ...q, flatIndex: i };
+                const last = groups[groups.length - 1];
+                if (last && last.category === q.category) last.items.push(item);
+                else groups.push({ category: q.category, items: [item] });
+              });
+              return groups.map((g, gi) => (
+                <div key={gi}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--brand)" }}>{g.category}</p>
+                  <div className="space-y-2">
+                    {g.items.map((q) => (
+                      <div key={q.flatIndex} className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm text-neutral-800 min-w-0">{q.question}</p>
+                          <button
+                            onClick={() => copyOne(q, q.flatIndex)}
+                            className="text-xs text-neutral-400 hover:text-neutral-700 shrink-0 mt-0.5"
+                            title="Copy question"
+                          >
+                            {copiedIdx === q.flatIndex ? "Copied ✓" : "Copy"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+
+          <div className="flex items-center gap-3 mt-4">
+            {hasMore && (
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="text-sm rounded-xl border border-neutral-200 px-4 py-2 text-neutral-700 hover:border-neutral-300 disabled:opacity-50 transition-colors"
+              >
+                {loadingMore ? "Loading…" : "Load more questions"}
+              </button>
+            )}
+            <span className="text-xs text-neutral-400">{visible.length} of {pool.length}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, provider = "google", calendarConnected = false }) {
+  const openJobs = jobs.filter((j) => j.status === "open");
+  // If opened from a specific job's applicant list, that job is fixed and
+  // there's no need to pick one. Otherwise let HR choose the open role.
+  const fixedJob = contextJobId ? jobs.find((j) => j.id === contextJobId) : null;
+  const [jobId, setJobId] = useState(fixedJob?.id ?? openJobs[0]?.id ?? "");
+  const [interviewerId, setInterviewerId] = useState(interviewers[0]?.id ?? "");
+  const meetName = provider === "microsoft" ? "Teams" : "Google Meet";
+  const [attendeePick, setAttendeePick] = useState("");
+  const [additionalAttendees, setAdditionalAttendees] = useState([]); // array of interviewer ids
+  const [finding, setFinding] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [request, setRequest] = useState(null);
+  const [selectedSlots, setSelectedSlots] = useState([]); // ISO start strings HR chose to send
+
+  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const selectedInterviewer = interviewers.find((iv) => iv.id === interviewerId);
+  const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
+
+  // Shared booking (from the root) is the source of truth once an invite has
+  // gone out — it survives navigating to the candidate's booking page and back,
+  // and reflects the candidate confirming a time.
+  const bookingStatus = booking?.status; // undefined | 'sent' | 'scheduled'
+  const sentRequest = booking?.request;
+
+  // Attendees can only be interviewers already set up in the system, and not
+  // the primary interviewer already on the invite.
+  const attendeeOptions = interviewers.filter(
+    (iv) => iv.id !== interviewerId && !additionalAttendees.includes(iv.id)
+  );
+  const attendeeName = (id) => interviewers.find((iv) => iv.id === id)?.name ?? id;
+
+  const addAttendee = () => {
+    if (!attendeePick || additionalAttendees.includes(attendeePick)) return;
+    setAdditionalAttendees((prev) => [...prev, attendeePick]);
+    setAttendeePick("");
+  };
+
+  const removeAttendee = (id) => setAdditionalAttendees((prev) => prev.filter((a) => a !== id));
+
+  const toggleSlot = (start) =>
+    setSelectedSlots((prev) => (prev.includes(start) ? prev.filter((s) => s !== start) : [...prev, start]));
+
+  const handleFindSlots = () => {
+    setFinding(true);
+    setTimeout(() => {
+      const slots = generateMockSlots();
+      setRequest({
+        id: `req-${candidate.id}`,
+        candidateId: candidate.id,
+        status: "draft",
+        slot_duration_minutes: 30,
+        proposed_slots: slots,
+        jobTitle: activeJobTitle,
+        interviewerName: selectedInterviewer?.name,
+      });
+      // Pre-select all AI-suggested slots; HR can deselect the ones they don't want.
+      setSelectedSlots(slots.map((s) => s.start));
+      setFinding(false);
+    }, 1500);
+  };
+
+  const handleSendInvite = () => {
+    setSending(true);
+    setTimeout(() => {
+      // Only the slots HR kept selected are sent to the candidate.
+      const chosen = request.proposed_slots.filter((s) => selectedSlots.includes(s.start));
+      const sent = { ...request, status: "sent", proposed_slots: chosen };
+      setRequest(sent);
+      // Lift to shared booking so the profile + booking page stay in sync.
+      if (onInviteSent) onInviteSent(candidate.id, sent);
+      setSending(false);
+    }, 1200);
+  };
+
+  return (
+    <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4">
+      <h2 className="text-sm font-medium text-indigo-700 mb-1">AI Auto Schedule</h2>
+      <p className="text-sm text-neutral-600 mb-3">
+        {fixedJob
+          ? `Scheduling for the ${fixedJob.title} role. `
+          : ""}
+        Finds the interviewer's free calendar slots, sends the candidate a link to pick one, then
+        creates the calendar event and Meet link automatically — no back-and-forth.
+      </p>
+
+      {bookingStatus === "scheduled" ? (
+        <div className="rounded-xl bg-white border border-emerald-200 px-4 py-3">
+          <p className="text-sm text-emerald-600 font-medium">Interview scheduled ✓</p>
+          <p className="text-sm text-neutral-700 mt-0.5">
+            {formatSlotDisplay(booking.confirmedSlot.start)}
+            {sentRequest?.interviewerName ? ` with ${sentRequest.interviewerName}` : ""}
+            {sentRequest?.jobTitle ? ` · ${sentRequest.jobTitle}` : ""}
+          </p>
+          <p className="text-xs text-neutral-400 mt-1">
+            The candidate confirmed this time. Calendar invite and video link have been sent to everyone.
+          </p>
+        </div>
+      ) : bookingStatus === "sent" ? (
+        <div className="rounded-xl bg-white border border-neutral-200 px-4 py-3">
+          <p className="text-xs text-neutral-500 mb-1">Sent these times ({sentRequest.proposed_slots.length}):</p>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {sentRequest.proposed_slots.map((slot) => (
+              <span key={slot.start} className="text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
+                {formatSlotDisplay(slot.start)}
+              </span>
+            ))}
+          </div>
+          <p className="text-sm text-amber-600">Invite sent — waiting for the candidate to pick a time.</p>
+          <button
+            onClick={() => onPreviewBooking(sentRequest)}
+            className="text-sm text-indigo-600 hover:text-indigo-700 mt-1"
+          >
+            Preview the candidate's booking page →
+          </button>
+        </div>
+      ) : !fixedJob && openJobs.length === 0 ? (
+        <p className="text-sm text-neutral-500">No open jobs to schedule against.</p>
+      ) : interviewers.length === 0 ? (
+        <p className="text-sm text-neutral-500">No interviewers set up yet.</p>
+      ) : (
+        <>
+          {!fixedJob && (
+            <div className="mb-3">
+              <label className="block text-xs text-neutral-500 mb-1">Role</label>
+              <select value={jobId} onChange={(e) => setJobId(e.target.value)} className={inputClass}>
+                {openJobs.map((j) => (
+                  <option key={j.id} value={j.id}>{j.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="mb-3">
+            <label className="block text-xs text-neutral-500 mb-1">Interviewer</label>
+            <select value={interviewerId} onChange={(e) => setInterviewerId(e.target.value)} className={inputClass}>
+              {interviewers.map((iv) => (
+                <option key={iv.id} value={iv.id}>
+                  {iv.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-xs text-neutral-500 mb-1">
+              Additional interviewers <span className="text-neutral-400">(optional)</span>
+            </label>
+            {attendeeOptions.length > 0 ? (
+              <div className="flex gap-2">
+                <select
+                  value={attendeePick}
+                  onChange={(e) => setAttendeePick(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Select an interviewer…</option>
+                  {attendeeOptions.map((iv) => (
+                    <option key={iv.id} value={iv.id}>
+                      {iv.name} · {meetName}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={addAttendee}
+                  disabled={!attendeePick}
+                  className="rounded-xl bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-700 text-sm px-3 py-2 shrink-0 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-neutral-400">
+                No other interviewers available. Add more in the Interviewers section.
+              </p>
+            )}
+            {additionalAttendees.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {additionalAttendees.map((id) => (
+                  <span key={id} className="inline-flex items-center gap-1 text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
+                    {attendeeName(id)}
+                    <button type="button" onClick={() => removeAttendee(id)} className="text-neutral-400 hover:text-neutral-700">✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-neutral-400 mt-1">
+              Only interviewers already in the system can be added. They'll join the calendar invite and {meetName} link once the candidate picks a time.
+            </p>
+          </div>
+
+          {!request ? (
+            <div>
+              {!calendarConnected && (
+                <p className="text-xs mb-2" style={{ color: "#B45309" }}>
+                  Connect your workspace calendar in Settings to find available times.
+                </p>
+              )}
+              <button
+                onClick={handleFindSlots}
+                disabled={finding || !calendarConnected}
+                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
+              >
+                {finding ? "Finding slots…" : "Find available slots"}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-neutral-500">
+                  Tap to choose which times to offer the candidate ({selectedSlots.length} selected)
+                </p>
+                <button
+                  onClick={() =>
+                    setSelectedSlots(
+                      selectedSlots.length === request.proposed_slots.length
+                        ? []
+                        : request.proposed_slots.map((s) => s.start)
+                    )
+                  }
+                  className="text-xs text-indigo-600 hover:text-indigo-700 shrink-0"
+                >
+                  {selectedSlots.length === request.proposed_slots.length ? "Clear all" : "Select all"}
+                </button>
+              </div>
+              {additionalAttendees.length > 0 && (
+                <p className="text-xs text-neutral-500 mb-2">Also inviting: {additionalAttendees.map(attendeeName).join(", ")}</p>
+              )}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {request.proposed_slots.map((slot) => {
+                  const on = selectedSlots.includes(slot.start);
+                  return (
+                    <button
+                      key={slot.start}
+                      onClick={() => toggleSlot(slot.start)}
+                      className={`inline-flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-colors ${
+                        on
+                          ? "bg-indigo-600 border-indigo-600 text-white"
+                          : "bg-white border-neutral-200 text-neutral-700 hover:border-neutral-300"
+                      }`}
+                    >
+                      {on && <span>✓</span>}
+                      {formatSlotDisplay(slot.start)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleSendInvite}
+                disabled={sending || selectedSlots.length === 0}
+                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
+              >
+                {sending
+                  ? "Sending…"
+                  : `Send ${selectedSlots.length} time${selectedSlots.length === 1 ? "" : "s"} to candidate`}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function SchedulePickerScreen({ navigate, request, onConfirm }) {
+  const [stage, setStage] = useState("picking"); // picking | confirming | confirmed
+  const [confirmedSlot, setConfirmedSlot] = useState(null);
+  const meetingLink = "https://meet.google.com/abc-defg-hij";
+
+  if (!request) {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-2xl mx-auto">
+          <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+          <p className="text-sm text-neutral-500 mt-4">No active booking link to preview.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handlePick = (slot) => {
+    setStage("confirming");
+    setTimeout(() => {
+      setConfirmedSlot(slot);
+      setStage("confirmed");
+      // Propagate the confirmation back so the profile locks scheduling and
+      // unlocks interview questions.
+      if (onConfirm) onConfirm(slot);
+    }, 1200);
+  };
+
+  if (stage === "confirmed" && confirmedSlot) {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-2xl mx-auto">
+          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          <div className="text-center max-w-sm mx-auto mt-10">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+              <span className="text-emerald-600 text-xl">✓</span>
+            </div>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
+            <p className="text-sm text-neutral-600 mb-3">{formatSlotDisplay(confirmedSlot.start)}</p>
+            <p className="text-sm text-neutral-600 mb-4">
+              A calendar invite has been sent to your email with the video call link.
+            </p>
+            <a
+              href={meetingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors"
+            >
+              Meeting link
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-xl mx-auto">
+        <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+        <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
+          <p className="text-xs text-indigo-700">
+            Below is exactly what the candidate sees — a public page, no login, reached only
+            via the link sent by email.
+          </p>
+        </div>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Interview: {request.jobTitle}</h1>
+        <p className="text-sm text-neutral-600 mb-6">
+          With {request.interviewerName} · {request.slot_duration_minutes} minutes. Choose whichever time works best for you.
+        </p>
+
+        <div className="space-y-2">
+          {request.proposed_slots.map((slot) => (
+            <button
+              key={slot.start}
+              onClick={() => handlePick(slot)}
+              disabled={stage === "confirming"}
+              className="block w-full text-left rounded-2xl bg-white act-shadow card-hover disabled:opacity-50 px-5 py-4 border border-[color:var(--line)]"
+            >
+              <p className="text-neutral-900 font-medium">{formatSlotDisplay(slot.start)}</p>
+            </button>
+          ))}
+        </div>
+
+        {stage === "confirming" && <p className="text-sm text-neutral-500 mt-4">Confirming your slot…</p>}
+      </div>
+    </div>
+  );
+}
+
+function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set() }) {
+  // Public, no-login page a candidate reaches via the job's application link.
+  // Flow: review job → upload a PDF resume → submit → AI parses → profile created.
+  const [file, setFile] = useState(null);
+  const [fileError, setFileError] = useState(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [stage, setStage] = useState("form"); // form | processing | done
+
+  // "Aisha Rahman" → ", Aisha"; empty → "".
+  const firstNameOf = (full) => {
+    const t = full.trim();
+    if (!t) return "";
+    return ", " + t.split(" ")[0];
+  };
+
+  // Accept either an array of bullets or a legacy string; always return an array.
+  const toList = (v) =>
+    Array.isArray(v) ? v.filter(Boolean) : typeof v === "string" && v.trim() ? v.split("\n").map((s) => s.trim()).filter(Boolean) : [];
+
+  if (!job) {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-2xl mx-auto">
+          <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+          <p className="text-sm text-neutral-500 mt-4">No job selected to preview the application page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const salary = formatSalary(job);
+  const meta = [job.department, job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level, salary].filter(Boolean);
+
+  // Paused job (over the owner's plan limit): the public link still resolves,
+  // but it stops taking applications until the owner reactivates. Nothing breaks.
+  if (paused) {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-xl mx-auto">
+          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          <div className="mt-6 rounded-xl border p-3 mb-6 flex items-center justify-between gap-3" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
+            <p className="text-xs" style={{ color: "#92400E" }}>
+              Admin view: this role is paused because you're over your plan's job limit. Candidates who open the link see the message below — applications are closed until you reactivate.
+            </p>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Reactivate</button>
+          </div>
+          <div className="text-center max-w-sm mx-auto mt-8">
+            <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
+              <span className="text-neutral-400 text-xl">⏸</span>
+            </div>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Applications paused</h1>
+            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
+              <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> isn't accepting applications right now.
+            </p>
+            <p className="text-sm" style={{ color: "var(--ink-3)" }}>
+              Please check back soon, or explore our other open roles.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Closed jobs can't take new applications — the public link shows a notice.
+  if (job.status !== "open") {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-xl mx-auto">
+          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
+            <p className="text-xs text-indigo-700">
+              This is what a candidate sees if they open the link after the role has closed.
+            </p>
+          </div>
+          <div className="text-center max-w-sm mx-auto mt-8">
+            <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
+              <span className="text-neutral-400 text-xl">🔒</span>
+            </div>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Position closed</h1>
+            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
+              <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> is no longer accepting applications.
+            </p>
+            <p className="text-sm" style={{ color: "var(--ink-3)" }}>
+              Thanks for your interest — keep an eye on our careers page for future openings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isPdf = (f) => f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!isPdf(f)) {
+      setFile(null);
+      setFileError("Please upload a PDF file. Other formats aren't accepted.");
+      return;
+    }
+    setFileError(null);
+    setFile(f);
+  };
+
+  const canSubmit = file && isPdf(file) && name.trim() && email.trim() && stage === "form";
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    // A candidate who's already been hired is off the market — block a fresh
+    // application instead of creating a duplicate profile.
+    if (hiredEmails.has(email.trim().toLowerCase())) {
+      setStage("alreadyHired");
+      return;
+    }
+    setStage("processing");
+    // Simulate the AI reading the resume and creating a candidate profile.
+    setTimeout(() => setStage("done"), 2200);
+  };
+
+  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-xl mx-auto">
+        <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+        <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
+          <p className="text-xs text-indigo-700">
+            This is exactly what a candidate sees — a public page, no login, reached only through the job's application link.
+          </p>
+        </div>
+
+        {stage === "alreadyHired" ? (
+          <div className="text-center max-w-sm mx-auto mt-8">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+              <span className="text-emerald-600 text-xl">✓</span>
+            </div>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>You're already in our system</h1>
+            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
+              Our records show you've already been hired with us{firstNameOf(name)}. There's no need to apply again — our HR team will be your point of contact.
+            </p>
+            <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>
+              If you think this is a mistake, please reach out to the HR team directly.
+            </p>
+          </div>
+        ) : stage === "done" ? (
+          <div className="text-center max-w-sm mx-auto mt-8">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+              <span className="text-emerald-600 text-xl">✓</span>
+            </div>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Application received</h1>
+            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
+              Thanks{firstNameOf(name)}! We've got your resume for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
+            </p>
+            <p className="text-sm" style={{ color: "var(--ink-3)" }}>
+              Our team will review it and reach out if there's a fit. You'll get a confirmation by email.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Job details */}
+            <h1 className="text-xl sm:text-2xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>{job.title}</h1>
+            {meta.length > 0 && <p className="text-sm mb-4" style={{ color: "var(--ink-3)" }}>{meta.join(" · ")}</p>}
+
+            {/* Key facts */}
+            <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                ["Salary", salary || "Not disclosed"],
+                ["Type", (job.employment_type || "").replace(/_/g, " ") || "—"],
+                ["Location", job.location || "—"],
+                ["Work style", job.remote_type || "—"],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>{k}</p>
+                  <p className="text-sm font-medium capitalize" style={{ color: "var(--ink)" }}>{v}</p>
+                </div>
+              ))}
+            </div>
+
+            {job.description && <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--ink-2)" }}>{job.description}</p>}
+
+            {[
+              ["What you'll do", toList(job.responsibilities)],
+              ["What we're looking for", toList(job.requirements)],
+              ["What we offer", toList(job.benefits)],
+            ].map(([heading, items]) =>
+              items.length > 0 ? (
+                <div key={heading} className="mb-6">
+                  <h2 className="text-sm font-semibold font-display mb-2" style={{ color: "var(--ink)" }}>{heading}</h2>
+                  <ul className="space-y-1.5">
+                    {items.map((it, i) => (
+                      <li key={i} className="text-sm flex gap-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                        <span className="shrink-0" style={{ color: "var(--brand)" }}>•</span> {it}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null
+            )}
+
+            <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
+              <h2 className="text-sm font-semibold font-display mb-4" style={{ color: "var(--ink)" }}>Apply for this role</h2>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Full name</label>
+                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className={inputClass} disabled={stage !== "form"} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Email</label>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={inputClass} disabled={stage !== "form"} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Resume (PDF only)</label>
+                  <label className={`block rounded-xl border border-dashed px-4 py-6 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-neutral-50"}`} style={{ borderColor: "var(--line-strong)" }}>
+                    <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form"} />
+                    {file ? (
+                      <span className="text-sm" style={{ color: "var(--ink)" }}>{file.name}</span>
+                    ) : (
+                      <span className="text-sm" style={{ color: "var(--ink-3)" }}>Tap to choose your resume — PDF only</span>
+                    )}
+                  </label>
+                  {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
+                </div>
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                className="w-full mt-5 rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2.5 transition-opacity hover:opacity-90"
+              >
+                {stage === "processing" ? "Reading your resume…" : "Submit application"}
+              </button>
+
+              {stage === "processing" && (
+                <p className="text-xs text-center mt-3" style={{ color: "var(--ink-3)" }}>
+                  We're pulling your details out of the PDF and setting up your profile — one moment.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial }) {
+  const [msg, setMsg] = useState(null);
+  // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
+  const [cycle, setCycle] = useState(planCycle);
+  const [showDowngrade, setShowDowngrade] = useState(false);
+  const [keepJob, setKeepJob] = useState(keptJobId || (jobs[0] && jobs[0].id) || null);
+
+  // USD pricing. Yearly is 20% off the annualised monthly price. Prices are
+  // charged in USD; applicable taxes are added at checkout by billing country.
+  const PRICES = {
+    starter: {
+      monthly: { price: "$35", cadence: "per month", renewCopy: "$35/month", nextAmount: "$35.00", invAmount: "$35.00", invDesc: "Starter — monthly" },
+      yearly: { price: "$28", cadence: "per month, billed yearly", renewCopy: "$336/year", nextAmount: "$336.00", invAmount: "$336.00", invDesc: "Starter — yearly" },
+    },
+    professional: {
+      monthly: { price: "$99", cadence: "per month", renewCopy: "$99/month", nextAmount: "$99.00", invAmount: "$99.00", invDesc: "Professional — monthly" },
+      yearly: { price: "$79", cadence: "per month, billed yearly", renewCopy: "$948/year", nextAmount: "$948.00", invAmount: "$948.00", invDesc: "Professional — yearly" },
+    },
+  };
+  const rmHint = { starter: {}, professional: {} };
+  // Saved plan's billing detail (undefined for free/enterprise).
+  const saved = (PRICES[plan] && PRICES[plan][planCycle]) || null;
+
+  // The four plans. Starter & Professional pricing is cycle-dependent.
+  const PLANS = [
+    {
+      key: "free",
+      name: "Free",
+      price: "$0",
+      cadence: "forever",
+      blurb: "For trying things out on a single role.",
+      features: ["1 active job", "1 seat (just you)", "10 resumes/month", "3 AI match runs/month", "Community support"],
+    },
+    {
+      key: "starter",
+      name: "Starter",
+      price: (PRICES.starter[cycle] || PRICES.starter.monthly).price,
+      cadence: (PRICES.starter[cycle] || PRICES.starter.monthly).cadence,
+      rm: null,
+      blurb: "For small teams making their first hires.",
+      features: ["5 active jobs", "3 team seats", "100 resumes/month", "30 AI runs + reasoning", "Scorecards & stored CVs", "Email support"],
+    },
+    {
+      key: "professional",
+      name: "Professional",
+      price: (PRICES.professional[cycle] || PRICES.professional.monthly).price,
+      cadence: (PRICES.professional[cycle] || PRICES.professional.monthly).cadence,
+      rm: null,
+      blurb: "For growing teams hiring across several roles.",
+      features: ["Unlimited jobs", "Unlimited seats", "Unlimited resumes & AI", "WhatsApp reminders", "Interview scheduling", "Priority support"],
+      popular: true,
+    },
+    {
+      key: "enterprise",
+      name: "Enterprise",
+      price: "Let's talk",
+      cadence: "",
+      blurb: "For larger orgs with security & volume needs.",
+      features: ["Everything in Professional", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
+    },
+  ];
+
+  const current = PLANS.find((p) => p.key === plan) || PLANS[0];
+  const paidSub = plan === "starter" || plan === "professional"; // has a card + invoices
+  const rank = { free: 0, starter: 1, professional: 2, enterprise: 3 };
+
+  // Mock invoice history — "what they've paid". Reflects the saved billing cycle.
+  const invoices = paidSub && saved
+    ? planCycle === "yearly"
+      ? [{ id: "INV-2025-01", date: "1 Jan 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" }]
+      : [
+          { id: "INV-2025-06", date: "1 Jun 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" },
+          { id: "INV-2025-05", date: "1 May 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" },
+          { id: "INV-2025-04", date: "1 Apr 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" },
+        ]
+    : [];
+
+  const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+
+  const choosePlan = (p) => {
+    if (p.key === "enterprise") {
+      setMsg("Preview only — in the real app this opens a “Contact sales” form. No plan change made.");
+      return;
+    }
+    const cycleMatters = p.key === "starter" || p.key === "professional";
+    if (p.key === plan && (!cycleMatters || cycle === planCycle)) return;
+    // Moving down to Free from a paid plan → confirm what gets paused/locked first.
+    if (p.key === "free" && paidSub) {
+      setKeepJob(keptJobId || (jobs[0] && jobs[0].id) || null);
+      setShowDowngrade(true);
+      return;
+    }
+    setPlan(p.key);
+    if (cycleMatters) {
+      setPlanCycle && setPlanCycle(cycle);
+      const isUp = rank[p.key] > rank[plan];
+      setMsg(
+        cycle === "yearly"
+          ? `Preview: switched to ${p.name} (yearly, 20% off). In production you'd be charged for the year today.`
+          : `Preview: switched to ${p.name} (monthly). In production you'd be charged a ${isUp ? "prorated" : "prorated"} amount today.`
+      );
+    } else {
+      setMsg("Preview: switched to Free.");
+    }
+  };
+
+  const confirmDowngrade = () => {
+    setKeptJobId && setKeptJobId(keepJob);
+    setPlan("free");
+    setShowDowngrade(false);
+    setMsg("Preview: downgraded to Free. In production this takes effect at the end of your billing period — nothing is deleted, and re-upgrading restores everything.");
+  };
+
+  const otherJobs = jobs.filter((j) => j.id !== keepJob).length;
+  const activeTeammates = interviewers.length;
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto pb-8">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <h1 className="text-xl font-bold text-neutral-900 font-display mt-3 mb-1">Billing &amp; plan</h1>
+        <p className="text-sm text-neutral-500 mb-6">Manage the plan, payment method, and invoices for {company || "your workspace"}.</p>
+
+        {msg && (
+          <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BFDBFE", background: "#EFF6FF", color: "#1E40AF" }}>
+            {msg}
+          </div>
+        )}
+
+        {/* Current plan */}
+        <div className={`${cardClass} mb-4`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Current plan</h2>
+                {trialDaysLeft > 0 ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Trial</span>
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>Active</span>
+                )}
+              </div>
+              <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Free (trial)" : current.name}</p>
+              <p className="text-sm text-neutral-500 mt-0.5">
+                {trialDaysLeft > 0
+                  ? `Full Professional access — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
+                  : paidSub && saved
+                    ? `${saved.renewCopy} · renews 1 ${planCycle === "yearly" ? "Jan 2026" : "Jul 2025"} · plus tax`
+                    : plan === "free"
+                      ? "No charge — you're on the free tier."
+                      : "Custom pricing — billed by agreement."}
+              </p>
+            </div>
+            {paidSub && saved && (
+              <div className="text-right shrink-0">
+                <p className="text-xs text-neutral-500">Next payment</p>
+                <p className="text-sm font-semibold text-neutral-900">{saved.nextAmount}</p>
+                <p className="text-xs text-neutral-500">1 {planCycle === "yearly" ? "Jan 2026" : "Jul 2025"}</p>
+              </div>
+            )}
+          </div>
+          {paidSub && (
+            <button
+              onClick={() => setMsg("Preview: in production this cancels at period end — access continues until 1 Jul 2025.")}
+              className="mt-4 text-xs text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
+            >
+              Cancel subscription
+            </button>
+          )}
+          {trialDaysLeft > 0 && (
+            <button
+              onClick={onEndTrial}
+              className="mt-4 text-xs text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
+            >
+              End trial now (preview)
+            </button>
+          )}
+        </div>
+
+        {/* Plan picker */}
+        <div className={`${cardClass} mb-4`}>
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Change plan</h2>
+            <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+              {[
+                { key: "monthly", label: "Monthly" },
+                { key: "yearly", label: "Yearly" },
+              ].map((c) => {
+                const on = cycle === c.key;
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => setCycle(c.key)}
+                    className={`text-xs px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                    style={on ? { background: "var(--ink)" } : undefined}
+                  >
+                    {c.label}
+                    {c.key === "yearly" && (
+                      <span className="text-[9px] px-1 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>−20%</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {PLANS.map((p) => {
+              const cycleMatters = p.key === "starter" || p.key === "professional";
+              const isCurrent = p.key === plan && (!cycleMatters || cycle === planCycle);
+              return (
+                <div
+                  key={p.key}
+                  className="rounded-xl border p-4 flex flex-col"
+                  style={{
+                    borderColor: isCurrent ? "var(--brand)" : "var(--line)",
+                    background: isCurrent ? "var(--brand-soft)" : "#fff",
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-neutral-900">{p.name}</p>
+                    {p.popular && !isCurrent && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold">Popular</span>
+                    )}
+                  </div>
+                  <p className="text-lg font-bold text-neutral-900 font-display leading-tight">{p.price}</p>
+                  {p.cadence && <p className="text-xs text-neutral-500">{p.cadence}</p>}
+                  {p.rm && <p className="text-[11px] text-neutral-400 mb-2">{p.rm} · in USD</p>}
+                  {cycleMatters && cycle === "yearly" && (
+                    <p className="text-[11px] font-medium mb-2" style={{ color: "#166534" }}>save 20% billed yearly</p>
+                  )}
+                  <p className="text-xs text-neutral-500 mb-3 mt-1">{p.blurb}</p>
+                  <ul className="space-y-1 mb-4 flex-1">
+                    {p.features.map((f) => (
+                      <li key={f} className="text-xs text-neutral-600 flex gap-1.5">
+                        <span style={{ color: "var(--brand)" }}>✓</span> {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => choosePlan(p)}
+                    disabled={isCurrent}
+                    className={`w-full rounded-xl text-xs font-medium py-2 transition-colors ${
+                      isCurrent
+                        ? "bg-neutral-100 text-neutral-400 cursor-default"
+                        : p.key === "enterprise"
+                          ? "border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                          : "brand-gradient text-white hover:opacity-90"
+                    }`}
+                  >
+                    {isCurrent
+                      ? "Current plan"
+                      : p.key === "enterprise"
+                        ? "Contact sales"
+                        : p.key === plan && cycleMatters
+                          ? (cycle === "yearly" ? "Switch to yearly" : "Switch to monthly")
+                          : rank[p.key] < rank[plan]
+                            ? "Downgrade"
+                            : "Upgrade"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Payment method */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Payment method</h2>
+          {paidSub ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-10 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: "#1A1F71" }}>VISA</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-neutral-900">Visa •••• 4242</p>
+                  <p className="text-xs text-neutral-500">Expires 08 / 27 · shah@example.com</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMsg("Preview: card details are never entered here. In production this opens a secure hosted form (e.g. Stripe), so raw card numbers never touch the app.")}
+                className="text-xs rounded-xl border px-3 py-1.5 shrink-0 hover:bg-neutral-50 transition-colors"
+                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
+              >
+                Update
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">No payment method needed on your current plan.</p>
+          )}
+        </div>
+
+        {/* Billing history */}
+        <div className={cardClass}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Billing history</h2>
+          {invoices.length === 0 ? (
+            <p className="text-sm text-neutral-500">No invoices yet.</p>
+          ) : (
+            <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+              {invoices.map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-neutral-900 truncate">{inv.desc}</p>
+                    <p className="text-xs text-neutral-500">{inv.date} · {inv.id}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm tnum text-neutral-900">{inv.amount}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>{inv.status}</span>
+                    <button
+                      onClick={() => setMsg("Preview: this would download the tax invoice PDF for " + inv.id + ".")}
+                      className="text-xs underline underline-offset-2 hover:text-neutral-800"
+                      style={{ color: "var(--ink-2)" }}
+                    >
+                      Invoice
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-neutral-400 mt-3">
+            Amounts include applicable taxes. Tax invoices are issued to {company || "your workspace"} and can be downloaded above.
+          </p>
+        </div>
+      </div>
+
+      {/* Downgrade confirmation — shows exactly what gets paused/locked */}
+      {showDowngrade && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 overflow-y-auto" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setShowDowngrade(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow my-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Downgrade to Free?</h3>
+            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+              Nothing is deleted — over-limit items are paused and come back if you upgrade again. Here's what changes on Free:
+            </p>
+
+            <div className="space-y-2.5 mb-4">
+              <div className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
+                <p className="text-sm font-medium text-neutral-900 mb-2">
+                  {jobs.length} job posting{jobs.length === 1 ? "" : "s"} → keep 1 active
+                </p>
+                {otherJobs > 0 && (
+                  <p className="text-xs mb-2" style={{ color: "var(--ink-3)" }}>
+                    {otherJobs} other{otherJobs === 1 ? "" : "s"} will be paused (public apply links stop taking new applicants).
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {jobs.map((j) => (
+                    <label key={j.id} className="flex items-center gap-2 text-sm cursor-pointer rounded-lg px-2 py-1.5" style={{ background: keepJob === j.id ? "var(--brand-soft)" : "transparent" }}>
+                      <input type="radio" name="keepJob" checked={keepJob === j.id} onChange={() => setKeepJob(j.id)} />
+                      <span className="truncate" style={{ color: "var(--ink)" }}>{j.title}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {activeTeammates > 0 && (
+                <div className="rounded-xl border p-3 flex gap-2.5" style={{ borderColor: "var(--line)" }}>
+                  <span className="shrink-0 mt-0.5" style={{ color: "var(--ink-3)" }}><Icon name="users" className="w-4 h-4" /></span>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+                    <span className="font-medium text-neutral-900">{activeTeammates} teammate{activeTeammates === 1 ? "" : "s"}</span> will lose access until you upgrade. Their notes and past interviews stay in the workspace.
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-xl border p-3 flex gap-2.5" style={{ borderColor: "var(--line)" }}>
+                <span className="shrink-0 mt-0.5" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-4 h-4" /></span>
+                <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+                  You keep your full candidate list, but AI matching drops to 3 runs a month, shows only the top 3 fits, and hides the written reasoning.
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-3 flex gap-2.5" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
+                <span className="shrink-0 mt-0.5" style={{ color: "#16A34A" }}><Icon name="calendar" className="w-4 h-4" /></span>
+                <p className="text-xs" style={{ color: "#166534" }}>
+                  Interviews already booked will still happen — nothing on the calendar is cancelled.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+              In production this takes effect at the end of your current billing period.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowDowngrade(false)} className="text-sm rounded-xl border px-4 py-2 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                Keep Professional
+              </button>
+              <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
+                Downgrade to Free
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// The fixed set of automated emails, with the placeholders each supports.
+// In production these live in an `email_templates` table (per org); here they're
+// editable in-memory so the UX (edit + insert placeholder + live preview) is real.
+const EMAIL_TEMPLATE_DEFS = [
+  { key: "offer", name: "Offer — you've been selected", desc: "Sent when you make an offer. Includes the accept / decline links.",
+    tokens: ["candidate_name", "job_title", "company", "hr_contact"],
+    subject: "You've been selected for the {{job_title}} role",
+    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company}}. Our HR team ({{hr_contact}}) will be in touch with the details.\n\nPlease confirm whether you'd like to accept using the buttons below.\n\nWarm regards,\nThe {{company}} Hiring Team" },
+  { key: "rejection", name: "Rejection — application update", desc: "Sent when you reject a candidate with an email.",
+    tokens: ["candidate_name", "job_title", "company"],
+    subject: "Update on your application — {{job_title}}",
+    body: "Hi {{candidate_name}},\n\nThank you for applying for the {{job_title}} role at {{company}} and for the time you invested.\n\nAfter careful consideration we've decided not to move forward at this time. We genuinely appreciate your interest and wish you all the best.\n\nWarm regards,\nThe {{company}} Hiring Team" },
+  { key: "interview_invite", name: "Interview invite", desc: "Sent when you invite a candidate to pick an interview slot.",
+    tokens: ["candidate_name", "job_title", "interviewer_name", "booking_link"],
+    subject: "Interview invitation — {{job_title}}",
+    body: "Hi {{candidate_name}},\n\nWe'd love to interview you for the {{job_title}} role. Your interviewer will be {{interviewer_name}}.\n\nPlease pick a time that works for you here: {{booking_link}}\n\nSee you soon,\nThe Hiring Team" },
+  { key: "interview_confirmation", name: "Interview confirmation", desc: "Sent once the candidate picks a slot.",
+    tokens: ["candidate_name", "job_title", "date_time", "meeting_link"],
+    subject: "Your interview is confirmed — {{date_time}}",
+    body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}.\n\nJoin here: {{meeting_link}}\n\nLooking forward to speaking,\nThe Hiring Team" },
+  { key: "application_received", name: "Application received", desc: "Auto-reply when someone applies via the public link.",
+    tokens: ["candidate_name", "job_title", "company"],
+    subject: "We've received your application — {{job_title}}",
+    body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company}}. We've received your application and will be in touch if there's a fit.\n\nWarm regards,\nThe {{company}} Hiring Team" },
+  { key: "welcome_hired", name: "Welcome — offer accepted", desc: "Sent after a candidate accepts their offer.",
+    tokens: ["candidate_name", "job_title", "company"],
+    subject: "Welcome to {{company}}, {{candidate_name}}!",
+    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.\n\nWelcome aboard,\nThe {{company}} Team" },
+];
+
+// Sample values used to render the live preview.
+const TOKEN_SAMPLES = {
+  candidate_name: "Amira Hassan", job_title: "Senior Frontend Engineer", company: "Oryx Studio",
+  hr_contact: "Farah (HR)", interviewer_name: "Jane Tan", booking_link: "aster.my/book/xxxx",
+  date_time: "Tue 8 Jul, 2:00 PM", meeting_link: "meet.google.com/xxx-xxxx",
+};
+const fillTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => TOKEN_SAMPLES[k] ?? `{{${k}}}`);
+
+function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
+  const [templates, setTemplates] = useState(() => Object.fromEntries(EMAIL_TEMPLATE_DEFS.map((t) => [t.key, { subject: t.subject, body: t.body }])));
+  const [selected, setSelected] = useState(null); // template key or null (list view)
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [savedMsg, setSavedMsg] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+  const def = EMAIL_TEMPLATE_DEFS.find((t) => t.key === selected);
+
+  const open = (key) => {
+    const t = templates[key];
+    setSelected(key); setSubject(t.subject); setBody(t.body); setSavedMsg(null); setShowPreview(false);
+  };
+  const dirty = def && (subject !== templates[selected].subject || body !== templates[selected].body);
+  const save = () => {
+    setTemplates((prev) => ({ ...prev, [selected]: { subject, body } }));
+    setSavedMsg("Saved — future emails of this type will use this wording.");
+  };
+  // Insert a placeholder at the end of the body (real editor would insert at cursor).
+  const insertToken = (tok) => { setBody((b) => `${b}{{${tok}}}`); setSavedMsg(null); };
+
+  // ---- List view ----
+  if (!selected) {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-2xl mx-auto pb-8">
+          <BackLink onClick={() => navigate("settings")}>← Settings</BackLink>
+          <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Email templates</h1>
+          <p className="text-sm text-neutral-600 mb-5">Edit the wording behind each automated email. Placeholders like <span className="font-mono text-xs bg-neutral-100 px-1 py-0.5 rounded">{"{{candidate_name}}"}</span> are filled in automatically when each email is sent.</p>
+          <div className="space-y-2">
+            {EMAIL_TEMPLATE_DEFS.map((t) => (
+              <button key={t.key} onClick={() => open(t.key)} className={`${cardClass} w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>{t.name}</span>
+                  <span className="block text-xs text-neutral-500 truncate">{t.desc}</span>
+                </span>
+                <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Editor view ----
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto pb-8">
+        <BackLink onClick={() => setSelected(null)}>← All templates</BackLink>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>{def.name}</h1>
+        <p className="text-sm text-neutral-600 mb-5">{def.desc}</p>
+
+        {savedMsg && (
+          <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BBF7D0", background: "#F0FDF4", color: "#166534" }}>{savedMsg}</div>
+        )}
+
+        <div className={`${cardClass} mb-4`}>
+          <label className="block text-xs text-neutral-500 mb-1">Subject</label>
+          <input value={subject} onChange={(e) => { setSubject(e.target.value); setSavedMsg(null); }}
+            className="w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 mb-4" />
+
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs text-neutral-500">Body</label>
+            <button onClick={() => setShowPreview((s) => !s)} className="text-xs font-medium" style={{ color: "var(--brand)" }}>{showPreview ? "Edit" : "Preview"}</button>
+          </div>
+
+          {showPreview ? (
+            <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              <p className="text-xs text-neutral-400 mb-2">Preview with sample data</p>
+              <p className="text-sm font-semibold text-neutral-900 mb-2">{fillTokens(subject)}</p>
+              <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{fillTokens(body)}</div>
+              {/* Auto letterhead — added under every email automatically from the
+                  logo + company name set in Settings. Not part of the editable body. */}
+              <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+                {logoUrl ? (
+                  <img src={logoUrl} alt={company || "Company"} style={{ height: 28, width: "auto", objectFit: "contain" }} />
+                ) : (
+                  <div className="w-24 h-7 rounded flex items-center justify-center text-[10px]" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>your logo</div>
+                )}
+                {company && <p className="text-xs font-medium mt-1.5" style={{ color: "var(--ink-2)" }}>{company}</p>}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* In production this textarea is a rich-text editor (CKEditor/TipTap).
+                  Placeholder chips insert tokens; preview shows the filled result. */}
+              <textarea value={body} onChange={(e) => { setBody(e.target.value); setSavedMsg(null); }} rows={12}
+                className="w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 resize-y font-mono leading-relaxed" />
+              <p className="text-[11px] mt-2 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
+                <Icon name="check" className="w-3 h-3" /> Your logo{company ? ` and “${company}”` : ""} are added automatically under the signature — no need to include them here. Change them in Settings.
+              </p>
+              <div className="mt-3">
+                <p className="text-[11px] text-neutral-500 mb-1.5">Insert a placeholder:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {def.tokens.map((tok) => (
+                    <button key={tok} onClick={() => insertToken(tok)}
+                      className="text-[11px] font-mono rounded-full px-2 py-0.5 border transition-colors hover:bg-neutral-50"
+                      style={{ borderColor: "var(--line-strong)", color: "var(--brand)", background: "var(--brand-soft)" }}>
+                      {`{{${tok}}}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={save} disabled={!dirty} className="text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-medium px-4 py-2 transition-opacity hover:opacity-90">Save template</button>
+          {dirty && <button onClick={() => open(selected)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Reset</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, provider, setProvider, calendarConnected, setCalendarConnected, profile, setProfile, company, setCompany, bookings = {}, plan = "free" }) {
+  const [email] = useState("shah@example.com");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailMsg, setEmailMsg] = useState(null);
+
+  // Staged (draft) edits — nothing is committed until Save. Cancel reverts.
+  const [dLogo, setDLogo] = useState(logoUrl);
+  const [dCompany, setDCompany] = useState(company || "");
+  const [dAvatar, setDAvatar] = useState(avatarUrl);
+  const [dFirst, setDFirst] = useState(profile?.firstName || "");
+  const [dLast, setDLast] = useState(profile?.lastName || "");
+  const [dRole, setDRole] = useState(profile?.role || "");
+  const [dProvider, setDProvider] = useState(provider);
+  const [dCalConnected, setDCalConnected] = useState(calendarConnected);
+  const [connectingCal, setConnectingCal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(null);
+
+  // WhatsApp Business — BSP-assisted connection. Included on Professional & up
+  // (not Starter). Self-contained (connecting an integration is an immediate
+  // action, separate from the Save/Cancel form).
+  const hasWhatsApp = planLimits(plan).whatsapp;
+  const [waStatus, setWaStatus] = useState("disconnected"); // disconnected | connecting | pending | connected
+  const [waTemplates, setWaTemplates] = useState({ confirmed: true, received: true, reminder: false });
+  const [waTested, setWaTested] = useState(false);
+  const connectWhatsApp = () => { setWaStatus("connecting"); setTimeout(() => setWaStatus("pending"), 1400); };
+
+  const calSystem = dProvider === "microsoft" ? "Microsoft 365" : "Google Workspace";
+  const meetName = dProvider === "microsoft" ? "Teams" : "Google Meet";
+  const savedMeetName = provider === "microsoft" ? "Teams" : "Google Meet";
+
+  // Upcoming interviews already booked on the CURRENTLY SAVED provider. These
+  // keep their existing links if the user switches — used to warn on switch.
+  const upcomingOnSaved = Object.values(bookings).filter(
+    (b) => b && b.status === "scheduled" && b.confirmedSlot?.start && (b.provider || "google") === provider
+  ).length;
+  const providerChanged = dProvider !== provider;
+
+  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+
+  const dirty =
+    dLogo !== logoUrl ||
+    dCompany !== (company || "") ||
+    dAvatar !== avatarUrl ||
+    dFirst !== (profile?.firstName || "") ||
+    dLast !== (profile?.lastName || "") ||
+    dRole !== (profile?.role || "") ||
+    dProvider !== provider ||
+    dCalConnected !== calendarConnected;
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDLogo(reader.result);
+      setSavedMsg(null);
+    };
+    reader.readAsDataURL(file);
+  };
+  const handleRemoveLogo = () => {
+    setDLogo(null);
+    setSavedMsg(null);
+  };
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDAvatar(reader.result);
+      setSavedMsg(null);
+    };
+    reader.readAsDataURL(file);
+  };
+  const handleConnectCalendar = () => {
+    setConnectingCal(true);
+    setTimeout(() => {
+      setDCalConnected(true);
+      setConnectingCal(false);
+    }, 1500);
+  };
+
+  const handleEmailSubmit = () => {
+    if (!newEmail) return;
+    setEmailMsg(`Confirmation sent to ${newEmail}. Your email won't change until you click the link in that message.`);
+    setNewEmail("");
+  };
+
+  const handleSave = () => {
+    setSaving(true);
+    // Simulates the round trip to the database (Supabase in the real app).
+    setTimeout(() => {
+      setLogoUrl(dLogo);
+      setCompany(dCompany.trim());
+      setAvatarUrl(dAvatar);
+      setProfile({ firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim() });
+      setProvider(dProvider);
+      setCalendarConnected(dCalConnected);
+      setSaving(false);
+      setSavedMsg("All changes saved.");
+    }, 800);
+  };
+
+  const handleCancel = () => {
+    setDLogo(logoUrl);
+    setDCompany(company || "");
+    setDAvatar(avatarUrl);
+    setDFirst(profile?.firstName || "");
+    setDLast(profile?.lastName || "");
+    setDRole(profile?.role || "");
+    setDProvider(provider);
+    setDCalConnected(calendarConnected);
+    setSavedMsg(null);
+  };
+
+  const avatarInitial = (dFirst?.[0] || "S").toUpperCase();
+
+  const usage = [
+    { label: "Resumes parsed", value: 3 },
+    { label: "AI insights", value: 1 },
+    { label: "Matches run", value: 3 },
+    { label: "Interviews booked", value: 1 },
+  ];
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto pb-8">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-6" style={{ color: "var(--ink)" }}>Settings</h1>
+
+        {/* Email templates — the wording behind every automated email */}
+        <button onClick={() => navigate("emailTemplates")} className={`${cardClass} mb-4 w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
+          <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+            <Icon name="doc" className="w-5 h-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>Email templates</span>
+            <span className="block text-xs text-neutral-500">Edit the offer, rejection, interview & other automated emails</span>
+          </span>
+          <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
+        </button>
+
+        {/* 1 — Company branding: logo (first) + company name below */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Company branding</h2>
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-40 rounded-xl border flex items-center justify-center overflow-hidden bg-white shrink-0" style={{ borderColor: "var(--line)" }}>
+              <img src={dLogo || ACTIVYS_LOGO} alt={dCompany || "Company logo"} className="h-11 w-auto object-contain" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors inline-block">
+                {dLogo ? "Replace logo" : "Upload logo"}
+                <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+              </label>
+              {dLogo && (
+                <button onClick={handleRemoveLogo} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-neutral-500 mt-2">Shows in the sidebar, on the login screen, and in the mobile header. Wide (landscape) logos work best.</p>
+
+          <div className="mt-4">
+            <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Company name</label>
+            <input value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); }} placeholder="Your company" className={inputClass} />
+            <p className="text-xs text-neutral-500 mt-1">Collected at sign-up and shown across your workspace.</p>
+          </div>
+        </div>
+
+        {/* 2 — Your profile: photo + name + role */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Your profile</h2>
+          <div className="flex items-center gap-4 mb-4">
+            {dAvatar ? (
+              <img src={dAvatar} alt="Your photo" className="w-16 h-16 rounded-full object-cover border border-neutral-200" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-violet-100 border border-neutral-200 flex items-center justify-center text-neutral-700 font-medium text-lg">{avatarInitial}</div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors">
+                Change photo
+                <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+              </label>
+              {dAvatar && (
+                <button onClick={() => { setDAvatar(null); setSavedMsg(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>First name</label>
+              <input value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Shah" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Last name</label>
+              <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role</label>
+              <input value={dRole} onChange={(e) => { setDRole(e.target.value); setSavedMsg(null); }} placeholder="Hiring Manager" className={inputClass} />
+            </div>
+          </div>
+          <p className="text-xs text-neutral-500 mt-2">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
+        </div>
+
+        {/* 3 — Email (its own confirmation flow) */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Email address</h2>
+          <p className="text-sm text-neutral-600 mb-3">Current: <span className="text-neutral-900">{email}</span></p>
+          <div className="space-y-3">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="new-email@example.com"
+              className={inputClass}
+            />
+            <p className="text-xs text-neutral-500">
+              We'll email a confirmation link to the new address. Your login email stays the same until you click it.
+            </p>
+            {emailMsg && <p className="text-sm text-emerald-600">{emailMsg}</p>}
+            <button onClick={handleEmailSubmit} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">
+              Send confirmation
+            </button>
+          </div>
+        </div>
+
+        {/* 4 — Meeting & calendar */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Meeting &amp; calendar</h2>
+          <p className="text-sm text-neutral-600 mb-3">
+            Used for every interview across the workspace. Connect once here — all interviewers are covered, no per-person setup.
+          </p>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {["google", "microsoft"].map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  if (p !== dProvider) {
+                    setDProvider(p);
+                    setDCalConnected(false); // switching platform drops the old connection
+                    setSavedMsg(null);
+                  }
+                }}
+                className={`rounded-xl border px-4 py-3 text-sm text-left transition-colors ${
+                  dProvider === p ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 bg-white hover:border-neutral-300"
+                }`}
+              >
+                <p className="font-medium text-neutral-900">{p === "google" ? "Google Meet" : "Microsoft Teams"}</p>
+                <p className="text-xs text-neutral-500">{p === "google" ? "Google Calendar" : "Outlook Calendar"}</p>
+              </button>
+            ))}
+          </div>
+
+          {providerChanged && upcomingOnSaved > 0 && (
+            <div className="rounded-xl border p-3 mb-4 flex gap-2.5" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
+              <span className="shrink-0 mt-0.5" style={{ color: "#B45309" }}>
+                <Icon name="bell" className="w-4 h-4" />
+              </span>
+              <p className="text-xs leading-relaxed" style={{ color: "#92400E" }}>
+                You have {upcomingOnSaved} upcoming interview{upcomingOnSaved === 1 ? "" : "s"} on {savedMeetName}. Switching won't change {upcomingOnSaved === 1 ? "it" : "them"} — {upcomingOnSaved === 1 ? "that interview keeps its" : "those interviews keep their"} existing {savedMeetName} link{upcomingOnSaved === 1 ? "" : "s"}. Only new interviews will use {meetName}.
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: dCalConnected ? "#F0FDF4" : "var(--bg)" }}>
+            <div className="min-w-0">
+              <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{calSystem} calendar</p>
+              <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+                {dCalConnected
+                  ? `Connected — interviews auto-create ${meetName} links and check everyone's availability.`
+                  : `Connect to check availability and auto-create ${meetName} links.`}
+              </p>
+            </div>
+            {dCalConnected ? (
+              <span className="text-xs px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1.5" style={{ background: "#DCFCE7", color: "#166534" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Connected
+              </span>
+            ) : (
+              <button
+                onClick={handleConnectCalendar}
+                disabled={connectingCal}
+                className="text-xs rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white px-3 py-1.5 shrink-0 transition-colors"
+              >
+                {connectingCal ? "Connecting…" : `Connect ${calSystem}`}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 5 — WhatsApp Business (Pro, BSP-assisted, bring-your-own-number) */}
+        <div className={cardClass}>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
+            {!hasWhatsApp && <LockBadge label="Pro" />}
+          </div>
+          <p className="text-sm text-neutral-600 mb-4">
+            Send interview confirmations and reminders over WhatsApp using your own WhatsApp Business number. Messages are billed to your Meta account, not Aster.
+          </p>
+
+          {!hasWhatsApp ? (
+            <div className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+                WhatsApp automations are on <span className="font-semibold">Professional</span> and up.
+              </p>
+              <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+            </div>
+          ) : waStatus === "connected" ? (
+            <div className="space-y-3">
+              <div className="rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium" style={{ color: "#166534" }}>Connected as +60 12-••• ••89</p>
+                  <p className="text-xs" style={{ color: "#166534" }}>Business verified ✓ · via messaging partner</p>
+                </div>
+                <button onClick={() => { setWaStatus("disconnected"); setWaTested(false); }} className="text-xs text-neutral-500 hover:text-red-600 shrink-0 transition-colors">Disconnect</button>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-neutral-600 mb-2">Message templates</p>
+                <div className="space-y-1.5">
+                  {[
+                    ["confirmed", "Interview confirmed", "Sent when a candidate books a time"],
+                    ["received", "Application received", "Sent when someone applies"],
+                    ["reminder", "Interview reminder — 24h before", "Auto-reminder the day before"],
+                  ].map(([key, name, desc]) => (
+                    <label key={key} className="flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer" style={{ borderColor: "var(--line)" }}>
+                      <input type="checkbox" checked={waTemplates[key]} onChange={(e) => setWaTemplates((t) => ({ ...t, [key]: e.target.checked }))} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-neutral-900">{name}</p>
+                        <p className="text-xs text-neutral-500">{desc}</p>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button onClick={() => setWaTested(true)} className="text-xs rounded-xl border px-3 py-1.5 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                  Send test message
+                </button>
+                {waTested && <span className="text-xs" style={{ color: "#166534" }}>Test message sent to your number ✓</span>}
+              </div>
+              <p className="text-xs text-neutral-400">Each message is billed to your Meta/WhatsApp account by our messaging partner — Aster doesn't charge per message.</p>
+            </div>
+          ) : waStatus === "pending" ? (
+            <div className="rounded-xl border p-4" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
+              <p className="text-sm font-medium mb-1" style={{ color: "#92400E" }}>Verification pending</p>
+              <p className="text-xs mb-3" style={{ color: "#92400E" }}>
+                Your number is registered with our messaging partner. Meta is verifying your business — this usually takes a few hours. We'll email you when it's live.
+              </p>
+              <button onClick={() => setWaStatus("connected")} className="text-xs rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors">
+                Simulate approval (preview)
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <p className="text-xs font-medium text-neutral-700 mb-1.5">Before you connect, you'll need:</p>
+                <ul className="space-y-1">
+                  <li className="text-xs flex gap-2" style={{ color: "var(--ink-2)" }}><span style={{ color: "var(--brand)" }}>•</span> A Meta Business account</li>
+                  <li className="text-xs flex gap-2" style={{ color: "var(--ink-2)" }}><span style={{ color: "var(--brand)" }}>•</span> A phone number <span className="font-medium">not</span> currently on the WhatsApp app</li>
+                </ul>
+              </div>
+              <button
+                onClick={connectWhatsApp}
+                disabled={waStatus === "connecting"}
+                className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white px-4 py-2 transition-colors"
+              >
+                {waStatus === "connecting" ? "Connecting…" : "Connect WhatsApp Business"}
+              </button>
+              <p className="text-xs text-neutral-400 mt-2">We set you up through our WhatsApp messaging partner — no Meta dashboard wrangling. Messages are billed to your own Meta account.</p>
+            </div>
+          )}
+        </div>
+
+        {/* 6 — Usage */}
+        <div className={cardClass}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Usage</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {usage.map((u) => (
+              <div key={u.label} className="rounded-xl bg-neutral-100 px-4 py-3">
+                <p className="text-2xl font-bold text-neutral-900">{u.value}</p>
+                <p className="text-xs text-neutral-600 mt-0.5">{u.label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-neutral-500 mt-3">
+            Counts of AI work done on your account. For billing-grade metering, connect a billing provider.
+          </p>
+        </div>
+
+        {/* Save / Cancel bar — sticky within the content column, so it never
+            underlaps the sidebar or its Log out button on any screen size. */}
+        <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs sm:text-sm min-w-0 truncate" style={{ color: savedMsg ? "#166534" : "var(--ink-2)" }}>
+              {saving ? "Saving…" : savedMsg ? savedMsg : dirty ? "You have unsaved changes." : "Everything is up to date."}
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleCancel}
+                disabled={!dirty || saving}
+                className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!dirty || saving}
+                className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-5 py-2 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatRow({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-neutral-500 text-xs">{label}</p>
+      <p className="text-neutral-900 truncate">{value}</p>
+    </div>
+  );
+}
+
+function fmtYears(years) {
+  if (years == null) return "—";
+  return `${years} ${years === 1 ? "year" : "years"}`;
+}
+
+function InsightsDisplay({ insights }) {
+  const ei = insights.experience_insights;
+  const ea = insights.employment_analysis;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Experience insights</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <StatRow label="Total experience" value={fmtYears(ei.total_experience_years)} />
+          <StatRow label="Leadership experience" value={fmtYears(ei.leadership_experience_years)} />
+          {ei.domain_experience.map((d) => (
+            <StatRow key={d.domain} label={`${d.domain} experience`} value={fmtYears(d.years)} />
+          ))}
+          <StatRow label="Startup experience" value={ei.startup_experience ? "Yes" : "No"} />
+          <StatRow label="Enterprise experience" value={ei.enterprise_experience ? "Yes" : "No"} />
+          <StatRow label="Remote work" value={ei.remote_work_mentioned ? "Mentioned in resume" : "Not mentioned"} />
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-neutral-200">
+        <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Employment analysis</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-3">
+          <StatRow label="Number of employers" value={String(ea.number_of_employers)} />
+          <StatRow label="Average tenure" value={ea.average_tenure_months != null ? `${ea.average_tenure_months} mo` : "—"} />
+          {ea.longest_tenure && (
+            <StatRow label="Longest tenure" value={`${ea.longest_tenure.months} mo (${ea.longest_tenure.company})`} />
+          )}
+        </div>
+        {ea.career_progression && <p className="text-sm text-neutral-700 mb-3">{ea.career_progression}</p>}
+        {ea.employment_gaps.length > 0 ? (
+          <div>
+            <p className="text-xs text-neutral-500 mb-1">Employment gaps</p>
+            <ul className="text-sm text-neutral-700 space-y-1">
+              {ea.employment_gaps.map((gap, i) => (
+                <li key={i}>
+                  {gap.start} – {gap.end} <span className="text-neutral-500">({gap.duration_months} mo)</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="text-xs text-neutral-500">No employment gaps of 3+ months detected.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Mock insights per candidate — stands in for the real Claude analysis
+const MOCK_INSIGHTS = {
+  c1: {
+    generated_at: new Date().toISOString(),
+    experience_insights: {
+      total_experience_years: 6.5,
+      leadership_experience_years: 2,
+      domain_experience: [
+        { domain: "Fintech", years: 3 },
+        { domain: "E-commerce", years: 2.5 },
+      ],
+      startup_experience: false,
+      enterprise_experience: true,
+      remote_work_mentioned: true,
+    },
+    employment_analysis: {
+      number_of_employers: 2,
+      average_tenure_months: 39,
+      longest_tenure: { company: "Grabtech", months: 48 },
+      career_progression: "Progressed from Frontend Developer to Senior Frontend Engineer with growing ownership of design system architecture over 6 years.",
+      employment_gaps: [],
+    },
+  },
+  c3: {
+    generated_at: new Date().toISOString(),
+    experience_insights: {
+      total_experience_years: 3.2,
+      leadership_experience_years: 0,
+      domain_experience: [{ domain: "Creative / Agency", years: 3.2 }],
+      startup_experience: true,
+      enterprise_experience: false,
+      remote_work_mentioned: false,
+    },
+    employment_analysis: {
+      number_of_employers: 2,
+      average_tenure_months: 19,
+      longest_tenure: { company: "Studio Kite", months: 24 },
+      career_progression: "Moved from an internship at MDEC into a full creative engineering role at Studio Kite within a year.",
+      employment_gaps: [{ start: "Jun 2022", end: "Sep 2022", duration_months: 3 }],
+    },
+  },
+};
+
+function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, authorName }) {
+  const isPaid = plan !== "free";
+  const [open, setOpen] = useState(false);
+  const [ratings, setRatings] = useState({ technical: 0, communication: 0, cultureFit: 0, experience: 0 });
+  const [rec, setRec] = useState("");
+  const [notes, setNotes] = useState("");
+  const [privateNote, setPrivateNote] = useState("");
+  const [savedNote, setSavedNote] = useState(false);
+
+  const recOf = (key) => RECOMMENDATIONS.find((r) => r.key === key) || RECOMMENDATIONS[1];
+  const avgOf = (r) => { const v = Object.values(r); return v.reduce((a, b) => a + b, 0) / v.length; };
+  const teamAvg = scorecards.length ? scorecards.reduce((s, c) => s + avgOf(c.ratings), 0) / scorecards.length : 0;
+  const canSubmit = rec && Object.values(ratings).every((v) => v > 0);
+
+  const submit = () => {
+    if (!canSubmit) return;
+    onSubmit({ id: "sc" + Date.now(), interviewer: authorName || "You", ratings, recommendation: rec, notes: notes.trim(), submittedAt: "just now" });
+    setRatings({ technical: 0, communication: 0, cultureFit: 0, experience: 0 });
+    setRec("");
+    setNotes("");
+    setOpen(false);
+  };
+
+  return (
+    <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Team scorecards</h2>
+          {!isPaid && <LockBadge />}
+        </div>
+        {isPaid && scorecards.length > 0 && (
+          <span className="text-xs text-neutral-500">Team avg <span className="font-semibold text-neutral-800 tnum">{teamAvg.toFixed(1)}</span>/4 · {scorecards.length} submitted</span>
+        )}
+      </div>
+
+      {!isPaid ? (
+        <div>
+          <div className="rounded-xl border p-3 mb-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
+              Structured scorecards from every interviewer are a <span className="font-semibold">Pro</span> feature. On Free you can keep one private note.
+            </p>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+          </div>
+          <textarea
+            rows={3}
+            value={privateNote}
+            onChange={(e) => { setPrivateNote(e.target.value); setSavedNote(false); }}
+            placeholder="Private note (only you can see this)…"
+            className="w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+          />
+          <div className="flex items-center gap-3 mt-2">
+            <button onClick={() => setSavedNote(true)} disabled={!privateNote.trim()} className="text-xs rounded-lg bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-white px-3 py-1.5 transition-colors">Save note</button>
+            {savedNote && <span className="text-xs" style={{ color: "#166534" }}>Saved ✓</span>}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {scorecards.length === 0 && !open && (
+            <p className="text-sm text-neutral-500">No scorecards yet. Add yours after the interview, and your teammates' will collect here.</p>
+          )}
+
+          {scorecards.map((sc) => {
+            const r = recOf(sc.recommendation);
+            return (
+              <div key={sc.id} className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium text-neutral-900">{sc.interviewer} <span className="text-xs text-neutral-400 font-normal">· {sc.submittedAt}</span></p>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: r.bg, color: r.color }}>{r.label}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                  {SCORE_CRITERIA.map((c) => (
+                    <div key={c.key} className="rounded-lg bg-neutral-50 px-2 py-1.5">
+                      <p className="text-[11px] text-neutral-500 leading-tight">{c.label}</p>
+                      <p className="text-sm font-semibold text-neutral-900 tnum">{sc.ratings[c.key]}<span className="text-[10px] text-neutral-400">/4</span></p>
+                    </div>
+                  ))}
+                </div>
+                {sc.notes && <p className="text-sm text-neutral-600">{sc.notes}</p>}
+              </div>
+            );
+          })}
+
+          {open ? (
+            <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
+              <p className="text-sm font-semibold text-neutral-900">Your scorecard</p>
+              {SCORE_CRITERIA.map((c) => (
+                <div key={c.key} className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-neutral-700">{c.label}</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setRatings((rr) => ({ ...rr, [c.key]: n }))}
+                        className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
+                        style={ratings[c.key] === n ? { background: "var(--brand)", color: "#fff" } : { background: "#fff", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div>
+                <p className="text-sm text-neutral-700 mb-1.5">Recommendation</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {RECOMMENDATIONS.map((r) => (
+                    <button
+                      key={r.key}
+                      onClick={() => setRec(r.key)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors"
+                      style={rec === r.key ? { background: r.color, color: "#fff" } : { background: "#fff", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes for the team…"
+                className="w-full rounded-xl bg-white border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+              />
+              <div className="flex items-center gap-2">
+                <button onClick={submit} disabled={!canSubmit} className="text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-medium px-4 py-2 transition-opacity hover:opacity-90">Submit scorecard</button>
+                <button onClick={() => setOpen(false)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-white" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setOpen(true)} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">
+              + Add your scorecard
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile }) {
+  const [insights, setInsights] = useState(candidate ? MOCK_INSIGHTS[candidate.id] ?? null : null);
+  const [generating, setGenerating] = useState(false);
+  const [showOffer, setShowOffer] = useState(false);
+  // Questions unlock once the interview is actually booked: either the shared
+  // booking shows the candidate confirmed a time, or the application is already
+  // at the interviewing/offer/hired stage.
+  // Interview questions are only available once an interview is actually
+  // scheduled — not merely because the candidate sits at a later stage.
+  const isBooked = booking?.status === "scheduled";
+  const questionsUnlocked = isBooked;
+  // Detect whether the scheduled interview has already happened (its slot is in
+  // the past). Scorecards + the decision step only make sense post-interview.
+  const interviewStart = booking?.confirmedSlot?.start ? new Date(booking.confirmedSlot.start) : null;
+  const interviewPast = isBooked && interviewStart && interviewStart.getTime() < Date.now();
+  const interviewWhen = interviewStart
+    ? interviewStart.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + ", " + interviewStart.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    : null;
+  const stageRank = { applied: 0, shortlisted: 1, interviewing: 2, offer: 3, hired: 4, rejected: 5 };
+  const decided = stage === "hired" || stage === "rejected";
+  // A hired (or rejected) candidate is closed out — no more scheduling or offers.
+  const isHired = hiredIds.has(candidate?.id) || stage === "hired";
+  const isClosed = isHired || stage === "rejected";
+  // Offer response state: 'sent' (awaiting candidate) | 'accepted' | 'declined'.
+  const offerStatus = offer?.status || (isHired ? "accepted" : stage === "offer" ? "sent" : null);
+  const hasEmail = !!candidate?.parsed?.email;
+  const firstName = candidate?.parsed?.name ? candidate.parsed.name.split(" ")[0] : "the candidate";
+
+  if (!candidate) {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-2xl mx-auto">
+          <BackLink onClick={() => navigate("dashboard")}>← Back</BackLink>
+          <p className="text-sm text-neutral-500 mt-4">Candidate not found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const parsed = candidate.parsed;
+
+  const handleGenerate = () => {
+    setGenerating(true);
+    setTimeout(() => {
+      setInsights(
+        MOCK_INSIGHTS[candidate.id] ?? {
+          generated_at: new Date().toISOString(),
+          experience_insights: {
+            total_experience_years: parsed.years_of_experience ?? 2,
+            leadership_experience_years: 0,
+            domain_experience: [],
+            startup_experience: false,
+            enterprise_experience: false,
+            remote_work_mentioned: false,
+          },
+          employment_analysis: {
+            number_of_employers: parsed.experience.length,
+            average_tenure_months: 24,
+            longest_tenure: null,
+            career_progression: "Not enough distinct roles in the resume to describe a clear progression.",
+            employment_gaps: [],
+          },
+        }
+      );
+      setGenerating(false);
+    }, 1600);
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate(-1)}>← Back</BackLink>
+
+        <div className="mt-4 mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <CandidateAvatar name={parsed.name} hasPhoto={candidate.hasPhoto} size={56} />
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{parsed.name}</h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-neutral-600">
+                {parsed.email && <span>{parsed.email}</span>}
+                {parsed.phone && <span>{parsed.phone}</span>}
+                {parsed.location && <span>{parsed.location}</span>}
+                {parsed.years_of_experience != null && <span>{parsed.years_of_experience} yrs experience</span>}
+              </div>
+              {(parsed.linkedin_url || parsed.portfolio_url) && (
+                <div className="flex items-center gap-3 mt-2">
+                  {parsed.linkedin_url && (
+                    <span className="text-xs text-indigo-600">LinkedIn ↗</span>
+                  )}
+                  {parsed.portfolio_url && (
+                    <span className="text-xs text-indigo-600">Portfolio ↗</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          {planLimits(plan).storeOriginal ? (
+            <button
+              onClick={() => {}}
+              className="self-start shrink-0 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5"
+            >
+              <Icon name="doc" className="w-4 h-4" /> View original PDF
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("billing")}
+              className="self-start shrink-0 rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80"
+              style={{ background: "var(--brand-soft)", color: "var(--brand)" }}
+              title="On Free, the original file isn't stored"
+            >
+              <Icon name="lock" className="w-3.5 h-3.5" /> Original not stored · Pro
+            </button>
+          )}
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-sm font-medium text-indigo-700">AI Experience Insights</h2>
+            {insights && (
+              <span className="text-xs text-neutral-500">
+                Generated {new Date(insights.generated_at).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+
+          {!insights ? (
+            <>
+              <p className="text-sm text-neutral-600 mb-3">
+                Run a deeper AI analysis of this resume — total experience, leadership time, domain
+                exposure, employer tenure, and any employment gaps.
+              </p>
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
+              >
+                {generating ? "Analyzing…" : "Generate AI Insights"}
+              </button>
+            </>
+          ) : (
+            <>
+              <InsightsDisplay insights={insights} />
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="mt-4 text-xs text-neutral-500 hover:text-neutral-700"
+              >
+                {generating ? "Re-analyzing…" : "Regenerate"}
+              </button>
+            </>
+          )}
+        </div>
+
+        {parsed.summary && (
+          <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+            <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Summary</h2>
+            <p className="text-sm text-neutral-700">{parsed.summary}</p>
+          </div>
+        )}
+
+        <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+          <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Skills</h2>
+          <div className="flex flex-wrap gap-2">
+            {parsed.skills.map((skill) => (
+              <span key={skill} className="text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+          <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Experience</h2>
+          <div className="space-y-4">
+            {parsed.experience.map((exp, i) => (
+              <div key={i}>
+                <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-x-2">
+                  <p className="text-neutral-900 text-sm font-medium">{exp.title} · {exp.company}</p>
+                  <span className="text-xs text-neutral-500 shrink-0">{exp.duration}</span>
+                </div>
+                <p className="text-sm text-neutral-600 mt-1">{exp.summary}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+          <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Education</h2>
+          <div className="space-y-2">
+            {parsed.education.map((ed, i) => (
+              <div key={i} className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-x-2">
+                <p className="text-neutral-900 text-sm">{ed.degree} · {ed.institution}</p>
+                <span className="text-xs text-neutral-500 shrink-0">{ed.year}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {parsed.certifications && parsed.certifications.length > 0 && (
+          <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+            <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Certifications</h2>
+            <ul className="text-sm text-neutral-700 space-y-1 list-disc list-inside">
+              {parsed.certifications.map((cert) => (
+                <li key={cert}>{cert}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {parsed.languages && parsed.languages.length > 0 && (
+          <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+            <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Languages</h2>
+            <div className="flex flex-wrap gap-2">
+              {parsed.languages.map((lang) => (
+                <span key={lang} className="text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
+                  {lang}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+          <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Salary Expectation</h2>
+          {parsed.salary_expectation ? (
+            <p className="text-sm text-neutral-900">{parsed.salary_expectation}</p>
+          ) : (
+            <div className="flex items-start gap-2">
+              <span className="text-amber-600 text-sm shrink-0">⚠</span>
+              <p className="text-sm text-amber-700">
+                Not stated in resume. AI could not find a salary expectation — please confirm
+                directly with the candidate.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {isClosed && (
+          <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: isHired ? "#BBF7D0" : "var(--line)", background: isHired ? "#F0FDF4" : "var(--bg)" }}>
+            {isHired ? (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">🎉</span>
+                  <h2 className="text-sm font-semibold" style={{ color: "#166534" }}>Hired</h2>
+                </div>
+                <p className="text-sm" style={{ color: "#166534" }}>
+                  {parsed.name.split(" ")[0]} has been hired and is no longer part of active interviewing. Their record stays here, but they won't appear in matching or be schedulable.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--ink)" }}>Not proceeding</h2>
+                <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
+                  This candidate was rejected, so interview scheduling is closed.
+                </p>
+                <button onClick={() => onSetStage && onSetStage("interviewing")} className="text-xs rounded-xl border font-medium px-3 py-1.5 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                  Reopen candidate
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {!isClosed && (<>
+        <ScheduleInterviewPanel
+          candidate={candidate}
+          jobs={jobs}
+          interviewers={interviewers}
+          onPreviewBooking={onPreviewBooking}
+          contextJobId={contextJobId}
+          booking={booking}
+          onInviteSent={onInviteSent}
+          provider={provider}
+          calendarConnected={calendarConnected}
+        />
+
+        <InterviewQuestionsPanel
+          candidate={candidate}
+          jobs={jobs}
+          contextJobId={contextJobId}
+          isScheduled={questionsUnlocked}
+        />
+
+        {/* After the interview — unlocks once the scheduled slot is in the past.
+            This closes the gap between "interview scheduled" and a hire/reject
+            decision: collect team scorecards, then move the candidate forward. */}
+        {isBooked && !interviewPast && (
+          <div className="mt-6 rounded-2xl border border-dashed p-4 flex items-start gap-3" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
+            <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--ink-3)" }} />
+            <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              Interview set for <span className="font-semibold">{interviewWhen}</span>. Once it's done, team scorecards and the hire / reject decision will unlock here.
+            </p>
+          </div>
+        )}
+
+        {interviewPast && (
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>After the interview</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview done · {interviewWhen}</span>
+            </div>
+
+            <ScorecardPanel
+              scorecards={scorecards}
+              onSubmit={onSubmitScorecard}
+              plan={plan}
+              navigate={navigate}
+              authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
+            />
+
+            {/* Decision / next step */}
+            <div className="mt-4 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+              <h2 className="text-sm font-medium text-neutral-600 mb-1 uppercase tracking-wide">Decision</h2>
+
+              {stage === "hired" ? (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold" style={{ color: "#166534" }}>✓ Hired</span>
+                    <span className="text-xs text-neutral-500">{firstName} accepted the offer.</span>
+                  </div>
+                </div>
+              ) : stage === "rejected" ? (
+                <div className="flex items-center justify-between gap-3 mt-2">
+                  <span className="text-sm text-neutral-500">Not proceeding with this candidate.</span>
+                  <button onClick={() => onSetStage && onSetStage("interviewing")} className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-800 shrink-0">Undo</button>
+                </div>
+              ) : offerStatus === "declined" ? (
+                <div className="mt-2">
+                  <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#FECDD3", background: "#FFF1F2" }}>
+                    <p className="text-sm font-medium" style={{ color: "#9F1239" }}>{firstName} declined the offer.</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#9F1239" }}>They let you know they won't be proceeding.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setShowOffer(true)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                      Re-send offer
+                    </button>
+                    <button onClick={() => onSetStage && onSetStage("rejected")} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                      Close as rejected
+                    </button>
+                  </div>
+                </div>
+              ) : offerStatus === "sent" ? (
+                <div className="mt-2">
+                  <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#BFDBFE", background: "#EFF6FF" }}>
+                    <p className="text-sm font-medium" style={{ color: "#1E40AF" }}>Offer sent — awaiting {firstName}'s response</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#1E40AF" }}>
+                      {offer?.emailSent === false
+                        ? "Recorded internally (no email on file). Update the stage once they confirm."
+                        : `${firstName} was emailed that they've been selected and asked to accept or decline. The HR team will follow up with details.`}
+                    </p>
+                  </div>
+                  <p className="text-[11px] mb-2" style={{ color: "var(--ink-3)" }}>Preview — simulate the candidate's reply:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => onRespondOffer && onRespondOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
+                      Candidate accepts ✓
+                    </button>
+                    <button onClick={() => onRespondOffer && onRespondOffer(false)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                      Candidate declines
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-neutral-600 mb-3">
+                    Once your team has scored the interview, move {firstName} to the next step.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setShowOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
+                      Make an offer →
+                    </button>
+                    <button onClick={() => onSetStage && onSetStage("rejected")} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                      Reject
+                    </button>
+                  </div>
+                  <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
+                    Current stage: <span className="font-medium">{stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        </>)}
+
+        {showOffer && (
+          <OfferModal
+            candidateName={parsed.name}
+            jobTitle={(jobs.find((j) => j.id === contextJobId) || {}).title || "the role"}
+            hasEmail={hasEmail}
+            onClose={() => setShowOffer(false)}
+            onSend={(emailSent) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent); }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+const STAGE_ORDER = ["applied", "shortlisted", "interviewing", "offer", "hired", "rejected"];
+const STAGE_LABELS = {
+  applied: "Applied",
+  shortlisted: "Shortlisted",
+  interviewing: "Interviewing",
+  offer: "Offer",
+  hired: "Hired",
+  rejected: "Rejected",
+};
+const STAGE_STYLES = {
+  applied: "bg-neutral-100 text-neutral-600 border border-neutral-200",
+  shortlisted: "bg-indigo-50 text-indigo-600 border border-indigo-200",
+  interviewing: "bg-blue-50 text-blue-600 border border-blue-200",
+  offer: "bg-violet-50 text-violet-600 border border-violet-200",
+  hired: "bg-emerald-50 text-emerald-600 border border-emerald-200",
+  rejected: "bg-rose-50 text-rose-600 border border-rose-200",
+};
+
+function StageBadge({ stage }) {
+  return <span className={`text-xs px-2 py-0.5 rounded-full ${STAGE_STYLES[stage]}`}>{STAGE_LABELS[stage]}</span>;
+}
+
+// The standard warm-decline template, matching the agreed rejection copy.
+function buildRejectionDraft(name, jobTitle) {
+  const first = (name || "there").split(" ")[0];
+  return {
+    subject: `Update on your application — ${jobTitle}`,
+    body: `Hi ${first},\n\nThank you for taking the time to apply for the ${jobTitle} role and for sharing your background with us.\n\nAfter careful consideration, we've decided not to move forward with your application at this time. This was a competitive process and the decision wasn't easy.\n\nWe genuinely appreciate your interest, and we'd welcome you to apply for future roles that match your experience. We wish you all the best in your search.\n\nWarm regards,\nThe Hiring Team`,
+  };
+}
+
+function buildOfferDraft(name, jobTitle) {
+  const first = (name || "there").split(" ")[0];
+  return {
+    subject: `You've been selected for the ${jobTitle} role`,
+    body: `Hi ${first},\n\nCongratulations! Following your interview, we're delighted to let you know that you've been selected for the ${jobTitle} role.\n\nOur HR team will be in touch shortly with the full details — compensation, start date, and everything you'll need for the next steps.\n\nBefore we proceed, please let us know whether you'd like to accept this offer using the Accept or Decline buttons below. We can't move forward until we hear from you.\n\nWe're excited about the possibility of you joining the team and look forward to your response.\n\nWarm regards,\nThe Hiring Team`,
+  };
+}
+
+function OfferModal({ candidateName, jobTitle, hasEmail = true, onClose, onSend }) {
+  const initial = buildOfferDraft(candidateName, jobTitle);
+  const [subject, setSubject] = useState(initial.subject);
+  const [body, setBody] = useState(initial.body);
+  const [sending, setSending] = useState(false);
+
+  const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+
+  const handleSend = () => {
+    setSending(true);
+    setTimeout(() => onSend(true), 900); // simulate send
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Send offer to {candidateName}</h2>
+        <p className="text-sm text-neutral-500 mb-4">
+          This emails the candidate to say they've been selected and asks them to <span className="font-medium">accept or decline</span>. They stay in the Offer stage until they respond.
+        </p>
+
+        {!hasEmail && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-700">
+              This candidate has no email on file, so the offer email can't be sent. You can still record the offer internally.
+            </p>
+          </div>
+        )}
+
+        <label className="block text-xs text-neutral-500 mb-1">Subject</label>
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} className={`${inputClass} mb-3`} disabled={!hasEmail} />
+
+        <label className="block text-xs text-neutral-500 mb-1">Message</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} className={`${inputClass} mb-4 resize-y`} disabled={!hasEmail} />
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button onClick={onClose} className="text-sm rounded-lg px-4 py-2 text-neutral-600 hover:bg-neutral-100 transition-colors">
+            Cancel
+          </button>
+          {!hasEmail && (
+            <button onClick={() => onSend(false)} className="text-sm rounded-lg px-4 py-2 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 transition-colors">
+              Record offer without email
+            </button>
+          )}
+          {hasEmail && (
+            <button onClick={handleSend} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
+              {sending ? "Sending…" : "Send offer"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RejectionModal({ candidateName, jobTitle, hasEmail = true, onClose, onReject }) {
+  const initial = buildRejectionDraft(candidateName, jobTitle);
+  const [subject, setSubject] = useState(initial.subject);
+  const [body, setBody] = useState(initial.body);
+  const [sending, setSending] = useState(false);
+
+  const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+
+  const handleSend = () => {
+    setSending(true);
+    setTimeout(() => onReject(true), 900); // simulate send
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Reject {candidateName}</h2>
+        <p className="text-sm text-neutral-500 mb-4">
+          Review the email before it's sent. You can edit it, send it, or reject without emailing.
+        </p>
+
+        {!hasEmail && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-700">
+              This candidate has no email on file, so an email can't be sent. You can still reject internally.
+            </p>
+          </div>
+        )}
+
+        <label className="block text-xs text-neutral-500 mb-1">Subject</label>
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} className={`${inputClass} mb-3`} disabled={!hasEmail} />
+
+        <label className="block text-xs text-neutral-500 mb-1">Message</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} className={`${inputClass} mb-4 resize-y`} disabled={!hasEmail} />
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button onClick={onClose} className="text-sm rounded-lg px-4 py-2 text-neutral-600 hover:bg-neutral-100 transition-colors">
+            Cancel
+          </button>
+          <button onClick={() => onReject(false)} className="text-sm rounded-lg px-4 py-2 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 transition-colors">
+            Reject without email
+          </button>
+          {hasEmail && (
+            <button onClick={handleSend} disabled={sending} className="text-sm rounded-lg px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-medium transition-colors">
+              {sending ? "Sending…" : "Send & reject"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasEmail, onStageChange }) {
+  const [open, setOpen] = useState(false);
+  const [showReject, setShowReject] = useState(false);
+
+  // Offer & Hired are NOT manually selectable here — they only happen through
+  // the offer → accept flow on the candidate's profile, so HR can't skip the
+  // funnel or fake a hire the candidate never confirmed. Reject is always
+  // available (except on someone already hired). A hired candidate is final.
+  const isPickable = (s) => {
+    if (s === stage) return false;
+    if (s === "offer" || s === "hired") return false;   // via profile offer flow only
+    if (stage === "hired") return false;                // hired is final
+    if (s === "rejected") return true;                  // can reject anytime otherwise
+    return true;                                        // applied / shortlisted / interviewing
+  };
+
+  const choose = (next) => {
+    if (!isPickable(next)) return;
+    setOpen(false);
+    if (next === "rejected") {
+      setShowReject(true);
+      return;
+    }
+    onStageChange(next);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition-colors hover:brightness-95 ${STAGE_STYLES[stage]}`}
+      >
+        <span className="text-xs font-medium">{STAGE_LABELS[stage]}</span>
+        <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {stage === "rejected" && (
+        <p className="text-[11px] text-neutral-400 mt-1 text-right">
+          {rejectionEmailSent ? "Email sent" : "No email sent"}
+        </p>
+      )}
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute z-40 right-0 mt-1 w-52 rounded-xl border border-neutral-200 bg-white shadow-lg py-1">
+            <p className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-wide text-neutral-400">Move to stage</p>
+            {STAGE_ORDER.map((s) => {
+              const current = s === stage;
+              const gated = s === "offer" || s === "hired";
+              const disabled = !current && !isPickable(s);
+              return (
+                <button
+                  key={s}
+                  onClick={() => choose(s)}
+                  disabled={disabled}
+                  title={gated ? "Set from the candidate's profile via the offer flow" : undefined}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 text-sm transition-colors ${
+                    current
+                      ? "text-neutral-900 bg-neutral-100 font-medium"
+                      : disabled
+                        ? "text-neutral-300 cursor-not-allowed"
+                        : s === "rejected"
+                          ? "text-rose-600 hover:bg-rose-50"
+                          : "text-neutral-700 hover:bg-neutral-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {gated && <Icon name="lock" className="w-3 h-3" />}
+                    {STAGE_LABELS[s]}{s === "rejected" ? "…" : ""}
+                  </span>
+                  {current && <span className="text-neutral-400">✓</span>}
+                </button>
+              );
+            })}
+            <p className="px-3 pt-1.5 pb-1 text-[10px] text-neutral-400 border-t border-neutral-100 mt-1">
+              Offers &amp; hires happen on the candidate's profile, after the interview.
+            </p>
+          </div>
+        </>
+      )}
+
+      {showReject && (
+        <RejectionModal
+          candidateName={candidateName}
+          jobTitle={jobTitle}
+          hasEmail={hasEmail}
+          onClose={() => setShowReject(false)}
+          onReject={(emailSent) => { setShowReject(false); onStageChange("rejected", emailSent); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set() }) {
+  // Real activity signal per applicant — an event worth noticing, not presence.
+  const activityFor = (a) => {
+    if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
+    const t = (a.appliedAt || "").toLowerCase();
+    if (t.includes("today") || /^\s*1\s*d/.test(t)) return { label: "New", color: "#166534", bg: "#DCFCE7" };
+    return null;
+  };
+  const limits = planLimits(plan);
+  const aiMatchLimit = limits.aiMatches;
+  const runLimit = limits.aiRunsPerMonth;
+  const runsLeft = Math.max(0, runLimit - matchRunsUsed);
+  const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
+  const job = jobs.find((j) => j.id === activeJobId);
+  const jobTitle = job?.title ?? "the role";
+  // Shared source of truth (also drives the count on the Jobs card).
+  const baseApplicants = APPLICANTS_BY_JOB[activeJobId] || [];
+  const [localRejectEmail, setLocalRejectEmail] = useState({}); // candidateId -> emailSent
+
+  const applicants = baseApplicants.map((a) => ({
+    ...a,
+    stage: stageOverrides[a.candidateId] ?? a.baseStage,
+    rejectionEmailSent: localRejectEmail[a.candidateId] ?? a.rejectionEmailSent,
+  }));
+
+  const [stageFilter, setStageFilter] = useState("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Inline AI matching — ranks these applicants against the job.
+  const [matching, setMatching] = useState(false);
+  const [matchResults, setMatchResults] = useState(null); // null until run: { [candidateId]: {score, rationale} }
+
+  const runMatching = () => {
+    if (outOfRuns) { navigate("billing"); return; }
+    setMatching(true);
+    setTimeout(() => {
+      const list = MOCK_MATCHES[activeJobId] || [];
+      const map = {};
+      list.forEach((m) => { map[m.candidateId] = { score: m.score, rationale: m.rationale }; });
+      setMatchResults(map);
+      setMatching(false);
+      if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) setMatchRunsUsed((n) => n + 1);
+    }, 1400);
+  };
+
+  const setStage = (candidateId, stage, emailSent) => {
+    if (stage === "rejected") {
+      setLocalRejectEmail((prev) => ({ ...prev, [candidateId]: Boolean(emailSent) }));
+    }
+    if (onStageChange) onStageChange(candidateId, stage);
+  };
+
+  // Only applicants whose candidate exists and is parsed are shown
+  const visible = applicants.filter((a) => {
+    const c = MOCK_CANDIDATES.find((cand) => cand.id === a.candidateId);
+    return c && c.parsed;
+  });
+
+  const countFor = (key) => (key === "all" ? visible.length : visible.filter((a) => a.stage === key).length);
+  let filtered = stageFilter === "all" ? visible : visible.filter((a) => a.stage === stageFilter);
+  // Recency rank: lower = newer ("today" newest, "6d ago" older).
+  const recencyRank = (a) => {
+    const t = (a.appliedAt || "").toLowerCase();
+    if (t.includes("today")) return 0;
+    const m = t.match(/(\d+)\s*d/);
+    return m ? Number(m[1]) : 999;
+  };
+  if (matchResults) {
+    // Once matched, rank by score (highest first); unscored fall to the bottom.
+    filtered = [...filtered].sort((a, b) => (matchResults[b.candidateId]?.score ?? -1) - (matchResults[a.candidateId]?.score ?? -1));
+  } else {
+    // Newest applicants first for everyone (Free can see its whole pipeline).
+    filtered = [...filtered].sort((a, b) => recencyRank(a) - recencyRank(b));
+  }
+
+  const filterOptions = ["all", ...STAGE_ORDER];
+  const filterLabel = (key) => (key === "all" ? "All stages" : STAGE_LABELS[key]);
+
+  // Free can view every applicant now; only AI-match depth is gated.
+  const shownApps = filtered;
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate("jobs")}>← Jobs</BackLink>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>
+          Applicants{job ? ` — ${job.title}` : ""}
+        </h1>
+        <p className="text-sm text-neutral-600 mb-4">
+          Candidates who applied directly through the public job link. Tap the stage pill to move them through the pipeline or reject with a reviewed email.
+        </p>
+
+        <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Rank these applicants with AI</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+              {visible.length === 0
+                ? "No applicants yet — matching becomes available once someone applies."
+                : matchResults
+                  ? "Ranked by fit against this role. Best matches shown first."
+                  : "Score every candidate against this role and see who fits best."}
+            </p>
+          </div>
+          <button
+            onClick={runMatching}
+            disabled={matching || visible.length === 0}
+            className="shrink-0 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 flex items-center gap-2 transition-opacity"
+          >
+            <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
+            {matching
+              ? "Matching…"
+              : outOfRuns
+                ? "Upgrade for more runs"
+                : matchResults
+                  ? "Re-run matching"
+                  : "Run AI Matching"}
+          </button>
+        </div>
+        {limits.aiRunsPerMonth !== Infinity && (
+          <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
+            {outOfRuns
+              ? `You've used all ${limits.aiRunsPerMonth} match runs this month. Upgrade for unlimited runs, the full ranking, and the AI's reasoning.`
+              : `Your plan includes ${limits.aiRunsPerMonth} match runs a month (${runsLeft} left) — you'll see the top ${limits.aiMatches} fits with scores. Upgrade for unlimited runs and the reasoning.`}
+          </p>
+        )}
+
+        {/* Stage filter */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <p className="text-sm text-neutral-500">
+            {filtered.length} {filtered.length === 1 ? "candidate" : "candidates"}
+            {stageFilter !== "all" ? ` · ${STAGE_LABELS[stageFilter]}` : ""}
+          </p>
+          <div className="relative">
+            <button
+              onClick={() => setFilterOpen((o) => !o)}
+              className="flex items-center gap-2 rounded-xl bg-white border border-neutral-200 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-300 transition-colors"
+            >
+              <span className="text-neutral-400">Filter:</span>
+              <span className="font-medium">{filterLabel(stageFilter)}</span>
+              <Icon name="chevronDown" className={`w-4 h-4 text-neutral-400 transition-transform ${filterOpen ? "rotate-180" : ""}`} />
+            </button>
+            {filterOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
+                <div className="absolute z-40 right-0 mt-1 w-48 rounded-xl border border-neutral-200 bg-white shadow-lg py-1">
+                  {filterOptions.map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => { setStageFilter(key); setFilterOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-sm transition-colors ${
+                        stageFilter === key ? "text-neutral-900 bg-neutral-100 font-medium" : "text-neutral-700 hover:bg-neutral-50"
+                      }`}
+                    >
+                      <span>{filterLabel(key)}</span>
+                      <span className="text-xs text-neutral-400">{countFor(key)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="text-sm text-neutral-500">No candidates in this stage.</p>
+        ) : (
+          <div className="space-y-2">
+            {shownApps.map((a, idx) => {
+              const c = MOCK_CANDIDATES.find((cand) => cand.id === a.candidateId);
+              if (!c || !c.parsed) return null;
+              const role = c.parsed.experience?.[0]?.title ?? "Applicant";
+              const match = matchResults?.[a.candidateId];
+              const scoreVisible = idx < aiMatchLimit;
+              const isTop = !!matchResults && idx === 0 && !!match && scoreVisible;
+              return (
+                <div
+                  key={a.candidateId}
+                  className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0">
+                      {match && scoreVisible
+                        ? <ScoreRingLight value={Math.round(match.score * 100)} size={52} />
+                        : <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} />}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="block text-left min-w-0 flex-1">
+                          <p className="text-neutral-900 font-medium truncate hover:underline">{c.parsed.name}</p>
+                        </button>
+                        {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
+                        {match && !scoreVisible && (
+                          <button onClick={() => navigate("billing")} className="shrink-0" aria-label="Upgrade to see match score">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                              <Icon name="lock" className="w-3 h-3" /> score
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                        {(() => {
+                          const act = activityFor(a);
+                          return act ? (
+                            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
+                            </span>
+                          ) : null;
+                        })()}
+                        <p className="text-xs text-neutral-500 truncate">{role} · applied {a.appliedAt}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {match && scoreVisible && (
+                    limits.showRationale ? (
+                      <p className="text-xs mt-2.5" style={{ color: "var(--ink-2)" }}>{match.rationale}</p>
+                    ) : (
+                      <button onClick={() => navigate("billing")} className="text-xs mt-2.5 inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
+                        <Icon name="lock" className="w-3 h-3" /> See why — upgrade for the AI's reasoning
+                      </button>
+                    )
+                  )}
+
+                  <div className="flex justify-end mt-3">
+                    {hiredIds.has(a.candidateId) ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>
+                        <Icon name="check" className="w-3.5 h-3.5" /> Hired
+                      </span>
+                    ) : (
+                      <StageControl
+                        stage={a.stage}
+                        rejectionEmailSent={a.rejectionEmailSent}
+                        candidateName={c.parsed.name}
+                        jobTitle={jobTitle}
+                        hasEmail={Boolean(c.parsed.email)}
+                        onStageChange={(stage, emailSent) => setStage(a.candidateId, stage, emailSent)}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, plan = "free", hiredIds = new Set(), hiredDates = {} }) {
+  const [query, setQuery] = useState("");
+  const [hiredMonth, setHiredMonth] = useState("all"); // "all" | "YYYY-MM"
+  const limit = planLimits(plan).visibleCandidates;
+
+  const isHiredView = !!(filter && filter.hired);
+  let title = "Candidates";
+  // Only parsed candidates are shown — unparsed ones have no name/role to display yet.
+  let base = candidates.filter((c) => c.status === "parsed");
+
+  if (filter) {
+    if (filter.hired) {
+      title = "Hired";
+      base = candidates.filter((c) => hiredIds.has(c.id));
+    } else if (filter.status === "parsed") {
+      title = "Parsed candidates";
+    } else if (filter.status === "pending" || filter.status === "failed") {
+      // These statuses aren't parsed, so there's nothing to list here.
+      title = filter.status === "pending" ? "Parsing pending" : "Parse failed";
+      base = [];
+    } else if (filter.source === "public_application") {
+      title = "Applications";
+      base = base.filter((c) => ["c1", "c3"].includes(c.id));
+    } else if (filter.interview) {
+      title = "Candidates in interview";
+      base = base.filter((c) => c.id === "c1");
+    }
+  }
+
+  // Month options for the Hired view, derived from when each hire happened.
+  const monthLabel = (ym) => {
+    const [y, m] = ym.split("-");
+    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  };
+  const hiredMonths = isHiredView
+    ? Array.from(new Set(base.map((c) => (hiredDates[c.id] || "").slice(0, 7)).filter(Boolean))).sort().reverse()
+    : [];
+  if (isHiredView && hiredMonth !== "all") {
+    base = base.filter((c) => (hiredDates[c.id] || "").slice(0, 7) === hiredMonth);
+  }
+
+  const q = query.trim().toLowerCase();
+  const filtered = q ? base.filter((c) => (c.parsed?.name ?? "").toLowerCase().includes(q)) : base;
+  const visible = filtered.slice(0, limit);
+  const locked = filtered.slice(limit);
+
+  const currentRole = (c) => {
+    const job = c.parsed?.experience?.[0];
+    if (!job) return null;
+    return job.company ? `${job.title} · ${job.company}` : job.title;
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <div className="flex items-start justify-between gap-3 mt-2 mb-1">
+          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{title}</h1>
+          {isHiredView && hiredMonths.length > 0 && (
+            <select
+              value={hiredMonth}
+              onChange={(e) => setHiredMonth(e.target.value)}
+              className="shrink-0 rounded-xl bg-white border border-neutral-200 text-sm text-neutral-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+            >
+              <option value="all">All months</option>
+              {hiredMonths.map((ym) => (
+                <option key={ym} value={ym}>{monthLabel(ym)}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        <p className="text-sm text-neutral-600 mb-4">
+          {filtered.length} {isHiredView ? "hire" : "candidate"}{filtered.length === 1 ? "" : "s"}{isHiredView && hiredMonth !== "all" ? ` in ${monthLabel(hiredMonth)}` : ""}
+        </p>
+
+        {/* Search by name */}
+        <div className="relative mb-5">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+            <Icon name="search" className="w-4 h-4" />
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search candidates by name…"
+            className="w-full rounded-xl bg-white border border-neutral-200 pl-9 pr-3 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+          />
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="text-sm text-neutral-500">
+            {q ? `No candidates matching “${query}”.` : "No parsed candidates to show."}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {visible.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onViewCandidate(c.id)}
+                className="flex items-center gap-4 w-full text-left rounded-2xl bg-white act-shadow card-hover px-5 py-4 border border-[color:var(--line)]"
+              >
+                <CandidateAvatar name={c.parsed?.name} hasPhoto={c.hasPhoto} size={48} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-semibold text-neutral-900 truncate">
+                      {c.parsed?.name ?? c.fileName}
+                    </p>
+                    {hiredIds.has(c.id) && (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>
+                        <Icon name="check" className="w-3 h-3" /> Hired
+                      </span>
+                    )}
+                  </div>
+                  {currentRole(c) && (
+                    <p className="text-sm text-neutral-500 truncate">
+                      {hiredIds.has(c.id)
+                        ? (hiredDates[c.id] ? `Hired ${new Date(hiredDates[c.id]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "Hired — no longer available")
+                        : currentRole(c)}
+                    </p>
+                  )}
+                </div>
+                <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
+              </button>
+            ))}
+
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Root ----------
+
+export default function ResumeAIPreview() {
+  const [history, setHistory] = useState(["landing"]);
+  const [jobs, setJobs] = useState(MOCK_JOBS);
+  const [activeJobId, setActiveJobId] = useState("j1");
+  // On the Free plan, only one job stays active; the rest are paused (kept, not
+  // deleted). This tracks which one the user chose to keep on downgrade.
+  const [keptJobId, setKeptJobId] = useState("j1");
+  const [viewCandidateId, setViewCandidateId] = useState(null);
+  const [viewCandidateJobId, setViewCandidateJobId] = useState(null);
+  const [viewCandidateStage, setViewCandidateStage] = useState(null);
+  const [candidateFilter, setCandidateFilter] = useState(null);
+  const [jobStatusFilter, setJobStatusFilter] = useState(null);
+  const [interviewers, setInterviewers] = useState(INITIAL_INTERVIEWERS);
+  const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
+  const addScorecard = (candidateId, card) =>
+    setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), card] }));
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [defaultProvider, setDefaultProvider] = useState("google");
+  // Calendar is connected once at the workspace level (single Google Workspace /
+  // Microsoft 365 tenant), rather than per interviewer. Powers availability +
+  // event creation for everyone.
+  const [calendarConnected, setCalendarConnected] = useState(true);
+  // User profile — the greeting, sidebar and settings all read from this.
+  const [profile, setProfile] = useState({ firstName: "Shah", lastName: "Ramly", role: "Hiring Manager" });
+  const [company, setCompany] = useState("Oryx Studio");
+  const [plan, setPlan] = useState("starter");
+  const [planCycle, setPlanCycle] = useState("monthly");
+  // Account is on the Starter plan (trial ended).
+  const [trialDaysLeft, setTrialDaysLeft] = useState(0);
+  const trialActive = plan === "free" && trialDaysLeft > 0;
+  const effectivePlan = trialActive ? "professional" : plan;
+  // Shared monthly AI-match run counter (Free is limited; resets in production
+  // each billing period — here it's per session).
+  const [matchRunsUsed, setMatchRunsUsed] = useState(0);
+  // Plan a visitor picked on the marketing site, carried into sign-up.
+  const [signupPlan, setSignupPlan] = useState("professional");
+  const [signupCycle, setSignupCycle] = useState("monthly");
+  // Shared activity feed. Both the header notification bell and the
+  // dashboard "Recent Activity" card read from this list; `read` drives
+  // the unread badge on the bell.
+  const [activities, setActivities] = useState(buildActivities);
+  const markActivitiesRead = () => setActivities((list) => list.map((a) => ({ ...a, read: true })));
+  // Dashboard date range — defaults to today (current date).
+  const today0 = startOfDay(new Date());
+  const [dateRange, setDateRange] = useState({ start: today0, end: today0 });
+  const [previewRequest, setPreviewRequest] = useState(null);
+  // The job whose public application page we're previewing (via a job's apply link).
+  const [previewApplyJob, setPreviewApplyJob] = useState(null);
+  // Booking state per candidate, shared across the profile and the public
+  // booking preview: { [candidateId]: { status, confirmedSlot, request } }.
+  // status: 'sent' (invite out) | 'scheduled' (candidate confirmed a time).
+  // Seeded with a couple of already-confirmed interviews so the dashboard
+  // reflects real scheduled data; new ones the user books appear alongside.
+  const [bookings, setBookings] = useState(() => {
+    const soon = (dayOffset, hour) => {
+      const d = new Date();
+      d.setDate(d.getDate() + dayOffset);
+      d.setHours(hour, 0, 0, 0);
+      const end = new Date(d.getTime() + 30 * 60000);
+      return { start: d.toISOString(), end: end.toISOString() };
+    };
+    return {
+      c1: {
+        status: "scheduled",
+        confirmedSlot: soon(-1, 14),
+        provider: "google",
+        request: { candidateId: "c1", jobTitle: "Senior Frontend Engineer (React)", interviewerName: "Jane Tan" },
+      },
+      c3: {
+        status: "scheduled",
+        confirmedSlot: soon(4, 14),
+        provider: "google",
+        request: { candidateId: "c3", jobTitle: "Product Designer (UI/UX)", interviewerName: "Ahmad Zulkifli" },
+      },
+    };
+  });
+  // Stage overrides applied after the initial mock stage, keyed by candidate id.
+  // Lets actions elsewhere (like a confirmed booking) advance the pipeline stage.
+  const [stageOverrides, setStageOverrides] = useState({});
+
+  const screen = history[history.length - 1];
+
+  const navigate = (target) => {
+    if (target === -1) {
+      setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
+    } else if (target === "login") {
+      setHistory(["login"]);
+    } else {
+      setHistory((h) => [...h, target]);
+    }
+  };
+
+  const viewCandidate = (candidateId, jobId = null, stage = null) => {
+    setViewCandidateId(candidateId);
+    setViewCandidateJobId(jobId);
+    setViewCandidateStage(stage);
+    navigate("candidateProfile");
+  };
+
+  const handlePreviewBooking = (request) => {
+    setPreviewRequest(request);
+    navigate("schedulePicker");
+  };
+
+  // Open the public application page for a job (what a candidate sees via the link).
+  const handlePreviewApply = (job) => {
+    setPreviewApplyJob(job);
+    navigate("apply");
+  };
+
+  // Candidate confirmed a time on the public booking page.
+  const confirmBooking = (candidateId, slot) => {
+    setBookings((prev) => ({
+      ...prev,
+      [candidateId]: {
+        ...(prev[candidateId] || {}),
+        status: "scheduled",
+        confirmedSlot: slot,
+        // Lock in whichever provider was active when the interview was set up.
+        provider: prev[candidateId]?.provider || defaultProvider,
+      },
+    }));
+    // A confirmed interview moves the candidate into the Interviewing stage
+    // (unless they're already further along, e.g. Offer/Hired).
+    setStageOverrides((prev) => {
+      const current = prev[candidateId];
+      if (current === "offer" || current === "hired") return prev;
+      return { ...prev, [candidateId]: "interviewing" };
+    });
+  };
+
+  // HR sent the invite (times proposed, awaiting candidate).
+  const markInviteSent = (candidateId, request) => {
+    setBookings((prev) => ({
+      ...prev,
+      [candidateId]: { status: "sent", request, confirmedSlot: null, provider: defaultProvider },
+    }));
+  };
+
+  // HR manually changed a candidate's pipeline stage from the applicants list.
+  const setCandidateStage = (candidateId, stage) => {
+    setStageOverrides((prev) => ({ ...prev, [candidateId]: stage }));
+  };
+
+  // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
+  // or 'declined'. Sending moves them to the Offer stage; accepting → Hired.
+  const [offers, setOffers] = useState({});
+  // When each candidate was hired (YYYY-MM), used for the month filter on the
+  // Hired list. Seeded for the pre-hired sample; live hires stamp the current month.
+  const [hiredDates, setHiredDates] = useState({ c8: "2026-06-18" });
+  const sendOffer = (candidateId, emailSent) => {
+    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now" } }));
+    setCandidateStage(candidateId, "offer");
+  };
+  const respondOffer = (candidateId, accepted) => {
+    setOffers((prev) => ({ ...prev, [candidateId]: { ...(prev[candidateId] || {}), status: accepted ? "accepted" : "declined" } }));
+    if (accepted) {
+      setCandidateStage(candidateId, "hired");
+      setHiredDates((prev) => ({ ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
+    }
+  };
+
+  const activeCandidate = MOCK_CANDIDATES.find((c) => c.id === viewCandidateId);
+
+  // Candidates who have been hired are unavailable everywhere: excluded from AI
+  // matching, badged & locked in lists, and blocked from re-applying. A hire is
+  // global to the candidate (not per-job), derived from their effective stage.
+  const hiredIds = new Set();
+  Object.values(APPLICANTS_BY_JOB).flat().forEach((a) => {
+    if ((stageOverrides[a.candidateId] ?? a.baseStage) === "hired") hiredIds.add(a.candidateId);
+  });
+  Object.entries(stageOverrides).forEach(([id, s]) => { if (s === "hired") hiredIds.add(id); });
+
+  // Screens that render standalone (no sidebar): the marketing site, login,
+  // sign-up, and the public candidate booking page.
+  if (screen === "landing") {
+    return (
+      <Shell>
+        <PreviewBanner />
+        <LandingScreen navigate={navigate} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} />
+      </Shell>
+    );
+  }
+
+  if (screen === "login") {
+    return (
+      <Shell>
+        <PreviewBanner />
+        <LoginScreen onLogin={() => navigate("dashboard")} navigate={navigate} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "signup") {
+    return (
+      <Shell>
+        <PreviewBanner />
+        <SignUpScreen
+          navigate={navigate}
+          logoUrl={logoUrl}
+          setCompany={setCompany}
+          setProfile={setProfile}
+          signupPlan={signupPlan}
+          signupCycle={signupCycle}
+          setPlan={setPlan}
+          setPlanCycle={setPlanCycle}
+          setTrialDaysLeft={setTrialDaysLeft}
+        />
+      </Shell>
+    );
+  }
+
+  if (screen === "schedulePicker") {
+    return (
+      <Shell>
+        <PreviewBanner />
+        <SchedulePickerScreen
+          navigate={navigate}
+          request={previewRequest}
+          onConfirm={(slot) => previewRequest && confirmBooking(previewRequest.candidateId, slot)}
+        />
+      </Shell>
+    );
+  }
+
+  if (screen === "apply") {
+    // Resolve the live job by id so its status is always current (a job
+    // toggled closed after opening the preview should reflect immediately).
+    const liveApplyJob = previewApplyJob ? (jobs.find((j) => j.id === previewApplyJob.id) || previewApplyJob) : null;
+    const _applyLimits = planLimits(plan);
+    const applyPaused = !!liveApplyJob && _applyLimits.maxJobs !== Infinity && jobs.length > _applyLimits.maxJobs && liveApplyJob.id !== keptJobId;
+    const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
+    return (
+      <Shell>
+        <PreviewBanner />
+        <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} />
+      </Shell>
+    );
+  }
+
+  // Map each screen to the sidebar nav item that should appear active.
+  const activeNav =
+    screen === "candidateProfile" || screen === "candidates"
+      ? "dashboard"
+      : screen === "applicants" || screen === "newJob"
+        ? "jobs"
+        : screen === "interviews"
+          ? "interviewers"
+          : screen;
+
+  return (
+    <Shell>
+      <PreviewBanner />
+      <SidebarLayout
+        navigate={navigate}
+        active={activeNav}
+        avatarUrl={avatarUrl}
+        onSignOut={() => navigate("login")}
+        logoUrl={logoUrl}
+        profile={profile}
+        unreadCount={activities.filter((a) => !a.read).length}
+        activities={activities}
+        onOpenNotifications={markActivitiesRead}
+      >
+        {screen === "dashboard" && (
+          <DashboardScreen
+            navigate={navigate}
+            jobs={jobs}
+            candidates={MOCK_CANDIDATES}
+            bookings={bookings}
+            setCandidateFilter={setCandidateFilter}
+            setJobStatusFilter={setJobStatusFilter}
+            profile={profile}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
+            range={dateRange}
+            setRange={setDateRange}
+            plan={effectivePlan}
+            trialDaysLeft={trialActive ? trialDaysLeft : 0}
+            onEndTrial={() => setTrialDaysLeft(0)}
+            hiredIds={hiredIds}
+          />
+        )}
+        {screen === "settings" && (
+          <SettingsScreen
+            navigate={navigate}
+            avatarUrl={avatarUrl}
+            setAvatarUrl={setAvatarUrl}
+            logoUrl={logoUrl}
+            setLogoUrl={setLogoUrl}
+            provider={defaultProvider}
+            setProvider={setDefaultProvider}
+            calendarConnected={calendarConnected}
+            setCalendarConnected={setCalendarConnected}
+            profile={profile}
+            setProfile={setProfile}
+            company={company}
+            setCompany={setCompany}
+            bookings={bookings}
+            plan={effectivePlan}
+          />
+        )}
+        {screen === "billing" && (
+          <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} />
+        )}
+        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} />}
+        {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} />}
+        {screen === "jobs" && (
+          <JobsScreen
+            navigate={navigate}
+            jobs={jobs}
+            setJobs={setJobs}
+            setActiveJobId={setActiveJobId}
+            jobStatusFilter={jobStatusFilter}
+            onPreviewApply={handlePreviewApply}
+            plan={effectivePlan}
+            keptJobId={keptJobId}
+          />
+        )}
+        {screen === "newJob" && (
+          <NewJobScreen navigate={navigate} jobs={jobs} setJobs={setJobs} plan={effectivePlan} />
+        )}
+        {screen === "search" && (
+          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} hiredIds={hiredIds} />
+        )}
+        {screen === "interviews" && (
+          <InterviewsScreen
+            navigate={navigate}
+            bookings={bookings}
+            candidates={MOCK_CANDIDATES}
+            jobs={jobs}
+            onViewCandidate={viewCandidate}
+          />
+        )}
+        {screen === "interviewers" && (
+          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} />
+        )}
+        {screen === "candidateProfile" && (
+          <CandidateProfileScreen
+            navigate={navigate}
+            candidate={activeCandidate}
+            jobs={jobs}
+            interviewers={interviewers}
+            onPreviewBooking={handlePreviewBooking}
+            contextJobId={viewCandidateJobId}
+            initialStage={viewCandidateStage}
+            booking={activeCandidate ? bookings[activeCandidate.id] : null}
+            onInviteSent={markInviteSent}
+            provider={defaultProvider}
+            calendarConnected={calendarConnected}
+            plan={effectivePlan}
+            scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
+            onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card)}
+            stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? "applied") : "applied"}
+            onSetStage={(s) => activeCandidate && setCandidateStage(activeCandidate.id, s)}
+            offer={activeCandidate ? offers[activeCandidate.id] : null}
+            onSendOffer={(emailSent) => activeCandidate && sendOffer(activeCandidate.id, emailSent)}
+            onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
+            hiredIds={hiredIds}
+            profile={profile}
+          />
+        )}
+        {screen === "candidates" && (
+          <CandidateListScreen
+            navigate={navigate}
+            candidates={MOCK_CANDIDATES}
+            filter={candidateFilter}
+            onViewCandidate={viewCandidate}
+            plan={effectivePlan}
+            hiredIds={hiredIds}
+            hiredDates={hiredDates}
+          />
+        )}
+        {screen === "applicants" && (
+          <ApplicantsScreen
+            navigate={navigate}
+            jobs={jobs}
+            activeJobId={activeJobId}
+            onViewCandidate={viewCandidate}
+            stageOverrides={stageOverrides}
+            onStageChange={setCandidateStage}
+            plan={effectivePlan}
+            matchRunsUsed={matchRunsUsed}
+            setMatchRunsUsed={setMatchRunsUsed}
+            bookings={bookings}
+            hiredIds={hiredIds}
+          />
+        )}
+      </SidebarLayout>
+    </Shell>
+  );
+}
