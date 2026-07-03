@@ -947,7 +947,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       {/* Hero — the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(70% 55% at 78% 12%, rgba(90,120,248,0.35) 0%, transparent 60%), radial-gradient(60% 50% at 10% 90%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28 grid lg:grid-cols-2 gap-12 lg:gap-14 items-center">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-28 grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           {/* Left: copy */}
           <div>
             <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}>
@@ -1035,8 +1035,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Problem → solution */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
-        <Reveal className="max-w-2xl mb-12">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
+        <Reveal className="max-w-2xl mb-8 sm:mb-12">
           <p className="eyebrow brand-text mb-2">Where hiring slows down</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Hiring always gets stuck in the same places.
@@ -1084,8 +1084,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Features */}
-      <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-24 scroll-mt-20">
-        <Reveal className="max-w-2xl mb-12">
+      <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24 scroll-mt-20">
+        <Reveal className="max-w-2xl mb-8 sm:mb-12">
           <p className="eyebrow brand-text mb-2">Everything in one place</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             The whole hiring pipeline, minus the spreadsheets.
@@ -1168,7 +1168,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
 
       {/* More capabilities */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-8">
-        <Reveal className="max-w-2xl mb-10">
+        <Reveal className="max-w-2xl mb-8 sm:mb-10">
           <p className="eyebrow brand-text mb-2">And everything around it</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", letterSpacing: "-0.02em" }}>
             From first application to signed offer.
@@ -1188,9 +1188,9 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* How it works */}
-      <section className="py-24" style={{ background: "var(--bg)" }}>
+      <section className="py-14 sm:py-24" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <Reveal as="h2" className="font-display font-bold text-neutral-900 text-center mb-14" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
+          <Reveal as="h2" className="font-display font-bold text-neutral-900 text-center mb-10 sm:mb-14" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             From open role to signed offer
           </Reveal>
           <Pipeline steps={steps} />
@@ -1198,8 +1198,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Testimonials */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
-        <Reveal className="max-w-2xl mb-12">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
+        <Reveal className="max-w-2xl mb-8 sm:mb-12">
           <p className="eyebrow brand-text mb-2">What customers say</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Teams around the world hire faster with Aster.
@@ -1229,7 +1229,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="max-w-6xl mx-auto px-4 sm:px-6 py-24 scroll-mt-20">
+      <section id="pricing" className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24 scroll-mt-20">
         <Reveal className="text-center mb-8">
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
@@ -1406,9 +1406,9 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
 
         <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Professional trial. Full access, no card required.</p>
       </section>
-      <section id="faq" className="py-24 scroll-mt-20" style={{ background: "var(--bg)" }}>
+      <section id="faq" className="py-14 sm:py-24 scroll-mt-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <Reveal as="h2" className="font-display font-bold text-neutral-900 text-center mb-10" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
+          <Reveal as="h2" className="font-display font-bold text-neutral-900 text-center mb-8 sm:mb-10" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Frequently asked questions
           </Reveal>
           <div className="space-y-3">
@@ -1435,7 +1435,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Final CTA */}
-      <section className="px-4 sm:px-6 py-24" style={{ background: "#fff" }}>
+      <section className="px-4 sm:px-6 py-14 sm:py-24" style={{ background: "#fff" }}>
         <Reveal className="max-w-6xl mx-auto rounded-3xl px-6 py-16 text-center relative overflow-hidden grain shadow-float" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
           <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(60% 80% at 50% 0%, var(--brand-2) 0%, transparent 62%), radial-gradient(50% 60% at 100% 100%, rgba(151,59,247,0.35) 0%, transparent 60%)" }} />
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.6), transparent)" }} />
