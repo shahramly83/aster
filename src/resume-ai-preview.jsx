@@ -4130,7 +4130,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 
         {/* Bento — charts + interviews (left) · plan panel (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-          <div className="lg:col-span-2 flex flex-col">
+          <div className="order-2 lg:order-1 lg:col-span-2 flex flex-col">
             {(() => {
               const heroCard = (k) => (
                 <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "" : "border act-shadow"}`} style={k.dark ? { background: "var(--navy)", border: "1px solid var(--navy-line)" } : { background: "#fff", borderColor: "var(--line)" }}>
@@ -4232,7 +4232,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           </div>
 
           {/* Right dark panel — plan card + quick actions + recent candidates */}
-          <div className="lg:col-span-1">
+          <div className="order-1 lg:order-2 lg:col-span-1">
             <div className="rounded-3xl p-5 relative overflow-hidden grain h-full flex flex-col" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(151,59,247,0.35) 0%, transparent 60%)" }} />
               <div className="relative flex items-center justify-between">
