@@ -2225,15 +2225,20 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           })}
         </div>
 
-        {/* compact stat band */}
-        <Reveal delay={120} className="mt-8 rounded-2xl border grid grid-cols-3 divide-x overflow-hidden shadow-soft" style={{ borderColor: "var(--line)", background: "#fff" }}>
-          {[["3×", "faster shortlists"], ["46 → 3", "applicants to shortlist"], ["2 wks", "sooner to hire"]].map(([v, l]) => (
-            <div key={l} className="px-2 sm:px-3 py-5 sm:py-6 text-center min-w-0" style={{ borderColor: "var(--line)" }}>
-              <p className="text-xl sm:text-3xl font-bold font-display brand-text whitespace-nowrap" style={{ letterSpacing: "-0.02em" }}>{v}</p>
-              <p className="text-[11px] sm:text-xs text-neutral-500 mt-1 leading-tight">{l}</p>
+        {/* compact stat band — the payoff, so it belongs to the "With Aster" view only */}
+        {probMode === "aster" && (
+          <div key="stats" className="prob-swap mt-8">
+            <p className="text-center text-[11px] font-semibold uppercase brand-text mb-3" style={{ letterSpacing: "0.09em" }}>What changes with Aster</p>
+            <div className="rounded-2xl border grid grid-cols-3 divide-x overflow-hidden shadow-soft" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              {[["3×", "faster shortlists"], ["46 → 3", "applicants to shortlist"], ["2 wks", "sooner to hire"]].map(([v, l]) => (
+                <div key={l} className="px-2 sm:px-3 py-5 sm:py-6 text-center min-w-0" style={{ borderColor: "var(--line)" }}>
+                  <p className="text-xl sm:text-3xl font-bold font-display brand-text whitespace-nowrap" style={{ letterSpacing: "-0.02em" }}>{v}</p>
+                  <p className="text-[11px] sm:text-xs text-neutral-500 mt-1 leading-tight">{l}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </Reveal>
+          </div>
+        )}
       </section>
 
       {/* Features */}
