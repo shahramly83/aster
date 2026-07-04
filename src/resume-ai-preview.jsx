@@ -2403,6 +2403,10 @@ function Icon({ name, className = "w-5 h-5" }) {
     eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></>,
     download: <><path d="M12 3v12" /><path d="M7 11l5 5 5-5" /><path d="M4 20h16" /></>,
     archive: <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /><path d="M10 13h4" /></>,
+    link: <><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-2 2a5 5 0 0 0 7.07 7.07l1.5-1.5" /></>,
+    pin: <><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z" /><circle cx="12" cy="11" r="2" /></>,
+    more: <><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none" /></>,
+    filter: <><path d="M3 5h18l-7 8v5l-4 2v-7z" /></>,
   };
   return (
     <svg viewBox="0 0 24 24" className={className} {...common} aria-hidden="true">
@@ -2581,7 +2585,9 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
   };
   return (
     <div className="flex flex-col items-center h-full w-full">
-      <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-10 h-10 rounded-xl brand-gradient flex items-center justify-center text-white font-display font-bold text-lg shrink-0">A</button>
+      <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-10 h-10 flex items-center justify-center shrink-0">
+        <img src="/favicon.svg" alt="Aster" className="w-9 h-9" />
+      </button>
       <nav className="flex-1 flex flex-col items-center gap-1.5">
         {NAV_ITEMS.map(railBtn)}
       </nav>
@@ -2825,8 +2831,10 @@ function NotificationBell({ activities, onOpen, onActivityClick }) {
     <div className="relative">
       <button
         onClick={toggle}
-        className="relative w-12 h-12 rounded-full bg-white flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
-        style={{ border: "1px solid var(--line)" }}
+        className="relative w-12 h-12 rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+        style={{ background: "#E7E7EE", border: "1px solid var(--line-strong)" }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "#DDDDE6")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "#E7E7EE")}
         aria-label="Notifications"
       >
         <Icon name="bell" className="w-6 h-6" />
@@ -2875,7 +2883,7 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
   const nm = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
   const ini = nm ? nm.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() : "U";
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 pb-5 border-b" style={{ borderColor: "var(--line-strong)" }}>
       <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h1>
         {subtitle && <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{subtitle}</p>}
@@ -3734,6 +3742,11 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   const [zipName, setZipName] = useState(null); // set when the batch was extracted from a ZIP
   const [zipError, setZipError] = useState(null);
   const zipInputRef = useRef(null);
+  // Resumes already parsed this month (seeded from existing candidates in the demo);
+  // grows as batches complete, so the monthly allowance can actually run out.
+  const [usedThisMonth, setUsedThisMonth] = useState(MOCK_CANDIDATES.length);
+  const remaining = uploadLimit === Infinity ? Infinity : Math.max(0, uploadLimit - usedThisMonth);
+  const outOfQuota = remaining === 0; // no parses left this month
 
   // Simulated batch: a realistic mix so every outcome shows. `person` carries the
   // identity the AI would extract (name/email/phone) — used for duplicate detection.
@@ -3830,11 +3843,12 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     setZipName(null);
   };
   const uploadFirstAllowed = () => {
-    setFiles(SAMPLE_BATCH.slice(0, uploadLimit));
+    setFiles((prev) => prev.slice(0, remaining === Infinity ? undefined : remaining));
     setSkipped(0);
   };
-  // Plan enforcement: a batch larger than the plan's monthly allowance is blocked.
-  const overLimit = uploadLimit !== Infinity && files.length > uploadLimit;
+  // Plan enforcement: block a batch that would exceed the resumes LEFT this month
+  // (allowance minus what's already been parsed) — not just the raw monthly cap.
+  const overLimit = remaining !== Infinity && files.length > remaining;
 
   const runBatch = () => {
     if (overLimit) return; // guard — plan limit exceeded
@@ -3903,6 +3917,10 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
           if (j >= files.length) {
             clearInterval(parseInterval);
             setStage("done");
+            // Count against this month's allowance — only the "Parsed ✓" rows
+            // (new candidates), matching the results headline.
+            const added = files.filter((f) => f.verdict === "parsed" && !dupMap[f.fileName]).length;
+            if (added) setUsedThisMonth((n) => n + added);
           }
         }, 700);
       }
@@ -3990,7 +4008,15 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+    <div
+      className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
+      style={{
+        background:
+          "radial-gradient(1100px 480px at 100% -8%, rgba(151,59,247,0.08), transparent 60%)," +
+          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
+          "var(--bg)",
+      }}
+    >
       <div className="mx-auto w-full max-w-[1400px]">
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
         <div className="mt-2">
@@ -4010,7 +4036,22 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
           <div className="lg:col-span-2 space-y-5">
         {stage === "idle" && (
           <>
-            {files.length === 0 && (
+            {files.length === 0 && outOfQuota && (
+              /* Out of monthly parses — blocking state in place of the dropzone */
+              <div className="rounded-2xl border bg-white act-shadow p-8 text-center" style={{ borderColor: "#FECACA" }}>
+                <span className="mx-auto mb-4 flex w-14 h-14 items-center justify-center rounded-2xl" style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                  <Icon name="lock" className="w-7 h-7" />
+                </span>
+                <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You've used all {uploadLimit} parses this month</p>
+                <p className="text-sm mt-1.5 max-w-md mx-auto" style={{ color: "var(--ink-3)" }}>
+                  The {planName} plan includes {uploadLimit} resume parses a month. Upgrade for unlimited parsing, or your allowance resets on the 1st.
+                </p>
+                <button onClick={() => navigate("billing")} className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
+                  <Icon name="arrowUpRight" className="w-4 h-4" /> Upgrade plan
+                </button>
+              </div>
+            )}
+            {files.length === 0 && !outOfQuota && (
               /* Empty dropzone — the whole area is the target, with an explicit button inside */
               <button
                 onClick={pickFiles}
@@ -4033,7 +4074,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 <span className="block text-xs mt-3" style={{ color: "var(--ink-3)" }}>Drag your own files above, or click for a sample batch to see how parsing works.</span>
               </button>
             )}
-            {files.length === 0 && (
+            {files.length === 0 && !outOfQuota && (
               <div className="text-center mt-3">
                 <input ref={zipInputRef} type="file" accept=".zip,application/zip,application/x-zip-compressed" onChange={handleZipFile} className="hidden" />
                 <button onClick={() => zipInputRef.current?.click()} className="inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
@@ -4054,7 +4095,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                       <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{files.length} file{files.length === 1 ? "" : "s"} ready to parse</p>
                       <p className="text-xs truncate" style={{ color: overLimit ? "#B91C1C" : "var(--ink-3)" }}>
                         {overLimit
-                          ? `Only ${uploadLimit} allowed on the ${planName} plan`
+                          ? `Only ${remaining} parse${remaining === 1 ? "" : "s"} left this month`
                           : zipName
                             ? <>Unpacked from <span className="font-medium" style={{ color: "var(--ink-2)" }}>{zipName}</span></>
                             : "PDF & Word · sample batch"}
@@ -4097,14 +4138,16 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                   {overLimit && (
                     <div className="mb-3 rounded-xl border p-3.5" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
                       <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
-                        <Icon name="lock" className="w-3.5 h-3.5" /> Over your plan limit — upload blocked
+                        <Icon name="lock" className="w-3.5 h-3.5" /> {outOfQuota ? "No parses left this month — upload blocked" : "Over your monthly allowance — upload blocked"}
                       </p>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
-                        This batch has {files.length} resumes, but the {planName} plan parses {uploadLimit} a month. Remove {files.length - uploadLimit} to continue, or upgrade for more.
+                        {outOfQuota
+                          ? `You've used all ${uploadLimit} parses on the ${planName} plan this month. Upgrade to keep going, or your allowance resets on the 1st.`
+                          : <>This batch has {files.length} resumes, but you have {remaining} left this month. Remove {files.length - remaining} to continue, or upgrade for more.</>}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2.5">
                         <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
-                        <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {uploadLimit} instead</button>
+                        {!outOfQuota && <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {remaining} instead</button>}
                       </div>
                     </div>
                   )}
@@ -4411,10 +4454,8 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               column scrolls; self-start lets it shrink below the grid-row height. */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             {(() => {
-              const used = MOCK_CANDIDATES.length; // resumes parsed this month (demo)
               const unlimited = uploadLimit === Infinity;
-              const pct = unlimited ? 18 : Math.min((used / uploadLimit) * 100, 100);
-              const reached = !unlimited && used >= uploadLimit;
+              const pct = unlimited ? 18 : Math.min((usedThisMonth / uploadLimit) * 100, 100);
               return (
                 <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
                   <div className="flex items-center justify-between mb-3">
@@ -4422,22 +4463,22 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                     <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
                   </div>
                   <div className="flex items-baseline gap-1.5 mb-2.5">
-                    <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: reached ? "#DC2626" : "var(--ink)" }}>{used}</span>
+                    <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: outOfQuota ? "#DC2626" : "var(--ink)" }}>{usedThisMonth}</span>
                     <span className="text-sm" style={{ color: "var(--ink-3)" }}>/ {unlimited ? "Unlimited" : uploadLimit} resumes parsed</span>
                   </div>
                   <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-                    <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+                    <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: outOfQuota ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
                   </div>
-                  <p className="text-xs mt-2.5 leading-relaxed" style={{ color: reached ? "#DC2626" : "var(--ink-3)" }}>
+                  <p className="text-xs mt-2.5 leading-relaxed" style={{ color: outOfQuota ? "#DC2626" : "var(--ink-3)" }}>
                     {unlimited
                       ? `${planName} plan — unlimited parsing.`
-                      : reached
-                        ? `You've reached the ${planName} plan's monthly limit.`
-                        : `${uploadLimit - used} resumes left on your ${planName} plan.`}
+                      : outOfQuota
+                        ? `You've used all ${uploadLimit} parses. Resets on the 1st.`
+                        : `${remaining} resume${remaining === 1 ? "" : "s"} left on your ${planName} plan.`}
                   </p>
                   {!unlimited && (
                     <button onClick={() => navigate("billing")} className="mt-4 w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity">
-                      {reached ? "Upgrade plan" : "Upgrade for unlimited"}
+                      {outOfQuota ? "Upgrade plan" : "Upgrade for unlimited"}
                     </button>
                   )}
                 </div>
@@ -4586,7 +4627,8 @@ function formatSalary(job) {
   return `${job.salary_currency} ${fmt(job.salary_min ?? job.salary_max)}+`;
 }
 
-function NewJobScreen({ navigate, jobs, setJobs, plan = "free" }) {
+// Shared New Job form body — used inside the modal (and reusable elsewhere).
+function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose }) {
   const limits = planLimits(plan);
   const atJobLimit = jobs.length >= limits.maxJobs;
   const [title, setTitle] = useState("");
@@ -4630,145 +4672,141 @@ function NewJobScreen({ navigate, jobs, setJobs, plan = "free" }) {
       benefits: toLines(benefits),
     };
     setJobs([newJob, ...jobs]);
-    navigate("jobs");
+    onClose();
   };
 
-  return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
-        <BackLink onClick={() => navigate("jobs")}>← Jobs</BackLink>
-        {atJobLimit ? (
-          <div className="rounded-2xl bg-white act-shadow border mt-3" style={{ borderColor: "var(--line)" }}>
-            <UpgradeLock
-              navigate={navigate}
-              title={`You've reached your plan's ${limits.maxJobs}-job limit`}
-              sub="Upgrade for more active roles, larger AI matching quotas, and more team seats."
-            />
-          </div>
-        ) : (
-          <>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>New job posting</h1>
-        <p className="text-sm text-neutral-600 mb-6">Fill in the role details. You can share the application link and rank applicants once it's live.</p>
+  if (atJobLimit) {
+    return (
+      <div className="rounded-2xl bg-white border" style={{ borderColor: "var(--line)" }}>
+        <UpgradeLock
+          navigate={navigate}
+          title={`You've reached your plan's ${limits.maxJobs}-job limit`}
+          sub="Upgrade for more active roles, larger AI matching quotas, and more team seats."
+        />
+      </div>
+    );
+  }
 
-        <div className="rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)] space-y-4">
-          <div>
-            <label className={labelClass}>Title</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Department</label>
-              <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Engineering" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Location</label>
-              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className={labelClass}>Employment type</label>
-              <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={inputClass}>
-                <option value="full_time">Full-time</option>
-                <option value="part_time">Part-time</option>
-                <option value="contract">Contract</option>
-                <option value="internship">Internship</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Work mode</label>
-              <select value={remoteType} onChange={(e) => setRemoteType(e.target.value)} className={inputClass}>
-                <option value="onsite">On-site</option>
-                <option value="hybrid">Hybrid</option>
-                <option value="remote">Remote</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Seniority</label>
-              <select value={seniority} onChange={(e) => setSeniority(e.target.value)} className={inputClass}>
-                <option value="junior">Junior</option>
-                <option value="mid">Mid</option>
-                <option value="senior">Senior</option>
-                <option value="lead">Lead</option>
-                <option value="principal">Principal</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Salary min (MYR)</label>
-              <input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="6000" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Salary max (MYR)</label>
-              <input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
-            </div>
-          </div>
-          <div>
-            <label className={labelClass}>Description</label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="A short summary of the role and team context…"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>What you'll do <span className="text-neutral-400 font-normal">(one per line)</span></label>
-            <textarea
-              rows={4}
-              value={responsibilities}
-              onChange={(e) => setResponsibilities(e.target.value)}
-              placeholder={"Own the design system\nLead frontend architecture\nMentor the team"}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>What we're looking for <span className="text-neutral-400 font-normal">(one per line)</span></label>
-            <textarea
-              rows={4}
-              value={requirements}
-              onChange={(e) => setRequirements(e.target.value)}
-              placeholder={"5+ years React & TypeScript\nDesign-system experience\nStrong CSS skills"}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>What we offer <span className="text-neutral-400 font-normal">(one per line)</span></label>
-            <textarea
-              rows={3}
-              value={benefits}
-              onChange={(e) => setBenefits(e.target.value)}
-              placeholder={"Health insurance\nFlexible hours\nLearning budget"}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              onClick={handleCreate}
-              disabled={!canCreate}
-              className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90"
-            >
-              Create job
-            </button>
-            <button
-              onClick={() => navigate("jobs")}
-              className="text-sm rounded-xl px-4 py-2 transition-colors"
-              style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
-            >
-              Cancel
-            </button>
-          </div>
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className={labelClass}>Title</label>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Frontend Engineer" className={inputClass} autoFocus />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Department</label>
+          <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Engineering" className={inputClass} />
         </div>
-          </>
-        )}
+        <div>
+          <label className={labelClass}>Location</label>
+          <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className={labelClass}>Employment type</label>
+          <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={inputClass}>
+            <option value="full_time">Full-time</option>
+            <option value="part_time">Part-time</option>
+            <option value="contract">Contract</option>
+            <option value="internship">Internship</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Work mode</label>
+          <select value={remoteType} onChange={(e) => setRemoteType(e.target.value)} className={inputClass}>
+            <option value="onsite">On-site</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="remote">Remote</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Seniority</label>
+          <select value={seniority} onChange={(e) => setSeniority(e.target.value)} className={inputClass}>
+            <option value="junior">Junior</option>
+            <option value="mid">Mid</option>
+            <option value="senior">Senior</option>
+            <option value="lead">Lead</option>
+            <option value="principal">Principal</option>
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Salary min (MYR)</label>
+          <input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="6000" className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Salary max (MYR)</label>
+          <input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>Description</label>
+        <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short summary of the role and team context…" className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass}>What you'll do <span className="text-neutral-400 font-normal">(one per line)</span></label>
+        <textarea rows={4} value={responsibilities} onChange={(e) => setResponsibilities(e.target.value)} placeholder={"Own the design system\nLead frontend architecture\nMentor the team"} className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass}>What we're looking for <span className="text-neutral-400 font-normal">(one per line)</span></label>
+        <textarea rows={4} value={requirements} onChange={(e) => setRequirements(e.target.value)} placeholder={"5+ years React & TypeScript\nDesign-system experience\nStrong CSS skills"} className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass}>What we offer <span className="text-neutral-400 font-normal">(one per line)</span></label>
+        <textarea rows={3} value={benefits} onChange={(e) => setBenefits(e.target.value)} placeholder={"Health insurance\nFlexible hours\nLearning budget"} className={inputClass} />
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <button onClick={handleCreate} disabled={!canCreate} className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
+          Create job
+        </button>
+        <button onClick={onClose} className="text-sm rounded-xl px-4 py-2 transition-colors" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
+          Cancel
+        </button>
       </div>
     </div>
   );
 }
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId }) {
+// New Job as a centered modal sheet (opens over whatever screen you're on).
+function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label="New job posting">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
+        <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="jobs" className="w-5 h-5" /></span>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>New job posting</h2>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Fill in the details — share the link and rank applicants once it's live.</p>
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+        </div>
+        <div className="px-5 sm:px-6 py-5 max-h-[75vh] overflow-y-auto">
+          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Soft brand tint for open roles; closed roles go grey to read as inactive.
+const JOB_CARD_BRAND = { bg: "#F9F4FF", tile: "var(--brand-soft)", ink: "var(--brand)", line: "#E9DAFB" };
+const JOB_CARD_GREY = { bg: "#F7F7F9", tile: "#ECECEF", ink: "#56566A", line: "var(--line-strong)" };
+const colorForJob = (job) => (job.status === "closed" ? JOB_CARD_GREY : JOB_CARD_BRAND);
+
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications }) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [menuJob, setMenuJob] = useState(null); // job id whose action menu is open
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
   const limits = planLimits(plan);
   const atJobLimit = jobs.length >= limits.maxJobs;
   // When a plan is capped and holds more jobs than allowed, everything beyond the
@@ -4845,29 +4883,129 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   };
 
   const SOURCE_PRESETS = ["LinkedIn", "Career Page", "Referral", "JobStreet", "Facebook", "WhatsApp"];
+  const q = search.trim().toLowerCase();
+  const filtered = jobs
+    .filter((j) => {
+      const statusOk = statusFilter === "all" || j.status === statusFilter;
+      const textOk = !q || j.title.toLowerCase().includes(q) || (j.department || "").toLowerCase().includes(q);
+      return statusOk && textOk;
+    })
+    // Open roles stay on top; closing a role sinks it to the bottom. (Stable sort
+    // preserves the existing order within each group.)
+    .sort((a, b) => (a.status === "closed" ? 1 : 0) - (b.status === "closed" ? 1 : 0));
+  const openCount = jobs.filter((j) => j.status === "open").length;
+  const closedCount = jobs.filter((j) => j.status === "closed").length;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageJobs = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const STATUS_LABELS = { all: "All", open: "Open", closed: "Closed" };
+  const STATUS_DOT = { open: "#22C55E", closed: "#9A9AA6" };
+  const setStatus = (v) => { setStatusFilter(v); setPage(0); setFilterOpen(false); };
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
+    <div
+      className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
+      style={{
+        background:
+          "radial-gradient(1100px 480px at 100% -8%, rgba(151,59,247,0.08), transparent 60%)," +
+          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
+          "var(--bg)",
+      }}
+    >
+      <div className="mx-auto w-full max-w-[1400px]">
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <div className="flex items-center justify-between mt-2 mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>
-            {jobStatusFilter ? `${jobStatusFilter === "open" ? "Open" : "Closed"} jobs` : "Jobs"}
-          </h1>
+        <div className="mt-2">
+          <TopBar
+            title="Jobs"
+            subtitle={
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>{jobs.length} role{jobs.length === 1 ? "" : "s"}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#ECFDF3", color: "#15803D" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> {openCount} open
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#9A9AA6" }} /> {closedCount} closed
+                </span>
+              </span>
+            }
+            activities={activities}
+            onOpenNotifications={onOpenNotifications}
+            avatarUrl={avatarUrl}
+            profile={profile}
+            navigate={navigate}
+          />
+        </div>
+
+        {/* Toolbar — search, status dropdown, and the primary New Job action */}
+        <div className="flex flex-wrap items-center gap-3 mb-5">
+          <div className="relative w-full sm:w-72 lg:w-[calc(33.333%-0.833rem)]">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
+            <input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              placeholder="Search roles"
+              className="w-full rounded-xl bg-white border pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30 transition-shadow"
+              style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
+            />
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setFilterOpen((o) => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={filterOpen}
+              className="w-full sm:w-auto inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2.5 text-sm transition-colors hover:bg-neutral-50"
+              style={{ borderColor: "var(--line-strong)" }}
+            >
+              <span style={{ color: "var(--ink-3)" }}><Icon name="filter" className="w-4 h-4" /></span>
+              <span style={{ color: "var(--ink-3)" }}>Status</span>
+              <span className="inline-flex items-center gap-1.5 font-medium" style={{ color: "var(--ink)" }}>
+                {statusFilter !== "all" && <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_DOT[statusFilter] }} />}
+                {STATUS_LABELS[statusFilter]}
+              </span>
+              <Icon name="chevronDown" className={`w-4 h-4 ml-0.5 transition-transform ${filterOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+            </button>
+            {filterOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setFilterOpen(false)} />
+                <div role="listbox" className="absolute right-0 z-20 mt-1.5 w-40 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                  {["all", "open", "closed"].map((v) => {
+                    const on = statusFilter === v;
+                    return (
+                      <button
+                        key={v}
+                        role="option"
+                        aria-selected={on}
+                        onClick={() => setStatus(v)}
+                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50"
+                        style={{ color: on ? "var(--ink)" : "var(--ink-2)", background: on ? "#F4F4F6" : undefined, fontWeight: on ? 600 : 400 }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: v === "all" ? "var(--ink-3)" : STATUS_DOT[v] }} />
+                        <span className="flex-1">{STATUS_LABELS[v]}</span>
+                        {on && <Icon name="check" className="w-4 h-4" style={{ color: "var(--brand)" }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
           {atJobLimit ? (
             <button
               onClick={() => navigate("billing")}
-              className="text-sm rounded-xl border px-3 py-1.5 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
+              className="sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl border px-4 py-2.5 transition-colors hover:bg-neutral-50"
               style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
             >
-              <Icon name="lock" className="w-3.5 h-3.5" /> New Job <LockBadge />
+              <Icon name="lock" className="w-4 h-4" /> New Job <LockBadge />
             </button>
           ) : (
             <button
               onClick={() => navigate("newJob")}
-              className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors"
+              className="sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
+              style={{ boxShadow: "0 12px 26px -12px rgba(151,59,247,0.75)" }}
             >
-              + New Job
+              <Icon name="jobs" className="w-4 h-4" /> New Job
             </button>
           )}
         </div>
@@ -4880,91 +5018,155 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>
         )}
 
-        <div className="space-y-2">
-          {(jobStatusFilter ? jobs.filter((j) => j.status === jobStatusFilter) : jobs).length === 0 && (
-            <div className="rounded-2xl bg-white act-shadow px-5 py-10 border text-center" style={{ borderColor: "var(--line)" }}>
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                <Icon name="jobs" className="w-5 h-5" />
-              </div>
-              <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
-                {jobStatusFilter ? `No ${jobStatusFilter} roles` : "No job postings yet"}
-              </p>
-              <p className="text-xs mt-1 mb-4 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>
-                {jobStatusFilter ? "Try clearing the filter to see all your roles." : "Create your first role to start collecting and screening applicants."}
-              </p>
-              {!jobStatusFilter && !atJobLimit && (
-                <button onClick={() => navigate("newJob")} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">+ New Job</button>
-              )}
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl bg-white act-shadow px-5 py-12 border text-center" style={{ borderColor: "var(--line)" }}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name="jobs" className="w-6 h-6" />
             </div>
-          )}
-          {(jobStatusFilter ? jobs.filter((j) => j.status === jobStatusFilter) : jobs).map((job) => {
-            const salary = formatSalary(job);
-            const meta = [job.department, job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level, salary].filter(Boolean);
-            const paused = pausedIds.has(job.id);
-            return (
-              <div key={job.id} className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]" style={paused ? { opacity: 0.85 } : undefined}>
-                {paused && (
-                  <div className="flex items-center justify-between gap-2 mb-3 rounded-lg px-2.5 py-1.5" style={{ background: "#FEF3C7" }}>
-                    <span className="text-[11px] font-medium inline-flex items-center gap-1" style={{ color: "#92400E" }}>
-                      <Icon name="lock" className="w-3 h-3" /> Paused — over your plan's job limit
-                    </span>
-                    <button onClick={() => navigate("billing")} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
-                  </div>
-                )}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-neutral-900 font-medium">{job.title}</p>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                          paused
-                            ? "bg-amber-50 text-amber-700 border border-amber-200"
-                            : job.status === "open"
-                              ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                              : "bg-neutral-100 text-neutral-600 border border-neutral-200"
-                        }`}
-                      >
-                        {paused ? "paused" : job.status}
+            <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+              {jobs.length === 0 ? "No job postings yet" : "No roles match your filters"}
+            </p>
+            <p className="text-xs mt-1 mb-4 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>
+              {jobs.length === 0 ? "Create your first role to start collecting and screening applicants." : "Try a different search, or clear the status filter."}
+            </p>
+            {jobs.length === 0 && !atJobLimit ? (
+              <button onClick={() => navigate("newJob")} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">+ New Job</button>
+            ) : jobs.length > 0 && (statusFilter !== "all" || q) ? (
+              <button onClick={() => { setSearch(""); setStatus("all"); }} className="text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Clear filters</button>
+            ) : null}
+          </div>
+        ) : (
+          <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+            {pageJobs.map((job) => {
+              const salary = formatSalary(job);
+              const chips = [job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level].filter(Boolean);
+              const paused = pausedIds.has(job.id);
+              const n = applicantCountFor(job.id);
+              const badge = paused
+                ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "paused" }
+                : job.status === "open"
+                  ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
+                  : { bg: "#F1F1F4", color: "var(--ink-2)", dot: "#9A9AA6", label: "closed" };
+              const color = colorForJob(job);
+              return (
+                <div key={job.id} className="group rounded-2xl act-shadow card-hover border p-5 flex flex-col" style={{ background: color.bg, borderColor: color.line, ...(paused ? { opacity: 0.9 } : {}) }}>
+                  {paused && (
+                    <div className="flex items-center justify-between gap-2 mb-3 rounded-lg px-2.5 py-1.5" style={{ background: "#FEF3C7" }}>
+                      <span className="text-[11px] font-medium inline-flex items-center gap-1" style={{ color: "#92400E" }}>
+                        <Icon name="lock" className="w-3 h-3" /> Paused — over your plan's job limit
                       </span>
+                      <button onClick={() => navigate("billing")} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
                     </div>
-                    {meta.length > 0 && <p className="text-xs text-neutral-500 mt-1">{meta.join(" · ")}</p>}
-                    <p className="text-sm text-neutral-600 mt-1 line-clamp-2">{job.description}</p>
+                  )}
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex w-11 h-11 items-center justify-center rounded-xl shrink-0" style={{ background: color.tile, color: color.ink }}>
+                      <Icon name="jobs" className="w-5 h-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-semibold font-display leading-snug min-w-0" style={{ color: "var(--ink)" }}>{job.title}</h3>
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0" style={{ background: badge.bg, color: badge.color }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} /> {badge.label}
+                        </span>
+                      </div>
+                      {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <button onClick={() => { setActiveJobId(job.id); navigate("applicants"); }} className="text-right hover:opacity-80 transition-opacity" title="View applicants">
-                      <p className="text-xl font-bold font-display tnum leading-none" style={{ color: applicantCountFor(job.id) > 0 ? "var(--brand)" : "var(--ink-3)" }}>{applicantCountFor(job.id)}</p>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">applicant{applicantCountFor(job.id) === 1 ? "" : "s"}</p>
+
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {chips.map((c) => (
+                      <span key={c} className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }}>{c}</span>
+                    ))}
+                    {salary && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: color.tile, color: color.ink }}>{salary}</span>}
+                  </div>
+
+                  <p className="text-sm mt-3 leading-relaxed line-clamp-2 flex-1" style={{ color: "var(--ink-2)" }}>{job.description}</p>
+
+                  <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
+                    <button onClick={() => { setActiveJobId(job.id); navigate("applicants"); }} className="group/app inline-flex items-center gap-2 rounded-lg py-1 pr-2 transition-colors" title="View applicants">
+                      <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
+                        <Icon name="users" className="w-4 h-4" />
+                      </span>
+                      <span className="text-sm leading-tight text-left" style={{ color: "var(--ink-2)" }}>
+                        <span className="font-bold tnum group-hover/app:underline" style={{ color: "var(--ink)" }}>{n}</span> applicant{n === 1 ? "" : "s"}
+                      </span>
                     </button>
                     {!paused && (
-                      <button onClick={() => toggleStatus(job.id)} className="text-xs text-neutral-500 hover:text-neutral-700">
-                        Mark {job.status === "open" ? "closed" : "open"}
-                      </button>
+                      <div className="relative shrink-0">
+                        <button
+                          onClick={() => setMenuJob(menuJob === job.id ? null : job.id)}
+                          aria-haspopup="menu"
+                          aria-expanded={menuJob === job.id}
+                          aria-label="Job actions"
+                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100"
+                          style={{ color: "var(--ink-3)", background: menuJob === job.id ? "#F1F1F4" : undefined }}
+                        >
+                          <Icon name="more" className="w-5 h-5" />
+                        </button>
+                        {menuJob === job.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setMenuJob(null)} />
+                            <div role="menu" className="absolute right-0 bottom-full mb-1.5 z-20 w-52 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                              {job.status === "open" && (
+                                <button role="menuitem" onClick={() => { setMenuJob(null); openLinkModal(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
+                                  <Icon name="link" className="w-4 h-4" /> Copy application link
+                                </button>
+                              )}
+                              <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
+                                <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : "Reopen this role"}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
+              );
+            })}
+          </div>
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between gap-3 mt-6">
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+                Showing {safePage * PAGE_SIZE + 1}–{Math.min(filtered.length, safePage * PAGE_SIZE + PAGE_SIZE)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+                >
+                  <Icon name="chevronLeft" className="w-3.5 h-3.5" /> Prev
+                </button>
+                {Array.from({ length: pageCount }, (_, i) => (
                   <button
-                    onClick={() => {
-                      setActiveJobId(job.id);
-                      navigate("applicants");
-                    }}
-                    className="text-sm text-indigo-600 hover:text-indigo-700"
+                    key={i}
+                    onClick={() => setPage(i)}
+                    aria-current={safePage === i}
+                    className="w-8 h-8 rounded-lg text-xs font-medium transition-colors"
+                    style={safePage === i
+                      ? { background: "var(--ink)", color: "#fff" }
+                      : { border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}
                   >
-                    Applicants{applicantCountFor(job.id) > 0 ? ` (${applicantCountFor(job.id)})` : ""}
+                    {i + 1}
                   </button>
-                  {job.status === "open" && !paused && (
-                    <button
-                      onClick={() => openLinkModal(job)}
-                      className="text-sm text-neutral-500 hover:text-neutral-700"
-                    >
-                      Copy Job Link
-                    </button>
-                  )}
-                </div>
+                ))}
+                <button
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={safePage >= pageCount - 1}
+                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+                >
+                  Next <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                </button>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+          </>
+        )}
       </div>
 
       {/* Copy application link — source tagging modal */}
@@ -8895,9 +9097,13 @@ export default function ResumeAIPreview() {
   const [stageOverrides, setStageOverrides] = useState({});
 
   const screen = history[history.length - 1];
+  const [newJobOpen, setNewJobOpen] = useState(false);
 
   const navigate = (target) => {
-    if (target === -1) {
+    if (target === "newJob") {
+      // New Job is a modal overlay, not a routed screen.
+      setNewJobOpen(true);
+    } else if (target === -1) {
       setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
     } else if (target === "login") {
       setHistory(["login"]);
@@ -9061,7 +9267,7 @@ export default function ResumeAIPreview() {
   const activeNav =
     screen === "candidateProfile" || screen === "candidates"
       ? "dashboard"
-      : screen === "applicants" || screen === "newJob"
+      : screen === "applicants"
         ? "jobs"
         : screen === "interviews"
           ? "interviewers"
@@ -9139,10 +9345,11 @@ export default function ResumeAIPreview() {
             onPreviewApply={handlePreviewApply}
             plan={effectivePlan}
             keptJobId={keptJobId}
+            profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
           />
-        )}
-        {screen === "newJob" && (
-          <NewJobScreen navigate={navigate} jobs={jobs} setJobs={setJobs} plan={effectivePlan} />
         )}
         {screen === "search" && (
           <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} hiredIds={hiredIds} />
@@ -9211,6 +9418,7 @@ export default function ResumeAIPreview() {
           />
         )}
       </SidebarLayout>
+      <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} />
     </Shell>
   );
 }
