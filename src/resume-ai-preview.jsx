@@ -3572,7 +3572,7 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
   const nm = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
   const ini = nm ? nm.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() : "U";
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 pb-5 border-b" style={{ borderColor: "var(--line-strong)" }}>
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
       <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h1>
         {subtitle && <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{subtitle}</p>}
@@ -5806,8 +5806,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             )}
           </div>
 
-          {/* View toggle */}
-          <div className="inline-flex rounded-xl border p-0.5 bg-white shrink-0" style={{ borderColor: "var(--line-strong)" }}>
+          {/* View toggle — desktop only; mobile always uses cards */}
+          <div className="hidden md:inline-flex rounded-xl border p-0.5 bg-white shrink-0" style={{ borderColor: "var(--line-strong)" }}>
             {[["grid", "dashboard", "Card view"], ["list", "menu", "List view"]].map(([v, ic, lbl]) => {
               const on = view === v;
               return (
@@ -5864,8 +5864,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>
         ) : (
           <>
-          {view === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+          {/* Cards — always on mobile; on desktop only when grid view is picked */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 ${view === "list" ? "md:hidden" : ""}`}>
             {pageJobs.map((job) => {
               const salary = formatSalary(job);
               const chips = [job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level].filter(Boolean);
@@ -5932,8 +5932,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               );
             })}
           </div>
-          ) : (
-            <div className="rounded-2xl border bg-white overflow-hidden act-shadow" style={{ borderColor: "var(--line)" }}>
+          {view === "list" && (
+            <div className="hidden md:block rounded-2xl border bg-white overflow-hidden act-shadow" style={{ borderColor: "var(--line)" }}>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                   <thead>
