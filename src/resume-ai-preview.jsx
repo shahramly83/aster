@@ -2464,7 +2464,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-px-4 px-4 pt-2 pb-5 -mx-4 no-scrollbar items-stretch"
           >
             {plans.slice(0, 3).map((plan) => (
-              <div key={plan.key} className={`snap-start shrink-0 w-[85%] sm:w-[46%] max-w-[340px] rounded-2xl border flex flex-col relative p-5 sm:p-6 ${plan.popular ? "" : "card-lift"}`}
+              <div key={plan.key} className={`snap-start snap-always shrink-0 w-[85%] sm:w-[46%] max-w-[340px] rounded-2xl border flex flex-col relative p-5 sm:p-6 ${plan.popular ? "" : "card-lift"}`}
                 style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 24px 50px -24px rgba(151,59,247,0.42)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
                 {/* header — name + inline popular pill (no overhang to clip) */}
                 <div className="flex items-center justify-between gap-2">
