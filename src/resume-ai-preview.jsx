@@ -2035,7 +2035,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               onClick={() => { setMenuOpen(false); goSignup("free"); }}
               className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white shadow-[0_16px_38px_-14px_rgba(151,59,247,0.95)] transition-transform active:scale-[0.98]"
             >
-              Start 14-day Premium trial
+              Start free trial
             </button>
             <p className="text-center text-xs pt-1" style={{ color: "var(--navy-ink)" }}>No credit card · Set up in minutes</p>
           </div>
@@ -2061,7 +2061,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <button onClick={() => goSignup("free")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">
-                Start 14-day Premium trial
+                Start free trial
               </button>
               <a href="#pricing" className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>
                 See pricing
