@@ -1476,14 +1476,18 @@ function TeamInterviewPreview() {
     if (reduce) { setJoined(PEOPLE.length); setInvited(true); return; }
     let timers = [], cancelled = false, started = false;
     const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    // Avatars join once and stay; only the "invited" check cascade loops so
+    // the real photos don't keep popping in and out.
+    const cascade = () => {
+      if (cancelled) return;
+      setInvited(false);
+      at(500, () => setInvited(true));
+      at(500 + 3000, cascade);
+    };
     const run = () => {
       if (cancelled) return;
-      setJoined(0);
-      setInvited(false);
       PEOPLE.forEach((_, i) => at(500 + i * 240, () => setJoined(i + 1)));
-      const full = 500 + PEOPLE.length * 240;
-      at(full + 380, () => setInvited(true));
-      at(full + 380 + 2600, run);
+      at(500 + PEOPLE.length * 240 + 300, cascade);
     };
     const obs = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
