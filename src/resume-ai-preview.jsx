@@ -473,10 +473,49 @@ const APPLICANTS_BY_JOB = {
 
 const applicantCountFor = (jobId) => (APPLICANTS_BY_JOB[jobId] || []).length;
 
+// Pipeline stage breakdown for a job (active stages; rejected are excluded).
+const JOB_STAGES = [
+  { key: "applied", label: "Applied", color: "#C7CCFF" },
+  { key: "shortlisted", label: "Shortlisted", color: "#93C5FD" },
+  { key: "interviewing", label: "Interview", color: "#973BF7" },
+  { key: "offer", label: "Offer", color: "#F59E0B" },
+  { key: "hired", label: "Hired", color: "#16A34A" },
+];
+const stageCountsFor = (jobId) => {
+  const c = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0 };
+  (APPLICANTS_BY_JOB[jobId] || []).forEach((a) => { if (c[a.baseStage] != null) c[a.baseStage]++; });
+  return c;
+};
+
+// Compact stacked pipeline bar + per-stage counts, shown on a job card.
+function JobPipelineBar({ jobId }) {
+  const counts = stageCountsFor(jobId);
+  const total = JOB_STAGES.reduce((s, st) => s + counts[st.key], 0);
+  if (total === 0) return <p className="text-xs" style={{ color: "var(--ink-3)" }}>No one in the pipeline yet.</p>;
+  const active = JOB_STAGES.filter((st) => counts[st.key] > 0);
+  return (
+    <div>
+      <div className="flex h-2 rounded-full overflow-hidden gap-0.5" style={{ background: "transparent" }}>
+        {JOB_STAGES.map((st) => counts[st.key] > 0 && (
+          <div key={st.key} title={`${counts[st.key]} ${st.label}`} style={{ width: `${(counts[st.key] / total) * 100}%`, background: st.color, borderRadius: 9999 }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+        {active.map((st) => (
+          <span key={st.key} className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--ink-2)" }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
+            <span className="tnum font-semibold">{counts[st.key]}</span> {st.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------- Shared UI bits ----------
 
 const BRAND_STYLES = `
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 :root {
   --bg: #FAFAFB;
   --card: #FFFFFF;
@@ -496,7 +535,7 @@ const BRAND_STYLES = `
   --pink: #FCE7EA;
   --pink-ink: #1C1E3A;
 }
-.font-display { font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
+.font-display { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
 .act-app, .act-app input, .act-app select, .act-app textarea, .act-app button {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
@@ -623,6 +662,21 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 /* Before/after card content swap (problem ↔ Aster) */
 @keyframes probSwap { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .prob-swap { animation: probSwap .45s cubic-bezier(.22,1,.36,1) both; }
+
+/* Looping match-ring fill (landing preview) — fills, holds, then resets */
+@keyframes ringLoop {
+  0% { stroke-dashoffset: var(--circ); }
+  35% { stroke-dashoffset: var(--off); }
+  85% { stroke-dashoffset: var(--off); }
+  100% { stroke-dashoffset: var(--circ); }
+}
+@media (prefers-reduced-motion: reduce) { .ring-loop { animation: none !important; stroke-dashoffset: var(--off) !important; } }
+
+/* Looping slide-up + fade-in for the AI interview-question cards */
+@keyframes qSlide { 0% { opacity: 0; transform: translateY(16px); } 14% { opacity: 1; transform: translateY(0); } 86% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(16px); } }
+.q-slide { opacity: 0; }
+.reveal-in .q-slide { animation: qSlide 3.8s cubic-bezier(.22,1,.36,1) infinite; }
+@media (prefers-reduced-motion: reduce) { .reveal-in .q-slide { animation: none; opacity: 1; } }
 
 /* Feature-preview items animate in (staggered) once their card scrolls into view */
 @keyframes pvIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
@@ -924,11 +978,14 @@ function MatchRing({ value, size = 52, stroke = 5, filled = true, delay = 0, gra
 }
 
 // Light-background version of the match ring, used in the in-app Search results.
-function ScoreRingLight({ value, size = 56, stroke = 5 }) {
+function ScoreRingLight({ value, size = 56, stroke = 5, loop = false, delay = 0 }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const off = circ * (1 - value / 100);
   const color = value >= 80 ? "#16A34A" : value >= 55 ? "var(--brand)" : "#8A8A99";
+  const progressStyle = loop
+    ? { "--circ": circ, "--off": off, animation: `ringLoop 3.8s cubic-bezier(.22,1,.36,1) ${delay}ms infinite` }
+    : { transition: "stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)" };
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }} aria-hidden="true">
@@ -937,7 +994,8 @@ function ScoreRingLight({ value, size = 56, stroke = 5 }) {
           cx={size / 2} cy={size / 2} r={r} fill="none"
           stroke={color} strokeWidth={stroke} strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={off}
-          style={{ transition: "stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)" }}
+          className={loop ? "ring-loop" : undefined}
+          style={progressStyle}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
@@ -1155,9 +1213,246 @@ function Reveal({ children, as: Tag = "div", delay = 0, className = "", style, .
   );
 }
 
+// Counts a number up from 0 to `to` when it scrolls into view. With `loop`, it
+// holds at the target, resets to 0, and counts again — continuously.
+function CountUp({ to, duration = 1100, delay = 0, loop = false, hold = 1500, className, style }) {
+  const [val, setVal] = useState(0);
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setVal(to); return; }
+    let raf, startTs, delayTimer, holdTimer, started = false;
+    const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const tick = (ts) => {
+      if (startTs == null) startTs = ts;
+      const p = Math.min((ts - startTs) / duration, 1);
+      setVal(Math.round(ease(p) * to));
+      if (p < 1) { raf = requestAnimationFrame(tick); }
+      else if (loop) { holdTimer = setTimeout(() => { startTs = null; setVal(0); raf = requestAnimationFrame(tick); }, hold); }
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting && !started) { started = true; delayTimer = setTimeout(() => { raf = requestAnimationFrame(tick); }, delay); obs.disconnect(); }
+      });
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => { cancelAnimationFrame(raf); clearTimeout(delayTimer); clearTimeout(holdTimer); obs.disconnect(); };
+  }, [to, duration, delay, loop, hold]);
+  return <span ref={ref} className={className} style={style}>{val}</span>;
+}
+
+// Interview-scheduling preview: a demo cursor clicks the date (color flips on),
+// then the time (color flips on), on a loop. Positions are measured from the real
+// cells so the cursor always lands exactly on them; starts when scrolled into view.
+function UploadPreview() {
+  const FILES = [
+    ["priya_nair.pdf", "Parsed", "#DCFCE7", "#166534"],
+    ["siti_r_2026.pdf", "Duplicate", "var(--brand-soft)", "var(--brand)"],
+    ["portfolio_scan.pdf", "Review", "#FEF3C7", "#B45309"],
+    ["budget_2026.xlsx", "Skipped", "#FEE2E2", "#B91C1C"],
+  ];
+  const ref = useRef(null);
+  const [done, setDone] = useState(-1);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setDone(FILES.length - 1); return; }
+    let timers = [], cancelled = false, started = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const run = () => {
+      if (cancelled) return;
+      setDone(-1);
+      const gap = 620;
+      FILES.forEach((_, i) => at(700 + i * gap, () => setDone(i)));
+      at(700 + FILES.length * gap + 1700, run);
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting && !started) { started = true; at(300, run); obs.disconnect(); }
+      });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, []);
+
+  return (
+    <div ref={ref} className="w-full space-y-1">
+      {FILES.map(([fn, st, bg, fg], k) => {
+        const isDone = k <= done;
+        return (
+          <div key={fn} className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1" style={{ animationDelay: `${k * 90}ms`, border: "1px solid var(--line)" }}>
+            <span style={{ color: isDone ? "var(--ink-3)" : "var(--brand)" }}><Icon name="doc" className="w-3 h-3" /></span>
+            <span className="text-[9px] truncate flex-1" style={{ color: "var(--ink-2)" }}>{fn}</span>
+            {isDone ? (
+              <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: bg, color: fg }}>{st}</span>
+            ) : (
+              <span className="text-[8px] font-medium px-1.5 py-0.5 rounded shrink-0 inline-flex items-center gap-1" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}>
+                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: "var(--brand)" }} />
+                Parsing…
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ApplyPagePreview() {
+  const URL = "aster.co/apply/fe-eng";
+  const ref = useRef(null);
+  const [typed, setTyped] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setTyped(URL); setLoaded(true); return; }
+    let timers = [], cancelled = false, started = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const run = () => {
+      if (cancelled) return;
+      setLoaded(false);
+      setTyped("");
+      const step = 55;
+      for (let i = 1; i <= URL.length; i++) at(420 + i * step, () => setTyped(URL.slice(0, i)));
+      const doneAt = 420 + URL.length * step;
+      at(doneAt + 260, () => setLoaded(true));
+      at(doneAt + 260 + 2600, run);
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting && !started) { started = true; run(); obs.disconnect(); }
+      });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, []);
+
+  const ap = (i) => ({
+    opacity: loaded ? 1 : 0,
+    transform: loaded ? "translateY(0)" : "translateY(6px)",
+    transition: `opacity .34s cubic-bezier(.22,1,.36,1) ${i * 90}ms, transform .34s cubic-bezier(.22,1,.36,1) ${i * 90}ms`,
+  });
+
+  return (
+    <div ref={ref} className="pv-item w-full rounded-xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 6px 16px -8px rgba(18,19,42,.18)" }}>
+      {/* browser chrome + URL typing */}
+      <div className="flex items-center gap-1.5 px-2 py-1.5" style={{ background: "#F4F4F6", borderBottom: "1px solid var(--line)" }}>
+        <span className="flex gap-0.5 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />)}</span>
+        <span className="flex items-center gap-1 rounded px-1.5 py-0.5 flex-1 min-w-0" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-2 h-2" /></span>
+          <span className="text-[8px] whitespace-nowrap" style={{ color: "var(--ink-2)" }}>
+            {typed}
+            {!loaded && <span className="inline-block w-px h-2 align-middle animate-pulse" style={{ background: "var(--brand)", marginLeft: 1 }} />}
+          </span>
+        </span>
+      </div>
+      {/* mini apply page — colors + button load in once the URL is typed */}
+      <div className="px-2.5 py-2">
+        <div className="flex items-center gap-1.5 mb-1.5" style={ap(0)}>
+          <span className="w-4 h-4 rounded brand-gradient shrink-0" />
+          <span className="h-1.5 rounded-full" style={{ width: 54, background: "var(--brand-soft)" }} />
+        </div>
+        <div className="h-1 rounded-full mb-1" style={{ width: "88%", background: "#EDEDF0", ...ap(1) }} />
+        <div className="h-1 rounded-full mb-2" style={{ width: "68%", background: "#EDEDF0", ...ap(2) }} />
+        <span className="inline-flex items-center rounded-md brand-gradient text-white text-[8px] font-semibold px-2 py-1" style={ap(3)}>Apply now</span>
+      </div>
+    </div>
+  );
+}
+
+function SchedulingPreview() {
+  const cardRef = useRef(null);
+  const dateRef = useRef(null);
+  const timeRef = useRef(null);
+  const [cur, setCur] = useState({ x: 16, y: 16, click: false, show: false });
+  const [dateSel, setDateSel] = useState(false);
+  const [timeSel, setTimeSel] = useState(false);
+
+  useEffect(() => {
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setDateSel(true); setTimeSel(true); return; }
+    const card = cardRef.current;
+    if (!card) return;
+    let timers = [];
+    let cancelled = false;
+    let started = false;
+    const step = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const centerOf = (el) => {
+      const cr = card.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { x: r.left - cr.left + r.width / 2 - 3, y: r.top - cr.top + r.height / 2 - 2 };
+    };
+    const run = () => {
+      if (cancelled || !dateRef.current || !timeRef.current) return;
+      const d = centerOf(dateRef.current);
+      const t = centerOf(timeRef.current);
+      setDateSel(false); setTimeSel(false);
+      setCur({ x: 16, y: 16, click: false, show: true });
+      step(650, () => setCur((c) => ({ ...c, x: d.x, y: d.y })));         // glide to the date
+      step(1350, () => setCur((c) => ({ ...c, click: true })));           // press
+      step(1500, () => { setCur((c) => ({ ...c, click: false })); setDateSel(true); }); // release + color
+      step(2300, () => setCur((c) => ({ ...c, x: t.x, y: t.y })));        // glide to the time
+      step(3000, () => setCur((c) => ({ ...c, click: true })));           // press
+      step(3150, () => { setCur((c) => ({ ...c, click: false })); setTimeSel(true); }); // release + color
+      step(4600, () => setCur((c) => ({ ...c, show: false })));           // fade cursor out
+      step(5200, run);                                                    // loop
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting && !started) { started = true; step(400, run); obs.disconnect(); } });
+    }, { threshold: 0.35 });
+    obs.observe(card);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, []);
+
+  const dateStyle = (sel) => sel
+    ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))" }
+    : { background: "var(--bg)", boxShadow: "inset 0 0 0 1px var(--line)" };
+  const timeStyle = (sel) => sel
+    ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))", color: "#fff" }
+    : { background: "var(--bg)", boxShadow: "inset 0 0 0 1px var(--line-strong)", color: "var(--ink-2)" };
+
+  return (
+    <div ref={cardRef} className="relative overflow-hidden w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
+      <span className="pointer-events-none absolute z-20 left-0 top-0" aria-hidden="true"
+        style={{ transform: `translate(${cur.x}px, ${cur.y}px) scale(${cur.click ? 0.72 : 1})`, transformOrigin: "top left", opacity: cur.show ? 1 : 0, transition: "transform .6s cubic-bezier(.5,0,.2,1), opacity .3s ease" }}>
+        <svg viewBox="0 0 24 24" width="15" height="15" style={{ display: "block", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.35))" }}>
+          <path d="M5 3l13.5 7.6-5.8 1.2-2.9 5.6z" fill="#12132A" stroke="#fff" strokeWidth="1.3" strokeLinejoin="round" />
+        </svg>
+      </span>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-neutral-900">July 2026</p>
+        <span className="text-[10px] font-semibold brand-text flex items-center gap-1"><Icon name="calendar" className="w-3 h-3" /> Google Meet</span>
+      </div>
+      <div className="grid grid-cols-5 gap-1.5 mb-3.5">
+        {[["Mon", "7"], ["Tue", "8"], ["Wed", "9"], ["Thu", "10", true], ["Fri", "11"]].map(([d, n, isThu]) => {
+          const sel = isThu && dateSel;
+          return (
+            <div key={d} ref={isThu ? dateRef : undefined} className="rounded-lg py-1.5 text-center" style={{ transition: "background .2s ease", ...dateStyle(sel) }}>
+              <p className="text-[9px]" style={{ color: sel ? "rgba(255,255,255,0.85)" : "var(--ink-3)" }}>{d}</p>
+              <p className="text-xs font-bold tnum" style={{ color: sel ? "#fff" : "var(--ink)" }}>{n}</p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Thu, Jul 10 · pick a time</p>
+      <div className="flex gap-1.5">
+        {[["9:00"], ["11:30", true], ["2:00"]].map(([t, is1130]) => (
+          <span key={t} ref={is1130 ? timeRef : undefined} className="text-[11px] font-medium px-2.5 py-1 rounded-md" style={{ transition: "background .2s ease, color .2s ease", ...timeStyle(is1130 && timeSel) }}>{t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
   const [cycle, setCycle] = useState("monthly");
-  const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1232,25 +1527,22 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
 
   const moreFeatures = [
     { icon: "interview", tag: "Interviews", title: "AI interview questions", body: "Questions written for the role and the person you're meeting, grouped by theme and ready the moment the interview is booked." },
-    { icon: "users", tag: "Feedback", title: "Collaborative scorecards", body: "Everyone rates the same criteria and leaves notes. Aster adds it up into one team call." },
-    { icon: "briefcase", tag: "Sourcing", title: "Public apply pages", body: "Every role gets a shareable link. Post it on LinkedIn, JobStreet, or anywhere else, and applicants land straight in your pipeline." },
+    { icon: "upload", tag: "Intake", title: "Bulk resume upload", body: "Drop in a stack of PDFs or Word files, or a whole ZIP. Aster parses each one, pulls out the details, and flags anything it can't read for you to check." },
+    { icon: "briefcase", tag: "Sourcing", title: "Apply Pages", body: "Every role gets a shareable link for LinkedIn, JobStreet, or your careers site. Each link is source-tracked, so you always know which channel your best applicants come from." },
     { icon: "chat", tag: "Messaging", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
-    { icon: "interviewers", tag: "Access", title: "Team seats & roles", body: "Add interviewers to your plan. They see only the candidates they're assessing, nothing else." },
+    { icon: "interviewers", tag: "Collaboration", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and video link automatically. Interviewers see only the candidates they're assessing." },
     { icon: "shield", tag: "Security", title: "Privacy by default", body: "Your candidates' data stays yours: encrypted, in your workspace, and exportable or deletable whenever you want." },
   ];
 
   const compareGroups = [
     { group: "Jobs & team", rows: [
       { label: "Active job postings", free: "1", starter: "5", pro: "Unlimited", ent: "Unlimited" },
-      { label: "Team seats", free: "1 (just you)", starter: "3", pro: "Multiple", ent: "Unlimited" },
-      { label: "Public apply pages", free: true, starter: true, pro: true, ent: true },
-      { label: "Shared candidate pipeline", free: true, starter: true, pro: true, ent: true },
+      { label: "Team seats", free: "1", starter: "3", pro: "Multiple", ent: "Unlimited" },
     ]},
     { group: "AI screening", rows: [
       { label: "Resume parsing", free: "10 / month", starter: "100 / month", pro: "Unlimited", ent: "Unlimited" },
       { label: "AI match runs", free: "3 / month", starter: "30 / month", pro: "Unlimited", ent: "Unlimited" },
       { label: "Candidates ranked per run", free: "Top 3", starter: "Top 10", pro: "All applicants", ent: "All applicants" },
-      { label: "Match reasoning shown", free: false, starter: true, pro: true, ent: true },
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
     ]},
     { group: "Interviews", rows: [
@@ -1259,11 +1551,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       { label: "Collaborative scorecards", free: false, starter: true, pro: true, ent: true },
       { label: "WhatsApp Business reminders", free: false, starter: false, pro: true, ent: true },
     ]},
-    { group: "Insights & support", rows: [
-      { label: "Hiring analytics dashboard", free: true, starter: true, pro: true, ent: true },
-      { label: "SSO & audit logs", free: false, starter: false, pro: false, ent: true },
-      { label: "Dedicated success manager", free: false, starter: false, pro: false, ent: true },
-      { label: "Custom SLAs & onboarding", free: false, starter: false, pro: false, ent: true },
+    { group: "Support", rows: [
       { label: "Support", free: "Community", starter: "Email", pro: "Priority", ent: "Dedicated" },
     ]},
   ];
@@ -1277,34 +1565,34 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
 
   const faqCategories = ["General", "Billing", "Security", "Integrations"];
   const faqs = [
-    { cat: "General", q: "What is Aster?", a: "Aster is an AI recruitment platform. It screens every resume, ranks applicants against the role, and handles interview scheduling — so a shortlist that used to take two weeks takes an afternoon." },
-    { cat: "General", q: "Who is Aster built for?", a: "Teams that hire regularly — from a founder making their first hires to a people team running dozens of roles at once. If you're drowning in CVs, Aster is for you." },
-    { cat: "General", q: "How does the AI match score work?", a: "Aster reads each resume, compares it against the role's requirements, and gives every applicant a score with the reasons behind it — so the strongest fits rise to the top instead of getting buried on page three." },
-    { cat: "General", q: "How accurate is the AI screening?", a: "The match score is a strong first pass, not a final decision. It surfaces the best-fit candidates with reasons, so your team reviews a shortlist instead of a pile — you always make the call." },
+    { cat: "General", q: "What is Aster?", a: "Aster is an AI recruitment platform. It screens every resume, ranks applicants against the role, and handles interview scheduling, so a shortlist that used to take two weeks takes an afternoon." },
+    { cat: "General", q: "Who is Aster built for?", a: "Teams that hire regularly, from a founder making their first hires to a people team running dozens of roles at once. If you're drowning in CVs, Aster is for you." },
+    { cat: "General", q: "How does the AI match score work?", a: "Aster reads each resume, compares it against the role's requirements, and gives every applicant a score with the reasons behind it, so the strongest fits rise to the top instead of getting buried on page three." },
+    { cat: "General", q: "How accurate is the AI screening?", a: "The match score is a strong first pass, not a final decision. It surfaces the best-fit candidates with reasons, so your team reviews a shortlist instead of a pile, and you always make the call." },
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
-    { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process — post roles, screen, and schedule the way you do today, just faster and all in one place." },
-    { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away — there's no setup project to run first." },
-    { cat: "Billing", q: "Is there a free trial?", a: "Yes. Free includes a 14-day Professional trial with full access and no card required. When it ends, you move to the Free plan automatically." },
+    { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
+    { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away. There's no setup project to run first." },
+    { cat: "Billing", q: "Is there a free trial?", a: "Yes. Free includes a 14-day Premium trial with full access and no card required. When it ends, you move to the Free plan automatically." },
     { cat: "Billing", q: "How does pricing work?", a: "Start free, then pick a plan billed monthly or yearly (save 20% yearly) based on the features and volume you need. You only upgrade when you're hiring at scale." },
     { cat: "Billing", q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
-    { cat: "Billing", q: "Can I change or cancel anytime?", a: "Yes. Upgrade, downgrade, or cancel from Billing whenever you like. Changes take effect at the end of the current period, with no lock-in — and nothing is deleted if you downgrade." },
-    { cat: "Billing", q: "What happens when my trial ends?", a: "You move to the Free plan automatically — no charge and no lost data. Upgrade whenever you're ready and everything picks up where you left off." },
-    { cat: "Billing", q: "Do you charge per team member?", a: "Starter and Professional include a set of seats, and you can add interviewers as your team grows. Enterprise offers unlimited seats. There are no hidden per-action fees." },
+    { cat: "Billing", q: "Can I change or cancel anytime?", a: "Yes. Upgrade, downgrade, or cancel from Billing whenever you like. Changes take effect at the end of the current period, with no lock-in, and nothing is deleted if you downgrade." },
+    { cat: "Billing", q: "What happens when my trial ends?", a: "You move to the Free plan automatically, with no charge and no lost data. Upgrade whenever you're ready and everything picks up where you left off." },
+    { cat: "Billing", q: "Do you charge per team member?", a: "Pro and Premium include a set of seats, and you can add interviewers as your team grows. Enterprise offers white label. There are no hidden per-action fees." },
     { cat: "Billing", q: "What payment methods do you accept?", a: "All major credit and debit cards, billed in USD through a secure hosted checkout, so raw card numbers never touch the app. An invoice is issued for every payment." },
     { cat: "Security", q: "Is my candidate data secure?", a: "Candidate data is encrypted in transit and at rest, with access limited to your workspace. You can export or delete it at any time." },
-    { cat: "Security", q: "Where is my data stored, and can I delete it?", a: "Your data lives in your workspace, encrypted in transit and at rest. You can export everything or permanently delete it at any time — it stays yours." },
+    { cat: "Security", q: "Where is my data stored, and can I delete it?", a: "Your data lives in your workspace, encrypted in transit and at rest. You can export everything or permanently delete it at any time. It stays yours." },
     { cat: "Security", q: "Who on my team can see candidate data?", a: "You control access with seats and roles. Interviewers only see the candidates they're assessing, so sensitive information stays on a need-to-know basis." },
     { cat: "Security", q: "Does Aster help with candidate privacy?", a: "Yes. Candidate data is only used to assess people for the roles you're hiring for, and you can honour a deletion or export request in a couple of clicks." },
-    { cat: "Security", q: "Is candidate data used to train AI models?", a: "No. Your candidates' data is used only to screen and rank them for your roles — it isn't used to train shared models or shared with other companies." },
+    { cat: "Security", q: "Is candidate data used to train AI models?", a: "No. Your candidates' data is used only to screen and rank them for your roles. It isn't used to train shared models or shared with other companies." },
     { cat: "Security", q: "Do you support SSO and audit logs?", a: "Yes, on Enterprise. Single sign-on and audit logs give larger teams centralised access control and a full record of who did what." },
-    { cat: "Security", q: "Can I export or back up my data?", a: "Anytime. Export candidates, resumes, and pipeline data whenever you need — your data stays portable and yours." },
+    { cat: "Security", q: "Can I export or back up my data?", a: "Anytime. Export candidates, resumes, and pipeline data whenever you need. Your data stays portable and yours." },
     { cat: "Integrations", q: "Do you work with Google and Microsoft?", a: "Both. Connect a Google or Microsoft workspace calendar, and interviews automatically create Meet or Teams links for everyone." },
     { cat: "Integrations", q: "Which calendars does Aster connect to?", a: "Google Workspace and Microsoft 365. Connect one and Aster reads your availability and creates Meet or Teams links for each interview automatically." },
-    { cat: "Integrations", q: "Can candidates book their own interview slots?", a: "Yes. Share one link and candidates pick a time from your live availability — the calendar invite and video link are created automatically, with no back-and-forth email." },
-    { cat: "Integrations", q: "Can I share roles on job boards?", a: "Yes. Every role gets a public apply page you can post on LinkedIn, JobStreet, or anywhere — applicants land straight in your pipeline." },
-    { cat: "Integrations", q: "Can I collect applications from my own website?", a: "Yes. Each role has a shareable public apply page you can link from your careers site or anywhere else, and applicants flow straight into your pipeline." },
-    { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Professional and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
-    { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box — parsing, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
+    { cat: "Integrations", q: "Can candidates book their own interview slots?", a: "Yes. Share one link and candidates pick a time from your live availability. The calendar invite and video link are created automatically, with no back-and-forth email." },
+    { cat: "Integrations", q: "Can I share roles on job boards?", a: "Yes. Every role gets an Apply page you can post on LinkedIn, JobStreet, or anywhere. Applicants land straight in your pipeline, tagged by source so you can see which channel performs best." },
+    { cat: "Integrations", q: "Can I collect applications from my own website?", a: "Yes. Each role has a shareable Apply page you can link from your careers site or anywhere else, and applicants flow straight into your pipeline. Every apply link is source-tracked, so you always know which channel each applicant came from." },
+    { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Premium and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
+    { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box: parsing, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
   ];
 
   const linkClass = "text-sm px-3 py-2 rounded-lg transition-colors";
@@ -1313,15 +1601,15 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
     { key: "free", name: "Free", col: "free", cta: "Get started", ghost: true,
       price: "$0", sub: "forever", note: null,
       tagline: "For trying Aster on a first role." },
-    { key: "starter", name: "Starter", col: "starter", cta: "Start Starter", ghost: true,
-      price: cycle === "yearly" ? "$39" : "$49",
+    { key: "starter", name: "Pro", col: "starter", cta: "Choose Pro", popular: true,
+      price: cycle === "yearly" ? "$71" : "$89",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-      note: cycle === "yearly" ? "$468/yr · save 20%" : null,
+      note: cycle === "yearly" ? "$852/yr · save 20%" : null,
       tagline: "For small teams hiring steadily." },
-    { key: "professional", name: "Professional", col: "pro", cta: "Start Professional", popular: true,
-      price: cycle === "yearly" ? "$79" : "$99",
+    { key: "professional", name: "Premium", col: "pro", cta: "Choose Premium", ghost: true,
+      price: cycle === "yearly" ? "$159" : "$199",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-      note: cycle === "yearly" ? "$948/yr · save 20%" : null,
+      note: cycle === "yearly" ? "$1,908/yr · save 20%" : null,
       tagline: "For teams hiring at volume." },
     { key: "enterprise", name: "Enterprise", col: "ent", cta: "Contact sales", ghost: true,
       price: "Let's talk", sub: "", note: null,
@@ -1410,14 +1698,14 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           <div>
             <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}>
               <span className="live-dot w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
-              AI recruitment platform for growing teams
+              AI recruitment for growing teams
             </span>
             <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2.25rem, 4.8vw, 3.65rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>
               Hire the right person,{" "}
               <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>without reading every CV.</span>
             </h1>
             <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>
-              Aster screens every resume, ranks applicants against the role, and handles interview scheduling. A shortlist that used to take two weeks now takes an afternoon.
+              Aster reads every resume, scores each applicant against the role, and books the interviews. A two-week shortlist now takes an afternoon.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <button onClick={() => goSignup("free")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">
@@ -1445,10 +1733,10 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     </svg>
                   ))}
                 </div>
-                <span className="text-xs" style={{ color: "var(--navy-ink)" }}>Loved by hiring teams worldwide</span>
+                <span className="text-xs" style={{ color: "var(--navy-ink)" }}>Loved by fast-moving hiring teams</span>
               </div>
             </div>
-            <p className="mt-4 text-xs" style={{ color: "var(--ink-3)" }}>No credit card to start · Set up in minutes</p>
+            <p className="mt-4 text-xs" style={{ color: "var(--ink-3)" }}>No credit card · Set up in minutes</p>
           </div>
 
           {/* Right: the signature — Aster parsing a resume in seconds */}
@@ -1517,7 +1805,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 </div>
               </div>
             </div>
-            <p className="text-[11px] mt-4" style={{ color: "var(--ink-3)" }}>Skills, experience &amp; summary — structured in 2.4 seconds.</p>
+            <p className="text-[11px] mt-4" style={{ color: "var(--ink-3)" }}>Skills, experience, and summary. Structured in 2.4 seconds.</p>
           </div>
         </div>
       </section>
@@ -1529,7 +1817,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Hiring always gets stuck in the same places.
           </h2>
-          <p className="text-neutral-500 mt-3">See the six that slow every team down — then flip to how Aster fixes each one.</p>
+          <p className="text-neutral-500 mt-3">See the six that slow every team down, then flip to how Aster fixes each one.</p>
         </Reveal>
         {/* Before / after switch — sits right above the cards */}
         <Reveal delay={60} className="mb-5 flex items-center gap-3 flex-wrap">
@@ -1613,7 +1901,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               </div>
               <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>Role-fit match score</h3>
               <p className="leading-relaxed max-w-md" style={{ color: "var(--ink-2)", fontSize: "0.975rem" }}>
-                Every applicant is scored against the role, so the strongest fits rise to the top on their own — no more reading every CV in full.
+                Every applicant is scored against the role, so the strongest fits rise to the top on their own. No more reading every CV in full.
               </p>
               <div className="mt-6 inline-flex items-center gap-2 self-start text-xs px-3 py-1.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                 <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> 46 applicants ranked in 3 seconds
@@ -1632,7 +1920,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     { name: "Daniel Teoh", note: "Strong CSS, growing into React", match: 42 },
                   ].map((c, ci) => (
                     <div key={c.name} className="pv-item flex items-center gap-3 rounded-xl px-2.5 py-2" style={{ animationDelay: `${ci * 130}ms`, background: c.top ? "var(--brand-soft)" : "var(--bg)", border: c.top ? "1px solid #D9D0FF" : "1px solid var(--line)" }}>
-                      <ScoreRingLight value={c.match} size={40} stroke={4} />
+                      <ScoreRingLight value={c.match} size={40} stroke={4} loop delay={ci * 260} />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-neutral-900 truncate">{c.name}</p>
                         <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.note}</p>
@@ -1648,7 +1936,9 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           {/* 2 · AI resume parsing — light row, visual left */}
           <Reveal delay={60} className="rounded-3xl overflow-hidden border grid lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
-              <div className="w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
+              <div className="relative overflow-hidden w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
+                {/* AI scan beam sweeping down the document, in a loop */}
+                <div className="scan-line pointer-events-none absolute inset-x-0 z-10" style={{ height: 22, background: "linear-gradient(180deg, transparent, rgba(151,59,247,0.16), transparent)", boxShadow: "0 0 16px 2px rgba(151,59,247,0.26)" }} />
                 <div className="flex items-center gap-2.5 mb-3.5">
                   <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
                   <div className="min-w-0">
@@ -1688,30 +1978,11 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               </div>
               <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>Interview scheduling</h3>
               <p className="leading-relaxed max-w-md" style={{ color: "var(--ink-2)", fontSize: "0.975rem" }}>
-                Connect one workspace calendar and let candidates self-book. Google Meet and Teams links are created for you — no back-and-forth email.
+                Connect one workspace calendar and let candidates self-book. Google Meet and Teams links are created for you. No back-and-forth email.
               </p>
             </div>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center border-t lg:border-t-0 lg:border-l" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
-              <div className="w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-semibold text-neutral-900">July 2026</p>
-                  <span className="text-[10px] font-semibold brand-text flex items-center gap-1"><Icon name="calendar" className="w-3 h-3" /> Google Meet</span>
-                </div>
-                <div className="grid grid-cols-5 gap-1.5 mb-3.5">
-                  {[["Mon", "7"], ["Tue", "8"], ["Wed", "9"], ["Thu", "10", true], ["Fri", "11"]].map(([d, n, sel], di) => (
-                    <div key={d} className="pv-item rounded-lg py-1.5 text-center" style={{ animationDelay: `${di * 70}ms`, ...(sel ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))" } : { background: "var(--bg)", border: "1px solid var(--line)" }) }}>
-                      <p className="text-[9px]" style={{ color: sel ? "rgba(255,255,255,0.85)" : "var(--ink-3)" }}>{d}</p>
-                      <p className="text-xs font-bold tnum" style={{ color: sel ? "#fff" : "var(--ink)" }}>{n}</p>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Thu, Jul 10 · pick a time</p>
-                <div className="flex gap-1.5">
-                  {[["9:00", false], ["11:30", true], ["2:00", false]].map(([t, on], ti) => (
-                    <span key={t} className={`pv-item text-[11px] font-medium px-2.5 py-1 rounded-md ${on ? "brand-gradient text-white" : ""}`} style={on ? { animationDelay: `${(ti + 5) * 70}ms` } : { animationDelay: `${(ti + 5) * 70}ms`, background: "var(--bg)", border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>{t}</span>
-                  ))}
-                </div>
-              </div>
+              <SchedulingPreview />
             </div>
           </Reveal>
 
@@ -1722,7 +1993,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 {[["Applied", 24], ["Screening", 8], ["Interview", 3], ["Offer", 1]].map(([stage, n], i, arr) => (
                   <div key={stage} className="pv-item flex items-center gap-1.5" style={{ animationDelay: `${i * 110}ms` }}>
                     <div className="rounded-xl px-3.5 py-2.5 text-center bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
-                      <p className="text-xl font-bold font-display tnum leading-none mb-0.5" style={{ color: i === arr.length - 1 ? "#16A34A" : "var(--brand)" }}>{n}</p>
+                      <p className="text-xl font-bold font-display tnum leading-none mb-0.5" style={{ color: i === arr.length - 1 ? "#16A34A" : "var(--brand)" }}><CountUp to={n} delay={i * 160} loop /></p>
                       <p className="text-[11px] text-neutral-500 leading-none">{stage}</p>
                     </div>
                     {i < arr.length - 1 && <span style={{ color: "var(--line-strong)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
@@ -1737,31 +2008,43 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               </div>
               <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>One shared pipeline</h3>
               <p className="leading-relaxed max-w-md" style={{ color: "var(--ink-2)", fontSize: "0.975rem" }}>
-                Track every candidate from applied to hired, with the whole team looking at the same board — nothing buried in someone&rsquo;s inbox.
+                Track every candidate from applied to hired, with the whole team looking at the same board. Nothing buried in anyone&rsquo;s inbox.
               </p>
             </div>
           </Reveal>
         </div>
 
-        {/* More capabilities — horizontal split cards, like the big rows */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mt-4 sm:mt-5">
-          {moreFeatures.map((f, i) => (
-            <Reveal key={f.title} delay={(i % 2) * 60} className="rounded-2xl border overflow-hidden card-lift h-full flex flex-col sm:flex-row items-stretch bg-white" style={{ borderColor: "var(--line)" }}>
-              {/* feature-specific preview — panel beside the text, like the big rows */}
-              <div className="sm:w-[44%] shrink-0 min-h-[9rem] p-5 flex items-center justify-center overflow-hidden border-b sm:border-b-0 sm:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
+        {/* More capabilities — full-width alternating rows, continuing the big rows above */}
+        <div className="space-y-4 sm:space-y-5 mt-4 sm:mt-5">
+          {moreFeatures.map((f, i) => {
+            const visualRight = i % 2 === 0; // alternate the preview side, row by row
+            return (
+            <Reveal key={f.title} delay={60} className="rounded-3xl border overflow-hidden grid lg:grid-cols-2 items-stretch bg-white" style={{ borderColor: "var(--line)" }}>
+              {/* feature-specific preview — big panel, alternating side */}
+              <div className={`p-6 sm:p-8 lg:p-10 flex items-center justify-center overflow-hidden order-2 border-t lg:border-t-0 ${visualRight ? "lg:order-2 lg:border-l" : "lg:order-1 lg:border-r"}`} style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
+                <div className="w-full max-w-xs sm:max-w-sm">
                 {(() => {
                   switch (f.icon) {
                     case "interview":
                       return (
-                        <div className="w-full space-y-1.5">
-                          {["A design system you scaled", "Handling shifting scope"].map((q, k) => (
-                            <div key={q} className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5" style={{ animationDelay: `${k * 120}ms`, border: "1px solid var(--line)" }}>
-                              <span className="w-3.5 h-3.5 rounded-full brand-gradient text-white flex items-center justify-center text-[7px] font-bold shrink-0">Q</span>
-                              <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>{q}</span>
+                        <div className="w-full space-y-2">
+                          <div className="pv-item flex items-center gap-2" style={{ animationDelay: "0ms" }}>
+                            <span className="w-5 h-5 rounded-md brand-gradient flex items-center justify-center shrink-0"><Icon name="star" className="w-3 h-3 text-white" /></span>
+                            <span className="text-[10px] font-semibold" style={{ color: "var(--ink-2)" }}>Drafted for Senior Frontend</span>
+                          </div>
+                          {[["Design systems", "Walk me through a system you scaled"], ["Scope", "Handling shifting requirements"]].map(([theme, q], k) => (
+                            <div key={q} className="q-slide flex items-start gap-2 rounded-lg bg-white px-2.5 py-2 shadow-soft" style={{ animationDelay: `${200 + k * 280}ms`, border: "1px solid var(--line)" }}>
+                              <span className="w-5 h-5 rounded-full brand-gradient text-white flex items-center justify-center text-[8px] font-bold shrink-0">Q</span>
+                              <span className="min-w-0">
+                                <span className="text-[8px] font-semibold uppercase block" style={{ color: "var(--brand)", letterSpacing: "0.05em" }}>{theme}</span>
+                                <span className="text-[11px] leading-snug truncate block" style={{ color: "var(--ink)" }}>{q}</span>
+                              </span>
                             </div>
                           ))}
                         </div>
                       );
+                    case "upload":
+                      return <UploadPreview />;
                     case "users":
                       return (
                         <div className="w-full space-y-2">
@@ -1779,61 +2062,85 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                         </div>
                       );
                     case "briefcase":
-                      return (
-                        <div className="pv-item w-full rounded-md bg-white px-2.5 py-2 flex items-center gap-1.5" style={{ border: "1px solid var(--line)" }}>
-                          <span className="flex gap-0.5 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />)}</span>
-                          <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3 h-3" /></span>
-                          <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>aster.co/apply/fe-eng</span>
-                        </div>
-                      );
+                      return <ApplyPagePreview />;
                     case "chat":
                       return (
-                        <div className="w-full flex justify-end">
-                          <div className="pv-item rounded-2xl rounded-br-md px-3 py-2 max-w-[92%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -2px rgba(18,19,42,.12)" }}>
-                            <p className="text-[10px] leading-snug" style={{ color: "#1F2A24" }}>Interview confirmed — Thu, 2:00 PM</p>
-                            <div className="flex justify-end items-center gap-1 mt-0.5">
-                              <span className="text-[8px]" style={{ color: "#667781" }}>2:14 PM</span>
-                              <span style={{ color: "#53BDEB" }}><Icon name="check" className="w-2.5 h-2.5" /></span>
+                        <div className="w-full space-y-1.5">
+                          {/* Aster reminder → candidate */}
+                          <div className="pv-item flex justify-start" style={{ animationDelay: "0ms" }}>
+                            <div className="rounded-2xl rounded-bl-md px-2.5 py-1.5 max-w-[88%] bg-white" style={{ border: "1px solid var(--line)", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
+                              <p className="text-[9px] leading-snug" style={{ color: "var(--ink-2)" }}>Hi Amira, are you free for your interview on Thu, 2:00 PM?</p>
+                              <span className="text-[7px] block text-right mt-0.5" style={{ color: "#9A9AA6" }}>2:09 PM</span>
+                            </div>
+                          </div>
+                          {/* candidate reply */}
+                          <div className="pv-item flex justify-end" style={{ animationDelay: "160ms" }}>
+                            <div className="rounded-2xl rounded-br-md px-2.5 py-1.5 max-w-[88%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
+                              <p className="text-[9px] leading-snug" style={{ color: "#1F2A24" }}>Yes, confirmed! See you then.</p>
+                              <div className="flex justify-end items-center gap-1 mt-0.5">
+                                <span className="text-[7px]" style={{ color: "#667781" }}>2:14 PM</span>
+                                <span style={{ color: "#53BDEB" }}><Icon name="check" className="w-2 h-2" /></span>
+                              </div>
                             </div>
                           </div>
                         </div>
                       );
                     case "interviewers":
                       return (
-                        <div className="pv-item flex items-center gap-2">
-                          <div className="flex -space-x-1.5">
-                            {["#D65BFF", "#5A78F8", "#973BF7"].map((c, k) => (
-                              <span key={c} className="w-6 h-6 rounded-full border-2 border-white text-white text-[8px] font-semibold flex items-center justify-center" style={{ background: c }}>{["A", "S", "D"][k]}</span>
-                            ))}
+                        <div className="w-full space-y-1.5">
+                          {/* interview event with a shared meeting link */}
+                          <div className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5" style={{ animationDelay: "0ms", border: "1px solid var(--line)" }}>
+                            <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /></span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[9px] font-semibold truncate" style={{ color: "var(--ink)" }}>Interview · Amira Hassan</p>
+                              <p className="text-[8px]" style={{ color: "var(--ink-3)" }}>Thu, 2:00 PM</p>
+                            </div>
+                            <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="link" className="w-2 h-2" /> Meet</span>
                           </div>
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Interviewer</span>
+                          {/* the panel — teammates all invited */}
+                          <div className="pv-item flex items-center gap-1.5" style={{ animationDelay: "150ms" }}>
+                            <div className="flex -space-x-1.5">
+                              {["#D65BFF", "#5A78F8", "#973BF7"].map((c, k) => (
+                                <span key={c} className="w-5 h-5 rounded-full border-2 border-white text-white text-[8px] font-semibold flex items-center justify-center" style={{ background: c }}>{["A", "S", "D"][k]}</span>
+                              ))}
+                              <span className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>+1</span>
+                            </div>
+                            <span className="text-[8px]" style={{ color: "var(--ink-3)" }}>4 on the panel, all invited</span>
+                          </div>
                         </div>
                       );
                     case "shield":
                       return (
-                        <div className="pv-item flex items-center gap-2.5">
-                          <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-5 h-5" /></span>
-                          <div>
-                            <p className="text-[11px] font-semibold text-neutral-900 leading-none">Encrypted</p>
-                            <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>In your workspace</p>
+                        <div className="w-full space-y-1.5">
+                          <div className="pv-item flex items-center gap-1.5" style={{ animationDelay: "0ms" }}>
+                            <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-3 h-3" /></span>
+                            <span className="text-[9px] font-semibold" style={{ color: "var(--ink)" }}>Encrypted, in your workspace</span>
                           </div>
+                          {["Encrypted in transit & at rest", "You control who sees what", "Export or delete anytime"].map((it, k) => (
+                            <div key={it} className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1" style={{ animationDelay: `${(k + 1) * 110}ms`, border: "1px solid var(--line)" }}>
+                              <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-2.5 h-2.5" /></span>
+                              <span className="text-[9px] truncate" style={{ color: "var(--ink-2)" }}>{it}</span>
+                            </div>
+                          ))}
                         </div>
                       );
                     default:
                       return <span className="pv-item" style={{ color: "var(--brand)" }}><Icon name={f.icon} className="w-6 h-6" /></span>;
                   }
                 })()}
+                </div>
               </div>
-              <div className="flex-1 p-6 sm:p-7 flex flex-col justify-center">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={f.icon} className="w-4 h-4" /></span>
+              <div className={`p-8 sm:p-10 lg:p-12 flex flex-col justify-center order-1 ${visualRight ? "lg:order-1" : "lg:order-2"}`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={f.icon} className="w-5 h-5" /></span>
                   <span className="text-[11px] font-semibold uppercase brand-text" style={{ letterSpacing: "0.09em" }}>{f.tag}</span>
                 </div>
-                <h3 className="font-display font-bold text-neutral-900 mb-1.5" style={{ fontSize: "1.15rem", letterSpacing: "-0.01em" }}>{f.title}</h3>
-                <p className="text-sm text-neutral-500 leading-relaxed">{f.body}</p>
+                <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>{f.title}</h3>
+                <p className="leading-relaxed max-w-md" style={{ color: "var(--ink-2)", fontSize: "0.975rem" }}>{f.body}</p>
               </div>
             </Reveal>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -2061,7 +2368,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 </tr>
               </thead>
               <tbody>
-                {(showAllFeatures ? compareGroups : compareGroups.slice(0, 1)).map((g) => (
+                {compareGroups.map((g) => (
                   <Fragment key={g.group}>
                     <tr>
                       <td className="px-5 pt-6 pb-2 text-xs font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.06em" }}>{g.group}</td>
@@ -2094,15 +2401,6 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 </tr>
               </tbody>
             </table>
-            <button
-              onClick={() => setShowAllFeatures((v) => !v)}
-              aria-expanded={showAllFeatures}
-              className="w-full py-3.5 text-sm font-semibold flex items-center justify-center gap-1.5 border-t brand-text hover:bg-neutral-50 transition-colors"
-              style={{ borderColor: "var(--line)" }}
-            >
-              {showAllFeatures ? "Show less" : "Show all features"}
-              <span className="transition-transform" style={{ transform: showAllFeatures ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-4 h-4" /></span>
-            </button>
           </div>
         </div>
 
@@ -2117,7 +2415,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 <span className="text-[11px] font-semibold uppercase" style={{ color: "#B274FF", letterSpacing: "0.09em" }}>Enterprise</span>
               </div>
               <h3 className="font-display font-bold text-white mb-1.5" style={{ fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For orgs with security &amp; scale needs</h3>
-              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--navy-ink)" }}>Everything in Professional, plus enterprise controls and hands-on support.</p>
+              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--navy-ink)" }}>Everything in Premium, plus enterprise controls and hands-on support.</p>
               <div className="flex flex-wrap gap-2 mt-4">
                 {["SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding", "Unlimited everything"].map((c) => (
                   <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)", color: "#fff" }}>
@@ -2136,7 +2434,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </div>
         </Reveal>
 
-        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Professional trial. Full access, no card required.</p>
+        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Premium trial. Full access, no card required.</p>
       </section>
       <section id="faq" className="relative overflow-hidden grain py-14 sm:py-24 scroll-mt-20" style={{ background: "#0A0B1A" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 45% at 100% 0%, rgba(151,59,247,0.18) 0%, transparent 60%), radial-gradient(45% 50% at 0% 100%, rgba(90,120,248,0.16) 0%, transparent 60%)" }} />
@@ -2205,17 +2503,16 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Final CTA */}
-      <section className="relative overflow-hidden grain px-4 sm:px-6 py-20 sm:py-28 text-center" style={{ background: "#05060F" }}>
-        {/* Sign-in style background: Ken Burns image + overlay + drifting orbs + brand glow */}
-        <div className="login-bg-anim pointer-events-none absolute inset-0" style={{ backgroundImage: `url(${LOGIN_BG})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }} />
-        <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(rgba(5,6,20,0.5), rgba(5,6,20,0.72))" }} />
-        <div className="login-orb-a pointer-events-none absolute -top-24 -left-16 w-[520px] h-[520px] rounded-full blur-3xl opacity-[0.30]" style={{ background: "radial-gradient(circle, #4F6BFF 0%, transparent 70%)" }} />
-        <div className="login-orb-b pointer-events-none absolute -bottom-28 -right-10 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.28]" style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }} />
-        <div className="login-glow pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, var(--brand-2) 55%, transparent 72%)" }} />
+      <section className="relative overflow-hidden grain px-4 sm:px-6 py-20 sm:py-28 text-center" style={{ background: "radial-gradient(120% 140% at 50% -25%, #1B1E4C 0%, #0D0F26 48%, #070813 100%)" }}>
+        {/* On-brand aurora: deep indigo dome + drifting brand glows + a focus glow behind the CTA */}
+        <div className="login-orb-a pointer-events-none absolute -top-32 -left-20 w-[560px] h-[560px] rounded-full blur-3xl opacity-45" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 68%)" }} />
+        <div className="login-orb-b pointer-events-none absolute -bottom-32 -right-16 w-[600px] h-[600px] rounded-full blur-3xl opacity-45" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 68%)" }} />
+        <div className="login-glow pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[46%] w-[720px] max-w-[92vw] h-[440px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(151,59,247,0.55) 0%, rgba(90,120,248,0.28) 42%, transparent 72%)" }} />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.5]" style={{ background: "radial-gradient(60% 55% at 82% 8%, rgba(214,91,255,0.18) 0%, transparent 60%)" }} />
         <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
         <Reveal className="relative max-w-2xl mx-auto">
           <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Ready to make your next hire?</h2>
-          <p className="mt-3 max-w-md mx-auto" style={{ color: "var(--navy-ink)" }}>Set up takes a few minutes. No credit card required.</p>
+          <p className="mt-3 max-w-md mx-auto" style={{ color: "var(--navy-ink)" }}>Post your first role in minutes. No credit card required.</p>
           <button onClick={() => goSignup("free")} className="mt-8 brand-gradient text-white font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-14px_rgba(151,59,247,0.95)]">
             Create your workspace
           </button>
@@ -2247,16 +2544,16 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const planLabel = signupPlan === "professional" ? "Professional" : signupPlan === "starter" ? "Starter" : signupPlan === "enterprise" ? "Enterprise" : "Free";
+  const planLabel = signupPlan === "professional" ? "Premium" : signupPlan === "starter" ? "Pro" : signupPlan === "enterprise" ? "Enterprise" : "Free";
   const isFreeTrial = signupPlan === "free" || !["professional", "starter", "enterprise"].includes(signupPlan);
   const planDetail =
     signupPlan === "professional"
-      ? (signupCycle === "yearly" ? "$79/mo · billed yearly (20% off)" : "$99/month")
+      ? (signupCycle === "yearly" ? "$159/mo · billed yearly (20% off)" : "$199/month")
       : signupPlan === "starter"
-        ? (signupCycle === "yearly" ? "$39/mo · billed yearly (20% off)" : "$49/month")
+        ? (signupCycle === "yearly" ? "$71/mo · billed yearly (20% off)" : "$89/month")
       : signupPlan === "enterprise"
         ? "Our team will reach out about pricing"
-        : "Full Professional features free for 14 days";
+        : "Full Premium features free for 14 days";
 
   const fieldDark = "w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow placeholder:text-[color:var(--navy-ink)]";
   const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
@@ -2339,7 +2636,7 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
             {isFreeTrial ? "Start 14-day free trial" : "Create account"}
           </button>
           {isFreeTrial && (
-            <p className="text-xs text-center" style={{ color: "var(--navy-ink)" }}>No card required — full Professional access for 14 days, then Free.</p>
+            <p className="text-xs text-center" style={{ color: "var(--navy-ink)" }}>No card required. Full Premium access for 14 days, then Free.</p>
           )}
           <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
             Already have an account?{" "}
@@ -3447,7 +3744,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white leading-tight">{trialDaysLeft} days left in your free trial</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--navy-ink)" }}>Full Professional access — unlimited AI matching &amp; jobs.</p>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--navy-ink)" }}>Full Premium access — unlimited AI matching &amp; jobs.</p>
             </div>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -3581,7 +3878,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-white">Your plan</p>
-                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Starter" : plan === "professional" ? "Professional" : "Enterprise"}</p>
+                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "Enterprise"}</p>
                 </div>
                 <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
               </div>
@@ -3796,7 +4093,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   const limits = planLimits(plan);
   const uploadLimit = limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
-  const planName = plan === "starter" ? "Starter" : plan === "professional" ? "Professional" : plan === "enterprise" ? "Enterprise" : "Free";
+  const planName = plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : plan === "enterprise" ? "Enterprise" : "Free";
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [files, setFiles] = useState([]);
   const [rows, setRows] = useState([]);
@@ -4696,22 +4993,23 @@ function formatSalary(job) {
   return `${job.salary_currency} ${fmt(job.salary_min ?? job.salary_max)}+`;
 }
 
-// Shared New Job form body — used inside the modal (and reusable elsewhere).
-function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose }) {
+// Shared job form body — used inside the modal for both creating and editing.
+function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null }) {
+  const editing = !!initialJob;
   const limits = planLimits(plan);
   const atJobLimit = jobs.length >= limits.maxJobs;
-  const [title, setTitle] = useState("");
-  const [department, setDepartment] = useState("");
-  const [location, setLocation] = useState("");
-  const [employmentType, setEmploymentType] = useState("full_time");
-  const [remoteType, setRemoteType] = useState("hybrid");
-  const [seniority, setSeniority] = useState("mid");
-  const [salaryMin, setSalaryMin] = useState("");
-  const [salaryMax, setSalaryMax] = useState("");
-  const [description, setDescription] = useState("");
-  const [responsibilities, setResponsibilities] = useState("");
-  const [requirements, setRequirements] = useState("");
-  const [benefits, setBenefits] = useState("");
+  const [title, setTitle] = useState(initialJob?.title || "");
+  const [department, setDepartment] = useState(initialJob?.department || "");
+  const [location, setLocation] = useState(initialJob?.location || "");
+  const [employmentType, setEmploymentType] = useState(initialJob?.employment_type || "full_time");
+  const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "hybrid");
+  const [seniority, setSeniority] = useState(initialJob?.seniority_level || "mid");
+  const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
+  const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
+  const [description, setDescription] = useState(initialJob?.description || "");
+  const [responsibilities, setResponsibilities] = useState((initialJob?.responsibilities || []).join("\n"));
+  const [requirements, setRequirements] = useState((initialJob?.requirements || []).join("\n"));
+  const [benefits, setBenefits] = useState((initialJob?.benefits || []).join("\n"));
 
   // Textarea (one item per line) → clean array of bullets.
   const toLines = (v) => v.split("\n").map((s) => s.trim().replace(/^[-•]\s*/, "")).filter(Boolean);
@@ -4721,10 +5019,9 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose }) {
 
   const canCreate = title.trim() && description.trim();
 
-  const handleCreate = () => {
+  const handleSubmit = () => {
     if (!canCreate) return;
-    const newJob = {
-      id: `j${jobs.length + 1}`,
+    const payload = {
       title: title.trim(),
       department: department || null,
       location: location || null,
@@ -4734,17 +5031,20 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose }) {
       salary_min: salaryMin ? Number(salaryMin) : null,
       salary_max: salaryMax ? Number(salaryMax) : null,
       salary_currency: "MYR",
-      status: "open",
       description: description.trim(),
       responsibilities: toLines(responsibilities),
       requirements: toLines(requirements),
       benefits: toLines(benefits),
     };
-    setJobs([newJob, ...jobs]);
+    if (editing) {
+      setJobs(jobs.map((j) => (j.id === initialJob.id ? { ...j, ...payload } : j)));
+    } else {
+      setJobs([{ id: `j${Date.now()}`, status: "open", ...payload }, ...jobs]);
+    }
     onClose();
   };
 
-  if (atJobLimit) {
+  if (atJobLimit && !editing) {
     return (
       <div className="rounded-2xl bg-white border" style={{ borderColor: "var(--line)" }}>
         <UpgradeLock
@@ -4828,8 +5128,8 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose }) {
         <textarea rows={3} value={benefits} onChange={(e) => setBenefits(e.target.value)} placeholder={"Health insurance\nFlexible hours\nLearning budget"} className={inputClass} />
       </div>
       <div className="flex items-center gap-2 pt-1">
-        <button onClick={handleCreate} disabled={!canCreate} className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
-          Create job
+        <button onClick={handleSubmit} disabled={!canCreate} className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
+          {editing ? "Save changes" : "Create job"}
         </button>
         <button onClick={onClose} className="text-sm rounded-xl px-4 py-2 transition-colors" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
           Cancel
@@ -4839,25 +5139,26 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose }) {
   );
 }
 
-// New Job as a centered modal sheet (opens over whatever screen you're on).
-function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate }) {
+// New/Edit Job as a centered modal sheet (opens over whatever screen you're on).
+function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null }) {
   if (!open) return null;
+  const editing = !!initialJob;
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label="New job posting">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={editing ? "Edit job" : "New job posting"}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
         <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b" style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center gap-3 min-w-0">
             <span className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="jobs" className="w-5 h-5" /></span>
             <div className="min-w-0">
-              <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>New job posting</h2>
-              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Fill in the details — share the link and rank applicants once it's live.</p>
+              <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{editing ? "Edit job" : "New job posting"}</h2>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{editing ? "Update the details — changes apply to the live posting." : "Fill in the details — share the link and rank applicants once it's live."}</p>
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
         <div className="px-5 sm:px-6 py-5 max-h-[75vh] overflow-y-auto">
-          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} />
+          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} />
         </div>
       </div>
     </div>
@@ -4875,6 +5176,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [filterOpen, setFilterOpen] = useState(false);
   const [menuJob, setMenuJob] = useState(null); // job id whose action menu is open
   const [detailJob, setDetailJob] = useState(null); // job open in the details modal
+  const [editJob, setEditJob] = useState(null); // job open in the edit modal
+  const [sortBy, setSortBy] = useState("newest"); // newest | applicants | oldest | az
+  const [sortOpen, setSortOpen] = useState(false);
+  const [view, setView] = useState("grid"); // grid | list
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
   // A just-posted job is prepended (newest first); jump back to page 1 so it's visible.
@@ -4956,15 +5261,22 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
   const SOURCE_PRESETS = ["LinkedIn", "Career Page", "Referral", "JobStreet", "Facebook", "WhatsApp"];
   const q = search.trim().toLowerCase();
+  const jobIndex = new Map(jobs.map((j, i) => [j.id, i])); // 0 = most recently added
+  const sortCmp = (a, b) => {
+    if (sortBy === "applicants") return applicantCountFor(b.id) - applicantCountFor(a.id);
+    if (sortBy === "oldest") return jobIndex.get(b.id) - jobIndex.get(a.id);
+    if (sortBy === "az") return a.title.localeCompare(b.title);
+    return jobIndex.get(a.id) - jobIndex.get(b.id); // newest
+  };
   const filtered = jobs
     .filter((j) => {
       const statusOk = statusFilter === "all" || j.status === statusFilter;
       const textOk = !q || j.title.toLowerCase().includes(q) || (j.department || "").toLowerCase().includes(q);
       return statusOk && textOk;
     })
-    // Open roles stay on top; closing a role sinks it to the bottom. (Stable sort
-    // preserves the existing order within each group.)
-    .sort((a, b) => (a.status === "closed" ? 1 : 0) - (b.status === "closed" ? 1 : 0));
+    // Open roles always stay above closed; the chosen sort orders within each group.
+    .sort((a, b) => ((a.status === "closed" ? 1 : 0) - (b.status === "closed" ? 1 : 0)) || sortCmp(a, b));
+  const SORT_LABELS = { newest: "Newest", applicants: "Most applicants", oldest: "Oldest", az: "A–Z" };
   const openCount = jobs.filter((j) => j.status === "open").length;
   const closedCount = jobs.filter((j) => j.status === "closed").length;
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -4973,6 +5285,41 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const STATUS_LABELS = { all: "All", open: "Open", closed: "Closed" };
   const STATUS_DOT = { open: "#22C55E", closed: "#9A9AA6" };
   const setStatus = (v) => { setStatusFilter(v); setPage(0); setFilterOpen(false); };
+
+  // Shared ⋯ actions menu — used by both the card grid and the list/table view.
+  const jobMenu = (job, up = false) => (
+    <div className="relative shrink-0">
+      <button
+        onClick={(e) => { e.stopPropagation(); setMenuJob(menuJob === job.id ? null : job.id); }}
+        aria-haspopup="menu" aria-expanded={menuJob === job.id} aria-label="Job actions"
+        className="inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100"
+        style={{ color: "var(--ink-3)", background: menuJob === job.id ? "#F1F1F4" : undefined }}
+      >
+        <Icon name="more" className="w-5 h-5" />
+      </button>
+      {menuJob === job.id && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuJob(null); }} />
+          <div role="menu" onClick={(e) => e.stopPropagation()} className={`absolute right-0 ${up ? "bottom-full mb-1.5" : "top-full mt-1.5"} z-20 w-52 rounded-xl bg-white border p-1 act-shadow`} style={{ borderColor: "var(--line)" }}>
+            <button role="menuitem" onClick={() => { setMenuJob(null); setDetailJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
+              <Icon name="eye" className="w-4 h-4" /> View details
+            </button>
+            <button role="menuitem" onClick={() => { setMenuJob(null); setEditJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
+              <Icon name="settings" className="w-4 h-4" /> Edit role
+            </button>
+            {job.status === "open" && (
+              <button role="menuitem" onClick={() => { setMenuJob(null); openLinkModal(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
+                <Icon name="link" className="w-4 h-4" /> Copy job URL
+              </button>
+            )}
+            <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
+              <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : "Reopen this role"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -4988,7 +5335,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
         <div className="mt-2">
           <TopBar
-            title="Jobs"
+            title="Job Postings"
             subtitle={
               <span className="inline-flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>{jobs.length} role{jobs.length === 1 ? "" : "s"}</span>
@@ -5063,13 +5410,50 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             )}
           </div>
 
+          {/* Sort */}
+          <div className="relative">
+            <button onClick={() => setSortOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={sortOpen} className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2.5 text-sm transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)" }}>
+              <span style={{ color: "var(--ink-3)" }}>Sort</span>
+              <span className="font-medium" style={{ color: "var(--ink)" }}>{SORT_LABELS[sortBy]}</span>
+              <Icon name="chevronDown" className={`w-4 h-4 ml-0.5 transition-transform ${sortOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+            </button>
+            {sortOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} />
+                <div role="listbox" className="absolute right-0 z-20 mt-1.5 w-48 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                  {["newest", "applicants", "oldest", "az"].map((v) => {
+                    const on = sortBy === v;
+                    return (
+                      <button key={v} role="option" aria-selected={on} onClick={() => { setSortBy(v); setSortOpen(false); setPage(0); }} className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: on ? "var(--ink)" : "var(--ink-2)", background: on ? "#F4F4F6" : undefined, fontWeight: on ? 600 : 400 }}>
+                        <span className="flex-1">{SORT_LABELS[v]}</span>
+                        {on && <Icon name="check" className="w-4 h-4" style={{ color: "var(--brand)" }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* View toggle */}
+          <div className="inline-flex rounded-xl border p-0.5 bg-white shrink-0" style={{ borderColor: "var(--line-strong)" }}>
+            {[["grid", "dashboard", "Card view"], ["list", "menu", "List view"]].map(([v, ic, lbl]) => {
+              const on = view === v;
+              return (
+                <button key={v} onClick={() => setView(v)} aria-pressed={on} aria-label={lbl} title={lbl} className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors" style={on ? { background: "var(--ink)", color: "#fff" } : { color: "var(--ink-3)" }}>
+                  <Icon name={ic} className="w-4 h-4" />
+                </button>
+              );
+            })}
+          </div>
+
           {atJobLimit ? (
             <button
               onClick={() => navigate("billing")}
               className="sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl border px-4 py-2.5 transition-colors hover:bg-neutral-50"
               style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
             >
-              <Icon name="lock" className="w-4 h-4" /> New Job <LockBadge />
+              <Icon name="lock" className="w-4 h-4" /> Post a job <LockBadge />
             </button>
           ) : (
             <button
@@ -5077,7 +5461,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               className="sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
               style={{ boxShadow: "0 12px 26px -12px rgba(151,59,247,0.75)" }}
             >
-              <Icon name="jobs" className="w-4 h-4" /> New Job
+              <Icon name="jobs" className="w-4 h-4" /> Post a job
             </button>
           )}
         </div>
@@ -5102,13 +5486,14 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               {jobs.length === 0 ? "Create your first role to start collecting and screening applicants." : "Try a different search, or clear the status filter."}
             </p>
             {jobs.length === 0 && !atJobLimit ? (
-              <button onClick={() => navigate("newJob")} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">+ New Job</button>
+              <button onClick={() => navigate("newJob")} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">Post a job</button>
             ) : jobs.length > 0 && (statusFilter !== "all" || q) ? (
               <button onClick={() => { setSearch(""); setStatus("all"); }} className="text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Clear filters</button>
             ) : null}
           </div>
         ) : (
           <>
+          {view === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
             {pageJobs.map((job) => {
               const salary = formatSalary(job);
@@ -5155,7 +5540,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       {salary && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: color.tile, color: color.ink }}>{salary}</span>}
                     </div>
 
-                    <p className="text-sm mt-3 leading-relaxed line-clamp-2 flex-1" style={{ color: "var(--ink-2)" }}>{job.description}</p>
+                    <p className="text-sm mt-3 leading-relaxed line-clamp-2" style={{ color: "var(--ink-2)" }}>{job.description}</p>
+                    <div className="mt-4 flex-1 flex flex-col justify-end">
+                      <JobPipelineBar jobId={job.id} />
+                    </div>
                   </button>
 
                   <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
@@ -5167,43 +5555,72 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span className="font-bold tnum group-hover/app:underline" style={{ color: "var(--ink)" }}>{n}</span> applicant{n === 1 ? "" : "s"}
                       </span>
                     </button>
-                    {!paused && (
-                      <div className="relative shrink-0">
-                        <button
-                          onClick={() => setMenuJob(menuJob === job.id ? null : job.id)}
-                          aria-haspopup="menu"
-                          aria-expanded={menuJob === job.id}
-                          aria-label="Job actions"
-                          className="inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100"
-                          style={{ color: "var(--ink-3)", background: menuJob === job.id ? "#F1F1F4" : undefined }}
-                        >
-                          <Icon name="more" className="w-5 h-5" />
-                        </button>
-                        {menuJob === job.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setMenuJob(null)} />
-                            <div role="menu" className="absolute right-0 bottom-full mb-1.5 z-20 w-52 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
-                              <button role="menuitem" onClick={() => { setMenuJob(null); setDetailJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
-                                <Icon name="eye" className="w-4 h-4" /> View details
-                              </button>
-                              {job.status === "open" && (
-                                <button role="menuitem" onClick={() => { setMenuJob(null); openLinkModal(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
-                                  <Icon name="link" className="w-4 h-4" /> Copy application link
-                                </button>
-                              )}
-                              <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
-                                <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : "Reopen this role"}
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
+                    {!paused && jobMenu(job, true)}
                   </div>
                 </div>
               );
             })}
           </div>
+          ) : (
+            <div className="rounded-2xl border bg-white overflow-hidden act-shadow" style={{ borderColor: "var(--line)" }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--line)" }}>
+                      {["Role", "Location", "Type", "Salary", "Status", "Pipeline", ""].map((h, hi) => (
+                        <th key={hi} className={`text-left font-semibold px-4 py-3 text-xs uppercase whitespace-nowrap ${hi === 5 ? "hidden lg:table-cell" : hi === 1 || hi === 2 || hi === 3 ? "hidden sm:table-cell" : ""}`} style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageJobs.map((job) => {
+                      const salary = formatSalary(job);
+                      const paused = pausedIds.has(job.id);
+                      const n = applicantCountFor(job.id);
+                      const badge = paused
+                        ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "paused" }
+                        : job.status === "open"
+                          ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
+                          : { bg: "#F1F1F4", color: "var(--ink-2)", dot: "#9A9AA6", label: "closed" };
+                      const counts = stageCountsFor(job.id);
+                      const pipeTotal = JOB_STAGES.reduce((s, st) => s + counts[st.key], 0);
+                      return (
+                        <tr key={job.id} onClick={() => setDetailJob(job)} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid var(--line)" }}>
+                          <td className="px-4 py-3 max-w-[280px]">
+                            <p className="font-semibold truncate" style={{ color: "var(--ink)" }}>{job.title}</p>
+                            {job.department && <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{job.department}</p>}
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{job.location || "—"}</td>
+                          <td className="px-4 py-3 hidden sm:table-cell capitalize whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{(job.employment_type || "").replace(/_/g, "-") || "—"}</td>
+                          <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{salary || "—"}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: badge.bg, color: badge.color }}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} /> {badge.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 hidden lg:table-cell w-40">
+                            {pipeTotal === 0 ? (
+                              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{n} applicant{n === 1 ? "" : "s"}</span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-2 w-24 rounded-full overflow-hidden gap-0.5">
+                                  {JOB_STAGES.map((st) => counts[st.key] > 0 && <div key={st.key} title={`${counts[st.key]} ${st.label}`} style={{ width: `${(counts[st.key] / pipeTotal) * 100}%`, background: st.color, borderRadius: 9999 }} />)}
+                                </div>
+                                <span className="text-xs tnum" style={{ color: "var(--ink-2)" }}>{n}</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                            {jobMenu(job)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           {pageCount > 1 && (
             <div className="flex items-center justify-between gap-3 mt-6">
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>
@@ -5340,19 +5757,25 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("applicants"); }} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90">
                   <Icon name="users" className="w-4 h-4" /> View applicants{djN > 0 ? ` (${djN})` : ""}
                 </button>
+                <button onClick={() => { setDetailJob(null); setEditJob(dj); }} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                  <Icon name="settings" className="w-4 h-4" /> Edit
+                </button>
                 {dj.status === "open" && (
                   <button onClick={() => { setDetailJob(null); openLinkModal(dj); }} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                    <Icon name="link" className="w-4 h-4" /> Copy link
+                    <Icon name="link" className="w-4 h-4" /> Copy job URL
                   </button>
                 )}
                 <button onClick={() => { const j = dj; setDetailJob(null); onPreviewApply && onPreviewApply(j); }} className="text-sm font-medium ml-auto hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-                  Preview apply page →
+                  Preview Apply page →
                 </button>
               </div>
             </div>
           </div>
         );
       })()}
+
+      {/* Edit job — reuses the New Job form pre-filled */}
+      <NewJobModal open={!!editJob} initialJob={editJob} onClose={() => setEditJob(null)} jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} />
 
       {/* Copy application link — source tagging modal */}
       {linkJob && (
@@ -5420,7 +5843,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 onClick={copyTaggedLink}
                 className="text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90"
               >
-                {linkCopied === "ok" ? "Copied ✓" : "Copy link"}
+                {linkCopied === "ok" ? "Copied ✓" : "Copy job URL"}
               </button>
             </div>
           </div>
@@ -5857,7 +6280,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const handleAdd = () => {
     if (!canAddInterviewers || !name || !email) return;
     if (atSeatCap) {
-      setBanner(`Your plan includes ${limits.seats} seats. Upgrade to Professional for unlimited team members.`);
+      setBanner(`Your plan includes ${limits.seats} seats. Upgrade to Premium for unlimited team members.`);
       return;
     }
     setInterviewers([
@@ -5917,7 +6340,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
         {canAddInterviewers && limits.seats !== Infinity && (
           <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: atSeatCap ? "var(--brand-soft)" : "#fff" }}>
             <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              Your plan includes <span className="font-semibold">{limits.seats} seats</span> — {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Professional for unlimited seats." : "."}
+              Your plan includes <span className="font-semibold">{limits.seats} seats</span> — {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Premium for unlimited seats." : "."}
             </p>
             {atSeatCap && <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>}
           </div>
@@ -6925,12 +7348,12 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   // charged in USD; applicable taxes are added at checkout by billing country.
   const PRICES = {
     starter: {
-      monthly: { price: "$49", cadence: "per month", renewCopy: "$49/month", nextAmount: "$49.00", invAmount: "$49.00", invDesc: "Starter — monthly" },
-      yearly: { price: "$39", cadence: "per month, billed yearly", renewCopy: "$468/year", nextAmount: "$468.00", invAmount: "$468.00", invDesc: "Starter — yearly" },
+      monthly: { price: "$89", cadence: "per month", renewCopy: "$89/month", nextAmount: "$89.00", invAmount: "$89.00", invDesc: "Pro — monthly" },
+      yearly: { price: "$71", cadence: "per month, billed yearly", renewCopy: "$852/year", nextAmount: "$852.00", invAmount: "$852.00", invDesc: "Pro — yearly" },
     },
     professional: {
-      monthly: { price: "$99", cadence: "per month", renewCopy: "$99/month", nextAmount: "$99.00", invAmount: "$99.00", invDesc: "Professional — monthly" },
-      yearly: { price: "$79", cadence: "per month, billed yearly", renewCopy: "$948/year", nextAmount: "$948.00", invAmount: "$948.00", invDesc: "Professional — yearly" },
+      monthly: { price: "$199", cadence: "per month", renewCopy: "$199/month", nextAmount: "$199.00", invAmount: "$199.00", invDesc: "Premium — monthly" },
+      yearly: { price: "$159", cadence: "per month, billed yearly", renewCopy: "$1,908/year", nextAmount: "$1,908.00", invAmount: "$1,908.00", invDesc: "Premium — yearly" },
     },
   };
   const rmHint = { starter: {}, professional: {} };
@@ -6949,22 +7372,22 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
     },
     {
       key: "starter",
-      name: "Starter",
+      name: "Pro",
       price: (PRICES.starter[cycle] || PRICES.starter.monthly).price,
       cadence: (PRICES.starter[cycle] || PRICES.starter.monthly).cadence,
       rm: null,
       blurb: "For small teams making their first hires.",
       features: ["5 active jobs", "3 team seats", "100 resumes/month", "30 AI runs + reasoning", "Scorecards & stored CVs", "Email support"],
+      popular: true,
     },
     {
       key: "professional",
-      name: "Professional",
+      name: "Premium",
       price: (PRICES.professional[cycle] || PRICES.professional.monthly).price,
       cadence: (PRICES.professional[cycle] || PRICES.professional.monthly).cadence,
       rm: null,
       blurb: "For growing teams hiring across several roles.",
       features: ["Unlimited jobs", "Unlimited seats", "Unlimited resumes & AI", "WhatsApp reminders", "Interview scheduling", "Priority support"],
-      popular: true,
     },
     {
       key: "enterprise",
@@ -6972,7 +7395,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       price: "Let's talk",
       cadence: "",
       blurb: "For larger orgs with security & volume needs.",
-      features: ["Everything in Professional", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
+      features: ["Everything in Premium", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
     },
   ];
 
@@ -7058,7 +7481,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
               <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Free (trial)" : current.name}</p>
               <p className="text-sm text-neutral-500 mt-0.5">
                 {trialDaysLeft > 0
-                  ? `Full Professional access — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
+                  ? `Full Premium access — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
                   : paidSub && saved
                     ? `${saved.renewCopy} · renews 1 ${planCycle === "yearly" ? "Jan 2026" : "Jul 2025"} · plus tax`
                     : plan === "free"
@@ -7184,7 +7607,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                 <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="shield" className="w-4 h-4" /></span>
                 <p className="font-semibold text-neutral-900">Enterprise</p>
               </div>
-              <p className="text-xs text-neutral-600 leading-relaxed">Everything in Professional, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
+              <p className="text-xs text-neutral-600 leading-relaxed">Everything in Premium, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
             </div>
             <button
               onClick={() => choosePlan(PLANS.find((p) => p.key === "enterprise"))}
@@ -7270,7 +7693,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                 </p>
                 {otherJobs > 0 && (
                   <p className="text-xs mb-2" style={{ color: "var(--ink-3)" }}>
-                    {otherJobs} other{otherJobs === 1 ? "" : "s"} will be paused (public apply links stop taking new applicants).
+                    {otherJobs} other{otherJobs === 1 ? "" : "s"} will be paused (Apply page links stop taking new applicants).
                   </p>
                 )}
                 <div className="space-y-1">
@@ -7313,7 +7736,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowDowngrade(false)} className="text-sm rounded-xl border px-4 py-2 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                Keep Professional
+                Keep Premium
               </button>
               <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
                 Downgrade to Free
@@ -7822,7 +8245,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
           {!hasWhatsApp ? (
             <div className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
               <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-                WhatsApp automations are on <span className="font-semibold">Professional</span> and up.
+                WhatsApp automations are on <span className="font-semibold">Premium</span> and up.
               </p>
               <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
             </div>
