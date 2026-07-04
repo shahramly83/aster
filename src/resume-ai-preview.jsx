@@ -1057,6 +1057,28 @@ function Pipeline({ steps }) {
     return () => obs.disconnect();
   }, [reduce]);
 
+  // Mobile rail fills in sync with scroll position through the section
+  const [railFill, setRailFill] = useState(reduce ? 100 : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const line = vh * 0.62; // reference line: fill as the section rises past it
+      const p = (line - rect.top) / rect.height;
+      setRailFill(Math.max(0, Math.min(100, p * 100)));
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [reduce]);
+
   const pulseDot = {
     background: "#fff",
     boxShadow: "0 0 12px 3px rgba(178,116,255,0.85)",
@@ -1155,11 +1177,13 @@ function Pipeline({ steps }) {
         <div className="h-[3px] rounded-full absolute top-0 left-0 brand-gradient" style={{ width: visible ? "100%" : "0%", transition: "width 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
         {!reduce && visible && <span className="pipe-pulse-h absolute w-2.5 h-2.5 rounded-full" style={{ top: -3, ...pulseDot }} />}
       </div>
-      {/* Mobile: vertical rail down the left */}
+      {/* Mobile: vertical rail down the left — fills as you scroll the section */}
       <div className="md:hidden absolute" style={{ left: 27, top: 20, bottom: 20, width: 3 }}>
         <div className="w-full h-full rounded-full" style={{ background: "var(--navy-line)" }} />
-        <div className="w-full rounded-full absolute top-0 left-0 brand-gradient" style={{ height: visible ? "100%" : "0%", transition: "height 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
-        {!reduce && visible && <span className="pipe-pulse-v absolute w-2.5 h-2.5 rounded-full" style={{ left: -3.5, ...pulseDot }} />}
+        <div className="w-full rounded-full absolute top-0 left-0 brand-gradient" style={{ height: `${reduce ? 100 : railFill}%`, transition: reduce ? "none" : "height .12s linear" }} />
+        {!reduce && railFill > 0 && railFill < 100 && (
+          <span className="absolute w-2.5 h-2.5 rounded-full" style={{ left: -3.5, top: `${railFill}%`, transform: "translateY(-50%)", transition: "top .12s linear", ...pulseDot }} />
+        )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-8 md:gap-6 relative items-start">
