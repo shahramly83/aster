@@ -1914,7 +1914,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       tagline: "For teams hiring at volume." },
     { key: "enterprise", name: "Enterprise", col: "ent", cta: "Contact sales", ghost: true,
       price: "Let's talk", sub: "", note: null,
-      tagline: "For orgs with security & scale needs." },
+      tagline: "For organizations with security & scale needs." },
   ];
 
   // Render a single comparison value: check / dash / text
@@ -2668,7 +2668,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.2)", color: "#fff" }}><Icon name="shield" className="w-[18px] h-[18px]" /></span>
                 <span className="text-[11px] font-semibold uppercase" style={{ color: "#B274FF", letterSpacing: "0.09em" }}>Enterprise</span>
               </div>
-              <h3 className="font-display font-bold text-white mb-1.5" style={{ fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For orgs with security &amp; scale needs</h3>
+              <h3 className="font-display font-bold text-white mb-1.5" style={{ fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For organizations with security &amp; scale needs</h3>
               <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--navy-ink)" }}>Everything in Premium, plus enterprise controls and hands-on support.</p>
               <div className="flex flex-wrap gap-2 mt-4">
                 {["SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding", "Unlimited everything"].map((c) => (
@@ -7749,7 +7749,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       name: "Enterprise",
       price: "Let's talk",
       cadence: "",
-      blurb: "For larger orgs with security & volume needs.",
+      blurb: "For larger organizations with security & volume needs.",
       features: ["Everything in Premium", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
     },
   ];
