@@ -2400,6 +2400,9 @@ function Icon({ name, className = "w-5 h-5" }) {
     offer: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h4a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.4z" /><circle cx="7.5" cy="7.5" r="1" /></>,
     hire: <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
+    eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></>,
+    download: <><path d="M12 3v12" /><path d="M7 11l5 5 5-5" /><path d="M4 20h16" /></>,
+    archive: <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /><path d="M10 13h4" /></>,
   };
   return (
     <svg viewBox="0 0 24 24" className={className} {...common} aria-hidden="true">
@@ -3634,6 +3637,84 @@ const UPLOAD_ACCEPT = [
   { icon: "check", title: "Automatic duplicate check", body: <>Each resume is matched against people already in your system — and others in the same batch. A matching <span className="font-medium" style={{ color: "var(--ink-2)" }}>email</span> (or the same <span className="font-medium" style={{ color: "var(--ink-2)" }}>name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for review. Anyone already hired is skipped automatically.</> },
 ];
 
+// Seeded past import runs so the history has something to show on first load.
+// Each run snapshots its rows + resolution state so it can be reopened read-only.
+const IMPORT_HISTORY_SEED = [
+  {
+    id: "imp-0702", label: "Jul 2, 2026 · 3:14 PM", fileCount: 6,
+    summary: { parsed: 4, duplicates: 1, review: 0, flagged: 0, rejected: 1 },
+    resolved: { "daniel_wong_(1).pdf": "skip" }, dupActions: { "daniel_wong_(1).pdf": "skip" },
+    rows: [
+      { fileName: "daniel_wong_cv.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.93, person: { name: "Daniel Wong", email: "daniel.wong@email.com", phone: "+60 12-900 1111" } },
+      { fileName: "mei_ling_resume.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.9, person: { name: "Mei Ling", email: "mei.ling@email.com", phone: "+60 13-800 2222" } },
+      { fileName: "arun_pillai.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.88, person: { name: "Arun Pillai", email: "arun.pillai@email.com", phone: "+60 14-700 3333" } },
+      { fileName: "grace_lim_updated.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.91, person: { name: "Grace Lim", email: "grace.lim@email.com", phone: "+60 16-600 4444" } },
+      { fileName: "daniel_wong_(1).pdf", uploadStatus: "done", parseStatus: "duplicate", confidence: 0.93, person: { name: "Daniel Wong", email: "daniel.wong@email.com", phone: "+60 12-900 1111" }, dup: { matchName: "Daniel Wong", on: "email", inBatch: true, hired: false, verdict: "duplicate" } },
+      { fileName: "office_map.pdf", uploadStatus: "done", parseStatus: "rejected", reason: "This doesn't read like a resume — no contact details or work history anywhere in it." },
+    ],
+  },
+  {
+    id: "imp-0628", label: "Jun 28, 2026 · 10:02 AM", fileCount: 5,
+    summary: { parsed: 3, duplicates: 0, review: 1, flagged: 1, rejected: 0 },
+    resolved: {}, dupActions: {},
+    rows: [
+      { fileName: "faizal_rahman_cv.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.92, person: { name: "Faizal Rahman", email: "faizal.r@email.com", phone: "+60 19-500 5555" } },
+      { fileName: "tan_sue_ann.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.87, person: { name: "Tan Sue Ann", email: "sueann.tan@email.com", phone: "+60 12-400 6666" } },
+      { fileName: "kavitha_nair.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.89, person: { name: "Kavitha Nair", email: "kavitha.nair@email.com", phone: "+60 17-300 7777" } },
+      { fileName: "j_lee_cv.pdf", uploadStatus: "done", parseStatus: "review", confidence: 0.6, person: { name: "Jonathan Lee", email: "", phone: "+60 16-200 8888" }, dup: { matchName: "Jonathan Lee", on: "name", inBatch: false, hired: false, verdict: "review" } },
+      { fileName: "scanned_resume.pdf", uploadStatus: "done", parseStatus: "flagged", confidence: 0.44, reason: "This looks like a scan — we only found bits and pieces. Worth a quick look before you trust it." },
+    ],
+  },
+];
+
+// Dependency-free ZIP reader — parses the central directory to list the files
+// inside an archive (names + sizes). No decompression needed just to enumerate,
+// so this works fully client-side for real .zip files the user picks.
+function readZipEntries(buf) {
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; } // End of Central Directory
+  }
+  if (eocd < 0) return null; // not a valid (non-zip64) archive
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const entries = [];
+  const dec = new TextDecoder();
+  const max = Math.min(count, 2000); // backstop against a hostile archive claiming millions of entries
+  for (let n = 0; n < max; n++) {
+    if (off + 46 > u8.length || dv.getUint32(off, true) !== 0x02014b50) break; // Central Directory header
+    const uncompSize = dv.getUint32(off + 24, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const commentLen = dv.getUint16(off + 32, true);
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen));
+    entries.push({ name, size: uncompSize });
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  return entries;
+}
+
+// Strip any directory path (zip-slip safe: we only ever keep the basename),
+// remove control characters, and cap length before the name is displayed.
+function safeName(name) {
+  const base = String(name).split(/[\\/]/).pop() || "file";
+  let out = "";
+  for (const ch of base) { const c = ch.charCodeAt(0); if (c >= 32 && c !== 127) out += ch; }
+  return out.slice(0, 150).trim() || "file";
+}
+
+// Best-effort candidate name from a resume filename (we can't read PDF contents
+// client-side, so the display name is derived from the file name).
+function nameFromFile(fn) {
+  let s = fn.replace(/\.[^.]+$/, "").replace(/[_\-]+/g, " ");
+  s = s.replace(/\(\d+\)/g, " ").replace(/\b(resume|cv|curriculum|vitae|final|updated|latest|copy|profile|application|v\d+|20\d{2})\b/gi, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  if (!s) return fn;
+  return s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
 function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const uploadLimit = limits.resumeUploads;
@@ -3647,6 +3728,12 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   const [resolved, setResolved] = useState({}); // fileName -> action, once the user commits a duplicate/review decision
   const [openInfo, setOpenInfo] = useState(null); // which "How it works" row is expanded
   const [resultFilter, setResultFilter] = useState("all"); // outcome filter on the results list
+  const [previewRow, setPreviewRow] = useState(null); // parsed file open in the document preview
+  const [history, setHistory] = useState(IMPORT_HISTORY_SEED); // persistent import log
+  const [viewingPast, setViewingPast] = useState(null); // label of a reopened past run (read-only)
+  const [zipName, setZipName] = useState(null); // set when the batch was extracted from a ZIP
+  const [zipError, setZipError] = useState(null);
+  const zipInputRef = useRef(null);
 
   // Simulated batch: a realistic mix so every outcome shows. `person` carries the
   // identity the AI would extract (name/email/phone) — used for duplicate detection.
@@ -3700,6 +3787,47 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   const pickFiles = () => {
     setFiles(SAMPLE_BATCH);
     setSkipped(0);
+    setZipName(null);
+    setZipError(null);
+  };
+  const RESUME_EXT = /\.(pdf|docx?)$/i;
+  const fileToRow = (rawName, sizeBytes) => {
+    const name = safeName(rawName); // strip path/control chars before it's ever displayed
+    const kb = Math.max(1, Math.round(sizeBytes / 1024));
+    return RESUME_EXT.test(name)
+      ? { fileName: name, sizeKb: kb, verdict: "parsed", confidence: undefined, person: { name: nameFromFile(name), email: "", phone: "" } }
+      : { fileName: name, sizeKb: kb, verdict: "rejected", reason: "Not a PDF or Word document — skipped." };
+  };
+
+  // Real ZIP import — reads the archive, lists the resumes inside, builds the batch.
+  const processZip = async (file) => {
+    setZipError(null);
+    try {
+      const entries = readZipEntries(await file.arrayBuffer());
+      if (!entries) { setZipError("That doesn't look like a valid ZIP file."); return; }
+      const batch = entries
+        .filter((en) => !en.name.endsWith("/") && !en.name.includes("__MACOSX") && !en.name.split("/").pop().startsWith("."))
+        .map((en) => fileToRow(en.name.split("/").pop(), en.size));
+      if (batch.length === 0) { setZipError("No files found in that archive."); return; }
+      setFiles(batch); setSkipped(0); setZipName(file.name);
+    } catch {
+      setZipError("Couldn't read that ZIP file. Try another one.");
+    }
+  };
+  const handleZipFile = (e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) processZip(file); };
+
+  // Real drag & drop — a dropped .zip is unpacked; loose files become the batch.
+  const [dragOver, setDragOver] = useState(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer?.files;
+    if (!dropped || !dropped.length) return;
+    if (dropped.length === 1 && /\.zip$/i.test(dropped[0].name)) { processZip(dropped[0]); return; }
+    setZipError(null);
+    setFiles(Array.from(dropped).map((f) => fileToRow(f.name, f.size)));
+    setSkipped(0);
+    setZipName(null);
   };
   const uploadFirstAllowed = () => {
     setFiles(SAMPLE_BATCH.slice(0, uploadLimit));
@@ -3805,6 +3933,38 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     return r.parseStatus === resultFilter;
   };
 
+  // Reopen a past import as a read-only view of exactly what happened.
+  const reopenRun = (run) => {
+    setRows(run.rows);
+    setResolved(run.resolved || {});
+    setDupActions(run.dupActions || {});
+    setResultFilter("all");
+    setViewingPast(run.label);
+    setStage("done");
+  };
+  // Back to a fresh, empty upload screen — saving the just-finished live run to
+  // history first (reopening a past run must not re-save a duplicate).
+  const resetUpload = () => {
+    if (!viewingPast && stage === "done" && rows.length) {
+      const s = summary();
+      const now = new Date();
+      const label = `${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+      const run = {
+        id: `imp-${now.getTime()}`, label, fileCount: rows.length,
+        summary: { parsed: s.parsed, duplicates: s.duplicates, review: s.review, flagged: s.flagged, rejected: s.rejected },
+        resolved: { ...resolved }, dupActions: { ...dupActions }, rows,
+      };
+      setHistory((prev) => [run, ...prev]);
+    }
+    setStage("idle");
+    setFiles([]);
+    setRows([]);
+    setResolved({});
+    setResultFilter("all");
+    setViewingPast(null);
+    setZipName(null);
+  };
+
   const summary = () => {
     const parsed = rows.filter((r) => r.parseStatus === "parsed").length;
     const flagged = rows.filter((r) => r.parseStatus === "flagged").length;
@@ -3850,78 +4010,161 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
           <div className="lg:col-span-2 space-y-5">
         {stage === "idle" && (
           <>
-            {files.length === 0 ? (
+            {files.length === 0 && (
               /* Empty dropzone — the whole area is the target, with an explicit button inside */
               <button
                 onClick={pickFiles}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+                onDrop={handleDrop}
                 className="upload-drop group w-full rounded-2xl border-2 border-dashed bg-white px-6 py-16 text-center transition-colors cursor-pointer"
-                style={{ borderColor: "var(--line-strong)" }}
+                style={dragOver ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line-strong)" }}
               >
                 <span className="mx-auto mb-4 flex w-16 h-16 items-center justify-center rounded-2xl transition-transform group-hover:scale-105" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                   <Icon name="upload" className="w-8 h-8" />
                 </span>
-                <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>Drag &amp; drop resumes, or click to choose</span>
+                <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{dragOver ? "Drop to add these files" : "Drag & drop resumes or a ZIP here"}</span>
                 <span className="block text-sm mt-1.5" style={{ color: "var(--ink-3)" }}>
                   PDF, Word, or a ZIP of them{uploadLimit !== Infinity ? ` · up to ${uploadLimit} a month` : ""}
                 </span>
                 <span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-neutral-900 group-hover:bg-neutral-800 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
-                  <Icon name="doc" className="w-4 h-4" /> Choose files
+                  <Icon name="doc" className="w-4 h-4" /> Load sample batch
                 </span>
-                <span className="block text-xs mt-3" style={{ color: "var(--ink-3)" }}>Preview loads a sample batch so you can see how parsing works.</span>
+                <span className="block text-xs mt-3" style={{ color: "var(--ink-3)" }}>Drag your own files above, or click for a sample batch to see how parsing works.</span>
               </button>
-            ) : (
+            )}
+            {files.length === 0 && (
+              <div className="text-center mt-3">
+                <input ref={zipInputRef} type="file" accept=".zip,application/zip,application/x-zip-compressed" onChange={handleZipFile} className="hidden" />
+                <button onClick={() => zipInputRef.current?.click()} className="inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                  <Icon name="archive" className="w-3.5 h-3.5" /> Have a whole batch? Import a ZIP archive
+                </button>
+                {zipError && <p className="text-xs mt-2" style={{ color: "#DC2626" }}>{zipError}</p>}
+              </div>
+            )}
+            {files.length > 0 && (
               /* Files selected — review the batch, then parse */
-              <div className="rounded-2xl border bg-white act-shadow p-5" style={{ borderColor: "var(--line)" }}>
-                <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="rounded-2xl border bg-white act-shadow overflow-hidden" style={{ borderColor: "var(--line)" }}>
+                <div className="flex items-center justify-between gap-3 px-5 py-4 border-b" style={{ borderColor: "var(--line)" }}>
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                      <Icon name="doc" className="w-5 h-5" />
+                      <Icon name={zipName ? "archive" : "doc"} className="w-5 h-5" />
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{files.length} file{files.length === 1 ? "" : "s"} ready to parse</p>
-                      <p className="text-xs" style={{ color: overLimit ? "#B91C1C" : "var(--ink-3)" }}>
-                        {overLimit ? `Only ${uploadLimit} allowed on the ${planName} plan` : "PDF & Word · sample batch"}
+                      <p className="text-xs truncate" style={{ color: overLimit ? "#B91C1C" : "var(--ink-3)" }}>
+                        {overLimit
+                          ? `Only ${uploadLimit} allowed on the ${planName} plan`
+                          : zipName
+                            ? <>Unpacked from <span className="font-medium" style={{ color: "var(--ink-2)" }}>{zipName}</span></>
+                            : "PDF & Word · sample batch"}
                       </p>
                     </div>
                   </div>
-                  <button onClick={() => { setFiles([]); setSkipped(0); }} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--ink-2)" }}>Clear</button>
+                  <button onClick={() => { setFiles([]); setSkipped(0); setZipName(null); }} className="text-xs font-medium shrink-0 rounded-lg px-2.5 py-1.5 hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-2)" }}>Clear all</button>
                 </div>
 
-                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-0.5">
+                <div className="max-h-72 overflow-y-auto px-2 py-1.5">
                   {files.map((f, idx) => {
                     const over = overLimit && idx >= uploadLimit;
+                    const ext = (f.fileName.split(".").pop() || "").toUpperCase();
+                    const kb = f.sizeKb || 80 + ((f.fileName.length * 9) % 330); // real size from ZIP, else mock
                     return (
-                      <div key={f.fileName} className="flex items-center gap-2.5 rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)", background: over ? "#FEF2F2" : "#FFFFFF" }}>
-                        <span className="shrink-0" style={{ color: over ? "#DC2626" : "var(--ink-3)" }}><Icon name="doc" className="w-4 h-4" /></span>
-                        <span className="text-sm truncate flex-1" style={{ color: over ? "#B91C1C" : "var(--ink-2)" }}>{f.fileName}</span>
-                        {over && <span className="text-[11px] font-semibold shrink-0 px-1.5 py-0.5 rounded" style={{ background: "#FEE2E2", color: "#B91C1C" }}>over limit</span>}
+                      <div key={f.fileName} className="group flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-neutral-50" style={over ? { background: "#FEF6F6" } : undefined}>
+                        <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: over ? "#FEE2E2" : "#F4F1FA", color: over ? "#DC2626" : "var(--brand)" }}>
+                          <Icon name="doc" className="w-4 h-4" />
+                        </span>
+                        <span className="text-sm truncate flex-1 min-w-0" style={{ color: over ? "#B91C1C" : "var(--ink)" }}>{f.fileName}</span>
+                        {over
+                          ? <span className="text-[11px] font-semibold shrink-0 px-1.5 py-0.5 rounded" style={{ background: "#FEE2E2", color: "#B91C1C" }}>over limit</span>
+                          : <>
+                              <span className="text-[10px] font-semibold shrink-0 px-1.5 py-0.5 rounded tracking-wide" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}>{ext}</span>
+                              <span className="text-xs tnum shrink-0 hidden sm:block w-14 text-right" style={{ color: "var(--ink-3)" }}>{kb} KB</span>
+                            </>}
+                        <button
+                          onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          aria-label={`Remove ${f.fileName}`}
+                          className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-200 text-neutral-400 hover:text-neutral-700"
+                        >
+                          <Icon name="close" className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     );
                   })}
                 </div>
 
-                {overLimit && (
-                  <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
-                    <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
-                      <Icon name="lock" className="w-3.5 h-3.5" /> Over your plan limit — upload blocked
-                    </p>
-                    <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
-                      This batch has {files.length} resumes, but the {planName} plan parses {uploadLimit} a month. Remove {files.length - uploadLimit} to continue, or upgrade for more.
-                    </p>
-                    <div className="flex flex-wrap gap-2 mt-2.5">
-                      <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
-                      <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {uploadLimit} instead</button>
+                <div className="px-5 py-4 border-t" style={{ borderColor: "var(--line)" }}>
+                  {overLimit && (
+                    <div className="mb-3 rounded-xl border p-3.5" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
+                      <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
+                        <Icon name="lock" className="w-3.5 h-3.5" /> Over your plan limit — upload blocked
+                      </p>
+                      <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
+                        This batch has {files.length} resumes, but the {planName} plan parses {uploadLimit} a month. Remove {files.length - uploadLimit} to continue, or upgrade for more.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2.5">
+                        <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
+                        <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {uploadLimit} instead</button>
+                      </div>
                     </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-xs tnum" style={{ color: "var(--ink-3)" }}>
+                      {files.length} file{files.length === 1 ? "" : "s"} · {(files.reduce((s, f) => s + (f.sizeKb || 80 + ((f.fileName.length * 9) % 330)), 0) / 1024).toFixed(1)} MB
+                    </p>
+                    <button
+                      onClick={runBatch}
+                      disabled={overLimit}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl brand-gradient disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 transition-opacity hover:opacity-90"
+                    >
+                      <Icon name="upload" className="w-4 h-4" /> Upload &amp; Parse{overLimit ? "" : ` ${files.length} resume${files.length === 1 ? "" : "s"}`}
+                    </button>
                   </div>
-                )}
+                </div>
+              </div>
+            )}
 
-                <button
-                  onClick={runBatch}
-                  disabled={overLimit}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl brand-gradient disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 transition-opacity hover:opacity-90"
-                >
-                  <Icon name="upload" className="w-4 h-4" /> Upload &amp; Parse{overLimit ? "" : ` ${files.length} resume${files.length === 1 ? "" : "s"}`}
-                </button>
+            {/* Import history — every past batch, reopenable as a read-only log.
+                Hidden once files are selected so it doesn't distract mid-import. */}
+            {files.length === 0 && history.length > 0 && (
+              <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Recent imports</h2>
+                  <span className="text-xs" style={{ color: "var(--ink-3)" }}>{history.length} run{history.length === 1 ? "" : "s"}</span>
+                </div>
+                <div className="space-y-1">
+                  {history.map((run) => {
+                    const stats = [
+                      { label: "parsed", count: run.summary.parsed, color: "#16A34A" },
+                      { label: run.summary.duplicates === 1 ? "duplicate" : "duplicates", count: run.summary.duplicates, color: "var(--brand)" },
+                      { label: "possible match", count: run.summary.review, color: "#F59E0B" },
+                      { label: "needs review", count: run.summary.flagged, color: "#F59E0B" },
+                      { label: "skipped", count: run.summary.rejected, color: "#DC2626" },
+                    ].filter((st) => st.count > 0);
+                    return (
+                      <button key={run.id} onClick={() => reopenRun(run)} className="group w-full text-left rounded-xl p-2.5 transition-colors hover:bg-neutral-50">
+                        <div className="flex items-center gap-3">
+                          <span className="flex w-9 h-9 items-center justify-center rounded-lg shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                            <Icon name="clock" className="w-4 h-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{run.fileCount} file{run.fileCount === 1 ? "" : "s"} imported</p>
+                            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{run.label}</p>
+                          </div>
+                          <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-neutral-300 group-hover:text-neutral-500 transition-colors" />
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-12">
+                          {stats.map((st) => (
+                            <span key={st.label} className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-2)" }}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
+                              <span className="tnum font-medium">{st.count}</span> {st.label}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </>
@@ -3929,6 +4172,17 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
 
         {stage !== "idle" && (
           <div className="space-y-4">
+            {/* Reopened past run — read-only banner */}
+            {viewingPast && (
+              <div className="rounded-2xl border p-3.5 flex items-center gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+                <span className="flex w-9 h-9 items-center justify-center rounded-lg shrink-0" style={{ background: "#fff", color: "var(--brand)" }}><Icon name="clock" className="w-4 h-4" /></span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Viewing a past import</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{viewingPast} · read-only</p>
+                </div>
+                <button onClick={resetUpload} className="inline-flex items-center gap-1 text-xs font-semibold shrink-0 rounded-lg px-3 py-2 bg-white hover:bg-neutral-50 transition-colors" style={{ border: "1px solid var(--line-strong)", color: "var(--ink)" }}><Icon name="chevronLeft" className="w-3.5 h-3.5" /> Back</button>
+              </div>
+            )}
             {/* While working — a real progress bar instead of a status line */}
             {stage !== "done" && (() => {
               const processed = stage === "uploading"
@@ -3950,43 +4204,49 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               );
             })()}
 
-            {/* When done — summary + outcome filters + bulk duplicate resolve */}
+            {/* When done — headline stat + outcome tabs + bulk duplicate resolve */}
             {stage === "done" && (() => {
               const s = summary();
-              const groups = [
-                { key: "all", label: "All", count: rows.length, dot: "var(--ink-3)" },
-                { key: "parsed", label: "Added", count: s.parsed, dot: "#16A34A" },
-                { key: "duplicate", label: "Duplicates", count: s.duplicates, dot: "var(--brand)" },
-                { key: "review", label: "To review", count: s.review, dot: "#F59E0B" },
-                { key: "flagged", label: "Needs review", count: s.flagged, dot: "#F59E0B" },
-                { key: "skipped", label: "Skipped", count: s.rejected, dot: "#DC2626" },
-              ].filter((g) => g.key === "all" || g.count > 0);
+              const tabs = [
+                { key: "all", label: "All", count: rows.length },
+                { key: "parsed", label: "Parsed", count: s.parsed },
+                { key: "duplicate", label: "Duplicates", count: s.duplicates },
+                { key: "review", label: "Possible match", count: s.review },
+                { key: "flagged", label: "Needs review", count: s.flagged },
+                { key: "skipped", label: "Skipped", count: s.rejected },
+              ].filter((t) => t.key === "all" || t.count > 0);
               return (
                 <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
-                  <p className="text-sm font-semibold mb-3" style={{ color: "var(--ink)" }}>
-                    Processed {rows.length} file{rows.length === 1 ? "" : "s"} — {s.parsed} added to your candidates
+                  {/* Headline — the parsed total (matches the "Parsed ✓" rows) */}
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{s.parsed}</span>
+                    <span className="text-sm" style={{ color: "var(--ink-2)" }}>of {rows.length} resume{rows.length === 1 ? "" : "s"} parsed into new candidates</span>
+                  </div>
+                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
+                    {s.duplicates ? `${s.duplicates} duplicate${s.duplicates === 1 ? "" : "s"}` : ""}{s.duplicates && (s.review || s.flagged || s.rejected) ? " · " : ""}{s.review || s.flagged ? `${s.review + s.flagged} to review` : ""}{(s.review || s.flagged) && s.rejected ? " · " : ""}{s.rejected ? `${s.rejected} skipped` : ""}
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {groups.map((g) => {
-                      const on = resultFilter === g.key;
+
+                  {/* Tabs */}
+                  <div className="flex gap-0.5 mt-4 -mb-px overflow-x-auto border-b" style={{ borderColor: "var(--line)" }}>
+                    {tabs.map((t) => {
+                      const on = resultFilter === t.key;
                       return (
                         <button
-                          key={g.key}
-                          onClick={() => setResultFilter(g.key)}
-                          className="inline-flex items-center gap-2 text-xs font-medium rounded-full px-3 py-1.5 border transition-colors"
-                          style={on
-                            ? { background: "var(--ink)", borderColor: "var(--ink)", color: "#fff" }
-                            : { background: "#fff", borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+                          key={t.key}
+                          onClick={() => setResultFilter(t.key)}
+                          className="relative inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors"
+                          style={{ color: on ? "var(--ink)" : "var(--ink-3)" }}
                         >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? "#fff" : g.dot }} />
-                          {g.label}
-                          <span className="tnum" style={{ opacity: on ? 0.9 : 0.6 }}>{g.count}</span>
+                          {t.label}
+                          <span className="text-[11px] tnum px-1.5 py-0.5 rounded-full" style={on ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "#F1F1F4", color: "var(--ink-3)" }}>{t.count}</span>
+                          {on && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full" style={{ background: "var(--brand)" }} />}
                         </button>
                       );
                     })}
                   </div>
+
                   {openDuplicates.length > 0 && (
-                    <div className="mt-3.5 pt-3.5 flex flex-wrap items-center gap-2" style={{ borderTop: "1px solid var(--line)" }}>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
                       <span className="text-xs flex-1 min-w-[10rem]" style={{ color: "var(--ink-2)" }}>
                         {openDuplicates.length} duplicate{openDuplicates.length === 1 ? "" : "s"} awaiting a decision
                       </span>
@@ -4008,6 +4268,11 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                     <span className="text-xs font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>
                       <Icon name="check" className="w-3 h-3" /> {rlabel}
                     </span>
+                    {row.person && (
+                      <button onClick={() => setPreviewRow(row)} className="inline-flex items-center gap-1 text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--ink-2)" }}>
+                        <Icon name="eye" className="w-3.5 h-3.5" /> View
+                      </button>
+                    )}
                     <button
                       onClick={() => setResolved((prev) => { const n = { ...prev }; delete n[row.fileName]; return n; })}
                       className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity"
@@ -4029,11 +4294,22 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                         {row.uploadStatus === "done" ? "Reading…" : row.uploadStatus === "blocked" ? "Blocked" : "Uploading…"}
                       </span>
                     )}
+                    {stage === "done" && (row.person || row.parseStatus === "flagged") && (
+                      <button onClick={() => setPreviewRow(row)} className="inline-flex items-center gap-1 font-medium rounded-lg border px-2 py-1 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                        <Icon name="eye" className="w-3.5 h-3.5" /> View
+                      </button>
+                    )}
                     {row.parseStatus !== "pending" && verdictBadge(row)}
                   </div>
                 </div>
                 {(row.parseStatus === "flagged" || row.parseStatus === "rejected" || row.parseStatus === "skipped") && row.reason && (
                   <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{row.reason}</p>
+                )}
+                {(row.parseStatus === "rejected" || row.parseStatus === "skipped") && (
+                  <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                    <Icon name="close" className="w-3 h-3" />
+                    {row.uploadStatus === "blocked" ? "File wasn't uploaded — nothing added." : "No file stored — no candidate created."}
+                  </p>
                 )}
                 {row.parseStatus === "parsed" && typeof row.confidence === "number" && (
                   <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{Math.round(row.confidence * 100)}% sure</p>
@@ -4118,14 +4394,9 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               </div>
             )}
             </div>
-            {stage === "done" && (
+            {stage === "done" && !viewingPast && (
               <button
-                onClick={() => {
-                  setStage("idle");
-                  setFiles([]);
-                  setRows([]);
-                  setResultFilter("all");
-                }}
+                onClick={resetUpload}
                 className="inline-flex items-center gap-1.5 text-sm font-medium hover:opacity-70 transition-opacity"
                 style={{ color: "var(--brand)" }}
               >
@@ -4204,6 +4475,106 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
           </aside>
         </div>
       </div>
+
+      {/* Document preview — view the original resume + what the AI pulled out of it */}
+      {previewRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Preview of ${previewRow.fileName}`}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPreviewRow(null)} />
+          <div className="relative z-10 w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
+            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b shrink-0" style={{ borderColor: "var(--line)" }}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{previewRow.fileName}</p>
+                  <p className="text-xs" style={{ color: "var(--ink-3)" }}>Original document · read-only preview</p>
+                </div>
+              </div>
+              <button onClick={() => setPreviewRow(null)} aria-label="Close preview" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+            </div>
+
+            <div className="grid md:grid-cols-[1fr_270px] overflow-y-auto">
+              {/* Rendered document */}
+              <div className="p-6 md:p-8" style={{ background: "#EDEDF0" }}>
+                <div className="mx-auto bg-white rounded-sm p-7 sm:p-9" style={{ maxWidth: 460, boxShadow: "0 10px 30px -12px rgba(18,19,42,0.35)" }}>
+                  <p className="text-xl font-bold" style={{ color: "#1A1A22" }}>{previewRow.person?.name || previewRow.fileName.replace(/\.[^.]+$/, "")}</p>
+                  {previewRow.person
+                    ? <p className="text-xs mt-1" style={{ color: "#5A5A66" }}>{previewRow.person.email} · {previewRow.person.phone}</p>
+                    : <p className="text-xs mt-1" style={{ color: "#B45309" }}>Low confidence — fields couldn't be read reliably</p>}
+                  <div className="mt-6 space-y-5">
+                    {[
+                      { h: "Professional Summary", lines: [92, 100, 74] },
+                      { h: "Experience", lines: [60, 96, 88, 70] },
+                      { h: "Education", lines: [55, 84] },
+                    ].map((sec) => (
+                      <div key={sec.h}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9A9AA6", letterSpacing: "0.08em" }}>{sec.h}</p>
+                        <div className="space-y-1.5">
+                          {sec.lines.map((w, i) => (
+                            <div key={i} className="h-2 rounded" style={{ width: `${w}%`, background: "#E4E4EA" }} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9A9AA6", letterSpacing: "0.08em" }}>Skills</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[54, 40, 62, 46].map((w, i) => (
+                          <div key={i} className="h-5 rounded-full" style={{ width: w, background: "#EEEEF2" }} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-center mt-7" style={{ color: "#B8B8C2" }}>Preview reconstructed from the parsed file · body text omitted</p>
+                </div>
+              </div>
+
+              {/* What we extracted */}
+              <div className="p-5 border-t md:border-t-0 md:border-l" style={{ borderColor: "var(--line)" }}>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Extracted details</h3>
+                {previewRow.person ? (
+                  <div className="space-y-3">
+                    {[
+                      { label: "Name", value: previewRow.person.name },
+                      { label: "Email", value: previewRow.person.email },
+                      { label: "Phone", value: previewRow.person.phone },
+                    ].map((f) => (
+                      <div key={f.label}>
+                        <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>{f.label}</p>
+                        <p className="text-sm break-words" style={{ color: "var(--ink)" }}>{f.value}</p>
+                      </div>
+                    ))}
+                    {typeof previewRow.confidence === "number" && (
+                      <div>
+                        <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Parse confidence</p>
+                        <p className="text-sm font-semibold" style={{ color: previewRow.confidence >= 0.85 ? "#16A34A" : "#B45309" }}>{Math.round(previewRow.confidence * 100)}%</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border p-3" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
+                    <p className="text-xs font-semibold" style={{ color: "#B45309" }}>Needs review</p>
+                    <p className="text-xs mt-1 leading-relaxed" style={{ color: "#92400E" }}>
+                      We couldn't reliably pull the candidate's details from this file{typeof previewRow.confidence === "number" ? ` (${Math.round(previewRow.confidence * 100)}% confidence)` : ""}. Open the original and add them by hand.
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-5 pt-4 border-t" style={{ borderColor: "var(--line)" }}>
+                  {storesOriginal ? (
+                    <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2.5 transition-colors">
+                      <Icon name="download" className="w-4 h-4" /> Download original
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+                      <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>The original file isn't stored on the {planName} plan. <button onClick={() => { setPreviewRow(null); navigate("billing"); }} className="font-semibold hover:opacity-70" style={{ color: "var(--brand)" }}>Upgrade</button> to keep &amp; download originals.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
