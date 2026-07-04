@@ -575,6 +575,18 @@ const BRAND_STYLES = `
   .login-bg-anim, .login-orb-a, .login-orb-b, .login-glow { animation: none; }
 }
 
+/* Sign-up form polish */
+.signup-field { min-width: 0; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+.signup-field:focus { border-color: var(--brand) !important; background: var(--navy) !important; box-shadow: 0 0 0 3px rgba(151,59,247,0.30); }
+.signup-benefit-ic { box-shadow: inset 0 0 0 1px rgba(214,91,255,0.35); }
+.signup-panel-grid {
+  background-image: linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(120% 90% at 20% 10%, #000 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(120% 90% at 20% 10%, #000 30%, transparent 78%);
+}
+.pw-seg { transition: background .25s ease, opacity .25s ease; }
+
 /* Accessibility: visible keyboard focus across interactive elements */
 .act-app a:focus-visible, .act-app button:focus-visible {
   outline: 2px solid var(--brand);
@@ -1744,7 +1756,7 @@ function SchedulingPreview() {
   );
 }
 
-function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
+function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
@@ -1789,11 +1801,15 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
     return () => clearTimeout(t);
   }, []);
 
-  const goSignup = (planKey) => {
+  // trial=true → 14-day Premium trial (generic CTAs); trial=false → the user
+  // explicitly picked this plan on the pricing table (pay, or Free forever).
+  const goSignup = (planKey, trial = false) => {
     setSignupPlan && setSignupPlan(planKey);
     setSignupCycle && setSignupCycle(cycle);
+    setSignupTrial && setSignupTrial(trial);
     navigate("signup");
   };
+  const goTrial = () => goSignup("free", true);
 
 
   const features = [
@@ -1963,7 +1979,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             <a href="#pricing" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
             <a href="#faq" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
             <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onClick={() => goSignup("free")} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
+            <button onClick={() => goTrial()} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
               Get started
             </button>
             <button
@@ -2032,7 +2048,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               Sign in
             </button>
             <button
-              onClick={() => { setMenuOpen(false); goSignup("free"); }}
+              onClick={() => { setMenuOpen(false); goTrial(); }}
               className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white shadow-[0_16px_38px_-14px_rgba(151,59,247,0.95)] transition-transform active:scale-[0.98]"
             >
               Start free trial
@@ -2060,7 +2076,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               Aster reads every resume, scores each applicant against the role, and books the interviews. A two-week shortlist now takes an afternoon.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button onClick={() => goSignup("free")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">
+              <button onClick={() => goTrial()} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">
                 Start free trial
               </button>
               <a href="#pricing" className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>
@@ -2799,7 +2815,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               ))}
             </div>
           </div>
-          <button onClick={() => goSignup("free")} className="mt-9 brand-gradient text-white font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-14px_rgba(151,59,247,0.95)]">
+          <button onClick={() => goTrial()} className="mt-9 brand-gradient text-white font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-14px_rgba(151,59,247,0.95)]">
             Create your workspace
           </button>
         </Reveal>
@@ -2836,7 +2852,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
               <ul className="space-y-2.5 text-sm">
                 <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5">Sign in</button></li>
-                <li><button onClick={() => goSignup("free")} className="footer-link inline-block py-0.5">Create workspace</button></li>
+                <li><button onClick={() => goTrial()} className="footer-link inline-block py-0.5">Create workspace</button></li>
               </ul>
             </div>
           </div>
@@ -2852,27 +2868,52 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
 }
 
 
-function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", setPlan, setPlanCycle, setTrialDaysLeft }) {
+function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft }) {
   const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  const planLabel = signupPlan === "professional" ? "Premium" : signupPlan === "starter" ? "Pro" : signupPlan === "enterprise" ? "Enterprise" : "Free";
-  const isFreeTrial = signupPlan === "free" || !["professional", "starter", "enterprise"].includes(signupPlan);
-  const planDetail =
-    signupPlan === "professional"
-      ? (signupCycle === "yearly" ? "$159/mo · billed yearly (20% off)" : "$199/month")
-      : signupPlan === "starter"
-        ? (signupCycle === "yearly" ? "$71/mo · billed yearly (20% off)" : "$89/month")
-      : signupPlan === "enterprise"
-        ? "Our team will reach out about pricing"
-        : "Full Premium features free for 14 days";
+  const pwScore = (() => {
+    if (!password) return 0;
+    let s = 0;
+    if (password.length >= 8) s++;
+    if (/[A-Za-z]/.test(password) && /\d/.test(password)) s++;
+    if (/[^A-Za-z0-9]/.test(password) || password.length >= 12) s++;
+    return s; // 0..3
+  })();
+  const pwLabel = ["", "Weak", "Good", "Strong"][pwScore];
+  const pwColor = ["#2A2D57", "#F59E0B", "#5A78F8", "#22C55E"][pwScore];
 
-  const fieldDark = "w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow placeholder:text-[color:var(--navy-ink)]";
+  // Two entry paths into sign-up:
+  //  • Trial  — from any generic landing CTA. A 14-day full-Premium trial; the
+  //    plan price is shown struck-through with a "Free for 14 days" note.
+  //  • Paid   — the user clicked "Choose Pro/Premium" on the pricing table. The
+  //    price is shown as-is and sign-up continues to payment (billing).
+  //  • Free   — the genuine $0 Free plan ("Get started" on the pricing table).
+  const isEnterprise = signupPlan === "enterprise";
+  const isPaid = !signupTrial && (signupPlan === "starter" || signupPlan === "professional");
+  const isFreePlan = !signupTrial && signupPlan === "free";
+
+  // A trial always grants Premium, so it's labelled + priced as Premium.
+  const planLabel = signupTrial || signupPlan === "professional" ? "Premium"
+    : signupPlan === "starter" ? "Pro"
+    : isEnterprise ? "Enterprise" : "Free";
+  const priceOf = (key) =>
+    key === "professional" ? (signupCycle === "yearly" ? "$159/mo · billed yearly" : "$199/month")
+    : key === "starter" ? (signupCycle === "yearly" ? "$71/mo · billed yearly" : "$89/month")
+    : null;
+  const shownPrice = signupTrial ? priceOf("professional") : priceOf(signupPlan);
+
+  const ctaText = signupTrial ? "Start 14-day free trial" : isPaid ? "Continue to payment" : "Create account";
+  const ctaIcon = isPaid ? "card" : "arrowUpRight";
+
+  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--navy-ink)]";
   const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
-  const labelDark = "block text-sm mb-1.5";
+  const labelDark = "block text-[13px] font-medium mb-1.5";
+  const reqStar = <span aria-hidden="true" style={{ color: "var(--brand-0)" }}> *</span>;
 
   const canSubmit = companyName.trim() && firstName.trim() && email.trim();
 
@@ -2880,79 +2921,228 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
     if (!canSubmit) return;
     setCompany(companyName.trim());
     setProfile({ firstName: firstName.trim(), lastName: lastName.trim(), role: "Hiring Manager" });
-    setPlan && setPlan(signupPlan);
     setPlanCycle && setPlanCycle(signupCycle);
-    setTrialDaysLeft && setTrialDaysLeft(isFreeTrial ? 14 : 0);
-    navigate("dashboard");
+    if (signupTrial) {
+      // App models a Premium trial as the Free plan + remaining trial days.
+      setPlan && setPlan("free");
+      setTrialDaysLeft && setTrialDaysLeft(14);
+      navigate("dashboard");
+    } else if (isPaid) {
+      // Paid plan chosen from the pricing table → collect payment next.
+      setPlan && setPlan(signupPlan);
+      setTrialDaysLeft && setTrialDaysLeft(0);
+      navigate("billing");
+    } else {
+      // Genuine Free plan (or enterprise) — straight into the workspace.
+      setPlan && setPlan(signupPlan);
+      setTrialDaysLeft && setTrialDaysLeft(0);
+      navigate("dashboard");
+    }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden" style={{ background: "#05060F" }}>
-      <div
-        className="login-bg-anim pointer-events-none absolute inset-0"
-        style={{ backgroundImage: `url(${LOGIN_BG})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
-      />
-      <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(rgba(5,6,20,0.35), rgba(5,6,20,0.55))" }} />
-      <div className="login-orb-a pointer-events-none absolute -top-24 -left-16 w-[520px] h-[520px] rounded-full blur-3xl opacity-[0.30]" style={{ background: "radial-gradient(circle, #4F6BFF 0%, transparent 70%)" }} />
-      <div className="login-orb-b pointer-events-none absolute -bottom-28 -right-10 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.28]" style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }} />
-      <div className="login-glow pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, var(--brand-2) 55%, transparent 72%)" }} />
+  // "Change" returns to the marketing site and scrolls to the pricing table so
+  // the visitor can pick a different plan. navigate() re-renders to the landing
+  // screen; we scroll on the next frames once #pricing has mounted.
+  const goToPricing = () => {
+    navigate("landing");
+    if (typeof window !== "undefined") {
+      let tries = 0;
+      const tryScroll = () => {
+        const el = document.getElementById("pricing");
+        if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+        if (tries++ < 20) setTimeout(tryScroll, 40);
+      };
+      setTimeout(tryScroll, 40);
+    }
+  };
 
-      <div className="w-full max-w-sm rounded-3xl p-8 relative z-10 act-shadow" style={{ background: "rgba(30,33,72,0.85)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
-        <div className="mb-7">
-          <button onClick={() => navigate("landing")} aria-label="Back to Aster home">
+  const benefits = [
+    "AI reads and scores every applicant against the role",
+    "Auto-shortlist top candidates and book interviews in one click",
+    "Turn weeks of CV screening into a single afternoon",
+    "Full Premium free for 14 days, no credit card required",
+  ];
+
+  return (
+    <div className="min-h-dvh flex" style={{ background: "#05060F" }}>
+      {/* ---------- Left: brand / value panel ---------- */}
+      <aside className="hidden lg:flex lg:w-1/2 sticky top-0 h-dvh self-start overflow-hidden flex-col justify-center px-8">
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #241357 0%, #120e35 46%, #05060f 100%)" }} />
+        <div className="signup-panel-grid pointer-events-none absolute inset-0" />
+        <div className="login-orb-a pointer-events-none absolute -top-32 -left-24 w-[540px] h-[540px] rounded-full blur-3xl opacity-[0.42]" style={{ background: "radial-gradient(circle, var(--brand-0) 0%, transparent 68%)" }} />
+        <div className="login-orb-b pointer-events-none absolute top-1/3 -right-24 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.38]" style={{ background: "radial-gradient(circle, var(--brand-2) 0%, transparent 70%)" }} />
+        <div className="login-glow pointer-events-none absolute -bottom-40 left-8 w-[520px] h-[520px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 68%)" }} />
+
+        <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="relative z-10 w-full max-w-md mx-auto mb-10 flex [&_img]:!h-12 sm:[&_img]:!h-14">
+          <BrandLogo onDark large logoUrl={logoUrl} />
+        </button>
+
+        <div className="relative z-10 w-full max-w-md mx-auto">
+          <h2 className="font-display font-bold text-white leading-[1.1] text-[34px] xl:text-[40px] tracking-tight">
+            Set up your hiring<br />workspace in minutes.
+          </h2>
+          <ul className="mt-8 space-y-3.5">
+            {benefits.map((b, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(214,91,255,0.16)", color: "#E5A6FF" }}>
+                  <Icon name="check" className="w-3 h-3" />
+                </span>
+                <span className="text-[14px] leading-snug" style={{ color: "#E7E8F6" }}>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="relative z-10 mt-10 rounded-2xl p-5 w-full max-w-md mx-auto" style={{ background: "rgba(20,22,52,0.6)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
+          <div className="flex gap-0.5 mb-2.5" style={{ color: "#F5A623" }}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <svg key={i} viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
+                <path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" />
+              </svg>
+            ))}
+          </div>
+          <p className="text-[14px] leading-relaxed text-white">
+            “Aster shortlisted 200 CVs before lunch. It cut our time-to-interview from three weeks to two days.”
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <FaceAvatar name="Farah Adya" gender="women" size={34} className="border-2" style={{ borderColor: "#070814" }} />
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-white truncate">Farah Adya</p>
+              <p className="text-[12px] truncate" style={{ color: "var(--navy-ink)" }}>Head of Talent, Northwind</p>
+            </div>
+            <div className="ml-auto flex items-center gap-2 pl-3" style={{ borderLeft: "1px solid var(--navy-line)" }}>
+              <div className="flex -space-x-2">
+                {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, i) => (
+                  <FaceAvatar key={i} seed={`signup-${i}`} name={["A", "S", "D", "P"][i]} size={22} className="border-2" style={{ borderColor: "#0c0e26" }} />
+                ))}
+              </div>
+              <span className="text-[11px]" style={{ color: "var(--navy-ink)" }}>2,000+ teams</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* ---------- Right: form panel ---------- */}
+      <main className="flex-1 flex items-start justify-center px-5 py-12 sm:px-8 lg:py-16 relative overflow-hidden">
+        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 0%, #1a1148 0%, #08091b 60%, #05060f 100%)" }} />
+        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
+
+        <div className="w-full max-w-md min-w-0 relative z-10">
+          <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-block">
             <BrandLogo onDark logoUrl={logoUrl} />
           </button>
-        </div>
-        <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Create your workspace</h1>
-        <p className="text-sm mb-4" style={{ color: "var(--navy-ink)" }}>Create your Aster workspace.</p>
 
-        <div className="rounded-xl px-3 py-2.5 mb-5 flex items-center justify-between gap-2" style={{ background: "var(--navy-2)", border: "1px solid var(--navy-line)" }}>
-          <div className="min-w-0">
-            <p className="text-xs" style={{ color: "var(--navy-ink)" }}>Selected plan</p>
-            <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
-              <span>{planLabel}</span>
-              {isFreeTrial && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "rgba(151,59,247,0.25)", color: "#C7CCFF" }}>14-day free trial</span>
+          <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Create your workspace</h1>
+          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>{isPaid ? `Set up your workspace, then continue to payment for ${planLabel}.` : "Get started free. It takes less than a minute."}</p>
+
+          {/* Selected plan */}
+          <div className="rounded-xl px-3.5 py-3 mb-6 flex items-center justify-between gap-2" style={{ background: "var(--navy-2)", border: "1px solid var(--navy-line)" }}>
+            <div className="min-w-0 flex items-center gap-3">
+              <span className="w-9 h-9 rounded-lg brand-gradient flex items-center justify-center shrink-0 text-white">
+                <Icon name="star" className="w-4 h-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--navy-ink)" }}>Selected plan</p>
+                <p className="text-sm font-semibold text-white flex items-center gap-2">
+                  <span>{planLabel}</span>
+                  {signupTrial && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "rgba(151,59,247,0.25)", color: "#C7CCFF" }}>14-day free trial</span>
+                  )}
+                </p>
+                <p className="text-[12px] mt-0.5 flex items-center gap-1.5 truncate" style={{ color: "var(--navy-ink)" }}>
+                  {signupTrial ? (
+                    <>
+                      <span style={{ textDecoration: "line-through", opacity: 0.65 }}>{shownPrice}</span>
+                      <span className="font-semibold" style={{ color: "#22C55E" }}>Free for 14 days</span>
+                    </>
+                  ) : isEnterprise ? (
+                    "Custom pricing"
+                  ) : isFreePlan ? (
+                    "$0 · free forever"
+                  ) : (
+                    <span className="font-medium text-white">{shownPrice}</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <button onClick={goToPricing} className="text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "#C7CCFF", border: "1px solid var(--navy-line)" }}>Change</button>
+          </div>
+
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignUp(); }}>
+            <div>
+              <label htmlFor="su-company" className={labelDark} style={{ color: "#D8DAF6" }}>Company name{reqStar}</label>
+              <input id="su-company" name="organization" autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="su-first" className={labelDark} style={{ color: "#D8DAF6" }}>First name{reqStar}</label>
+                <input id="su-first" name="given-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Shah" className={fieldDark} style={fieldDarkStyle} />
+              </div>
+              <div>
+                <label htmlFor="su-last" className={labelDark} style={{ color: "#D8DAF6" }}>Last name</label>
+                <input id="su-last" name="family-name" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ramly" className={fieldDark} style={fieldDarkStyle} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="su-email" className={labelDark} style={{ color: "#D8DAF6" }}>Work email{reqStar}</label>
+              <input id="su-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
+            </div>
+            <div>
+              <label htmlFor="su-password" className={labelDark} style={{ color: "#D8DAF6" }}>Password</label>
+              <div className="relative">
+                <input id="su-password" name="new-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
+                  <Icon name="eye" className="w-4 h-4" />
+                </button>
+              </div>
+              {password && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex gap-1 flex-1">
+                    {[1, 2, 3].map((seg) => (
+                      <span key={seg} className="pw-seg h-1 flex-1 rounded-full" style={{ background: seg <= pwScore ? pwColor : "var(--navy-line)" }} />
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-medium w-11 text-right" style={{ color: pwColor }}>{pwLabel}</span>
+                </div>
               )}
-              <span className="font-normal truncate" style={{ color: "var(--navy-ink)" }}>· {planDetail}</span>
-            </p>
-          </div>
-          <button onClick={() => navigate("landing")} className="text-xs shrink-0 hover:opacity-80" style={{ color: "var(--navy-ink)" }}>Change</button>
-        </div>
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--navy-ink)" }}>At least 8 characters, with a letter and a number.</p>
+            </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Company name</label>
-            <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelDark} style={{ color: "var(--navy-ink)" }}>First name</label>
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Shah" className={fieldDark} style={fieldDarkStyle} />
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_36px_-12px_rgba(151,59,247,0.9)] flex items-center justify-center gap-2"
+            >
+              {ctaText}
+              <Icon name={ctaIcon} className="w-4 h-4" />
+            </button>
+          </form>
+
+          {(signupTrial || isFreePlan) && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {[["check", "No credit card"], ["clock", "2-minute setup"], ["lock", "Your data stays private"]].map(([ic, label]) => (
+                <span key={label} className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--navy-ink)" }}>
+                  <Icon name={ic} className="w-3.5 h-3.5" />
+                  {label}
+                </span>
+              ))}
             </div>
-            <div>
-              <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Last name</label>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ramly" className={fieldDark} style={fieldDarkStyle} />
-            </div>
-          </div>
-          <div>
-            <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Email address</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
-          </div>
-          <div>
-            <label className={labelDark} style={{ color: "var(--navy-ink)" }}>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" className={fieldDark} style={fieldDarkStyle} />
-          </div>
-          <button
-            onClick={handleSignUp}
-            disabled={!canSubmit}
-            className="w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]"
-          >
-            {isFreeTrial ? "Start 14-day free trial" : "Create account"}
-          </button>
-          {isFreeTrial && (
-            <p className="text-xs text-center" style={{ color: "var(--navy-ink)" }}>No card required. Full Premium access for 14 days, then Free.</p>
           )}
+          {isPaid && (
+            <p className="mt-4 inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--navy-ink)" }}>
+              <Icon name="lock" className="w-3.5 h-3.5" />
+              Secure checkout. You'll add a payment method next.
+            </p>
+          )}
+
+          <p className="text-[12px] mt-5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>
+            By creating an account you agree to Aster's{" "}
+            <button type="button" className="underline underline-offset-2 hover:text-white transition-colors" style={{ color: "#C7CCFF" }}>Terms</button> and{" "}
+            <button type="button" className="underline underline-offset-2 hover:text-white transition-colors" style={{ color: "#C7CCFF" }}>Privacy Policy</button>.
+          </p>
+
+          <div className="hairline-dark my-5" />
+
           <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
             Already have an account?{" "}
             <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>
@@ -2960,7 +3150,7 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
             </button>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -10089,6 +10279,9 @@ export default function ResumeAIPreview() {
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("professional");
   const [signupCycle, setSignupCycle] = useState("monthly");
+  // true = arrived via a generic "start trial" CTA (14-day Premium trial);
+  // false = picked a specific plan on the pricing table (pay / free forever).
+  const [signupTrial, setSignupTrial] = useState(true);
   // Shared activity feed. Both the header notification bell and the
   // dashboard "Recent Activity" card read from this list; `read` drives
   // the unread badge on the bell.
@@ -10255,7 +10448,7 @@ export default function ResumeAIPreview() {
   if (screen === "landing") {
     return (
       <Shell>
-        <LandingScreen navigate={navigate} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} />
+        <LandingScreen navigate={navigate} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
       </Shell>
     );
   }
@@ -10286,6 +10479,7 @@ export default function ResumeAIPreview() {
           setProfile={setProfile}
           signupPlan={signupPlan}
           signupCycle={signupCycle}
+          signupTrial={signupTrial}
           setPlan={setPlan}
           setPlanCycle={setPlanCycle}
           setTrialDaysLeft={setTrialDaysLeft}
