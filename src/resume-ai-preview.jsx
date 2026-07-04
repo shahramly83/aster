@@ -2121,8 +2121,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 <span className="pointer-events-none absolute top-4 right-5 font-display font-extrabold tnum leading-none select-none" style={{ fontSize: "2rem", color: aster ? "rgba(151,59,247,0.12)" : "rgba(18,19,42,0.055)", transition: "color .4s ease" }}>{`0${i + 1}`}</span>
                 {/* icon + persistent problem label — the constant that maps problem↔fix */}
                 <div className="flex items-center gap-3 mb-4 pr-10">
-                  <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300" style={aster ? { background: "var(--brand)", color: "#fff", border: "1px solid transparent", boxShadow: "0 10px 22px -10px rgba(151,59,247,0.7)" } : { background: "#FFF1F2", color: "#F43F5E", border: "1px solid #FFE4E6", boxShadow: "0 0 0 0 rgba(151,59,247,0)" }}>
-                    <Icon name={aster ? "check" : p.icon} className="w-5 h-5" />
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={aster ? { background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #ECDCFF" } : { background: "#FFF1F2", color: "#F43F5E", border: "1px solid #FFE4E6" }}>
+                    <Icon name={p.icon} className="w-5 h-5" />
                   </span>
                   <h3 className="font-semibold text-neutral-900 leading-snug text-[17px]">{p.pain}</h3>
                 </div>
@@ -2607,8 +2607,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       <section id="faq" className="relative overflow-hidden grain py-14 sm:py-24 scroll-mt-20" style={{ background: "#0A0B1A" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 45% at 100% 0%, rgba(151,59,247,0.18) 0%, transparent 60%), radial-gradient(45% 50% at 0% 100%, rgba(90,120,248,0.16) 0%, transparent 60%)" }} />
         <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[minmax(0,360px)_1fr] gap-8 lg:gap-14">
-          {/* Left rail — title, category filter, contact card */}
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[minmax(0,360px)_1fr] gap-6 lg:gap-14">
+          {/* Left rail (desktop) / header + tabs (mobile) */}
           <div className="lg:sticky lg:top-24 self-start">
             <p className="eyebrow brand-text mb-2">FAQ</p>
             <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.2vw, 2.25rem)", letterSpacing: "-0.02em", lineHeight: 1.12 }}>
@@ -2617,7 +2617,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>
               Everything worth knowing before you start. Can&rsquo;t find what you&rsquo;re after? Just ask.
             </p>
-            <div className="mt-6 space-y-1" role="tablist" aria-label="FAQ categories">
+            {/* categories — horizontal tabs on mobile, vertical list on desktop */}
+            <div className="mt-6 flex gap-2 overflow-x-auto no-scrollbar lg:flex-col lg:gap-1 lg:overflow-visible" role="tablist" aria-label="FAQ categories">
               {faqCategories.map((cat) => {
                 const on = cat === faqCat;
                 return (
@@ -2626,18 +2627,18 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     role="tab"
                     aria-selected={on}
                     onClick={() => { setFaqCat(cat); const first = faqs.find((f) => f.cat === cat); setFaqOpenQ(first ? first.q : null); }}
-                    className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2"
-                    style={on
-                      ? { background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)", color: "#fff" }
-                      : { background: "transparent", border: "1px solid transparent", color: "var(--navy-ink)" }}
+                    className={`shrink-0 lg:w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 whitespace-nowrap ${on
+                      ? "bg-white/[0.07] border border-[color:var(--navy-line)] text-white"
+                      : "bg-white/[0.03] lg:bg-transparent border border-[color:var(--navy-line)] lg:border-transparent text-[color:var(--navy-ink)] hover:text-white"}`}
                   >
                     {cat}
-                    {on && <span style={{ color: "#B274FF" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
+                    {on && <span className="hidden lg:block" style={{ color: "#B274FF" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
                   </button>
                 );
               })}
             </div>
-            <div className="mt-8 rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+            {/* contact card — desktop only (mobile version is rendered last) */}
+            <div className="hidden lg:block mt-8 rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
               <p className="font-display font-semibold text-white">Still have questions?</p>
               <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
               <a href="mailto:hello@aster.co" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
@@ -2646,7 +2647,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             </div>
           </div>
 
-          {/* Right — accordion for the selected category */}
+          {/* Accordion for the selected category */}
           <div className="space-y-3">
             {faqs.filter((f) => f.cat === faqCat).map((f) => {
               const open = f.q === faqOpenQ;
@@ -2666,6 +2667,15 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 </div>
               );
             })}
+          </div>
+
+          {/* contact card — mobile only, rendered last */}
+          <div className="lg:hidden rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+            <p className="font-display font-semibold text-white">Still have questions?</p>
+            <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
+            <a href="mailto:hello@aster.co" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
+              Email us <Icon name="arrowUpRight" className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </section>
