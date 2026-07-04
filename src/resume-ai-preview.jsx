@@ -5821,7 +5821,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           {atJobLimit ? (
             <button
               onClick={() => navigate("billing")}
-              className="sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl border px-4 py-2.5 transition-colors hover:bg-neutral-50"
+              className="order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl border px-4 py-2.5 transition-colors hover:bg-neutral-50"
               style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
             >
               <Icon name="lock" className="w-4 h-4" /> Post a job <LockBadge />
@@ -5829,7 +5829,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           ) : (
             <button
               onClick={() => navigate("newJob")}
-              className="sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
+              className="order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
               style={{ boxShadow: "0 12px 26px -12px rgba(151,59,247,0.75)" }}
             >
               <Icon name="jobs" className="w-4 h-4" /> Post a job
