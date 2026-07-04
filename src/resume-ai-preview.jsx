@@ -777,69 +777,89 @@ function PreviewBanner() {
 function LoginScreen({ onLogin, navigate, logoUrl }) {
   const [email, setEmail] = useState("shah@example.com");
   const [password, setPassword] = useState("••••••••");
-  const field = "w-full rounded-xl bg-[#F5F5F7] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow";
-  const fieldStyle = { border: "1px solid var(--line)", color: "var(--ink)" };
-  const fieldDark = "w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow placeholder:text-[color:var(--navy-ink)]";
+  const [showPassword, setShowPassword] = useState(false);
+
+  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--navy-ink)]";
   const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+  const labelDark = "block text-[13px] font-medium mb-1.5";
+
+  const points = [
+    "Your ranked shortlists, ready to review",
+    "Interviews and scorecards in one place",
+    "Pick up right where you left off",
+  ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ background: "#05060F" }}>
-      {/* Animated image layer (Ken Burns) */}
-      <div
-        className="login-bg-anim pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: `url(${LOGIN_BG})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
-      {/* Dark overlay for readability */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: "linear-gradient(rgba(5,6,20,0.35), rgba(5,6,20,0.55))" }}
-      />
-      {/* Drifting glow orbs */}
-      <div
-        className="login-orb-a pointer-events-none absolute -top-24 -left-16 w-[520px] h-[520px] rounded-full blur-3xl opacity-[0.30]"
-        style={{ background: "radial-gradient(circle, #4F6BFF 0%, transparent 70%)" }}
-      />
-      <div
-        className="login-orb-b pointer-events-none absolute -bottom-28 -right-10 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.28]"
-        style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }}
-      />
-      {/* Soft brand glow behind the card */}
-      <div
-        className="login-glow pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full blur-3xl"
-        style={{ background: "radial-gradient(circle, var(--brand) 0%, var(--brand-2) 55%, transparent 72%)" }}
-      />
-      <div className="w-full max-w-sm rounded-3xl p-8 relative z-10 act-shadow" style={{ background: "rgba(30,33,72,0.85)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
-        <div className="mb-7">
-          <button onClick={() => navigate("landing")} aria-label="Back to Aster home">
+    <div className="min-h-dvh flex" style={{ background: "#05060F" }}>
+      {/* ---------- Left: brand panel (fixed, centered) ---------- */}
+      <aside className="hidden lg:flex lg:w-1/2 sticky top-0 h-dvh self-start overflow-hidden flex-col justify-center px-8">
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #241357 0%, #120e35 46%, #05060f 100%)" }} />
+        <div className="signup-panel-grid pointer-events-none absolute inset-0" />
+        <div className="login-orb-a pointer-events-none absolute -top-32 -left-24 w-[540px] h-[540px] rounded-full blur-3xl opacity-[0.42]" style={{ background: "radial-gradient(circle, var(--brand-0) 0%, transparent 68%)" }} />
+        <div className="login-orb-b pointer-events-none absolute top-1/3 -right-24 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.38]" style={{ background: "radial-gradient(circle, var(--brand-2) 0%, transparent 70%)" }} />
+        <div className="login-glow pointer-events-none absolute -bottom-40 left-8 w-[520px] h-[520px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 68%)" }} />
+
+        <div className="relative z-10 w-fit mx-auto">
+          <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="mb-10 flex [&_img]:!h-12 sm:[&_img]:!h-14">
+            <BrandLogo onDark large logoUrl={logoUrl} />
+          </button>
+          <h2 className="font-display font-bold text-white leading-[1.1] text-[34px] xl:text-[40px] tracking-tight">
+            Welcome back.<br />Let's get hiring.
+          </h2>
+          <ul className="mt-8 space-y-3.5">
+            {points.map((b, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(214,91,255,0.16)", color: "#E5A6FF" }}>
+                  <Icon name="check" className="w-3 h-3" />
+                </span>
+                <span className="text-[14px] leading-snug" style={{ color: "#E7E8F6" }}>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
+
+      {/* ---------- Right: sign-in form ---------- */}
+      <main className="flex-1 flex items-center justify-center px-5 py-12 sm:px-8 lg:py-16 relative overflow-hidden">
+        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 0%, #1a1148 0%, #08091b 60%, #05060f 100%)" }} />
+        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
+
+        <div className="w-full max-w-md min-w-0 relative z-10">
+          <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-block">
             <BrandLogo onDark logoUrl={logoUrl} />
           </button>
-        </div>
-        <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Welcome back</h1>
-        <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>Sign in to your Aster dashboard.</p>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm mb-1.5" style={{ color: "var(--navy-ink)" }}>Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} className={fieldDark} style={fieldDarkStyle} />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-sm" style={{ color: "var(--navy-ink)" }}>Password</label>
-              <button onClick={() => navigate && navigate("forgotPassword")} className="text-xs font-medium hover:opacity-80" style={{ color: "#C9A6FF" }}>Forgot password?</button>
+          <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Welcome back</h1>
+          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>Sign in to your Aster workspace.</p>
+
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onLogin && onLogin(); }}>
+            <div>
+              <label htmlFor="li-email" className={labelDark} style={{ color: "#D8DAF6" }}>Email</label>
+              <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
             </div>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldDark} style={fieldDarkStyle} />
-          </div>
-          <button
-            onClick={onLogin}
-            className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]"
-          >
-            Sign in
-          </button>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="li-password" className="text-[13px] font-medium" style={{ color: "#D8DAF6" }}>Password</label>
+                <button type="button" onClick={() => navigate && navigate("forgotPassword")} className="text-xs font-medium hover:opacity-80" style={{ color: "#C9A6FF" }}>Forgot password?</button>
+              </div>
+              <div className="relative">
+                <input id="li-password" name="current-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
+                  <Icon name="eye" className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_36px_-12px_rgba(151,59,247,0.9)] flex items-center justify-center gap-2"
+            >
+              Sign in
+              <Icon name="arrowUpRight" className="w-4 h-4" />
+            </button>
+          </form>
+
+          <div className="hairline-dark my-5" />
+
           <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
             Don't have an account?{" "}
             <button onClick={() => navigate && navigate("signup")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>
@@ -847,7 +867,7 @@ function LoginScreen({ onLogin, navigate, logoUrl }) {
             </button>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
