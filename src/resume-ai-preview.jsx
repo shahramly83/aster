@@ -1363,98 +1363,93 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </Reveal>
         </div>
 
-        {/* Plus everything around it — supporting capabilities, folded into the same section */}
-        <div className="mt-14 sm:mt-20 pt-12 sm:pt-16 border-t" style={{ borderColor: "var(--line)" }}>
-          <Reveal className="max-w-2xl mb-8 sm:mb-10">
-            <p className="eyebrow brand-text mb-2">And everything around it</p>
-            <h3 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.3rem, 2.8vw, 1.9rem)", letterSpacing: "-0.02em" }}>
-              From first application to signed offer.
-            </h3>
-          </Reveal>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {moreFeatures.map((f, i) => (
-              <Reveal key={f.title} delay={(i % 3) * 60} className="rounded-2xl border p-4 card-lift h-full flex flex-col bg-white" style={{ borderColor: "var(--line)" }}>
-                {/* feature-specific mini visual */}
-                <div className="rounded-xl h-24 mb-4 px-3.5 flex items-center overflow-hidden" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-                  {(() => {
-                    switch (f.icon) {
-                      case "interview":
-                        return (
-                          <div className="w-full space-y-1.5">
-                            {["A design system you scaled", "Handling shifting scope"].map((q) => (
-                              <div key={q} className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1" style={{ border: "1px solid var(--line)" }}>
-                                <span className="w-3.5 h-3.5 rounded-full brand-gradient text-white flex items-center justify-center text-[7px] font-bold shrink-0">Q</span>
-                                <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>{q}</span>
+        {/* More capabilities — folded straight in, no separate heading */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mt-4 sm:mt-5">
+          {moreFeatures.map((f, i) => (
+            <Reveal key={f.title} delay={(i % 3) * 60} className="rounded-2xl border p-5 card-lift h-full flex flex-col bg-white" style={{ borderColor: "var(--line)" }}>
+              {/* feature-specific preview */}
+              <div className="rounded-xl h-28 mb-5 p-4 flex items-center overflow-hidden" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                {(() => {
+                  switch (f.icon) {
+                    case "interview":
+                      return (
+                        <div className="w-full space-y-1.5">
+                          {["A design system you scaled", "Handling shifting scope"].map((q) => (
+                            <div key={q} className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5" style={{ border: "1px solid var(--line)" }}>
+                              <span className="w-3.5 h-3.5 rounded-full brand-gradient text-white flex items-center justify-center text-[7px] font-bold shrink-0">Q</span>
+                              <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>{q}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    case "users":
+                      return (
+                        <div className="w-full space-y-2">
+                          {[["SC", 4], ["TB", 5], ["PN", 3]].map(([ini, score]) => (
+                            <div key={ini} className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full brand-gradient text-white text-[8px] font-semibold flex items-center justify-center shrink-0">{ini}</span>
+                              <div className="flex gap-0.5">
+                                {[0, 1, 2, 3, 4].map((d) => (
+                                  <span key={d} className="w-1.5 h-1.5 rounded-full" style={{ background: d < score ? "var(--brand)" : "var(--line-strong)" }} />
+                                ))}
                               </div>
+                              <span className="ml-auto text-[9px] font-semibold" style={{ color: score >= 4 ? "#16A34A" : "var(--ink-3)" }}>{score >= 4 ? "Hire" : "Maybe"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    case "briefcase":
+                      return (
+                        <div className="w-full rounded-md bg-white px-2.5 py-2 flex items-center gap-1.5" style={{ border: "1px solid var(--line)" }}>
+                          <span className="flex gap-0.5 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />)}</span>
+                          <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3 h-3" /></span>
+                          <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>aster.co/apply/fe-eng</span>
+                        </div>
+                      );
+                    case "chat":
+                      return (
+                        <div className="w-full flex justify-end">
+                          <div className="rounded-2xl rounded-br-md px-3 py-2 max-w-[92%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -2px rgba(18,19,42,.12)" }}>
+                            <p className="text-[10px] leading-snug" style={{ color: "#1F2A24" }}>Interview confirmed — Thu, 2:00 PM</p>
+                            <div className="flex justify-end items-center gap-1 mt-0.5">
+                              <span className="text-[8px]" style={{ color: "#667781" }}>2:14 PM</span>
+                              <span style={{ color: "#53BDEB" }}><Icon name="check" className="w-2.5 h-2.5" /></span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    case "interviewers":
+                      return (
+                        <div className="flex items-center gap-2">
+                          <div className="flex -space-x-1.5">
+                            {["#D65BFF", "#5A78F8", "#973BF7"].map((c, k) => (
+                              <span key={c} className="w-6 h-6 rounded-full border-2 border-white text-white text-[8px] font-semibold flex items-center justify-center" style={{ background: c }}>{["A", "S", "D"][k]}</span>
                             ))}
                           </div>
-                        );
-                      case "users":
-                        return (
-                          <div className="w-full space-y-1.5">
-                            {[["SC", 4], ["TB", 5], ["PN", 3]].map(([ini, score]) => (
-                              <div key={ini} className="flex items-center gap-2">
-                                <span className="w-5 h-5 rounded-full brand-gradient text-white text-[8px] font-semibold flex items-center justify-center shrink-0">{ini}</span>
-                                <div className="flex gap-0.5">
-                                  {[0, 1, 2, 3, 4].map((d) => (
-                                    <span key={d} className="w-1.5 h-1.5 rounded-full" style={{ background: d < score ? "var(--brand)" : "var(--line-strong)" }} />
-                                  ))}
-                                </div>
-                                <span className="ml-auto text-[9px] font-semibold" style={{ color: score >= 4 ? "#16A34A" : "var(--ink-3)" }}>{score >= 4 ? "Hire" : "Maybe"}</span>
-                              </div>
-                            ))}
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Interviewer</span>
+                        </div>
+                      );
+                    case "shield":
+                      return (
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-5 h-5" /></span>
+                          <div>
+                            <p className="text-[11px] font-semibold text-neutral-900 leading-none">Encrypted</p>
+                            <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>In your workspace</p>
                           </div>
-                        );
-                      case "briefcase":
-                        return (
-                          <div className="w-full rounded-md bg-white px-2 py-1.5 flex items-center gap-1.5" style={{ border: "1px solid var(--line)" }}>
-                            <span className="flex gap-0.5 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />)}</span>
-                            <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3 h-3" /></span>
-                            <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>aster.co/apply/fe-eng</span>
-                          </div>
-                        );
-                      case "chat":
-                        return (
-                          <div className="w-full flex justify-end">
-                            <div className="rounded-2xl rounded-br-sm px-2.5 py-1.5 max-w-[92%]" style={{ background: "#25D366" }}>
-                              <p className="text-[10px] text-white leading-snug">Interview confirmed — Thu, 2:00 PM</p>
-                              <div className="flex justify-end mt-0.5" style={{ color: "rgba(255,255,255,0.9)" }}><Icon name="check" className="w-2.5 h-2.5" /></div>
-                            </div>
-                          </div>
-                        );
-                      case "interviewers":
-                        return (
-                          <div className="flex items-center gap-2">
-                            <div className="flex -space-x-1.5">
-                              {["#D65BFF", "#5A78F8", "#973BF7"].map((c, k) => (
-                                <span key={c} className="w-6 h-6 rounded-full border-2 border-white text-white text-[8px] font-semibold flex items-center justify-center" style={{ background: c }}>{["A", "S", "D"][k]}</span>
-                              ))}
-                            </div>
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Interviewer</span>
-                          </div>
-                        );
-                      case "shield":
-                        return (
-                          <div className="flex items-center gap-2.5">
-                            <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-5 h-5" /></span>
-                            <div>
-                              <p className="text-[11px] font-semibold text-neutral-900 leading-none">Encrypted</p>
-                              <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>In your workspace</p>
-                            </div>
-                          </div>
-                        );
-                      default:
-                        return <span style={{ color: "var(--brand)" }}><Icon name={f.icon} className="w-6 h-6" /></span>;
-                    }
-                  })()}
-                </div>
-                <div className="px-1 flex-1">
-                  <h3 className="font-semibold text-neutral-900 mb-1">{f.title}</h3>
-                  <p className="text-sm text-neutral-500 leading-relaxed">{f.body}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+                        </div>
+                      );
+                    default:
+                      return <span style={{ color: "var(--brand)" }}><Icon name={f.icon} className="w-6 h-6" /></span>;
+                  }
+                })()}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-neutral-900 mb-1.5">{f.title}</h3>
+                <p className="text-sm text-neutral-500 leading-relaxed">{f.body}</p>
+              </div>
+            </Reveal>
+          ))}
         </div>
       </section>
 
