@@ -586,6 +586,25 @@ const BRAND_STYLES = `
 .scan-line { animation: scanSweep 2.8s cubic-bezier(.45,0,.55,1) infinite; }
 @media (prefers-reduced-motion: reduce) { .scan-line { animation: none; opacity: 0; } }
 
+/* Subtle celebration wiggle */
+@keyframes celebrateWiggle { 0%, 100% { transform: rotate(-7deg) translateY(0); } 50% { transform: rotate(7deg) translateY(-2px); } }
+.celebrate-emoji { animation: celebrateWiggle 2.6s ease-in-out infinite; transform-origin: bottom center; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .celebrate-emoji { animation: none; } }
+
+/* Bars fill from 0 to their value on load */
+@keyframes barGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes barGrowY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.bar-grow-x { animation: barGrowX 1s cubic-bezier(.22,1,.36,1) both; transform-origin: left center; will-change: transform; }
+.bar-grow-y { animation: barGrowY 0.9s cubic-bezier(.22,1,.36,1) both; transform-origin: bottom center; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .bar-grow-x, .bar-grow-y { animation: none; } }
+
+/* Firework burst (celebration) */
+@keyframes fireworkBurst { 0% { transform: rotate(var(--a)) translateX(0) scale(1); opacity: 0; } 12% { opacity: 1; } 100% { transform: rotate(var(--a)) translateX(52px) scale(0.35); opacity: 0; } }
+.firework { width: 0; height: 0; }
+.firework i { position: absolute; left: 0; top: 0; width: 8px; height: 8px; border-radius: 9999px; animation: fireworkBurst 1.9s ease-out infinite; }
+.firework i:nth-child(2n) { width: 6px; height: 6px; animation-duration: 2.2s; }
+@media (prefers-reduced-motion: reduce) { .firework i { animation: none; opacity: 0; } }
+
 /* Eyebrow label */
 .eyebrow { font-size: .8125rem; font-weight: 600; letter-spacing: .01em; }
 
@@ -2649,13 +2668,13 @@ function NotificationBell({ activities, onOpen, onActivityClick }) {
     <div className="relative">
       <button
         onClick={toggle}
-        className="relative w-11 h-11 rounded-full bg-white flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+        className="relative w-12 h-12 rounded-full bg-white flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
         style={{ border: "1px solid var(--line)" }}
         aria-label="Notifications"
       >
-        <Icon name="bell" className="w-5 h-5" />
+        <Icon name="bell" className="w-6 h-6" />
         {unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full brand-gradient text-white text-[10px] font-semibold flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full brand-gradient text-white text-[11px] font-semibold flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -2714,8 +2733,8 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
         {navigate && (
           <button onClick={() => navigate("settings")} aria-label="Profile & settings" title={nm || "Profile"} className="shrink-0 hover:opacity-90 transition-opacity">
             {avatarUrl
-              ? <img src={avatarUrl} alt="You" className="w-11 h-11 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
-              : <span className="w-11 h-11 rounded-full brand-gradient flex items-center justify-center text-white text-sm font-semibold font-display">{ini}</span>}
+              ? <img src={avatarUrl} alt="You" className="w-12 h-12 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
+              : <span className="w-12 h-12 rounded-full brand-gradient flex items-center justify-center text-white text-base font-semibold font-display">{ini}</span>}
           </button>
         )}
       </div>
@@ -3233,13 +3252,21 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={k.dark ? { background: "rgba(151,59,247,0.25)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
                     <span aria-hidden="true" className="mt-0.5 opacity-60" style={{ color: k.dark ? "#fff" : "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></span>
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-4 relative z-10">
                     <p className="text-sm" style={{ color: k.dark ? "var(--navy-ink)" : "var(--ink-2)" }}>{k.label}</p>
                     <div className="flex items-end gap-2 mt-0.5">
                       <p className="text-2xl font-bold font-display tnum" style={{ color: k.dark ? "#fff" : "var(--ink)" }}>{k.value}</p>
                       {typeof k.delta === "number" && k.delta !== 0 && <span className="text-[11px] font-semibold mb-1" style={{ color: k.delta > 0 ? "#22C55E" : "#EF4444" }}>{k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%</span>}
                     </div>
+                    {k.celebrate && k.value > 0 && <p className="text-sm font-medium mt-3 max-w-[70%]" style={{ color: k.dark ? "#fff" : "var(--ink)" }}>Great job! Keep up the momentum!</p>}
                   </div>
+                  {k.celebrate && k.value > 0 && (
+                    <span aria-hidden="true" className="firework pointer-events-none absolute" style={{ right: "3.25rem", top: "3.25rem" }}>
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => (
+                        <i key={i} style={{ "--a": `${i * 30}deg`, background: ["#D65BFF", "#5A78F8", "#FBBF24", "#22C55E", "#F472B6", "#38BDF8"][i % 6] }} />
+                      ))}
+                    </span>
+                  )}
                 </button>
               );
               const stageCount = (s) => allApplicants.filter((a) => a.baseStage === s).length;
@@ -3257,7 +3284,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 <div className="flex-1 flex flex-col gap-4 md:gap-5">
                   {/* Stats — 2×2: Total Candidates | New Applications · Total Job Postings | Total Hires */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                    {heroCard({ ...kpis[5], dark: true })}
+                    {heroCard({ ...kpis[5], dark: true, celebrate: true })}
                     {heroCard(kpis[0])}
                     {heroCard({ label: "Total Job Postings", value: jobs.length, icon: "jobs", delta: pctChange(stats.openJobs, prevPeriod.openJobs), onClick: () => goToJobs(null) })}
                     {heroCard({ label: "New Applicants", value: stageCount("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
@@ -3274,7 +3301,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                             <div key={f.label} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
                               <div className="relative w-full flex-1 flex items-end">
                                 <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 -translate-y-full text-xs font-bold font-display tnum" style={{ color: "var(--ink)" }}>{f.value}</span>
-                                <div className="w-full rounded-lg transition-all" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "linear-gradient(180deg, #B79BF5, #8DA2F0)" }} />
+                                <div className="w-full rounded-lg bar-grow-y" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "linear-gradient(180deg, #B79BF5, #8DA2F0)" }} />
                               </div>
                               <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>{f.label}</span>
                             </div>
@@ -3397,7 +3424,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                                 <span className="text-xs font-medium tnum" style={{ color: reached ? "#FCA5A5" : "#fff" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
                               </div>
                               <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                                <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+                                <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
                               </div>
                             </div>
                           );
