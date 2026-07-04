@@ -2618,7 +2618,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               Everything worth knowing before you start. Can&rsquo;t find what you&rsquo;re after? Just ask.
             </p>
             {/* categories — horizontal tabs on mobile, vertical list on desktop */}
-            <div className="mt-6 flex flex-wrap gap-2 lg:flex-col lg:flex-nowrap lg:gap-1" role="tablist" aria-label="FAQ categories">
+            <div className="mt-6 grid grid-cols-2 gap-2 lg:flex lg:flex-col lg:gap-1" role="tablist" aria-label="FAQ categories">
               {faqCategories.map((cat) => {
                 const on = cat === faqCat;
                 return (
@@ -2627,12 +2627,12 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     role="tab"
                     aria-selected={on}
                     onClick={() => { setFaqCat(cat); const first = faqs.find((f) => f.cat === cat); setFaqOpenQ(first ? first.q : null); }}
-                    className={`shrink-0 lg:w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 whitespace-nowrap ${on
+                    className={`w-full min-w-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center lg:justify-between gap-2 text-center lg:text-left ${on
                       ? "bg-white/[0.07] border border-[color:var(--navy-line)] text-white"
                       : "bg-white/[0.03] lg:bg-transparent border border-[color:var(--navy-line)] lg:border-transparent text-[color:var(--navy-ink)] hover:text-white"}`}
                   >
-                    {cat}
-                    {on && <span className="hidden lg:block" style={{ color: "#B274FF" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
+                    <span className="truncate">{cat}</span>
+                    {on && <span className="hidden lg:block shrink-0" style={{ color: "#B274FF" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
                   </button>
                 );
               })}
