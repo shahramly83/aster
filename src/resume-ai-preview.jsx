@@ -980,9 +980,9 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       price: "$0", sub: "forever", note: null,
       tagline: "For trying Aster on a first role." },
     { key: "starter", name: "Starter", col: "starter", cta: "Start Starter", ghost: true,
-      price: cycle === "yearly" ? "$28" : "$35",
+      price: cycle === "yearly" ? "$39" : "$49",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-      note: cycle === "yearly" ? "$336/yr · save 20%" : null,
+      note: cycle === "yearly" ? "$468/yr · save 20%" : null,
       tagline: "For small teams hiring steadily." },
     { key: "professional", name: "Professional", col: "pro", cta: "Start Professional", popular: true,
       price: cycle === "yearly" ? "$79" : "$99",
@@ -1881,7 +1881,7 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
     signupPlan === "professional"
       ? (signupCycle === "yearly" ? "$79/mo · billed yearly (20% off)" : "$99/month")
       : signupPlan === "starter"
-        ? (signupCycle === "yearly" ? "$28/mo · billed yearly (20% off)" : "$35/month")
+        ? (signupCycle === "yearly" ? "$39/mo · billed yearly (20% off)" : "$49/month")
       : signupPlan === "enterprise"
         ? "Our team will reach out about pricing"
         : "Full Professional features free for 14 days";
@@ -5459,8 +5459,8 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   // charged in USD; applicable taxes are added at checkout by billing country.
   const PRICES = {
     starter: {
-      monthly: { price: "$35", cadence: "per month", renewCopy: "$35/month", nextAmount: "$35.00", invAmount: "$35.00", invDesc: "Starter — monthly" },
-      yearly: { price: "$28", cadence: "per month, billed yearly", renewCopy: "$336/year", nextAmount: "$336.00", invAmount: "$336.00", invDesc: "Starter — yearly" },
+      monthly: { price: "$49", cadence: "per month", renewCopy: "$49/month", nextAmount: "$49.00", invAmount: "$49.00", invDesc: "Starter — monthly" },
+      yearly: { price: "$39", cadence: "per month, billed yearly", renewCopy: "$468/year", nextAmount: "$468.00", invAmount: "$468.00", invDesc: "Starter — yearly" },
     },
     professional: {
       monthly: { price: "$99", cadence: "per month", renewCopy: "$99/month", nextAmount: "$99.00", invAmount: "$99.00", invDesc: "Professional — monthly" },
