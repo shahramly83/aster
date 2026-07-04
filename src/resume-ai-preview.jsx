@@ -1528,7 +1528,7 @@ function TeamInterviewPreview() {
           </div>
           <span className="text-[11px] font-medium inline-flex items-center gap-1 min-w-0" style={{ color: invited ? "#16A34A" : "var(--ink-3)", transition: "color .3s ease" }}>
             {invited && <Icon name="check" className="w-3 h-3 shrink-0" />}
-            <span className="truncate">{invited ? "All invited · calendar + link sent" : (joined >= PEOPLE.length ? "Sending invites…" : "Adding teammates…")}</span>
+            <span className="truncate">{invited ? "All invited" : (joined >= PEOPLE.length ? "Sending invites…" : "Adding teammates…")}</span>
           </span>
         </div>
       </div>
