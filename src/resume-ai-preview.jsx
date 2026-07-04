@@ -605,6 +605,9 @@ const BRAND_STYLES = `
 .firework i:nth-child(2n) { width: 6px; height: 6px; animation-duration: 2.2s; }
 @media (prefers-reduced-motion: reduce) { .firework i { animation: none; opacity: 0; } }
 
+/* Bulk-upload dropzone hover (inline borderColor needs !important to override) */
+.upload-drop:hover { border-color: var(--brand) !important; background: var(--brand-soft); }
+
 /* Eyebrow label */
 .eyebrow { font-size: .8125rem; font-weight: 600; letter-spacing: .01em; }
 
@@ -696,7 +699,10 @@ function LoginScreen({ onLogin, navigate, logoUrl }) {
             <input value={email} onChange={(e) => setEmail(e.target.value)} className={fieldDark} style={fieldDarkStyle} />
           </div>
           <div>
-            <label className="block text-sm mb-1.5" style={{ color: "var(--navy-ink)" }}>Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm" style={{ color: "var(--navy-ink)" }}>Password</label>
+              <button onClick={() => navigate && navigate("forgotPassword")} className="text-xs font-medium hover:opacity-80" style={{ color: "#C9A6FF" }}>Forgot password?</button>
+            </div>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldDark} style={fieldDarkStyle} />
           </div>
           <button
@@ -712,6 +718,151 @@ function LoginScreen({ onLogin, navigate, logoUrl }) {
             </button>
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Standard email shape check — same rule used on the server side.
+const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || "").trim());
+// Minimum production password policy: 8+ chars with at least one letter and one number.
+const passwordProblem = (pw) => {
+  if (pw.length < 8) return "Use at least 8 characters.";
+  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return "Include at least one letter and one number.";
+  return null;
+};
+
+// Self-contained password-reset flow. Mirrors a real four-step server flow:
+//   request → sent → reset → done
+// In production the "reset" step is reached by the tokenised link in the email;
+// here that link is simulated with an in-page button so the flow is walkable.
+function ForgotPasswordScreen({ navigate, logoUrl }) {
+  const [step, setStep] = useState("request"); // request | sent | reset | done
+  const [email, setEmail] = useState("");
+  const [emailErr, setEmailErr] = useState(null);
+  const [newPw, setNewPw] = useState("");
+  const [confPw, setConfPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [pwErr, setPwErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const fieldDark = "w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow placeholder:text-[color:var(--navy-ink)]";
+  const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+
+  const sendLink = () => {
+    if (!isValidEmail(email)) { setEmailErr("Enter a valid email address."); return; }
+    setEmailErr(null);
+    setBusy(true);
+    // Stand-in for POST /auth/forgot-password { email }. The server always
+    // returns 200 (it never reveals whether an account exists) and, if it does,
+    // emails a single-use, time-limited reset token.
+    setTimeout(() => { setBusy(false); setStep("sent"); }, 900);
+  };
+
+  const submitNewPassword = () => {
+    const problem = passwordProblem(newPw);
+    if (problem) { setPwErr(problem); return; }
+    if (newPw !== confPw) { setPwErr("Passwords don't match."); return; }
+    setPwErr(null);
+    setBusy(true);
+    // Stand-in for POST /auth/reset-password { token, password }.
+    setTimeout(() => { setBusy(false); setStep("done"); }, 900);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ background: "#05060F" }}>
+      <div className="login-bg-anim pointer-events-none absolute inset-0" style={{ backgroundImage: `url(${LOGIN_BG})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }} />
+      <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(rgba(5,6,20,0.35), rgba(5,6,20,0.55))" }} />
+      <div className="login-glow pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, var(--brand-2) 55%, transparent 72%)" }} />
+
+      <div className="w-full max-w-sm rounded-3xl p-8 relative z-10 act-shadow" style={{ background: "rgba(30,33,72,0.85)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
+        <div className="mb-7">
+          <button onClick={() => navigate("login")} aria-label="Back to sign in">
+            <BrandLogo onDark logoUrl={logoUrl} />
+          </button>
+        </div>
+
+        {step === "request" && (
+          <>
+            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Reset your password</h1>
+            <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>Enter the email for your account and we'll send you a reset link.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm mb-1.5" style={{ color: "var(--navy-ink)" }}>Email</label>
+                <input
+                  type="email" value={email} autoComplete="email" placeholder="you@company.com"
+                  onChange={(e) => { setEmail(e.target.value); setEmailErr(null); }}
+                  onKeyDown={(e) => e.key === "Enter" && sendLink()}
+                  className={fieldDark} style={fieldDarkStyle}
+                />
+                {emailErr && <p className="text-xs mt-1.5" style={{ color: "#FCA5A5" }}>{emailErr}</p>}
+              </div>
+              <button onClick={sendLink} disabled={busy} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity disabled:opacity-60 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
+                {busy ? "Sending…" : "Send reset link"}
+              </button>
+              <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
+                Remembered it?{" "}
+                <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>Back to sign in</button>
+              </p>
+            </div>
+          </>
+        )}
+
+        {step === "sent" && (
+          <>
+            <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.18)", color: "#C9A6FF" }}>
+              <Icon name="chat" className="w-5 h-5" />
+            </div>
+            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Check your email</h1>
+            <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--navy-ink)" }}>
+              If an account exists for <span className="font-semibold" style={{ color: "#FFFFFF" }}>{email}</span>, we've sent a reset link. It expires in 30 minutes.
+            </p>
+            <div className="space-y-3">
+              {/* Simulates clicking the tokenised link in the email. */}
+              <button onClick={() => setStep("reset")} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
+                Open reset link
+              </button>
+              <button onClick={sendLink} disabled={busy} className="w-full rounded-xl text-sm font-medium py-2.5 transition-colors disabled:opacity-60" style={{ border: "1px solid var(--navy-line)", color: "#FFFFFF" }}>
+                {busy ? "Sending…" : "Resend email"}
+              </button>
+              <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
+                <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>Back to sign in</button>
+              </p>
+            </div>
+          </>
+        )}
+
+        {step === "reset" && (
+          <>
+            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Set a new password</h1>
+            <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>Choose a password you haven't used before.</p>
+            <div className="space-y-4">
+              <input type={showPw ? "text" : "password"} value={newPw} autoComplete="new-password" placeholder="New password" onChange={(e) => { setNewPw(e.target.value); setPwErr(null); }} className={fieldDark} style={fieldDarkStyle} />
+              <input type={showPw ? "text" : "password"} value={confPw} autoComplete="new-password" placeholder="Confirm new password" onChange={(e) => { setConfPw(e.target.value); setPwErr(null); }} onKeyDown={(e) => e.key === "Enter" && submitNewPassword()} className={fieldDark} style={fieldDarkStyle} />
+              <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--navy-ink)" }}>
+                <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} /> Show password
+              </label>
+              <p className="text-xs" style={{ color: "var(--navy-ink)" }}>At least 8 characters, with a letter and a number.</p>
+              {pwErr && <p className="text-xs" style={{ color: "#FCA5A5" }}>{pwErr}</p>}
+              <button onClick={submitNewPassword} disabled={busy} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity disabled:opacity-60 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
+                {busy ? "Updating…" : "Update password"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "done" && (
+          <>
+            <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(34,197,94,0.18)", color: "#6EE7A5" }}>
+              <Icon name="check" className="w-5 h-5" />
+            </div>
+            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Password updated</h1>
+            <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>You can now sign in with your new password.</p>
+            <button onClick={() => navigate("login")} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
+              Back to sign in
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -2248,6 +2399,7 @@ function Icon({ name, className = "w-5 h-5" }) {
     target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
     offer: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h4a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.4z" /><circle cx="7.5" cy="7.5" r="1" /></>,
     hire: <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></>,
+    user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
   };
   return (
     <svg viewBox="0 0 24 24" className={className} {...common} aria-hidden="true">
@@ -2431,6 +2583,7 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
         {NAV_ITEMS.map(railBtn)}
       </nav>
       <div className="flex flex-col items-center gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--navy-line)" }}>
+        {railBtn({ key: "profile", label: "Profile", icon: "user" })}
         {railBtn({ key: "billing", label: "Billing", icon: "card" })}
         {railBtn({ key: "settings", label: "Settings", icon: "settings" })}
         <button
@@ -2653,6 +2806,7 @@ function DateRangePicker({ range, setRange }) {
 // ---------- Top bar (inside main column) ----------
 
 function NotificationBell({ activities, onOpen, onActivityClick }) {
+  const MAX_NOTIFICATIONS = 8; // max rows shown in the dropdown (the rest scroll / are hidden)
   const [open, setOpen] = useState(false);
   const unread = activities.filter((a) => !a.read).length;
 
@@ -2682,26 +2836,26 @@ function NotificationBell({ activities, onOpen, onActivityClick }) {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
+          <div className="absolute z-20 right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 56px -24px rgba(18,19,42,0.4), 0 2px 6px rgba(18,19,42,0.06)" }}>
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--line)" }}>
-              <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Recent activity</span>
-              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{activities.length} updates</span>
+              <span className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Recent activity</span>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{activities.length} updates</span>
             </div>
-            <div className="max-h-80 overflow-y-auto p-2 space-y-1">
+            <div className="max-h-[420px] overflow-y-auto p-2 space-y-1">
               {activities.length === 0 ? (
                 <div className="px-3 py-8 text-center">
                   <p className="text-sm" style={{ color: "var(--ink-2)" }}>You&rsquo;re all caught up</p>
                   <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>New activity — applications, interviews, and hires — shows up here.</p>
                 </div>
               ) : (
-                activities.map((a) => (
+                activities.slice(0, MAX_NOTIFICATIONS).map((a) => (
                   <ActivityRow
                     key={a.id}
-                    initials={a.initials}
+                    icon={a.icon}
+                    accent={a.accent}
                     title={a.title}
                     desc={a.desc}
                     time={a.time}
-                    dotColor={a.dotColor}
                     onClick={() => { setOpen(false); onActivityClick(a); }}
                   />
                 ))
@@ -2724,17 +2878,17 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
         {subtitle && <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{subtitle}</p>}
       </div>
       <div className="hidden md:flex items-center gap-3 shrink-0">
-        <DateRangePicker range={range} setRange={setRange} />
+        {setRange && <DateRangePicker range={range} setRange={setRange} />}
         <NotificationBell
           activities={activities}
           onOpen={onOpenNotifications}
           onActivityClick={onActivityClick}
         />
         {navigate && (
-          <button onClick={() => navigate("settings")} aria-label="Profile & settings" title={nm || "Profile"} className="shrink-0 hover:opacity-90 transition-opacity">
+          <button onClick={() => navigate("profile")} aria-label="Your profile" title={nm || "Profile"} className="shrink-0 hover:opacity-90 transition-opacity">
             {avatarUrl
-              ? <img src={avatarUrl} alt="You" className="w-12 h-12 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
-              : <span className="w-12 h-12 rounded-full brand-gradient flex items-center justify-center text-white text-base font-semibold font-display">{ini}</span>}
+              ? <img src={avatarUrl} alt="You" className="w-10 h-10 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
+              : <span className="w-10 h-10 rounded-full brand-gradient flex items-center justify-center text-white text-sm font-semibold font-display">{ini}</span>}
           </button>
         )}
       </div>
@@ -2816,46 +2970,41 @@ function buildActivities() {
   // Newest application
   if (apps[0]) {
     const n = cand(apps[0].candidateId);
-    list.push({ initials: ini(n), title: "New application received", desc: `${n} applied for ${jobTitle(apps[0].jobId)}`, time: apps[0].appliedAt, dotColor: "bg-neutral-800", target: { screen: "candidates", filter: { source: "public_application" } } });
+    list.push({ icon: "doc", accent: "#5A78F8", title: "New application received", desc: `${n} applied for ${jobTitle(apps[0].jobId)}`, time: apps[0].appliedAt, dotColor: "bg-neutral-800", target: { screen: "candidates", filter: { source: "public_application" } } });
   }
   // An applicant currently in the interview stage
   const interviewing = apps.find((a) => a.baseStage === "interviewing");
   if (interviewing) {
     const n = cand(interviewing.candidateId);
-    list.push({ initials: ini(n), title: "Interview scheduled", desc: `${n} · ${jobTitle(interviewing.jobId)}`, time: "1h ago", dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { interview: true } } });
+    list.push({ icon: "calendar", accent: "#16A34A", title: "Interview scheduled", desc: `${n} · ${jobTitle(interviewing.jobId)}`, time: "1h ago", dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { interview: true } } });
   }
   // Top AI match
   const [matchJobId, matches] = Object.entries(MOCK_MATCHES)[0] || [];
   if (matches && matches[0]) {
     const n = cand(matches[0].candidateId);
-    list.push({ initials: ini(n), title: "New match generated", desc: `${n} · ${jobTitle(matchJobId)} (${Math.round(matches[0].score * 100)}%)`, time: "3h ago", dotColor: "bg-neutral-800", target: { screen: "jobs", jobStatus: null } });
+    list.push({ icon: "matching", accent: "#973BF7", title: "New match generated", desc: `${n} · ${jobTitle(matchJobId)} (${Math.round(matches[0].score * 100)}%)`, time: "3h ago", dotColor: "bg-neutral-800", target: { screen: "jobs", jobStatus: null } });
   }
   // A recently published open role (pick one not already surfaced above)
   const openJobs = MOCK_JOBS.filter((j) => j.status === "open");
   const publishedJob = openJobs[openJobs.length - 1] || openJobs[0];
   if (publishedJob) {
-    list.push({ initials: ini(publishedJob.title), title: "Position published", desc: publishedJob.title, time: "5h ago", dotColor: "bg-neutral-300", target: { screen: "jobs", jobStatus: "open" } });
+    list.push({ icon: "briefcase", accent: "#F59E0B", title: "Position published", desc: publishedJob.title, time: "5h ago", dotColor: "bg-neutral-300", target: { screen: "jobs", jobStatus: "open" } });
   }
 
   return list.map((it, i) => ({ id: `a${i + 1}`, read: i >= 2, ...it }));
 }
 
-function ActivityRow({ initials, title, desc, time, dotColor, onClick }) {
+function ActivityRow({ icon = "bell", accent = "#973BF7", title, desc, time, onClick }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-3 text-left rounded-xl -mx-1 px-1 py-1.5 hover:bg-neutral-50 transition-colors">
-      <div className="w-9 h-9 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-semibold shrink-0" style={{ color: "var(--ink-2)" }}>
-        {initials}
+    <button onClick={onClick} className="group w-full flex items-start gap-3.5 text-left rounded-xl px-3 py-3 hover:bg-neutral-50 transition-colors">
+      <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:-translate-y-0.5" style={{ background: `${accent}1A`, color: accent }}>
+        <Icon name={icon} className="w-5 h-5" />
+      </span>
+      <div className="min-w-0 flex-1 py-0.5">
+        <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{title}</p>
+        <p className="text-xs truncate mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>{desc}</p>
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium truncate flex-1" style={{ color: "var(--ink)" }}>{title}</p>
-          <span className="text-xs shrink-0 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
-            {time}
-            <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-          </span>
-        </div>
-        <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{desc}</p>
-      </div>
+      <span className="text-[11px] shrink-0 mt-1 tnum" style={{ color: "var(--ink-3)" }}>{time}</span>
     </button>
   );
 }
@@ -3474,7 +3623,18 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 }
 
 
-function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
+// What the parser accepts and how it handles each file — shown beside the dropzone.
+const UPLOAD_ACCEPT = [
+  { icon: "doc", title: "PDF, Word, or ZIP", body: <>Upload resumes as PDF (.pdf) or Word (.doc, .docx) — or drop a <span className="font-medium" style={{ color: "var(--ink-2)" }}>ZIP</span> and we'll unpack the resumes inside it.</> },
+  { icon: "search", title: "Text-readable files", body: <>Your resume must contain selectable text. Image-only files or scanned documents without readable text can't be parsed automatically.</> },
+  { icon: "users", title: "Standard resume content", body: (
+    <>The document should include basic candidate information — <span className="font-medium" style={{ color: "var(--ink-2)" }}>full name</span>, <span className="font-medium" style={{ color: "var(--ink-2)" }}>contact details</span>, and <span className="font-medium" style={{ color: "var(--ink-2)" }}>work experience, education or skills</span>. Our AI analyzes each file and assigns a confidence score from what it extracts.</>
+  ) },
+  { icon: "shield", title: "Manual review when needed", body: <>If our AI can't confidently read a resume, we'll flag it as <span className="font-medium" style={{ color: "#B45309" }}>Needs review</span> so you can check the details before trusting the parsed profile.</> },
+  { icon: "check", title: "Automatic duplicate check", body: <>Each resume is matched against people already in your system — and others in the same batch. A matching <span className="font-medium" style={{ color: "var(--ink-2)" }}>email</span> (or the same <span className="font-medium" style={{ color: "var(--ink-2)" }}>name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for review. Anyone already hired is skipped automatically.</> },
+];
+
+function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const uploadLimit = limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
@@ -3485,6 +3645,8 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
   const [skipped, setSkipped] = useState(0);
   const [dupActions, setDupActions] = useState({}); // fileName -> "skip" | "update"
   const [resolved, setResolved] = useState({}); // fileName -> action, once the user commits a duplicate/review decision
+  const [openInfo, setOpenInfo] = useState(null); // which "How it works" row is expanded
+  const [resultFilter, setResultFilter] = useState("all"); // outcome filter on the results list
 
   // Simulated batch: a realistic mix so every outcome shows. `person` carries the
   // identity the AI would extract (name/email/phone) — used for duplicate detection.
@@ -3621,6 +3783,28 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
 
   const dupActionFor = (row) => (row.dup?.hired ? "skip" : dupActions[row.fileName] || "skip");
 
+  // Bulk-resolve every still-open duplicate at once — the key to handling a big
+  // batch (e.g. 100 files) without clicking through each duplicate individually.
+  const openDuplicates = rows.filter((r) => r.parseStatus === "duplicate" && !r.dup?.hired && !resolved[r.fileName]);
+  const bulkResolveDuplicates = (action) => {
+    setDupActions((prev) => { const n = { ...prev }; openDuplicates.forEach((r) => { n[r.fileName] = action; }); return n; });
+    setResolved((prev) => { const n = { ...prev }; openDuplicates.forEach((r) => { n[r.fileName] = action; }); return n; });
+  };
+
+  // Left-edge accent so a long list is scannable by outcome at a glance.
+  const rowAccent = (row) => {
+    if (row.parseStatus === "pending") return "var(--line-strong)";
+    if (row.parseStatus === "parsed") return "#16A34A";
+    if (row.parseStatus === "duplicate") return "var(--brand)";
+    if (row.parseStatus === "review" || row.parseStatus === "flagged") return "#F59E0B";
+    return "#DC2626"; // rejected / skipped
+  };
+  const matchesFilter = (r) => {
+    if (resultFilter === "all") return true;
+    if (resultFilter === "skipped") return r.parseStatus === "rejected" || r.parseStatus === "skipped";
+    return r.parseStatus === resultFilter;
+  };
+
   const summary = () => {
     const parsed = rows.filter((r) => r.parseStatus === "parsed").length;
     const flagged = rows.filter((r) => r.parseStatus === "flagged").length;
@@ -3646,107 +3830,180 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
   };
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="mx-auto w-full max-w-[1400px]">
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Bulk Resume Upload</h1>
-        <p className="text-sm text-neutral-600 mb-6">
-          Upload multiple PDF or Word resumes in one go. Our AI automatically extracts candidate information and creates profiles for each file. If a document can't be processed, we'll clearly explain why and flag it for your review instead of silently skipping it.
-        </p>
+        <div className="mt-2">
+          <TopBar
+            title="Bulk Resume Upload"
+            subtitle="Upload multiple PDF or Word resumes and let our AI extract candidate profiles automatically."
+            activities={activities}
+            onOpenNotifications={onOpenNotifications}
+            avatarUrl={avatarUrl}
+            profile={profile}
+            navigate={navigate}
+          />
+        </div>
 
-        {uploadLimit !== Infinity && (
-          <div className="rounded-xl border p-3 mb-5 flex items-start justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              The {planName} plan parses up to <span className="font-semibold">{uploadLimit} resumes a month</span>
-              {storesOriginal
-                ? <>, and <span className="font-semibold">stores the original file</span> so you can download it anytime. Upgrade to Professional for unlimited parsing.</>
-                : <>, and keeps the parsed profile — <span className="font-semibold">the original PDF isn't stored</span>. Upgrade for unlimited parsing and to retain &amp; download originals.</>}
-            </p>
-            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
-          </div>
-        )}
-
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 items-start">
+          {/* Main workspace — dropzone while idle, results while parsing */}
+          <div className="lg:col-span-2 space-y-5">
         {stage === "idle" && (
           <>
-            <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-8 text-center">
+            {files.length === 0 ? (
+              /* Empty dropzone — the whole area is the target, with an explicit button inside */
               <button
                 onClick={pickFiles}
-                className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-4 py-2 transition-colors"
+                className="upload-drop group w-full rounded-2xl border-2 border-dashed bg-white px-6 py-16 text-center transition-colors cursor-pointer"
+                style={{ borderColor: "var(--line-strong)" }}
               >
-                Choose files (simulated)
+                <span className="mx-auto mb-4 flex w-16 h-16 items-center justify-center rounded-2xl transition-transform group-hover:scale-105" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                  <Icon name="upload" className="w-8 h-8" />
+                </span>
+                <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>Drag &amp; drop resumes, or click to choose</span>
+                <span className="block text-sm mt-1.5" style={{ color: "var(--ink-3)" }}>
+                  PDF, Word, or a ZIP of them{uploadLimit !== Infinity ? ` · up to ${uploadLimit} a month` : ""}
+                </span>
+                <span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-neutral-900 group-hover:bg-neutral-800 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
+                  <Icon name="doc" className="w-4 h-4" /> Choose files
+                </span>
+                <span className="block text-xs mt-3" style={{ color: "var(--ink-3)" }}>Preview loads a sample batch so you can see how parsing works.</span>
               </button>
-              {files.length > 0 && <p className="text-sm text-neutral-600 mt-3">{files.length} file(s) selected</p>}
-              {overLimit && (
-                <div className="mt-4 rounded-xl border p-3 text-left" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
-                  <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
-                    <Icon name="lock" className="w-3.5 h-3.5" /> Over your plan limit — upload blocked
-                  </p>
-                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
-                    This batch has {files.length} resumes, but the {planName} plan parses {uploadLimit} a month. Remove {files.length - uploadLimit} to continue, or upgrade for more.
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-2.5">
-                    <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
-                    <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {uploadLimit} instead</button>
+            ) : (
+              /* Files selected — review the batch, then parse */
+              <div className="rounded-2xl border bg-white act-shadow p-5" style={{ borderColor: "var(--line)" }}>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                      <Icon name="doc" className="w-5 h-5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{files.length} file{files.length === 1 ? "" : "s"} ready to parse</p>
+                      <p className="text-xs" style={{ color: overLimit ? "#B91C1C" : "var(--ink-3)" }}>
+                        {overLimit ? `Only ${uploadLimit} allowed on the ${planName} plan` : "PDF & Word · sample batch"}
+                      </p>
+                    </div>
                   </div>
+                  <button onClick={() => { setFiles([]); setSkipped(0); }} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--ink-2)" }}>Clear</button>
                 </div>
-              )}
-              <button
-                onClick={runBatch}
-                disabled={files.length === 0 || overLimit}
-                className="mt-5 block mx-auto rounded-xl brand-gradient disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-colors"
-              >
-                Upload &amp; Parse
-              </button>
-            </div>
 
-            <div className="mt-4 rounded-2xl bg-white border border-[color:var(--line)] p-5">
-              <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">What we accept</h2>
-              <ol className="space-y-3 text-sm" style={{ color: "var(--ink-2)" }}>
-                <li className="flex gap-2">
-                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>1.</span>
-                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>PDF or Word resumes.</span> Upload resumes in PDF (.pdf) or Microsoft Word (.doc, .docx) format.</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>2.</span>
-                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>Text-readable files.</span> Your resume must contain selectable text. Image-only files or scanned documents without readable text can't be parsed automatically.</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>3.</span>
-                  <span>
-                    <span className="font-semibold" style={{ color: "var(--ink)" }}>Standard resume content.</span> The document should include basic candidate information, such as:
-                    <ul className="mt-1.5 ml-1 space-y-1 list-disc list-inside" style={{ color: "var(--ink-3)" }}>
-                      <li>Full name</li>
-                      <li>Contact details</li>
-                      <li>Work experience, education, or skills</li>
-                    </ul>
-                    <span className="block mt-1.5">Our AI analyzes each file and assigns a confidence score based on the extracted information.</span>
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>4.</span>
-                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>Manual review when needed.</span> If our AI can't confidently read a resume, we'll flag it as <span className="text-amber-700">Needs review</span> so you can check the details before trusting the parsed profile.</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-semibold shrink-0" style={{ color: "var(--brand)" }}>5.</span>
-                  <span><span className="font-semibold" style={{ color: "var(--ink)" }}>Automatic duplicate check.</span> Each resume is matched against people already in your system — and others in the same batch. A matching <span className="font-medium">email</span> (or the same <span className="font-medium">name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for you to review. Anyone already hired is skipped automatically.</span>
-                </li>
-              </ol>
-            </div>
+                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-0.5">
+                  {files.map((f, idx) => {
+                    const over = overLimit && idx >= uploadLimit;
+                    return (
+                      <div key={f.fileName} className="flex items-center gap-2.5 rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)", background: over ? "#FEF2F2" : "#FFFFFF" }}>
+                        <span className="shrink-0" style={{ color: over ? "#DC2626" : "var(--ink-3)" }}><Icon name="doc" className="w-4 h-4" /></span>
+                        <span className="text-sm truncate flex-1" style={{ color: over ? "#B91C1C" : "var(--ink-2)" }}>{f.fileName}</span>
+                        {over && <span className="text-[11px] font-semibold shrink-0 px-1.5 py-0.5 rounded" style={{ background: "#FEE2E2", color: "#B91C1C" }}>over limit</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {overLimit && (
+                  <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
+                    <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
+                      <Icon name="lock" className="w-3.5 h-3.5" /> Over your plan limit — upload blocked
+                    </p>
+                    <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
+                      This batch has {files.length} resumes, but the {planName} plan parses {uploadLimit} a month. Remove {files.length - uploadLimit} to continue, or upgrade for more.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-2.5">
+                      <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
+                      <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {uploadLimit} instead</button>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={runBatch}
+                  disabled={overLimit}
+                  className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl brand-gradient disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 transition-opacity hover:opacity-90"
+                >
+                  <Icon name="upload" className="w-4 h-4" /> Upload &amp; Parse{overLimit ? "" : ` ${files.length} resume${files.length === 1 ? "" : "s"}`}
+                </button>
+              </div>
+            )}
           </>
         )}
 
         {stage !== "idle" && (
-          <div className="space-y-2">
-            <p className="text-sm text-neutral-600 mb-3">
-              {stage === "uploading" && "Uploading files…"}
-              {stage === "parsing" && "Reading through the files…"}
-              {stage === "done" && (() => { const s = summary(); return `All done — ${s.parsed} added, ${s.duplicates ? `${s.duplicates} duplicate${s.duplicates === 1 ? "" : "s"}, ` : ""}${s.review ? `${s.review} to review, ` : ""}${s.flagged} to look over, ${s.rejected} skipped.`; })()}
-            </p>
-            {rows.map((row) => {
+          <div className="space-y-4">
+            {/* While working — a real progress bar instead of a status line */}
+            {stage !== "done" && (() => {
+              const processed = stage === "uploading"
+                ? rows.filter((r) => r.uploadStatus !== "pending").length
+                : rows.filter((r) => r.parseStatus !== "pending").length;
+              const pct = rows.length ? (processed / rows.length) * 100 : 0;
+              return (
+                <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
+                      {stage === "uploading" ? "Uploading files…" : "Reading through the files…"}
+                    </p>
+                    <p className="text-xs tnum" style={{ color: "var(--ink-3)" }}>{processed} / {rows.length}</p>
+                  </div>
+                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 4)}%`, background: "linear-gradient(90deg, var(--brand-0), var(--brand-2))", transition: "width .35s cubic-bezier(.22,1,.36,1)" }} />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* When done — summary + outcome filters + bulk duplicate resolve */}
+            {stage === "done" && (() => {
+              const s = summary();
+              const groups = [
+                { key: "all", label: "All", count: rows.length, dot: "var(--ink-3)" },
+                { key: "parsed", label: "Added", count: s.parsed, dot: "#16A34A" },
+                { key: "duplicate", label: "Duplicates", count: s.duplicates, dot: "var(--brand)" },
+                { key: "review", label: "To review", count: s.review, dot: "#F59E0B" },
+                { key: "flagged", label: "Needs review", count: s.flagged, dot: "#F59E0B" },
+                { key: "skipped", label: "Skipped", count: s.rejected, dot: "#DC2626" },
+              ].filter((g) => g.key === "all" || g.count > 0);
+              return (
+                <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
+                  <p className="text-sm font-semibold mb-3" style={{ color: "var(--ink)" }}>
+                    Processed {rows.length} file{rows.length === 1 ? "" : "s"} — {s.parsed} added to your candidates
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {groups.map((g) => {
+                      const on = resultFilter === g.key;
+                      return (
+                        <button
+                          key={g.key}
+                          onClick={() => setResultFilter(g.key)}
+                          className="inline-flex items-center gap-2 text-xs font-medium rounded-full px-3 py-1.5 border transition-colors"
+                          style={on
+                            ? { background: "var(--ink)", borderColor: "var(--ink)", color: "#fff" }
+                            : { background: "#fff", borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? "#fff" : g.dot }} />
+                          {g.label}
+                          <span className="tnum" style={{ opacity: on ? 0.9 : 0.6 }}>{g.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {openDuplicates.length > 0 && (
+                    <div className="mt-3.5 pt-3.5 flex flex-wrap items-center gap-2" style={{ borderTop: "1px solid var(--line)" }}>
+                      <span className="text-xs flex-1 min-w-[10rem]" style={{ color: "var(--ink-2)" }}>
+                        {openDuplicates.length} duplicate{openDuplicates.length === 1 ? "" : "s"} awaiting a decision
+                      </span>
+                      <button onClick={() => bulkResolveDuplicates("skip")} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Skip all</button>
+                      <button onClick={() => bulkResolveDuplicates("update")} className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90" style={{ background: "var(--brand)" }}>Update all existing</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="space-y-2">
+            {rows.filter(matchesFilter).map((row) => {
               if (resolved[row.fileName]) {
                 const rlabel = { skip: "Skipped", update: "Updated", new: "Added as new", merge: "Merged" }[resolved[row.fileName]] || "Resolved";
                 return (
-                  <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-2.5 border flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
+                  <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-2.5 border flex items-center gap-3" style={{ borderColor: "var(--line)", borderLeft: `3px solid ${rowAccent(row)}` }}>
                     <span className="text-sm truncate flex-1" style={{ color: "var(--ink-3)" }}>{row.fileName}</span>
                     <span className="text-xs font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>
                       <Icon name="check" className="w-3 h-3" /> {rlabel}
@@ -3762,14 +4019,17 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
                 );
               }
               return (
-              <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-3 border border-[color:var(--line)]">
+              <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-3 border" style={{ borderColor: "var(--line)", borderLeft: `3px solid ${rowAccent(row)}` }}>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-neutral-800 truncate flex-1">{row.fileName}</span>
-                  <div className="flex items-center gap-4 text-xs shrink-0">
-                    <span className={row.uploadStatus === "done" ? "text-emerald-600" : row.uploadStatus === "blocked" ? "text-rose-600" : "text-neutral-500"}>
-                      Upload: {row.uploadStatus === "done" ? "✓" : row.uploadStatus === "blocked" ? "blocked" : "…"}
-                    </span>
-                    {verdictBadge(row)}
+                  <div className="flex items-center gap-3 text-xs shrink-0">
+                    {row.parseStatus === "pending" && (
+                      <span className="inline-flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} />
+                        {row.uploadStatus === "done" ? "Reading…" : row.uploadStatus === "blocked" ? "Blocked" : "Uploading…"}
+                      </span>
+                    )}
+                    {row.parseStatus !== "pending" && verdictBadge(row)}
                   </div>
                 </div>
                 {(row.parseStatus === "flagged" || row.parseStatus === "rejected" || row.parseStatus === "skipped") && row.reason && (
@@ -3851,20 +4111,98 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
               </div>
               );
             })}
+            {stage === "done" && rows.filter(matchesFilter).length === 0 && (
+              <div className="rounded-xl border border-dashed py-8 text-center" style={{ borderColor: "var(--line-strong)" }}>
+                <p className="text-sm" style={{ color: "var(--ink-3)" }}>Nothing in this category.</p>
+                <button onClick={() => setResultFilter("all")} className="text-xs font-medium mt-1.5 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Show all files</button>
+              </div>
+            )}
+            </div>
             {stage === "done" && (
               <button
                 onClick={() => {
                   setStage("idle");
                   setFiles([]);
                   setRows([]);
+                  setResultFilter("all");
                 }}
-                className="mt-4 text-sm text-indigo-600 hover:text-indigo-700"
+                className="inline-flex items-center gap-1.5 text-sm font-medium hover:opacity-70 transition-opacity"
+                style={{ color: "var(--brand)" }}
               >
-                Upload another batch
+                <Icon name="upload" className="w-4 h-4" /> Upload another batch
               </button>
             )}
           </div>
         )}
+          </div>
+
+          {/* Sidebar — usage monitor + how parsing works. Sticks while the main
+              column scrolls; self-start lets it shrink below the grid-row height. */}
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            {(() => {
+              const used = MOCK_CANDIDATES.length; // resumes parsed this month (demo)
+              const unlimited = uploadLimit === Infinity;
+              const pct = unlimited ? 18 : Math.min((used / uploadLimit) * 100, 100);
+              const reached = !unlimited && used >= uploadLimit;
+              return (
+                <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Usage this month</h2>
+                    <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mb-2.5">
+                    <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: reached ? "#DC2626" : "var(--ink)" }}>{used}</span>
+                    <span className="text-sm" style={{ color: "var(--ink-3)" }}>/ {unlimited ? "Unlimited" : uploadLimit} resumes parsed</span>
+                  </div>
+                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+                    <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+                  </div>
+                  <p className="text-xs mt-2.5 leading-relaxed" style={{ color: reached ? "#DC2626" : "var(--ink-3)" }}>
+                    {unlimited
+                      ? `${planName} plan — unlimited parsing.`
+                      : reached
+                        ? `You've reached the ${planName} plan's monthly limit.`
+                        : `${uploadLimit - used} resumes left on your ${planName} plan.`}
+                  </p>
+                  {!unlimited && (
+                    <button onClick={() => navigate("billing")} className="mt-4 w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity">
+                      {reached ? "Upgrade plan" : "Upgrade for unlimited"}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
+              <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+                {UPLOAD_ACCEPT.map((item, i) => {
+                  const open = openInfo === i;
+                  return (
+                    <div key={item.title} style={{ borderColor: "var(--line)" }}>
+                      <button
+                        onClick={() => setOpenInfo(open ? null : i)}
+                        aria-expanded={open}
+                        className="w-full flex items-center gap-2.5 py-2.5 px-1 text-left transition-colors hover:bg-neutral-50/60 rounded-lg"
+                      >
+                        <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                          <Icon name={item.icon} className="w-3.5 h-3.5" />
+                        </span>
+                        <span className="flex-1 text-[13px] font-medium min-w-0" style={{ color: "var(--ink)" }}>{item.title}</span>
+                        <span className="shrink-0 transition-transform" style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none" }}>
+                          <Icon name="chevronDown" className="w-4 h-4" />
+                        </span>
+                      </button>
+                      {open && (
+                        <p className="text-xs leading-relaxed pb-3 pl-[2.15rem] pr-1" style={{ color: "var(--ink-3)" }}>{item.body}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
@@ -6388,7 +6726,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
   );
 }
 
-function SettingsScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, provider, setProvider, calendarConnected, setCalendarConnected, profile, setProfile, company, setCompany, bookings = {}, plan = "free" }) {
+function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
   const [emailMsg, setEmailMsg] = useState(null);
@@ -6400,6 +6738,186 @@ function SettingsScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl
   const [dFirst, setDFirst] = useState(profile?.firstName || "");
   const [dLast, setDLast] = useState(profile?.lastName || "");
   const [dRole, setDRole] = useState(profile?.role || "");
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(null);
+
+  // Password / sign-in
+  const [curPw, setCurPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confPw, setConfPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [pwMsg, setPwMsg] = useState(null);
+
+  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+
+  const dirty =
+    dLogo !== logoUrl ||
+    dCompany !== (company || "") ||
+    dAvatar !== avatarUrl ||
+    dFirst !== (profile?.firstName || "") ||
+    dLast !== (profile?.lastName || "") ||
+    dRole !== (profile?.role || "");
+
+  const handleLogoChange = (e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setDLogo(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
+  const handleAvatarChange = (e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setDAvatar(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
+
+  const handleSave = () => {
+    setSaving(true);
+    setTimeout(() => {
+      setLogoUrl(dLogo);
+      setCompany(dCompany.trim());
+      setAvatarUrl(dAvatar);
+      setProfile({ firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim() });
+      setSaving(false);
+      setSavedMsg("All changes saved.");
+    }, 800);
+  };
+  const handleCancel = () => {
+    setDLogo(logoUrl); setDCompany(company || ""); setDAvatar(avatarUrl);
+    setDFirst(profile?.firstName || ""); setDLast(profile?.lastName || ""); setDRole(profile?.role || "");
+    setSavedMsg(null);
+  };
+
+  const handleEmailSubmit = () => {
+    if (!newEmail) return;
+    setEmailMsg(`Confirmation sent to ${newEmail}. Your email won't change until you click the link in that message.`);
+    setNewEmail("");
+  };
+
+  const handleChangePassword = () => {
+    setPwMsg(null);
+    if (!curPw || !newPw || !confPw) { setPwMsg({ type: "err", text: "Fill in all three password fields." }); return; }
+    const problem = passwordProblem(newPw);
+    if (problem) { setPwMsg({ type: "err", text: problem }); return; }
+    if (newPw !== confPw) { setPwMsg({ type: "err", text: "New passwords don't match." }); return; }
+    setPwMsg({ type: "ok", text: "Password updated." });
+    setCurPw(""); setNewPw(""); setConfPw("");
+  };
+
+  const avatarInitial = (dFirst?.[0] || "S").toUpperCase();
+
+  return (
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
+      <div className="max-w-2xl mx-auto pb-8">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Profile</h1>
+        <p className="text-sm text-neutral-500 mb-6">Your company branding, personal details, and sign-in.</p>
+
+        {/* Company details */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Company details</h2>
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-40 rounded-xl border flex items-center justify-center overflow-hidden bg-white shrink-0" style={{ borderColor: "var(--line)" }}>
+              <img src={dLogo || ACTIVYS_LOGO} alt={dCompany || "Company logo"} className="h-11 w-auto object-contain" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors inline-block">
+                {dLogo ? "Replace logo" : "Upload logo"}
+                <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+              </label>
+              {dLogo && (
+                <button onClick={() => { setDLogo(null); setSavedMsg(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Remove</button>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-neutral-500 mt-2">Shows in the sidebar, on the login screen, and in the mobile header. Wide (landscape) logos work best.</p>
+          <div className="mt-4">
+            <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Company name</label>
+            <input value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); }} placeholder="Your company" className={inputClass} />
+            <p className="text-xs text-neutral-500 mt-1">Collected at sign-up and shown across your workspace.</p>
+          </div>
+        </div>
+
+        {/* Personal details */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Personal details</h2>
+          <div className="flex items-center gap-4 mb-4">
+            {dAvatar ? (
+              <img src={dAvatar} alt="Your photo" className="w-16 h-16 rounded-full object-cover border border-neutral-200" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-violet-100 border border-neutral-200 flex items-center justify-center text-neutral-700 font-medium text-lg">{avatarInitial}</div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors">
+                Change photo
+                <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+              </label>
+              {dAvatar && (
+                <button onClick={() => { setDAvatar(null); setSavedMsg(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Remove</button>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>First name</label>
+              <input value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Shah" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Last name</label>
+              <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role</label>
+              <input value={dRole} onChange={(e) => { setDRole(e.target.value); setSavedMsg(null); }} placeholder="Hiring Manager" className={inputClass} />
+            </div>
+          </div>
+          <p className="text-xs text-neutral-500 mt-2">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
+        </div>
+
+        {/* ===== Sign-in ===== */}
+        <p className="text-xs font-semibold uppercase mb-3 mt-6" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>Sign-in</p>
+
+        {/* Email address */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Email address</h2>
+          <p className="text-sm text-neutral-600 mb-3">Current: <span className="text-neutral-900">{email}</span></p>
+          <div className="space-y-3">
+            <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
+            <p className="text-xs text-neutral-500">We'll email a confirmation link to the new address. Your login email stays the same until you click it.</p>
+            {emailMsg && <p className="text-sm text-emerald-600">{emailMsg}</p>}
+            <button onClick={handleEmailSubmit} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">Send confirmation</button>
+          </div>
+        </div>
+
+        {/* Password */}
+        <div className={cardClass}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Password</h2>
+          <div className="space-y-3">
+            <input type={showPw ? "text" : "password"} value={curPw} onChange={(e) => { setCurPw(e.target.value); setPwMsg(null); }} placeholder="Current password" autoComplete="current-password" className={inputClass} />
+            <input type={showPw ? "text" : "password"} value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwMsg(null); }} placeholder="New password" autoComplete="new-password" className={inputClass} />
+            <input type={showPw ? "text" : "password"} value={confPw} onChange={(e) => { setConfPw(e.target.value); setPwMsg(null); }} placeholder="Confirm new password" autoComplete="new-password" className={inputClass} />
+            <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--ink-2)" }}>
+              <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} /> Show passwords
+            </label>
+            <p className="text-xs text-neutral-500">At least 8 characters, with a letter and a number.</p>
+            {pwMsg && <p className="text-sm" style={{ color: pwMsg.type === "ok" ? "#166534" : "#DC2626" }}>{pwMsg.text}</p>}
+            <div className="flex items-center gap-4 flex-wrap">
+              <button onClick={handleChangePassword} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">Update password</button>
+              <button onClick={() => navigate("forgotPassword")} className="text-sm font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Forgot your password?</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Save / Cancel bar */}
+        <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs sm:text-sm min-w-0 truncate" style={{ color: savedMsg ? "#166534" : "var(--ink-2)" }}>
+              {saving ? "Saving…" : savedMsg ? savedMsg : dirty ? "You have unsaved changes." : "Everything is up to date."}
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={handleCancel} disabled={!dirty || saving} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
+              <button onClick={handleSave} disabled={!dirty || saving} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-5 py-2 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">{saving ? "Saving…" : "Save changes"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free" }) {
+  // Staged (draft) edits for the calendar provider — Save/Cancel form.
   const [dProvider, setDProvider] = useState(provider);
   const [dCalConnected, setDCalConnected] = useState(calendarConnected);
   const [connectingCal, setConnectingCal] = useState(false);
@@ -6426,65 +6944,18 @@ function SettingsScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl
   ).length;
   const providerChanged = dProvider !== provider;
 
-  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
-  const dirty =
-    dLogo !== logoUrl ||
-    dCompany !== (company || "") ||
-    dAvatar !== avatarUrl ||
-    dFirst !== (profile?.firstName || "") ||
-    dLast !== (profile?.lastName || "") ||
-    dRole !== (profile?.role || "") ||
-    dProvider !== provider ||
-    dCalConnected !== calendarConnected;
+  const dirty = dProvider !== provider || dCalConnected !== calendarConnected;
 
-  const handleLogoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDLogo(reader.result);
-      setSavedMsg(null);
-    };
-    reader.readAsDataURL(file);
-  };
-  const handleRemoveLogo = () => {
-    setDLogo(null);
-    setSavedMsg(null);
-  };
-  const handleAvatarChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDAvatar(reader.result);
-      setSavedMsg(null);
-    };
-    reader.readAsDataURL(file);
-  };
   const handleConnectCalendar = () => {
     setConnectingCal(true);
-    setTimeout(() => {
-      setDCalConnected(true);
-      setConnectingCal(false);
-    }, 1500);
-  };
-
-  const handleEmailSubmit = () => {
-    if (!newEmail) return;
-    setEmailMsg(`Confirmation sent to ${newEmail}. Your email won't change until you click the link in that message.`);
-    setNewEmail("");
+    setTimeout(() => { setDCalConnected(true); setConnectingCal(false); }, 1500);
   };
 
   const handleSave = () => {
     setSaving(true);
-    // Simulates the round trip to the database (Supabase in the real app).
     setTimeout(() => {
-      setLogoUrl(dLogo);
-      setCompany(dCompany.trim());
-      setAvatarUrl(dAvatar);
-      setProfile({ firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim() });
       setProvider(dProvider);
       setCalendarConnected(dCalConnected);
       setSaving(false);
@@ -6493,31 +6964,17 @@ function SettingsScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl
   };
 
   const handleCancel = () => {
-    setDLogo(logoUrl);
-    setDCompany(company || "");
-    setDAvatar(avatarUrl);
-    setDFirst(profile?.firstName || "");
-    setDLast(profile?.lastName || "");
-    setDRole(profile?.role || "");
     setDProvider(provider);
     setDCalConnected(calendarConnected);
     setSavedMsg(null);
   };
 
-  const avatarInitial = (dFirst?.[0] || "S").toUpperCase();
-
-  const usage = [
-    { label: "Resumes parsed", value: 3 },
-    { label: "AI insights", value: 1 },
-    { label: "Matches run", value: 3 },
-    { label: "Interviews booked", value: 1 },
-  ];
-
   return (
     <div className="px-4 sm:px-6 py-8 sm:py-10">
       <div className="max-w-2xl mx-auto pb-8">
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-6" style={{ color: "var(--ink)" }}>Settings</h1>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Settings</h1>
+        <p className="text-sm text-neutral-500 mb-6">Email templates, calendar, messaging, and usage for your workspace.</p>
 
         {/* Email templates — the wording behind every automated email */}
         <button onClick={() => navigate("emailTemplates")} className={`${cardClass} mb-4 w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
@@ -6526,98 +6983,10 @@ function SettingsScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>Email templates</span>
-            <span className="block text-xs text-neutral-500">Edit the offer, rejection, interview & other automated emails</span>
+            <span className="block text-xs text-neutral-500">Edit the offer, rejection, interview &amp; other automated emails</span>
           </span>
           <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
         </button>
-
-        {/* 1 — Company branding: logo (first) + company name below */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Company branding</h2>
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-40 rounded-xl border flex items-center justify-center overflow-hidden bg-white shrink-0" style={{ borderColor: "var(--line)" }}>
-              <img src={dLogo || ACTIVYS_LOGO} alt={dCompany || "Company logo"} className="h-11 w-auto object-contain" />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors inline-block">
-                {dLogo ? "Replace logo" : "Upload logo"}
-                <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
-              </label>
-              {dLogo && (
-                <button onClick={handleRemoveLogo} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
-          <p className="text-xs text-neutral-500 mt-2">Shows in the sidebar, on the login screen, and in the mobile header. Wide (landscape) logos work best.</p>
-
-          <div className="mt-4">
-            <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Company name</label>
-            <input value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); }} placeholder="Your company" className={inputClass} />
-            <p className="text-xs text-neutral-500 mt-1">Collected at sign-up and shown across your workspace.</p>
-          </div>
-        </div>
-
-        {/* 2 — Your profile: photo + name + role */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Your profile</h2>
-          <div className="flex items-center gap-4 mb-4">
-            {dAvatar ? (
-              <img src={dAvatar} alt="Your photo" className="w-16 h-16 rounded-full object-cover border border-neutral-200" />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-violet-100 border border-neutral-200 flex items-center justify-center text-neutral-700 font-medium text-lg">{avatarInitial}</div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors">
-                Change photo
-                <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-              </label>
-              {dAvatar && (
-                <button onClick={() => { setDAvatar(null); setSavedMsg(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>First name</label>
-              <input value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Shah" className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Last name</label>
-              <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role</label>
-              <input value={dRole} onChange={(e) => { setDRole(e.target.value); setSavedMsg(null); }} placeholder="Hiring Manager" className={inputClass} />
-            </div>
-          </div>
-          <p className="text-xs text-neutral-500 mt-2">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
-        </div>
-
-        {/* 3 — Email (its own confirmation flow) */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Email address</h2>
-          <p className="text-sm text-neutral-600 mb-3">Current: <span className="text-neutral-900">{email}</span></p>
-          <div className="space-y-3">
-            <input
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="new-email@example.com"
-              className={inputClass}
-            />
-            <p className="text-xs text-neutral-500">
-              We'll email a confirmation link to the new address. Your login email stays the same until you click it.
-            </p>
-            {emailMsg && <p className="text-sm text-emerald-600">{emailMsg}</p>}
-            <button onClick={handleEmailSubmit} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">
-              Send confirmation
-            </button>
-          </div>
-        </div>
 
         {/* 4 — Meeting & calendar */}
         <div className={`${cardClass} mb-4`}>
@@ -6766,22 +7135,6 @@ function SettingsScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl
               <p className="text-xs text-neutral-400 mt-2">We set you up through our WhatsApp messaging partner — no Meta dashboard wrangling. Messages are billed to your own Meta account.</p>
             </div>
           )}
-        </div>
-
-        {/* 6 — Usage */}
-        <div className={cardClass}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Usage</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {usage.map((u) => (
-              <div key={u.label} className="rounded-xl bg-neutral-100 px-4 py-3">
-                <p className="text-2xl font-bold text-neutral-900">{u.value}</p>
-                <p className="text-xs text-neutral-600 mt-0.5">{u.label}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-neutral-500 mt-3">
-            Counts of AI work done on your account. For billing-grade metering, connect a billing provider.
-          </p>
         </div>
 
         {/* Save / Cancel bar — sticky within the content column, so it never
@@ -8281,6 +8634,14 @@ export default function ResumeAIPreview() {
     );
   }
 
+  if (screen === "forgotPassword") {
+    return (
+      <Shell>
+        <ForgotPasswordScreen navigate={navigate} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
   if (screen === "signup") {
     return (
       <Shell>
@@ -8368,21 +8729,26 @@ export default function ResumeAIPreview() {
             avatarUrl={avatarUrl}
           />
         )}
-        {screen === "settings" && (
-          <SettingsScreen
+        {screen === "profile" && (
+          <ProfileScreen
             navigate={navigate}
             avatarUrl={avatarUrl}
             setAvatarUrl={setAvatarUrl}
             logoUrl={logoUrl}
             setLogoUrl={setLogoUrl}
-            provider={defaultProvider}
-            setProvider={setDefaultProvider}
-            calendarConnected={calendarConnected}
-            setCalendarConnected={setCalendarConnected}
             profile={profile}
             setProfile={setProfile}
             company={company}
             setCompany={setCompany}
+          />
+        )}
+        {screen === "settings" && (
+          <SettingsScreen
+            navigate={navigate}
+            provider={defaultProvider}
+            setProvider={setDefaultProvider}
+            calendarConnected={calendarConnected}
+            setCalendarConnected={setCalendarConnected}
             bookings={bookings}
             plan={effectivePlan}
           />
@@ -8390,7 +8756,7 @@ export default function ResumeAIPreview() {
         {screen === "billing" && (
           <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} />
         )}
-        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} />}
+        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} />}
         {screen === "jobs" && (
           <JobsScreen
