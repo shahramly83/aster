@@ -691,6 +691,18 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 @keyframes tickPop { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
 .tick-pop { animation: tickPop .34s cubic-bezier(.22,1.4,.4,1) both; }
 @media (prefers-reduced-motion: reduce) { .tick-pop { animation: none; } }
+/* Mobile nav dropdown: gentle drop-in */
+@keyframes menuDrop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.mobile-menu-in { animation: menuDrop .22s cubic-bezier(.22,1,.36,1) both; }
+/* Modern full-screen menu: fade-in overlay + staggered items */
+@keyframes menuFade { from { opacity: 0; } to { opacity: 1; } }
+.menu-overlay-in { animation: menuFade .26s ease both; }
+@keyframes menuItemIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.menu-stagger { animation: menuItemIn .5s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) { .mobile-menu-in, .menu-overlay-in, .menu-stagger { animation: none; } }
+/* Modern burger: bars ease to equal width on press/hover */
+.burger-bar { transition: width .22s cubic-bezier(.22,1,.36,1); }
+.burger:hover .burger-bar, .burger:active .burger-bar { width: 18px; }
 /* Smooth in-page scrolling for nav/footer anchor links (sections offset via scroll-mt-*) */
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
@@ -1925,33 +1937,84 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             <a href="#pricing" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
             <a href="#faq" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
             <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onClick={() => goSignup("free")} className="ml-1.5 text-sm brand-gradient text-white font-medium px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
+            <button onClick={() => goSignup("free")} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
               Get started
             </button>
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="sm:hidden ml-1 p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
-              style={{ color: "#fff" }}
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              className="burger sm:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90"
+              aria-label="Open menu"
               aria-expanded={menuOpen}
             >
-              <Icon name={menuOpen ? "close" : "menu"} className="w-5 h-5" />
+              <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" />
+              <span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
             </button>
           </div>
         </div>
-        {menuOpen && (
-          <div className="sm:hidden px-3 pb-3 pt-1 space-y-0.5">
-            {[["Features", "#features"], ["Pricing", "#pricing"], ["FAQ", "#faq"]].map(([label, href]) => (
-              <a key={href} href={href} onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm hover:bg-white/[0.06] transition-colors" style={{ color: "var(--navy-ink)" }}>
-                {label}
-              </a>
-            ))}
-            <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="block w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-white/[0.06] transition-colors" style={{ color: "#fff" }}>
-              Sign in
+      </header>
+
+      {/* Mobile full-screen menu — rendered OUTSIDE the header so `fixed` maps to
+          the viewport (the header's backdrop-filter would otherwise trap it) */}
+      {menuOpen && (
+        <div className="sm:hidden fixed inset-0 z-[70] menu-overlay-in flex flex-col overflow-y-auto" style={{ background: "rgba(6,7,18,0.82)", backdropFilter: "blur(22px) saturate(140%)", WebkitBackdropFilter: "blur(22px) saturate(140%)" }}>
+          {/* drifting aurora */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="login-orb-a absolute -top-20 -right-24 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 68%)" }} />
+            <div className="login-orb-b absolute -bottom-16 -left-24 w-[420px] h-[420px] rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 68%)" }} />
+          </div>
+          {/* top bar — logo + close */}
+          <div className="relative flex items-center justify-between h-16 px-4 shrink-0">
+            <BrandLogo onDark large logoUrl={logoUrl} />
+            <button
+              onClick={() => setMenuOpen(false)}
+              aria-label="Close menu"
+              className="w-11 h-11 flex items-center justify-center rounded-full transition-transform active:scale-90"
+              style={{ color: "#fff", border: "1px solid var(--navy-line)", background: "rgba(255,255,255,0.06)" }}
+            >
+              <Icon name="close" className="w-5 h-5" />
             </button>
           </div>
-        )}
-      </header>
+          {/* nav links — glass rows, icon tiles, staggered in */}
+          <nav className="relative flex-1 px-5 pt-4 flex flex-col gap-2.5">
+            {[
+              ["Features", "#features", "target"],
+              ["Pricing", "#pricing", "card"],
+              ["FAQ", "#faq", "chat"],
+            ].map(([label, href, icon], i) => (
+              <a
+                key={href}
+                href={href}
+                onClick={() => setMenuOpen(false)}
+                className="menu-stagger group flex items-center gap-3.5 rounded-2xl px-3.5 py-3.5 transition-transform active:scale-[0.98]"
+                style={{ animationDelay: `${110 + i * 70}ms`, background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}
+              >
+                <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.18)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+                  <Icon name={icon} className="w-5 h-5" />
+                </span>
+                <span className="flex-1 text-lg font-display font-semibold text-white" style={{ letterSpacing: "-0.01em" }}>{label}</span>
+                <Icon name="chevronRight" className="w-5 h-5 text-white/40 transition-transform group-active:translate-x-0.5" />
+              </a>
+            ))}
+          </nav>
+          {/* bottom actions — pinned, safe-area padded */}
+          <div className="menu-stagger relative px-5 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-3 shrink-0" style={{ animationDelay: "320ms" }}>
+            <button
+              onClick={() => { setMenuOpen(false); navigate("login"); }}
+              className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border transition-transform active:scale-[0.98]"
+              style={{ borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}
+            >
+              Sign in
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); goSignup("free"); }}
+              className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white shadow-[0_16px_38px_-14px_rgba(151,59,247,0.95)] transition-transform active:scale-[0.98]"
+            >
+              Start free trial
+            </button>
+            <p className="text-center text-xs pt-1" style={{ color: "var(--navy-ink)" }}>No credit card · Set up in minutes</p>
+          </div>
+        </div>
+      )}
 
       {/* Hero — the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
