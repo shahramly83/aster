@@ -155,6 +155,116 @@ const MOCK_CANDIDATES = [
       education: [{ degree: "B.Eng", institution: "UM", year: "2017" }],
     },
   },
+  {
+    id: "c9",
+    fileName: "nadia_karim_resume.pdf",
+    status: "parsed",
+    hasPhoto: true,
+    parsed: {
+      name: "Nadia Karim",
+      email: "nadia.karim@email.com",
+      phone: "+60 14-555 6060",
+      location: "Petaling Jaya, Malaysia",
+      summary: "Full-stack engineer with a backend lean, comfortable across the stack.",
+      years_of_experience: 5,
+      skills: ["Node.js", "React", "PostgreSQL", "AWS", "Docker"],
+      languages: ["English", "Malay"],
+      certifications: ["AWS Solutions Architect Associate"],
+      experience: [{ title: "Software Engineer", company: "iPay88", duration: "2019–Present", summary: "Built payment integrations and internal tooling." }],
+      education: [{ degree: "B.Sc. Software Engineering", institution: "APU", year: "2019" }],
+    },
+  },
+  {
+    id: "c10",
+    fileName: "wei_sheng_ong_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Wei Sheng Ong",
+      email: "weisheng.ong@outlook.com",
+      phone: "+60 16-771 8080",
+      location: "Johor Bahru, Malaysia",
+      summary: "Frontend developer growing into product engineering.",
+      years_of_experience: 3,
+      skills: ["React", "JavaScript", "CSS", "Next.js"],
+      languages: ["English", "Mandarin"],
+      experience: [{ title: "Frontend Developer", company: "Setel", duration: "2021–Present", summary: "Shipped customer-facing features for a fuel app." }],
+      education: [{ degree: "B.IT", institution: "USM", year: "2021" }],
+    },
+  },
+  {
+    id: "c11",
+    fileName: "nurul_aisyah_resume.pdf",
+    status: "parsed",
+    hasPhoto: true,
+    parsed: {
+      name: "Nurul Aisyah",
+      email: "nurul.aisyah@email.com",
+      phone: "+60 13-221 1919",
+      location: "Shah Alam, Malaysia",
+      summary: "Product designer turned frontend, strong on UI polish and accessibility.",
+      years_of_experience: 4,
+      skills: ["React", "Figma", "Tailwind", "Accessibility"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "UI Engineer", company: "MoneyLion", duration: "2020–Present", summary: "Bridged design and engineering on the design system." }],
+      education: [{ degree: "B.Des Communication Design", institution: "The One Academy", year: "2019" }],
+    },
+  },
+  {
+    id: "c12",
+    fileName: "arjun_menon_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Arjun Menon",
+      email: "arjun.menon@email.com",
+      phone: "+60 17-882 2323",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Frontend engineer with a focus on data-heavy dashboards.",
+      years_of_experience: 7,
+      skills: ["React", "TypeScript", "D3", "Redux", "Testing"],
+      languages: ["English", "Malayalam"],
+      certifications: [],
+      experience: [{ title: "Lead Frontend Engineer", company: "StashAway", duration: "2017–Present", summary: "Owned the investor dashboard end to end." }],
+      education: [{ degree: "B.Eng Computer Engineering", institution: "UTM", year: "2016" }],
+    },
+  },
+  {
+    id: "c13",
+    fileName: "chloe_tan_resume.pdf",
+    status: "parsed",
+    hasPhoto: true,
+    parsed: {
+      name: "Chloe Tan",
+      email: "chloe.tan@email.com",
+      phone: "+60 12-905 4646",
+      location: "Penang, Malaysia",
+      summary: "Frontend developer with an eye for motion and micro-interactions.",
+      years_of_experience: 3,
+      skills: ["React", "Framer Motion", "CSS", "TypeScript"],
+      languages: ["English", "Mandarin", "Malay"],
+      experience: [{ title: "Frontend Developer", company: "Piktochart", duration: "2021–Present", summary: "Built editor UI and animation systems." }],
+      education: [{ degree: "B.Sc. Multimedia", institution: "MMU", year: "2021" }],
+    },
+  },
+  {
+    id: "c14",
+    fileName: "iskandar_zulkifli_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Iskandar Zulkifli",
+      email: "iskandar.z@email.com",
+      phone: "+60 19-404 5757",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Frontend engineer, ex-agency, strong CSS and delivery speed.",
+      years_of_experience: 5,
+      skills: ["React", "Vue", "SCSS", "JavaScript"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Frontend Engineer", company: "FashionValet", duration: "2019–Present", summary: "Delivered storefront features under tight timelines." }],
+      education: [{ degree: "B.IT", institution: "UKM", year: "2018" }],
+    },
+  },
 ];
 
 const MOCK_JOBS = [
@@ -2248,44 +2358,98 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
   );
 }
 
+// Narrow icon-only rail (fintech style). Active item = filled brand square.
+function IconSidebar({ navigate, active, avatarUrl, onSignOut, profile, unreadCount = 0 }) {
+  const nm = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
+  const ini = nm ? nm.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() : "U";
+  const railBtn = (item) => {
+    const on = active === item.key;
+    return (
+      <button
+        key={item.key}
+        onClick={() => navigate(item.key)}
+        title={item.label}
+        aria-label={item.label}
+        aria-current={on ? "page" : undefined}
+        className="relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
+        style={{ color: on ? "#fff" : "var(--navy-ink)" }}
+        onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#fff"; }}
+        onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--navy-ink)"; }}
+      >
+        {on && <span className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_20px_-8px_rgba(151,59,247,0.9)]" />}
+        <Icon name={item.icon} className="relative w-5 h-5" />
+        {item.key === "dashboard" && !on && unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full brand-gradient text-white text-[9px] font-semibold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
+        )}
+      </button>
+    );
+  };
+  return (
+    <div className="flex flex-col items-center h-full w-full">
+      <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-10 h-10 rounded-xl brand-gradient flex items-center justify-center text-white font-display font-bold text-lg shrink-0">A</button>
+      <nav className="flex-1 flex flex-col items-center gap-1.5">
+        {NAV_ITEMS.map(railBtn)}
+      </nav>
+      <div className="flex flex-col items-center gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--navy-line)" }}>
+        {railBtn({ key: "billing", label: "Billing", icon: "card" })}
+        {railBtn({ key: "settings", label: "Settings", icon: "settings" })}
+        <button
+          onClick={onSignOut}
+          title="Log out"
+          aria-label="Log out"
+          className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
+          style={{ color: "var(--navy-ink)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--navy-ink)")}
+        >
+          <Icon name="logout" className="w-5 h-5" />
+        </button>
+        <button onClick={() => navigate("settings")} title={nm || "Profile"} aria-label="Profile & settings" className="mt-1 shrink-0">
+          {avatarUrl
+            ? <img src={avatarUrl} alt="You" className="w-9 h-9 rounded-full object-cover ring-2 ring-white/10" />
+            : <span className="w-9 h-9 rounded-full brand-gradient flex items-center justify-center text-white text-xs font-semibold">{ini}</span>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profile, unreadCount = 0, activities = [], onOpenNotifications, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
-      {/* Desktop sidebar — fixed, full viewport height */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col px-4 py-6 sticky top-0 h-screen" style={{ background: "var(--navy)" }}>
-        <SidebarContent navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} />
-      </aside>
+    <div className="min-h-screen md:p-4" style={{ background: "#0B0D14" }}>
+      <div className="md:flex md:gap-4 md:items-start">
+        {/* Desktop icon rail — dark rounded, sticky */}
+        <aside className="hidden md:flex w-[76px] shrink-0 flex-col rounded-[26px] py-5 sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
+          <IconSidebar navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
+        </aside>
 
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-40">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 px-4 py-6 flex flex-col" style={{ background: "var(--navy)" }}>
-            <SidebarContent navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} onNavigate={() => setMobileOpen(false)} />
-          </aside>
-        </div>
-      )}
+        {/* Mobile drawer — keeps the labelled nav */}
+        {mobileOpen && (
+          <div className="md:hidden fixed inset-0 z-40">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+            <aside className="absolute left-0 top-0 bottom-0 w-72 px-4 py-6 flex flex-col" style={{ background: "var(--navy)" }}>
+              <SidebarContent navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} onNavigate={() => setMobileOpen(false)} />
+            </aside>
+          </div>
+        )}
 
-      {/* Main column */}
-      <div className="flex-1 min-w-0">
-        {/* Mobile top strip: hamburger + logo, always visible on mobile */}
-        <div className="md:hidden flex items-center gap-3 backdrop-blur px-4 py-3 sticky top-0 z-30" style={{ background: "var(--navy)", borderBottom: "1px solid var(--navy-line)" }}>
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-white"
-            style={{ border: "1px solid var(--navy-line)" }}
-            aria-label="Open menu"
-          >
-            <Icon name="menu" className="w-5 h-5" />
-          </button>
-          <BrandLogo logoUrl={logoUrl} onDark compact />
-          <div className="ml-auto">
-            <NotificationBell activities={activities} onOpen={onOpenNotifications} />
+        {/* Content — rounded light panel inside the dark frame */}
+        <div className="flex-1 min-w-0">
+          <div className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-30" style={{ background: "var(--navy)", borderBottom: "1px solid var(--navy-line)" }}>
+            <button onClick={() => setMobileOpen(true)} className="w-9 h-9 rounded-lg flex items-center justify-center text-white" style={{ border: "1px solid var(--navy-line)" }} aria-label="Open menu">
+              <Icon name="menu" className="w-5 h-5" />
+            </button>
+            <BrandLogo logoUrl={logoUrl} onDark compact />
+            <div className="ml-auto">
+              <NotificationBell activities={activities} onOpen={onOpenNotifications} />
+            </div>
+          </div>
+          <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px]" style={{ background: "var(--bg)" }}>
+            {children}
           </div>
         </div>
-        {children}
       </div>
     </div>
   );
@@ -2489,17 +2653,24 @@ function NotificationBell({ activities, onOpen, onActivityClick }) {
               <span className="text-xs" style={{ color: "var(--ink-3)" }}>{activities.length} updates</span>
             </div>
             <div className="max-h-80 overflow-y-auto p-2 space-y-1">
-              {activities.map((a) => (
-                <ActivityRow
-                  key={a.id}
-                  initials={a.initials}
-                  title={a.title}
-                  desc={a.desc}
-                  time={a.time}
-                  dotColor={a.dotColor}
-                  onClick={() => { setOpen(false); onActivityClick(a); }}
-                />
-              ))}
+              {activities.length === 0 ? (
+                <div className="px-3 py-8 text-center">
+                  <p className="text-sm" style={{ color: "var(--ink-2)" }}>You&rsquo;re all caught up</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>New activity — applications, interviews, and hires — shows up here.</p>
+                </div>
+              ) : (
+                activities.map((a) => (
+                  <ActivityRow
+                    key={a.id}
+                    initials={a.initials}
+                    title={a.title}
+                    desc={a.desc}
+                    time={a.time}
+                    dotColor={a.dotColor}
+                    onClick={() => { setOpen(false); onActivityClick(a); }}
+                  />
+                ))
+              )}
             </div>
           </div>
         </>
@@ -3023,118 +3194,186 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           setRange={setRange}
         />
 
-        {/* Feature banner — only shown to Free accounts (upsell to Pro) */}
-        {plan === "free" && (
-          <div className="mb-5">
-            <FeatureCard onAction={() => navigate("settings")} />
-          </div>
-        )}
-
-        {/* Recent hires — the headline win, all-time. Sits at the top. */}
-        {hiredCandidates.length > 0 && (
-          <div className="mb-5 rounded-2xl p-4 sm:p-5 border" style={{ borderColor: "#BBF7D0", background: "linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%)" }}>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🎉</span>
-                <h3 className="text-sm font-semibold" style={{ color: "#166534" }}>
-                  {hiredCandidates.length} hire{hiredCandidates.length === 1 ? "" : "s"} all-time — nice work!
-                </h3>
-              </div>
-              <button onClick={() => goToCandidates({ hired: true })} className="text-xs font-medium hover:opacity-70 transition-opacity shrink-0" style={{ color: "#166534" }}>View all</button>
-            </div>
-            <div className="flex flex-col gap-2">
-              {hiredCandidates.slice(0, 4).map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => goToCandidates({ hired: true })}
-                  className="flex items-center gap-3 rounded-xl bg-white/70 hover:bg-white border px-3 py-2 text-left transition-colors"
-                  style={{ borderColor: "#BBF7D0" }}
-                >
-                  <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
-                    <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.parsed.experience?.[0]?.title || "Hired"}</p>
-                  </div>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>Hired ✓</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Upcoming Interviews — real scheduled interviews from bookings */}
-        <div className={`${cardClass} mb-5`}>
-          {sectionHead(
-            "Upcoming Interviews",
-            interviews.length > 0 ? (
-              <button onClick={() => navigate("interviews")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button>
-            ) : null
-          )}
-          {interviews.length === 0 ? (
-            <div className="py-8 text-center">
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
-              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-                Once a candidate confirms a time from their invite, it'll show up here.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-              {interviews.slice(0, 3).map((iv) => (
-                <UpcomingRow
-                  key={iv.candidateId}
-                  month={iv.month}
-                  day={iv.day}
-                  title={iv.jobTitle}
-                  person={iv.candidateName}
-                  time={iv.time}
-                  provider={iv.provider}
-                  onClick={() => navigate("interviews")}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Date filter on mobile — sits below Upcoming Interviews */}
-        <div className="md:hidden flex justify-end mb-5">
+        {/* Date filter on mobile */}
+        <div className="md:hidden flex justify-end mb-4">
           <DateRangePicker range={range} setRange={setRange} />
         </div>
 
-        {/* KPIs — the six headline metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
-          {kpis.map((k) => (
-            <StatCard
-              key={k.label}
-              label={k.label}
-              value={k.value}
-              series={k.series}
-              delta={k.delta}
-              sparkColor={k.value === 0 ? "#9CA3AF" : "#973BF7"}
-              icon={k.icon}
-              onClick={k.onClick}
-            />
-          ))}
-        </div>
+        {/* Bento — charts + interviews (left) · plan panel (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+          <div className="lg:col-span-2 flex flex-col">
+            {(() => {
+              const heroCard = (k) => (
+                <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "" : "border act-shadow"}`} style={k.dark ? { background: "var(--navy)", border: "1px solid var(--navy-line)" } : { background: "#fff", borderColor: "var(--line)" }}>
+                  <div className="flex items-start justify-between">
+                    <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={k.dark ? { background: "rgba(151,59,247,0.25)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
+                    <span aria-hidden="true" className="flex flex-col gap-1 mt-1.5">{[0, 1, 2].map((d) => <span key={d} className="w-1 h-1 rounded-full" style={{ background: k.dark ? "rgba(255,255,255,0.5)" : "var(--ink-3)" }} />)}</span>
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-sm" style={{ color: k.dark ? "var(--navy-ink)" : "var(--ink-2)" }}>{k.label}</p>
+                    <div className="flex items-end gap-2 mt-0.5">
+                      <p className="text-2xl font-bold font-display tnum" style={{ color: k.dark ? "#fff" : "var(--ink)" }}>{k.value}</p>
+                      {typeof k.delta === "number" && k.delta !== 0 && <span className="text-[11px] font-semibold mb-1" style={{ color: k.delta > 0 ? "#22C55E" : "#EF4444" }}>{k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%</span>}
+                    </div>
+                  </div>
+                </button>
+              );
+              const funnel = [
+                { label: "Applied", value: stats.applications },
+                { label: "Interview", value: stats.interviewsScheduled },
+                { label: "Offer", value: stats.offersPending },
+                { label: "Hired", value: stats.hiresThisMonth },
+              ];
+              const fmax = Math.max(...funnel.map((f) => f.value), 1);
+              return (
+                <div className="flex-1 flex flex-col gap-4 md:gap-5">
+                  {/* Stats — 2×2: Total Candidates | New Applications · Total Job Postings | Total Hires */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                    {heroCard({ ...kpis[0], dark: true })}
+                    {heroCard(kpis[2])}
+                    {heroCard({ label: "Total Job Postings", value: jobs.length, icon: "jobs", delta: pctChange(stats.openJobs, prevPeriod.openJobs), onClick: () => goToJobs(null) })}
+                    {heroCard(kpis[5])}
+                  </div>
 
-        <div className="mb-5">
-          <div className={`${cardClass} min-w-0 flex flex-col`}>
-            {sectionHead(
-              "Applications Overview",
-              <button
-                onClick={() => goToCandidates({ source: "public_application" })}
-                className="text-xs rounded-lg px-2.5 py-1 flex items-center gap-1 hover:opacity-70 transition-opacity"
-                style={{ border: "1px solid var(--line)", color: "var(--ink-2)" }}
-              >
-                This Week <Icon name="chevronDown" className="w-3 h-3" />
-              </button>
-            )}
-            <div className="flex-1 flex items-center min-h-[220px]">
-              <ApplicationsChart applicants={allApplicants} />
+                  {/* Bottom row — Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
+                    <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
+                      {sectionHead("Hiring funnel", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>)}
+                      <div className="flex items-end justify-between gap-3 flex-1 min-h-[128px] pt-5">
+                        {funnel.map((f) => {
+                          const top = f.value === fmax && f.value > 0;
+                          return (
+                            <div key={f.label} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
+                              <div className="relative w-full flex-1 flex items-end">
+                                {top && <span className="absolute left-1/2 -translate-x-1/2 -top-1 -translate-y-full text-[10px] font-semibold px-1.5 py-0.5 rounded-md text-white" style={{ background: "var(--ink)" }}>{f.value}</span>}
+                                <div className="w-full rounded-lg transition-all" style={{ height: `${Math.max((f.value / fmax) * 100, 8)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "var(--brand-soft)" }} />
+                              </div>
+                              <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>{f.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
+                      {sectionHead(
+                        "Upcoming Interviews",
+                        interviews.length > 0 ? <button onClick={() => navigate("interviews")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button> : null
+                      )}
+                      {interviews.length === 0 ? (
+                        <div className="py-10 text-center flex-1 flex flex-col justify-center">
+                          <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
+                          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Once a candidate confirms a time, it shows up here.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 flex-1">
+                          {interviews.slice(0, 6).map((iv) => (
+                            <button key={iv.candidateId} onClick={() => navigate("interviews")} className="w-full flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-neutral-50 text-left transition-colors">
+                              <CandidateAvatar name={iv.candidateName} hasPhoto={false} size={36} />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
+                                <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{iv.jobTitle} · {iv.month} {iv.day}</p>
+                              </div>
+                              <span className="text-xs font-medium shrink-0" style={{ color: "var(--ink-2)" }}>{iv.time}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Right dark panel — plan card + quick actions + recent candidates */}
+          <div className="lg:col-span-1">
+            <div className="rounded-3xl p-5 relative overflow-hidden grain h-full flex flex-col" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
+              <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(151,59,247,0.35) 0%, transparent 60%)" }} />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">Your plan</p>
+                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Starter" : plan === "professional" ? "Professional" : "Enterprise"}</p>
+                </div>
+                <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
+              </div>
+              {/* stylised plan card */}
+              <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand-0), var(--brand) 55%, var(--brand-2))", boxShadow: "0 20px 40px -20px rgba(151,59,247,0.7)" }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-white font-display font-bold tracking-tight">Aster</span>
+                  <Icon name="target" className="w-5 h-5 text-white/90" />
+                </div>
+                <p className="text-white font-display font-bold text-lg mt-6">{planLimits(plan).resumeUploads === Infinity ? "Unlimited parsing" : `${planLimits(plan).resumeUploads} resumes / mo`}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-[11px] text-white/80">{trialDaysLeft > 0 ? `Trial · ${trialDaysLeft} days left` : "Active"}</p>
+                  <p className="text-[11px] text-white/80">{stats.openJobs} open role{stats.openJobs === 1 ? "" : "s"}</p>
+                </div>
+              </div>
+              {/* quick actions */}
+              <div className="relative grid grid-cols-2 gap-3 mt-4">
+                <button onClick={() => navigate("newJob")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)" }}><Icon name="briefcase" className="w-4 h-4" /> Post job</button>
+                <button onClick={() => navigate("upload")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)" }}><Icon name="upload" className="w-4 h-4" /> Upload CVs</button>
+              </div>
+              {/* recent candidates */}
+              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--navy-line)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-white">Recent candidates</p>
+                  <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>{stats.totalCandidates} total</button>
+                </div>
+                {candidates.filter((c) => c.parsed).length === 0 ? (
+                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>No candidates yet — upload CVs or share an apply link.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {candidates.filter((c) => c.parsed).slice(0, 7).map((c) => (
+                      <button key={c.id} onClick={() => goToCandidates(null)} title={c.parsed.name} className="shrink-0">
+                        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={38} />
+                      </button>
+                    ))}
+                    {candidates.filter((c) => c.parsed).length > 7 && (
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid var(--navy-line)" }}>
+                        {candidates.filter((c) => c.parsed).length - 7 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 7}`}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Plan usage — how much of this month's limits you've used */}
+              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--navy-line)" }}>
+                <div className="flex items-center justify-between mb-3.5">
+                  <p className="text-sm font-semibold text-white">Plan usage</p>
+                  <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>Manage</button>
+                </div>
+                <div className="space-y-3.5">
+                  {(() => {
+                    const L = planLimits(plan);
+                    const items = [
+                      { label: "Resume parsing", used: stats.totalCandidates, limit: L.resumeUploads },
+                      { label: "AI match runs", used: stats.matches, limit: L.aiRunsPerMonth },
+                      { label: "Active jobs", used: stats.openJobs, limit: L.maxJobs },
+                    ];
+                    return items.map((it) => {
+                      const unlimited = it.limit === Infinity;
+                      const pct = unlimited ? 18 : Math.min((it.used / it.limit) * 100, 100);
+                      const over = !unlimited && it.used > it.limit;
+                      return (
+                        <div key={it.label}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs" style={{ color: "var(--navy-ink)" }}>{it.label}</span>
+                            <span className="text-xs font-medium tnum" style={{ color: over ? "#FCA5A5" : "#fff" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
+                          </div>
+                          <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct, 4)}%`, background: over ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Row 4: two donut charts, 50/50 on desktop */}
+        {/* Two donut charts, 50/50 on desktop */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
           <div className={cardClass}>
             {sectionHead(
@@ -3172,6 +3411,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
   const [rows, setRows] = useState([]);
   const [skipped, setSkipped] = useState(0);
   const [dupActions, setDupActions] = useState({}); // fileName -> "skip" | "update"
+  const [resolved, setResolved] = useState({}); // fileName -> action, once the user commits a duplicate/review decision
 
   // Simulated batch: a realistic mix so every outcome shows. `person` carries the
   // identity the AI would extract (name/email/phone) — used for duplicate detection.
@@ -3223,12 +3463,18 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
   };
 
   const pickFiles = () => {
-    const picked = SAMPLE_BATCH.slice(0, uploadLimit);
-    setFiles(picked);
-    setSkipped(SAMPLE_BATCH.length - picked.length);
+    setFiles(SAMPLE_BATCH);
+    setSkipped(0);
   };
+  const uploadFirstAllowed = () => {
+    setFiles(SAMPLE_BATCH.slice(0, uploadLimit));
+    setSkipped(0);
+  };
+  // Plan enforcement: a batch larger than the plan's monthly allowance is blocked.
+  const overLimit = uploadLimit !== Infinity && files.length > uploadLimit;
 
   const runBatch = () => {
+    if (overLimit) return; // guard — plan limit exceeded
     setStage("uploading");
     setRows(files.map((f) => ({ ...f, uploadStatus: "pending", parseStatus: "pending" })));
 
@@ -3261,12 +3507,13 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
 
     let i = 0;
     const uploadInterval = setInterval(() => {
+      const idx = i; // capture — the setRows updater runs after i++, so read a stable index
       setRows((prev) => {
         const next = [...prev];
-        if (next[i]) {
+        if (next[idx]) {
           // A file with an unsupported type never uploads — it's blocked at the gate.
-          const blockedAtUpload = next[i].verdict === "rejected" && /\.(xlsx|xls|csv|png|jpg|jpeg|zip)$/i.test(next[i].fileName);
-          next[i] = { ...next[i], uploadStatus: blockedAtUpload ? "blocked" : "done" };
+          const blockedAtUpload = next[idx].verdict === "rejected" && /\.(xlsx|xls|csv|png|jpg|jpeg|zip)$/i.test(next[idx].fileName);
+          next[idx] = { ...next[idx], uploadStatus: blockedAtUpload ? "blocked" : "done" };
         }
         return next;
       });
@@ -3276,15 +3523,16 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
         setStage("parsing");
         let j = 0;
         const parseInterval = setInterval(() => {
+          const jdx = j; // capture — the setRows updater runs after j++
           setRows((prev) => {
             const next = [...prev];
-            if (next[j]) {
-              const r = next[j];
+            if (next[jdx]) {
+              const r = next[jdx];
               // Blocked → skipped. Otherwise a duplicate identity → "duplicate",
               // else the file's own verdict (parsed / flagged).
               const dup = dupMap[r.fileName] || null;
               const parseStatus = r.uploadStatus === "blocked" ? "skipped" : dup ? (dup.verdict === "review" ? "review" : "duplicate") : r.verdict;
-              next[j] = { ...r, parseStatus, dup };
+              next[jdx] = { ...r, parseStatus, dup };
             }
             return next;
           });
@@ -3355,15 +3603,24 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
                 Choose files (simulated)
               </button>
               {files.length > 0 && <p className="text-sm text-neutral-600 mt-3">{files.length} file(s) selected</p>}
-              {skipped > 0 && (
-                <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-                  {skipped} more skipped — the {planName} plan allows {uploadLimit} resumes a month.
-                </p>
+              {overLimit && (
+                <div className="mt-4 rounded-xl border p-3 text-left" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
+                  <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
+                    <Icon name="lock" className="w-3.5 h-3.5" /> Over your plan limit — upload blocked
+                  </p>
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
+                    This batch has {files.length} resumes, but the {planName} plan parses {uploadLimit} a month. Remove {files.length - uploadLimit} to continue, or upgrade for more.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2.5">
+                    <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
+                    <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {uploadLimit} instead</button>
+                  </div>
+                </div>
               )}
               <button
                 onClick={runBatch}
-                disabled={files.length === 0}
-                className="mt-5 block mx-auto rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-medium px-4 py-2 transition-colors"
+                disabled={files.length === 0 || overLimit}
+                className="mt-5 block mx-auto rounded-xl brand-gradient disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-colors"
               >
                 Upload &amp; Parse
               </button>
@@ -3412,7 +3669,26 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
               {stage === "parsing" && "Reading through the files…"}
               {stage === "done" && (() => { const s = summary(); return `All done — ${s.parsed} added, ${s.duplicates ? `${s.duplicates} duplicate${s.duplicates === 1 ? "" : "s"}, ` : ""}${s.review ? `${s.review} to review, ` : ""}${s.flagged} to look over, ${s.rejected} skipped.`; })()}
             </p>
-            {rows.map((row) => (
+            {rows.map((row) => {
+              if (resolved[row.fileName]) {
+                const rlabel = { skip: "Skipped", update: "Updated", new: "Added as new", merge: "Merged" }[resolved[row.fileName]] || "Resolved";
+                return (
+                  <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-2.5 border flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
+                    <span className="text-sm truncate flex-1" style={{ color: "var(--ink-3)" }}>{row.fileName}</span>
+                    <span className="text-xs font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>
+                      <Icon name="check" className="w-3 h-3" /> {rlabel}
+                    </span>
+                    <button
+                      onClick={() => setResolved((prev) => { const n = { ...prev }; delete n[row.fileName]; return n; })}
+                      className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity"
+                      style={{ color: "var(--brand)" }}
+                    >
+                      Undo
+                    </button>
+                  </div>
+                );
+              }
+              return (
               <div key={row.fileName} className="rounded-xl bg-white act-shadow px-4 py-3 border border-[color:var(--line)]">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-neutral-800 truncate flex-1">{row.fileName}</span>
@@ -3449,7 +3725,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
                           return (
                             <button
                               key={opt.key}
-                              onClick={() => setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key }))}
+                              onClick={() => { setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key })); setResolved((prev) => ({ ...prev, [row.fileName]: opt.key })); }}
                               className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
                               style={on ? { background: "var(--brand)" } : undefined}
                             >
@@ -3483,7 +3759,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
                         return (
                           <button
                             key={opt.key}
-                            onClick={() => setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key }))}
+                            onClick={() => { setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key })); setResolved((prev) => ({ ...prev, [row.fileName]: opt.key })); }}
                             className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
                             style={on ? { background: "var(--brand)" } : undefined}
                           >
@@ -3500,7 +3776,8 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set() }) {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
             {stage === "done" && (
               <button
                 onClick={() => {
@@ -3822,6 +4099,22 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         )}
 
         <div className="space-y-2">
+          {(jobStatusFilter ? jobs.filter((j) => j.status === jobStatusFilter) : jobs).length === 0 && (
+            <div className="rounded-2xl bg-white act-shadow px-5 py-10 border text-center" style={{ borderColor: "var(--line)" }}>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <Icon name="jobs" className="w-5 h-5" />
+              </div>
+              <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                {jobStatusFilter ? `No ${jobStatusFilter} roles` : "No job postings yet"}
+              </p>
+              <p className="text-xs mt-1 mb-4 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>
+                {jobStatusFilter ? "Try clearing the filter to see all your roles." : "Create your first role to start collecting and screening applicants."}
+              </p>
+              {!jobStatusFilter && !atJobLimit && (
+                <button onClick={() => navigate("newJob")} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">+ New Job</button>
+              )}
+            </div>
+          )}
           {(jobStatusFilter ? jobs.filter((j) => j.status === jobStatusFilter) : jobs).map((job) => {
             const salary = formatSalary(job);
             const meta = [job.department, job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level, salary].filter(Boolean);
@@ -6854,18 +7147,20 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
           <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Skills</h2>
           <div className="flex flex-wrap gap-2">
-            {parsed.skills.map((skill) => (
+            {parsed.skills?.length ? parsed.skills.map((skill) => (
               <span key={skill} className="text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
                 {skill}
               </span>
-            ))}
+            )) : (
+              <p className="text-sm text-neutral-400">No skills detected in this resume.</p>
+            )}
           </div>
         </div>
 
         <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
           <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Experience</h2>
           <div className="space-y-4">
-            {parsed.experience.map((exp, i) => (
+            {parsed.experience?.length ? parsed.experience.map((exp, i) => (
               <div key={i}>
                 <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-x-2">
                   <p className="text-neutral-900 text-sm font-medium">{exp.title} · {exp.company}</p>
@@ -6873,19 +7168,23 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </div>
                 <p className="text-sm text-neutral-600 mt-1">{exp.summary}</p>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-neutral-400">No work experience detected in this resume.</p>
+            )}
           </div>
         </div>
 
         <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
           <h2 className="text-sm font-medium text-neutral-600 mb-3 uppercase tracking-wide">Education</h2>
           <div className="space-y-2">
-            {parsed.education.map((ed, i) => (
+            {parsed.education?.length ? parsed.education.map((ed, i) => (
               <div key={i} className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-x-2">
                 <p className="text-neutral-900 text-sm">{ed.degree} · {ed.institution}</p>
                 <span className="text-xs text-neutral-500 shrink-0">{ed.year}</span>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-neutral-400">No education detected in this resume.</p>
+            )}
           </div>
         </div>
 
