@@ -3147,7 +3147,7 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
           <img src={faceUrl(fullName, 160)} alt="You" onError={() => setFailed(true)} className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-white/10" />
         )}
       </div>
-      <div className="min-w-0 md:mt-3">
+      <div className="min-w-0 flex-1 text-left md:text-center md:mt-3">
         <p className="text-sm font-semibold text-white group-hover:text-white/90 truncate">{fullName}</p>
         <p className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>{profile?.role || "—"}</p>
       </div>
