@@ -1811,6 +1811,14 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
     ]},
   ];
 
+  // Curated, scannable highlights for the mobile plan cards (keyed by plan.col).
+  // The full matrix lives in the desktop comparison table.
+  const planHighlights = {
+    free: { lead: "Includes", items: ["1 job posting", "10 resumes parsed / month", "3 AI match runs / month", "Interview scheduling + AI questions", "Community support"] },
+    starter: { lead: "Everything in Free, plus", items: ["5 jobs · 3 team seats", "100 resumes · 30 match runs / month", "Top 10 candidates ranked", "Store & download CVs", "Collaborative scorecards", "Email support"] },
+    pro: { lead: "Everything in Pro, plus", items: ["Unlimited jobs, parsing & matches", "All applicants ranked", "Multiple team seats", "WhatsApp Business reminders", "Priority support"] },
+  };
+
   const testimonials = [
     { quote: "We went from a shared spreadsheet and 40 open tabs to one ranked list. Our first good hire came two weeks faster.", name: "Sarah Chen", role: "Hiring Lead · Design studio, Singapore", initials: "SC" },
     { quote: "Parsing alone saved my team hours every week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Nurul Aisyah", role: "People Ops · Retail group, Malaysia", initials: "NA" },
@@ -1948,7 +1956,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       {/* Hero — the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(70% 55% at 78% 12%, rgba(90,120,248,0.35) 0%, transparent 60%), radial-gradient(60% 50% at 10% 90%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           {/* Left: copy */}
           <div>
             <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}>
@@ -2152,7 +2160,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         </Reveal>
         <div className="space-y-4 sm:space-y-5">
           {/* 1 · Role-fit match score — light row, visual right */}
-          <Reveal className="rounded-3xl overflow-hidden border grid lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <Reveal className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-8 sm:p-10 lg:p-12 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="target" className="w-5 h-5" /></span>
@@ -2193,7 +2201,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </Reveal>
 
           {/* 2 · AI resume parsing — light row, visual left */}
-          <Reveal delay={60} className="rounded-3xl overflow-hidden border grid lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <div className="relative overflow-hidden w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
                 {/* AI scan beam sweeping down the document, in a loop */}
@@ -2229,7 +2237,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </Reveal>
 
           {/* 3 · Interview scheduling — light row, visual right */}
-          <Reveal delay={60} className="rounded-3xl overflow-hidden border grid lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-8 sm:p-10 lg:p-12 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="calendar" className="w-5 h-5" /></span>
@@ -2246,7 +2254,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </Reveal>
 
           {/* 4 · One shared pipeline — light row, visual left */}
-          <Reveal delay={60} className="rounded-3xl overflow-hidden border grid lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <PipelinePreview />
             </div>
@@ -2268,7 +2276,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           {moreFeatures.map((f, i) => {
             const visualRight = i % 2 === 0; // alternate the preview side, row by row
             return (
-            <Reveal key={f.title} delay={60} className="rounded-3xl border overflow-hidden grid lg:grid-cols-2 items-stretch bg-white" style={{ borderColor: "var(--line)" }}>
+            <Reveal key={f.title} delay={60} className="rounded-3xl border overflow-hidden grid grid-cols-1 lg:grid-cols-2 items-stretch bg-white" style={{ borderColor: "var(--line)" }}>
               {/* feature-specific preview — big panel, alternating side */}
               <div className={`p-6 sm:p-8 lg:p-10 flex items-center justify-center overflow-hidden order-2 border-t lg:border-t-0 ${visualRight ? "lg:order-2 lg:border-l" : "lg:order-1 lg:border-r"}`} style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
                 <div className="w-full max-w-xs sm:max-w-sm">
@@ -2453,55 +2461,50 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           <div
             ref={priceTrackRef}
             onScroll={onPriceScroll}
-            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-px-4 px-4 pt-4 pb-4 -mx-4 no-scrollbar items-stretch"
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-px-4 px-4 pt-2 pb-5 -mx-4 no-scrollbar items-stretch"
           >
             {plans.slice(0, 3).map((plan) => (
-              <div key={plan.key} className={`snap-start shrink-0 w-[82%] sm:w-[46%] max-w-[340px] rounded-2xl border flex flex-col relative p-5 sm:p-6 ${plan.popular ? "" : "card-lift"}`}
-                style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 30px 66px -26px rgba(151,59,247,0.5)" : undefined }}>
-                {plan.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] px-2.5 py-1 rounded-full brand-gradient text-white font-semibold whitespace-nowrap shadow-[0_8px_20px_-8px_rgba(151,59,247,0.9)]">Most popular</span>}
-                <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.35rem" }}>
-                  {plan.popular ? <span className="brand-text">{plan.name}</span> : plan.name}
-                </h4>
-                <p className="text-sm text-neutral-500 mt-1">{plan.tagline}</p>
-                <div className="mt-3 flex items-end gap-1 flex-wrap">
-                  <span className="font-bold font-display text-neutral-900" style={{ fontSize: "2rem" }}>{plan.price}</span>
-                  {plan.sub && <span className="text-sm text-neutral-500 mb-1.5">{plan.sub}</span>}
+              <div key={plan.key} className={`snap-start shrink-0 w-[85%] sm:w-[46%] max-w-[340px] rounded-2xl border flex flex-col relative p-5 sm:p-6 ${plan.popular ? "" : "card-lift"}`}
+                style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 24px 50px -24px rgba(151,59,247,0.42)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
+                {/* header — name + inline popular pill (no overhang to clip) */}
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.3rem", letterSpacing: "-0.01em" }}>
+                    {plan.popular ? <span className="brand-text">{plan.name}</span> : plan.name}
+                  </h4>
+                  {plan.popular && <span className="shrink-0 text-[10px] px-2 py-1 rounded-full brand-gradient text-white font-semibold">Popular</span>}
                 </div>
-                <p className="text-xs font-medium mt-1" style={{ color: plan.note ? "#166534" : "transparent" }}>{plan.note || "placeholder"}</p>
+                <p className="text-sm text-neutral-500 mt-1">{plan.tagline}</p>
+                {/* price — baseline aligned, never wraps */}
+                <div className="mt-4 flex items-baseline gap-1.5">
+                  <span className="font-bold font-display text-neutral-900 tnum" style={{ fontSize: "2.1rem", letterSpacing: "-0.02em" }}>{plan.price}</span>
+                  {plan.sub && <span className="text-sm text-neutral-500">{plan.sub}</span>}
+                </div>
+                <p className="text-xs font-semibold mt-1.5 min-h-[1rem]" style={{ color: "#166534" }}>{plan.note || ""}</p>
                 <button onClick={() => goSignup(plan.key)}
-                  className={`w-full mt-4 rounded-xl text-sm font-semibold py-2.5 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90"}`}
+                  className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(151,59,247,0.9)]"}`}
                   style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
                   {plan.cta}
                 </button>
-                <div className="mt-5 mb-1 h-px" style={{ background: "var(--line)" }} />
-                <div className="flex-1 space-y-5 mt-4">
-                  {compareGroups.map((g) => (
-                    <div key={g.group}>
-                      <p className="text-xs font-semibold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{g.group}</p>
-                      <ul className="space-y-2.5">
-                        {g.rows.map((r) => {
-                          const val = r[plan.col];
-                          const off = val === false || val == null;
-                          return (
-                            <li key={r.label} className="flex items-start gap-2.5 text-sm">
-                              {off ? (
-                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5 text-neutral-300 text-lg leading-none">—</span>
-                              ) : (
-                                <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full text-white brand-gradient">
-                                  <Icon name="check" className="w-3 h-3" />
-                                </span>
-                              )}
-                              <span className={off ? "text-neutral-400" : "text-neutral-700"}>
-                                {r.label}
-                                {typeof val === "string" && <span className="font-semibold text-neutral-900">: {val}</span>}
-                              </span>
-                            </li>
-                          );
-                        })}
+                {/* curated highlights — clean "what you get", full matrix on desktop */}
+                {(() => {
+                  const h = planHighlights[plan.col];
+                  if (!h) return null;
+                  return (
+                    <div className="flex-1 mt-5 pt-5 border-t" style={{ borderColor: "var(--line)" }}>
+                      <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.07em" }}>{h.lead}</p>
+                      <ul className="space-y-3">
+                        {h.items.map((it) => (
+                          <li key={it} className="flex items-start gap-2.5 text-sm">
+                            <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full text-white brand-gradient">
+                              <Icon name="check" className="w-2.5 h-2.5" />
+                            </span>
+                            <span className="text-neutral-700 leading-snug">{it}</span>
+                          </li>
+                        ))}
                       </ul>
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -2524,81 +2527,49 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </div>
         </div>
 
-        {/* ---------- Desktop: 3-plan comparison, collapsible ---------- */}
-        <div className="hidden lg:block mt-8">
-          <div className="rounded-2xl border overflow-hidden shadow-soft" style={{ borderColor: "var(--line)" }}>
-            <table className="w-full border-separate" style={{ borderSpacing: 0 }}>
-              <colgroup>
-                <col style={{ width: "34%" }} />
-                <col style={{ width: "22%" }} />
-                <col style={{ width: "22%" }} />
-                <col style={{ width: "22%" }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className="sticky top-16 z-10 text-left align-top p-5" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
-                    <span className="text-xs font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Compare plans</span>
-                  </th>
-                  {plans.slice(0, 3).map((plan) => (
-                    <th key={plan.key} className="sticky top-16 z-10 text-left align-top p-4 xl:p-5"
-                      style={{
-                        background: plan.popular ? "var(--brand-soft)" : "#fff",
-                        borderBottom: `1px solid ${plan.popular ? "#E6D3FF" : "var(--line)"}`,
-                        borderTop: plan.popular ? "2px solid var(--brand)" : undefined,
-                      }}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold font-display" style={{ fontSize: "1.05rem", color: plan.popular ? "var(--brand)" : "var(--ink)" }}>{plan.name}</span>
-                        {plan.popular && <span className="text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold whitespace-nowrap">Popular</span>}
-                      </div>
-                      <div className="mt-1.5 flex items-end gap-1 flex-wrap">
-                        <span className="font-bold font-display text-neutral-900 leading-none" style={{ fontSize: "1.75rem" }}>{plan.price}</span>
-                        {plan.sub && <span className="text-[11px] text-neutral-500 leading-tight max-w-[8rem]">{plan.sub}</span>}
-                      </div>
-                      <p className="text-[11px] font-medium mt-1" style={{ color: plan.note ? "#166534" : "transparent" }}>{plan.note || "—"}</p>
-                      <button onClick={() => goSignup(plan.key)}
-                        className={`w-full mt-3 rounded-lg text-xs font-semibold py-2 transition-all ${plan.ghost ? "border hover:bg-white" : "brand-gradient text-white hover:opacity-90"}`}
-                        style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)", background: "#fff" } : undefined}>
-                        {plan.cta}
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {compareGroups.map((g) => (
-                  <Fragment key={g.group}>
-                    <tr>
-                      <td className="px-5 pt-6 pb-2 text-xs font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.06em" }}>{g.group}</td>
-                      {plans.slice(0, 3).map((plan) => (
-                        <td key={plan.key} className="pt-6 pb-2" style={plan.popular ? { background: "var(--brand-soft)" } : undefined} />
+        {/* ---------- Desktop: 3 clean plan cards (curated highlights) ---------- */}
+        <div className="hidden lg:grid grid-cols-3 gap-5 mt-8 items-stretch">
+          {plans.slice(0, 3).map((plan) => (
+            <div key={plan.key} className={`rounded-2xl border flex flex-col relative p-6 xl:p-7 ${plan.popular ? "" : "card-lift"}`}
+              style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 30px 60px -30px rgba(151,59,247,0.4)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.4rem", letterSpacing: "-0.01em" }}>
+                  {plan.popular ? <span className="brand-text">{plan.name}</span> : plan.name}
+                </h4>
+                {plan.popular && <span className="shrink-0 text-[10px] px-2 py-1 rounded-full brand-gradient text-white font-semibold">Popular</span>}
+              </div>
+              <p className="text-sm text-neutral-500 mt-1">{plan.tagline}</p>
+              <div className="mt-4 flex items-baseline gap-1.5">
+                <span className="font-bold font-display text-neutral-900 tnum" style={{ fontSize: "2.4rem", letterSpacing: "-0.02em" }}>{plan.price}</span>
+                {plan.sub && <span className="text-sm text-neutral-500">{plan.sub}</span>}
+              </div>
+              <p className="text-xs font-semibold mt-1.5 min-h-[1rem]" style={{ color: "#166534" }}>{plan.note || ""}</p>
+              <button onClick={() => goSignup(plan.key)}
+                className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(151,59,247,0.9)]"}`}
+                style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
+                {plan.cta}
+              </button>
+              {(() => {
+                const h = planHighlights[plan.col];
+                if (!h) return null;
+                return (
+                  <div className="flex-1 mt-6 pt-5 border-t" style={{ borderColor: "var(--line)" }}>
+                    <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.07em" }}>{h.lead}</p>
+                    <ul className="space-y-3">
+                      {h.items.map((it) => (
+                        <li key={it} className="flex items-start gap-2.5 text-sm">
+                          <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full text-white brand-gradient">
+                            <Icon name="check" className="w-2.5 h-2.5" />
+                          </span>
+                          <span className="text-neutral-700 leading-snug">{it}</span>
+                        </li>
                       ))}
-                    </tr>
-                    {g.rows.map((r) => (
-                      <tr key={r.label}>
-                        <td className="px-5 py-2.5 text-sm text-neutral-700 align-middle" style={{ borderTop: "1px solid var(--line)" }}>{r.label}</td>
-                        {plans.slice(0, 3).map((plan) => (
-                          <td key={plan.key} className="py-2.5 px-3 text-center align-middle"
-                            style={{
-                              borderTop: `1px solid ${plan.popular ? "#EBDCFF" : "var(--line)"}`,
-                              background: plan.popular ? "var(--brand-soft)" : undefined,
-                            }}>
-                            {renderCompareValue(r[plan.col])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </Fragment>
-                ))}
-                {/* seal the Professional band bottom */}
-                <tr>
-                  <td />
-                  {plans.slice(0, 3).map((plan) => (
-                    <td key={plan.key} className="h-2" style={plan.popular ? { background: "var(--brand-soft)", borderBottom: "2px solid var(--brand)" } : undefined} />
-                  ))}
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                    </ul>
+                  </div>
+                );
+              })()}
+            </div>
+          ))}
         </div>
 
         {/* Enterprise — highlighted separately, below the table */}
@@ -7810,10 +7781,13 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                     <p className="text-[11px] font-medium mb-2" style={{ color: "#166534" }}>save 20% billed yearly</p>
                   )}
                   <p className="text-xs text-neutral-500 mb-3 mt-1">{p.blurb}</p>
-                  <ul className="space-y-1 mb-4 flex-1">
+                  <ul className="space-y-2 mb-4 flex-1">
                     {p.features.map((f) => (
-                      <li key={f} className="text-xs text-neutral-600 flex gap-1.5">
-                        <span style={{ color: "var(--brand)" }}>✓</span> {f}
+                      <li key={f} className="flex items-start gap-2 text-xs text-neutral-600">
+                        <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white brand-gradient">
+                          <Icon name="check" className="w-2 h-2" />
+                        </span>
+                        <span className="leading-snug">{f}</span>
                       </li>
                     ))}
                   </ul>
