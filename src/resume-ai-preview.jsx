@@ -1885,7 +1885,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
   };
 
   return (
-    <div style={{ background: "#fff", color: "var(--ink)" }}>
+    <div className="overflow-x-clip" style={{ background: "#fff", color: "var(--ink)" }}>
       {/* Shared gradient for the match rings */}
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
         <defs>
@@ -2076,7 +2076,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         </Reveal>
         {/* Before / after switch — sits right above the cards */}
         <Reveal delay={60} className="mb-5 flex items-center gap-3 flex-wrap">
-          <div className={`inline-flex rounded-full border p-1 ${probTouched ? "" : "toggle-pulse"}`} style={{ borderColor: probTouched ? "var(--line)" : "var(--brand)", background: "#fff" }}>
+          <div className={`flex w-full sm:inline-flex sm:w-auto rounded-full border p-1 ${probTouched ? "" : "toggle-pulse"}`} style={{ borderColor: probTouched ? "var(--line)" : "var(--brand)", background: "#fff" }}>
             {[["problem", "The old way"], ["aster", "With Aster"]].map(([key, label]) => {
               const on = probMode === key;
               return (
@@ -2084,7 +2084,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                   key={key}
                   onClick={() => { setProbMode(key); setProbTouched(true); }}
                   aria-pressed={on}
-                  className="relative text-sm font-medium rounded-full px-4 py-2 transition-colors"
+                  className="relative flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-sm font-medium rounded-full px-4 py-2 transition-colors"
                   style={on ? { color: key === "aster" ? "#fff" : "var(--ink)" } : { color: "var(--ink-3)" }}
                 >
                   {on && <span className={`absolute inset-0 rounded-full ${key === "aster" ? "brand-gradient" : ""}`} style={key === "aster" ? { boxShadow: "0 8px 20px -10px rgba(151,59,247,0.8)" } : { background: "#F1F1F4" }} />}
@@ -2097,7 +2097,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             })}
           </div>
           {!probTouched && (
-            <span className="hint-nudge inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--brand)" }}>
+            <span className="hint-nudge hidden sm:inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--brand)" }}>
               <Icon name="chevronLeft" className="w-4 h-4" /> Flip to see how Aster fixes it
             </span>
           )}
