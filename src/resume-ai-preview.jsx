@@ -3133,7 +3133,7 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
   const [failed, setFailed] = useState(false);
   return (
     <button
-      onClick={() => navigate("settings")}
+      onClick={() => navigate("profile")}
       className="w-full flex md:flex-col items-center md:text-center gap-3 md:gap-0 pt-0 md:pt-2 group"
     >
       <div className="relative shrink-0">
@@ -3160,7 +3160,9 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
   return (
     <div className="flex flex-col h-full">
       <div className="w-full mt-1 mb-9 hidden md:flex items-center justify-center">
-        <BrandLogo logoUrl={logoUrl} onDark />
+        <button onClick={() => go("dashboard")} aria-label="Go to dashboard" className="hover:opacity-90 transition-opacity">
+          <BrandLogo logoUrl={logoUrl} onDark />
+        </button>
       </div>
 
       <div className="flex items-center gap-2 pb-5 md:pb-6">
@@ -3323,7 +3325,9 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
               <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" />
               <span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
             </button>
-            <BrandLogo logoUrl={logoUrl} onDark />
+            <button onClick={() => navigate("dashboard")} aria-label="Go to dashboard" className="hover:opacity-90 transition-opacity">
+              <BrandLogo logoUrl={logoUrl} onDark />
+            </button>
             <div className="ml-auto">
               <NotificationBell activities={activities} onOpen={onOpenNotifications} compact />
             </div>
@@ -9993,8 +9997,62 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
 
 // ---------- Root ----------
 
+// Each screen gets a dedicated URL. Detail screens that depend on transient
+// state (a picked candidate/job) share or fall back to a safe list URL, so a
+// cold refresh never lands on a broken screen.
+const SCREEN_TO_PATH = {
+  landing: "/",
+  login: "/login",
+  forgotPassword: "/forgot-password",
+  signup: "/signup",
+  dashboard: "/dashboard",
+  candidates: "/candidates",
+  candidateProfile: "/candidates",
+  applicants: "/applicants",
+  interviews: "/interviews",
+  interviewers: "/interviewers",
+  jobs: "/jobs",
+  search: "/search",
+  upload: "/upload",
+  emailTemplates: "/email-templates",
+  billing: "/billing",
+  profile: "/profile",
+  settings: "/settings",
+  schedulePicker: "/schedule",
+  apply: "/apply",
+};
+const PATH_TO_SCREEN = {
+  "/": "landing",
+  "/login": "login",
+  "/forgot-password": "forgotPassword",
+  "/signup": "signup",
+  "/dashboard": "dashboard",
+  "/candidates": "candidates",
+  "/applicants": "applicants",
+  "/interviews": "interviews",
+  "/interviewers": "interviewers",
+  "/jobs": "jobs",
+  "/search": "search",
+  "/upload": "upload",
+  "/email-templates": "emailTemplates",
+  "/billing": "billing",
+  "/profile": "profile",
+  "/settings": "settings",
+  "/schedule": "dashboard", // needs a picked booking -> fall back on refresh
+  "/apply": "dashboard",     // needs a picked job -> fall back on refresh
+};
+const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword"]);
+
+// Build the initial screen stack from the current URL (deep-link / refresh).
+function initialHistoryFromUrl() {
+  if (typeof window === "undefined") return ["landing"];
+  const screen = PATH_TO_SCREEN[window.location.pathname] || "landing";
+  if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
+  return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
+}
+
 export default function ResumeAIPreview() {
-  const [history, setHistory] = useState(["landing"]);
+  const [history, setHistory] = useState(initialHistoryFromUrl);
   const [jobs, setJobs] = useState(MOCK_JOBS);
   const [activeJobId, setActiveJobId] = useState("j1");
   // On the Free plan, only one job stays active; the rest are paused (kept, not
@@ -10082,13 +10140,34 @@ export default function ResumeAIPreview() {
       // New Job is a modal overlay, not a routed screen.
       setNewJobOpen(true);
     } else if (target === -1) {
-      setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
+      // Let the browser drive the pop so the phone Back button stays in sync.
+      if (typeof window !== "undefined" && window.history.state && window.history.state.aster) window.history.back();
+      else setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
     } else if (target === "login") {
       setHistory(["login"]);
+      if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", SCREEN_TO_PATH.login);
     } else {
       setHistory((h) => [...h, target]);
+      if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", SCREEN_TO_PATH[target] || "/");
     }
   };
+
+  // URL routing + phone/browser Back button: each navigate() pushes a matching
+  // history entry with its path, so Back pops the in-app stack (never leaves
+  // the site) and every screen has a dedicated, refreshable URL.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Seed browser history to match the initial (possibly deep-linked) stack.
+      window.history.replaceState({ aster: true }, "", SCREEN_TO_PATH[history[0]] || "/");
+      for (let i = 1; i < history.length; i++) {
+        window.history.pushState({ aster: true }, "", SCREEN_TO_PATH[history[i]] || "/");
+      }
+    }
+    const onPop = () => setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const viewCandidate = (candidateId, jobId = null, stage = null) => {
     setViewCandidateId(candidateId);
