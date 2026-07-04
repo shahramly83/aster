@@ -445,6 +445,29 @@ const APPLICANTS_BY_JOB = {
     { candidateId: "c8", appliedAt: "3d ago", baseStage: "hired", rejectionEmailSent: false, source: "Referral" },
     { candidateId: "c5", appliedAt: "4d ago", baseStage: "applied", rejectionEmailSent: false, source: "Career Page" },
     { candidateId: "c7", appliedAt: "6d ago", baseStage: "applied", rejectionEmailSent: false, source: "JobStreet" },
+    { candidateId: "c9", appliedAt: "1d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "LinkedIn" },
+    { candidateId: "c10", appliedAt: "2d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c11", appliedAt: "3d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "Referral" },
+    { candidateId: "c12", appliedAt: "2d ago", baseStage: "offer", rejectionEmailSent: false, source: "LinkedIn" },
+    { candidateId: "c13", appliedAt: "today", baseStage: "applied", rejectionEmailSent: false, source: "JobStreet" },
+    { candidateId: "c14", appliedAt: "5d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
+  ],
+  j2: [
+    { candidateId: "c2", appliedAt: "1d ago", baseStage: "applied", rejectionEmailSent: false, source: "Indeed" },
+    { candidateId: "c4", appliedAt: "3d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c10", appliedAt: "2d ago", baseStage: "applied", rejectionEmailSent: false, source: "LinkedIn" },
+    { candidateId: "c13", appliedAt: "today", baseStage: "applied", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c14", appliedAt: "5d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "Referral" },
+  ],
+  j3: [
+    { candidateId: "c1", appliedAt: "2d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "LinkedIn" },
+    { candidateId: "c3", appliedAt: "1d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c6", appliedAt: "4d ago", baseStage: "applied", rejectionEmailSent: false, source: "Glassdoor" },
+    { candidateId: "c9", appliedAt: "today", baseStage: "applied", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c11", appliedAt: "3d ago", baseStage: "offer", rejectionEmailSent: false, source: "LinkedIn" },
+    { candidateId: "c12", appliedAt: "2d ago", baseStage: "applied", rejectionEmailSent: false, source: "JobStreet" },
+    { candidateId: "c5", appliedAt: "5d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
+    { candidateId: "c7", appliedAt: "6d ago", baseStage: "applied", rejectionEmailSent: false, source: "LinkedIn" },
   ],
 };
 
@@ -2359,9 +2382,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
 }
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
-function IconSidebar({ navigate, active, avatarUrl, onSignOut, profile, unreadCount = 0 }) {
-  const nm = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
-  const ini = nm ? nm.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() : "U";
+function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
   const railBtn = (item) => {
     const on = active === item.key;
     return (
@@ -2403,11 +2424,6 @@ function IconSidebar({ navigate, active, avatarUrl, onSignOut, profile, unreadCo
           onMouseLeave={(e) => (e.currentTarget.style.color = "var(--navy-ink)")}
         >
           <Icon name="logout" className="w-5 h-5" />
-        </button>
-        <button onClick={() => navigate("settings")} title={nm || "Profile"} aria-label="Profile & settings" className="mt-1 shrink-0">
-          {avatarUrl
-            ? <img src={avatarUrl} alt="You" className="w-9 h-9 rounded-full object-cover ring-2 ring-white/10" />
-            : <span className="w-9 h-9 rounded-full brand-gradient flex items-center justify-center text-white text-xs font-semibold">{ini}</span>}
         </button>
       </div>
     </div>
@@ -2633,11 +2649,11 @@ function NotificationBell({ activities, onOpen, onActivityClick }) {
     <div className="relative">
       <button
         onClick={toggle}
-        className="relative w-9 h-9 rounded-full bg-white flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+        className="relative w-11 h-11 rounded-full bg-white flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
         style={{ border: "1px solid var(--line)" }}
         aria-label="Notifications"
       >
-        <Icon name="bell" className="w-4 h-4" />
+        <Icon name="bell" className="w-5 h-5" />
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full brand-gradient text-white text-[10px] font-semibold flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
@@ -2679,24 +2695,29 @@ function NotificationBell({ activities, onOpen, onActivityClick }) {
   );
 }
 
-function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityClick, range, setRange }) {
+function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityClick, range, setRange, avatarUrl, profile, navigate }) {
+  const nm = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
+  const ini = nm ? nm.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() : "U";
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
       <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h1>
         {subtitle && <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{subtitle}</p>}
       </div>
-      <div className="hidden md:flex items-center gap-2 sm:gap-3 shrink-0">
-        <div className="hidden md:block">
-          <DateRangePicker range={range} setRange={setRange} />
-        </div>
-        <div className="hidden md:block">
-          <NotificationBell
-            activities={activities}
-            onOpen={onOpenNotifications}
-            onActivityClick={onActivityClick}
-          />
-        </div>
+      <div className="hidden md:flex items-center gap-3 shrink-0">
+        <DateRangePicker range={range} setRange={setRange} />
+        <NotificationBell
+          activities={activities}
+          onOpen={onOpenNotifications}
+          onActivityClick={onActivityClick}
+        />
+        {navigate && (
+          <button onClick={() => navigate("settings")} aria-label="Profile & settings" title={nm || "Profile"} className="shrink-0 hover:opacity-90 transition-opacity">
+            {avatarUrl
+              ? <img src={avatarUrl} alt="You" className="w-11 h-11 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
+              : <span className="w-11 h-11 rounded-full brand-gradient flex items-center justify-center text-white text-sm font-semibold font-display">{ini}</span>}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -3051,9 +3072,10 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "free", trialDaysLeft = 0, onEndTrial, hiredIds = new Set() }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "free", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
+  const [showAllSources, setShowAllSources] = useState(false);
 
   const allApplicants = Object.values(APPLICANTS_BY_JOB).flat();
   // Hired candidates (a completed hire — the headline win). Global per candidate.
@@ -3131,16 +3153,12 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     .map((j) => ({ label: j.title, value: applicantCountFor(j.id) }))
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value);
-  const roleSegments = [
-    ...roleCounts.slice(0, 3).map((r, i) => ({ ...r, color: donutColors[i] })),
-    ...(roleCounts.slice(3).reduce((s, r) => s + r.value, 0) > 0
-      ? [{ label: "Others", value: roleCounts.slice(3).reduce((s, r) => s + r.value, 0), color: donutColors[3] }]
-      : []),
-  ];
+  // Top 3 roles by applicant count (View all shows the rest on the Jobs screen).
+  const roleSegments = roleCounts.slice(0, 3).map((r, i) => ({ ...r, color: donutColors[i] }));
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
   // Application Source — distribution of where applicants came from.
-  const sourcePalette = { "Career Page": "#973BF7", LinkedIn: "#3B82F6", Referral: "#93C5FD", Database: "#A5B4FC", Others: "#D1D5DB" };
+  const sourcePalette = { "Career Page": "#973BF7", LinkedIn: "#3B82F6", Referral: "#93C5FD", JobStreet: "#A5B4FC", Indeed: "#6366F1", Glassdoor: "#22C55E", Database: "#C7D2FE", Others: "#D1D5DB" };
   const sourceCounts = {};
   Object.values(APPLICANTS_BY_JOB).flat().forEach((a) => {
     const src = a.source || "Others";
@@ -3150,6 +3168,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     .map(([label, value]) => ({ label, value, color: sourcePalette[label] || "#D1D5DB" }))
     .sort((a, b) => b.value - a.value);
   const sourceTotal = sourceSegments.reduce((s, r) => s + r.value, 0);
+  // Show the top 4 sources by default; "View all" reveals the rest.
+  const shownSources = showAllSources ? sourceSegments : sourceSegments.slice(0, 4);
+  const shownSourceTotal = shownSources.reduce((s, r) => s + r.value, 0);
 
   const donutBody = (segments, total, emptyTitle, emptySub) =>
     total === 0 ? (
@@ -3192,6 +3213,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           onActivityClick={handleActivityClick}
           range={range}
           setRange={setRange}
+          avatarUrl={avatarUrl}
+          profile={profile}
+          navigate={navigate}
         />
 
         {/* Date filter on mobile */}
@@ -3207,7 +3231,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "" : "border act-shadow"}`} style={k.dark ? { background: "var(--navy)", border: "1px solid var(--navy-line)" } : { background: "#fff", borderColor: "var(--line)" }}>
                   <div className="flex items-start justify-between">
                     <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={k.dark ? { background: "rgba(151,59,247,0.25)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
-                    <span aria-hidden="true" className="flex flex-col gap-1 mt-1.5">{[0, 1, 2].map((d) => <span key={d} className="w-1 h-1 rounded-full" style={{ background: k.dark ? "rgba(255,255,255,0.5)" : "var(--ink-3)" }} />)}</span>
+                    <span aria-hidden="true" className="mt-0.5 opacity-60" style={{ color: k.dark ? "#fff" : "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></span>
                   </div>
                   <div className="mt-4">
                     <p className="text-sm" style={{ color: k.dark ? "var(--navy-ink)" : "var(--ink-2)" }}>{k.label}</p>
@@ -3218,35 +3242,39 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   </div>
                 </button>
               );
+              const stageCount = (s) => allApplicants.filter((a) => a.baseStage === s).length;
+              // Cumulative funnel: how many candidates reached (at least) each stage.
+              const stageRank = { applied: 0, shortlisted: 1, interviewing: 2, offer: 3, hired: 4 };
+              const reachedAtLeast = (r) => allApplicants.filter((a) => (stageRank[a.baseStage] ?? -1) >= r).length;
               const funnel = [
-                { label: "Applied", value: stats.applications },
-                { label: "Interview", value: stats.interviewsScheduled },
-                { label: "Offer", value: stats.offersPending },
-                { label: "Hired", value: stats.hiresThisMonth },
+                { label: "Applied", value: allApplicants.length },
+                { label: "Interview", value: reachedAtLeast(2) },
+                { label: "Offer", value: reachedAtLeast(3) },
+                { label: "Hired", value: reachedAtLeast(4) },
               ];
               const fmax = Math.max(...funnel.map((f) => f.value), 1);
               return (
                 <div className="flex-1 flex flex-col gap-4 md:gap-5">
                   {/* Stats — 2×2: Total Candidates | New Applications · Total Job Postings | Total Hires */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                    {heroCard({ ...kpis[0], dark: true })}
-                    {heroCard(kpis[2])}
+                    {heroCard({ ...kpis[5], dark: true })}
+                    {heroCard(kpis[0])}
                     {heroCard({ label: "Total Job Postings", value: jobs.length, icon: "jobs", delta: pctChange(stats.openJobs, prevPeriod.openJobs), onClick: () => goToJobs(null) })}
-                    {heroCard(kpis[5])}
+                    {heroCard({ label: "New Applicants", value: stageCount("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
                   </div>
 
                   {/* Bottom row — Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
-                      {sectionHead("Hiring funnel", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>)}
-                      <div className="flex items-end justify-between gap-3 flex-1 min-h-[128px] pt-5">
+                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>)}
+                      <div className="flex items-end justify-between gap-3 flex-1 min-h-[128px] pt-8">
                         {funnel.map((f) => {
                           const top = f.value === fmax && f.value > 0;
                           return (
                             <div key={f.label} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
                               <div className="relative w-full flex-1 flex items-end">
-                                {top && <span className="absolute left-1/2 -translate-x-1/2 -top-1 -translate-y-full text-[10px] font-semibold px-1.5 py-0.5 rounded-md text-white" style={{ background: "var(--ink)" }}>{f.value}</span>}
-                                <div className="w-full rounded-lg transition-all" style={{ height: `${Math.max((f.value / fmax) * 100, 8)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "var(--brand-soft)" }} />
+                                <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 -translate-y-full text-xs font-bold font-display tnum" style={{ color: "var(--ink)" }}>{f.value}</span>
+                                <div className="w-full rounded-lg transition-all" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "linear-gradient(180deg, #B79BF5, #8DA2F0)" }} />
                               </div>
                               <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>{f.label}</span>
                             </div>
@@ -3257,7 +3285,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead(
                         "Upcoming Interviews",
-                        interviews.length > 0 ? <button onClick={() => navigate("interviews")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button> : null
+                        interviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
                       )}
                       {interviews.length === 0 ? (
                         <div className="py-10 text-center flex-1 flex flex-col justify-center">
@@ -3266,14 +3294,19 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                         </div>
                       ) : (
                         <div className="space-y-1 flex-1">
-                          {interviews.slice(0, 6).map((iv) => (
-                            <button key={iv.candidateId} onClick={() => navigate("interviews")} className="w-full flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-neutral-50 text-left transition-colors">
+                          {interviews.slice(0, 3).map((iv) => (
+                            <button key={iv.candidateId} onClick={() => navigate("interviews")} className="w-full flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-neutral-50 text-left transition-colors">
                               <CandidateAvatar name={iv.candidateName} hasPhoto={false} size={36} />
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
-                                <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{iv.jobTitle} · {iv.month} {iv.day}</p>
+                                <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{iv.jobTitle}</p>
                               </div>
-                              <span className="text-xs font-medium shrink-0" style={{ color: "var(--ink-2)" }}>{iv.time}</span>
+                              <div className="shrink-0 text-right">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                                  <Icon name="calendar" className="w-3 h-3" /> {iv.month} {iv.day}
+                                </span>
+                                <p className="text-xs mt-1 font-medium tnum" style={{ color: "var(--ink-2)" }}>{iv.time}</p>
+                              </div>
                             </button>
                           ))}
                         </div>
@@ -3302,7 +3335,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <span className="text-white font-display font-bold tracking-tight">Aster</span>
                   <Icon name="target" className="w-5 h-5 text-white/90" />
                 </div>
-                <p className="text-white font-display font-bold text-lg mt-6">{planLimits(plan).resumeUploads === Infinity ? "Unlimited parsing" : `${planLimits(plan).resumeUploads} resumes / mo`}</p>
+                <p className="text-white font-display font-bold text-lg mt-6">{planLimits(plan).resumeUploads === Infinity ? "Unlimited resumes" : `${planLimits(plan).resumeUploads} resumes / mo`}</p>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-[11px] text-white/80">{trialDaysLeft > 0 ? `Trial · ${trialDaysLeft} days left` : "Active"}</p>
                   <p className="text-[11px] text-white/80">{stats.openJobs} open role{stats.openJobs === 1 ? "" : "s"}</p>
@@ -3338,36 +3371,49 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               </div>
               {/* Plan usage — how much of this month's limits you've used */}
               <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--navy-line)" }}>
-                <div className="flex items-center justify-between mb-3.5">
-                  <p className="text-sm font-semibold text-white">Plan usage</p>
-                  <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>Manage</button>
-                </div>
-                <div className="space-y-3.5">
-                  {(() => {
-                    const L = planLimits(plan);
-                    const items = [
-                      { label: "Resume parsing", used: stats.totalCandidates, limit: L.resumeUploads },
-                      { label: "AI match runs", used: stats.matches, limit: L.aiRunsPerMonth },
-                      { label: "Active jobs", used: stats.openJobs, limit: L.maxJobs },
-                    ];
-                    return items.map((it) => {
-                      const unlimited = it.limit === Infinity;
-                      const pct = unlimited ? 18 : Math.min((it.used / it.limit) * 100, 100);
-                      const over = !unlimited && it.used > it.limit;
-                      return (
-                        <div key={it.label}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs" style={{ color: "var(--navy-ink)" }}>{it.label}</span>
-                            <span className="text-xs font-medium tnum" style={{ color: over ? "#FCA5A5" : "#fff" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
-                          </div>
-                          <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct, 4)}%`, background: over ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
-                          </div>
+                {(() => {
+                  const L = planLimits(plan);
+                  const items = [
+                    { label: "Resume parsing", used: stats.totalCandidates, limit: L.resumeUploads },
+                    { label: "AI match runs", used: stats.matches, limit: L.aiRunsPerMonth },
+                    { label: "Active jobs", used: stats.openJobs, limit: L.maxJobs },
+                  ];
+                  const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
+                  return (
+                    <>
+                      <div className="flex items-center justify-between mb-3.5">
+                        <p className="text-sm font-semibold text-white">Plan usage</p>
+                        <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>Manage</button>
+                      </div>
+                      <div className="space-y-3.5">
+                        {items.map((it) => {
+                          const unlimited = it.limit === Infinity;
+                          const pct = unlimited ? 18 : Math.min((it.used / it.limit) * 100, 100);
+                          const reached = !unlimited && it.used >= it.limit;
+                          return (
+                            <div key={it.label}>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs" style={{ color: "var(--navy-ink)" }}>{it.label}</span>
+                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#FCA5A5" : "#fff" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
+                              </div>
+                              <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                                <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {anyReached && (
+                        <div className="mt-4">
+                          <p className="text-xs mb-2" style={{ color: "#FCA5A5" }}>You&rsquo;ve hit a plan limit. Upgrade to keep going.</p>
+                          <button onClick={() => navigate("billing")} className="w-full brand-gradient text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.9)]">
+                            <Icon name="arrowUpRight" className="w-4 h-4" /> Upgrade plan
+                          </button>
                         </div>
-                      );
-                    });
-                  })()}
-                </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -3379,7 +3425,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             {sectionHead(
               "Top Roles",
               roleTotal > 0 ? (
-                <button onClick={() => goToJobs(null)} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button>
+                <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
               ) : null
             )}
             {donutBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
@@ -3388,11 +3434,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           <div className={cardClass}>
             {sectionHead(
               "Application Source",
-              sourceTotal > 0 ? (
-                <button onClick={() => goToCandidates({ source: "public_application" })} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>View all</button>
+              sourceSegments.length > 4 ? (
+                <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : "Show all"} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
               ) : null
             )}
-            {donutBody(sourceSegments, sourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
+            {donutBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
           </div>
         </div>
       </div>
@@ -4148,7 +4194,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     {meta.length > 0 && <p className="text-xs text-neutral-500 mt-1">{meta.join(" · ")}</p>}
                     <p className="text-sm text-neutral-600 mt-1 line-clamp-2">{job.description}</p>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-4 shrink-0">
+                    <button onClick={() => { setActiveJobId(job.id); navigate("applicants"); }} className="text-right hover:opacity-80 transition-opacity" title="View applicants">
+                      <p className="text-xl font-bold font-display tnum leading-none" style={{ color: applicantCountFor(job.id) > 0 ? "var(--brand)" : "var(--ink-3)" }}>{applicantCountFor(job.id)}</p>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">applicant{applicantCountFor(job.id) === 1 ? "" : "s"}</p>
+                    </button>
                     {!paused && (
                       <button onClick={() => toggleStatus(job.id)} className="text-xs text-neutral-500 hover:text-neutral-700">
                         Mark {job.status === "open" ? "closed" : "open"}
@@ -8288,6 +8338,7 @@ export default function ResumeAIPreview() {
             trialDaysLeft={trialActive ? trialDaysLeft : 0}
             onEndTrial={() => setTrialDaysLeft(0)}
             hiredIds={hiredIds}
+            avatarUrl={avatarUrl}
           />
         )}
         {screen === "settings" && (
