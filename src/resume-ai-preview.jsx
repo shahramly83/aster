@@ -3319,12 +3319,13 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
         {/* Content — rounded light panel inside the dark frame */}
         <div className="flex-1 min-w-0">
           <div className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-30" style={{ background: "var(--navy)", borderBottom: "1px solid var(--navy-line)" }}>
-            <button onClick={() => setMobileOpen(true)} className="w-9 h-9 rounded-lg flex items-center justify-center text-white" style={{ border: "1px solid var(--navy-line)" }} aria-label="Open menu">
-              <Icon name="menu" className="w-5 h-5" />
+            <button onClick={() => setMobileOpen(true)} className="burger w-9 h-9 flex flex-col items-center justify-center gap-[5px] rounded-lg transition-transform active:scale-90" aria-label="Open menu">
+              <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" />
+              <span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
             </button>
-            <BrandLogo logoUrl={logoUrl} onDark compact />
+            <BrandLogo logoUrl={logoUrl} onDark />
             <div className="ml-auto">
-              <NotificationBell activities={activities} onOpen={onOpenNotifications} />
+              <NotificationBell activities={activities} onOpen={onOpenNotifications} compact />
             </div>
           </div>
           <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px]" style={{ background: "var(--bg)" }}>
@@ -3498,7 +3499,7 @@ function DateRangePicker({ range, setRange }) {
 
 // ---------- Top bar (inside main column) ----------
 
-function NotificationBell({ activities, onOpen, onActivityClick }) {
+function NotificationBell({ activities, onOpen, onActivityClick, compact = false }) {
   const MAX_NOTIFICATIONS = 8; // max rows shown in the dropdown (the rest scroll / are hidden)
   const [open, setOpen] = useState(false);
   const unread = activities.filter((a) => !a.read).length;
@@ -3515,15 +3516,15 @@ function NotificationBell({ activities, onOpen, onActivityClick }) {
     <div className="relative">
       <button
         onClick={toggle}
-        className="relative w-12 h-12 rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+        className={`relative rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors ${compact ? "w-9 h-9" : "w-12 h-12"}`}
         style={{ background: "#E7E7EE", border: "1px solid var(--line-strong)" }}
         onMouseEnter={(e) => (e.currentTarget.style.background = "#DDDDE6")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "#E7E7EE")}
         aria-label="Notifications"
       >
-        <Icon name="bell" className="w-6 h-6" />
+        <Icon name="bell" className={compact ? "w-[18px] h-[18px]" : "w-6 h-6"} />
         {unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full brand-gradient text-white text-[11px] font-semibold flex items-center justify-center">
+          <span className={`absolute rounded-full brand-gradient text-white font-semibold flex items-center justify-center ${compact ? "-top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[9px]" : "-top-1 -right-1 min-w-5 h-5 px-1 text-[11px]"}`}>
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -4123,14 +4124,13 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           navigate={navigate}
         />
 
-        {/* Date filter on mobile */}
-        <div className="md:hidden flex justify-end mb-4">
-          <DateRangePicker range={range} setRange={setRange} />
-        </div>
-
         {/* Bento — charts + interviews (left) · plan panel (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-          <div className="order-2 lg:order-1 lg:col-span-2 flex flex-col">
+          {/* Date filter on mobile — sits below the plan panel */}
+          <div className="md:hidden order-2 flex justify-end">
+            <DateRangePicker range={range} setRange={setRange} />
+          </div>
+          <div className="order-3 lg:order-1 lg:col-span-2 flex flex-col">
             {(() => {
               const heroCard = (k) => (
                 <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "" : "border act-shadow"}`} style={k.dark ? { background: "var(--navy)", border: "1px solid var(--navy-line)" } : { background: "#fff", borderColor: "var(--line)" }}>
@@ -4269,13 +4269,20 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <p className="text-xs" style={{ color: "var(--navy-ink)" }}>No candidates yet — upload CVs or share an apply link.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {candidates.filter((c) => c.parsed).slice(0, 7).map((c) => (
-                      <button key={c.id} onClick={() => goToCandidates(null)} title={c.parsed.name} className="shrink-0">
+                    {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
+                      <button key={c.id} onClick={() => goToCandidates(null)} title={c.parsed.name} className={`shrink-0 ${i >= 5 ? "hidden sm:block" : ""}`}>
                         <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={38} />
                       </button>
                     ))}
+                    {/* mobile: max 5 + overflow */}
+                    {candidates.filter((c) => c.parsed).length > 5 && (
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 5} more candidates`} className="sm:hidden shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid var(--navy-line)" }}>
+                        {candidates.filter((c) => c.parsed).length - 5 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 5}`}
+                      </button>
+                    )}
+                    {/* sm+: max 7 + overflow */}
                     {candidates.filter((c) => c.parsed).length > 7 && (
-                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid var(--navy-line)" }}>
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="hidden sm:flex shrink-0 rounded-full items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid var(--navy-line)" }}>
                         {candidates.filter((c) => c.parsed).length - 7 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 7}`}
                       </button>
                     )}
