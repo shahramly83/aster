@@ -1113,9 +1113,7 @@ function Pipeline({ steps }) {
         <div className="flex items-center justify-between pt-0.5">
           <div className="flex -space-x-2">
             {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, k) => (
-              <span key={k} className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[9px] font-semibold text-white" style={{ background: c, borderColor: "#16183A" }}>
-                {["A", "S", "D", "P"][k]}
-              </span>
+              <FaceAvatar key={k} seed={`applied-${k}`} name={["A", "S", "D", "P"][k]} size={24} className="border-2" style={{ borderColor: "#16183A" }} />
             ))}
           </div>
           <span className="text-xs" style={{ color: "var(--navy-ink)" }}><b className="text-white tnum">24</b> applied</span>
@@ -1150,7 +1148,7 @@ function Pipeline({ steps }) {
         </div>
         <div className="rounded-lg px-2.5 py-2.5 space-y-2.5" style={innerTile}>
           <div className="flex items-center gap-2.5">
-            <span className="w-7 h-7 rounded-full brand-gradient text-white text-[10px] font-semibold flex items-center justify-center shrink-0">AH</span>
+            <FaceAvatar name="Amira Hassan" size={28} />
             <div className="min-w-0 text-left">
               <p className="text-xs font-semibold text-white truncate">Amira Hassan</p>
               <p className="text-[11px]" style={{ color: "var(--navy-ink)" }}>Thu, Jul 10 · 2:00 PM</p>
@@ -1513,14 +1511,14 @@ function TeamInterviewPreview() {
           <div className="flex -space-x-2">
             {PEOPLE.map(([ini, c], k) => (
               k < joined ? (
-                <span key={ini} className="wa-pop relative w-8 h-8 rounded-full border-2 border-white text-white text-[11px] font-semibold flex items-center justify-center" style={{ background: c }}>
-                  {ini}
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-white" style={{ background: "#16A34A", opacity: invited ? 1 : 0, transform: invited ? "scale(1)" : "scale(0)", transition: `opacity .25s ease ${k * 110}ms, transform .25s cubic-bezier(.22,1,.36,1) ${k * 110}ms` }}>
+                <span key={ini} className="wa-pop relative inline-block">
+                  <FaceAvatar seed={`team-${ini}`} name={ini} size={32} className="border-2 border-white" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-white z-10" style={{ background: "#16A34A", opacity: invited ? 1 : 0, transform: invited ? "scale(1)" : "scale(0)", transition: `opacity .25s ease ${k * 110}ms, transform .25s cubic-bezier(.22,1,.36,1) ${k * 110}ms` }}>
                     <Icon name="check" className="w-2 h-2 text-white" />
                   </span>
                 </span>
               ) : (
-                <span key={ini} className="w-8 h-8 rounded-full border-2 border-white" style={{ background: "#F1F1F4" }} />
+                <span key={ini} className="w-8 h-8 rounded-full border-2 border-white block" style={{ background: "#F1F1F4" }} />
               )
             ))}
           </div>
@@ -1856,9 +1854,9 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
   };
 
   const testimonials = [
-    { quote: "We went from a shared spreadsheet and 40 open tabs to one ranked list. Our first good hire came two weeks faster.", name: "Sarah Chen", role: "Hiring Lead · Design studio, Singapore", initials: "SC" },
-    { quote: "Parsing alone saved my team hours every week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Nurul Aisyah", role: "People Ops · Retail group, Malaysia", initials: "NA" },
-    { quote: "The match score isn't magic, but it's a genuinely good first pass. New reviewers trust the shortlist right away.", name: "Tan Wei Ming", role: "Talent Lead · Tech startup, Malaysia", initials: "TW" },
+    { quote: "We went from a shared spreadsheet and 40 open tabs to one ranked list. Our first good hire came two weeks faster.", name: "Sarah Chen", role: "Hiring Lead · Design studio, Singapore", initials: "SC", gender: "women", photo: "/avatars/sarah-chen.jpg" },
+    { quote: "Parsing alone saved my team hours every week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Nurul Aisyah", role: "People Ops · Retail group, Malaysia", initials: "NA", gender: "women", photo: "/avatars/nurul-aisyah.jpg" },
+    { quote: "The match score isn't magic, but it's a genuinely good first pass. New reviewers trust the shortlist right away.", name: "Tan Wei Ming", role: "Talent Lead · Tech startup, Malaysia", initials: "TW", gender: "men", photo: "/avatars/tan-wei-ming.jpg" },
   ];
 
 
@@ -2069,10 +2067,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             <div className="mt-7 flex items-center gap-4 flex-wrap">
               <div className="flex -space-x-2.5">
                 {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, i) => (
-                  <span key={i} className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold text-white"
-                    style={{ background: c, borderColor: "#070814" }}>
-                    {["A", "S", "D", "P"][i]}
-                  </span>
+                  <FaceAvatar key={i} seed={`hero-${i}`} name={["A", "S", "D", "P"][i]} size={28} className="border-2" style={{ borderColor: "#070814" }} />
                 ))}
               </div>
               <div className="flex items-center gap-1.5">
@@ -2397,7 +2392,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                         <div className="w-full space-y-2">
                           {[["SC", 4], ["TB", 5], ["PN", 3]].map(([ini, score], k) => (
                             <div key={ini} className="pv-item flex items-center gap-2" style={{ animationDelay: `${k * 120}ms` }}>
-                              <span className="w-5 h-5 rounded-full brand-gradient text-white text-[8px] font-semibold flex items-center justify-center shrink-0">{ini}</span>
+                              <FaceAvatar name={ini} seed={ini} size={20} />
                               <div className="flex gap-0.5">
                                 {[0, 1, 2, 3, 4].map((d) => (
                                   <span key={d} className="w-1.5 h-1.5 rounded-full" style={{ background: d < score ? "var(--brand)" : "var(--line-strong)" }} />
@@ -2471,7 +2466,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 {testimonials[0].quote}
               </blockquote>
               <figcaption className="mt-6 flex items-center gap-3">
-                <span className="w-11 h-11 rounded-full brand-gradient text-white text-sm font-semibold font-display flex items-center justify-center shrink-0">{testimonials[0].initials}</span>
+                <FaceAvatar src={testimonials[0].photo} name={testimonials[0].name} gender={testimonials[0].gender} size={44} />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-white">{testimonials[0].name}</p>
                   <p className="text-xs" style={{ color: "var(--navy-ink)" }}>{testimonials[0].role}</p>
@@ -2511,7 +2506,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               </div>
               <blockquote className="text-sm text-neutral-700 leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</blockquote>
               <figcaption className="mt-5 pt-4 flex items-center gap-3" style={{ borderTop: "1px solid var(--line)" }}>
-                <span className="w-9 h-9 rounded-full brand-gradient text-white text-xs font-semibold font-display flex items-center justify-center shrink-0">{t.initials}</span>
+                <FaceAvatar src={t.photo} name={t.name} gender={t.gender} size={36} />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-neutral-900 truncate">{t.name}</p>
                   <p className="text-xs text-neutral-500 truncate">{t.role}</p>
@@ -3126,6 +3121,7 @@ const NAV_ITEMS = [
 function SidebarProfile({ avatarUrl, navigate, profile }) {
   const fullName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "Your profile";
   const init = initials(fullName);
+  const [failed, setFailed] = useState(false);
   return (
     <button
       onClick={() => navigate("settings")}
@@ -3134,10 +3130,12 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
       <div className="relative shrink-0">
         {avatarUrl ? (
           <img src={avatarUrl} alt="You" className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-white/10" />
-        ) : (
+        ) : failed ? (
           <div className="w-11 h-11 md:w-16 md:h-16 rounded-full brand-gradient flex items-center justify-center text-white text-sm md:text-lg font-semibold font-display ring-4 ring-white/10">
             {init}
           </div>
+        ) : (
+          <img src={faceUrl(fullName, 160)} alt="You" onError={() => setFailed(true)} className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-white/10" />
         )}
       </div>
       <div className="min-w-0 md:mt-3">
@@ -3576,7 +3574,7 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
           <button onClick={() => navigate("profile")} aria-label="Your profile" title={nm || "Profile"} className="shrink-0 hover:opacity-90 transition-opacity">
             {avatarUrl
               ? <img src={avatarUrl} alt="You" className="w-10 h-10 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
-              : <span className="w-10 h-10 rounded-full brand-gradient flex items-center justify-center text-white text-sm font-semibold font-display">{ini}</span>}
+              : <FaceAvatar name={nm || "You"} seed={nm || "you"} size={40} style={{ border: "1px solid var(--line)" }} />}
           </button>
         )}
       </div>
@@ -3625,21 +3623,63 @@ function initials(name) {
   return (first + last).toUpperCase();
 }
 
-function CandidateAvatar({ name, hasPhoto, size = 40, showPhotoDot = true }) {
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
+// Deterministic dummy face from a seed (name/id). Uses randomuser.me color
+// portraits (men/women 0-99). Pass gender "men"/"women" to force it.
+function faceUrl(seed, gender) {
+  const s = String(seed == null ? "" : seed);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  const g = gender === "men" || gender === "women" ? gender : (h % 2 === 0 ? "women" : "men");
+  const idx = Math.floor(h / 2) % 100;
+  return `https://randomuser.me/api/portraits/${g}/${idx}.jpg`;
+}
+
+// Per-name face overrides — real photos (drop files in public/avatars/) and/or
+// a forced gender. Applies anywhere a person with this name is shown. Missing
+// image files fall back gracefully to the person's initials.
+const FACE_OVERRIDES = {
+  "Amira Hassan": { src: "/avatars/amira-hassan.jpg", gender: "women" },
+  "Sarah Chen": { src: "/avatars/sarah-chen.jpg", gender: "women" },
+  "Nurul Aisyah": { src: "/avatars/nurul-aisyah.jpg", gender: "women" },
+  "Tan Wei Ming": { src: "/avatars/tan-wei-ming.jpg", gender: "men" },
+  "Siti Rahman": { gender: "women" },
+  "Priya Nair": { gender: "women" },
+  "Daniel Teoh": { gender: "men" },
+  "Tom Beckett": { gender: "men" },
+};
+
+// A person photo with graceful fallback to initials-in-a-circle if the
+// image can't load (offline / blocked). Seed is the name unless overridden.
+function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style = {}, fontScale = 0.36, fallbackBg = "var(--brand-soft)", fallbackColor = "var(--brand)" }) {
+  const [failed, setFailed] = useState(false);
+  const ov = name ? FACE_OVERRIDES[name] : null;
+  const photo = src || (ov && ov.src) || null;
+  const g = gender || (ov && ov.gender) || undefined;
+  const key = seed != null ? seed : name;
+  if (failed || (!photo && (key == null || key === ""))) {
+    return (
       <div
-        className="w-full h-full rounded-full flex items-center justify-center font-semibold font-display"
-        style={
-          hasPhoto
-            ? { background: "var(--brand-soft)", color: "var(--brand-2)", border: "1px solid #D9DDFF", fontSize: size * 0.34 }
-            : { background: "#F1F1F4", color: "var(--ink-2)", border: "1px solid var(--line)", fontSize: size * 0.34 }
-        }
+        className={`rounded-full flex items-center justify-center font-semibold font-display shrink-0 ${className}`}
+        style={{ width: size, height: size, background: fallbackBg, color: fallbackColor, fontSize: size * fontScale, ...style }}
       >
         {initials(name)}
       </div>
-    </div>
+    );
+  }
+  return (
+    <img
+      src={photo || faceUrl(key, g)}
+      alt={name || "Profile"}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className={`rounded-full object-cover shrink-0 ${className}`}
+      style={{ width: size, height: size, ...style }}
+    />
   );
+}
+
+function CandidateAvatar({ name, hasPhoto, size = 40, showPhotoDot = true }) {
+  return <FaceAvatar name={name} size={size} style={{ border: "1px solid var(--line)" }} />;
 }
 
 // Shared activity feed used by both the header bell and the dashboard card.
