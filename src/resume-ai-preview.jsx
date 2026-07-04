@@ -677,6 +677,28 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .q-slide { opacity: 0; }
 .reveal-in .q-slide { animation: qSlide 3.8s cubic-bezier(.22,1,.36,1) infinite; }
 @media (prefers-reduced-motion: reduce) { .reveal-in .q-slide { animation: none; opacity: 1; } }
+/* WhatsApp reminder chat: bubble pop-in + typing dots */
+@keyframes waPop { 0% { opacity: 0; transform: translateY(7px) scale(.95); } 100% { opacity: 1; transform: none; } }
+.wa-pop { animation: waPop .3s cubic-bezier(.22,1,.36,1) both; }
+@keyframes waTyping { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
+.wa-typing-dot { animation: waTyping 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wa-pop { animation: none; } .wa-typing-dot { animation: none; opacity: 1; } }
+/* Team interview: Meet chip glow once everyone is invited */
+@keyframes glowPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(151,59,247,0); } 50% { box-shadow: 0 0 0 3px rgba(151,59,247,.26); } }
+.meet-glow { animation: glowPulse 1.3s ease-in-out 2; }
+@media (prefers-reduced-motion: reduce) { .meet-glow { animation: none; } }
+/* Privacy checklist: green check ticks in with a little bounce */
+@keyframes tickPop { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
+.tick-pop { animation: tickPop .34s cubic-bezier(.22,1.4,.4,1) both; }
+@media (prefers-reduced-motion: reduce) { .tick-pop { animation: none; } }
+/* Smooth in-page scrolling for nav/footer anchor links (sections offset via scroll-mt-*) */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* Footer links: subtle hover to white with a tiny nudge */
+.footer-link { color: var(--navy-ink); transition: color .18s ease; position: relative; }
+.footer-link:hover { color: #fff; }
+.footer-social { color: var(--navy-ink); transition: color .18s ease, border-color .18s ease, background .18s ease; }
+.footer-social:hover { color: #fff; border-color: rgba(178,116,255,0.5); background: rgba(151,59,247,0.14); }
 
 /* Feature-preview items animate in (staggered) once their card scrolls into view */
 @keyframes pvIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
@@ -969,8 +991,8 @@ function MatchRing({ value, size = 52, stroke = 5, filled = true, delay = 0, gra
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-bold tnum" style={{ color: gradient ? "#fff" : "var(--navy-ink)" }}>
-          {value}<span className="text-[9px]">%</span>
+        <span className="font-bold tnum leading-none inline-flex items-center justify-center" style={{ color: gradient ? "#fff" : "var(--navy-ink)", fontSize: Math.round(size * 0.3) }}>
+          {value}<span style={{ fontSize: Math.round(size * 0.19), marginLeft: 1 }}>%</span>
         </span>
       </div>
     </div>
@@ -999,8 +1021,8 @@ function ScoreRingLight({ value, size = 56, stroke = 5, loop = false, delay = 0 
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-bold tnum" style={{ color: "var(--ink)" }}>
-          {value}<span className="text-[9px]">%</span>
+        <span className="font-bold tnum leading-none inline-flex items-center justify-center" style={{ color: "var(--ink)", fontSize: Math.round(size * 0.3) }}>
+          {value}<span style={{ fontSize: Math.round(size * 0.19), marginLeft: 1 }}>%</span>
         </span>
       </div>
     </div>
@@ -1280,18 +1302,18 @@ function UploadPreview() {
   }, []);
 
   return (
-    <div ref={ref} className="w-full space-y-1">
+    <div ref={ref} className="w-full space-y-2">
       {FILES.map(([fn, st, bg, fg], k) => {
         const isDone = k <= done;
         return (
-          <div key={fn} className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1" style={{ animationDelay: `${k * 90}ms`, border: "1px solid var(--line)" }}>
-            <span style={{ color: isDone ? "var(--ink-3)" : "var(--brand)" }}><Icon name="doc" className="w-3 h-3" /></span>
-            <span className="text-[9px] truncate flex-1" style={{ color: "var(--ink-2)" }}>{fn}</span>
+          <div key={fn} className="pv-item flex items-center gap-2.5 rounded-xl bg-white px-3 py-2.5 shadow-soft" style={{ animationDelay: `${k * 90}ms`, border: "1px solid var(--line)" }}>
+            <span className="shrink-0" style={{ color: isDone ? "var(--ink-3)" : "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
+            <span className="text-[12px] truncate flex-1" style={{ color: "var(--ink-2)" }}>{fn}</span>
             {isDone ? (
-              <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: bg, color: fg }}>{st}</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0" style={{ background: bg, color: fg }}>{st}</span>
             ) : (
-              <span className="text-[8px] font-medium px-1.5 py-0.5 rounded shrink-0 inline-flex items-center gap-1" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}>
-                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: "var(--brand)" }} />
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-md shrink-0 inline-flex items-center gap-1.5" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} />
                 Parsing…
               </span>
             )}
@@ -1302,8 +1324,48 @@ function UploadPreview() {
   );
 }
 
+function PipelinePreview() {
+  const COLS = [
+    { name: "Applied", n: 24, color: "var(--brand)", chips: [["A", "#D65BFF"], ["S", "#5A78F8"]] },
+    { name: "Screening", n: 8, color: "var(--brand)", chips: [["P", "#973BF7"], ["R", "#7B5CF0"]] },
+    { name: "Interview", n: 3, color: "var(--brand)", chips: [["D", "#5A78F8"]] },
+    { name: "Offer", n: 1, color: "#16A34A", chips: [["M", "#16A34A"]] },
+  ];
+  return (
+    <div className="w-full max-w-sm rounded-2xl bg-white shadow-soft p-3.5" style={{ border: "1px solid var(--line)" }}>
+      {/* board header — one board the whole team shares */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>Hiring pipeline</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="flex -space-x-1.5">
+            {["#D65BFF", "#5A78F8", "#973BF7"].map((c) => <span key={c} className="w-4 h-4 rounded-full border-2 border-white" style={{ background: c }} />)}
+          </span>
+          <span className="text-[9px] font-medium" style={{ color: "var(--ink-3)" }}>Shared</span>
+        </span>
+      </div>
+      {/* kanban columns */}
+      <div className="grid grid-cols-4 gap-1.5">
+        {COLS.map((col, i) => (
+          <div key={col.name} className="rounded-lg p-1.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+            <p className="text-[7px] font-semibold uppercase truncate mb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.03em" }}>{col.name}</p>
+            <p className="text-lg font-bold font-display tnum leading-none mb-1.5" style={{ color: col.color }}><CountUp to={col.n} delay={i * 150} loop /></p>
+            <div className="space-y-1">
+              {col.chips.map(([ini, c], k) => (
+                <div key={k} className="pv-item flex items-center gap-1 rounded bg-white px-1 py-0.5" style={{ animationDelay: `${300 + i * 90 + k * 130}ms`, border: "1px solid var(--line)" }}>
+                  <span className="w-3 h-3 rounded-full text-white text-[6px] font-bold flex items-center justify-center shrink-0" style={{ background: c }}>{ini}</span>
+                  <span className="h-1 rounded-full flex-1 min-w-0" style={{ background: "#EDEDF0" }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ApplyPagePreview() {
-  const URL = "aster.co/apply/fe-eng";
+  const URL = "company.hireaster.com";
   const ref = useRef(null);
   const [typed, setTyped] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -1341,28 +1403,221 @@ function ApplyPagePreview() {
   });
 
   return (
-    <div ref={ref} className="pv-item w-full rounded-xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 6px 16px -8px rgba(18,19,42,.18)" }}>
+    <div ref={ref} className="pv-item w-full rounded-xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 8px 20px -8px rgba(18,19,42,.2)" }}>
       {/* browser chrome + URL typing */}
-      <div className="flex items-center gap-1.5 px-2 py-1.5" style={{ background: "#F4F4F6", borderBottom: "1px solid var(--line)" }}>
-        <span className="flex gap-0.5 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />)}</span>
-        <span className="flex items-center gap-1 rounded px-1.5 py-0.5 flex-1 min-w-0" style={{ background: "#fff", border: "1px solid var(--line)" }}>
-          <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-2 h-2" /></span>
-          <span className="text-[8px] whitespace-nowrap" style={{ color: "var(--ink-2)" }}>
+      <div className="flex items-center gap-2 px-3 py-2" style={{ background: "#F4F4F6", borderBottom: "1px solid var(--line)" }}>
+        <span className="flex gap-1 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-2 h-2 rounded-full" style={{ background: c }} />)}</span>
+        <span className="flex items-center gap-1.5 rounded-md px-2 py-1 flex-1 min-w-0" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-2.5 h-2.5" /></span>
+          <span className="text-[11px] whitespace-nowrap" style={{ color: "var(--ink-2)" }}>
             {typed}
-            {!loaded && <span className="inline-block w-px h-2 align-middle animate-pulse" style={{ background: "var(--brand)", marginLeft: 1 }} />}
+            {!loaded && <span className="inline-block w-px h-3 align-middle animate-pulse" style={{ background: "var(--brand)", marginLeft: 1 }} />}
           </span>
         </span>
       </div>
       {/* mini apply page — colors + button load in once the URL is typed */}
-      <div className="px-2.5 py-2">
-        <div className="flex items-center gap-1.5 mb-1.5" style={ap(0)}>
-          <span className="w-4 h-4 rounded brand-gradient shrink-0" />
-          <span className="h-1.5 rounded-full" style={{ width: 54, background: "var(--brand-soft)" }} />
+      <div className="px-4 py-3.5">
+        <div className="flex items-center gap-2 mb-2.5" style={ap(0)}>
+          <span className="w-6 h-6 rounded-md brand-gradient shrink-0" />
+          <span className="h-2 rounded-full" style={{ width: 76, background: "var(--brand-soft)" }} />
         </div>
-        <div className="h-1 rounded-full mb-1" style={{ width: "88%", background: "#EDEDF0", ...ap(1) }} />
-        <div className="h-1 rounded-full mb-2" style={{ width: "68%", background: "#EDEDF0", ...ap(2) }} />
-        <span className="inline-flex items-center rounded-md brand-gradient text-white text-[8px] font-semibold px-2 py-1" style={ap(3)}>Apply now</span>
+        <div className="h-1.5 rounded-full mb-1.5" style={{ width: "88%", background: "#EDEDF0", ...ap(1) }} />
+        <div className="h-1.5 rounded-full mb-3.5" style={{ width: "68%", background: "#EDEDF0", ...ap(2) }} />
+        <span className="inline-flex items-center rounded-lg brand-gradient text-white text-[11px] font-semibold px-3 py-1.5" style={ap(3)}>Apply now</span>
       </div>
+    </div>
+  );
+}
+
+function TeamInterviewPreview() {
+  const PEOPLE = [["A", "#D65BFF"], ["S", "#5A78F8"], ["D", "#973BF7"], ["M", "#7B5CF0"]];
+  const ref = useRef(null);
+  const [joined, setJoined] = useState(0);
+  const [invited, setInvited] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setJoined(PEOPLE.length); setInvited(true); return; }
+    let timers = [], cancelled = false, started = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const run = () => {
+      if (cancelled) return;
+      setJoined(0);
+      setInvited(false);
+      PEOPLE.forEach((_, i) => at(500 + i * 240, () => setJoined(i + 1)));
+      const full = 500 + PEOPLE.length * 240;
+      at(full + 380, () => setInvited(true));
+      at(full + 380 + 2600, run);
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting && !started) { started = true; run(); obs.disconnect(); }
+      });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, []);
+
+  return (
+    <div ref={ref} className="w-full space-y-3">
+      {/* interview event with a shared meeting link */}
+      <div className="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2.5 shadow-soft" style={{ border: "1px solid var(--line)" }}>
+        <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="calendar" className="w-4 h-4" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-semibold truncate" style={{ color: "var(--ink)" }}>Interview · Amira Hassan</p>
+          <p className="text-[10px]" style={{ color: "var(--ink-3)" }}>Thu, 2:00 PM</p>
+        </div>
+        <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold shrink-0 ${invited ? "meet-glow" : ""}`} style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="link" className="w-2.5 h-2.5" /> Meet</span>
+      </div>
+      {/* the panel — teammates join one by one, then all get invited */}
+      <div className="rounded-xl bg-white px-3 py-2.5 shadow-soft" style={{ border: "1px solid var(--line)" }}>
+        <div className="flex items-center gap-2.5" style={{ minHeight: 32 }}>
+          <div className="flex -space-x-2">
+            {PEOPLE.map(([ini, c], k) => (
+              k < joined ? (
+                <span key={ini} className="wa-pop relative w-8 h-8 rounded-full border-2 border-white text-white text-[11px] font-semibold flex items-center justify-center" style={{ background: c }}>
+                  {ini}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-white" style={{ background: "#16A34A", opacity: invited ? 1 : 0, transform: invited ? "scale(1)" : "scale(0)", transition: `opacity .25s ease ${k * 110}ms, transform .25s cubic-bezier(.22,1,.36,1) ${k * 110}ms` }}>
+                    <Icon name="check" className="w-2 h-2 text-white" />
+                  </span>
+                </span>
+              ) : (
+                <span key={ini} className="w-8 h-8 rounded-full border-2 border-white" style={{ background: "#F1F1F4" }} />
+              )
+            ))}
+          </div>
+          <span className="text-[11px] font-medium inline-flex items-center gap-1 min-w-0" style={{ color: invited ? "#16A34A" : "var(--ink-3)", transition: "color .3s ease" }}>
+            {invited && <Icon name="check" className="w-3 h-3 shrink-0" />}
+            <span className="truncate">{invited ? "All invited · calendar + link sent" : (joined >= PEOPLE.length ? "Sending invites…" : "Adding teammates…")}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrivacyPreview() {
+  const ITEMS = ["Encrypted in transit & at rest", "You control who sees what", "Export or delete anytime"];
+  const ref = useRef(null);
+  const [checked, setChecked] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setChecked(ITEMS.length); return; }
+    let timers = [], cancelled = false, started = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const run = () => {
+      if (cancelled) return;
+      setChecked(0);
+      ITEMS.forEach((_, i) => at(500 + i * 460, () => setChecked(i + 1)));
+      at(500 + ITEMS.length * 460 + 2400, run);
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting && !started) { started = true; run(); obs.disconnect(); }
+      });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, []);
+
+  return (
+    <div ref={ref} className="w-full space-y-2.5">
+      <div className="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2.5 shadow-soft" style={{ border: "1px solid var(--line)" }}>
+        <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-4 h-4" /></span>
+        <span className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>Encrypted, in your workspace</span>
+      </div>
+      <div className="space-y-2">
+        {ITEMS.map((it, k) => {
+          const on = k < checked;
+          return (
+            <div key={it} className="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2.5 shadow-soft" style={{ border: "1px solid var(--line)", opacity: on ? 1 : 0.5, transition: "opacity .3s ease" }}>
+              <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: on ? "#DCFCE7" : "#F1F1F4", transition: "background .3s ease" }}>
+                {on ? (
+                  <span className="tick-pop inline-flex" style={{ color: "#16A34A" }}><Icon name="check" className="w-4 h-4" /></span>
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--line-strong)" }} />
+                )}
+              </span>
+              <span className="text-[12px] truncate" style={{ color: "var(--ink-2)" }}>{it}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WhatsAppPreview() {
+  const ref = useRef(null);
+  // 0 empty · 1 reminder in · 2 candidate typing · 3 reply (grey ticks) · 4 read (blue ticks)
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setStage(4); return; }
+    let timers = [], cancelled = false, started = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const run = () => {
+      if (cancelled) return;
+      setStage(0);
+      at(300, () => setStage(1));
+      at(1200, () => setStage(2));
+      at(2200, () => setStage(3));
+      at(2800, () => setStage(4));
+      at(2800 + 2600, run);
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting && !started) { started = true; run(); obs.disconnect(); }
+      });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, []);
+
+  return (
+    <div ref={ref} className="w-full space-y-2" style={{ minHeight: 98 }}>
+      {/* Aster reminder → candidate */}
+      {stage >= 1 && (
+        <div className="wa-pop flex justify-start">
+          <div className="rounded-2xl rounded-bl-md px-3 py-2 max-w-[88%] bg-white" style={{ border: "1px solid var(--line)", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
+            <p className="text-[11px] leading-snug" style={{ color: "var(--ink-2)" }}>Hi Amira, are you free for your interview on Thu, 2:00 PM?</p>
+            <span className="text-[9px] block text-right mt-0.5" style={{ color: "#9A9AA6" }}>2:09 PM</span>
+          </div>
+        </div>
+      )}
+      {/* candidate typing indicator */}
+      {stage === 2 && (
+        <div className="wa-pop flex justify-end">
+          <div className="rounded-2xl rounded-br-md px-3 py-2.5 inline-flex items-center gap-1.5" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
+            {[0, 1, 2].map((d) => (
+              <span key={d} className="wa-typing-dot w-1.5 h-1.5 rounded-full" style={{ background: "#5A8A6B", animationDelay: `${d * 160}ms` }} />
+            ))}
+          </div>
+        </div>
+      )}
+      {/* candidate reply */}
+      {stage >= 3 && (
+        <div className="wa-pop flex justify-end">
+          <div className="rounded-2xl rounded-br-md px-3 py-2 max-w-[88%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
+            <p className="text-[11px] leading-snug" style={{ color: "#1F2A24" }}>Yes, confirmed! See you then.</p>
+            <div className="flex justify-end items-center gap-1 mt-0.5">
+              <span className="text-[9px]" style={{ color: "#667781" }}>2:14 PM</span>
+              <span className="inline-flex items-center" style={{ color: stage >= 4 ? "#53BDEB" : "#8AA0AE", transition: "color .35s ease" }}>
+                <Icon name="check" className="w-2.5 h-2.5" />
+                <Icon name="check" className="w-2.5 h-2.5 -ml-1" />
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1558,8 +1813,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
 
   const testimonials = [
     { quote: "We went from a shared spreadsheet and 40 open tabs to one ranked list. Our first good hire came two weeks faster.", name: "Sarah Chen", role: "Hiring Lead · Design studio, Singapore", initials: "SC" },
-    { quote: "Parsing alone saved my team hours a week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Tom Beckett", role: "Founder · SaaS startup, London", initials: "TB" },
-    { quote: "The match score isn't magic, but it's a genuinely good first pass. New reviewers trust the shortlist right away.", name: "Priya Nair", role: "People Ops · Fintech, Dubai", initials: "PN" },
+    { quote: "Parsing alone saved my team hours every week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Nurul Aisyah", role: "People Ops · Retail group, Malaysia", initials: "NA" },
+    { quote: "The match score isn't magic, but it's a genuinely good first pass. New reviewers trust the shortlist right away.", name: "Tan Wei Ming", role: "Talent Lead · Tech startup, Malaysia", initials: "TW" },
   ];
 
 
@@ -1851,20 +2106,24 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           {problems.map((p, i) => {
             const aster = probMode === "aster";
             return (
-              <Reveal key={p.pain} delay={i * 70} className="rounded-2xl border p-6 sm:p-7 card-lift h-full flex flex-col" style={{ borderColor: aster ? "#E9DAFB" : "var(--line)", background: aster ? "#FBF7FF" : "#fff", transition: "background .4s ease, border-color .4s ease" }}>
+              <Reveal key={p.pain} delay={i * 70} className="group relative overflow-hidden rounded-2xl border p-6 sm:p-7 card-lift shadow-soft h-full flex flex-col" style={{ borderColor: aster ? "#E4D3FB" : "var(--line)", background: aster ? "#F8F2FF" : "#fff", transition: "background .4s ease, border-color .4s ease" }}>
+                {/* top accent bar — lights up in the Aster state */}
+                <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: "linear-gradient(90deg, #D65BFF, #973BF7, #5A78F8)", opacity: aster ? 1 : 0, transition: "opacity .4s ease" }} />
+                {/* numbered watermark */}
+                <span className="pointer-events-none absolute top-4 right-5 font-display font-extrabold tnum leading-none select-none" style={{ fontSize: "2rem", color: aster ? "rgba(151,59,247,0.12)" : "rgba(18,19,42,0.055)", transition: "color .4s ease" }}>{`0${i + 1}`}</span>
                 {/* icon + persistent problem label — the constant that maps problem↔fix */}
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors" style={aster ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                <div className="flex items-center gap-3 mb-4 pr-10">
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300" style={aster ? { background: "var(--brand)", color: "#fff", border: "1px solid transparent", boxShadow: "0 10px 22px -10px rgba(151,59,247,0.7)" } : { background: "#FFF1F2", color: "#F43F5E", border: "1px solid #FFE4E6", boxShadow: "0 0 0 0 rgba(151,59,247,0)" }}>
                     <Icon name={aster ? "check" : p.icon} className="w-5 h-5" />
                   </span>
-                  <h3 className="font-semibold text-neutral-900 leading-snug">{p.pain}</h3>
+                  <h3 className="font-semibold text-neutral-900 leading-snug text-[17px]">{p.pain}</h3>
                 </div>
                 {/* swapping body — one message at a time, animated on toggle */}
                 <div key={probMode} className="prob-swap flex-1" style={{ animationDelay: `${i * 45}ms` }}>
                   {aster ? (
                     <p className="text-[15px] leading-relaxed" style={{ color: "var(--ink)" }}>{p.result}</p>
                   ) : (
-                    <p className="text-[15px] leading-relaxed text-neutral-500">{p.fix}</p>
+                    <p className="text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{p.fix}</p>
                   )}
                 </div>
               </Reveal>
@@ -1875,8 +2134,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         {/* compact stat band */}
         <Reveal delay={120} className="mt-8 rounded-2xl border grid grid-cols-3 divide-x overflow-hidden shadow-soft" style={{ borderColor: "var(--line)", background: "#fff" }}>
           {[["3×", "faster shortlists"], ["46 → 3", "applicants to shortlist"], ["2 wks", "sooner to hire"]].map(([v, l]) => (
-            <div key={l} className="px-3 py-6 text-center" style={{ borderColor: "var(--line)" }}>
-              <p className="text-2xl sm:text-3xl font-bold font-display brand-text" style={{ letterSpacing: "-0.02em" }}>{v}</p>
+            <div key={l} className="px-2 sm:px-3 py-5 sm:py-6 text-center min-w-0" style={{ borderColor: "var(--line)" }}>
+              <p className="text-xl sm:text-3xl font-bold font-display brand-text whitespace-nowrap" style={{ letterSpacing: "-0.02em" }}>{v}</p>
               <p className="text-[11px] sm:text-xs text-neutral-500 mt-1 leading-tight">{l}</p>
             </div>
           ))}
@@ -1989,17 +2248,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           {/* 4 · One shared pipeline — light row, visual left */}
           <Reveal delay={60} className="rounded-3xl overflow-hidden border grid lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
-              <div className="w-full max-w-sm flex items-center justify-center gap-1.5 flex-wrap">
-                {[["Applied", 24], ["Screening", 8], ["Interview", 3], ["Offer", 1]].map(([stage, n], i, arr) => (
-                  <div key={stage} className="pv-item flex items-center gap-1.5" style={{ animationDelay: `${i * 110}ms` }}>
-                    <div className="rounded-xl px-3.5 py-2.5 text-center bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
-                      <p className="text-xl font-bold font-display tnum leading-none mb-0.5" style={{ color: i === arr.length - 1 ? "#16A34A" : "var(--brand)" }}><CountUp to={n} delay={i * 160} loop /></p>
-                      <p className="text-[11px] text-neutral-500 leading-none">{stage}</p>
-                    </div>
-                    {i < arr.length - 1 && <span style={{ color: "var(--line-strong)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
-                  </div>
-                ))}
-              </div>
+              <PipelinePreview />
             </div>
             <div className="p-8 sm:p-10 lg:p-12 flex flex-col justify-center order-1 lg:order-2">
               <div className="flex items-center gap-3 mb-4">
@@ -2027,17 +2276,20 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                   switch (f.icon) {
                     case "interview":
                       return (
-                        <div className="w-full space-y-2">
-                          <div className="pv-item flex items-center gap-2" style={{ animationDelay: "0ms" }}>
-                            <span className="w-5 h-5 rounded-md brand-gradient flex items-center justify-center shrink-0"><Icon name="star" className="w-3 h-3 text-white" /></span>
-                            <span className="text-[10px] font-semibold" style={{ color: "var(--ink-2)" }}>Drafted for Senior Frontend</span>
+                        <div className="w-full space-y-2.5">
+                          <div className="pv-item flex items-center gap-2.5" style={{ animationDelay: "0ms" }}>
+                            <span className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center shrink-0"><Icon name="star" className="w-4 h-4 text-white" /></span>
+                            <span className="text-[12px] font-semibold" style={{ color: "var(--ink-2)" }}>Questionnaire crafted for Senior Frontend</span>
                           </div>
-                          {[["Design systems", "Walk me through a system you scaled"], ["Scope", "Handling shifting requirements"]].map(([theme, q], k) => (
-                            <div key={q} className="q-slide flex items-start gap-2 rounded-lg bg-white px-2.5 py-2 shadow-soft" style={{ animationDelay: `${200 + k * 280}ms`, border: "1px solid var(--line)" }}>
-                              <span className="w-5 h-5 rounded-full brand-gradient text-white flex items-center justify-center text-[8px] font-bold shrink-0">Q</span>
+                          {[
+                            ["Design systems", "Walk me through a component library you built and scaled across teams."],
+                            ["Performance", "How did you track down and fix a React page that re-rendered too often?"],
+                          ].map(([theme, q], k) => (
+                            <div key={q} className="q-slide flex items-start gap-2.5 rounded-xl bg-white px-3 py-2.5 shadow-soft" style={{ animationDelay: `${200 + k * 280}ms`, border: "1px solid var(--line)" }}>
+                              <span className="w-6 h-6 rounded-full brand-gradient text-white flex items-center justify-center text-[10px] font-bold shrink-0">Q</span>
                               <span className="min-w-0">
-                                <span className="text-[8px] font-semibold uppercase block" style={{ color: "var(--brand)", letterSpacing: "0.05em" }}>{theme}</span>
-                                <span className="text-[11px] leading-snug truncate block" style={{ color: "var(--ink)" }}>{q}</span>
+                                <span className="text-[9px] font-semibold uppercase block mb-0.5" style={{ color: "var(--brand)", letterSpacing: "0.05em" }}>{theme}</span>
+                                <span className="text-[12px] leading-snug block" style={{ color: "var(--ink)" }}>{q}</span>
                               </span>
                             </div>
                           ))}
@@ -2064,66 +2316,11 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     case "briefcase":
                       return <ApplyPagePreview />;
                     case "chat":
-                      return (
-                        <div className="w-full space-y-1.5">
-                          {/* Aster reminder → candidate */}
-                          <div className="pv-item flex justify-start" style={{ animationDelay: "0ms" }}>
-                            <div className="rounded-2xl rounded-bl-md px-2.5 py-1.5 max-w-[88%] bg-white" style={{ border: "1px solid var(--line)", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
-                              <p className="text-[9px] leading-snug" style={{ color: "var(--ink-2)" }}>Hi Amira, are you free for your interview on Thu, 2:00 PM?</p>
-                              <span className="text-[7px] block text-right mt-0.5" style={{ color: "#9A9AA6" }}>2:09 PM</span>
-                            </div>
-                          </div>
-                          {/* candidate reply */}
-                          <div className="pv-item flex justify-end" style={{ animationDelay: "160ms" }}>
-                            <div className="rounded-2xl rounded-br-md px-2.5 py-1.5 max-w-[88%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
-                              <p className="text-[9px] leading-snug" style={{ color: "#1F2A24" }}>Yes, confirmed! See you then.</p>
-                              <div className="flex justify-end items-center gap-1 mt-0.5">
-                                <span className="text-[7px]" style={{ color: "#667781" }}>2:14 PM</span>
-                                <span style={{ color: "#53BDEB" }}><Icon name="check" className="w-2 h-2" /></span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
+                      return <WhatsAppPreview />;
                     case "interviewers":
-                      return (
-                        <div className="w-full space-y-1.5">
-                          {/* interview event with a shared meeting link */}
-                          <div className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5" style={{ animationDelay: "0ms", border: "1px solid var(--line)" }}>
-                            <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /></span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[9px] font-semibold truncate" style={{ color: "var(--ink)" }}>Interview · Amira Hassan</p>
-                              <p className="text-[8px]" style={{ color: "var(--ink-3)" }}>Thu, 2:00 PM</p>
-                            </div>
-                            <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="link" className="w-2 h-2" /> Meet</span>
-                          </div>
-                          {/* the panel — teammates all invited */}
-                          <div className="pv-item flex items-center gap-1.5" style={{ animationDelay: "150ms" }}>
-                            <div className="flex -space-x-1.5">
-                              {["#D65BFF", "#5A78F8", "#973BF7"].map((c, k) => (
-                                <span key={c} className="w-5 h-5 rounded-full border-2 border-white text-white text-[8px] font-semibold flex items-center justify-center" style={{ background: c }}>{["A", "S", "D"][k]}</span>
-                              ))}
-                              <span className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>+1</span>
-                            </div>
-                            <span className="text-[8px]" style={{ color: "var(--ink-3)" }}>4 on the panel, all invited</span>
-                          </div>
-                        </div>
-                      );
+                      return <TeamInterviewPreview />;
                     case "shield":
-                      return (
-                        <div className="w-full space-y-1.5">
-                          <div className="pv-item flex items-center gap-1.5" style={{ animationDelay: "0ms" }}>
-                            <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-3 h-3" /></span>
-                            <span className="text-[9px] font-semibold" style={{ color: "var(--ink)" }}>Encrypted, in your workspace</span>
-                          </div>
-                          {["Encrypted in transit & at rest", "You control who sees what", "Export or delete anytime"].map((it, k) => (
-                            <div key={it} className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1" style={{ animationDelay: `${(k + 1) * 110}ms`, border: "1px solid var(--line)" }}>
-                              <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-2.5 h-2.5" /></span>
-                              <span className="text-[9px] truncate" style={{ color: "var(--ink-2)" }}>{it}</span>
-                            </div>
-                          ))}
-                        </div>
-                      );
+                      return <PrivacyPreview />;
                     default:
                       return <span className="pv-item" style={{ color: "var(--brand)" }}><Icon name={f.icon} className="w-6 h-6" /></span>;
                   }
@@ -2503,7 +2700,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       </section>
 
       {/* Final CTA */}
-      <section className="relative overflow-hidden grain px-4 sm:px-6 py-20 sm:py-28 text-center" style={{ background: "radial-gradient(120% 140% at 50% -25%, #1B1E4C 0%, #0D0F26 48%, #070813 100%)" }}>
+      <section className="relative overflow-hidden grain px-4 sm:px-6 py-16 sm:py-28 text-center" style={{ background: "radial-gradient(120% 140% at 50% -25%, #1B1E4C 0%, #0D0F26 48%, #070813 100%)" }}>
         {/* On-brand aurora: deep indigo dome + drifting brand glows + a focus glow behind the CTA */}
         <div className="login-orb-a pointer-events-none absolute -top-32 -left-20 w-[560px] h-[560px] rounded-full blur-3xl opacity-45" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 68%)" }} />
         <div className="login-orb-b pointer-events-none absolute -bottom-32 -right-16 w-[600px] h-[600px] rounded-full blur-3xl opacity-45" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 68%)" }} />
@@ -2513,23 +2710,69 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         <Reveal className="relative max-w-2xl mx-auto">
           <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Ready to make your next hire?</h2>
           <p className="mt-3 max-w-md mx-auto" style={{ color: "var(--navy-ink)" }}>Post your first role in minutes. No credit card required.</p>
-          <button onClick={() => goSignup("free")} className="mt-8 brand-gradient text-white font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-14px_rgba(151,59,247,0.95)]">
+          {/* proof band — time saved, recruiter productivity, speed to hire */}
+          <div className="mt-9 flex justify-center">
+            <div className="flex divide-x divide-white/10">
+              {[
+                { to: 3, suffix: "×", label: "Faster shortlists" },
+                { to: 12, suffix: "h", label: "Saved weekly per recruiter" },
+                { to: 2, suffix: " wks", label: "Sooner to hire" },
+              ].map((s) => (
+                <div key={s.label} className="px-3 sm:px-8 text-center min-w-0">
+                  <p className="font-display font-bold text-white tnum leading-none whitespace-nowrap" style={{ fontSize: "clamp(1.35rem, 5vw, 2.1rem)", letterSpacing: "-0.02em" }}>
+                    <CountUp to={s.to} />{s.suffix}
+                  </p>
+                  <p className="text-[11px] sm:text-xs mt-1.5 max-w-[6.5rem] sm:max-w-[7.5rem] mx-auto leading-snug" style={{ color: "var(--navy-ink)" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button onClick={() => goSignup("free")} className="mt-9 brand-gradient text-white font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-14px_rgba(151,59,247,0.95)]">
             Create your workspace
           </button>
         </Reveal>
       </section>
 
       {/* Footer */}
-      <footer style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <BrandLogo onDark logoUrl={logoUrl} />
-          <div className="flex items-center gap-5 text-sm" style={{ color: "var(--navy-ink)" }}>
-            <a href="#features">Features</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#faq">FAQ</a>
-            <button onClick={() => navigate("login")}>Sign in</button>
+      <footer className="relative overflow-hidden" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
+        {/* brand hairline accent + soft glow */}
+        <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
+        <div className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] max-w-[90vw] h-[240px] rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-[1.6fr_1fr_1fr]">
+            {/* brand + tagline */}
+            <div>
+              <BrandLogo onDark logoUrl={logoUrl} />
+              <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--navy-ink)" }}>
+                The AI recruitment platform for growing teams. Start from a shortlist, not a pile.
+              </p>
+              <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+                <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> No credit card required
+              </div>
+            </div>
+            {/* product links */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Product</p>
+              <ul className="space-y-2.5 text-sm">
+                {[["Features", "#features"], ["Pricing", "#pricing"], ["FAQ", "#faq"]].map(([label, href]) => (
+                  <li key={label}><a href={href} className="footer-link inline-block py-0.5">{label}</a></li>
+                ))}
+              </ul>
+            </div>
+            {/* get started */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
+              <ul className="space-y-2.5 text-sm">
+                <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5">Sign in</button></li>
+                <li><button onClick={() => goSignup("free")} className="footer-link inline-block py-0.5">Create workspace</button></li>
+              </ul>
+            </div>
           </div>
-          <p className="text-xs" style={{ color: "var(--ink-3)" }}>© 2025 Aster · All rights reserved</p>
+          {/* bottom bar */}
+          <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--navy-line)" }}>
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Aster · All rights reserved</p>
+            <p className="text-xs" style={{ color: "var(--ink-3)" }}>Hire the right person, without reading every CV.</p>
+          </div>
         </div>
       </footer>
     </div>
