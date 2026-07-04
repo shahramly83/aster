@@ -2607,7 +2607,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
       <section id="faq" className="relative overflow-hidden grain py-14 sm:py-24 scroll-mt-20" style={{ background: "#0A0B1A" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 45% at 100% 0%, rgba(151,59,247,0.18) 0%, transparent 60%), radial-gradient(45% 50% at 0% 100%, rgba(90,120,248,0.16) 0%, transparent 60%)" }} />
         <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[minmax(0,360px)_1fr] gap-6 lg:gap-14">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_1fr] gap-6 lg:gap-14">
           {/* Left rail (desktop) / header + tabs (mobile) */}
           <div className="lg:sticky lg:top-24 self-start">
             <p className="eyebrow brand-text mb-2">FAQ</p>
@@ -2618,7 +2618,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
               Everything worth knowing before you start. Can&rsquo;t find what you&rsquo;re after? Just ask.
             </p>
             {/* categories — horizontal tabs on mobile, vertical list on desktop */}
-            <div className="mt-6 flex gap-2 overflow-x-auto no-scrollbar lg:flex-col lg:gap-1 lg:overflow-visible" role="tablist" aria-label="FAQ categories">
+            <div className="mt-6 flex flex-wrap gap-2 lg:flex-col lg:flex-nowrap lg:gap-1" role="tablist" aria-label="FAQ categories">
               {faqCategories.map((cat) => {
                 const on = cat === faqCat;
                 return (
@@ -3016,7 +3016,7 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false }) 
   // and the dedicated white wordmark for the dark navy sidebar — both are
   // transparent PNGs, so no white box and no filter tricks.
   const src = logoUrl || (onDark ? ACTIVYS_LOGO_WHITE : ACTIVYS_LOGO);
-  const h = compact ? "h-7" : large ? "h-12" : "h-9";
+  const h = compact ? "h-7" : large ? "h-9 sm:h-11" : "h-9";
   return (
     <img
       src={src}
