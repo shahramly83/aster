@@ -747,7 +747,7 @@ html { scroll-behavior: smooth; }
 
 function Shell({ children }) {
   return (
-    <div className="act-app min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="act-app min-h-dvh" style={{ background: "var(--bg)" }}>
       <style dangerouslySetInnerHTML={{ __html: BRAND_STYLES }} />
       {children}
     </div>
@@ -851,7 +851,7 @@ function LoginScreen({ onLogin, navigate, logoUrl }) {
             </div>
             <button
               type="submit"
-              className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_36px_-12px_rgba(151,59,247,0.9)] flex items-center justify-center gap-2"
+              className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
             >
               Sign in
               <Icon name="arrowUpRight" className="w-4 h-4" />
@@ -895,8 +895,15 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
   const [pwErr, setPwErr] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const fieldDark = "w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-shadow placeholder:text-[color:var(--navy-ink)]";
+  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--navy-ink)]";
   const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+  const labelDark = "block text-[13px] font-medium mb-1.5";
+  const primaryBtn = "w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2";
+  const points = [
+    "Reset links expire in 30 minutes",
+    "We never reveal whether an account exists",
+    "Your data stays encrypted and private",
+  ];
 
   const sendLink = () => {
     if (!isValidEmail(email)) { setEmailErr("Enter a valid email address."); return; }
@@ -919,100 +926,140 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ background: "#05060F" }}>
-      <div className="login-bg-anim pointer-events-none absolute inset-0" style={{ backgroundImage: `url(${LOGIN_BG})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }} />
-      <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(rgba(5,6,20,0.35), rgba(5,6,20,0.55))" }} />
-      <div className="login-glow pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, var(--brand-2) 55%, transparent 72%)" }} />
+    <div className="min-h-dvh flex" style={{ background: "#05060F" }}>
+      {/* ---------- Left: brand panel (fixed, centered) ---------- */}
+      <aside className="hidden lg:flex lg:w-1/2 sticky top-0 h-dvh self-start overflow-hidden flex-col justify-center px-8">
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #241357 0%, #120e35 46%, #05060f 100%)" }} />
+        <div className="signup-panel-grid pointer-events-none absolute inset-0" />
+        <div className="login-orb-a pointer-events-none absolute -top-32 -left-24 w-[540px] h-[540px] rounded-full blur-3xl opacity-[0.42]" style={{ background: "radial-gradient(circle, var(--brand-0) 0%, transparent 68%)" }} />
+        <div className="login-orb-b pointer-events-none absolute top-1/3 -right-24 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.38]" style={{ background: "radial-gradient(circle, var(--brand-2) 0%, transparent 70%)" }} />
+        <div className="login-glow pointer-events-none absolute -bottom-40 left-8 w-[520px] h-[520px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 68%)" }} />
 
-      <div className="w-full max-w-sm rounded-3xl p-8 relative z-10 act-shadow" style={{ background: "rgba(30,33,72,0.85)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
-        <div className="mb-7">
-          <button onClick={() => navigate("login")} aria-label="Back to sign in">
+        <div className="relative z-10 w-fit mx-auto">
+          <button onClick={() => navigate("login")} aria-label="Back to sign in" className="mb-10 flex [&_img]:!h-12 sm:[&_img]:!h-14">
+            <BrandLogo onDark large logoUrl={logoUrl} />
+          </button>
+          <h2 className="font-display font-bold text-white leading-[1.1] text-[34px] xl:text-[40px] tracking-tight">
+            Let's get you<br />back in.
+          </h2>
+          <ul className="mt-8 space-y-3.5">
+            {points.map((b, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(214,91,255,0.16)", color: "#E5A6FF" }}>
+                  <Icon name="check" className="w-3 h-3" />
+                </span>
+                <span className="text-[14px] leading-snug" style={{ color: "#E7E8F6" }}>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
+
+      {/* ---------- Right: reset flow (vertically centered) ---------- */}
+      <main className="flex-1 flex items-center justify-center px-5 py-12 sm:px-8 lg:py-16 relative overflow-hidden">
+        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 0%, #1a1148 0%, #08091b 60%, #05060f 100%)" }} />
+        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
+
+        <div className="w-full max-w-md min-w-0 relative z-10">
+          <button onClick={() => navigate("login")} aria-label="Back to sign in" className="lg:hidden mb-8 inline-block">
             <BrandLogo onDark logoUrl={logoUrl} />
           </button>
-        </div>
 
-        {step === "request" && (
-          <>
-            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Reset your password</h1>
-            <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>Enter the email for your account and we'll send you a reset link.</p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm mb-1.5" style={{ color: "var(--navy-ink)" }}>Email</label>
-                <input
-                  type="email" value={email} autoComplete="email" placeholder="you@company.com"
-                  onChange={(e) => { setEmail(e.target.value); setEmailErr(null); }}
-                  onKeyDown={(e) => e.key === "Enter" && sendLink()}
-                  className={fieldDark} style={fieldDarkStyle}
-                />
-                {emailErr && <p className="text-xs mt-1.5" style={{ color: "#FCA5A5" }}>{emailErr}</p>}
-              </div>
-              <button onClick={sendLink} disabled={busy} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity disabled:opacity-60 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
-                {busy ? "Sending…" : "Send reset link"}
-              </button>
+          {step === "request" && (
+            <>
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Reset your password</h1>
+              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>Enter the email for your account and we'll send you a reset link.</p>
+              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); sendLink(); }}>
+                <div>
+                  <label htmlFor="fp-email" className={labelDark} style={{ color: "#D8DAF6" }}>Email</label>
+                  <input
+                    id="fp-email" name="email" type="email" value={email} autoComplete="email" placeholder="you@company.com"
+                    onChange={(e) => { setEmail(e.target.value); setEmailErr(null); }}
+                    className={fieldDark} style={fieldDarkStyle}
+                  />
+                  {emailErr && <p className="text-xs mt-1.5" style={{ color: "#FCA5A5" }}>{emailErr}</p>}
+                </div>
+                <button type="submit" disabled={busy} className={primaryBtn}>
+                  {busy ? "Sending…" : "Send reset link"}
+                  {!busy && <Icon name="arrowUpRight" className="w-4 h-4" />}
+                </button>
+              </form>
+              <div className="hairline-dark my-5" />
               <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
                 Remembered it?{" "}
                 <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>Back to sign in</button>
               </p>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {step === "sent" && (
-          <>
-            <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.18)", color: "#C9A6FF" }}>
-              <Icon name="chat" className="w-5 h-5" />
-            </div>
-            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Check your email</h1>
-            <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--navy-ink)" }}>
-              If an account exists for <span className="font-semibold" style={{ color: "#FFFFFF" }}>{email}</span>, we've sent a reset link. It expires in 30 minutes.
-            </p>
-            <div className="space-y-3">
-              {/* Simulates clicking the tokenised link in the email. */}
-              <button onClick={() => setStep("reset")} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
-                Open reset link
-              </button>
-              <button onClick={sendLink} disabled={busy} className="w-full rounded-xl text-sm font-medium py-2.5 transition-colors disabled:opacity-60" style={{ border: "1px solid var(--navy-line)", color: "#FFFFFF" }}>
-                {busy ? "Sending…" : "Resend email"}
-              </button>
+          {step === "sent" && (
+            <>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: "rgba(151,59,247,0.18)", color: "#C9A6FF" }}>
+                <Icon name="chat" className="w-5 h-5" />
+              </div>
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Check your email</h1>
+              <p className="text-sm mt-1.5 mb-6 leading-relaxed" style={{ color: "var(--navy-ink)" }}>
+                If an account exists for <span className="font-semibold" style={{ color: "#FFFFFF" }}>{email}</span>, we've sent a reset link. It expires in 30 minutes.
+              </p>
+              <div className="space-y-3">
+                {/* Simulates clicking the tokenised link in the email. */}
+                <button onClick={() => setStep("reset")} className={primaryBtn}>
+                  Open reset link
+                  <Icon name="arrowUpRight" className="w-4 h-4" />
+                </button>
+                <button onClick={sendLink} disabled={busy} className="w-full rounded-xl text-sm font-medium py-3 transition-colors disabled:opacity-60 hover:bg-white/5" style={{ border: "1px solid var(--navy-line)", color: "#FFFFFF" }}>
+                  {busy ? "Sending…" : "Resend email"}
+                </button>
+              </div>
+              <div className="hairline-dark my-5" />
               <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
                 <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>Back to sign in</button>
               </p>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {step === "reset" && (
-          <>
-            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Set a new password</h1>
-            <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>Choose a password you haven't used before.</p>
-            <div className="space-y-4">
-              <input type={showPw ? "text" : "password"} value={newPw} autoComplete="new-password" placeholder="New password" onChange={(e) => { setNewPw(e.target.value); setPwErr(null); }} className={fieldDark} style={fieldDarkStyle} />
-              <input type={showPw ? "text" : "password"} value={confPw} autoComplete="new-password" placeholder="Confirm new password" onChange={(e) => { setConfPw(e.target.value); setPwErr(null); }} onKeyDown={(e) => e.key === "Enter" && submitNewPassword()} className={fieldDark} style={fieldDarkStyle} />
-              <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--navy-ink)" }}>
-                <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} /> Show password
-              </label>
-              <p className="text-xs" style={{ color: "var(--navy-ink)" }}>At least 8 characters, with a letter and a number.</p>
-              {pwErr && <p className="text-xs" style={{ color: "#FCA5A5" }}>{pwErr}</p>}
-              <button onClick={submitNewPassword} disabled={busy} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity disabled:opacity-60 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
-                {busy ? "Updating…" : "Update password"}
+          {step === "reset" && (
+            <>
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Set a new password</h1>
+              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>Choose a password you haven't used before.</p>
+              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submitNewPassword(); }}>
+                <div>
+                  <label htmlFor="fp-newpw" className={labelDark} style={{ color: "#D8DAF6" }}>New password</label>
+                  <div className="relative">
+                    <input id="fp-newpw" name="new-password" type={showPw ? "text" : "password"} value={newPw} autoComplete="new-password" placeholder="Create a new password" onChange={(e) => { setNewPw(e.target.value); setPwErr(null); }} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                    <button type="button" onClick={() => setShowPw((s) => !s)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
+                      <Icon name="eye" className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--navy-ink)" }}>At least 8 characters, with a letter and a number.</p>
+                </div>
+                <div>
+                  <label htmlFor="fp-confpw" className={labelDark} style={{ color: "#D8DAF6" }}>Confirm new password</label>
+                  <input id="fp-confpw" name="new-password" type={showPw ? "text" : "password"} value={confPw} autoComplete="new-password" placeholder="Re-enter the new password" onChange={(e) => { setConfPw(e.target.value); setPwErr(null); }} className={fieldDark} style={fieldDarkStyle} />
+                </div>
+                {pwErr && <p className="text-xs" style={{ color: "#FCA5A5" }}>{pwErr}</p>}
+                <button type="submit" disabled={busy} className={primaryBtn}>
+                  {busy ? "Updating…" : "Update password"}
+                </button>
+              </form>
+            </>
+          )}
+
+          {step === "done" && (
+            <>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: "rgba(34,197,94,0.18)", color: "#6EE7A5" }}>
+                <Icon name="check" className="w-5 h-5" />
+              </div>
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Password updated</h1>
+              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>You can now sign in with your new password.</p>
+              <button onClick={() => navigate("login")} className={primaryBtn}>
+                Back to sign in
+                <Icon name="arrowUpRight" className="w-4 h-4" />
               </button>
-            </div>
-          </>
-        )}
-
-        {step === "done" && (
-          <>
-            <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(34,197,94,0.18)", color: "#6EE7A5" }}>
-              <Icon name="check" className="w-5 h-5" />
-            </div>
-            <h1 className="text-lg font-bold font-display mb-1" style={{ color: "#FFFFFF" }}>Password updated</h1>
-            <p className="text-sm mb-6" style={{ color: "var(--navy-ink)" }}>You can now sign in with your new password.</p>
-            <button onClick={() => navigate("login")} className="w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity shadow-[0_8px_20px_-8px_rgba(151,59,247,0.8)]">
-              Back to sign in
-            </button>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
@@ -3131,7 +3178,7 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
             <button
               type="submit"
               disabled={!canSubmit}
-              className="w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_36px_-12px_rgba(151,59,247,0.9)] flex items-center justify-center gap-2"
+              className="w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
             >
               {ctaText}
               <Icon name={ctaIcon} className="w-4 h-4" />
