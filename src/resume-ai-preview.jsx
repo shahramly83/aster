@@ -605,8 +605,37 @@ const BRAND_STYLES = `
 .firework i:nth-child(2n) { width: 6px; height: 6px; animation-duration: 2.2s; }
 @media (prefers-reduced-motion: reduce) { .firework i { animation: none; opacity: 0; } }
 
+/* Clickable elements get a pointer cursor (Tailwind v4 no longer adds it to buttons) */
+button:not(:disabled), [role="button"], [role="menuitem"], [role="option"], a[href], summary, select, label[for] { cursor: pointer; }
+button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+
+/* Refined scrollbars, site-wide — thin, rounded, floating, subtle */
+* { scrollbar-width: thin; scrollbar-color: rgba(120,122,150,0.38) transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background-color: rgba(120,122,150,0.35); border-radius: 9999px; border: 3.5px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(120,122,150,0.6); }
+::-webkit-scrollbar-corner { background: transparent; }
+
 /* Bulk-upload dropzone hover (inline borderColor needs !important to override) */
 .upload-drop:hover { border-color: var(--brand) !important; background: var(--brand-soft); }
+
+/* Before/after card content swap (problem ↔ Aster) */
+@keyframes probSwap { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.prob-swap { animation: probSwap .45s cubic-bezier(.22,1,.36,1) both; }
+
+/* Feature-preview items animate in (staggered) once their card scrolls into view */
+@keyframes pvIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+.pv-item { opacity: 0; }
+.reveal-in .pv-item { animation: pvIn .55s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) { .pv-item { opacity: 1; } .reveal-in .pv-item { animation: none; } }
+
+/* Draw attention to the before/after toggle until it's used */
+@keyframes togglePulse { 0% { box-shadow: 0 0 0 0 rgba(151,59,247,0.30); } 70% { box-shadow: 0 0 0 12px rgba(151,59,247,0); } 100% { box-shadow: 0 0 0 0 rgba(151,59,247,0); } }
+.toggle-pulse { animation: togglePulse 1.9s ease-out infinite; }
+@keyframes hintNudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
+.hint-nudge { animation: hintNudge 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .prob-swap, .toggle-pulse, .hint-nudge { animation: none; } }
 
 /* Eyebrow label */
 .eyebrow { font-size: .8125rem; font-weight: 600; letter-spacing: .01em; }
@@ -1133,6 +1162,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
   const [faqCat, setFaqCat] = useState("General");
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [probMode, setProbMode] = useState("problem"); // "problem" | "aster" — before/after toggle
+  const [probTouched, setProbTouched] = useState(false); // hide the "flip me" hint once used
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -1200,12 +1231,12 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
   ];
 
   const moreFeatures = [
-    { icon: "interview", title: "AI interview questions", body: "Questions written for the role and the person you're meeting, grouped by theme and ready the moment the interview is booked." },
-    { icon: "users", title: "Collaborative scorecards", body: "Everyone rates the same criteria and leaves notes. Aster adds it up into one team call." },
-    { icon: "briefcase", title: "Public apply pages", body: "Every role gets a shareable link. Post it on LinkedIn, JobStreet, or anywhere else, and applicants land straight in your pipeline." },
-    { icon: "chat", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
-    { icon: "interviewers", title: "Team seats & roles", body: "Add interviewers to your plan. They see only the candidates they're assessing, nothing else." },
-    { icon: "shield", title: "Privacy by default", body: "Your candidates' data stays yours: encrypted, in your workspace, and exportable or deletable whenever you want." },
+    { icon: "interview", tag: "Interviews", title: "AI interview questions", body: "Questions written for the role and the person you're meeting, grouped by theme and ready the moment the interview is booked." },
+    { icon: "users", tag: "Feedback", title: "Collaborative scorecards", body: "Everyone rates the same criteria and leaves notes. Aster adds it up into one team call." },
+    { icon: "briefcase", tag: "Sourcing", title: "Public apply pages", body: "Every role gets a shareable link. Post it on LinkedIn, JobStreet, or anywhere else, and applicants land straight in your pipeline." },
+    { icon: "chat", tag: "Messaging", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
+    { icon: "interviewers", tag: "Access", title: "Team seats & roles", body: "Add interviewers to your plan. They see only the candidates they're assessing, nothing else." },
+    { icon: "shield", tag: "Security", title: "Privacy by default", body: "Your candidates' data stays yours: encrypted, in your workspace, and exportable or deletable whenever you want." },
   ];
 
   const compareGroups = [
@@ -1491,31 +1522,66 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
         </div>
       </section>
 
-      {/* Problem → solution */}
+      {/* Problem → solution (before/after toggle) */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
-        <Reveal className="max-w-2xl mb-8 sm:mb-12">
+        <Reveal className="max-w-2xl mb-6">
           <p className="eyebrow brand-text mb-2">Where hiring slows down</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
             Hiring always gets stuck in the same places.
           </h2>
-          <p className="text-neutral-500 mt-3">Aster was designed around each of them.</p>
+          <p className="text-neutral-500 mt-3">See the six that slow every team down — then flip to how Aster fixes each one.</p>
+        </Reveal>
+        {/* Before / after switch — sits right above the cards */}
+        <Reveal delay={60} className="mb-5 flex items-center gap-3 flex-wrap">
+          <div className={`inline-flex rounded-full border p-1 ${probTouched ? "" : "toggle-pulse"}`} style={{ borderColor: probTouched ? "var(--line)" : "var(--brand)", background: "#fff" }}>
+            {[["problem", "The old way"], ["aster", "With Aster"]].map(([key, label]) => {
+              const on = probMode === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => { setProbMode(key); setProbTouched(true); }}
+                  aria-pressed={on}
+                  className="relative text-sm font-medium rounded-full px-4 py-2 transition-colors"
+                  style={on ? { color: key === "aster" ? "#fff" : "var(--ink)" } : { color: "var(--ink-3)" }}
+                >
+                  {on && <span className={`absolute inset-0 rounded-full ${key === "aster" ? "brand-gradient" : ""}`} style={key === "aster" ? { boxShadow: "0 8px 20px -10px rgba(151,59,247,0.8)" } : { background: "#F1F1F4" }} />}
+                  <span className="relative inline-flex items-center gap-1.5">
+                    {key === "aster" && on && <Icon name="check" className="w-3.5 h-3.5" />}
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {!probTouched && (
+            <span className="hint-nudge inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--brand)" }}>
+              <Icon name="chevronLeft" className="w-4 h-4" /> Flip to see how Aster fixes it
+            </span>
+          )}
         </Reveal>
         <div className="grid md:grid-cols-3 gap-5">
-          {problems.map((p, i) => (
-            <Reveal key={p.pain} delay={i * 70} className="rounded-2xl border p-6 sm:p-7 card-lift h-full flex flex-col bg-white" style={{ borderColor: "var(--line)" }}>
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 shrink-0" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
-                <Icon name={p.icon} className="w-5 h-5" />
-              </span>
-              <h3 className="font-semibold text-neutral-900 mb-1.5">{p.pain}</h3>
-              <p className="text-sm text-neutral-500 leading-relaxed">{p.fix}</p>
-              <div className="mt-auto pt-5 flex items-start gap-2.5" style={{ borderTop: "1px solid var(--line)" }}>
-                <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full brand-gradient text-white flex items-center justify-center">
-                  <Icon name="check" className="w-3 h-3" />
-                </span>
-                <p className="text-sm font-medium text-neutral-900 leading-snug">{p.result}</p>
-              </div>
-            </Reveal>
-          ))}
+          {problems.map((p, i) => {
+            const aster = probMode === "aster";
+            return (
+              <Reveal key={p.pain} delay={i * 70} className="rounded-2xl border p-6 sm:p-7 card-lift h-full flex flex-col" style={{ borderColor: aster ? "#E9DAFB" : "var(--line)", background: aster ? "#FBF7FF" : "#fff", transition: "background .4s ease, border-color .4s ease" }}>
+                {/* icon + persistent problem label — the constant that maps problem↔fix */}
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors" style={aster ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                    <Icon name={aster ? "check" : p.icon} className="w-5 h-5" />
+                  </span>
+                  <h3 className="font-semibold text-neutral-900 leading-snug">{p.pain}</h3>
+                </div>
+                {/* swapping body — one message at a time, animated on toggle */}
+                <div key={probMode} className="prob-swap flex-1" style={{ animationDelay: `${i * 45}ms` }}>
+                  {aster ? (
+                    <p className="text-[15px] leading-relaxed" style={{ color: "var(--ink)" }}>{p.result}</p>
+                  ) : (
+                    <p className="text-[15px] leading-relaxed text-neutral-500">{p.fix}</p>
+                  )}
+                </div>
+              </Reveal>
+            );
+          })}
         </div>
 
         {/* compact stat band */}
@@ -1538,39 +1604,38 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </h2>
         </Reveal>
         <div className="space-y-4 sm:space-y-5">
-          {/* 1 · Role-fit match score — signature dark row, visual right */}
-          <Reveal className="rounded-3xl overflow-hidden grain relative grid lg:grid-cols-2 items-stretch" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
-            <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 70% at 90% 10%, rgba(90,120,248,0.4) 0%, transparent 60%), radial-gradient(50% 60% at 0% 100%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
-            <div className="relative p-8 sm:p-10 lg:p-12 flex flex-col justify-center">
+          {/* 1 · Role-fit match score — light row, visual right */}
+          <Reveal className="rounded-3xl overflow-hidden border grid lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
+            <div className="p-8 sm:p-10 lg:p-12 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.2)", color: "#fff" }}><Icon name="target" className="w-5 h-5" /></span>
-                <span className="text-[11px] font-semibold uppercase" style={{ color: "#B274FF", letterSpacing: "0.09em" }}>AI screening</span>
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="target" className="w-5 h-5" /></span>
+                <span className="text-[11px] font-semibold uppercase brand-text" style={{ letterSpacing: "0.09em" }}>AI screening</span>
               </div>
-              <h3 className="font-display font-bold text-white mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>Role-fit match score</h3>
-              <p className="leading-relaxed max-w-md" style={{ color: "var(--navy-ink)", fontSize: "0.975rem" }}>
+              <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>Role-fit match score</h3>
+              <p className="leading-relaxed max-w-md" style={{ color: "var(--ink-2)", fontSize: "0.975rem" }}>
                 Every applicant is scored against the role, so the strongest fits rise to the top on their own — no more reading every CV in full.
               </p>
-              <div className="mt-6 inline-flex items-center gap-2 self-start text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)", color: "#fff" }}>
+              <div className="mt-6 inline-flex items-center gap-2 self-start text-xs px-3 py-1.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                 <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> 46 applicants ranked in 3 seconds
               </div>
             </div>
-            <div className="relative p-6 sm:p-8 lg:p-10 flex items-center justify-center">
-              <div className="w-full max-w-sm rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--navy-line)", boxShadow: "0 30px 60px -34px rgba(0,0,0,0.7)" }}>
+            <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center border-t lg:border-t-0 lg:border-l" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
+              <div className="w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs" style={{ color: "var(--ink-3)" }}>Senior Frontend Engineer</p>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "rgba(151,59,247,0.2)", color: "#fff" }}><span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI match</span>
+                  <p className="text-xs font-semibold text-neutral-900">Senior Frontend Engineer</p>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI match</span>
                 </div>
                 <div className="space-y-2">
                   {[
                     { name: "Amira Hassan", note: "React · 6 yrs · led a design system", match: 91, top: true },
                     { name: "Siti Rahman", note: "Product-minded frontend · 5 yrs", match: 78 },
                     { name: "Daniel Teoh", note: "Strong CSS, growing into React", match: 42 },
-                  ].map((c) => (
-                    <div key={c.name} className="flex items-center gap-3 rounded-xl px-2.5 py-2" style={{ background: c.top ? "rgba(151,59,247,0.16)" : "rgba(255,255,255,0.03)", border: c.top ? "1px solid rgba(178,116,255,0.45)" : "1px solid var(--navy-line)" }}>
-                      <MatchRing value={c.match} size={40} stroke={4} filled gradient={c.top} />
+                  ].map((c, ci) => (
+                    <div key={c.name} className="pv-item flex items-center gap-3 rounded-xl px-2.5 py-2" style={{ animationDelay: `${ci * 130}ms`, background: c.top ? "var(--brand-soft)" : "var(--bg)", border: c.top ? "1px solid #D9D0FF" : "1px solid var(--line)" }}>
+                      <ScoreRingLight value={c.match} size={40} stroke={4} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-white truncate">{c.name}</p>
-                        <p className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>{c.note}</p>
+                        <p className="text-sm font-semibold text-neutral-900 truncate">{c.name}</p>
+                        <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.note}</p>
                       </div>
                       {c.top && <span className="text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold shrink-0">Top</span>}
                     </div>
@@ -1594,8 +1659,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 </div>
                 <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Skills</p>
                 <div className="flex flex-wrap gap-1.5 mb-3.5">
-                  {["React", "TypeScript", "Design systems", "Team lead", "GraphQL"].map((s) => (
-                    <span key={s} className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>
+                  {["React", "TypeScript", "Design systems", "Team lead", "GraphQL"].map((s, si) => (
+                    <span key={s} className="pv-item text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ animationDelay: `${si * 90}ms`, background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>
                   ))}
                 </div>
                 <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Summary</p>
@@ -1633,8 +1698,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                   <span className="text-[10px] font-semibold brand-text flex items-center gap-1"><Icon name="calendar" className="w-3 h-3" /> Google Meet</span>
                 </div>
                 <div className="grid grid-cols-5 gap-1.5 mb-3.5">
-                  {[["Mon", "7"], ["Tue", "8"], ["Wed", "9"], ["Thu", "10", true], ["Fri", "11"]].map(([d, n, sel]) => (
-                    <div key={d} className="rounded-lg py-1.5 text-center" style={sel ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))" } : { background: "var(--bg)", border: "1px solid var(--line)" }}>
+                  {[["Mon", "7"], ["Tue", "8"], ["Wed", "9"], ["Thu", "10", true], ["Fri", "11"]].map(([d, n, sel], di) => (
+                    <div key={d} className="pv-item rounded-lg py-1.5 text-center" style={{ animationDelay: `${di * 70}ms`, ...(sel ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))" } : { background: "var(--bg)", border: "1px solid var(--line)" }) }}>
                       <p className="text-[9px]" style={{ color: sel ? "rgba(255,255,255,0.85)" : "var(--ink-3)" }}>{d}</p>
                       <p className="text-xs font-bold tnum" style={{ color: sel ? "#fff" : "var(--ink)" }}>{n}</p>
                     </div>
@@ -1642,8 +1707,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                 </div>
                 <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Thu, Jul 10 · pick a time</p>
                 <div className="flex gap-1.5">
-                  {[["9:00", false], ["11:30", true], ["2:00", false]].map(([t, on]) => (
-                    <span key={t} className={`text-[11px] font-medium px-2.5 py-1 rounded-md ${on ? "brand-gradient text-white" : ""}`} style={on ? undefined : { background: "var(--bg)", border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>{t}</span>
+                  {[["9:00", false], ["11:30", true], ["2:00", false]].map(([t, on], ti) => (
+                    <span key={t} className={`pv-item text-[11px] font-medium px-2.5 py-1 rounded-md ${on ? "brand-gradient text-white" : ""}`} style={on ? { animationDelay: `${(ti + 5) * 70}ms` } : { animationDelay: `${(ti + 5) * 70}ms`, background: "var(--bg)", border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>{t}</span>
                   ))}
                 </div>
               </div>
@@ -1655,7 +1720,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <div className="w-full max-w-sm flex items-center justify-center gap-1.5 flex-wrap">
                 {[["Applied", 24], ["Screening", 8], ["Interview", 3], ["Offer", 1]].map(([stage, n], i, arr) => (
-                  <div key={stage} className="flex items-center gap-1.5">
+                  <div key={stage} className="pv-item flex items-center gap-1.5" style={{ animationDelay: `${i * 110}ms` }}>
                     <div className="rounded-xl px-3.5 py-2.5 text-center bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
                       <p className="text-xl font-bold font-display tnum leading-none mb-0.5" style={{ color: i === arr.length - 1 ? "#16A34A" : "var(--brand)" }}>{n}</p>
                       <p className="text-[11px] text-neutral-500 leading-none">{stage}</p>
@@ -1678,19 +1743,19 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
           </Reveal>
         </div>
 
-        {/* More capabilities — folded straight in, no separate heading */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mt-4 sm:mt-5">
+        {/* More capabilities — horizontal split cards, like the big rows */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 mt-4 sm:mt-5">
           {moreFeatures.map((f, i) => (
-            <Reveal key={f.title} delay={(i % 3) * 60} className="rounded-2xl border p-5 card-lift h-full flex flex-col bg-white" style={{ borderColor: "var(--line)" }}>
-              {/* feature-specific preview */}
-              <div className="rounded-xl h-28 mb-5 p-4 flex items-center overflow-hidden" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+            <Reveal key={f.title} delay={(i % 2) * 60} className="rounded-2xl border overflow-hidden card-lift h-full flex flex-col sm:flex-row items-stretch bg-white" style={{ borderColor: "var(--line)" }}>
+              {/* feature-specific preview — panel beside the text, like the big rows */}
+              <div className="sm:w-[44%] shrink-0 min-h-[9rem] p-5 flex items-center justify-center overflow-hidden border-b sm:border-b-0 sm:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
                 {(() => {
                   switch (f.icon) {
                     case "interview":
                       return (
                         <div className="w-full space-y-1.5">
-                          {["A design system you scaled", "Handling shifting scope"].map((q) => (
-                            <div key={q} className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5" style={{ border: "1px solid var(--line)" }}>
+                          {["A design system you scaled", "Handling shifting scope"].map((q, k) => (
+                            <div key={q} className="pv-item flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5" style={{ animationDelay: `${k * 120}ms`, border: "1px solid var(--line)" }}>
                               <span className="w-3.5 h-3.5 rounded-full brand-gradient text-white flex items-center justify-center text-[7px] font-bold shrink-0">Q</span>
                               <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>{q}</span>
                             </div>
@@ -1700,8 +1765,8 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     case "users":
                       return (
                         <div className="w-full space-y-2">
-                          {[["SC", 4], ["TB", 5], ["PN", 3]].map(([ini, score]) => (
-                            <div key={ini} className="flex items-center gap-2">
+                          {[["SC", 4], ["TB", 5], ["PN", 3]].map(([ini, score], k) => (
+                            <div key={ini} className="pv-item flex items-center gap-2" style={{ animationDelay: `${k * 120}ms` }}>
                               <span className="w-5 h-5 rounded-full brand-gradient text-white text-[8px] font-semibold flex items-center justify-center shrink-0">{ini}</span>
                               <div className="flex gap-0.5">
                                 {[0, 1, 2, 3, 4].map((d) => (
@@ -1715,7 +1780,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                       );
                     case "briefcase":
                       return (
-                        <div className="w-full rounded-md bg-white px-2.5 py-2 flex items-center gap-1.5" style={{ border: "1px solid var(--line)" }}>
+                        <div className="pv-item w-full rounded-md bg-white px-2.5 py-2 flex items-center gap-1.5" style={{ border: "1px solid var(--line)" }}>
                           <span className="flex gap-0.5 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />)}</span>
                           <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3 h-3" /></span>
                           <span className="text-[10px] truncate" style={{ color: "var(--ink-2)" }}>aster.co/apply/fe-eng</span>
@@ -1724,7 +1789,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                     case "chat":
                       return (
                         <div className="w-full flex justify-end">
-                          <div className="rounded-2xl rounded-br-md px-3 py-2 max-w-[92%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -2px rgba(18,19,42,.12)" }}>
+                          <div className="pv-item rounded-2xl rounded-br-md px-3 py-2 max-w-[92%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -2px rgba(18,19,42,.12)" }}>
                             <p className="text-[10px] leading-snug" style={{ color: "#1F2A24" }}>Interview confirmed — Thu, 2:00 PM</p>
                             <div className="flex justify-end items-center gap-1 mt-0.5">
                               <span className="text-[8px]" style={{ color: "#667781" }}>2:14 PM</span>
@@ -1735,7 +1800,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                       );
                     case "interviewers":
                       return (
-                        <div className="flex items-center gap-2">
+                        <div className="pv-item flex items-center gap-2">
                           <div className="flex -space-x-1.5">
                             {["#D65BFF", "#5A78F8", "#973BF7"].map((c, k) => (
                               <span key={c} className="w-6 h-6 rounded-full border-2 border-white text-white text-[8px] font-semibold flex items-center justify-center" style={{ background: c }}>{["A", "S", "D"][k]}</span>
@@ -1746,7 +1811,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                       );
                     case "shield":
                       return (
-                        <div className="flex items-center gap-2.5">
+                        <div className="pv-item flex items-center gap-2.5">
                           <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-5 h-5" /></span>
                           <div>
                             <p className="text-[11px] font-semibold text-neutral-900 leading-none">Encrypted</p>
@@ -1755,12 +1820,16 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle }) {
                         </div>
                       );
                     default:
-                      return <span style={{ color: "var(--brand)" }}><Icon name={f.icon} className="w-6 h-6" /></span>;
+                      return <span className="pv-item" style={{ color: "var(--brand)" }}><Icon name={f.icon} className="w-6 h-6" /></span>;
                   }
                 })()}
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-neutral-900 mb-1.5">{f.title}</h3>
+              <div className="flex-1 p-6 sm:p-7 flex flex-col justify-center">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={f.icon} className="w-4 h-4" /></span>
+                  <span className="text-[11px] font-semibold uppercase brand-text" style={{ letterSpacing: "0.09em" }}>{f.tag}</span>
+                </div>
+                <h3 className="font-display font-bold text-neutral-900 mb-1.5" style={{ fontSize: "1.15rem", letterSpacing: "-0.01em" }}>{f.title}</h3>
                 <p className="text-sm text-neutral-500 leading-relaxed">{f.body}</p>
               </div>
             </Reveal>
@@ -2585,8 +2654,8 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
   };
   return (
     <div className="flex flex-col items-center h-full w-full">
-      <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-10 h-10 flex items-center justify-center shrink-0">
-        <img src="/favicon.svg" alt="Aster" className="w-9 h-9" />
+      <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-11 h-11 flex items-center justify-center shrink-0">
+        <img src="/aster-mark.svg" alt="Aster" className="w-10 h-10" />
       </button>
       <nav className="flex-1 flex flex-col items-center gap-1.5">
         {NAV_ITEMS.map(railBtn)}
@@ -4805,8 +4874,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
   const [menuJob, setMenuJob] = useState(null); // job id whose action menu is open
+  const [detailJob, setDetailJob] = useState(null); // job open in the details modal
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
+  // A just-posted job is prepended (newest first); jump back to page 1 so it's visible.
+  useEffect(() => { setPage(0); }, [jobs.length]);
   const limits = planLimits(plan);
   const atJobLimit = jobs.length >= limits.maxJobs;
   // When a plan is capped and holds more jobs than allowed, everything beyond the
@@ -5060,29 +5132,31 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     </div>
                   )}
 
-                  <div className="flex items-start gap-3">
-                    <span className="flex w-11 h-11 items-center justify-center rounded-xl shrink-0" style={{ background: color.tile, color: color.ink }}>
-                      <Icon name="jobs" className="w-5 h-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold font-display leading-snug min-w-0" style={{ color: "var(--ink)" }}>{job.title}</h3>
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0" style={{ background: badge.bg, color: badge.color }}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} /> {badge.label}
-                        </span>
+                  <button onClick={() => setDetailJob(job)} className="group/card text-left w-full flex flex-col flex-1" title="View job details">
+                    <div className="flex items-start gap-3">
+                      <span className="flex w-11 h-11 items-center justify-center rounded-xl shrink-0" style={{ background: color.tile, color: color.ink }}>
+                        <Icon name="jobs" className="w-5 h-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold font-display leading-snug min-w-0 group-hover/card:underline decoration-1 underline-offset-2" style={{ color: "var(--ink)" }}>{job.title}</h3>
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0" style={{ background: badge.bg, color: badge.color }}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} /> {badge.label}
+                          </span>
+                        </div>
+                        {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
                       </div>
-                      {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
                     </div>
-                  </div>
 
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {chips.map((c) => (
-                      <span key={c} className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }}>{c}</span>
-                    ))}
-                    {salary && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: color.tile, color: color.ink }}>{salary}</span>}
-                  </div>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {chips.map((c) => (
+                        <span key={c} className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }}>{c}</span>
+                      ))}
+                      {salary && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: color.tile, color: color.ink }}>{salary}</span>}
+                    </div>
 
-                  <p className="text-sm mt-3 leading-relaxed line-clamp-2 flex-1" style={{ color: "var(--ink-2)" }}>{job.description}</p>
+                    <p className="text-sm mt-3 leading-relaxed line-clamp-2 flex-1" style={{ color: "var(--ink-2)" }}>{job.description}</p>
+                  </button>
 
                   <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
                     <button onClick={() => { setActiveJobId(job.id); navigate("applicants"); }} className="group/app inline-flex items-center gap-2 rounded-lg py-1 pr-2 transition-colors" title="View applicants">
@@ -5109,6 +5183,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setMenuJob(null)} />
                             <div role="menu" className="absolute right-0 bottom-full mb-1.5 z-20 w-52 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                              <button role="menuitem" onClick={() => { setMenuJob(null); setDetailJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
+                                <Icon name="eye" className="w-4 h-4" /> View details
+                              </button>
                               {job.status === "open" && (
                                 <button role="menuitem" onClick={() => { setMenuJob(null); openLinkModal(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
                                   <Icon name="link" className="w-4 h-4" /> Copy application link
@@ -5168,6 +5245,114 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </>
         )}
       </div>
+
+      {/* Full job details */}
+      {detailJob && (() => {
+        const dj = detailJob;
+        const djSalary = formatSalary(dj);
+        const djChips = [dj.location, dj.employment_type?.replace("_", "-"), dj.remote_type, dj.seniority_level].filter(Boolean);
+        const djColor = colorForJob(dj);
+        const djN = applicantCountFor(dj.id);
+        const sections = [
+          { label: "What you'll do", items: dj.responsibilities },
+          { label: "What we're looking for", items: dj.requirements },
+          { label: "What we offer", items: dj.benefits },
+        ].filter((s) => Array.isArray(s.items) && s.items.length > 0);
+        return (
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`${dj.title} details`}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDetailJob(null)} />
+            <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-2xl bg-white overflow-hidden flex flex-col" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
+              <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b shrink-0" style={{ borderColor: "var(--line)" }}>
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="flex w-11 h-11 items-center justify-center rounded-xl shrink-0" style={{ background: djColor.tile, color: djColor.ink }}><Icon name="jobs" className="w-5 h-5" /></span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{dj.title}</h2>
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0" style={dj.status === "open" ? { background: "#ECFDF3", color: "#15803D" } : { background: "#F1F1F4", color: "var(--ink-2)" }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: dj.status === "open" ? "#22C55E" : "#9A9AA6" }} /> {dj.status}
+                      </span>
+                    </div>
+                    {dj.department && <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{dj.department}</p>}
+                  </div>
+                </div>
+                <button onClick={() => setDetailJob(null)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+              </div>
+
+              <div className="px-5 sm:px-6 py-5 max-h-[70vh] overflow-y-auto space-y-6">
+                {/* Key facts */}
+                {(() => {
+                  const facts = [
+                    { label: "Location", value: dj.location },
+                    { label: "Employment", value: dj.employment_type?.replace(/_/g, "-") },
+                    { label: "Work mode", value: dj.remote_type },
+                    { label: "Seniority", value: dj.seniority_level },
+                    { label: "Salary", value: djSalary },
+                    { label: "Applicants", value: String(djN) },
+                  ].filter((f) => f.value);
+                  return (
+                    <div className="rounded-xl border p-4 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                      {facts.map((f) => (
+                        <div key={f.label} className="min-w-0">
+                          <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{f.label}</p>
+                          <p className="text-sm font-semibold mt-0.5 capitalize truncate" style={{ color: "var(--ink)" }}>{f.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {dj.description && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>About the role</p>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{dj.description}</p>
+                  </div>
+                )}
+
+                {sections.map((s) => {
+                  const meta = {
+                    "What you'll do": { icon: "target", color: "var(--brand)", tint: "var(--brand-soft)" },
+                    "What we're looking for": { icon: "search", color: "#B45309", tint: "#FEF3C7" },
+                    "What we offer": { icon: "star", color: "#15803D", tint: "#DCFCE7" },
+                  }[s.label] || { icon: "check", color: "var(--brand)", tint: "var(--brand-soft)" };
+                  return (
+                    <div key={s.label}>
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: meta.tint, color: meta.color }}><Icon name={meta.icon} className="w-4 h-4" /></span>
+                        <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{s.label}</p>
+                      </div>
+                      <ul className="space-y-2 pl-1">
+                        {s.items.map((it, k) => (
+                          <li key={k} className="flex items-start gap-2.5 text-sm" style={{ color: "var(--ink-2)" }}>
+                            <span className="mt-0.5 shrink-0" style={{ color: meta.color }}><Icon name="check" className="w-4 h-4" /></span>
+                            <span className="leading-relaxed">{it}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+                {sections.length === 0 && !dj.description && (
+                  <p className="text-sm" style={{ color: "var(--ink-3)" }}>No further details were added for this role.</p>
+                )}
+              </div>
+
+              <div className="px-5 sm:px-6 py-4 border-t flex flex-wrap items-center gap-2 shrink-0" style={{ borderColor: "var(--line)" }}>
+                <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("applicants"); }} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90">
+                  <Icon name="users" className="w-4 h-4" /> View applicants{djN > 0 ? ` (${djN})` : ""}
+                </button>
+                {dj.status === "open" && (
+                  <button onClick={() => { setDetailJob(null); openLinkModal(dj); }} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                    <Icon name="link" className="w-4 h-4" /> Copy link
+                  </button>
+                )}
+                <button onClick={() => { const j = dj; setDetailJob(null); onPreviewApply && onPreviewApply(j); }} className="text-sm font-medium ml-auto hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                  Preview apply page →
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Copy application link — source tagging modal */}
       {linkJob && (
