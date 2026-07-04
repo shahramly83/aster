@@ -1626,7 +1626,7 @@ function WhatsAppPreview() {
       {stage >= 1 && (
         <div className="wa-pop flex justify-start">
           <div className="rounded-2xl rounded-bl-md px-3 py-2 max-w-[88%] bg-white" style={{ border: "1px solid var(--line)", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
-            <p className="text-[11px] leading-snug" style={{ color: "var(--ink-2)" }}>Hi Amira, are you free for your interview on Thu, 2:00 PM?</p>
+            <p className="text-[11px] leading-snug" style={{ color: "var(--ink-2)" }}>Reminder: your interview is on Thu at 2:00 PM. Can you make it?</p>
             <span className="text-[9px] block text-right mt-0.5" style={{ color: "#9A9AA6" }}>2:09 PM</span>
           </div>
         </div>
@@ -1645,7 +1645,7 @@ function WhatsAppPreview() {
       {stage >= 3 && (
         <div className="wa-pop flex justify-end">
           <div className="rounded-2xl rounded-br-md px-3 py-2 max-w-[88%]" style={{ background: "#DCF8C6", boxShadow: "0 2px 6px -3px rgba(18,19,42,.12)" }}>
-            <p className="text-[11px] leading-snug" style={{ color: "#1F2A24" }}>Yes, confirmed! See you then.</p>
+            <p className="text-[11px] leading-snug" style={{ color: "#1F2A24" }}>Okay, see you then!</p>
             <div className="flex justify-end items-center gap-1 mt-0.5">
               <span className="text-[9px]" style={{ color: "#667781" }}>2:14 PM</span>
               <span className="inline-flex items-center" style={{ color: stage >= 4 ? "#53BDEB" : "#8AA0AE", transition: "color .35s ease" }}>
