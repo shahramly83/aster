@@ -265,6 +265,222 @@ const MOCK_CANDIDATES = [
       education: [{ degree: "B.IT", institution: "UKM", year: "2018" }],
     },
   },
+  {
+    id: "c15",
+    fileName: "nurdiana_rashid_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Nurdiana Rashid",
+      email: "nurdiana.rashid@email.com",
+      phone: "+60 12-334 7788",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Enterprise account executive with a steady record of beating quota.",
+      years_of_experience: 6,
+      skills: ["Salesforce", "B2B Sales", "Negotiation", "Cold Calling", "Pipeline Management", "Account Management"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Account Executive", company: "Grab", duration: "2019–Present", summary: "Grew mid-market pipeline and closed enterprise logos." }],
+      education: [{ degree: "B.B.A. Marketing", institution: "Taylor's University", year: "2017" }],
+    },
+  },
+  {
+    id: "c16",
+    fileName: "kevin_tan_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Kevin Tan",
+      email: "kevin.tan.mkt@email.com",
+      phone: "+60 16-221 9090",
+      location: "Petaling Jaya, Malaysia",
+      summary: "Growth marketer who runs full-funnel campaigns end to end.",
+      years_of_experience: 7,
+      skills: ["SEO", "Content Marketing", "Google Analytics", "HubSpot", "Campaign Management", "Social Media"],
+      languages: ["English", "Mandarin"],
+      experience: [{ title: "Marketing Manager", company: "Fave", duration: "2018–Present", summary: "Owned demand-gen and lifecycle marketing." }],
+      education: [{ degree: "B.A. Communications", institution: "Monash Malaysia", year: "2016" }],
+    },
+  },
+  {
+    id: "c17",
+    fileName: "aisyah_zainal_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Aisyah Zainal",
+      email: "aisyah.zainal@email.com",
+      phone: "+60 13-556 3311",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Financial analyst focused on FP&A, modelling and forecasting.",
+      years_of_experience: 5,
+      skills: ["Financial Modeling", "Excel", "Forecasting", "Budgeting", "SQL", "Power BI"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Financial Analyst", company: "Maybank", duration: "2019–Present", summary: "Built the annual budgeting model and board reporting." }],
+      education: [{ degree: "B.Acc. Finance", institution: "Universiti Malaya", year: "2018" }],
+    },
+  },
+  {
+    id: "c18",
+    fileName: "priya_kumar_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Priya Kumar",
+      email: "priya.kumar.hr@email.com",
+      phone: "+60 17-808 4422",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "HR business partner who scales hiring and people programs.",
+      years_of_experience: 8,
+      skills: ["Recruiting", "Employee Relations", "Onboarding", "HRIS", "Compensation", "Performance Management"],
+      languages: ["English", "Tamil", "Malay"],
+      experience: [{ title: "HR Business Partner", company: "Shopee", duration: "2017–Present", summary: "Partnered with engineering and commercial teams on headcount." }],
+      education: [{ degree: "B.Sc. Psychology", institution: "HELP University", year: "2014" }],
+    },
+  },
+  {
+    id: "c19",
+    fileName: "daniel_lee_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Daniel Lee",
+      email: "daniel.lee.cs@email.com",
+      phone: "+60 11-990 2233",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Customer success manager obsessed with retention and expansion.",
+      years_of_experience: 4,
+      skills: ["Account Management", "Customer Onboarding", "Retention", "Zendesk", "Upselling", "SaaS"],
+      languages: ["English", "Cantonese"],
+      experience: [{ title: "Customer Success Manager", company: "StoreHub", duration: "2020–Present", summary: "Owned a book of SMB accounts and drove net revenue retention." }],
+      education: [{ degree: "B.B.A.", institution: "Sunway University", year: "2019" }],
+    },
+  },
+  {
+    id: "c20",
+    fileName: "faridah_omar_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Faridah Omar",
+      email: "faridah.omar@email.com",
+      phone: "+60 12-101 7676",
+      location: "Shah Alam, Malaysia",
+      summary: "Operations manager who tightens processes and cuts cost-to-serve.",
+      years_of_experience: 9,
+      skills: ["Process Improvement", "Supply Chain", "Project Management", "Logistics", "Lean", "Vendor Management"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Operations Manager", company: "Pos Malaysia", duration: "2015–Present", summary: "Ran last-mile operations and vendor SLAs." }],
+      education: [{ degree: "B.Eng. Industrial", institution: "UiTM", year: "2013" }],
+    },
+  },
+  {
+    id: "c21",
+    fileName: "marcus_wong_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Marcus Wong",
+      email: "marcus.wong.pm@email.com",
+      phone: "+60 18-443 5511",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Product manager who ships outcomes, not just features.",
+      years_of_experience: 6,
+      skills: ["Product Strategy", "Roadmapping", "User Research", "Agile", "Analytics", "Project Management"],
+      languages: ["English", "Mandarin"],
+      experience: [{ title: "Product Manager", company: "iflix", duration: "2019–Present", summary: "Led discovery and monetisation squads." }],
+      education: [{ degree: "B.Sc. Business Analytics", institution: "APU", year: "2017" }],
+    },
+  },
+  {
+    id: "c22",
+    fileName: "hannah_lim_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Hannah Lim",
+      email: "hannah.lim.data@email.com",
+      phone: "+60 14-667 8080",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Data analyst turning messy data into decisions the business trusts.",
+      years_of_experience: 3,
+      skills: ["SQL", "Tableau", "Excel", "Data Visualization", "Statistics", "Python"],
+      languages: ["English", "Mandarin"],
+      experience: [{ title: "Data Analyst", company: "AirAsia", duration: "2021–Present", summary: "Built self-serve dashboards for commercial teams." }],
+      education: [{ degree: "B.Sc. Statistics", institution: "Universiti Malaya", year: "2020" }],
+    },
+  },
+  {
+    id: "c23",
+    fileName: "siti_aminah_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Siti Aminah",
+      email: "siti.aminah.rn@email.com",
+      phone: "+60 19-224 6633",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Registered nurse with ICU and general ward experience.",
+      years_of_experience: 7,
+      skills: ["Patient Care", "Clinical Assessment", "Medication Administration", "EMR", "Triage", "Wound Care"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Registered Nurse", company: "Gleneagles Hospital", duration: "2017–Present", summary: "Delivered acute care and mentored junior nurses." }],
+      education: [{ degree: "B.Nursing", institution: "IMU", year: "2016" }],
+    },
+  },
+  {
+    id: "c24",
+    fileName: "joel_dcruz_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Joel D'Cruz",
+      email: "joel.dcruz@email.com",
+      phone: "+60 16-880 1414",
+      location: "Petaling Jaya, Malaysia",
+      summary: "Graphic designer across brand, print and social.",
+      years_of_experience: 5,
+      skills: ["Adobe Photoshop", "Illustrator", "Branding", "Typography", "InDesign", "Print Design"],
+      languages: ["English"],
+      experience: [{ title: "Graphic Designer", company: "Naga DDB", duration: "2019–Present", summary: "Designed campaign key visuals for regional brands." }],
+      education: [{ degree: "Dip. Graphic Design", institution: "The One Academy", year: "2018" }],
+    },
+  },
+  {
+    id: "c25",
+    fileName: "meiling_wong_resume.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Wong Mei Ling",
+      email: "meiling.wong.acc@email.com",
+      phone: "+60 12-773 9001",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Senior accountant across reporting, audit and tax.",
+      years_of_experience: 10,
+      skills: ["Accounting", "Financial Reporting", "Audit", "Taxation", "SAP", "Reconciliation"],
+      languages: ["English", "Cantonese", "Mandarin"],
+      experience: [{ title: "Senior Accountant", company: "KPMG", duration: "2014–Present", summary: "Led statutory audits for mid-cap clients." }],
+      education: [{ degree: "B.Acc. (ACCA)", institution: "Sunway University", year: "2013" }],
+    },
+  },
+  {
+    id: "c26",
+    fileName: "amir_hakim_cv.pdf",
+    status: "parsed",
+    hasPhoto: false,
+    parsed: {
+      name: "Amir Hakim",
+      email: "amir.hakim.cw@email.com",
+      phone: "+60 17-556 2299",
+      location: "Kuala Lumpur, Malaysia",
+      summary: "Copywriter with a knack for brand voice and conversion.",
+      years_of_experience: 4,
+      skills: ["Copywriting", "Content Strategy", "Editing", "Brand Voice", "SEO Writing", "Storytelling"],
+      languages: ["English", "Malay"],
+      experience: [{ title: "Copywriter", company: "Leo Burnett", duration: "2020–Present", summary: "Wrote launch campaigns for FMCG and fintech brands." }],
+      education: [{ degree: "B.A. English", institution: "Universiti Malaya", year: "2019" }],
+    },
+  },
 ];
 
 const MOCK_JOBS = [
@@ -3929,6 +4145,18 @@ const FACE_OVERRIDES = {
   "Priya Nair": { gender: "women" },
   "Daniel Teoh": { gender: "men" },
   "Tom Beckett": { gender: "men" },
+  "Nurdiana Rashid": { gender: "women" },
+  "Kevin Tan": { gender: "men" },
+  "Aisyah Zainal": { gender: "women" },
+  "Priya Kumar": { gender: "women" },
+  "Daniel Lee": { gender: "men" },
+  "Faridah Omar": { gender: "women" },
+  "Marcus Wong": { gender: "men" },
+  "Hannah Lim": { gender: "women" },
+  "Siti Aminah": { gender: "women" },
+  "Joel D'Cruz": { gender: "men" },
+  "Wong Mei Ling": { gender: "women" },
+  "Amir Hakim": { gender: "men" },
 };
 
 // A person photo with graceful fallback to initials-in-a-circle if the
@@ -6493,89 +6721,263 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   );
 }
 
-function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, hiredIds = new Set() }) {
+// Map employers to a broad industry so candidates can be matched by sector
+// (fintech / healthcare / retail / …), not just by skill or role.
+const COMPANY_INDUSTRY = {
+  Grabtech: "Technology", Grab: "Technology", Setel: "Technology", StoreHub: "Technology",
+  Piktochart: "Technology", MDEC: "Technology", Freelance: "Technology", "Oryx Studio": "Technology",
+  MoneyLion: "Finance & Fintech", iPay88: "Finance & Fintech", StashAway: "Finance & Fintech", Maybank: "Finance & Fintech",
+  Fave: "E-commerce & Retail", Carsome: "E-commerce & Retail", FashionValet: "E-commerce & Retail", Shopee: "E-commerce & Retail",
+  "Pos Malaysia": "Logistics & Operations",
+  iflix: "Media & Creative", "Naga DDB": "Media & Creative", "Leo Burnett": "Media & Creative", "Studio Kite": "Media & Creative",
+  AirAsia: "Travel & Aviation",
+  "Gleneagles Hospital": "Healthcare",
+  KPMG: "Professional Services",
+};
+// The set of industries a candidate has worked in (across their roles).
+function industriesOf(candidate) {
+  const set = new Set();
+  (candidate?.parsed?.experience || []).forEach((e) => { const ind = COMPANY_INDUSTRY[e.company]; if (ind) set.add(ind); });
+  if (!set.size) set.add("Technology");
+  return set;
+}
+
+// Searchable taxonomies for the skill / industry autocomplete fields. A real
+// product would carry a much larger canonical list; this is a broad, multi-
+// industry sample so the type-ahead feels real across every function.
+const ALL_INDUSTRIES = [
+  "Accounting", "Advertising", "Aerospace & Defense", "Agriculture", "Airlines & Aviation", "Apparel & Fashion", "Architecture & Planning", "Automotive", "Banking", "Biotechnology", "Broadcast Media", "Chemicals", "Civil Engineering", "Computer Hardware", "Construction", "Consulting", "Consumer Electronics", "Consumer Goods", "Cybersecurity", "E-commerce & Retail", "Education", "Energy & Utilities", "Entertainment", "Environmental Services", "Events Services", "Finance & Fintech", "Financial Services", "Food & Beverage", "Gaming", "Government", "Healthcare", "Hospitality", "Human Resources", "Information Technology", "Insurance", "Legal Services", "Logistics & Operations", "Luxury Goods", "Management Consulting", "Manufacturing", "Maritime & Shipping", "Marketing & Advertising", "Media & Creative", "Medical Devices", "Mining & Metals", "Non-Profit", "Oil & Gas", "Pharmaceuticals", "Professional Services", "Public Relations", "Publishing", "Real Estate", "Recruitment & Staffing", "Renewable Energy", "Retail", "SaaS", "Semiconductors", "Sports & Fitness", "Supply Chain", "Technology", "Telecommunications", "Transportation", "Travel & Aviation", "Venture Capital", "Warehousing", "Wholesale",
+];
+const ALL_SKILLS = [
+  // Engineering
+  "JavaScript", "TypeScript", "React", "Next.js", "Vue", "Angular", "Svelte", "Node.js", "Express", "Python", "Django", "Flask", "Java", "Spring Boot", "Kotlin", "Swift", "Go", "Rust", "C++", "C#", ".NET", "PHP", "Laravel", "WordPress", "Ruby", "Ruby on Rails", "HTML", "CSS", "SCSS", "Sass", "Tailwind", "Bootstrap", "Redux", "GraphQL", "REST APIs", "WebSockets", "Three.js", "GSAP", "Framer Motion", "Webpack", "Vite", "Jest", "Cypress", "Playwright", "Testing", "Git", "CI/CD", "Docker", "Kubernetes", "Terraform", "AWS", "Azure", "Google Cloud", "Firebase", "Serverless", "Microservices", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQL", "Kafka", "Linux", "System Design", "Accessibility", "Design Systems", "React Native", "Flutter", "iOS Development", "Android Development",
+  // Data & AI
+  "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Data Analysis", "Data Visualization", "Tableau", "Power BI", "Looker", "Pandas", "R", "Statistics", "A/B Testing", "ETL", "Data Engineering", "Spark", "Snowflake", "Big Data", "Natural Language Processing", "D3",
+  // Design
+  "Figma", "Sketch", "Adobe XD", "Adobe Photoshop", "Illustrator", "InDesign", "After Effects", "Premiere Pro", "UX Research", "UI Design", "UX Design", "Wireframing", "Prototyping", "User Research", "Interaction Design", "Motion Design", "Typography", "Branding", "Print Design", "Design Thinking", "Usability Testing",
+  // Product
+  "Product Strategy", "Product Management", "Roadmapping", "Agile", "Scrum", "Kanban", "Jira", "Analytics", "Stakeholder Management", "Go-to-Market", "Product Discovery",
+  // Marketing
+  "SEO", "SEM", "SEO Writing", "Content Marketing", "Content Strategy", "Copywriting", "Email Marketing", "Social Media", "Social Media Marketing", "Google Analytics", "Google Ads", "Facebook Ads", "HubSpot", "Marketo", "Campaign Management", "Brand Marketing", "Brand Voice", "Growth Marketing", "Marketing Automation", "Influencer Marketing", "Storytelling", "Editing", "Video Editing",
+  // Sales
+  "Salesforce", "B2B Sales", "B2C Sales", "Cold Calling", "Cold Emailing", "Negotiation", "Pipeline Management", "Account Management", "Lead Generation", "CRM", "Business Development", "Sales Strategy", "Upselling", "Solution Selling",
+  // Finance
+  "Financial Modeling", "Financial Analysis", "Financial Reporting", "Forecasting", "Budgeting", "Valuation", "Accounting", "Bookkeeping", "Audit", "Taxation", "Excel", "VBA", "SAP", "QuickBooks", "Reconciliation", "Investment Analysis", "Risk Management", "Compliance", "FP&A", "Corporate Finance",
+  // HR
+  "Recruiting", "Technical Recruiting", "Talent Acquisition", "Onboarding", "Employee Relations", "Performance Management", "HRIS", "Compensation", "Compensation & Benefits", "Payroll", "Learning & Development", "Employee Engagement", "Workday",
+  // Operations & Supply Chain
+  "Project Management", "Program Management", "Process Improvement", "Lean", "Six Sigma", "Supply Chain", "Logistics", "Procurement", "Vendor Management", "Inventory Management", "Operations Management", "Quality Assurance", "Warehouse Management", "Demand Planning",
+  // Customer
+  "Customer Success", "Customer Onboarding", "Customer Support", "Retention", "Zendesk", "Intercom", "SaaS", "Churn Reduction", "Technical Support",
+  // Healthcare
+  "Patient Care", "Clinical Assessment", "Medication Administration", "EMR", "Triage", "Wound Care", "Phlebotomy", "CPR", "Nursing", "Patient Education", "Vital Signs", "Infection Control", "Medical Coding",
+  // Legal & other
+  "Contract Law", "Legal Research", "Corporate Law", "Intellectual Property", "Litigation", "Regulatory Affairs",
+  // Soft / cross-functional
+  "Leadership", "Team Management", "Communication", "Presentation", "Public Speaking", "Problem Solving", "Critical Thinking", "Time Management", "Cross-functional Collaboration", "Mentoring", "Strategic Planning",
+];
+
+// A tag field with type-ahead suggestions from a stored list. Free-solo lets the
+// user add a value that isn't in the list (skills); restricted mode limits input
+// to known values (industry). Used by the "Skills & industry" match tab.
+function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, freeSolo = true }) {
+  const [input, setInput] = useState("");
+  const [open, setOpen] = useState(false);
+  const q = input.trim().toLowerCase();
+  const suggestions = q
+    ? options.filter((o) => o.toLowerCase().includes(q) && !tags.some((t) => t.toLowerCase() === o.toLowerCase())).slice(0, 8)
+    : [];
+  const add = (val) => {
+    const v = (val || "").trim();
+    if (!v) return;
+    const canon = options.find((o) => o.toLowerCase() === v.toLowerCase());
+    if (!freeSolo && !canon) return; // restricted: must be a known value
+    const value = canon || v;
+    if (!tags.some((t) => t.toLowerCase() === value.toLowerCase())) { setTags([...tags, value]); onChange && onChange(); }
+    setInput(""); setOpen(false);
+  };
+  return (
+    <div className="relative">
+      <div className="flex flex-wrap gap-1.5 rounded-xl bg-white border p-2 focus-within:ring-2 focus-within:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)" }}>
+        {tags.map((tag) => (
+          <span key={tag} className="inline-flex items-center gap-1 text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+            {tag}
+            <button onClick={() => { setTags(tags.filter((x) => x !== tag)); onChange && onChange(); }} aria-label={`Remove ${tag}`} className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/60"><Icon name="close" className="w-3 h-3" /></button>
+          </span>
+        ))}
+        <input
+          value={input}
+          onChange={(e) => { setInput(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(suggestions.length ? suggestions[0] : input); }
+            else if (e.key === "Backspace" && !input && tags.length) { setTags(tags.slice(0, -1)); onChange && onChange(); }
+            else if (e.key === "Escape") setOpen(false);
+          }}
+          placeholder={tags.length ? "" : placeholder}
+          className="flex-1 min-w-[150px] bg-transparent px-1.5 py-1 text-sm focus:outline-none" style={{ color: "var(--ink)" }}
+        />
+      </div>
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl bg-white border overflow-hidden max-h-56 overflow-y-auto" style={{ borderColor: "var(--line)", boxShadow: "0 18px 40px -18px rgba(18,19,42,0.28)" }}>
+          {suggestions.map((s) => (
+            <button key={s} onMouseDown={(e) => { e.preventDefault(); add(s); }} className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition-colors" style={{ color: "var(--ink)" }}>{s}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
+  const [tab, setTab] = useState("browse"); // browse | skills | role
+
+  // Browse tab
   const [query, setQuery] = useState("");
-  // Matching against an open position, across the whole candidate database.
+  const [minYears, setMinYears] = useState(0);
+  const [sortBy, setSortBy] = useState("name"); // name | experience
+
+  // Match-by-skills-or-industry tab (two searchable token fields)
+  const [skillTags, setSkillTags] = useState([]);
+  const [industryTags, setIndustryTags] = useState([]);
+  const [openTip, setOpenTip] = useState(null); // sidebar "how it works" accordion
+
+  // Match-to-a-role tab
   const [matchJobId, setMatchJobId] = useState("");
+
+  // Shared ranking output (either skills or role match writes here)
   const [matching, setMatching] = useState(false);
-  const [matchScores, setMatchScores] = useState(null); // null | { [candidateId]: score }
-  const [invited, setInvited] = useState({}); // candidateId -> true once invite link generated
+  const [matchScores, setMatchScores] = useState(null); // null | { [id]: 0..1 }
+  const [rankedMeta, setRankedMeta] = useState(null);    // { mode:'skills'|'role', label, skills?, jobId? }
+
+  // Invites (role tab only)
+  const [invited, setInvited] = useState({});
   const [inviteBanner, setInviteBanner] = useState(null);
 
-  const parsed = candidates.filter((c) => c.parsed);
+  // Deduplicate by email — the same person can have more than one resume on file
+  // (an old CV and a newer one). A real ATS shows them once, not twice.
+  const seenEmails = new Set();
+  const parsed = candidates.filter((c) => {
+    if (!c.parsed) return false;
+    const email = (c.parsed.email || "").trim().toLowerCase();
+    if (email && seenEmails.has(email)) return false;
+    if (email) seenEmails.add(email);
+    return true;
+  });
+  // Everyone you can actually act on: unique people, not already hired.
+  const available = parsed.filter((c) => !hiredIds.has(c.id));
+  const availableCount = available.length;
+  // Skill suggestions = the stored taxonomy + whatever's actually in the pool,
+  // so every candidate skill is type-ahead-able and a picked one always matches.
+  const skillSuggestions = [...new Set([...ALL_SKILLS, ...available.flatMap((c) => c.parsed.skills || [])])].sort((a, b) => a.localeCompare(b));
   const openJobs = (jobs || []).filter((j) => j.status === "open");
   const matchJob = jobs?.find((j) => j.id === matchJobId);
-
-  // Candidates who already applied to the selected position — exclude them,
-  // since inviting someone who's already in the pipeline makes no sense.
   const alreadyApplied = matchJobId
     ? new Set((APPLICANTS_BY_JOB[matchJobId] || []).map((a) => a.candidateId))
     : new Set();
 
-  // Text filter across name, skills and roles. Empty query → everyone.
-  const q = query.trim().toLowerCase();
-  const terms = q.split(/[\s,]+/).filter((t) => t.length > 1);
-  let list = parsed.filter((c) => {
-    if (hiredIds.has(c.id)) return false; // hired candidates are off the market
-    if (alreadyApplied.has(c.id)) return false;
-    if (terms.length === 0) return true;
-    const name = c.parsed.name.toLowerCase();
-    const skills = c.parsed.skills.map((s) => s.toLowerCase());
-    const roles = c.parsed.experience.map((e) => e.title.toLowerCase());
-    return terms.some((t) =>
-      name.includes(t) || skills.some((s) => s.includes(t)) || roles.some((r) => r.includes(t))
-    );
-  });
+  // Each tab is a clean, self-contained mode — switching clears any ranking.
+  const switchTab = (t) => { if (t === tab) return; setTab(t); setMatchScores(null); setRankedMeta(null); setMatching(false); };
+  const consumeRun = () => { if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) setMatchRunsUsed((n) => n + 1); };
 
-  // Score a candidate against a job by keyword overlap (skills + role vs the
-  // job title, requirements and description). Works for any job, not just seeded ones.
+  // ---- Scoring ----
+  // Fit against an open role: skill/role keyword overlap with the posting.
   const scoreAgainstJob = (c, job) => {
     if (!job) return 0;
     const hay = `${job.title} ${job.requirements || ""} ${job.description || ""}`.toLowerCase();
     const skills = c.parsed.skills || [];
     const hits = skills.filter((s) => hay.includes(s.toLowerCase())).length;
     const roleHit = (c.parsed.experience || []).some((e) => hay.includes((e.title || "").toLowerCase().split(" ")[0]));
-    // Normalize to a 0–1 fit score.
-    const raw = hits * 2 + (roleHit ? 2 : 0);
-    return Math.min(1, raw / Math.max(6, skills.length));
+    return Math.min(1, (hits * 2 + (roleHit ? 2 : 0)) / Math.max(6, skills.length));
+  };
+  // Fit against a set of wanted skills: fraction of them the candidate has.
+  const scoreBySkills = (c, wanted) => {
+    if (!wanted.length) return 0;
+    const cand = new Set((c.parsed.skills || []).map((s) => s.toLowerCase()));
+    return wanted.filter((w) => cand.has(w.trim().toLowerCase())).length / wanted.length;
+  };
+  const matchedSkills = (c) => {
+    const cand = new Set((c.parsed.skills || []).map((s) => s.toLowerCase()));
+    return (rankedMeta?.skills || []).filter((w) => cand.has(w.toLowerCase()));
   };
 
-  const runMatching = () => {
+  const runRoleMatch = () => {
     if (!matchJob) return;
     if (outOfRuns) { navigate("billing"); return; }
     setMatching(true);
     setTimeout(() => {
-      const map = {};
-      parsed.forEach((c) => { map[c.id] = scoreAgainstJob(c, matchJob); });
-      setMatchScores(map);
-      setMatching(false);
-      if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) setMatchRunsUsed((n) => n + 1);
+      const map = {}; parsed.forEach((c) => { map[c.id] = scoreAgainstJob(c, matchJob); });
+      setMatchScores(map); setRankedMeta({ mode: "role", label: matchJob.title, jobId: matchJob.id });
+      setMatching(false); consumeRun();
     }, 1200);
   };
+  const runSkillMatch = () => {
+    if (!skillTags.length && !industryTags.length) return; // need at least one criterion
+    if (outOfRuns) { navigate("billing"); return; }
+    setMatching(true);
+    setTimeout(() => {
+      const map = {};
+      parsed.forEach((c) => {
+        const inds = industriesOf(c);
+        const indMatch = industryTags.length ? (industryTags.some((i) => inds.has(i)) ? 1 : 0) : 1;
+        const skillS = skillTags.length ? scoreBySkills(c, skillTags) : 1;
+        // Both set → must match an industry, ranked by skill fit. One set → that alone.
+        map[c.id] = skillTags.length && industryTags.length ? skillS * indMatch : industryTags.length ? indMatch : skillS;
+      });
+      setMatchScores(map);
+      setRankedMeta({ mode: "skills", skills: [...skillTags], industries: [...industryTags] });
+      setMatching(false); consumeRun();
+    }, 1000);
+  };
 
-  // If matched, rank by score (highest first).
-  if (matchScores) {
-    list = [...list].sort((a, b) => (matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0));
+  // Quick-add a skill chip — editing criteria invalidates any existing ranking.
+  const addSkill = (raw) => {
+    const v = (raw || "").trim();
+    if (!v) return;
+    setSkillTags((prev) => (prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]));
+    setMatchScores(null);
+  };
+  const invalidate = () => setMatchScores(null);
+
+  // ---- Build the visible list for the active tab ----
+  const q = query.trim().toLowerCase();
+  let list = [];
+  if (tab === "browse") {
+    const terms = q.split(/[\s,]+/).filter((t) => t.length > 1);
+    list = available.filter((c) => {
+      if (minYears > 0 && (c.parsed.years_of_experience ?? 0) < minYears) return false;
+      if (terms.length === 0) return true;
+      const name = c.parsed.name.toLowerCase();
+      const skills = c.parsed.skills.map((s) => s.toLowerCase());
+      const roles = c.parsed.experience.map((e) => e.title.toLowerCase());
+      return terms.some((t) => name.includes(t) || skills.some((s) => s.includes(t)) || roles.some((r) => r.includes(t)));
+    }).sort((a, b) => (sortBy === "experience"
+      ? (b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)
+      : a.parsed.name.localeCompare(b.parsed.name)));
+  } else if (matchScores) {
+    const pool = tab === "role" ? available.filter((c) => !alreadyApplied.has(c.id)) : available;
+    list = [...pool];
+    if (tab === "skills") list = list.filter((c) => (matchScores[c.id] ?? 0) > 0); // only real matches
+    list.sort((a, b) => ((matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
   }
 
-  // Free plan: when matched, view only the top 3; when browsing, the top 5.
+  // Plan gating: show the top N, blur/lock the rest.
   const viewLimit = matchScores ? limits.aiMatches : limits.visibleCandidates;
   const shownList = list.slice(0, viewLimit);
   const lockedList = list.slice(viewLimit);
 
+  // ---- Invites (role tab) ----
   const inviteLink = (jobId) => `https://yourapp.com/apply/${jobId}?source=database`;
-
   const sendInvite = async (candidateId) => {
     if (!matchJob) return;
     const url = inviteLink(matchJob.id);
     let ok = false;
-    try {
-      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); ok = true; }
-    } catch { ok = false; }
+    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); ok = true; } } catch { ok = false; }
     if (!ok) {
       try {
         const ta = document.createElement("textarea");
@@ -6586,213 +6988,384 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     }
     setInvited((prev) => ({ ...prev, [candidateId]: true }));
     const c = parsed.find((x) => x.id === candidateId);
-    setInviteBanner(
-      `${ok ? "Invite link copied" : "Invite link ready"} for ${c?.parsed?.name ?? "candidate"} → ${matchJob.title} (source: database).`
-    );
+    setInviteBanner(`${ok ? "Invite link copied" : "Invite link ready"} for ${c?.parsed?.name ?? "candidate"} → ${matchJob.title} (source: database).`);
     setTimeout(() => setInviteBanner(null), 4000);
   };
 
-  return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Candidate Search</h1>
-        <p className="text-sm text-neutral-600 mb-6">
-          Every candidate in your database. Search to narrow, or match them all against an open role and invite the best fits to apply.
-        </p>
+  // ---- Shared render helpers ----
+  const emptyState = (title, sub, icon = "search") => (
+    <div className="rounded-2xl border bg-white py-12 px-6 text-center" style={{ borderColor: "var(--line)" }}>
+      <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+        <Icon name={icon} className="w-5 h-5" />
+      </div>
+      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{title}</p>
+      {sub && <p className="text-xs mt-1 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>{sub}</p>}
+    </div>
+  );
+  const browseCard = (c) => {
+    const role = c.parsed.experience?.[0]?.title;
+    return (
+      <button key={c.id} onClick={() => onViewCandidate(c.id)} className="text-left rounded-2xl bg-white border p-4 flex items-start gap-3.5 group transition-all hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(18,19,42,0.04)] hover:shadow-[0_14px_30px_-16px_rgba(18,19,42,0.22)]" style={{ borderColor: "var(--line)" }}>
+        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={44} showPhotoDot={false} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
+          {role && <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{role}</p>}
+          <div className="flex flex-wrap gap-1.5 mt-2">{c.parsed.skills.slice(0, 4).map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
+        </div>
+        <Icon name="chevronRight" className="w-5 h-5 shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: "var(--ink-3)" }} />
+      </button>
+    );
+  };
+  const matchSkeleton = (
+    <div className="space-y-2.5">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-4" style={{ borderColor: "var(--line)" }}>
+          <div className="rounded-full bg-neutral-200 animate-pulse shrink-0" style={{ width: 52, height: 52 }} />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 rounded bg-neutral-200 animate-pulse" style={{ width: "45%" }} />
+            <div className="h-2.5 rounded bg-neutral-200 animate-pulse" style={{ width: "30%" }} />
+            <div className="h-2.5 rounded bg-neutral-200 animate-pulse" style={{ width: "60%" }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+  const rankedList = (
+    <div className="space-y-2.5">
+      {shownList.map((c, idx) => {
+        const pct = Math.round((matchScores?.[c.id] ?? 0) * 100);
+        const isTop = idx === 0;
+        const yrs = c.parsed.years_of_experience;
+        const role = c.parsed.experience?.[0]?.title;
+        const isSkills = rankedMeta?.mode === "skills";
+        const hasSkillCriteria = isSkills && (rankedMeta.skills?.length > 0);
+        const industryLabel = isSkills && rankedMeta.industries?.length ? [...industriesOf(c)].find((i) => rankedMeta.industries.includes(i)) : null;
+        const matched = hasSkillCriteria ? matchedSkills(c) : [];
+        const chips = hasSkillCriteria ? matched : (c.parsed.skills || []).slice(0, 4);
+        const descriptor = isSkills
+          ? [hasSkillCriteria ? `${matched.length}/${rankedMeta.skills.length} skills matched` : null, industryLabel, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ")
+          : [yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+        return (
+          <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}>
+            <div className="flex items-center gap-4">
+              <button onClick={() => onViewCandidate(c.id)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
+                <ScoreRingLight value={pct} size={52} />
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={26} showPhotoDot={false} />
+                  <button onClick={() => onViewCandidate(c.id)} className="min-w-0 flex-1 text-left">
+                    <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
+                  </button>
+                  {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
+                </div>
+                <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
+              </div>
+              {tab === "role" ? (
+                <button onClick={() => sendInvite(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors" style={invited[c.id] ? { background: "var(--brand-soft)", color: "var(--brand)" } : { border: "1px solid var(--brand)", color: "var(--brand)" }}>
+                  {invited[c.id] ? "Invited ✓" : "Invite"}
+                </button>
+              ) : (
+                <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {lockedList.length > 0 && (
+        <div className="relative pt-1">
+          <div className="space-y-2.5 blur-[3px] pointer-events-none select-none" aria-hidden="true">
+            {lockedList.slice(0, 2).map((c, i) => (
+              <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
+                <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={44} showPhotoDot={false} />
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center px-4">
+            <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
+              <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more ${lockedList.length === 1 ? "match" : "matches"} hidden`} sub={`Your plan shows the top ${limits.aiMatches}. Upgrade for the full ranking.`} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+  // Runs-left note shown under both AI panels.
+  // AI-match-runs usage — same meter method as the Upload screen's "Usage this month".
+  const planNote = limits.aiRunsPerMonth !== Infinity ? (
+    <div className="mt-3 rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>AI match runs this month</h3>
+        <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
+      </div>
+      <div className="flex items-baseline gap-1.5 mb-2.5">
+        <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: outOfRuns ? "#DC2626" : "var(--ink)" }}>{matchRunsUsed}</span>
+        <span className="text-sm" style={{ color: "var(--ink-3)" }}>/ {limits.aiRunsPerMonth} runs used</span>
+      </div>
+      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(Math.min((matchRunsUsed / limits.aiRunsPerMonth) * 100, 100), 4)}%`, background: outOfRuns ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+      </div>
+      <p className="text-xs mt-2.5" style={{ color: outOfRuns ? "#DC2626" : "var(--ink-3)" }}>
+        {outOfRuns
+          ? `You've used all ${limits.aiRunsPerMonth} runs. Resets on the 1st.`
+          : `${runsLeft} run${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · showing the top ${limits.aiMatches} matches.`}
+      </p>
+      <button onClick={() => navigate("billing")} className="mt-3.5 w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity">
+        {outOfRuns ? "Upgrade plan" : "Upgrade for unlimited"}
+      </button>
+    </div>
+  ) : null;
 
-        {/* Search box */}
-        <div className="relative mb-3">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
-            <Icon name="search" className="w-4 h-4" />
-          </span>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, skill, or role"
-            className="w-full rounded-xl bg-white border border-neutral-200 pl-9 pr-3 py-2.5 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+  const TABS = [
+    { key: "browse", short: "Browse", full: "Browse", icon: "users" },
+    { key: "skills", short: "Skills", full: "Skills & industry", icon: "matching" },
+    { key: "role", short: "Role", full: "Match to a role", icon: "briefcase" },
+  ];
+  // Popular skills across job families (not just engineering) — each exists in
+  // the candidate pool so a quick-add always returns real matches.
+  const POPULAR_SKILLS = ["React", "Salesforce", "SEO", "Financial Modeling", "Recruiting", "SQL", "Account Management", "Project Management", "Copywriting", "Patient Care"];
+  const SEARCH_HELP = [
+    { icon: "users", title: "Browse & filter", body: "Search your whole database by name, skill, or role, and narrow by years of experience." },
+    { icon: "matching", title: "Match by skills or industry", body: "Add the skills you're hiring for, pick an industry, or both, and AI ranks everyone by fit." },
+    { icon: "briefcase", title: "Match to a role", body: "Pick an open role and AI ranks candidates by fit, so you can invite the strongest to apply." },
+    { icon: "link", title: "Invite to apply", body: "Found someone good? Send them a link to apply. Even an older profile might still be keen." },
+  ];
+
+  return (
+    <div
+      className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
+      style={{
+        background:
+          "radial-gradient(1100px 480px at 100% -8%, rgba(151,59,247,0.08), transparent 60%)," +
+          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
+          "var(--bg)",
+      }}
+    >
+      <div className="mx-auto w-full max-w-[1400px]">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <div className="mt-2">
+          <TopBar
+            title="Candidate Search"
+            subtitle={
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
+                  <Icon name="users" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {availableCount} candidates
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#ECFDF3", color: "#15803D" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> {openJobs.length} open {openJobs.length === 1 ? "role" : "roles"}
+                </span>
+              </span>
+            }
+            activities={activities}
+            onOpenNotifications={onOpenNotifications}
+            avatarUrl={avatarUrl}
+            profile={profile}
+            navigate={navigate}
           />
         </div>
 
-        {/* Quick skill suggestions */}
-        <div className="flex flex-wrap items-center gap-2 mb-5">
-          <span className="text-xs text-neutral-400">Try:</span>
-          {["React", "TypeScript", "Figma", "Design systems"].map((chip) => (
-            <button
-              key={chip}
-              onClick={() => setQuery(chip)}
-              className="text-xs rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-600 hover:border-neutral-300 transition-colors"
-            >
-              {chip}
-            </button>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 items-start">
+          {/* Main workspace */}
+          <div className="lg:col-span-2 min-w-0">
+
+        {/* Tabs — three separate ways to find people */}
+        <div className="flex gap-1 p-1 rounded-2xl mb-5 sm:inline-flex" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button key={t.key} onClick={() => switchTab(t.key)}
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(151,59,247,0.7)]" : "hover:bg-neutral-50"}`}
+                style={active ? undefined : { color: "var(--ink-2)" }}>
+                <Icon name={t.icon} className="w-4 h-4" />
+                <span className="sm:hidden">{t.short}</span>
+                <span className="hidden sm:inline">{t.full}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Match-against-position bar */}
-        <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5">
-          <p className="text-sm font-semibold font-display mb-1" style={{ color: "var(--ink)" }}>Match against an open position</p>
-          <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>Rank every candidate by fit, then invite the strongest to apply — invites are tagged <span className="font-medium">source: database</span>.</p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <select
-              value={matchJobId}
-              onChange={(e) => { setMatchJobId(e.target.value); setMatchScores(null); }}
-              className="flex-1 rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
-            >
-              <option value="">Select an open position…</option>
-              {openJobs.map((j) => (
-                <option key={j.id} value={j.id}>{j.title}</option>
-              ))}
-            </select>
-            <button
-              onClick={runMatching}
-              disabled={!matchJobId || matching}
-              className="shrink-0 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 flex items-center justify-center gap-2 transition-opacity"
-            >
-              <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
-              {matching ? "Matching…" : outOfRuns ? "Upgrade for more runs" : "Run matching"}
-            </button>
-          </div>
-          {limits.aiRunsPerMonth !== Infinity && (
-            <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>
-              {outOfRuns
-                ? `You've used all ${limits.aiRunsPerMonth} match runs this month. Upgrade for unlimited runs and the full ranking.`
-                : `Your plan includes ${limits.aiRunsPerMonth} match runs a month (${runsLeft} left), showing the top ${limits.aiMatches} fits. Upgrade for unlimited runs and everyone.`}
-            </p>
-          )}
-          {openJobs.length === 0 && (
-            <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>No open positions yet — create one under Job Postings.</p>
-          )}
-        </div>
-
-        {inviteBanner && (
-          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-            <p className="text-xs text-emerald-700">{inviteBanner}</p>
-          </div>
-        )}
-
-        {/* Results */}
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm text-neutral-500">
-            {list.length} {list.length === 1 ? "candidate" : "candidates"}
-            {matchScores && matchJob ? ` · ranked for ${matchJob.title}` : q ? ` · matching "${query}"` : " in your database"}
-            {matchJob && alreadyApplied.size > 0 ? ` · ${alreadyApplied.size} already applied, hidden` : ""}
-          </p>
-          {(q || matchScores) && (
-            <button onClick={() => { setQuery(""); setMatchScores(null); setMatchJobId(""); }} className="text-xs text-neutral-500 hover:text-neutral-700">
-              Reset
-            </button>
-          )}
-        </div>
-
-        {list.length === 0 ? (
-          <p className="text-sm text-neutral-500">No candidates match "{query}". Try a different name, skill, or role.</p>
-        ) : (
-          <div className="space-y-2">
-            {shownList.map((c, idx) => {
-              const role = c.parsed.experience?.[0]?.title;
-              const score = matchScores?.[c.id];
-              const ranked = typeof score === "number";
-              const isTop = ranked && idx === 0;
-              // One-line descriptor, e.g. "React, TypeScript · 6 yrs".
-              const topSkills = (c.parsed.skills || []).slice(0, 2).join(", ");
-              const yrs = c.parsed.years_of_experience;
-              const descriptor = [topSkills, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
-
-              if (ranked) {
-                return (
-                  <div key={c.id} className="rounded-2xl bg-white act-shadow px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : undefined }}>
-                    <div className="flex items-center gap-4">
-                      <button onClick={() => onViewCandidate(c.id)} className="shrink-0">
-                        <ScoreRingLight value={Math.round(score * 100)} />
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => onViewCandidate(c.id)} className="min-w-0 flex-1 text-left">
-                            <p className="text-sm font-semibold text-neutral-900 truncate hover:underline">{c.parsed.name}</p>
-                          </button>
-                          {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
+        {/* ---------- Tab 1: Browse ---------- */}
+        {tab === "browse" && (
+          <>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-5 h-5" /></span>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, skill, or role…"
+                className="w-full rounded-2xl bg-white border pl-12 pr-10 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 transition-shadow"
+                style={{ borderColor: "var(--line)", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }} />
+              {query && <button onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>Popular:</span>
+              {["React", "Salesforce", "SEO", "Project Management", "Financial Modeling", "Adobe Photoshop"].map((chip) => {
+                const active = query === chip;
+                return <button key={chip} onClick={() => setQuery(active ? "" : chip)} className="text-xs rounded-full px-3 py-1 font-medium transition-colors" style={active ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{chip}</button>;
+              })}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 mt-5 mb-3">
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{q ? ` · matching "${query}"` : " in your database"}</p>
+              <div className="flex items-center gap-2">
+                <select value={minYears} onChange={(e) => setMinYears(Number(e.target.value))} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Filter by experience">
+                  <option value={0}>Any experience</option><option value={3}>3+ years</option><option value={5}>5+ years</option><option value={8}>8+ years</option>
+                </select>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Sort candidates">
+                  <option value="name">Sort: Name (A–Z)</option><option value="experience">Sort: Most experience</option>
+                </select>
+                {(q || minYears > 0) && <button onClick={() => { setQuery(""); setMinYears(0); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>}
+              </div>
+            </div>
+            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name, skill, or role.` : "Your database is empty.") : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {shownList.map((c) => browseCard(c))}
+                {lockedList.length > 0 && (
+                  <div className="relative pt-1 sm:col-span-2">
+                    <div className="grid sm:grid-cols-2 gap-3 blur-[3px] pointer-events-none select-none" aria-hidden="true">
+                      {lockedList.slice(0, 3).map((c, i) => (
+                        <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
+                          <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={44} showPhotoDot={false} />
+                          <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
                         </div>
-                        <p className="text-xs text-neutral-500 truncate mt-0.5">{descriptor}</p>
-                        {matchJob && (
-                          <button
-                            onClick={() => sendInvite(c.id)}
-                            className="mt-2 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors"
-                            style={
-                              invited[c.id]
-                                ? { background: "var(--brand-soft)", color: "var(--brand)" }
-                                : { border: "1px solid var(--brand)", color: "var(--brand)" }
-                            }
-                          >
-                            {invited[c.id] ? "Invited ✓" : "Invite to apply"}
-                          </button>
-                        )}
+                      ))}
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center px-4">
+                      <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
+                        <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more candidate${lockedList.length === 1 ? "" : "s"} hidden`} sub={`Your plan shows the top ${limits.visibleCandidates}. Upgrade to browse everyone.`} />
                       </div>
                     </div>
                   </div>
-                );
-              }
+                )}
+              </div>
+            )}
+          </>
+        )}
 
-              // Browse mode (no active ranking) — avatar + skills.
-              return (
-                <div key={c.id} className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => onViewCandidate(c.id)} className="shrink-0">
-                      <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={48} showPhotoDot={false} />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <button onClick={() => onViewCandidate(c.id)} className="min-w-0 text-left block w-full">
-                        <p className="text-sm font-semibold text-neutral-900 truncate hover:underline">{c.parsed.name}</p>
-                      </button>
-                      {role && <p className="text-xs text-neutral-500 truncate">{role}</p>}
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {c.parsed.skills.slice(0, 5).map((s) => (
-                          <span key={s} className="text-[11px] rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5">{s}</span>
+        {/* ---------- Tab 2: Match by skills ---------- */}
+        {tab === "skills" && (
+          <>
+            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+              <div className="flex items-start gap-3">
+                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Match by skills or industry</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both. AI ranks everyone by fit.</p>
+                  <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Skills</label>
+                      <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} freeSolo />
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
+                          <button key={s} onClick={() => addSkill(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
                     </div>
-                    <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
-                  </div>
-                </div>
-              );
-            })}
-
-            {lockedList.length > 0 && (
-              <div className="relative pt-1">
-                <div className="space-y-2 blur-[3px] pointer-events-none select-none" aria-hidden="true">
-                  {lockedList.slice(0, 2).map((c, i) => (
-                    <div key={i} className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)] flex items-center gap-4">
-                      <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={48} showPhotoDot={false} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-neutral-900 truncate">{c.parsed.name}</p>
-                        {c.parsed.experience?.[0]?.title && <p className="text-xs text-neutral-500 truncate">{c.parsed.experience[0].title}</p>}
-                      </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Industry</label>
+                      <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={ALL_INDUSTRIES} placeholder="Search industries…" onChange={invalidate} freeSolo={false} />
                     </div>
-                  ))}
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center px-4">
-                  <div className="rounded-2xl bg-white/85 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
-                    <UpgradeLock
-                      navigate={navigate}
-                      compact
-                      title={`${lockedList.length} more ${lockedList.length === 1 ? "match" : "matches"} hidden`}
-                      sub={`Your plan shows the top ${limits.aiMatches} matches. Upgrade for the full ranking.`}
-                    />
+                  </div>
+                  <div className="mt-4">
+                    <button onClick={runSkillMatch} disabled={(!skillTags.length && !industryTags.length) || matching}
+                      className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+                      <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
+                      {matching ? "Matching…" : outOfRuns ? "Upgrade for more runs" : "Run AI match"}
+                    </button>
                   </div>
                 </div>
               </div>
+            </div>
+            {matchScores && !matching && (
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} · ranked by fit</p>
+                <button onClick={() => setMatchScores(null)} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
+              </div>
             )}
-          </div>
+            {matching ? matchSkeleton
+              : !matchScores ? emptyState("Rank by skills or industry", (skillTags.length || industryTags.length) ? "Run the AI match to see the best fits." : "Search skills, an industry, or both, then run the AI match.", "matching")
+              : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills or industry.", "matching")
+              : rankedList}
+          </>
         )}
 
-        {matchJob && (
-          <button
-            onClick={() => onPreviewApply && onPreviewApply(matchJob)}
-            className="text-sm font-medium mt-4 hover:opacity-70 transition-opacity"
-            style={{ color: "var(--brand)" }}
-          >
-            Preview the {matchJob.title} application page →
-          </button>
+        {/* ---------- Tab 3: Match to a role ---------- */}
+        {tab === "role" && (
+          <>
+            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+              <div className="flex items-start gap-3">
+                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="briefcase" className="w-4 h-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Match to an open role</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role. AI ranks every candidate by fit, then invite the strongest. Invites are tagged <span className="font-medium" style={{ color: "var(--ink-2)" }}>source: database</span>.</p>
+                  <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                    <select value={matchJobId} onChange={(e) => { setMatchJobId(e.target.value); setMatchScores(null); }} disabled={openJobs.length === 0}
+                      className="flex-1 rounded-xl bg-white border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 transition-shadow disabled:opacity-60" style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
+                      <option value="">Select an open position…</option>
+                      {openJobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
+                    </select>
+                    <button onClick={runRoleMatch} disabled={!matchJobId || matching}
+                      className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+                      <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
+                      {matching ? "Matching…" : outOfRuns ? "Upgrade for more runs" : "Run AI match"}
+                    </button>
+                  </div>
+                  {openJobs.length === 0 && (
+                    <p className="text-xs mt-2.5" style={{ color: "var(--ink-3)" }}>No open positions yet. Create one under Job Postings.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            {inviteBanner && (
+              <div className="mb-4 rounded-xl px-3.5 py-2.5 flex items-center gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
+                <span className="shrink-0" style={{ color: "#059669" }}><Icon name="check" className="w-4 h-4" /></span>
+                <p className="text-xs" style={{ color: "#047857" }}>{inviteBanner}</p>
+              </div>
+            )}
+            {matchScores && !matching && (
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+                  <span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} · ranked for {matchJob?.title}
+                  {alreadyApplied.size > 0 ? ` · ${alreadyApplied.size} already applied, hidden` : ""}
+                </p>
+                <button onClick={() => setMatchScores(null)} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
+              </div>
+            )}
+            {matching ? matchSkeleton
+              : !matchScores ? emptyState("Rank candidates for a role", openJobs.length === 0 ? "Create an open role under Job Postings to match against." : "Select an open role above, then run the AI match.", "briefcase")
+              : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
+              : rankedList}
+            {matchScores && matchJob && list.length > 0 && (
+              <button onClick={() => onPreviewApply && onPreviewApply(matchJob)} className="text-sm font-medium mt-4 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                Preview the {matchJob.title} application page →
+              </button>
+            )}
+          </>
         )}
+
+          </div>{/* main workspace */}
+
+          {/* Sidebar — AI-run usage monitor + how search works (matches Bulk Upload) */}
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            {planNote}
+            <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
+              <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+                {SEARCH_HELP.map((item, i) => {
+                  const open = openTip === i;
+                  return (
+                    <div key={item.title}>
+                      <button onClick={() => setOpenTip(open ? null : i)} aria-expanded={open} className="w-full flex items-center gap-2.5 py-2.5 px-1 text-left transition-colors hover:bg-neutral-50/60 rounded-lg">
+                        <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={item.icon} className="w-3.5 h-3.5" /></span>
+                        <span className="flex-1 text-[13px] font-medium min-w-0" style={{ color: "var(--ink)" }}>{item.title}</span>
+                        <span className="shrink-0 transition-transform" style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-4 h-4" /></span>
+                      </button>
+                      {open && <p className="text-xs leading-relaxed pb-3 pl-[2.15rem] pr-1" style={{ color: "var(--ink-3)" }}>{item.body}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+        </div>{/* grid */}
       </div>
     </div>
   );
@@ -9242,6 +9815,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [insights, setInsights] = useState(candidate ? MOCK_INSIGHTS[candidate.id] ?? null : null);
   const [generating, setGenerating] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
+  // Database-view invite: pick an open role and copy the apply link.
+  const [inviteJobId, setInviteJobId] = useState("");
+  const [inviteMsg, setInviteMsg] = useState(null);
   // Questions unlock once the interview is actually booked: either the shared
   // booking shows the candidate confirmed a time, or the application is already
   // at the interviewing/offer/hired stage.
@@ -9304,6 +9880,25 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       );
       setGenerating(false);
     }, 1600);
+  };
+
+  const openJobsForInvite = (jobs || []).filter((j) => j.status === "open");
+  const sendApplyInvite = async () => {
+    const job = jobs.find((j) => j.id === inviteJobId);
+    if (!job) return;
+    const url = `https://yourapp.com/apply/${job.id}?source=database`;
+    let ok = false;
+    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); ok = true; } } catch { ok = false; }
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        ok = document.execCommand("copy"); document.body.removeChild(ta);
+      } catch { ok = false; }
+    }
+    setInviteMsg(`${ok ? "Invite link copied" : "Invite link ready"} for ${firstName} → ${job.title} (source: database).`);
+    setTimeout(() => setInviteMsg(null), 4000);
   };
 
   return (
@@ -9481,6 +10076,50 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           )}
         </div>
 
+        {/* Database view — this candidate isn't in a pipeline for a job you're
+            viewing, so interview / scorecard / decision tools are hidden. Show
+            their profile and a way to invite them to apply, even if it's an old
+            profile. Those tools appear once they actually apply to a role. */}
+        {!contextJobId && (
+          <div className="mt-2 mb-6 rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+            <div className="flex items-start gap-3">
+              <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]">
+                <Icon name="briefcase" className="w-4 h-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{isHired ? `${firstName} is already hired` : `Invite ${firstName} to apply`}</h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+                  {isHired
+                    ? "This person is already on the team, so there's nothing to invite them to."
+                    : "They're in your database, not yet in a pipeline. Send a link to apply for an open role, since even an older profile might still be keen. Interview tools appear once they apply."}
+                </p>
+                {!isHired && (openJobsForInvite.length === 0 ? (
+                  <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>No open roles yet. Create one under Job Postings.</p>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                    <select value={inviteJobId} onChange={(e) => setInviteJobId(e.target.value)}
+                      className="flex-1 rounded-xl bg-white border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
+                      <option value="">Select an open role…</option>
+                      {openJobsForInvite.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
+                    </select>
+                    <button onClick={sendApplyInvite} disabled={!inviteJobId}
+                      className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+                      <Icon name="link" className="w-4 h-4" /> Copy invite link
+                    </button>
+                  </div>
+                ))}
+                {inviteMsg && (
+                  <div className="mt-3 rounded-xl px-3.5 py-2.5 flex items-center gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
+                    <span className="shrink-0" style={{ color: "#059669" }}><Icon name="check" className="w-4 h-4" /></span>
+                    <p className="text-xs" style={{ color: "#047857" }}>{inviteMsg}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {contextJobId && (<>
         {isClosed && (
           <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: isHired ? "#BBF7D0" : "var(--line)", background: isHired ? "#F0FDF4" : "var(--bg)" }}>
             {isHired ? (
@@ -9637,6 +10276,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             onSend={(emailSent) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent); }}
           />
         )}
+        </>)}
       </div>
     </div>
   );
@@ -10435,7 +11075,20 @@ export default function ResumeAIPreview() {
         window.history.pushState({ aster: true }, "", SCREEN_TO_PATH[history[i]] || "/");
       }
     }
-    const onPop = () => setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
+    // Follow the browser URL on Back/Forward and reconcile the in-app stack, so
+    // the rendered screen never desyncs from the address bar. Popping blindly
+    // broke this: after navigate("login") reset the stack, or after a landing
+    // hash-anchor added browser entries the app didn't track, Back could leave
+    // the login screen showing at the landing URL (and its menu links dead).
+    const onPop = () => {
+      const target = PATH_TO_SCREEN[window.location.pathname] || "landing";
+      setHistory((h) => {
+        const idx = h.lastIndexOf(target);
+        if (idx >= 0) return h.slice(0, idx + 1);      // walk back to it in-stack
+        if (AUTH_SCREENS.has(target) || target === "dashboard") return [target];
+        return ["dashboard", target];                  // rebuild a sane stack
+      });
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -10682,7 +11335,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "search" && (
-          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} hiredIds={hiredIds} />
+          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "interviews" && (
           <InterviewsScreen
