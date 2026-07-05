@@ -5694,40 +5694,19 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
           {/* Sidebar — usage monitor + how parsing works. Sticks while the main
               column scrolls; self-start lets it shrink below the grid-row height. */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {(() => {
-              const unlimited = uploadLimit === Infinity;
-              const pct = unlimited ? 18 : Math.min((usedThisMonth / uploadLimit) * 100, 100);
-              return (
-                <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Usage this month</h2>
-                      <InfoHint dir="down" align="right" hint="Parsing is when AI reads a resume and pulls out the candidate's details. Each parsed resume counts toward your monthly plan limit." />
-                    </div>
-                    <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
-                  </div>
-                  <div className="flex items-baseline gap-1.5 mb-2.5">
-                    <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: outOfQuota ? "#DC2626" : "var(--ink)" }}>{usedThisMonth}</span>
-                    <span className="text-sm" style={{ color: "var(--ink-3)" }}>/ {unlimited ? "Unlimited" : uploadLimit} resumes parsed</span>
-                  </div>
-                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-                    <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: outOfQuota ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
-                  </div>
-                  <p className="text-xs mt-2.5 leading-relaxed" style={{ color: outOfQuota ? "#DC2626" : "var(--ink-3)" }}>
-                    {unlimited
-                      ? `${planName} plan — unlimited parsing.`
-                      : outOfQuota
-                        ? `You've used all ${uploadLimit} parses. Resets on the 1st.`
-                        : `${remaining} resume${remaining === 1 ? "" : "s"} left on your ${planName} plan.`}
-                  </p>
-                  {!unlimited && (
-                    <button onClick={() => navigate("billing")} className="mt-4 w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity">
-                      {outOfQuota ? "Upgrade plan" : "Upgrade for unlimited"}
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
+            <UsageMeter
+              title="Usage this month"
+              hint="Parsing is when AI reads a resume and pulls out the candidate's details. Each parsed resume counts toward your monthly plan limit."
+              used={usedThisMonth} limit={uploadLimit} unit="resumes parsed"
+              danger={outOfQuota}
+              note={uploadLimit === Infinity
+                ? `${planName} plan, unlimited parsing.`
+                : outOfQuota
+                  ? `You've used all ${uploadLimit} parses. Resets on the 1st.`
+                  : `${remaining} resume${remaining === 1 ? "" : "s"} left on your ${planName} plan.`}
+              onManage={() => navigate("billing")}
+              onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
+            />
 
             <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4">
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
@@ -6921,6 +6900,34 @@ function FieldLabel({ children, hint }) {
   );
 }
 
+// One standardized plan-usage meter, shared across every screen (AI match runs,
+// resume parsing, AI insights) so they all look and behave identically.
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for unlimited" }) {
+  const out = limit !== Infinity && used >= limit;
+  const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
+  const isDanger = danger ?? out;
+  return (
+    <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>{title}</h3>
+          {hint && <InfoHint dir="down" align={hintAlign} hint={hint} />}
+        </div>
+        {onManage && <button onClick={onManage} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>}
+      </div>
+      <div className="flex items-baseline gap-1.5 mb-2.5">
+        <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: out ? "#DC2626" : "var(--ink)" }}>{used}</span>
+        <span className="text-sm" style={{ color: "var(--ink-3)" }}>/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
+      </div>
+      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+      </div>
+      {note && <p className="text-xs mt-2.5 leading-relaxed" style={{ color: isDanger ? "#DC2626" : "var(--ink-3)" }}>{note}</p>}
+      {onUpgrade && <button onClick={onUpgrade} className="mt-3.5 w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity">{out ? "Upgrade plan" : upgradeLabel}</button>}
+    </div>
+  );
+}
+
 // A custom, on-brand dropdown for picking an open role. Replaces the native
 // <select> so options can show role meta and match the app's styling.
 function JobSelect({ jobs, value, onChange, disabled, placeholder }) {
@@ -7357,30 +7364,15 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Runs-left note shown under both AI panels.
   // AI-match-runs usage — same meter method as the Upload screen's "Usage this month".
   const planNote = limits.aiRunsPerMonth !== Infinity ? (
-    <div className="mt-3 rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>AI match runs this month</h3>
-          <InfoHint dir="down" align="right" hint="One run is a single AI ranking of your candidates. Each Run AI match uses one, and your plan includes a set number each month." />
-        </div>
-        <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
-      </div>
-      <div className="flex items-baseline gap-1.5 mb-2.5">
-        <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: outOfRuns ? "#DC2626" : "var(--ink)" }}>{matchRunsUsed}</span>
-        <span className="text-sm" style={{ color: "var(--ink-3)" }}>/ {limits.aiRunsPerMonth} runs used</span>
-      </div>
-      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(Math.min((matchRunsUsed / limits.aiRunsPerMonth) * 100, 100), 4)}%`, background: outOfRuns ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
-      </div>
-      <p className="text-xs mt-2.5" style={{ color: outOfRuns ? "#DC2626" : "var(--ink-3)" }}>
-        {outOfRuns
-          ? `You've used all ${limits.aiRunsPerMonth} runs. Resets on the 1st.`
-          : `${runsLeft} run${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · showing the top ${limits.aiMatches} matches.`}
-      </p>
-      <button onClick={() => navigate("billing")} className="mt-3.5 w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity">
-        {outOfRuns ? "Upgrade plan" : "Upgrade for unlimited"}
-      </button>
-    </div>
+    <UsageMeter
+      title="AI match runs this month"
+      hint="One run is a single AI ranking of your candidates. Each Run AI match uses one, and your plan includes a set number each month."
+      used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="runs used"
+      note={outOfRuns
+        ? `You've used all ${limits.aiRunsPerMonth} runs. Resets on the 1st.`
+        : `${runsLeft} run${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · showing the top ${limits.aiMatches} matches.`}
+      onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
+    />
   ) : null;
 
   const TABS = [
@@ -10194,8 +10186,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     setInviteMsg(`Invite email sent to ${candidateEmail}. When ${firstName} applies through the link, AI refreshes the profile with their latest resume and moves them into your hiring workflow.`);
   };
 
-  // Reworked AI Experience Insights card — plan-metered, with a usage meter.
-  const insightsPct = insightsUnlimited ? 0 : Math.max(Math.min((aiInsightsUsed / insightsLimit) * 100, 100), 4);
+  // Reworked AI Experience Insights card — plan-metered (meter lives in sidebar).
   const aiInsightsCard = (
     <div className="rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
       <div className="flex items-start justify-between gap-3 mb-2.5">
@@ -10234,17 +10225,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </div>
       )}
 
-      {!insightsUnlimited && (
-        <div className="mt-3.5 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium" style={{ color: "var(--ink-3)" }}>AI insights this month</span>
-            <span className="text-[11px] font-semibold tnum" style={{ color: outOfInsights ? "#DC2626" : "var(--ink-2)" }}>{aiInsightsUsed} / {insightsLimit} used</span>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${insightsPct}%`, background: outOfInsights ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -10648,6 +10628,17 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {quickFacts}
+            {!insightsUnlimited && (
+              <UsageMeter
+                title="AI insights this month"
+                hint="Each AI Experience Insights run uses one credit. Your plan includes a set number each month."
+                used={aiInsightsUsed} limit={insightsLimit} unit="used"
+                note={outOfInsights
+                  ? `You've used all ${insightsLimit} AI insight runs. Resets on the 1st.`
+                  : `${insightsLeft} insight run${insightsLeft === 1 ? "" : "s"} left this month.`}
+                onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
+              />
+            )}
           </aside>
         </div>{/* two-column grid */}
       </div>
