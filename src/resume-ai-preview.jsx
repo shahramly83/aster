@@ -4547,9 +4547,12 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
-  const sectionHead = (title, action) => (
+  const sectionHead = (title, action, hint) => (
     <div className="flex items-center justify-between mb-4">
-      <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h2>
+      <div className="flex items-center gap-1.5">
+        <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h2>
+        {hint && <InfoHint dir="down" hint={hint} />}
+      </div>
       {action}
     </div>
   );
@@ -4681,7 +4684,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   {/* Bottom row — Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
-                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>)}
+                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Your hiring funnel, showing how many applicants have reached each stage from Applied through to Hired.")}
                       <div className="flex items-end justify-between gap-3 flex-1 min-h-[128px] pt-8">
                         {funnel.map((f) => {
                           const top = f.value === fmax && f.value > 0;
@@ -4804,7 +4807,10 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   return (
                     <>
                       <div className="flex items-center justify-between mb-3.5">
-                        <p className="text-sm font-semibold text-white">Plan usage</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-white">Plan usage</p>
+                          <InfoHint dir="up" tone="light" hint="How much of this month's plan you have used for resume parsing, AI matching, and active jobs. Limits reset on the 1st." />
+                        </div>
                         <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>Manage</button>
                       </div>
                       <div className="space-y-3.5">
@@ -5694,7 +5700,10 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               return (
                 <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Usage this month</h2>
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Usage this month</h2>
+                      <InfoHint dir="down" hint="Parsing is when AI reads a resume and pulls out the candidate's details. Each parsed resume counts toward your monthly plan limit." />
+                    </div>
                     <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
                   </div>
                   <div className="flex items-baseline gap-1.5 mb-2.5">
@@ -5821,7 +5830,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                     ))}
                     {typeof previewRow.confidence === "number" && (
                       <div>
-                        <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Parse confidence</p>
+                        <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--ink-3)" }}>Parse confidence <InfoHint dir="up" hint="How sure the AI is that it read this resume correctly. Lower scores are flagged for you to check by hand." /></p>
                         <p className="text-sm font-semibold" style={{ color: previewRow.confidence >= 0.85 ? "#16A34A" : "#B45309" }}>{Math.round(previewRow.confidence * 100)}%</p>
                       </div>
                     )}
@@ -6886,17 +6895,17 @@ function canonicalizeIndustry(raw) {
 
 // A black info icon; hovering (or focusing) it reveals the given text as a
 // tooltip. Reused next to field labels and panel titles.
-function InfoHint({ hint, align = "left", dir = "up" }) {
+function InfoHint({ hint, align = "left", dir = "up", tone = "dark" }) {
   const down = dir === "down";
   const pos = `${align === "right" ? "right-0" : "left-0"} ${down ? "top-full mt-2" : "bottom-full mb-2"}`;
   const enter = down
     ? "-translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0"
     : "translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0";
   return (
-    <span tabIndex={0} className="relative group inline-flex items-center align-middle outline-none" style={{ color: "var(--ink)" }}>
+    <span tabIndex={0} className="relative group inline-flex items-center align-middle outline-none" style={{ color: tone === "light" ? "rgba(255,255,255,0.72)" : "var(--ink)" }}>
       <Icon name="info" className="w-3.5 h-3.5 cursor-help" />
       <span className={`pointer-events-none absolute ${pos} w-60 rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 ${enter} group-hover:opacity-100 group-focus:opacity-100 transition-all duration-150 z-30`}
-        style={{ background: "var(--ink)", color: "#fff", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>{hint}</span>
+        style={{ background: "var(--ink)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>{hint}</span>
     </span>
   );
 }
@@ -7325,7 +7334,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const planNote = limits.aiRunsPerMonth !== Infinity ? (
     <div className="mt-3 rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
       <div className="flex items-center justify-between mb-2.5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>AI match runs this month</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>AI match runs this month</h3>
+          <InfoHint dir="down" hint="One run is a single AI ranking of your candidates. Each Run AI match uses one, and your plan includes a set number each month." />
+        </div>
         <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
       </div>
       <div className="flex items-baseline gap-1.5 mb-2.5">
@@ -7511,7 +7523,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             </div>
             {matchScores && !matching && (
               <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} · ranked by fit</p>
+                <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} · ranked by fit <InfoHint dir="down" hint="The ring is a fit score from 0 to 100 percent, showing how closely each person matches what you searched for." /></p>
                 <button onClick={() => setMatchScores(null)} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
               </div>
             )}
@@ -8092,7 +8104,10 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
   return (
     <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Interview Questions</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Interview Questions</h2>
+          <InfoHint dir="down" hint="AI drafts these questions from this candidate's resume and the role, so you can tailor the interview before you meet." />
+        </div>
         {pool && (
           <div className="flex items-center gap-3">
             <button onClick={copyAll} className="text-xs text-neutral-600 hover:text-neutral-900">
@@ -9933,6 +9948,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, au
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Team scorecards</h2>
+          <InfoHint dir="down" hint="Each interviewer rates the candidate from 1 to 4 after the interview, and Aster averages them into one team score." />
           {!isPaid && <LockBadge />}
         </div>
         {isPaid && scorecards.length > 0 && (
@@ -10184,7 +10200,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
         <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-sm font-medium text-indigo-700">AI Experience Insights</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-medium text-indigo-700">AI Experience Insights</h2>
+              <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps." />
+            </div>
             {insights && (
               <span className="text-xs text-neutral-500">
                 Generated {new Date(insights.generated_at).toLocaleDateString()}
@@ -10852,7 +10871,10 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
 
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Rank these applicants with AI</p>
+            <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
+              Rank these applicants with AI
+              <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score." />
+            </p>
             <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
               {visible.length === 0
                 ? "No applicants yet — matching becomes available once someone applies."
