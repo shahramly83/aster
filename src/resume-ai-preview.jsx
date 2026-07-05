@@ -3730,7 +3730,6 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
               <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
               <li><button onClick={() => goBlog({})} className="footer-link inline-block py-0.5 text-left">Blog</button></li>
               <li><button onClick={() => goGlossary("")} className="footer-link inline-block py-0.5 text-left">Glossary</button></li>
-              <li><button onClick={() => goProduct("changelog")} className="footer-link inline-block py-0.5 text-left">What's new</button></li>
             </ul>
           </div>
           {/* get started */}
@@ -4461,7 +4460,7 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
         {/* Article header */}
         <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
           <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.28) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.22) 0%, transparent 60%)" }} />
-          <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
             <button onClick={() => goBlog({})} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All articles</button>
             <button onClick={() => goBlog({ category: post.category })} className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
               <Icon name={category?.icon || "doc"} className="w-3.5 h-3.5" /> {category?.label}
@@ -4477,8 +4476,8 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
         </section>
         {/* Article body */}
         <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
-          <div className="max-w-3xl mx-auto px-4 sm:px-6">
-            <article className="max-w-[42rem]"><ArticleBody blocks={post.body} /></article>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <article className="max-w-none"><ArticleBody blocks={post.body} /></article>
             {/* Tags */}
             {post.tags?.length > 0 && (
               <div className="mt-10 flex flex-wrap gap-2">
@@ -4514,16 +4513,24 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
   return (
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} current={null} />
-      <MarketingHero
-        navigate={navigate}
-        eyebrow={activeCat ? activeCat.label : "The Aster blog"}
-        icon={activeCat ? activeCat.icon : "doc"}
-        title={activeCat ? activeCat.label : "Writing on hiring,"}
-        accent={activeCat ? "" : "done well."}
-        subtitle={activeCat ? activeCat.desc : "Practical pieces on AI screening, recruiting operations and structured interviews — for teams that want to hire faster without lowering the bar."}
-        secondaryLabel={cat ? "All articles" : undefined}
-        onSecondary={cat ? () => goBlog({}) : undefined}
-      />
+      {/* Blog header — a content hub, so no product CTAs here */}
+      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
+          {cat && (
+            <button onClick={() => goBlog({})} className="inline-flex items-center gap-1.5 text-sm mb-5 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All articles</button>
+          )}
+          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+            <Icon name={activeCat ? activeCat.icon : "doc"} className="w-3.5 h-3.5" /> {activeCat ? activeCat.label : "The Aster blog"}
+          </span>
+          <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>
+            {activeCat ? activeCat.label : (<>Writing on hiring, <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>done well.</span></>)}
+          </h1>
+          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>
+            {activeCat ? activeCat.desc : "Practical writing on AI screening, recruiting operations and structured interviews, for teams that want to hire faster without lowering the bar."}
+          </p>
+        </div>
+      </section>
       {/* Category filters */}
       <section className="pt-10" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4553,7 +4560,6 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
           </div>
         </div>
       </section>
-      <ProductCTA navigate={navigate} />
       <MarketingFooter {...nav} />
     </div>
   );
@@ -4582,7 +4588,7 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
         <MarketingNav {...nav} current={null} />
         <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
           <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.26) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.2) 0%, transparent 60%)" }} />
-          <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
             <button onClick={() => goGlossary("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> Recruiting glossary</button>
             <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#C79BFF" }}>Definition</p>
             <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2rem, 4vw, 3rem)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>{term.term}</h1>
@@ -4590,8 +4596,8 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
           </div>
         </section>
         <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
-          <div className="max-w-3xl mx-auto px-4 sm:px-6">
-            <article className="max-w-[42rem]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <article className="max-w-none">
               {term.body.map((p, i) => <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{p}</p>)}
             </article>
             {related.length > 0 && (
@@ -4619,14 +4625,21 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
   return (
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} current={null} />
-      <MarketingHero
-        navigate={navigate}
-        eyebrow="Recruiting glossary"
-        icon="doc"
-        title="Every hiring term,"
-        accent="in plain English."
-        subtitle="From applicant tracking systems to quality of hire — clear definitions of the words recruiters and hiring managers use every day."
-      />
+      {/* Glossary header — a reference page, so no product CTA here */}
+      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
+          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+            <Icon name="doc" className="w-3.5 h-3.5" /> Recruiting glossary
+          </span>
+          <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>
+            Every hiring term, <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>in plain English.</span>
+          </h1>
+          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>
+            Clear definitions of the words recruiters and hiring managers use every day, from applicant tracking systems to quality of hire.
+          </p>
+        </div>
+      </section>
       <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
