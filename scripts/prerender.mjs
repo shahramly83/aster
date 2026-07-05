@@ -73,14 +73,25 @@ function serveDist() {
 }
 
 function findChrome() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
   const candidates = [
+    // Windows
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
     "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    // macOS
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    // Linux (local/CI where Chrome is installed)
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
   ];
   for (const c of candidates) if (existsSync(c)) return c;
-  throw new Error("No Chrome/Edge executable found for prerendering.");
+  return null; // no browser → caller skips prerendering gracefully
 }
 
 async function run() {
@@ -88,15 +99,29 @@ async function run() {
     console.error("dist/index.html not found — run `vite build` first.");
     process.exit(1);
   }
-  const server = await serveDist();
+  // No browser available (e.g. Vercel's Linux build image has no Chrome):
+  // skip prerendering and ship the client-rendered SPA. The build stays green;
+  // per-route <title>/meta/canonical still update via JS for engines that render it.
   const executablePath = findChrome();
-  console.log(`Prerendering ${ROUTES.length} routes with ${executablePath.split("\\").pop()}…`);
-
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: "new",
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
-  });
+  if (!executablePath) {
+    console.warn("\n[prerender] No Chrome/Chromium found — skipping prerender, deploying as SPA.");
+    console.warn("[prerender] Set PUPPETEER_EXECUTABLE_PATH (or install Chrome) to enable static prerendering.\n");
+    return;
+  }
+  const server = await serveDist();
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      executablePath,
+      headless: "new",
+      args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    });
+  } catch (e) {
+    console.warn(`\n[prerender] Could not launch browser (${e.message.split("\n")[0]}) — skipping prerender, deploying as SPA.\n`);
+    server.close();
+    return;
+  }
+  console.log(`Prerendering ${ROUTES.length} routes…`);
 
   let ok = 0, failed = [];
   for (const route of ROUTES) {
@@ -133,7 +158,11 @@ async function run() {
   await browser.close();
   server.close();
   console.log(`\nPrerendered ${ok}/${ROUTES.length} routes.${failed.length ? " Failed: " + failed.join(", ") : ""}`);
-  if (failed.length) process.exit(1);
+  // Note failures but never fail the build over them — a green deploy that falls
+  // back to SPA for a route beats a blocked deploy.
+  if (failed.length) console.warn(`[prerender] ${failed.length} route(s) fell back to SPA rendering.`);
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+// Prerendering is a progressive enhancement; any error degrades to an SPA build
+// rather than blocking the deploy.
+run().catch((e) => { console.warn(`[prerender] Non-fatal error, deploying as SPA: ${e.message}`); });
