@@ -2043,16 +2043,8 @@ function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupC
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [probMode, setProbMode] = useState("problem"); // "problem" | "aster" — before/after toggle
   const [probTouched, setProbTouched] = useState(false); // hide the "flip me" hint once used
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   // Mobile pricing carousel
   const priceTrackRef = useRef(null);
@@ -2195,8 +2187,6 @@ function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupC
     { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box: parsing, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
   ];
 
-  const linkClass = "text-sm px-3 py-2 rounded-lg transition-colors";
-
   const plans = [
     { key: "free", name: "Free", col: "free", cta: "Get started", ghost: true,
       price: "$0", sub: "forever", note: null,
@@ -2241,118 +2231,10 @@ function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupC
         </defs>
       </svg>
 
-      {/* Nav — solid dark bar */}
-      <header
-        className="sticky top-0 z-30"
-        style={{
-          transition: "box-shadow .3s ease",
-          background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)",
-          backdropFilter: "blur(16px) saturate(150%)",
-          WebkitBackdropFilter: "blur(16px) saturate(150%)",
-          boxShadow: scrolled ? "0 10px 30px -18px rgba(0,0,0,0.8)" : "none",
-        }}
-      >
-        <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <button onClick={() => navigate("landing")} aria-label="Aster home">
-            <BrandLogo onDark large logoUrl={logoUrl} />
-          </button>
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            <button onClick={() => goProduct && goProduct("")} className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Product</button>
-            <a href="#features" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Features</a>
-            <a href="#pricing" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
-            <a href="#faq" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
-            <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onClick={() => goTrial()} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">
-              Get started
-            </button>
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="burger sm:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90"
-              aria-label="Open menu"
-              aria-expanded={menuOpen}
-            >
-              <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" />
-              <span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile full-screen menu — rendered OUTSIDE the header so `fixed` maps to
-          the viewport (the header's backdrop-filter would otherwise trap it) */}
-      {menuOpen && (
-        <div className="sm:hidden fixed inset-0 z-[70] menu-overlay-in flex flex-col overflow-y-auto" style={{ background: "rgba(6,7,18,0.82)", backdropFilter: "blur(22px) saturate(140%)", WebkitBackdropFilter: "blur(22px) saturate(140%)" }}>
-          {/* drifting aurora */}
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="login-orb-a absolute -top-20 -right-24 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 68%)" }} />
-            <div className="login-orb-b absolute -bottom-16 -left-24 w-[420px] h-[420px] rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 68%)" }} />
-          </div>
-          {/* top bar — logo + close */}
-          <div className="relative flex items-center justify-between h-16 px-4 shrink-0">
-            <BrandLogo onDark large logoUrl={logoUrl} />
-            <button
-              onClick={() => setMenuOpen(false)}
-              aria-label="Close menu"
-              className="w-11 h-11 flex items-center justify-center rounded-full transition-transform active:scale-90"
-              style={{ color: "#fff", border: "1px solid var(--navy-line)", background: "rgba(255,255,255,0.06)" }}
-            >
-              <Icon name="close" className="w-5 h-5" />
-            </button>
-          </div>
-          {/* nav links — glass rows, icon tiles, staggered in */}
-          <nav className="relative flex-1 px-5 pt-4 flex flex-col gap-2.5">
-            {[
-              ["Features", "#features", "target"],
-              ["Pricing", "#pricing", "card"],
-              ["FAQ", "#faq", "chat"],
-            ].map(([label, href, icon], i) => (
-              <a
-                key={href}
-                href={href}
-                onClick={(e) => {
-                  // Close the menu, then scroll to the section. Doing the scroll
-                  // manually (instead of relying on the anchor's default) avoids
-                  // the mobile-touch bug where removing the <a> from the DOM in
-                  // its own handler cancels the hash navigation.
-                  e.preventDefault();
-                  setMenuOpen(false);
-                  const id = href.slice(1);
-                  setTimeout(() => {
-                    const el = document.getElementById(id);
-                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 10);
-                }}
-                className="menu-stagger group flex items-center gap-3.5 rounded-2xl px-3.5 py-3.5 transition-transform active:scale-[0.98]"
-                style={{ animationDelay: `${110 + i * 70}ms`, background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}
-              >
-                <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.18)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
-                  <Icon name={icon} className="w-5 h-5" />
-                </span>
-                <span className="flex-1 text-lg font-display font-semibold text-white" style={{ letterSpacing: "-0.01em" }}>{label}</span>
-                <Icon name="chevronRight" className="w-5 h-5 text-white/40 transition-transform group-active:translate-x-0.5" />
-              </a>
-            ))}
-          </nav>
-          {/* bottom actions — pinned, safe-area padded */}
-          <div className="menu-stagger relative px-5 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-3 shrink-0" style={{ animationDelay: "320ms" }}>
-            <button
-              onClick={() => { setMenuOpen(false); navigate("login"); }}
-              className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border transition-transform active:scale-[0.98]"
-              style={{ borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}
-            >
-              Sign in
-            </button>
-            <button
-              onClick={() => { setMenuOpen(false); goTrial(); }}
-              className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white shadow-[0_16px_38px_-14px_rgba(151,59,247,0.95)] transition-transform active:scale-[0.98]"
-            >
-              Start free trial
-            </button>
-            <p className="text-center text-xs pt-1" style={{ color: "var(--navy-ink)" }}>No credit card · Set up in minutes</p>
-          </div>
-        </div>
-      )}
+      {/* Shared marketing nav — identical on landing + product pages.
+          onLanding lets Pricing/FAQ scroll in place; onCta keeps the landing's
+          14-day-trial signup for Get started. */}
+      <MarketingNav navigate={navigate} goProduct={goProduct} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
 
       {/* Hero — the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
@@ -3117,48 +2999,8 @@ function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupC
         </Reveal>
       </section>
 
-      {/* Footer */}
-      <footer className="relative overflow-hidden" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
-        {/* brand hairline accent + soft glow */}
-        <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
-        <div className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] max-w-[90vw] h-[240px] rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-[1.6fr_1fr_1fr]">
-            {/* brand + tagline */}
-            <div>
-              <BrandLogo onDark logoUrl={logoUrl} />
-              <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--navy-ink)" }}>
-                The AI recruitment platform for growing teams. Start from a shortlist, not a pile.
-              </p>
-              <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
-                <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> No credit card required
-              </div>
-            </div>
-            {/* product links */}
-            <div>
-              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Product</p>
-              <ul className="space-y-2.5 text-sm">
-                {[["Features", "#features"], ["Pricing", "#pricing"], ["FAQ", "#faq"]].map(([label, href]) => (
-                  <li key={label}><a href={href} className="footer-link inline-block py-0.5">{label}</a></li>
-                ))}
-              </ul>
-            </div>
-            {/* get started */}
-            <div>
-              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
-              <ul className="space-y-2.5 text-sm">
-                <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5">Sign in</button></li>
-                <li><button onClick={() => goTrial()} className="footer-link inline-block py-0.5">Create workspace</button></li>
-              </ul>
-            </div>
-          </div>
-          {/* bottom bar */}
-          <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--navy-line)" }}>
-            <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Aster · All rights reserved</p>
-            <p className="text-xs" style={{ color: "var(--ink-3)" }}>Hire the right person, without reading every CV.</p>
-          </div>
-        </div>
-      </footer>
+      {/* Shared marketing footer — identical on landing + product pages */}
+      <MarketingFooter navigate={navigate} goProduct={goProduct} logoUrl={logoUrl} onLanding />
     </div>
   );
 }
@@ -3314,14 +3156,45 @@ const PRODUCT_PAGES = {
   },
 };
 
-// Shared dark marketing top-nav with a Product mega-menu.
-function MarketingNav({ navigate, goProduct, current, logoUrl }) {
+// Jump to a section on the landing page (e.g. Pricing, FAQ) from anywhere. If
+// we're already on landing, smooth-scroll; otherwise route to landing first and
+// scroll once the section has mounted (poll a few frames — see goToPricing).
+function scrollToLandingSection(id) {
+  if (typeof window === "undefined") return;
+  let tries = 0;
+  const tryScroll = () => {
+    const el = document.getElementById(id);
+    if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    if (tries++ < 20) setTimeout(tryScroll, 40);
+  };
+  setTimeout(tryScroll, 40);
+}
+
+// The single marketing top-nav, rendered identically on the landing page and
+// every product page. Product ▾ opens the module mega-menu; Pricing and FAQ
+// jump to the landing sections from wherever you are. `onLanding` skips the
+// route change when those sections are already on the current page. `onCta`
+// lets the landing page keep its 14-day-trial signup for Get started.
+function MarketingNav({ navigate, goProduct, current, logoUrl, onLanding = false, onCta }) {
   const [menuOpen, setMenuOpen] = useState(false);   // mobile
   const [prodOpen, setProdOpen] = useState(false);   // desktop mega-menu
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const linkC = "text-sm px-3 py-2 rounded-lg transition-colors";
+  const cta = onCta || (() => navigate("signup"));
+  const goSection = (id) => {
+    setMenuOpen(false);
+    if (!onLanding) navigate("landing");
+    scrollToLandingSection(id);
+  };
   return (
     <>
-      <header className="sticky top-0 z-40" style={{ background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)", backdropFilter: "blur(16px) saturate(150%)", WebkitBackdropFilter: "blur(16px) saturate(150%)" }}>
+      <header className="sticky top-0 z-40" style={{ transition: "box-shadow .3s ease", background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)", backdropFilter: "blur(16px) saturate(150%)", WebkitBackdropFilter: "blur(16px) saturate(150%)", boxShadow: scrolled ? "0 10px 30px -18px rgba(0,0,0,0.8)" : "none" }}>
         <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button onClick={() => navigate("landing")} aria-label="Aster home"><BrandLogo onDark large logoUrl={logoUrl} /></button>
@@ -3346,9 +3219,10 @@ function MarketingNav({ navigate, goProduct, current, logoUrl }) {
                 </div>
               )}
             </div>
-            <button onClick={() => navigate("landing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
+            <button onClick={() => goSection("pricing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
+            <button onClick={() => goSection("faq")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>FAQ</button>
             <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onClick={() => navigate("signup")} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">Get started</button>
+            <button onClick={cta} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">Get started</button>
             <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
               <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" /><span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
             </button>
@@ -3370,9 +3244,16 @@ function MarketingNav({ navigate, goProduct, current, logoUrl }) {
                 <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
               </button>
             ))}
-            <div className="mt-3 space-y-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Explore</p>
+            {[["Pricing", "pricing"], ["FAQ", "faq"]].map(([label, id]) => (
+              <button key={id} onClick={() => goSection(id)} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                <span className="flex-1 text-white font-medium">{label}</span>
+                <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+              </button>
+            ))}
+            <div className="mt-4 space-y-2.5">
               <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
-              <button onClick={() => { setMenuOpen(false); navigate("signup"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white">Get started</button>
+              <button onClick={() => { setMenuOpen(false); cta(); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white">Get started</button>
             </div>
           </nav>
         </div>
@@ -3381,31 +3262,52 @@ function MarketingNav({ navigate, goProduct, current, logoUrl }) {
   );
 }
 
-// Shared dark marketing footer with the full product directory.
-function MarketingFooter({ navigate, goProduct, logoUrl }) {
+// The single marketing footer, rendered identically on the landing page and
+// every product page: brand · the full Product module directory · Explore
+// (landing sections) · Get started. `onLanding` skips the route change for the
+// Pricing/FAQ links when those sections are already on the current page.
+function MarketingFooter({ navigate, goProduct, logoUrl, onLanding = false }) {
+  const goSection = (id) => {
+    if (!onLanding) navigate("landing");
+    scrollToLandingSection(id);
+  };
   return (
     <footer className="relative overflow-hidden" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
       <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
+      <div className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] max-w-[90vw] h-[240px] rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-[1.6fr_1fr_1fr]">
+        <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-[1.4fr_2fr_0.8fr_1fr]">
+          {/* brand + tagline */}
           <div>
             <BrandLogo onDark logoUrl={logoUrl} />
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--navy-ink)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
+            <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+              <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> No credit card required
+            </div>
           </div>
+          {/* full product directory (two columns) */}
           <div>
             <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Product</p>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
               {PRODUCT_NAV.map((p) => (
                 <li key={p.slug}><button onClick={() => goProduct(p.slug)} className="footer-link inline-block py-0.5 text-left">{p.label}</button></li>
               ))}
             </ul>
           </div>
+          {/* explore — landing sections */}
+          <div>
+            <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Explore</p>
+            <ul className="space-y-2.5 text-sm">
+              <li><button onClick={() => goSection("pricing")} className="footer-link inline-block py-0.5 text-left">Pricing</button></li>
+              <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
+            </ul>
+          </div>
+          {/* get started */}
           <div>
             <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
             <ul className="space-y-2.5 text-sm">
-              <li><button onClick={() => navigate("landing")} className="footer-link inline-block py-0.5">Pricing</button></li>
-              <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5">Sign in</button></li>
-              <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5">Create workspace</button></li>
+              <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5 text-left">Sign in</button></li>
+              <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5 text-left">Create workspace</button></li>
             </ul>
           </div>
         </div>
