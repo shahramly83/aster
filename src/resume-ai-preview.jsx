@@ -7299,13 +7299,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</p>
                 <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
               </div>
-              {tab === "role" ? (
-                <button onClick={() => sendInvite(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors" style={invited[c.id] ? { background: "var(--brand-soft)", color: "var(--brand)" } : { border: "1px solid var(--brand)", color: "var(--brand)" }}>
-                  {invited[c.id] ? "Invited ✓" : "Invite"}
-                </button>
-              ) : (
-                <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
-              )}
+              <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
             </div>
           </div>
         );
@@ -7545,7 +7539,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     Match to an open role
                     <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the role you pick, so you can invite the best fits to apply." />
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role. AI ranks every candidate by fit, then invite the strongest. Invites are tagged <span className="font-medium" style={{ color: "var(--ink-2)" }}>source: database</span>.</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role. AI ranks every candidate by fit. Open a profile to review them, then invite the strongest to apply.</p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={runRoleMatch} disabled={!matchJobId || matching}
@@ -8703,10 +8697,10 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set() })
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Application received</h1>
             <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              Thanks{firstNameOf(name)}! We've got your resume for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
+              Thanks{firstNameOf(name)}! We've saved your latest resume for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> and added you to the process.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
-              Our team will review it and reach out if there's a fit. You'll get a confirmation by email.
+              Our team reviews every applicant and will reach out if there's a fit. You'll get a confirmation by email.
             </p>
           </div>
         ) : (
@@ -10065,8 +10059,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [insights, setInsights] = useState(candidate ? MOCK_INSIGHTS[candidate.id] ?? null : null);
   const [generating, setGenerating] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
-  // Database-view invite: pick an open role and copy the apply link.
+  // Database-view invite: pick an open role, draft a re-engagement email, and
+  // send it to the candidate's profile email. If they apply, they drop their
+  // latest resume and move into the hiring workflow.
   const [inviteJobId, setInviteJobId] = useState("");
+  const [inviteBody, setInviteBody] = useState("");
+  const [inviteSent, setInviteSent] = useState(false);
   const [inviteMsg, setInviteMsg] = useState(null);
   // Questions unlock once the interview is actually booked: either the shared
   // booking shows the candidate confirmed a time, or the application is already
@@ -10133,22 +10131,23 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   };
 
   const openJobsForInvite = (jobs || []).filter((j) => j.status === "open");
-  const sendApplyInvite = async () => {
+  const candidateEmail = candidate?.parsed?.email || "";
+  const applyLinkFor = (job) => `https://yourapp.com/apply/${job.id}?source=database`;
+  const defaultInviteBody = (job) =>
+    `Hi ${firstName},\n\nIt has been a while since we last connected, but your background stood out to us and we are now hiring a ${job.title}. If you are interested, tap the link below to see the role and apply with your latest resume. It only takes a minute.\n\nWe would love to reconnect.`;
+  // Picking a role (re)drafts the email and clears any prior send state.
+  const pickInviteJob = (id) => {
+    setInviteJobId(id);
+    const job = (jobs || []).find((j) => j.id === id);
+    setInviteBody(job ? defaultInviteBody(job) : "");
+    setInviteSent(false);
+    setInviteMsg(null);
+  };
+  const sendInviteEmail = () => {
     const job = jobs.find((j) => j.id === inviteJobId);
-    if (!job) return;
-    const url = `https://yourapp.com/apply/${job.id}?source=database`;
-    let ok = false;
-    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); ok = true; } } catch { ok = false; }
-    if (!ok) {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        ok = document.execCommand("copy"); document.body.removeChild(ta);
-      } catch { ok = false; }
-    }
-    setInviteMsg(`${ok ? "Invite link copied" : "Invite link ready"} for ${firstName} → ${job.title} (source: database).`);
-    setTimeout(() => setInviteMsg(null), 4000);
+    if (!job || !candidateEmail) return;
+    setInviteSent(true);
+    setInviteMsg(`Invite email sent to ${candidateEmail}. When ${firstName} applies through the link, AI refreshes the profile with their latest resume and moves them into your hiring workflow.`);
   };
 
   return (
@@ -10334,7 +10333,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             their profile and a way to invite them to apply, even if it's an old
             profile. Those tools appear once they actually apply to a role. */}
         {!contextJobId && (
-          <div className="mt-2 mb-6 rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+          <div className="mt-2 mb-6 rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
             <div className="flex items-start gap-3">
               <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]">
                 <Icon name="briefcase" className="w-4 h-4" />
@@ -10344,26 +10343,43 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
                   {isHired
                     ? "This person is already on the team, so there's nothing to invite them to."
-                    : "They're in your database, not yet in a pipeline. Send a link to apply for an open role, since even an older profile might still be keen. Interview tools appear once they apply."}
+                    : "They're in your database from an earlier point, not yet in a pipeline. Email them about an open role. If they're still keen, they apply with their latest resume and move into your hiring workflow."}
                 </p>
                 {!isHired && (openJobsForInvite.length === 0 ? (
                   <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>No open roles yet. Create one under Job Postings.</p>
                 ) : (
-                  <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                    <select value={inviteJobId} onChange={(e) => setInviteJobId(e.target.value)}
-                      className="flex-1 rounded-xl bg-white border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
-                      <option value="">Select an open role…</option>
-                      {openJobsForInvite.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
-                    </select>
-                    <button onClick={sendApplyInvite} disabled={!inviteJobId}
-                      className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
-                      <Icon name="link" className="w-4 h-4" /> Copy invite link
+                  <div className="mt-3">
+                    <FieldLabel hint="AI ranks and reaches out on your behalf. Pick an open role to draft the outreach email.">Open role</FieldLabel>
+                    <JobSelect jobs={openJobsForInvite} value={inviteJobId} onChange={pickInviteJob} placeholder="Select an open role…" />
+                    {inviteJobId && (
+                      <div className="mt-3 rounded-xl bg-white border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+                        <div className="px-3.5 py-2.5 border-b flex items-center gap-2" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+                          <Icon name="chat" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} />
+                          <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--brand)", letterSpacing: "0.05em" }}>Draft email</p>
+                          <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#fff", color: "var(--ink-3)", border: "1px solid var(--line)" }}>source: database</span>
+                        </div>
+                        <div className="px-3.5 py-2 border-b flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]" style={{ borderColor: "var(--line)" }}>
+                          <p><span style={{ color: "var(--ink-3)" }}>To:</span> <span className="font-medium" style={{ color: "var(--ink)" }}>{candidateEmail || "no email on file"}</span></p>
+                          <p><span style={{ color: "var(--ink-3)" }}>Subject:</span> <span className="font-medium" style={{ color: "var(--ink)" }}>A {(jobs.find((j) => j.id === inviteJobId) || {}).title} role you might like</span></p>
+                        </div>
+                        <textarea value={inviteBody} onChange={(e) => { setInviteBody(e.target.value); setInviteSent(false); }} rows={5}
+                          className="w-full resize-none px-3.5 py-2.5 text-xs leading-relaxed focus:outline-none" style={{ color: "var(--ink-2)" }} />
+                        <div className="px-3.5 py-2.5 border-t flex items-center gap-2" style={{ borderColor: "var(--line)", background: "#FAFAFC" }}>
+                          <Icon name="link" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+                          <span className="text-[11px] font-medium truncate" style={{ color: "var(--brand)" }}>{applyLinkFor(jobs.find((j) => j.id === inviteJobId) || { id: "" })}</span>
+                          <span className="ml-auto shrink-0 text-[10px]" style={{ color: "var(--ink-3)" }}>Apply link, added automatically</span>
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={sendInviteEmail} disabled={!inviteJobId || !candidateEmail || inviteSent}
+                      className="mt-3 w-full sm:w-auto rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+                      <Icon name={inviteSent ? "check" : "chat"} className="w-4 h-4" /> {inviteSent ? "Invite email sent" : "Send invite email"}
                     </button>
                   </div>
                 ))}
                 {inviteMsg && (
-                  <div className="mt-3 rounded-xl px-3.5 py-2.5 flex items-center gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
-                    <span className="shrink-0" style={{ color: "#059669" }}><Icon name="check" className="w-4 h-4" /></span>
+                  <div className="mt-3 rounded-xl px-3.5 py-2.5 flex items-start gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
+                    <span className="shrink-0 mt-0.5" style={{ color: "#059669" }}><Icon name="check" className="w-4 h-4" /></span>
                     <p className="text-xs" style={{ color: "#047857" }}>{inviteMsg}</p>
                   </div>
                 )}
