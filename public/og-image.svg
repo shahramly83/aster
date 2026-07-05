@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#16183A"/>
+      <stop offset="1" stop-color="#1E2148"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="470" y1="150" x2="730" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D14BFF"/>
+      <stop offset="0.4" stop-color="#8A4DFF"/>
+      <stop offset="0.7" stop-color="#4A6BFF"/>
+      <stop offset="1" stop-color="#2FA9F6"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#973BF7"/>
+      <stop offset="1" stop-color="#5A78F8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="600" cy="215" r="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#973BF7" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#973BF7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="url(#accent)"/>
+  <!-- Aster mark -->
+  <g transform="translate(536,150) scale(1.0)">
+    <path fill-rule="evenodd" clip-rule="evenodd" fill="url(#mark)"
+      d="M64 12c6 0 10.4 3 13.4 9.6l31 68.8c4 8.8-.4 17.6-9.4 17.6-6.8 0-11.8-4-14.8-11l-5.6-12.8c-3.4-7.8-8-11.6-14.6-11.6s-11.2 3.8-14.6 11.6L43.8 97c-3 7-8 11-14.8 11-9 0-13.4-8.8-9.4-17.6l31-68.8C53.6 15 58 12 64 12Zm0 26-13.6 30c3.6-3.6 8.2-5.4 13.6-5.4s10 1.8 13.6 5.4L64 38Z"/>
+  </g>
+  <text x="600" y="360" text-anchor="middle" font-family="'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif" font-size="92" font-weight="800" letter-spacing="-2" fill="#FFFFFF">Aster</text>
+  <text x="600" y="430" text-anchor="middle" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="34" font-weight="600" fill="#AEB0CE">AI recruitment platform for growing teams</text>
+  <text x="600" y="505" text-anchor="middle" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="24" font-weight="500" fill="#7E80A6">Screen every resume · Rank applicants · Automate scheduling</text>
+</svg>

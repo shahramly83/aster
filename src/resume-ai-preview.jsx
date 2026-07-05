@@ -12804,6 +12804,142 @@ function screenFromPath(pathname) {
   return PATH_TO_SCREEN[pathname] || "landing";
 }
 
+// ---------- Per-route SEO metadata (title / description / canonical) ----------
+// The app renders client-side, so document metadata is updated on navigation.
+// Search engines that render JS pick these up, giving each marketing route a
+// unique, keyword-optimized title + description + canonical instead of sharing
+// the homepage's. Copy below is validated (title ≤ 60, meta ≤ 160 chars) and
+// mirrors docs/seo/content-briefs.md — one primary keyword per page.
+const SITE_ORIGIN = "https://hireaster.com";
+const DEFAULT_META = {
+  title: "Aster — AI Recruitment Software for Growing Teams",
+  description:
+    "AI recruitment software that screens every resume, ranks applicants by role fit, and books interviews — turning a two-week shortlist into an afternoon.",
+};
+// Path → { title, description }. Keyword-optimized per docs/seo/content-briefs.md.
+const PAGE_META = {
+  "/": DEFAULT_META,
+  "/product": {
+    title: "All-in-One Recruiting Software | Aster Platform",
+    description: "One platform for sourcing, ATS, AI screening, interviews, offers and analytics. See how Aster runs every stage of hiring for growing teams.",
+  },
+  "/product/sourcing": {
+    title: "Candidate Sourcing Software & Talent CRM | Aster",
+    description: "Turn every past applicant into your next hire. Search your whole talent pool by skill, tag the best people, and re-engage them in a click with Aster.",
+  },
+  "/product/ats": {
+    title: "Applicant Tracking System (ATS) | Aster",
+    description: "One shared pipeline from applied to hired. Aster's applicant tracking system keeps every candidate, stage and teammate in sync — no spreadsheets.",
+  },
+  "/product/ai": {
+    title: "AI Resume Screening Software | Aster Intelligence",
+    description: "Aster's AI reads every resume, scores each applicant by role fit, and dedupes your database — handing you a ranked shortlist with the reasons why.",
+  },
+  "/product/interviews": {
+    title: "Structured Interview & Scorecard Software | Aster",
+    description: "AI-drafted questions, candidate self-scheduling, and one shared scorecard per candidate. Aster makes every interview structured and consistent.",
+  },
+  "/product/offers": {
+    title: "Offer Management Software | Aster",
+    description: "Draft, approve, send and track every offer in one place. Aster's offer management keeps approvals moving so nothing slips between yes and start date.",
+  },
+  "/product/analytics": {
+    title: "Recruitment Analytics & Reporting Software | Aster",
+    description: "See what's working across hiring — time-to-hire, pipeline health and source quality. Aster's recruitment analytics turn hiring data into decisions.",
+  },
+  "/product/career-site": {
+    title: "Career Site Builder & Job Board | Aster",
+    description: "A branded careers page and apply flow, hosted for you. Publish every open role and let candidates apply in minutes with Aster's career site.",
+  },
+  "/product/collaboration": {
+    title: "Collaborative Hiring Software | Aster",
+    description: "Bring the whole hiring panel together. Shared scorecards, notes and candidate profiles keep recruiters, managers and interviewers on the same page.",
+  },
+  "/product/automation": {
+    title: "Recruitment Automation Software | Aster Workflows",
+    description: "Put the busywork on autopilot. Automate stage moves, candidate emails and reminders with Aster's recruitment automation and custom hiring workflows.",
+  },
+  "/product/integrations": {
+    title: "Integrations — Calendar, Email & More | Aster",
+    description: "Connect the tools your team already uses. Aster integrates with Google and Microsoft calendars, email, messaging and job boards out of the box.",
+  },
+  "/product/changelog": {
+    title: "What's New — Product Updates | Aster",
+    description: "The latest Aster releases and improvements — new features, fixes and changes across the hiring platform, updated regularly.",
+  },
+  "/solutions": {
+    title: "Solutions by Role, Stage & Industry | Aster",
+    description: "See how Aster helps recruiters, hiring managers and founders — across startups, enterprise and every industry — hire faster with AI.",
+  },
+  "/solutions/recruiters": {
+    title: "Recruiting Software for Recruiters | Aster",
+    description: "Aster does the first pass on every CV — parsing, scoring and ranking — so recruiters spend the day talking to shortlisted people, not reading resumes.",
+  },
+  "/solutions/hiring-managers": {
+    title: "Hiring Software for Hiring Managers | Aster",
+    description: "See only the candidates worth your time. Aster hands hiring managers a ranked shortlist with reasons and one scorecard to compare everyone fairly.",
+  },
+  "/solutions/talent-leaders": {
+    title: "Talent Acquisition Software for Talent Leaders | Aster",
+    description: "Run hiring on data, not gut feel. Aster gives heads of talent a live view of every role, a consistent process, and the metrics to plan headcount.",
+  },
+  "/solutions/people-ops": {
+    title: "HR & People Ops Recruiting Software | Aster",
+    description: "One consistent hiring process across every role and team. Aster gives People and HR Ops a single, compliant system for candidates and pipelines.",
+  },
+  "/solutions/founders": {
+    title: "Hiring Software for Founders | Aster",
+    description: "Make your first hires without a recruiter. Aster screens, ranks and schedules so founders can hire great people between everything else they do.",
+  },
+  "/solutions/startups": {
+    title: "Recruiting Software for Startups | Aster",
+    description: "Hire fast on a founder's schedule. Aster gives startups AI screening, a simple pipeline and one-click scheduling — without an enterprise price tag.",
+  },
+  "/solutions/scaleups": {
+    title: "Recruiting Software for Scaleups & Mid-Market | Aster",
+    description: "Scale hiring without scaling headcount. Aster helps growing teams handle more roles and more applicants with AI screening and automated workflows.",
+  },
+  "/solutions/enterprise": {
+    title: "Enterprise Recruiting Software | Aster",
+    description: "Security, roles and scale by default. Aster gives enterprise talent teams SSO, granular permissions and audit trails across every hire.",
+  },
+  "/solutions/agencies": {
+    title: "Recruitment Software for Staffing Agencies | Aster",
+    description: "Place more candidates, faster. Aster gives staffing and search agencies AI screening, a shared talent pool and automated outreach in one platform.",
+  },
+  "/solutions/industries/technology": {
+    title: "Tech Recruiting Software | Screen for Fit | Aster",
+    description: "Screen for real technical fit. Aster reads engineering resumes for the skills that matter and ranks candidates so tech teams interview the right people.",
+  },
+  "/solutions/industries/healthcare": {
+    title: "Healthcare Recruitment Software | Aster",
+    description: "Credentials and compliance, handled. Aster helps healthcare teams screen clinical candidates, track certifications and hire at the pace patients need.",
+  },
+  "/solutions/industries/retail": {
+    title: "Retail & Hospitality Hiring Software | Aster",
+    description: "Hire at volume, season after season. Aster screens and schedules high-volume retail and hospitality applicants so you fill every shift fast.",
+  },
+  "/solutions/industries/professional-services": {
+    title: "Recruiting Software for Professional Services | Aster",
+    description: "Hire billable talent that fits. Aster helps consulting, legal and finance firms screen for the exact skills and experience each engagement needs.",
+  },
+  "/solutions/industries/manufacturing": {
+    title: "Manufacturing & Logistics Hiring Software | Aster",
+    description: "Fill skilled roles and every shift. Aster screens and schedules high-volume manufacturing and logistics applicants so no line runs short-staffed.",
+  },
+};
+// Returns { title, description, path } for the current route. Marketing routes
+// get their keyword-optimized metadata from PAGE_META; app (authenticated)
+// screens fall back to the default marketing title since they're noindex.
+function routeMeta(screen, productSlug, solutionSlug) {
+  let path;
+  if (screen === "product") path = "/product" + (productSlug ? `/${productSlug}` : "");
+  else if (screen === "solutions") path = "/solutions" + (solutionSlug ? `/${solutionSlug}` : "");
+  else path = SCREEN_TO_PATH[screen] || "/";
+  const meta = PAGE_META[path] || DEFAULT_META;
+  return { title: meta.title, description: meta.description, path };
+}
+
 // Build the initial screen stack from the current URL (deep-link / refresh).
 function initialHistoryFromUrl() {
   if (typeof window === "undefined") return ["landing"];
@@ -12931,6 +13067,37 @@ export default function ResumeAIPreview() {
     prevDepthRef.current = cur;
     prevTopRef.current = top;
   }, [history]);
+
+  // Keep document metadata in sync with the current route so each marketing
+  // page has its own title, description and canonical (crawlers render JS).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const meta = routeMeta(screen, productSlug, solutionSlug);
+    document.title = meta.title;
+    const setMeta = (selector, attr, key, value) => {
+      let el = document.head.querySelector(selector);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", value);
+    };
+    setMeta('meta[name="description"]', "name", "description", meta.description);
+    setMeta('meta[property="og:title"]', "property", "og:title", meta.title);
+    setMeta('meta[property="og:description"]', "property", "og:description", meta.description);
+    setMeta('meta[name="twitter:title"]', "name", "twitter:title", meta.title);
+    setMeta('meta[name="twitter:description"]', "name", "twitter:description", meta.description);
+    const url = SITE_ORIGIN + meta.path;
+    setMeta('meta[property="og:url"]', "property", "og:url", url);
+    let link = document.head.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.setAttribute("rel", "canonical");
+      document.head.appendChild(link);
+    }
+    link.setAttribute("href", url);
+  }, [screen, productSlug, solutionSlug]);
 
   const navigate = (target, path) => {
     // Remember where we are before leaving, so Back can restore it.

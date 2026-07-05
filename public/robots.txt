@@ -1,0 +1,21 @@
+# robots.txt for Aster — https://hireaster.com
+User-agent: *
+Allow: /
+
+# Keep authenticated app screens out of the index (marketing pages stay crawlable)
+Disallow: /dashboard
+Disallow: /candidates
+Disallow: /applicants
+Disallow: /interviews
+Disallow: /interviewers
+Disallow: /jobs
+Disallow: /search
+Disallow: /upload
+Disallow: /email-templates
+Disallow: /billing
+Disallow: /profile
+Disallow: /settings
+Disallow: /schedule
+Disallow: /apply
+
+Sitemap: https://hireaster.com/sitemap.xml

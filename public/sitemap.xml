@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Core -->
+  <url><loc>https://hireaster.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority><lastmod>2026-07-05</lastmod></url>
+
+  <!-- Product -->
+  <url><loc>https://hireaster.com/product</loc><changefreq>weekly</changefreq><priority>0.9</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/sourcing</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/ats</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/ai</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/interviews</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/offers</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/analytics</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/career-site</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/collaboration</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/automation</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/integrations</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/product/changelog</loc><changefreq>weekly</changefreq><priority>0.6</priority><lastmod>2026-07-05</lastmod></url>
+
+  <!-- Solutions: hub -->
+  <url><loc>https://hireaster.com/solutions</loc><changefreq>weekly</changefreq><priority>0.9</priority><lastmod>2026-07-05</lastmod></url>
+
+  <!-- Solutions: by role -->
+  <url><loc>https://hireaster.com/solutions/recruiters</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/hiring-managers</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/talent-leaders</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/people-ops</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/founders</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+
+  <!-- Solutions: by company stage -->
+  <url><loc>https://hireaster.com/solutions/startups</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/scaleups</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/enterprise</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/agencies</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-05</lastmod></url>
+
+  <!-- Solutions: by industry -->
+  <url><loc>https://hireaster.com/solutions/industries/technology</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/industries/healthcare</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/industries/retail</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/industries/professional-services</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-05</lastmod></url>
+  <url><loc>https://hireaster.com/solutions/industries/manufacturing</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-05</lastmod></url>
+
+  <!-- Sign-up entry -->
+  <url><loc>https://hireaster.com/signup</loc><changefreq>monthly</changefreq><priority>0.6</priority><lastmod>2026-07-05</lastmod></url>
+</urlset>
