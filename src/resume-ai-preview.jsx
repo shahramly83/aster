@@ -7066,30 +7066,45 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
   );
 }
 
-function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications }) {
+function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
   const limits = planLimits(plan);
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
-  const [tab, setTab] = useState("browse"); // browse | skills | role
+  // Seed from the persisted view state so returning from a candidate profile
+  // keeps the same tab, filters, page, results and scroll (no reset/refresh).
+  const P = (persist && persist.current) || {};
+  const [tab, setTab] = useState(P.tab ?? "browse"); // browse | skills | role
 
   // Browse tab
-  const [query, setQuery] = useState("");
-  const [minYears, setMinYears] = useState(0);
-  const [sortBy, setSortBy] = useState("name"); // name | experience
+  const [query, setQuery] = useState(P.query ?? "");
+  const [minYears, setMinYears] = useState(P.minYears ?? 0);
+  const [sortBy, setSortBy] = useState(P.sortBy ?? "name"); // name | experience
+  const [page, setPage] = useState(P.page ?? 1);
+  const PER_PAGE = 20;
 
   // Match-by-skills-or-industry tab (two searchable token fields)
-  const [skillTags, setSkillTags] = useState([]);
-  const [industryTags, setIndustryTags] = useState([]);
+  const [skillTags, setSkillTags] = useState(P.skillTags ?? []);
+  const [industryTags, setIndustryTags] = useState(P.industryTags ?? []);
   const [openTip, setOpenTip] = useState(null); // sidebar "how it works" accordion
 
   // Match-to-a-role tab
-  const [matchJobId, setMatchJobId] = useState("");
+  const [matchJobId, setMatchJobId] = useState(P.matchJobId ?? "");
 
   // Shared ranking output (either skills or role match writes here)
   const [matching, setMatching] = useState(false);
-  const [matchScores, setMatchScores] = useState(null); // null | { [id]: 0..1 }
-  const [rankedMeta, setRankedMeta] = useState(null);    // { mode:'skills'|'role', label, skills?, jobId? }
+  const [matchScores, setMatchScores] = useState(P.matchScores ?? null); // null | { [id]: 0..1 }
+  const [rankedMeta, setRankedMeta] = useState(P.rankedMeta ?? null);    // { mode:'skills'|'role', label, skills?, jobId? }
+
+  // Save the view state on every change, and restore scroll on return.
+  useEffect(() => {
+    if (persist) persist.current = { ...persist.current, tab, query, minYears, sortBy, page, skillTags, industryTags, matchJobId, matchScores, rankedMeta };
+  }, [persist, tab, query, minYears, sortBy, page, skillTags, industryTags, matchJobId, matchScores, rankedMeta]);
+  useEffect(() => {
+    if (persist && persist.current && persist.current.scrollY != null) window.scrollTo(0, persist.current.scrollY);
+    return () => { if (persist) persist.current = { ...persist.current, scrollY: window.scrollY }; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Invites (role tab only)
   const [invited, setInvited] = useState({});
@@ -7214,6 +7229,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const viewLimit = matchScores ? limits.aiMatches : limits.visibleCandidates;
   const shownList = list.slice(0, viewLimit);
   const lockedList = list.slice(viewLimit);
+
+  // Browse pagination (20 per page). Match tabs are already top-N gated.
+  const pageCount = Math.max(1, Math.ceil(shownList.length / PER_PAGE));
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  const pageStart = (safePage - 1) * PER_PAGE;
+  const browseItems = shownList.slice(pageStart, pageStart + PER_PAGE);
+  const goToPage = (n) => { setPage(n); if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   // ---- Invites (role tab) ----
   const inviteLink = (jobId) => `https://yourapp.com/apply/${jobId}?source=database`;
@@ -7452,33 +7474,36 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-5 h-5" /></span>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, skill, or role…"
+              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search by name, skill, or role…"
                 className="w-full rounded-2xl bg-white border pl-12 pr-10 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 transition-shadow"
                 style={{ borderColor: "var(--line)", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }} />
-              {query && <button onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
+              {query && <button onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-3">
               <span className="text-xs" style={{ color: "var(--ink-3)" }}>Popular:</span>
               {["React", "Salesforce", "SEO", "Project Management", "Financial Modeling", "Adobe Photoshop"].map((chip) => {
                 const active = query === chip;
-                return <button key={chip} onClick={() => setQuery(active ? "" : chip)} className="text-xs rounded-full px-3 py-1 font-medium transition-colors" style={active ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{chip}</button>;
+                return <button key={chip} onClick={() => { setQuery(active ? "" : chip); setPage(1); }} className="text-xs rounded-full px-3 py-1 font-medium transition-colors" style={active ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{chip}</button>;
               })}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 mt-5 mb-3">
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{q ? ` · matching "${query}"` : " in your database"}</p>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+                <span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{q ? ` · matching "${query}"` : " in your database"}
+                {pageCount > 1 && <span style={{ color: "var(--ink-3)" }}> · {pageStart + 1}–{Math.min(pageStart + PER_PAGE, shownList.length)} shown</span>}
+              </p>
               <div className="flex items-center gap-2">
-                <select value={minYears} onChange={(e) => setMinYears(Number(e.target.value))} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Filter by experience">
+                <select value={minYears} onChange={(e) => { setMinYears(Number(e.target.value)); setPage(1); }} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Filter by experience">
                   <option value={0}>Any experience</option><option value={3}>3+ years</option><option value={5}>5+ years</option><option value={8}>8+ years</option>
                 </select>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Sort candidates">
+                <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Sort candidates">
                   <option value="name">Sort: Name (A–Z)</option><option value="experience">Sort: Most experience</option>
                 </select>
-                {(q || minYears > 0) && <button onClick={() => { setQuery(""); setMinYears(0); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>}
+                {(q || minYears > 0) && <button onClick={() => { setQuery(""); setMinYears(0); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>}
               </div>
             </div>
-            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name, skill, or role.` : "Your database is empty.") : (
+            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name, skill, or role.` : "Your database is empty.") : (<>
               <div className="grid sm:grid-cols-2 gap-3">
-                {shownList.map((c) => browseCard(c))}
+                {browseItems.map((c) => browseCard(c))}
                 {lockedList.length > 0 && (
                   <div className="relative pt-1 sm:col-span-2">
                     <div className="grid sm:grid-cols-2 gap-3 blur-[3px] pointer-events-none select-none" aria-hidden="true">
@@ -7497,7 +7522,26 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   </div>
                 )}
               </div>
-            )}
+              {pageCount > 1 && (
+                <div className="flex items-center justify-center gap-1.5 mt-6">
+                  <button onClick={() => goToPage(safePage - 1)} disabled={safePage === 1} aria-label="Previous page"
+                    className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-neutral-50 inline-flex items-center gap-1" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                    <Icon name="chevronLeft" className="w-3.5 h-3.5" /> Prev
+                  </button>
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                    <button key={n} onClick={() => goToPage(n)} aria-label={`Page ${n}`} aria-current={n === safePage ? "page" : undefined}
+                      className="w-8 h-8 rounded-lg text-xs font-semibold transition-colors"
+                      style={n === safePage ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))", color: "#fff" } : { border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                      {n}
+                    </button>
+                  ))}
+                  <button onClick={() => goToPage(safePage + 1)} disabled={safePage === pageCount} aria-label="Next page"
+                    className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-neutral-50 inline-flex items-center gap-1" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                    Next <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </>)}
           </>
         )}
 
@@ -11656,6 +11700,9 @@ export default function ResumeAIPreview() {
   // Stage overrides applied after the initial mock stage, keyed by candidate id.
   // Lets actions elsewhere (like a confirmed booking) advance the pipeline stage.
   const [stageOverrides, setStageOverrides] = useState({});
+  // Search view state (tab, filters, page, results, scroll) kept across the
+  // profile round-trip so Back returns to the same place, not a fresh list.
+  const searchStateRef = useRef({});
 
   const screen = history[history.length - 1];
   const [newJobOpen, setNewJobOpen] = useState(false);
@@ -11952,7 +11999,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "search" && (
-          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} persist={searchStateRef} />
         )}
         {screen === "interviews" && (
           <InterviewsScreen
