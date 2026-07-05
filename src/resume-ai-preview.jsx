@@ -9842,7 +9842,13 @@ function StatRow({ label, value }) {
 
 function fmtYears(years) {
   if (years == null) return "—";
-  return `${years} ${years === 1 ? "year" : "years"}`;
+  return `${years} ${years <= 1 ? "year" : "years"}`;
+}
+// Prefer years; only fall back to months for sub-year durations (e.g. short gaps).
+function fmtMonths(months) {
+  if (months == null) return "—";
+  if (months >= 12) return fmtYears(Math.round((months / 12) * 10) / 10);
+  return `${months} ${months === 1 ? "month" : "months"}`;
 }
 
 // A single metric tile: small label with a bold value (and optional sub-line).
@@ -9893,9 +9899,9 @@ function InsightsDisplay({ insights }) {
         {heading("Employment analysis")}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           <InsightTile label="Employers" value={String(ea.number_of_employers)} />
-          <InsightTile label="Average tenure" value={ea.average_tenure_months != null ? `${ea.average_tenure_months} mo` : "—"} />
+          <InsightTile label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
           {ea.longest_tenure && (
-            <InsightTile label="Longest tenure" value={`${ea.longest_tenure.months} mo`} sub={ea.longest_tenure.company} />
+            <InsightTile label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} />
           )}
         </div>
         {ea.career_progression && (
@@ -9909,7 +9915,7 @@ function InsightsDisplay({ insights }) {
             <p className="text-xs font-semibold mb-1" style={{ color: "#92400E" }}>Employment gaps</p>
             <ul className="text-sm space-y-0.5" style={{ color: "#92400E" }}>
               {ea.employment_gaps.map((gap, i) => (
-                <li key={i}>{gap.start} to {gap.end} <span className="opacity-70">({gap.duration_months} mo)</span></li>
+                <li key={i}>{gap.start} to {gap.end} <span className="opacity-70">({fmtMonths(gap.duration_months)})</span></li>
               ))}
             </ul>
           </div>
