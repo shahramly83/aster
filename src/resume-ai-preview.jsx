@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
 
@@ -7096,15 +7096,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [matchScores, setMatchScores] = useState(P.matchScores ?? null); // null | { [id]: 0..1 }
   const [rankedMeta, setRankedMeta] = useState(P.rankedMeta ?? null);    // { mode:'skills'|'role', label, skills?, jobId? }
 
-  // Save the view state on every change, and restore scroll on return.
+  // Save the view state on every change so returning from a profile keeps the
+  // same tab, filters, page and results (scroll is handled centrally by the app).
   useEffect(() => {
     if (persist) persist.current = { ...persist.current, tab, query, minYears, sortBy, page, skillTags, industryTags, matchJobId, matchScores, rankedMeta };
   }, [persist, tab, query, minYears, sortBy, page, skillTags, industryTags, matchJobId, matchScores, rankedMeta]);
-  useEffect(() => {
-    if (persist && persist.current && persist.current.scrollY != null) window.scrollTo(0, persist.current.scrollY);
-    return () => { if (persist) persist.current = { ...persist.current, scrollY: window.scrollY }; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Invites (role tab only)
   const [invited, setInvited] = useState({});
@@ -11707,7 +11703,32 @@ export default function ResumeAIPreview() {
   const screen = history[history.length - 1];
   const [newJobOpen, setNewJobOpen] = useState(false);
 
+  // Central scroll management: forward navigation starts the new screen at the
+  // top; Back restores the scroll position of the screen you're returning to.
+  // Positions are keyed by stack depth (one entry per screen in the history).
+  const scrollByDepth = useRef({});
+  const prevDepthRef = useRef(history.length);
+  const prevTopRef = useRef(history[history.length - 1]);
+  // Take over scroll from the browser so our forward/back logic isn't overridden.
+  useEffect(() => {
+    if (typeof window !== "undefined" && "scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+  }, []);
+  useLayoutEffect(() => {
+    const prev = prevDepthRef.current;
+    const cur = history.length;
+    const top = history[history.length - 1];
+    if (typeof window !== "undefined") {
+      if (cur > prev) window.scrollTo(0, 0);                                   // forward → top
+      else if (cur < prev) window.scrollTo(0, scrollByDepth.current[cur] || 0); // back → restore
+      else if (top !== prevTopRef.current) window.scrollTo(0, 0);              // same depth, screen swapped → top
+    }
+    prevDepthRef.current = cur;
+    prevTopRef.current = top;
+  }, [history]);
+
   const navigate = (target, path) => {
+    // Remember where we are before leaving, so Back can restore it.
+    if (typeof window !== "undefined" && target !== "newJob") scrollByDepth.current[history.length] = window.scrollY;
     if (target === "newJob") {
       // New Job is a modal overlay, not a routed screen.
       setNewJobOpen(true);
@@ -11717,7 +11738,7 @@ export default function ResumeAIPreview() {
       else setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
     } else if (target === "login") {
       setHistory(["login"]);
-      if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", SCREEN_TO_PATH.login);
+      if (typeof window !== "undefined") { window.history.pushState({ aster: true }, "", SCREEN_TO_PATH.login); window.scrollTo(0, 0); }
     } else {
       setHistory((h) => [...h, target]);
       if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", path || SCREEN_TO_PATH[target] || "/");
