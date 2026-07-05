@@ -3413,6 +3413,32 @@ const SOLUTIONS_PAGES = {
   },
 };
 
+// The "Sound familiar?" problem list per segment — name the pain before the
+// fix (brand voice). Keyed by the same slugs as SOLUTIONS_PAGES.
+const SOLUTION_PAINS = {
+  recruiters: ["Opening and reading 50+ CVs for every role, by hand.", "The best-fit candidate buried on page 3 of a spreadsheet.", "A dozen emails just to lock one interview slot."],
+  "hiring-managers": ["A folder of forty CVs and no time to read them.", "Recruiter shortlists you can't tell apart or fully trust.", "Interview notes scattered across chats and inboxes."],
+  "talent-leaders": ["No clear read on how many roles are in play, or where they stall.", "Every hiring manager runs interviews their own way.", "Making the case for headcount on gut feel, not numbers."],
+  "people-ops": ["Every team hires differently, so the candidate experience is inconsistent.", "Chasing managers to keep candidates moving.", "Candidate data spread across inboxes and spreadsheets."],
+  founders: ["Hiring squeezed between product, sales and everything else.", "No recruiter, and no time to be one.", "Great candidates going cold while you catch up."],
+  startups: ["Competing for talent against companies with far bigger names.", "No recruiter, no ATS, just an overflowing inbox.", "Losing good people to a slow, manual process."],
+  scaleups: ["Dozens of roles open at once and a lean recruiting team.", "Quality slipping as hiring volume climbs.", "Every manager running a slightly different process."],
+  enterprise: ["Candidate data spread across teams with no real access control.", "No audit trail when you need to prove who saw what.", "A dozen tools that don't talk to each other."],
+  agencies: ["A flood of inbound CVs to screen against every brief.", "Strong past candidates forgotten in an old inbox.", "Speed is your product, and manual screening is slow."],
+  "industries/technology": ["Keyword-stuffed CVs that hide who can actually build.", "'JS' and 'JavaScript' treated as two different skills.", "Strong engineers going cold during a slow process."],
+  "industries/healthcare": ["Certifications and licences buried deep in every CV.", "Sensitive candidate data with no clear controls.", "Shifts to fill faster than manual screening allows."],
+  "industries/retail": ["Seasonal surges of applicants to screen all at once.", "High turnover means hiring never really stops.", "Candidates who only ever reply on their phone."],
+  "industries/professional-services": ["Client-ready experience is hard to spot on paper.", "Every partner assesses candidates differently.", "Strong past candidates lost between searches."],
+  "industries/manufacturing": ["High volumes of applications for every shift and role.", "Certifications and licences to verify by hand.", "Scheduling interviews across sites and shifts."],
+};
+// Honest, platform-level proof points (from the brand proof line) shown on
+// every solution page — the "results" of the before → after story.
+const SOLUTION_OUTCOMES = [
+  { stat: "3×", label: "faster shortlists" },
+  { stat: "46 → 3", label: "applicants to a shortlist" },
+  { stat: "~2 weeks", label: "sooner to a hire" },
+];
+
 // Jump to a section on the landing page (e.g. Pricing, FAQ) from anywhere. If
 // we're already on landing, smooth-scroll; otherwise route to landing first and
 // scroll once the section has mounted (poll a few frames — see goToPricing).
@@ -3873,13 +3899,40 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
 
   // ── Segment page ──
   const seg = SOLUTIONS_INDEX[slug];
+  const pains = SOLUTION_PAINS[slug];
   return (
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} currentSol={slug} />
       <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
-      {/* Feature grid */}
+
+      {/* The problem — name the pain before the fix */}
+      {pains && (
+        <section className="py-14 sm:py-20" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[0.85fr_1.4fr] gap-8 lg:gap-14 items-start">
+            <div>
+              <p className="text-[11px] font-semibold uppercase" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>The problem</p>
+              <h2 className="font-display font-bold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Sound familiar?</h2>
+              <p className="mt-3 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>Hiring the way most teams still do it &mdash; before Aster does the first pass for you.</p>
+            </div>
+            <ul className="space-y-3">
+              {pains.map((p, i) => (
+                <li key={i} className="flex items-start gap-3.5 rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "rgba(180,83,9,0.16)", color: "#F0A868", border: "1px solid rgba(240,168,104,0.28)" }}><Icon name="close" className="w-3.5 h-3.5" /></span>
+                  <span className="text-sm leading-relaxed text-white/85">{p}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {/* How Aster helps — the fix, mapped to capabilities */}
       <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="max-w-2xl mb-8 sm:mb-10">
+            <p className="text-[11px] font-semibold uppercase" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>How Aster helps</p>
+            <h2 className="font-display font-bold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>What changes with Aster</h2>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {page.features.map((f) => (
               <div key={f.title} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
@@ -3891,6 +3944,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
           </div>
         </div>
       </section>
+
       {/* Highlight band */}
       {page.highlight && (
         <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
@@ -3915,6 +3969,23 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
           </div>
         </section>
       )}
+
+      {/* Outcomes — honest, platform-level proof (the "after") */}
+      <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="rounded-3xl p-8 sm:p-10 grid sm:grid-cols-3 gap-8 sm:gap-4 items-center" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--navy-line)" }}>
+            {SOLUTION_OUTCOMES.map((o, i) => (
+              <div key={i} className="text-center relative">
+                {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px" style={{ background: "var(--navy-line)" }} />}
+                <p className="brand-text font-display font-bold" style={{ fontSize: "clamp(1.9rem, 4vw, 2.6rem)", letterSpacing: "-0.02em", lineHeight: 1 }}>{o.stat}</p>
+                <p className="text-sm mt-2" style={{ color: "var(--navy-ink)" }}>{o.label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs mt-3.5" style={{ color: "var(--ink-3)" }}>Typical results teams see after switching to Aster.</p>
+        </div>
+      </section>
+
       {/* Related solutions in the same group */}
       {seg && (
         <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
