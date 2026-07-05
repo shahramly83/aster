@@ -5693,7 +5693,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
 
           {/* Sidebar — usage monitor + how parsing works. Sticks while the main
               column scrolls; self-start lets it shrink below the grid-row height. */}
-          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {(() => {
               const unlimited = uploadLimit === Infinity;
               const pct = unlimited ? 18 : Math.min((usedThisMonth / uploadLimit) * 100, 100);
@@ -5702,7 +5702,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-1.5">
                       <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Usage this month</h2>
-                      <InfoHint dir="down" hint="Parsing is when AI reads a resume and pulls out the candidate's details. Each parsed resume counts toward your monthly plan limit." />
+                      <InfoHint dir="down" align="right" hint="Parsing is when AI reads a resume and pulls out the candidate's details. Each parsed resume counts toward your monthly plan limit." />
                     </div>
                     <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
                   </div>
@@ -7336,7 +7336,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-1.5">
           <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>AI match runs this month</h3>
-          <InfoHint dir="down" hint="One run is a single AI ranking of your candidates. Each Run AI match uses one, and your plan includes a set number each month." />
+          <InfoHint dir="down" align="right" hint="One run is a single AI ranking of your candidates. Each Run AI match uses one, and your plan includes a set number each month." />
         </div>
         <button onClick={() => navigate("billing")} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>
       </div>
@@ -7590,7 +7590,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           </div>{/* main workspace */}
 
           {/* Sidebar — AI-run usage monitor + how search works (matches Bulk Upload) */}
-          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {planNote}
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
