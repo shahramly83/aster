@@ -3230,7 +3230,7 @@ const SOLUTIONS_PAGES = {
   recruiters: {
     eyebrow: "Solutions for recruiters", icon: "search",
     title: "Screen every applicant,", accent: "read only the best.",
-    subtitle: "Aster does the first pass on every CV — parsing, scoring and ranking — so you spend the day talking to shortlisted people instead of reading resumes.",
+    subtitle: "Aster does the first pass on every CV. It parses, scores and ranks each one, so you spend the day talking to shortlisted people instead of reading resumes.",
     chips: ["Auto-screening", "Ranked shortlists", "One-click scheduling"],
     features: [
       { icon: "doc", title: "Every resume, parsed", body: "Skills, experience and a one-line summary pulled from each CV the moment it lands. No manual data entry." },
@@ -3246,7 +3246,7 @@ const SOLUTIONS_PAGES = {
     subtitle: "You don't have time to read forty CVs. Aster hands you a ranked shortlist with the reasons behind each score, so you weigh in fast and get back to your day job.",
     chips: ["Ranked shortlists", "Structured interviews", "Team scorecards"],
     features: [
-      { icon: "target", title: "A shortlist you can trust", body: "Every applicant scored against the role, with the reasoning — not a black-box number." },
+      { icon: "target", title: "A shortlist you can trust", body: "Every applicant scored against the role, with the reasoning behind it, not a black-box number." },
       { icon: "interview", title: "Interview questions, drafted for you", body: "Role- and candidate-specific questions ready the moment an interview is booked." },
       { icon: "star", title: "One scorecard, one decision", body: "Rate the same criteria as the rest of the panel and get a clear team score." },
       { icon: "eye", title: "Only the candidates that are yours", body: "See the roles you're hiring for, without wading through the whole system." },
@@ -3256,26 +3256,26 @@ const SOLUTIONS_PAGES = {
   "talent-leaders": {
     eyebrow: "Solutions for heads of talent", icon: "target",
     title: "Run hiring on data,", accent: "not gut feel.",
-    subtitle: "See every open role, every source and every bottleneck from one dashboard — and make the case for headcount with numbers instead of vibes.",
+    subtitle: "See every open role, every source and every bottleneck from one dashboard, and make the case for headcount with numbers instead of vibes.",
     chips: ["Funnel analytics", "Source performance", "Time-to-hire"],
     features: [
-      { icon: "dashboard", title: "The whole funnel, live", body: "Applied, interviewing, offer, hired — with drop-off visible at every stage." },
+      { icon: "dashboard", title: "The whole funnel, live", body: "Applied, interviewing, offer, hired, with drop-off visible at every stage." },
       { icon: "link", title: "Know which sources work", body: "See which boards, links and referrals bring your best-fit candidates." },
       { icon: "clock", title: "Find the bottlenecks", body: "Time-in-stage shows exactly where candidates wait and pipelines stall." },
       { icon: "users", title: "A consistent process, every team", body: "Structured interviews and scorecards mean every role is run the same way." },
     ],
-    highlight: { title: "Reporting your leadership will actually read", body: "Current, honest numbers on every role — no spreadsheet exports, no charts built by hand.", points: ["Compare roles, sources and time ranges", "Standardised scorecards reduce reviewer bias", "Export anytime; your data stays yours"] },
+    highlight: { title: "Reporting your leadership will actually read", body: "Current, honest numbers on every role. No spreadsheet exports, no charts built by hand.", points: ["Compare roles, sources and time ranges", "Standardised scorecards reduce reviewer bias", "Export anytime; your data stays yours"] },
   },
   "people-ops": {
     eyebrow: "Solutions for People / HR Ops", icon: "users",
     title: "One hiring process,", accent: "every role.",
-    subtitle: "Give every hiring manager the same structured, on-brand workflow — parsing, scoring, scheduling and templated comms — without policing it by hand.",
+    subtitle: "Give every hiring manager the same structured, on-brand workflow: parsing, scoring, scheduling and templated comms, without policing it by hand.",
     chips: ["Standardised workflow", "Roles & access", "On-brand comms"],
     features: [
       { icon: "settings", title: "A process that runs itself", body: "Parsing, scoring, confirmations and reminders happen automatically, the same way every time." },
       { icon: "chat", title: "Every message on-brand", body: "Editable email templates with placeholders for name, role, company and more." },
       { icon: "lock", title: "Access on a need-to-know basis", body: "Interviewers see only their candidates; sensitive data stays controlled." },
-      { icon: "shield", title: "Privacy by default", body: "Candidate data is encrypted, exportable and deletable — yours to govern." },
+      { icon: "shield", title: "Privacy by default", body: "Candidate data is encrypted, exportable and deletable. Yours to govern." },
     ],
     highlight: { title: "Consistency without the chasing", body: "Aster gives every team the same rails, so candidates get a professional experience and you get your time back.", points: ["Templates keep every touchpoint consistent", "An audit trail logs who did what", "No per-action fees or hidden limits"] },
   },
@@ -3288,7 +3288,7 @@ const SOLUTIONS_PAGES = {
       { icon: "doc", title: "No CV reading", body: "Drop in applicants and get a ranked, summarised shortlist in seconds." },
       { icon: "calendar", title: "Interviews book themselves", body: "Share a link; candidates pick a slot and the video invite is created for you." },
       { icon: "target", title: "Know who's actually a fit", body: "A match score with reasons helps you make confident calls, fast." },
-      { icon: "hire", title: "One place, applied to hired", body: "Post a role, screen, interview and offer — without stitching five tools together." },
+      { icon: "hire", title: "One place, applied to hired", body: "Post a role, screen, interview and offer, without stitching five tools together." },
     ],
     highlight: { title: "Hiring shouldn't eat your week", body: "Aster does the heavy lifting so you spend minutes, not days, getting to the right people.", points: ["Free to start, no card required", "Bring CVs you already have", "Upgrade only when you're hiring at scale"] },
   },
@@ -3313,7 +3313,7 @@ const SOLUTIONS_PAGES = {
     chips: ["Unlimited pipelines", "Team seats", "Analytics"],
     features: [
       { icon: "dashboard", title: "Every role in one view", body: "Track all open roles and stages from a single dashboard." },
-      { icon: "matching", title: "Rank at volume", body: "All applicants scored and ranked — not just the first ten." },
+      { icon: "matching", title: "Rank at volume", body: "All applicants scored and ranked, not just the first ten." },
       { icon: "users", title: "Whole hiring teams aligned", body: "Recruiters, managers and panels on the same pipeline with the right access." },
       { icon: "link", title: "Spend where it works", body: "Source analytics show which channels bring your best candidates." },
     ],
@@ -3322,7 +3322,7 @@ const SOLUTIONS_PAGES = {
   enterprise: {
     eyebrow: "Solutions for enterprise", icon: "lock",
     title: "Enterprise hiring,", accent: "secure by default.",
-    subtitle: "Roles, access control, audit trails and SSO — the governance a large org needs, on top of AI screening that keeps every team fast.",
+    subtitle: "Roles, access control, audit trails and SSO: the governance a large org needs, on top of AI screening that keeps every team fast.",
     chips: ["SSO & audit logs", "Roles & permissions", "White label"],
     features: [
       { icon: "lock", title: "Granular access", body: "Role-based permissions keep candidate data on a need-to-know basis." },
@@ -3349,11 +3349,11 @@ const SOLUTIONS_PAGES = {
   "industries/technology": {
     eyebrow: "Technology", icon: "settings",
     title: "Screen for real", accent: "technical fit.",
-    subtitle: "Cut through keyword-stuffed CVs. Aster matches on actual skills and experience — and normalises 'JS' to 'JavaScript' — so genuine engineers rise to the top.",
+    subtitle: "Cut through keyword-stuffed CVs. Aster matches on actual skills and experience, and normalises 'JS' to 'JavaScript', so genuine engineers rise to the top.",
     chips: ["Skill matching", "Typo tolerance", "Fast pipelines"],
     features: [
       { icon: "matching", title: "Skill-level matching", body: "Rank candidates by the skills and stack you actually need, with synonym and typo handling." },
-      { icon: "target", title: "Fit with reasons", body: "A match score that explains why a candidate fits — not just a number." },
+      { icon: "target", title: "Fit with reasons", body: "A match score that explains why a candidate fits, not just a number." },
       { icon: "calendar", title: "Move at engineering speed", body: "Self-scheduling and auto-invites keep strong candidates from going cold." },
       { icon: "users", title: "Panel-ready interviews", body: "Add reviewers, share structured questions, and score the same criteria." },
     ],
@@ -3379,7 +3379,7 @@ const SOLUTIONS_PAGES = {
     chips: ["High-volume screening", "Fast scheduling", "WhatsApp reminders"],
     features: [
       { icon: "matching", title: "Screen the flood", body: "Every applicant parsed and ranked, so volume never buries the good ones." },
-      { icon: "calendar", title: "Book on the spot", body: "Candidates self-book from live availability — ideal for walk-in-speed hiring." },
+      { icon: "calendar", title: "Book on the spot", body: "Candidates self-book from live availability. Ideal for walk-in-speed hiring." },
       { icon: "chat", title: "Reach candidates on WhatsApp", body: "Confirmations and reminders where hourly candidates actually reply." },
       { icon: "briefcase", title: "Apply links everywhere", body: "Share source-tracked links on socials, in-store QR codes and job boards." },
     ],
@@ -3401,7 +3401,7 @@ const SOLUTIONS_PAGES = {
   "industries/manufacturing": {
     eyebrow: "Manufacturing & Logistics", icon: "archive",
     title: "Fill skilled roles", accent: "and every shift.",
-    subtitle: "From line operators to plant engineers, Aster screens high volumes for the certifications and hands-on experience the job needs — and books interviews fast.",
+    subtitle: "From line operators to plant engineers, Aster screens high volumes for the certifications and hands-on experience the job needs, then books interviews fast.",
     chips: ["High-volume intake", "Credential matching", "Fast scheduling"],
     features: [
       { icon: "upload", title: "Bulk intake", body: "Drop in stacks of applications; each is parsed and scored automatically." },
@@ -3912,7 +3912,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
             <div>
               <p className="text-[11px] font-semibold uppercase" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>The problem</p>
               <h2 className="font-display font-bold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Sound familiar?</h2>
-              <p className="mt-3 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>Hiring the way most teams still do it &mdash; before Aster does the first pass for you.</p>
+              <p className="mt-3 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>Hiring the way most teams still do it, before Aster does the first pass for you.</p>
             </div>
             <ul className="space-y-3">
               {pains.map((p, i) => (
