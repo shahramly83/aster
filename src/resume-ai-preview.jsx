@@ -2039,7 +2039,7 @@ function SchedulingPreview() {
   );
 }
 
-function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
+function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
@@ -2258,6 +2258,7 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle, setSi
             <BrandLogo onDark large logoUrl={logoUrl} />
           </button>
           <div className="flex items-center gap-0.5 sm:gap-1">
+            <button onClick={() => goProduct && goProduct("")} className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Product</button>
             <a href="#features" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Features</a>
             <a href="#pricing" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>Pricing</a>
             <a href="#faq" className={`hidden sm:block hover:bg-white/[0.06] ${linkClass}`} style={{ color: "var(--navy-ink)" }}>FAQ</a>
@@ -3158,6 +3159,434 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle, setSi
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// ───────────────────────── Product marketing pages ─────────────────────────
+// One page per module (depth reads as maturity). Content-driven so every page
+// shares the landing's dark, gradient design language.
+const PRODUCT_NAV = [
+  { slug: "", label: "Platform overview", desc: "The whole hiring platform, end to end", icon: "dashboard" },
+  { slug: "sourcing", label: "Sourcing & Talent CRM", desc: "Build and nurture a talent pipeline", icon: "search" },
+  { slug: "ats", label: "Applicant Tracking", desc: "One shared pipeline, applied to hired", icon: "jobs" },
+  { slug: "ai", label: "Aster Intelligence", desc: "AI screening, matching and dedup", icon: "matching" },
+  { slug: "interviews", label: "Interviews & Scorecards", desc: "Structured, collaborative interviews", icon: "interview" },
+  { slug: "offers", label: "Offer Management", desc: "Draft, send and track every offer", icon: "offer" },
+  { slug: "analytics", label: "Analytics & Reporting", desc: "See what's working across hiring", icon: "target" },
+  { slug: "career-site", label: "Career Site & Job Board", desc: "A branded careers page and apply flow", icon: "briefcase" },
+  { slug: "collaboration", label: "Collaboration & Hiring Teams", desc: "Bring the whole panel together", icon: "users" },
+  { slug: "automation", label: "Automation & Workflows", desc: "Put the busywork on autopilot", icon: "settings" },
+  { slug: "integrations", label: "Integrations", desc: "Calendars, email, messaging and more", icon: "link" },
+  { slug: "changelog", label: "What's new", desc: "Latest releases and improvements", icon: "bell" },
+];
+
+const PRODUCT_PAGES = {
+  sourcing: {
+    eyebrow: "Sourcing & Talent CRM", icon: "search",
+    title: "Turn every past applicant into", accent: "your next great hire.",
+    subtitle: "A living database of everyone who ever applied, referred, or was uploaded. Search it by skill, tag the people worth remembering, and reach back out the moment a matching role opens.",
+    chips: ["Talent pool search", "Smart tags & lists", "One-click re-engage"],
+    features: [
+      { icon: "search", title: "Search your whole talent pool", body: "Find people by skill, role, industry or experience across every candidate you've ever collected, not just active applicants." },
+      { icon: "users", title: "Talent CRM", body: "Group people into pools and shortlists, add notes, and keep the context so nobody starts from scratch." },
+      { icon: "link", title: "Source-tracked intake", body: "Every apply link is tagged by channel, so you can see which sources bring your best-fit candidates." },
+      { icon: "chat", title: "Re-engage in a click", body: "Invite a strong past candidate to apply for a new opening with a templated email and a ready apply link." },
+    ],
+    highlight: { title: "Your best next hire is already in your database", body: "Most teams forget the strong runner-up from six months ago. Aster keeps them one search away.", points: ["Dedup keeps one record per person, even across old CVs", "AI match surfaces silver-medallists for new roles", "Invites drop them straight into the right pipeline"] },
+  },
+  ats: {
+    eyebrow: "Applicant Tracking", icon: "jobs",
+    title: "One shared pipeline,", accent: "from applied to hired.",
+    subtitle: "Every candidate on one board, every stage clear, every teammate on the same page. No spreadsheets, no lost threads, no 'who's got this one?'",
+    chips: ["Kanban pipeline", "Stage automation", "Full activity trail"],
+    features: [
+      { icon: "jobs", title: "Stages that match your process", body: "Applied, shortlisted, interviewing, offer, hired. Move candidates as they progress and everyone sees it instantly." },
+      { icon: "doc", title: "Rich candidate profiles", body: "Parsed resume, AI insights, scorecards, notes and history, all on one unique, shareable profile URL." },
+      { icon: "target", title: "Ranked shortlists", body: "Each applicant is scored against the role, so the strongest fits sit at the top the moment they apply." },
+      { icon: "eye", title: "Nothing slips", body: "See what came in, who's at which stage, and where things are stalling from a single dashboard." },
+    ],
+    highlight: { title: "Built so the whole team stays in sync", body: "The pipeline is the single source of truth. Interviewers, recruiters and hiring managers all work from the same board.", points: ["Role-based access keeps data on a need-to-know basis", "Every action is logged for a clear audit trail", "Deep links jump straight to any candidate or role"] },
+  },
+  ai: {
+    eyebrow: "Aster Intelligence", icon: "matching",
+    title: "AI that reads every resume", accent: "so you don't have to.",
+    subtitle: "Parsing, match scoring, deduplication and candidate insights. Aster does the first pass on every applicant and hands you a ranked shortlist with reasons, not a pile.",
+    chips: ["Resume parsing", "Role-fit scoring", "Automatic dedup"],
+    features: [
+      { icon: "doc", title: "Resume parsing", body: "Drop in a CV and get structured skills, experience and a one-line summary in seconds. No manual data entry." },
+      { icon: "target", title: "Role-fit match score", body: "Every applicant is scored against the role with the reasoning behind it, so the best fits rise on their own." },
+      { icon: "matching", title: "Skill & industry matching", body: "Search your database by the skills or industries you need and let AI rank everyone by fit, typos and synonyms included." },
+      { icon: "users", title: "Deduplication", body: "One person, one record, even when they've applied twice with an old and a new CV. No more double-counting." },
+    ],
+    highlight: { title: "A strong first pass, never the final word", body: "Aster surfaces the best-fit candidates with reasons so your team reviews a shortlist instead of a stack. You always make the call.", points: ["Insights estimate experience, tenure and any gaps", "Interview questions drafted per role and per candidate", "Your data is never used to train shared models"] },
+  },
+  interviews: {
+    eyebrow: "Interviews & Scorecards", icon: "interview",
+    title: "Structured interviews,", accent: "consistent decisions.",
+    subtitle: "AI-drafted questions the moment an interview is booked, self-scheduling that fills your calendar, and one scorecard per candidate so the whole panel rates the same criteria.",
+    chips: ["Self-scheduling", "AI questions", "Team scorecards"],
+    features: [
+      { icon: "calendar", title: "Candidate self-scheduling", body: "Share one link. Candidates pick a slot from your live availability and the Meet or Teams invite is created automatically." },
+      { icon: "interview", title: "AI interview questions", body: "Questions written for the role and the person, grouped by theme and ready the moment the interview is booked." },
+      { icon: "star", title: "Collaborative scorecards", body: "Every interviewer rates the same criteria from 1 to 4, and Aster averages them into one clear team score." },
+      { icon: "interviewers", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and video link automatically." },
+    ],
+    highlight: { title: "No two interviews should be guesswork", body: "When every panel covers the same ground and scores the same way, comparing candidates becomes a decision, not a debate.", points: ["Structured questions per role keep interviews fair", "Scorecards roll up to a clear yes or no", "WhatsApp reminders cut no-shows"] },
+  },
+  offers: {
+    eyebrow: "Offer Management", icon: "offer",
+    title: "Close the loop", accent: "with a clean offer flow.",
+    subtitle: "Draft the offer from an editable template, send it for the candidate to accept or decline, and track the status without leaving the pipeline.",
+    chips: ["Offer templates", "Accept / decline", "Status tracking"],
+    features: [
+      { icon: "doc", title: "Editable offer templates", body: "Start from a warm, on-brand template with placeholders for name, role, company and more, filled in automatically." },
+      { icon: "offer", title: "Send & get a decision", body: "The candidate is emailed to accept or decline, and stays in the Offer stage until they respond." },
+      { icon: "check", title: "Track every offer", body: "See at a glance who's been offered, who's accepted, and who declined, right on the candidate profile." },
+      { icon: "chat", title: "Handle the follow-up", body: "Re-send, adjust, or close out an offer, with the whole thread kept on the record." },
+    ],
+    highlight: { title: "From final interview to signed, in one place", body: "No copying details into a separate doc, no chasing a reply in email. The offer lives where the rest of the hire does.", points: ["Placeholders keep every offer consistent", "Accept and decline are one tap for the candidate", "Accepted offers trigger the welcome email"] },
+  },
+  analytics: {
+    eyebrow: "Analytics & Reporting", icon: "target",
+    title: "See what's working,", accent: "role by role.",
+    subtitle: "A live read on your whole funnel: what came in, where it came from, how fast it moves, and where it stalls. Make the case for headcount with numbers, not vibes.",
+    chips: ["Funnel view", "Source performance", "Time-to-hire"],
+    features: [
+      { icon: "dashboard", title: "Hiring funnel", body: "Applied, interviewing, offer, hired. See how many reach each stage and where candidates drop off." },
+      { icon: "link", title: "Source performance", body: "Know which channels, boards and referrals bring your best-fit applicants, so you spend where it counts." },
+      { icon: "clock", title: "Time in stage", body: "Spot the bottlenecks. See where candidates wait longest and unblock your pipeline." },
+      { icon: "users", title: "Team & role breakdowns", body: "Filter by role, department or time range to compare what's working across your hiring." },
+    ],
+    highlight: { title: "Reporting your leadership will actually read", body: "Clear, current numbers on every open role, without exporting a spreadsheet or building a chart by hand.", points: ["Real data derived from your own pipeline", "Compare roles, sources and time ranges", "Export anytime, your data stays portable"] },
+  },
+  "career-site": {
+    eyebrow: "Career Site & Job Board", icon: "briefcase",
+    title: "A branded careers page", accent: "that feeds your pipeline.",
+    subtitle: "Every open role gets a polished, shareable apply page. Applicants land straight in your pipeline, tagged by source. Your public job board lives on your own tenant URL.",
+    chips: ["Branded apply pages", "Public job board", "Source tracking"],
+    features: [
+      { icon: "briefcase", title: "Shareable apply pages", body: "Each role gets a clean page you can post on LinkedIn, JobStreet, or your own site, with the details and one apply button." },
+      { icon: "link", title: "Your own tenant URL", body: "Your public board lives at jobs.hireaster.com/{slug}, a branded home for every open role your company is hiring for." },
+      { icon: "download", title: "Straight into the pipeline", body: "Applicants flow directly into your ATS, parsed and scored, with nothing to re-enter by hand." },
+      { icon: "target", title: "Source-tracked links", body: "Every apply link is tagged, so you always know which channel each applicant came from." },
+    ],
+    highlight: { title: "The customer-facing output of your hiring", body: "Candidates see a fast, professional page that matches your brand. You see clean, structured applications on the other side.", points: ["Board and pages update the moment a role changes", "Closed roles show a graceful notice, not a dead link", "One tenant URL to share everywhere"] },
+  },
+  collaboration: {
+    eyebrow: "Collaboration & Hiring Teams", icon: "users",
+    title: "Bring the whole panel", accent: "onto one page.",
+    subtitle: "Recruiters, hiring managers and interviewers, all working from the same pipeline with the right level of access. Feedback in one place, not scattered across DMs.",
+    chips: ["Shared pipeline", "Roles & access", "Team scorecards"],
+    features: [
+      { icon: "users", title: "Everyone on one board", body: "The whole team sees the same pipeline in real time, so there's no 'which spreadsheet is current?'" },
+      { icon: "lock", title: "Roles & permissions", body: "Interviewers see only the candidates they're assessing. Sensitive data stays on a need-to-know basis." },
+      { icon: "star", title: "Feedback in one place", body: "Scorecards and notes live on the candidate, so decisions are made from evidence, not gut-feel in a chat." },
+      { icon: "interviewers", title: "Interview panels", body: "Add teammates to any interview and everyone gets the invite and video link, automatically." },
+    ],
+    highlight: { title: "Hiring is a team sport", body: "Aster keeps every stakeholder aligned on the same candidates, criteria and decisions, without another meeting.", points: ["Assign interviewers per candidate", "One scorecard, everyone rates the same criteria", "A clear team score, not a thread of opinions"] },
+  },
+  automation: {
+    eyebrow: "Automation & Workflows", icon: "settings",
+    title: "Put the busywork", accent: "on autopilot.",
+    subtitle: "The repetitive parts of hiring, handled for you: parsing, scoring, confirmations, reminders and stage-based emails. You focus on the people, Aster handles the admin.",
+    chips: ["Auto-parse & score", "Stage emails", "Reminders"],
+    features: [
+      { icon: "doc", title: "Auto-parse & score", body: "Every resume is read, structured and scored against the role the moment it arrives, no clicks needed." },
+      { icon: "chat", title: "Templated emails", body: "Application received, interview invite, offer and rejection emails send from editable templates with details filled in." },
+      { icon: "calendar", title: "Scheduling flow", body: "Booking, calendar invites and video links are created automatically once a candidate picks a slot." },
+      { icon: "bell", title: "Reminders that reduce no-shows", body: "Interview confirmations and reminders go out over email and WhatsApp, where candidates actually reply." },
+    ],
+    highlight: { title: "Consistency, without the manual effort", body: "Automations run the same way every time, so candidates get a fast, professional experience and your team gets its time back.", points: ["Every automated email is fully editable", "Placeholders keep messaging on-brand", "Nothing sends without your process behind it"] },
+  },
+  integrations: {
+    eyebrow: "Integrations", icon: "link",
+    title: "Works with the tools", accent: "you already use.",
+    subtitle: "Connect your calendar, email and messaging in a couple of clicks. Aster reads availability, creates meeting links, and sends messages where your candidates are.",
+    chips: ["Google & Microsoft", "Meet & Teams", "WhatsApp Business"],
+    features: [
+      { icon: "calendar", title: "Google & Microsoft calendars", body: "Connect one workspace calendar and Aster reads availability and creates events for every interview." },
+      { icon: "interview", title: "Meet & Teams links", body: "Video links are generated automatically for each interview and shared with the whole panel." },
+      { icon: "chat", title: "WhatsApp Business", body: "Send interview confirmations and reminders over WhatsApp, where candidates actually reply." },
+      { icon: "briefcase", title: "Job boards & apply links", body: "Post roles to LinkedIn, JobStreet and more. Applicants land straight in your pipeline, tagged by source." },
+    ],
+    highlight: { title: "A marketplace that keeps growing", body: "Aster covers the core hiring workflow out of the box, with more connections added over time and custom integrations on Enterprise.", points: ["One-click calendar connection", "Secure, revocable access", "Custom integrations for Enterprise teams"] },
+  },
+};
+
+// Shared dark marketing top-nav with a Product mega-menu.
+function MarketingNav({ navigate, goProduct, current, logoUrl }) {
+  const [menuOpen, setMenuOpen] = useState(false);   // mobile
+  const [prodOpen, setProdOpen] = useState(false);   // desktop mega-menu
+  const linkC = "text-sm px-3 py-2 rounded-lg transition-colors";
+  return (
+    <>
+      <header className="sticky top-0 z-40" style={{ background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)", backdropFilter: "blur(16px) saturate(150%)", WebkitBackdropFilter: "blur(16px) saturate(150%)" }}>
+        <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <button onClick={() => navigate("landing")} aria-label="Aster home"><BrandLogo onDark large logoUrl={logoUrl} /></button>
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <div className="hidden md:block relative" onMouseEnter={() => setProdOpen(true)} onMouseLeave={() => setProdOpen(false)}>
+              <button onClick={() => goProduct("")} className={`inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: current != null ? "#fff" : "var(--navy-ink)" }}>
+                Product <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${prodOpen ? "rotate-180" : ""}`} />
+              </button>
+              {prodOpen && (
+                <div className="absolute left-0 top-full pt-2 w-[560px]">
+                  <div className="rounded-2xl p-2 grid grid-cols-2 gap-1" style={{ background: "#0C0E1C", border: "1px solid var(--navy-line)", boxShadow: "0 30px 70px -30px rgba(0,0,0,0.9)" }}>
+                    {PRODUCT_NAV.map((p) => (
+                      <button key={p.slug} onClick={() => { setProdOpen(false); goProduct(p.slug); }} className="text-left flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/[0.05]" style={current === p.slug ? { background: "rgba(151,59,247,0.12)" } : undefined}>
+                        <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={p.icon} className="w-4 h-4" /></span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-white truncate">{p.label}</span>
+                          <span className="block text-xs truncate" style={{ color: "var(--navy-ink)" }}>{p.desc}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <button onClick={() => navigate("landing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
+            <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "#fff" }}>Sign in</button>
+            <button onClick={() => navigate("signup")} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">Get started</button>
+            <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
+              <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" /><span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
+            </button>
+          </div>
+        </div>
+      </header>
+      {menuOpen && (
+        <div className="md:hidden fixed inset-0 z-[70] flex flex-col overflow-y-auto" style={{ background: "rgba(6,7,18,0.92)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)" }}>
+          <div className="flex items-center justify-between h-16 px-4 shrink-0">
+            <BrandLogo onDark large logoUrl={logoUrl} />
+            <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="w-11 h-11 flex items-center justify-center rounded-full" style={{ color: "#fff", border: "1px solid var(--navy-line)", background: "rgba(255,255,255,0.06)" }}><Icon name="close" className="w-5 h-5" /></button>
+          </div>
+          <nav className="flex-1 px-5 pt-3 pb-8 flex flex-col gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--ink-3)" }}>Product</p>
+            {PRODUCT_NAV.map((p) => (
+              <button key={p.slug} onClick={() => { setMenuOpen(false); goProduct(p.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.18)", color: "#C79BFF" }}><Icon name={p.icon} className="w-5 h-5" /></span>
+                <span className="flex-1 text-white font-medium">{p.label}</span>
+                <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+              </button>
+            ))}
+            <div className="mt-3 space-y-2.5">
+              <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
+              <button onClick={() => { setMenuOpen(false); navigate("signup"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white">Get started</button>
+            </div>
+          </nav>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Shared dark marketing footer with the full product directory.
+function MarketingFooter({ navigate, goProduct, logoUrl }) {
+  return (
+    <footer className="relative overflow-hidden" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
+      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-[1.6fr_1fr_1fr]">
+          <div>
+            <BrandLogo onDark logoUrl={logoUrl} />
+            <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--navy-ink)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Product</p>
+            <ul className="space-y-2.5 text-sm">
+              {PRODUCT_NAV.map((p) => (
+                <li key={p.slug}><button onClick={() => goProduct(p.slug)} className="footer-link inline-block py-0.5 text-left">{p.label}</button></li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
+            <ul className="space-y-2.5 text-sm">
+              <li><button onClick={() => navigate("landing")} className="footer-link inline-block py-0.5">Pricing</button></li>
+              <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5">Sign in</button></li>
+              <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5">Create workspace</button></li>
+            </ul>
+          </div>
+        </div>
+        <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--navy-line)" }}>
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Aster · All rights reserved</p>
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>Hire the right person, without reading every CV.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function ProductCTA({ navigate }) {
+  return (
+    <section className="relative overflow-hidden" style={{ background: "#070814" }}>
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 60% at 50% 0%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center">
+        <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Start from a shortlist, not a pile.</h2>
+        <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)" }}>Create your workspace and let Aster read, score and schedule for you. Free to start, no card required.</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <button onClick={() => navigate("signup")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">Start free trial</button>
+          <button onClick={() => navigate("landing")} className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>See pricing</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// One page per module (or the overview hub / changelog). Slug "" = overview.
+function ProductScreen({ slug = "", navigate, goProduct, logoUrl }) {
+  const nav = { navigate, goProduct, logoUrl };
+  const isOverview = !slug;
+  const isChangelog = slug === "changelog";
+  const page = PRODUCT_PAGES[slug];
+
+  const Hero = ({ eyebrow, icon, title, accent, subtitle, chips }) => (
+    <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
+        <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+          <Icon name={icon} className="w-3.5 h-3.5" /> {eyebrow}
+        </span>
+        <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "16ch" }}>
+          {title} <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span>
+        </h1>
+        <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{subtitle}</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <button onClick={() => navigate("signup")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">Start free trial</button>
+          <button onClick={() => goProduct("")} className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>All products</button>
+        </div>
+        {chips && (
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            {chips.map((ch) => (
+              <span key={ch} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+                <Icon name="check" className="w-3 h-3" style={{ color: "#22C55E" }} /> {ch}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  // ── Overview hub ──
+  if (isOverview) {
+    return (
+      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MarketingNav {...nav} current="" />
+        <Hero eyebrow="The platform" icon="dashboard" title="Everything you need to hire," accent="in one platform." subtitle="Sourcing, tracking, AI screening, interviews, offers and analytics. Aster covers the whole hiring workflow so your team works from one place, not ten tabs." chips={["End to end", "AI-native", "Set up in minutes"]} />
+        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {PRODUCT_NAV.filter((p) => p.slug !== "").map((p) => (
+                <button key={p.slug} onClick={() => goProduct(p.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={p.icon} className="w-5 h-5" /></span>
+                  <p className="text-white font-semibold font-display flex items-center gap-1.5">{p.label} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
+                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{p.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Changelog ──
+  if (isChangelog) {
+    const entries = [
+      { date: "Jul 2026", tag: "New", items: ["Sourcing invites now use an editable Sourcing invite email template", "AI Experience Insights are saved per candidate and never auto-generated", "Company address, interviewer and logo placeholders added to every email template"] },
+      { date: "Jun 2026", tag: "Improved", items: ["Candidate profiles get their own shareable URL", "Browse now paginates 20 candidates per page with saved scroll position", "Standardised plan-usage meters across the app"] },
+      { date: "May 2026", tag: "New", items: ["Match by skills or industry with type-ahead taxonomy and typo tolerance", "Two-sided skill normalisation so 'JS' matches 'JavaScript'", "AI insight recommendations on every ranked match"] },
+      { date: "Apr 2026", tag: "Improved", items: ["Reworked Candidate Search with Browse, Skills and Role tabs", "Bulk resume upload accepts PDF, Word and ZIP", "Collaborative scorecards roll up to a team score"] },
+    ];
+    return (
+      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MarketingNav {...nav} current="changelog" />
+        <Hero eyebrow="What's new" icon="bell" title="Every release," accent="in one place." subtitle="A running log of what we've shipped: new modules, improvements and the small touches that make hiring smoother." chips={["Shipped weekly", "Read the highlights"]} />
+        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-6">
+            {entries.map((e) => (
+              <div key={e.date} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-white font-semibold font-display">{e.date}</span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}>{e.tag}</span>
+                </div>
+                <ul className="space-y-2">
+                  {e.items.map((it, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm" style={{ color: "var(--navy-ink)" }}>
+                      <span className="shrink-0 mt-0.5" style={{ color: "#22C55E" }}><Icon name="check" className="w-4 h-4" /></span> {it}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Standard module page ──
+  if (!page) {
+    return (
+      <div style={{ background: "#050610", minHeight: "100vh" }}>
+        <MarketingNav {...nav} current={null} />
+        <div className="max-w-3xl mx-auto px-6 py-24 text-center">
+          <h1 className="text-2xl font-bold text-white font-display">Page not found</h1>
+          <button onClick={() => goProduct("")} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to Product</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <MarketingNav {...nav} current={slug} />
+      <Hero eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
+      {/* Feature grid */}
+      <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {page.features.map((f) => (
+              <div key={f.title} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={f.icon} className="w-5 h-5" /></span>
+                <p className="text-white font-semibold font-display">{f.title}</p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* Highlight band */}
+      {page.highlight && (
+        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
+              <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+              <div className="relative grid lg:grid-cols-2 gap-8 items-center">
+                <div>
+                  <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
+                  <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{page.highlight.body}</p>
+                </div>
+                <ul className="space-y-3">
+                  {page.highlight.points.map((pt, i) => (
+                    <li key={i} className="flex items-start gap-3 rounded-xl p-3.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="check" className="w-3.5 h-3.5" /></span>
+                      <span className="text-sm text-white/90">{pt}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+      <ProductCTA navigate={navigate} />
+      <MarketingFooter {...nav} />
     </div>
   );
 }
@@ -11569,9 +11998,11 @@ const SCREEN_TO_PATH = {
   settings: "/settings",
   schedulePicker: "/schedule",
   apply: "/apply",
+  product: "/product",
 };
 const PATH_TO_SCREEN = {
   "/": "landing",
+  "/product": "product",
   "/login": "login",
   "/forgot-password": "forgotPassword",
   "/signup": "signup",
@@ -11597,8 +12028,16 @@ function candidateIdFromPath(pathname) {
   const m = (pathname || "").match(/^\/candidates\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
 }
+// Product marketing pages: /product (overview) and /product/<slug>.
+function productSlugFromPath(pathname) {
+  if (pathname === "/product") return "";
+  const m = (pathname || "").match(/^\/product\/([^/]+)$/);
+  return m ? m[1] : null; // null → not a product path
+}
 function screenFromPath(pathname) {
-  return candidateIdFromPath(pathname) ? "candidateProfile" : (PATH_TO_SCREEN[pathname] || "landing");
+  if (candidateIdFromPath(pathname)) return "candidateProfile";
+  if (productSlugFromPath(pathname) != null) return "product";
+  return PATH_TO_SCREEN[pathname] || "landing";
 }
 
 // Build the initial screen stack from the current URL (deep-link / refresh).
@@ -11606,11 +12045,13 @@ function initialHistoryFromUrl() {
   if (typeof window === "undefined") return ["landing"];
   const screen = screenFromPath(window.location.pathname);
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
+  if (screen === "product") return ["landing", "product"]; // public page; Back → landing
   return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
 }
 
 export default function ResumeAIPreview() {
   const [history, setHistory] = useState(initialHistoryFromUrl);
+  const [productSlug, setProductSlug] = useState(() => (typeof window !== "undefined" ? (productSlugFromPath(window.location.pathname) || "") : ""));
   const [jobs, setJobs] = useState(MOCK_JOBS);
   const [activeJobId, setActiveJobId] = useState("j1");
   // On the Free plan, only one job stays active; the rest are paused (kept, not
@@ -11748,7 +12189,7 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
-    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : (SCREEN_TO_PATH[scr] || "/"));
+    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
       window.history.replaceState({ aster: true }, "", pathFor(history[0]));
@@ -11764,8 +12205,10 @@ export default function ResumeAIPreview() {
     const onPop = () => {
       const path = window.location.pathname;
       const cid = candidateIdFromPath(path);
-      const target = cid ? "candidateProfile" : (PATH_TO_SCREEN[path] || "landing");
+      const pslug = productSlugFromPath(path);
+      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (PATH_TO_SCREEN[path] || "landing"));
       if (cid) setViewCandidateId(cid);
+      if (pslug != null) setProductSlug(pslug);
       setHistory((h) => {
         const idx = h.lastIndexOf(target);
         if (idx >= 0) return h.slice(0, idx + 1);      // walk back to it in-stack
@@ -11783,6 +12226,12 @@ export default function ResumeAIPreview() {
     setViewCandidateJobId(jobId);
     setViewCandidateStage(stage);
     navigate("candidateProfile", `/candidates/${candidateId}`);
+  };
+
+  // Open a Product marketing page (slug "" = overview).
+  const goProduct = (slug = "") => {
+    setProductSlug(slug);
+    navigate("product", "/product" + (slug ? `/${slug}` : ""));
   };
 
   const handlePreviewBooking = (request) => {
@@ -11864,7 +12313,15 @@ export default function ResumeAIPreview() {
   if (screen === "landing") {
     return (
       <Shell>
-        <LandingScreen navigate={navigate} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
+        <LandingScreen navigate={navigate} goProduct={goProduct} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
+      </Shell>
+    );
+  }
+
+  if (screen === "product") {
+    return (
+      <Shell>
+        <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} logoUrl={logoUrl} />
       </Shell>
     );
   }
