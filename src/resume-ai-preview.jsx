@@ -9845,49 +9845,78 @@ function fmtYears(years) {
   return `${years} ${years === 1 ? "year" : "years"}`;
 }
 
+// A single metric tile: small label with a bold value (and optional sub-line).
+function InsightTile({ label, value, sub, accent }) {
+  return (
+    <div className="rounded-xl px-3.5 py-2.5" style={{ background: accent ? "var(--brand-soft)" : "#F7F7FA", border: "1px solid var(--line)" }}>
+      <p className="text-[11px] font-medium truncate" style={{ color: "var(--ink-3)" }}>{label}</p>
+      <p className="text-lg font-bold font-display leading-tight mt-0.5" style={{ color: accent ? "var(--brand)" : "var(--ink)" }}>{value}</p>
+      {sub && <p className="text-[11px] mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>{sub}</p>}
+    </div>
+  );
+}
+// A yes/no signal rendered as a compact pill with an icon.
+function InsightFlag({ label, yes }) {
+  return (
+    <div className="rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2" style={{ background: "#F7F7FA", border: "1px solid var(--line)" }}>
+      <span className="text-[11px] font-medium min-w-0 truncate" style={{ color: "var(--ink-3)" }}>{label}</span>
+      <span className="text-xs font-semibold inline-flex items-center gap-1 shrink-0" style={{ color: yes ? "#16A34A" : "var(--ink-3)" }}>
+        <Icon name={yes ? "check" : "close"} className="w-3.5 h-3.5" /> {yes ? "Yes" : "No"}
+      </span>
+    </div>
+  );
+}
 function InsightsDisplay({ insights }) {
   const ei = insights.experience_insights;
   const ea = insights.employment_analysis;
+  const heading = (t) => <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{t}</h3>;
 
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Experience insights</h3>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <StatRow label="Total experience" value={fmtYears(ei.total_experience_years)} />
-          <StatRow label="Leadership experience" value={fmtYears(ei.leadership_experience_years)} />
+        {heading("Experience insights")}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <InsightTile label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
+          <InsightTile label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
           {ei.domain_experience.map((d) => (
-            <StatRow key={d.domain} label={`${d.domain} experience`} value={fmtYears(d.years)} />
+            <InsightTile key={d.domain} label={`${d.domain}`} value={fmtYears(d.years)} />
           ))}
-          <StatRow label="Startup experience" value={ei.startup_experience ? "Yes" : "No"} />
-          <StatRow label="Enterprise experience" value={ei.enterprise_experience ? "Yes" : "No"} />
-          <StatRow label="Remote work" value={ei.remote_work_mentioned ? "Mentioned in resume" : "Not mentioned"} />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-2.5">
+          <InsightFlag label="Startup" yes={ei.startup_experience} />
+          <InsightFlag label="Enterprise" yes={ei.enterprise_experience} />
+          <InsightFlag label="Remote work" yes={ei.remote_work_mentioned} />
         </div>
       </div>
 
-      <div className="pt-2 border-t border-neutral-200">
-        <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Employment analysis</h3>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-3">
-          <StatRow label="Number of employers" value={String(ea.number_of_employers)} />
-          <StatRow label="Average tenure" value={ea.average_tenure_months != null ? `${ea.average_tenure_months} mo` : "—"} />
+      <div className="pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+        {heading("Employment analysis")}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <InsightTile label="Employers" value={String(ea.number_of_employers)} />
+          <InsightTile label="Average tenure" value={ea.average_tenure_months != null ? `${ea.average_tenure_months} mo` : "—"} />
           {ea.longest_tenure && (
-            <StatRow label="Longest tenure" value={`${ea.longest_tenure.months} mo (${ea.longest_tenure.company})`} />
+            <InsightTile label="Longest tenure" value={`${ea.longest_tenure.months} mo`} sub={ea.longest_tenure.company} />
           )}
         </div>
-        {ea.career_progression && <p className="text-sm text-neutral-700 mb-3">{ea.career_progression}</p>}
+        {ea.career_progression && (
+          <div className="mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5" style={{ background: "rgba(151,59,247,0.05)", border: "1px solid rgba(151,59,247,0.13)" }}>
+            <span className="shrink-0 mt-0.5" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-4 h-4" /></span>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{ea.career_progression}</p>
+          </div>
+        )}
         {ea.employment_gaps.length > 0 ? (
-          <div>
-            <p className="text-xs text-neutral-500 mb-1">Employment gaps</p>
-            <ul className="text-sm text-neutral-700 space-y-1">
+          <div className="mt-3 rounded-xl px-3.5 py-3" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+            <p className="text-xs font-semibold mb-1" style={{ color: "#92400E" }}>Employment gaps</p>
+            <ul className="text-sm space-y-0.5" style={{ color: "#92400E" }}>
               {ea.employment_gaps.map((gap, i) => (
-                <li key={i}>
-                  {gap.start} – {gap.end} <span className="text-neutral-500">({gap.duration_months} mo)</span>
-                </li>
+                <li key={i}>{gap.start} to {gap.end} <span className="opacity-70">({gap.duration_months} mo)</span></li>
               ))}
             </ul>
           </div>
         ) : (
-          <p className="text-xs text-neutral-500">No employment gaps of 3+ months detected.</p>
+          <p className="text-xs mt-3 flex items-center gap-1.5" style={{ color: "#16A34A" }}>
+            <Icon name="check" className="w-3.5 h-3.5" /> No employment gaps of 3+ months detected.
+          </p>
         )}
       </div>
     </div>
@@ -10078,7 +10107,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, au
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, aiInsightsUsed = 0, setAiInsightsUsed }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed }) {
   const [insights, setInsights] = useState(candidate ? MOCK_INSIGHTS[candidate.id] ?? null : null);
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -10276,12 +10305,27 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       <div className="max-w-[1400px] mx-auto">
         <BackLink onClick={() => navigate(-1)}>← Back</BackLink>
 
+        {/* Standard app header */}
+        <div className="mt-2">
+          <TopBar
+            title="Candidate Profile"
+            subtitle={contextJobId
+              ? `In the ${(jobs.find((j) => j.id === contextJobId) || {}).title || "role"} pipeline`
+              : "From your candidate database"}
+            activities={activities}
+            onOpenNotifications={onOpenNotifications}
+            avatarUrl={avatarUrl}
+            profile={profile}
+            navigate={navigate}
+          />
+        </div>
+
         {/* Identity banner (full width) */}
-        <div className="mt-4 rounded-2xl bg-white border p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4" style={{ borderColor: "var(--line)" }}>
+        <div className="rounded-2xl bg-white border p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4" style={{ borderColor: "var(--line)" }}>
           <CandidateAvatar name={parsed.name} hasPhoto={candidate.hasPhoto} size={64} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{parsed.name}</h1>
+              <h2 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{parsed.name}</h2>
               {contextJobId && <StageBadge stage={stage} />}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm" style={{ color: "var(--ink-3)" }}>
@@ -11859,6 +11903,9 @@ export default function ResumeAIPreview() {
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
           />
