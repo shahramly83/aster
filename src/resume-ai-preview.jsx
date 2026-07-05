@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
+import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -3764,9 +3765,38 @@ function MarketingHero({ eyebrow, icon, title, accent, subtitle, chips, navigate
 // Renders the deep long-form content (intro → how it works → deep dive → use
 // cases → FAQ → closing) shared by every product and solution page. Each block
 // renders only if present, so pages without long-form data are unaffected.
-// Interactive deep-dive: vertical tabs (desktop) / accordion (mobile). Hovering
-// or tapping a title swaps the body with a soft fade, so five dense blocks read
-// as one focused feature instead of a wall of paragraphs.
+// Shared Motion primitives for the long-form sections.
+const MOTION_EASE = [0.22, 1, 0.36, 1];
+const mFadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: MOTION_EASE } } };
+const mStagger = { hidden: {}, show: { transition: { staggerChildren: 0.09, delayChildren: 0.04 } } };
+const mPop = { hidden: { opacity: 0, scale: 0.4 }, show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 480, damping: 20 } } };
+// Drop-in scroll reveal (fade + rise) using Motion's whileInView.
+function MReveal({ children, as, className, style, delay = 0, ...rest }) {
+  const Comp = as ? motion[as] : motion.div;
+  return (
+    <Comp className={className} style={style} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "0px 0px -12% 0px" }} transition={{ duration: 0.55, ease: MOTION_EASE, delay }} {...rest}>
+      {children}
+    </Comp>
+  );
+}
+
+// Split a long body string into ~two balanced paragraphs at a sentence break,
+// so dense blocks read as paragraphs instead of one wall of text.
+function splitParas(text) {
+  const parts = (text || "").match(/[^.!?]+[.!?]+["')\]]?\s*/g);
+  if (!parts || parts.length < 3) return [text];
+  const total = (text || "").length;
+  let acc = 0, cut = 0;
+  for (let i = 0; i < parts.length; i++) {
+    acc += parts[i].length;
+    if (acc >= total * 0.48) { cut = i + 1; break; }
+  }
+  cut = Math.min(Math.max(cut, 1), parts.length - 1);
+  return [parts.slice(0, cut).join("").trim(), parts.slice(cut).join("").trim()];
+}
+
+// Interactive deep-dive: vertical tabs (desktop) / accordion (mobile). A shared
+// layoutId accent slides between tabs and the body cross-fades via AnimatePresence.
 function DeepDiveTabs({ items }) {
   const [active, setActive] = useState(0);
   const cur = items[active] || items[0];
@@ -3778,19 +3808,24 @@ function DeepDiveTabs({ items }) {
             const on = i === active;
             return (
               <button key={i} onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)} onClick={() => setActive(i)}
-                className="group relative text-left rounded-xl pl-5 pr-4 py-3.5 flex items-start gap-3 transition-all hover:bg-white/[0.03]"
+                className="group relative text-left rounded-xl pl-5 pr-4 py-3.5 flex items-start gap-3 transition-colors hover:bg-white/[0.03]"
                 style={on ? { background: "rgba(151,59,247,0.10)", border: "1px solid rgba(178,116,255,0.22)" } : { border: "1px solid transparent" }}>
-                <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full transition-all duration-300" style={{ background: "linear-gradient(180deg,#D65BFF,#5A78F8)", opacity: on ? 1 : 0, transform: on ? "scaleY(1)" : "scaleY(0.25)", transformOrigin: "center" }} />
-                <span className="font-display font-bold shrink-0 tnum" style={{ fontSize: "0.95rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
-                <span className="font-display font-semibold leading-snug transition-colors" style={{ color: on ? "#fff" : "var(--navy-ink)", fontSize: "1rem" }}>{d.title}</span>
+                {on && <motion.span layoutId="dd-accent" className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full" style={{ background: "linear-gradient(180deg,#D65BFF,#5A78F8)" }} transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
+                <span className="font-display font-semibold shrink-0 tnum" style={{ fontSize: "0.8rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
+                <span className="font-medium leading-snug transition-colors" style={{ color: on ? "#fff" : "var(--navy-ink)", fontSize: "1rem" }}>{d.title}</span>
               </button>
             );
           })}
         </div>
         <div className="col-span-7 pt-1">
-          <div key={active} className="lf-slide">
-            <p className="text-base sm:text-lg" style={{ color: "#D8DAEC", lineHeight: 1.8 }}>{cur.body}</p>
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div key={active} className="space-y-4"
+              initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -14 }} transition={{ duration: 0.3, ease: MOTION_EASE }}>
+              {splitParas(cur.body).map((p, k) => (
+                <p key={k} className="text-sm" style={{ color: "#C9CBDE", lineHeight: 1.7 }}>{p}</p>
+              ))}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
       <div className="lg:hidden space-y-2.5">
@@ -3799,11 +3834,21 @@ function DeepDiveTabs({ items }) {
           return (
             <div key={i} className="rounded-xl overflow-hidden transition-colors" style={{ background: on ? "rgba(151,59,247,0.08)" : "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
               <button onClick={() => setActive(i)} className="w-full text-left flex items-start gap-3 px-4 py-3.5">
-                <span className="font-display font-bold shrink-0 tnum" style={{ fontSize: "0.9rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
-                <span className="flex-1 font-display font-semibold leading-snug" style={{ color: "#fff", fontSize: "0.95rem" }}>{d.title}</span>
+                <span className="font-display font-semibold shrink-0 tnum" style={{ fontSize: "0.8rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
+                <span className="flex-1 font-medium leading-snug" style={{ color: "#fff", fontSize: "1rem" }}>{d.title}</span>
                 <Icon name="chevronDown" className="w-4 h-4 shrink-0 mt-0.5 transition-transform" style={{ transform: on ? "rotate(180deg)" : "none", color: "var(--navy-ink)" }} />
               </button>
-              {on && <div className="px-4 pb-4 lf-swap"><p className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{d.body}</p></div>}
+              <AnimatePresence initial={false}>
+                {on && (
+                  <motion.div key="body" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: MOTION_EASE }} className="overflow-hidden">
+                    <div className="px-4 pb-4 space-y-3">
+                      {splitParas(d.body).map((p, k) => (
+                        <p key={k} className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{p}</p>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}
@@ -3818,13 +3863,17 @@ function IntroMore({ paras }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="mt-6">
-      {open && (
-        <div className="space-y-5 lf-swap mb-4">
-          {paras.map((p, i) => (
-            <p key={i} className="text-base sm:text-lg" style={{ color: "var(--navy-ink)", lineHeight: 1.75 }}>{p}</p>
-          ))}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div key="more" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: MOTION_EASE }} className="overflow-hidden">
+            <div className="space-y-5 pt-1 mb-4">
+              {paras.map((p, i) => (
+                <p key={i} className="text-sm" style={{ color: "var(--navy-ink)", lineHeight: 1.7 }}>{p}</p>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>
         {open ? "Show less" : "Read more"}
         <Icon name="chevronDown" className="w-4 h-4 transition-transform" style={{ transform: open ? "rotate(180deg)" : "none" }} />
@@ -3845,16 +3894,21 @@ function UseCaseTabs({ items }) {
           const on = i === active;
           return (
             <button key={i} onClick={() => setActive(i)}
-              className="text-sm font-medium px-4 py-2 rounded-full transition-all hover:bg-white/[0.05]"
-              style={on ? { background: "linear-gradient(135deg,#D65BFF,#5A78F8)", color: "#fff", transform: "translateY(-1px)", boxShadow: "0 8px 20px -10px rgba(151,59,247,0.9)" } : { border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
-              Scenario {i + 1}
+              className="relative text-sm font-medium px-4 py-2 rounded-full transition-colors"
+              style={{ color: on ? "#fff" : "var(--navy-ink)", border: on ? "1px solid transparent" : "1px solid var(--navy-line)" }}>
+              {on && <motion.span layoutId="uc-pill" className="absolute inset-0 rounded-full" style={{ background: "linear-gradient(135deg,#D65BFF,#5A78F8)", boxShadow: "0 8px 20px -10px rgba(151,59,247,0.9)" }} transition={{ type: "spring", stiffness: 360, damping: 30 }} />}
+              <span className="relative z-10">Scenario {i + 1}</span>
             </button>
           );
         })}
       </div>
-      <div key={active} className="lf-slide rounded-2xl p-7 sm:p-9" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.10), rgba(90,120,248,0.06))", border: "1px solid var(--navy-line)" }}>
-        <p className="text-white font-semibold font-display" style={{ fontSize: "clamp(1.05rem, 1.8vw, 1.25rem)" }}>{cur.title}</p>
-        <p className="mt-3 text-base sm:text-lg" style={{ color: "#D8DAEC", lineHeight: 1.75 }}>{cur.body}</p>
+      <div className="rounded-2xl p-7 sm:p-9" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.10), rgba(90,120,248,0.06))", border: "1px solid var(--navy-line)" }}>
+        <AnimatePresence mode="wait">
+          <motion.div key={active} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: MOTION_EASE }}>
+            <p className="text-white font-medium font-display text-base">{cur.title}</p>
+            <p className="mt-2.5 text-sm" style={{ color: "#C9CBDE", lineHeight: 1.7 }}>{cur.body}</p>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -3865,37 +3919,40 @@ function MarketingLongform({ data }) {
   const { intro, howItWorks, deepDive, useCases, faq, closing } = data;
   const BAND = "#07081A"; // subtle band to alternate against the #050610 base
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       {/* Intro — a large lede paragraph then supporting prose, editorial measure */}
       {intro && intro.length > 0 && (
         <section className="py-16 sm:py-24" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
-          <Reveal className="max-w-3xl mx-auto px-4 sm:px-6">
-            <span className="inline-block w-10 h-1 rounded-full mb-7" style={{ background: "linear-gradient(90deg, #D65BFF, #5A78F8)" }} />
-            <p className="text-white" style={{ fontSize: "clamp(1.3rem, 2.3vw, 1.6rem)", lineHeight: 1.5, letterSpacing: "-0.01em" }}>{intro[0]}</p>
-            {intro.length > 1 && <IntroMore paras={intro.slice(1)} />}
-          </Reveal>
+          <MReveal className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div>
+              <span className="inline-block w-10 h-1 rounded-full mb-7" style={{ background: "linear-gradient(90deg, #D65BFF, #5A78F8)" }} />
+              <p className="text-white" style={{ fontSize: "clamp(1.1rem, 1.7vw, 1.3rem)", lineHeight: 1.55, letterSpacing: "-0.01em" }}>{intro[0]}</p>
+              {intro.length > 1 && <IntroMore paras={intro.slice(1)} />}
+            </div>
+          </MReveal>
         </section>
       )}
 
-      {/* How it works — numbered step cards, staggered in */}
+      {/* How it works — spring-popped numbered stepper, staggered in */}
       {howItWorks && howItWorks.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <Reveal>
+            <MReveal>
               <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>How it works</p>
-              <h2 className="font-display font-bold text-white mb-10" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>From setup to hire</h2>
-            </Reveal>
-            <div className="relative grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 mt-12">
-              {/* connector line behind the step numbers (desktop) — draws in from the left */}
-              <Reveal from="scaleX" delay={150} className="hidden lg:block absolute left-0 right-0 h-px" style={{ top: "20px", background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.35) 14%, rgba(143,160,255,0.35) 86%, transparent)" }} />
+              <h2 className="font-display font-semibold text-white mb-10" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>From setup to hire</h2>
+            </MReveal>
+            <motion.div className="relative grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 mt-12"
+              variants={mStagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: "0px 0px -12% 0px" }}>
+              <motion.div className="hidden lg:block absolute left-0 right-0 h-px origin-left" style={{ top: "20px", background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.35) 14%, rgba(143,160,255,0.35) 86%, transparent)" }}
+                initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, ease: MOTION_EASE, delay: 0.15 }} />
               {howItWorks.map((s, i) => (
-                <Reveal key={i} delay={i * 110} className="relative">
-                  <span className="lf-pop relative z-10 inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white brand-gradient shadow-[0_8px_24px_-6px_rgba(151,59,247,0.9)]" style={{ outline: "5px solid #050610", animationDelay: `${i * 110 + 120}ms` }}>{i + 1}</span>
-                  <p className="text-white font-semibold font-display mt-5">{s.title}</p>
-                  <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{s.body}</p>
-                </Reveal>
+                <motion.div key={i} variants={mFadeUp} className="relative">
+                  <motion.span variants={mPop} className="relative z-10 inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white brand-gradient shadow-[0_8px_24px_-6px_rgba(151,59,247,0.9)]" style={{ outline: "5px solid #050610" }}>{i + 1}</motion.span>
+                  <p className="text-white font-medium font-display text-base mt-5">{s.title}</p>
+                  <p className="text-sm mt-2" style={{ color: "var(--navy-ink)", lineHeight: 1.7 }}>{s.body}</p>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </section>
       )}
@@ -3904,24 +3961,26 @@ function MarketingLongform({ data }) {
       {deepDive && deepDive.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <Reveal>
+            <MReveal>
               <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>In depth</p>
-              <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>A closer look</h2>
-            </Reveal>
-            <Reveal><DeepDiveTabs items={deepDive} /></Reveal>
+              <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>A closer look</h2>
+            </MReveal>
+            <MReveal delay={0.08}><DeepDiveTabs items={deepDive} /></MReveal>
           </div>
         </section>
       )}
 
-      {/* Use cases — labelled scenario cards, staggered in */}
+      {/* Use cases — one scenario at a time, single readable column */}
       {useCases && useCases.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <Reveal>
-              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>In practice</p>
-              <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Where it makes the difference</h2>
-            </Reveal>
-            <Reveal><UseCaseTabs items={useCases} /></Reveal>
+            <div>
+              <MReveal>
+                <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>In practice</p>
+                <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Where it makes the difference</h2>
+              </MReveal>
+              <MReveal delay={0.08}><UseCaseTabs items={useCases} /></MReveal>
+            </div>
           </div>
         </section>
       )}
@@ -3929,23 +3988,25 @@ function MarketingLongform({ data }) {
       {/* FAQ — accordion */}
       {faq && faq.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
-          <div className="max-w-3xl mx-auto px-4 sm:px-6">
-            <Reveal>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div>
+            <MReveal>
               <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>FAQ</p>
-              <h2 className="font-display font-bold text-white mb-8" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Common questions</h2>
-            </Reveal>
-            <div className="space-y-3">
+              <h2 className="font-display font-semibold text-white mb-8" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Common questions</h2>
+            </MReveal>
+            <motion.div className="space-y-3" variants={mStagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: "0px 0px -10% 0px" }}>
               {faq.map((f, i) => (
-                <Reveal as="details" key={i} delay={Math.min(i, 4) * 50} className="group rounded-2xl px-5 sm:px-6 py-4 transition-colors hover:bg-white/[0.02]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none text-white font-medium text-[15px] sm:text-base">
+                <motion.details variants={mFadeUp} key={i} className="group rounded-2xl px-5 sm:px-6 py-4 transition-colors hover:bg-white/[0.02]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none text-white font-medium text-base">
                     {f.q}
                     <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-transform group-open:rotate-45" style={{ border: "1px solid var(--navy-line)", color: "#C79BFF" }}>
                       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                     </span>
                   </summary>
-                  <p className="mt-3.5 text-sm sm:text-[15px] leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.a}</p>
-                </Reveal>
+                  <p className="mt-3.5 text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.a}</p>
+                </motion.details>
               ))}
+            </motion.div>
             </div>
           </div>
         </section>
@@ -3954,18 +4015,18 @@ function MarketingLongform({ data }) {
       {/* Closing — a featured statement, left-aligned for readability */}
       {closing && (
         <section className="py-16 sm:py-24" style={{ background: "#050610", borderTop: "1px solid var(--navy-line)" }}>
-          <Reveal className="max-w-3xl mx-auto px-4 sm:px-6">
+          <MReveal className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.12), rgba(90,120,248,0.07))", border: "1px solid var(--navy-line)" }}>
               <div className="pointer-events-none absolute -top-20 -right-12 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
               <div className="relative">
                 <span className="inline-block w-10 h-1 rounded-full mb-6" style={{ background: "linear-gradient(90deg,#D65BFF,#5A78F8)" }} />
-                <p className="text-white" style={{ fontSize: "clamp(1.2rem, 2.1vw, 1.5rem)", lineHeight: 1.6, letterSpacing: "-0.01em" }}>{closing}</p>
+                <p className="text-white" style={{ fontSize: "clamp(1.1rem, 1.7vw, 1.3rem)", lineHeight: 1.6, letterSpacing: "-0.01em" }}>{closing}</p>
               </div>
             </div>
-          </Reveal>
+          </MReveal>
         </section>
       )}
-    </>
+    </MotionConfig>
   );
 }
 
@@ -4094,7 +4155,7 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) 
               <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
               <div className="relative grid lg:grid-cols-2 gap-8 items-center">
                 <div>
-                  <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
+                  <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
                   <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{page.highlight.body}</p>
                 </div>
                 <ul className="space-y-3">
@@ -4187,7 +4248,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
           <div className="max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[0.85fr_1.4fr] gap-8 lg:gap-14 items-start">
             <div>
               <p className="text-[11px] font-semibold uppercase" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>The problem</p>
-              <h2 className="font-display font-bold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Sound familiar?</h2>
+              <h2 className="font-display font-semibold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Sound familiar?</h2>
               <p className="mt-3 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>Hiring the way most teams still do it, before Aster does the first pass for you.</p>
             </div>
             <ul className="space-y-3">
@@ -4207,7 +4268,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl mb-8 sm:mb-10">
             <p className="text-[11px] font-semibold uppercase" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>How Aster helps</p>
-            <h2 className="font-display font-bold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>What changes with Aster</h2>
+            <h2 className="font-display font-semibold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>What changes with Aster</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {page.features.map((f) => (
@@ -4229,7 +4290,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
               <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
               <div className="relative grid lg:grid-cols-2 gap-8 items-center">
                 <div>
-                  <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
+                  <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
                   <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{page.highlight.body}</p>
                 </div>
                 <ul className="space-y-3">
