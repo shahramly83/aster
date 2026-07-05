@@ -1,7 +1,11 @@
 // Build-time prerender: snapshots each marketing route to static HTML so
 // non-JS crawlers (social/AI scrapers) and "View Source" see full content +
-// the correct per-route <title>/description/canonical. Drives the system
-// Chrome via puppeteer-core (no Chromium download).
+// the correct per-route <title>/description/canonical.
+//
+// Browser: uses the system Chrome locally, and @sparticuz/chromium (a Chromium
+// built for serverless/Linux build images) on Vercel. puppeteer-core and the
+// chromium binary are imported dynamically inside a try/catch, so a missing or
+// unlaunchable browser degrades to a plain SPA build rather than failing.
 //
 // Runs after `vite build`. Serves dist/ with SPA fallback, visits each route,
 // waits for React to render, and writes dist/<route>/index.html.
@@ -11,7 +15,6 @@ import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import puppeteer from "puppeteer-core";
 import { BLOG_POSTS, BLOG_CATEGORIES, GLOSSARY_TERMS } from "../src/resources-content.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -91,7 +94,28 @@ function findChrome() {
     "/usr/bin/chromium-browser",
   ];
   for (const c of candidates) if (existsSync(c)) return c;
-  return null; // no browser → caller skips prerendering gracefully
+  return null; // no system browser → use the bundled serverless Chromium
+}
+
+// Launch a headless browser. Prefers system Chrome (local/CI); falls back to the
+// @sparticuz/chromium binary that runs on Vercel's Linux build image. Imports are
+// dynamic so a missing package throws here and is caught by run()'s try/catch.
+async function launchBrowser() {
+  const puppeteer = (await import("puppeteer-core")).default;
+  const sys = findChrome();
+  if (sys) {
+    console.log("[prerender] Using system browser.");
+    return puppeteer.launch({ executablePath: sys, headless: "new", args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  }
+  console.log("[prerender] No system browser found; using bundled @sparticuz/chromium.");
+  const chromium = (await import("@sparticuz/chromium")).default;
+  const executablePath = await chromium.executablePath();
+  return puppeteer.launch({
+    executablePath,
+    args: [...chromium.args, "--no-sandbox", "--disable-dev-shm-usage"],
+    headless: chromium.headless,
+    defaultViewport: chromium.defaultViewport,
+  });
 }
 
 async function run() {
@@ -99,25 +123,14 @@ async function run() {
     console.error("dist/index.html not found — run `vite build` first.");
     process.exit(1);
   }
-  // No browser available (e.g. Vercel's Linux build image has no Chrome):
-  // skip prerendering and ship the client-rendered SPA. The build stays green;
-  // per-route <title>/meta/canonical still update via JS for engines that render it.
-  const executablePath = findChrome();
-  if (!executablePath) {
-    console.warn("\n[prerender] No Chrome/Chromium found — skipping prerender, deploying as SPA.");
-    console.warn("[prerender] Set PUPPETEER_EXECUTABLE_PATH (or install Chrome) to enable static prerendering.\n");
-    return;
-  }
   const server = await serveDist();
   let browser;
   try {
-    browser = await puppeteer.launch({
-      executablePath,
-      headless: "new",
-      args: ["--no-sandbox", "--disable-dev-shm-usage"],
-    });
+    browser = await launchBrowser();
   } catch (e) {
-    console.warn(`\n[prerender] Could not launch browser (${e.message.split("\n")[0]}) — skipping prerender, deploying as SPA.\n`);
+    // Any failure (no browser, missing package, launch error) degrades to an SPA
+    // build so the deploy stays green. Per-route meta still updates via JS.
+    console.warn(`\n[prerender] Could not launch a browser (${e.message.split("\n")[0]}) — skipping prerender, deploying as SPA.\n`);
     server.close();
     return;
   }
