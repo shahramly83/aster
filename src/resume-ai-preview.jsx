@@ -6884,17 +6884,30 @@ function canonicalizeIndustry(raw) {
   return value || (raw || "").trim();
 }
 
+// A black info icon; hovering (or focusing) it reveals the given text as a
+// tooltip. Reused next to field labels and panel titles.
+function InfoHint({ hint, align = "left", dir = "up" }) {
+  const down = dir === "down";
+  const pos = `${align === "right" ? "right-0" : "left-0"} ${down ? "top-full mt-2" : "bottom-full mb-2"}`;
+  const enter = down
+    ? "-translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0"
+    : "translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0";
+  return (
+    <span tabIndex={0} className="relative group inline-flex items-center align-middle outline-none" style={{ color: "var(--ink)" }}>
+      <Icon name="info" className="w-3.5 h-3.5 cursor-help" />
+      <span className={`pointer-events-none absolute ${pos} w-60 rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 ${enter} group-hover:opacity-100 group-focus:opacity-100 transition-all duration-150 z-30`}
+        style={{ background: "var(--ink)", color: "#fff", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>{hint}</span>
+    </span>
+  );
+}
+
 // A field label with a black info icon; hovering (or focusing) the icon reveals
 // the usage instruction as a tooltip.
 function FieldLabel({ children, hint }) {
   return (
     <div className="flex items-center gap-1.5 mb-1.5">
       <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{children}</span>
-      <span tabIndex={0} className="relative group inline-flex items-center outline-none" style={{ color: "var(--ink)" }}>
-        <Icon name="info" className="w-3.5 h-3.5 cursor-help" />
-        <span className="pointer-events-none absolute left-0 bottom-full mb-2 w-60 rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 group-focus:opacity-100 group-focus:translate-y-0 transition-all duration-150 z-30"
-          style={{ background: "var(--ink)", color: "#fff", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>{hint}</span>
-      </span>
+      <InfoHint hint={hint} />
     </div>
   );
 }
@@ -7463,11 +7476,14 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         {/* ---------- Tab 3: Match to a role ---------- */}
         {tab === "role" && (
           <>
-            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
               <div className="flex items-start gap-3">
                 <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="briefcase" className="w-4 h-4" /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Match to an open role</p>
+                  <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
+                    Match to an open role
+                    <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the role you pick, so you can invite the best fits to apply." />
+                  </p>
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role. AI ranks every candidate by fit, then invite the strongest. Invites are tagged <span className="font-medium" style={{ color: "var(--ink-2)" }}>source: database</span>.</p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <select value={matchJobId} onChange={(e) => { setMatchJobId(e.target.value); setMatchScores(null); }} disabled={openJobs.length === 0}
