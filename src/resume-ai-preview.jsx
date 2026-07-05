@@ -825,7 +825,7 @@ function LoginScreen({ onLogin, navigate, logoUrl }) {
         <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
 
         <div className="w-full max-w-md min-w-0 relative z-10">
-          <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-block">
+          <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-flex [&_img]:!h-11">
             <BrandLogo onDark logoUrl={logoUrl} />
           </button>
 
@@ -961,7 +961,7 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
         <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
 
         <div className="w-full max-w-md min-w-0 relative z-10">
-          <button onClick={() => navigate("login")} aria-label="Back to sign in" className="lg:hidden mb-8 inline-block">
+          <button onClick={() => navigate("login")} aria-label="Back to sign in" className="lg:hidden mb-8 inline-flex [&_img]:!h-11">
             <BrandLogo onDark logoUrl={logoUrl} />
           </button>
 
@@ -2093,7 +2093,19 @@ function LandingScreen({ navigate, logoUrl, setSignupPlan, setSignupCycle, setSi
               <a
                 key={href}
                 href={href}
-                onClick={() => setMenuOpen(false)}
+                onClick={(e) => {
+                  // Close the menu, then scroll to the section. Doing the scroll
+                  // manually (instead of relying on the anchor's default) avoids
+                  // the mobile-touch bug where removing the <a> from the DOM in
+                  // its own handler cancels the hash navigation.
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  const id = href.slice(1);
+                  setTimeout(() => {
+                    const el = document.getElementById(id);
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 10);
+                }}
                 className="menu-stagger group flex items-center gap-3.5 rounded-2xl px-3.5 py-3.5 transition-transform active:scale-[0.98]"
                 style={{ animationDelay: `${110 + i * 70}ms`, background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}
               >
@@ -3095,7 +3107,7 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
         <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
 
         <div className="w-full max-w-md min-w-0 relative z-10">
-          <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-block">
+          <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-flex [&_img]:!h-11">
             <BrandLogo onDark logoUrl={logoUrl} />
           </button>
 
