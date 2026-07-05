@@ -7235,7 +7235,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const safePage = Math.min(Math.max(1, page), pageCount);
   const pageStart = (safePage - 1) * PER_PAGE;
   const browseItems = shownList.slice(pageStart, pageStart + PER_PAGE);
-  const goToPage = (n) => { setPage(n); if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const goToPage = (n) => { setPage(n); if (typeof window !== "undefined") window.scrollTo(0, 0); };
 
   // ---- Invites (role tab) ----
   const inviteLink = (jobId) => `https://yourapp.com/apply/${jobId}?source=database`;
