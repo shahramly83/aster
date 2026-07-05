@@ -7267,6 +7267,32 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       ))}
     </div>
   );
+  // A short AI recommendation for interviewers that explains the match beyond
+  // the raw score: a fit verdict, the evidence behind it, and what to do next.
+  // Deterministic in this preview; in production this is the model's rationale.
+  const capFirst = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  const matchInsight = (c, { pct, mode, matched, industryLabel, yrs, role }) => {
+    const verdict = pct >= 80 ? "Strong fit" : pct >= 55 ? "Good fit" : pct >= 30 ? "Moderate fit" : "Stretch fit";
+    if (mode === "role") {
+      const jt = rankedMeta?.label || "the role";
+      const exp = yrs != null ? `${yrs} yrs${role ? ` as ${role}` : ""}` : (role || "relevant experience");
+      const rec = pct >= 55
+        ? `Interview early and probe the core ${jt} responsibilities.`
+        : `Expect gaps against the ${jt} posting, so interview only if the shortlist is thin.`;
+      return `${verdict} for ${jt}. ${capFirst(exp)}. ${rec}`;
+    }
+    const parts = [];
+    const wanted = rankedMeta?.skills || [];
+    if (wanted.length) {
+      const list = matched.length ? ` (${matched.slice(0, 3).join(", ")})` : "";
+      const full = wanted.length === 1 ? "covers the skill you searched" : wanted.length === 2 ? "covers both skills you searched" : `covers all ${wanted.length} skills you searched`;
+      parts.push((matched.length === wanted.length ? full : `covers ${matched.length} of ${wanted.length} skills`) + list);
+    }
+    if (industryLabel) parts.push(`${yrs != null ? `${yrs} yrs` : "experience"} in ${industryLabel}`);
+    else if (yrs != null) parts.push(`${yrs} yrs${role ? ` as ${role}` : ""}`);
+    const rec = pct >= 80 ? "Worth an early interview." : pct >= 55 ? "A solid candidate to interview." : pct >= 30 ? "Interview if transferable experience works for you." : "Consider only if the shortlist is thin.";
+    return `${verdict}. ${capFirst(parts.join(", "))}. ${rec}`;
+  };
   const rankedList = (
     <div className="space-y-2.5">
       {shownList.map((c, idx) => {
@@ -7282,6 +7308,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         const descriptor = isSkills
           ? [hasSkillCriteria ? `${matched.length}/${rankedMeta.skills.length} skills matched` : null, industryLabel, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ")
           : [yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+        const insight = matchInsight(c, { pct, mode: rankedMeta?.mode, matched, industryLabel, yrs, role });
         return (
           <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}>
             <div className="flex items-center gap-4">
@@ -7300,6 +7327,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
               </div>
               <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+            </div>
+            <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(151,59,247,0.05)", border: "1px solid rgba(151,59,247,0.13)" }}>
+              <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
+              <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>AI insight: </span>{insight}</p>
             </div>
           </div>
         );
