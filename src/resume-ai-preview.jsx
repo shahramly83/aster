@@ -6735,9 +6735,13 @@ const COMPANY_INDUSTRY = {
   "Gleneagles Hospital": "Healthcare",
   KPMG: "Professional Services",
 };
-// The set of industries a candidate has worked in (across their roles).
+// The set of industries a candidate has worked in. Prefers industries captured
+// at ingestion (parsed.industries, normalised to canon), then infers from the
+// companies in the work history, so it stays right even when the parser sees
+// companies we don't have in the lookup.
 function industriesOf(candidate) {
   const set = new Set();
+  (candidate?.parsed?.industries || []).forEach((i) => { const c = canonicalizeIndustry(i); if (c) set.add(c); });
   (candidate?.parsed?.experience || []).forEach((e) => { const ind = COMPANY_INDUSTRY[e.company]; if (ind) set.add(ind); });
   if (!set.size) set.add("Technology");
   return set;
@@ -6851,6 +6855,33 @@ function resolveToken(input, options, aliases) {
   }
   if (best && bd <= fuzzyThreshold(q.length)) return { value: best, how: "fuzzy" };
   return { value: null, how: null };
+}
+
+// --- Shared capture normaliser --------------------------------------------
+// The single contract that keeps search accurate: the same resolver runs on both
+// sides of a match. Whatever the AI extracts at ingestion (Bulk Upload or a
+// candidate applying) is snapped to the canonical taxonomy before it's stored,
+// and the search query is snapped the same way, so a resume that says "JS", "k8s"
+// or "fintech" still lines up with a search for "JavaScript", "Kubernetes" or
+// "Finance & Fintech". Memoised so repeated values resolve once.
+const _skillCanon = new Map();
+function canonicalizeSkill(raw) {
+  const key = norm(raw);
+  if (!key) return (raw || "").trim();
+  if (_skillCanon.has(key)) return _skillCanon.get(key);
+  const { value } = resolveToken(raw, ALL_SKILLS, SKILL_ALIASES);
+  const out = value || raw.trim();
+  _skillCanon.set(key, out);
+  return out;
+}
+function canonicalizeSkills(list) {
+  const seen = new Set(), out = [];
+  (list || []).forEach((s) => { const c = canonicalizeSkill(s); const k = c.toLowerCase(); if (c && !seen.has(k)) { seen.add(k); out.push(c); } });
+  return out;
+}
+function canonicalizeIndustry(raw) {
+  const { value } = resolveToken(raw, ALL_INDUSTRIES, INDUSTRY_ALIASES);
+  return value || (raw || "").trim();
 }
 
 // A field label with a black info icon; hovering (or focusing) the icon reveals
@@ -7001,7 +7032,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const availableCount = available.length;
   // Skill suggestions = the stored taxonomy + whatever's actually in the pool,
   // so every candidate skill is type-ahead-able and a picked one always matches.
-  const skillSuggestions = [...new Set([...ALL_SKILLS, ...available.flatMap((c) => c.parsed.skills || [])])].sort((a, b) => a.localeCompare(b));
+  const skillSuggestions = [...new Set([...ALL_SKILLS, ...available.flatMap((c) => canonicalizeSkills(c.parsed.skills))])].sort((a, b) => a.localeCompare(b));
   const openJobs = (jobs || []).filter((j) => j.status === "open");
   const matchJob = jobs?.find((j) => j.id === matchJobId);
   const alreadyApplied = matchJobId
@@ -7023,14 +7054,16 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     return Math.min(1, (hits * 2 + (roleHit ? 2 : 0)) / Math.max(6, skills.length));
   };
   // Fit against a set of wanted skills: fraction of them the candidate has.
+  // Both sides are canonicalised through the shared resolver so "JS" on a resume
+  // matches a "JavaScript" search regardless of how the capture stored it.
   const scoreBySkills = (c, wanted) => {
     if (!wanted.length) return 0;
-    const cand = new Set((c.parsed.skills || []).map((s) => s.toLowerCase()));
-    return wanted.filter((w) => cand.has(w.trim().toLowerCase())).length / wanted.length;
+    const cand = new Set(canonicalizeSkills(c.parsed.skills).map((s) => s.toLowerCase()));
+    return wanted.filter((w) => cand.has(canonicalizeSkill(w).toLowerCase())).length / wanted.length;
   };
   const matchedSkills = (c) => {
-    const cand = new Set((c.parsed.skills || []).map((s) => s.toLowerCase()));
-    return (rankedMeta?.skills || []).filter((w) => cand.has(w.toLowerCase()));
+    const cand = new Set(canonicalizeSkills(c.parsed.skills).map((s) => s.toLowerCase()));
+    return (rankedMeta?.skills || []).filter((w) => cand.has(canonicalizeSkill(w).toLowerCase()));
   };
 
   const runRoleMatch = () => {
