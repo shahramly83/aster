@@ -7053,6 +7053,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     setSkillTags((prev) => (prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]));
     setMatchScores(null);
   };
+  const addIndustry = (raw) => {
+    const v = (raw || "").trim();
+    if (!v) return;
+    setIndustryTags((prev) => (prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]));
+    setMatchScores(null);
+  };
   const invalidate = () => setMatchScores(null);
 
   // ---- Build the visible list for the active tab ----
@@ -7237,6 +7243,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Popular skills across job families (not just engineering) — each exists in
   // the candidate pool so a quick-add always returns real matches.
   const POPULAR_SKILLS = ["React", "Salesforce", "SEO", "Financial Modeling", "Recruiting", "SQL", "Account Management", "Project Management", "Copywriting", "Patient Care"];
+  // Industries present in the candidate pool, so a bubble always returns matches.
+  const POPULAR_INDUSTRIES = ["Technology", "Finance & Fintech", "E-commerce & Retail", "Healthcare", "Media & Creative", "Travel & Aviation", "Logistics & Operations", "Professional Services"];
   const SEARCH_HELP = [
     { icon: "users", title: "Browse & filter", body: "Search your whole database by name, skill, or role, and narrow by years of experience." },
     { icon: "matching", title: "Match by skills or industry", body: "Add the skills you're hiring for, pick an industry, or both, and AI ranks everyone by fit." },
@@ -7373,6 +7381,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Industry</label>
                       <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={ALL_INDUSTRIES} placeholder="Search industries…" onChange={invalidate} aliases={INDUSTRY_ALIASES} freeSolo={false} />
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
+                          <button key={s} onClick={() => addIndustry(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4">
