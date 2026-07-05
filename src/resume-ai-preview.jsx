@@ -4450,10 +4450,10 @@ function FeatureCard({ onAction }) {
 // and unlocks reasoning, scorecards & stored CVs. Professional is unlimited and
 // adds WhatsApp. Enterprise = Professional + SSO/SLA (handled in UI).
 const PLAN_LIMITS = {
-  free:         { maxJobs: 1,        canAddInterviewers: false, seats: 1,        visibleCandidates: Infinity, aiMatches: 3,        aiRunsPerMonth: 3,        showRationale: false, storeOriginal: false, resumeUploads: 10,       whatsapp: false },
-  starter:      { maxJobs: 5,        canAddInterviewers: true,  seats: 3,        visibleCandidates: Infinity, aiMatches: 10,       aiRunsPerMonth: 30,       showRationale: true,  storeOriginal: true,  resumeUploads: 100,      whatsapp: false },
-  professional: { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
-  enterprise:   { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
+  free:         { maxJobs: 1,        canAddInterviewers: false, seats: 1,        visibleCandidates: Infinity, aiMatches: 3,        aiRunsPerMonth: 3,        aiInsightsPerMonth: 2,        showRationale: false, storeOriginal: false, resumeUploads: 10,       whatsapp: false },
+  starter:      { maxJobs: 5,        canAddInterviewers: true,  seats: 3,        visibleCandidates: Infinity, aiMatches: 10,       aiRunsPerMonth: 30,       aiInsightsPerMonth: 20,       showRationale: true,  storeOriginal: true,  resumeUploads: 100,      whatsapp: false },
+  professional: { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
+  enterprise:   { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
 };
 const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.professional;
 
@@ -10086,9 +10086,19 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, au
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, aiInsightsUsed = 0, setAiInsightsUsed }) {
   const [insights, setInsights] = useState(candidate ? MOCK_INSIGHTS[candidate.id] ?? null : null);
   const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyProfileLink = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); } else { const ta = document.createElement("textarea"); ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* no-op */ }
+  };
+  // AI Experience Insights are metered per plan, like AI match runs.
+  const insightsLimit = planLimits(plan).aiInsightsPerMonth;
+  const insightsUnlimited = insightsLimit === Infinity;
+  const insightsLeft = Math.max(0, insightsLimit - aiInsightsUsed);
+  const outOfInsights = !insightsUnlimited && insightsLeft <= 0;
   const [showOffer, setShowOffer] = useState(false);
   // Database-view invite: pick an open role, draft a re-engagement email, and
   // send it to the candidate's profile email. If they apply, they drop their
@@ -10135,6 +10145,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const parsed = candidate.parsed;
 
   const handleGenerate = () => {
+    // Gate on the plan's monthly allowance; a fresh (not cached) run consumes one.
+    if (outOfInsights && !insights) { navigate("billing"); return; }
+    if (!insightsUnlimited && setAiInsightsUsed) setAiInsightsUsed((n) => n + 1);
     setGenerating(true);
     setTimeout(() => {
       setInsights(
@@ -10181,93 +10194,148 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     setInviteMsg(`Invite email sent to ${candidateEmail}. When ${firstName} applies through the link, AI refreshes the profile with their latest resume and moves them into your hiring workflow.`);
   };
 
+  // Reworked AI Experience Insights card — plan-metered, with a usage meter.
+  const insightsPct = insightsUnlimited ? 0 : Math.max(Math.min((aiInsightsUsed / insightsLimit) * 100, 100), 4);
+  const aiInsightsCard = (
+    <div className="rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
+      <div className="flex items-start justify-between gap-3 mb-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
+          <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>AI Experience Insights</h2>
+          <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." />
+        </div>
+        {insights && <span className="text-[11px] shrink-0 mt-1.5" style={{ color: "var(--ink-3)" }}>Generated {new Date(insights.generated_at).toLocaleDateString()}</span>}
+      </div>
+
+      {!insights ? (
+        outOfInsights ? (
+          <div className="rounded-xl bg-white border p-4 flex items-start gap-3" style={{ borderColor: "var(--line)" }}>
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-4 h-4" /></span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
+              <p className="text-xs mt-0.5 mb-2.5" style={{ color: "var(--ink-3)" }}>You've used all {insightsLimit} AI insight runs on your plan this month. Upgrade for more, or they reset on the 1st.</p>
+              <button onClick={() => navigate("billing")} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(151,59,247,0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Upgrade for more</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>Run a deeper AI read of this resume: total and leadership experience, domain exposure, employer tenure, and any employment gaps.</p>
+            <button onClick={handleGenerate} disabled={generating} className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+              <Icon name="matching" className="w-4 h-4" /> {generating ? "Analyzing…" : "Generate AI insights"}
+            </button>
+          </>
+        )
+      ) : (
+        <div className="rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+          <InsightsDisplay insights={insights} />
+          <button onClick={handleGenerate} disabled={generating || outOfInsights} className="mt-3 text-xs font-medium disabled:opacity-50 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+            {generating ? "Re-analyzing…" : outOfInsights ? "No AI insight runs left this month" : "Regenerate"}
+          </button>
+        </div>
+      )}
+
+      {!insightsUnlimited && (
+        <div className="mt-3.5 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-medium" style={{ color: "var(--ink-3)" }}>AI insights this month</span>
+            <span className="text-[11px] font-semibold tnum" style={{ color: outOfInsights ? "#DC2626" : "var(--ink-2)" }}>{aiInsightsUsed} / {insightsLimit} used</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${insightsPct}%`, background: outOfInsights ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Sidebar "at a glance" card — scannable summary that fills the second column.
+  const topRole = parsed.experience?.[0];
+  const quickFacts = (
+    <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
+      <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
+      <div className="space-y-3">
+        {contextJobId && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>Pipeline stage</span>
+            <StageBadge stage={stage} />
+          </div>
+        )}
+        {parsed.years_of_experience != null && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>Experience</span>
+            <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{parsed.years_of_experience} yrs</span>
+          </div>
+        )}
+        {topRole && (
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Current role</span>
+            <span className="text-sm font-medium text-right min-w-0" style={{ color: "var(--ink)" }}>{topRole.title}<span className="block text-xs font-normal" style={{ color: "var(--ink-3)" }}>{topRole.company}</span></span>
+          </div>
+        )}
+        {parsed.location && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>Location</span>
+            <span className="text-sm font-medium text-right" style={{ color: "var(--ink)" }}>{parsed.location}</span>
+          </div>
+        )}
+      </div>
+      {parsed.skills?.length > 0 && (
+        <div className="mt-4 pt-3.5" style={{ borderTop: "1px solid var(--line)" }}>
+          <p className="text-[11px] font-medium mb-2" style={{ color: "var(--ink-3)" }}>Top skills</p>
+          <div className="flex flex-wrap gap-1.5">
+            {parsed.skills.slice(0, 6).map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
+    <div className="px-4 sm:px-6 py-6 sm:py-8">
+      <div className="max-w-[1400px] mx-auto">
         <BackLink onClick={() => navigate(-1)}>← Back</BackLink>
 
-        <div className="mt-4 mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <CandidateAvatar name={parsed.name} hasPhoto={candidate.hasPhoto} size={56} />
-            <div>
+        {/* Identity banner (full width) */}
+        <div className="mt-4 rounded-2xl bg-white border p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4" style={{ borderColor: "var(--line)" }}>
+          <CandidateAvatar name={parsed.name} hasPhoto={candidate.hasPhoto} size={64} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{parsed.name}</h1>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-neutral-600">
-                {parsed.email && <span>{parsed.email}</span>}
-                {parsed.phone && <span>{parsed.phone}</span>}
-                {parsed.location && <span>{parsed.location}</span>}
-                {parsed.years_of_experience != null && <span>{parsed.years_of_experience} yrs experience</span>}
+              {contextJobId && <StageBadge stage={stage} />}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm" style={{ color: "var(--ink-3)" }}>
+              {parsed.email && <span>{parsed.email}</span>}
+              {parsed.phone && <span>{parsed.phone}</span>}
+              {parsed.location && <span>{parsed.location}</span>}
+              {parsed.years_of_experience != null && <span>{parsed.years_of_experience} yrs experience</span>}
+            </div>
+            {(parsed.linkedin_url || parsed.portfolio_url) && (
+              <div className="flex items-center gap-3 mt-2">
+                {parsed.linkedin_url && <span className="text-xs" style={{ color: "var(--brand)" }}>LinkedIn ↗</span>}
+                {parsed.portfolio_url && <span className="text-xs" style={{ color: "var(--brand)" }}>Portfolio ↗</span>}
               </div>
-              {(parsed.linkedin_url || parsed.portfolio_url) && (
-                <div className="flex items-center gap-3 mt-2">
-                  {parsed.linkedin_url && (
-                    <span className="text-xs text-indigo-600">LinkedIn ↗</span>
-                  )}
-                  {parsed.portfolio_url && (
-                    <span className="text-xs text-indigo-600">Portfolio ↗</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          {planLimits(plan).storeOriginal ? (
-            <button
-              onClick={() => {}}
-              className="self-start shrink-0 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5"
-            >
-              <Icon name="doc" className="w-4 h-4" /> View original PDF
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate("billing")}
-              className="self-start shrink-0 rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80"
-              style={{ background: "var(--brand-soft)", color: "var(--brand)" }}
-              title="On Free, the original file isn't stored"
-            >
-              <Icon name="lock" className="w-3.5 h-3.5" /> Original not stored · Pro
-            </button>
-          )}
-        </div>
-
-        <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-medium text-indigo-700">AI Experience Insights</h2>
-              <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps." />
-            </div>
-            {insights && (
-              <span className="text-xs text-neutral-500">
-                Generated {new Date(insights.generated_at).toLocaleDateString()}
-              </span>
             )}
           </div>
-
-          {!insights ? (
-            <>
-              <p className="text-sm text-neutral-600 mb-3">
-                Run a deeper AI analysis of this resume — total experience, leadership time, domain
-                exposure, employer tenure, and any employment gaps.
-              </p>
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
-              >
-                {generating ? "Analyzing…" : "Generate AI Insights"}
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+            <button onClick={copyProfileLink} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5" title="Copy this candidate's profile link">
+              <Icon name={copied ? "check" : "link"} className="w-4 h-4" /> {copied ? "Copied" : "Copy link"}
+            </button>
+            {planLimits(plan).storeOriginal ? (
+              <button onClick={() => {}} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5">
+                <Icon name="doc" className="w-4 h-4" /> View original PDF
               </button>
-            </>
-          ) : (
-            <>
-              <InsightsDisplay insights={insights} />
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="mt-4 text-xs text-neutral-500 hover:text-neutral-700"
-              >
-                {generating ? "Re-analyzing…" : "Regenerate"}
+            ) : (
+              <button onClick={() => navigate("billing")} className="rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title="On Free, the original file isn't stored">
+                <Icon name="lock" className="w-3.5 h-3.5" /> Original not stored · Pro
               </button>
-            </>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* Two columns: resume + workflow in main, insights + summary in the sidebar */}
+        <div className="grid lg:grid-cols-3 gap-5 mt-5 items-start">
+          <div className="lg:col-span-2 space-y-5">
+            {aiInsightsCard}
 
         {parsed.summary && (
           <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
@@ -10577,6 +10645,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           />
         )}
         </>)}
+          </div>{/* main column */}
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+            {quickFacts}
+          </aside>
+        </div>{/* two-column grid */}
       </div>
     </div>
   );
@@ -11255,10 +11328,19 @@ const PATH_TO_SCREEN = {
 };
 const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword"]);
 
+// Each candidate profile has its own deep-linkable URL, /candidates/<id>.
+function candidateIdFromPath(pathname) {
+  const m = (pathname || "").match(/^\/candidates\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function screenFromPath(pathname) {
+  return candidateIdFromPath(pathname) ? "candidateProfile" : (PATH_TO_SCREEN[pathname] || "landing");
+}
+
 // Build the initial screen stack from the current URL (deep-link / refresh).
 function initialHistoryFromUrl() {
   if (typeof window === "undefined") return ["landing"];
-  const screen = PATH_TO_SCREEN[window.location.pathname] || "landing";
+  const screen = screenFromPath(window.location.pathname);
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
   return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
 }
@@ -11270,7 +11352,7 @@ export default function ResumeAIPreview() {
   // On the Free plan, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
   const [keptJobId, setKeptJobId] = useState("j1");
-  const [viewCandidateId, setViewCandidateId] = useState(null);
+  const [viewCandidateId, setViewCandidateId] = useState(() => (typeof window !== "undefined" ? candidateIdFromPath(window.location.pathname) : null));
   const [viewCandidateJobId, setViewCandidateJobId] = useState(null);
   const [viewCandidateStage, setViewCandidateStage] = useState(null);
   const [candidateFilter, setCandidateFilter] = useState(null);
@@ -11298,6 +11380,7 @@ export default function ResumeAIPreview() {
   // Shared monthly AI-match run counter (Free is limited; resets in production
   // each billing period — here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
+  const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("professional");
   const [signupCycle, setSignupCycle] = useState("monthly");
@@ -11350,7 +11433,7 @@ export default function ResumeAIPreview() {
   const screen = history[history.length - 1];
   const [newJobOpen, setNewJobOpen] = useState(false);
 
-  const navigate = (target) => {
+  const navigate = (target, path) => {
     if (target === "newJob") {
       // New Job is a modal overlay, not a routed screen.
       setNewJobOpen(true);
@@ -11363,7 +11446,7 @@ export default function ResumeAIPreview() {
       if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", SCREEN_TO_PATH.login);
     } else {
       setHistory((h) => [...h, target]);
-      if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", SCREEN_TO_PATH[target] || "/");
+      if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", path || SCREEN_TO_PATH[target] || "/");
     }
   };
 
@@ -11371,11 +11454,12 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
+    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
-      window.history.replaceState({ aster: true }, "", SCREEN_TO_PATH[history[0]] || "/");
+      window.history.replaceState({ aster: true }, "", pathFor(history[0]));
       for (let i = 1; i < history.length; i++) {
-        window.history.pushState({ aster: true }, "", SCREEN_TO_PATH[history[i]] || "/");
+        window.history.pushState({ aster: true }, "", pathFor(history[i]));
       }
     }
     // Follow the browser URL on Back/Forward and reconcile the in-app stack, so
@@ -11384,7 +11468,10 @@ export default function ResumeAIPreview() {
     // hash-anchor added browser entries the app didn't track, Back could leave
     // the login screen showing at the landing URL (and its menu links dead).
     const onPop = () => {
-      const target = PATH_TO_SCREEN[window.location.pathname] || "landing";
+      const path = window.location.pathname;
+      const cid = candidateIdFromPath(path);
+      const target = cid ? "candidateProfile" : (PATH_TO_SCREEN[path] || "landing");
+      if (cid) setViewCandidateId(cid);
       setHistory((h) => {
         const idx = h.lastIndexOf(target);
         if (idx >= 0) return h.slice(0, idx + 1);      // walk back to it in-stack
@@ -11401,7 +11488,7 @@ export default function ResumeAIPreview() {
     setViewCandidateId(candidateId);
     setViewCandidateJobId(jobId);
     setViewCandidateStage(stage);
-    navigate("candidateProfile");
+    navigate("candidateProfile", `/candidates/${candidateId}`);
   };
 
   const handlePreviewBooking = (request) => {
@@ -11675,6 +11762,8 @@ export default function ResumeAIPreview() {
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}
+            aiInsightsUsed={aiInsightsUsed}
+            setAiInsightsUsed={setAiInsightsUsed}
           />
         )}
         {screen === "candidates" && (
