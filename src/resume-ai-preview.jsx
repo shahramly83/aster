@@ -9283,13 +9283,13 @@ const EMAIL_TEMPLATE_DEFS = [
     subject: "A {{job_title}} role you might like",
     body: "Hi {{candidate_name}},\n\nIt has been a while since we last connected, but your background stood out to us and we are now hiring a {{job_title}}. If you are interested, tap the link below to see the role and apply with your latest resume. It only takes a minute.\n\n{{apply_link}}\n\nWe would love to reconnect." },
   { key: "offer", name: "Offer — you've been selected", desc: "Sent when you make an offer. Includes the accept / decline links.",
-    tokens: ["candidate_name", "job_title", "company", "hr_contact"],
+    tokens: ["candidate_name", "job_title", "company_name", "hr_contact"],
     subject: "You've been selected for the {{job_title}} role",
-    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company}}. Our HR team ({{hr_contact}}) will be in touch with the details.\n\nPlease confirm whether you'd like to accept using the buttons below.\n\nWarm regards,\nThe {{company}} Hiring Team" },
+    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Our HR team ({{hr_contact}}) will be in touch with the details.\n\nPlease confirm whether you'd like to accept using the buttons below.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
   { key: "rejection", name: "Rejection — application update", desc: "Sent when you reject a candidate with an email.",
-    tokens: ["candidate_name", "job_title", "company"],
+    tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Update on your application — {{job_title}}",
-    body: "Hi {{candidate_name}},\n\nThank you for applying for the {{job_title}} role at {{company}} and for the time you invested.\n\nAfter careful consideration we've decided not to move forward at this time. We genuinely appreciate your interest and wish you all the best.\n\nWarm regards,\nThe {{company}} Hiring Team" },
+    body: "Hi {{candidate_name}},\n\nThank you for applying for the {{job_title}} role at {{company_name}} and for the time you invested.\n\nAfter careful consideration we've decided not to move forward at this time. We genuinely appreciate your interest and wish you all the best.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
   { key: "interview_invite", name: "Interview invite", desc: "Sent when you invite a candidate to pick an interview slot.",
     tokens: ["candidate_name", "job_title", "interviewer_name", "booking_link"],
     subject: "Interview invitation — {{job_title}}",
@@ -9299,18 +9299,21 @@ const EMAIL_TEMPLATE_DEFS = [
     subject: "Your interview is confirmed — {{date_time}}",
     body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}.\n\nJoin here: {{meeting_link}}\n\nLooking forward to speaking,\nThe Hiring Team" },
   { key: "application_received", name: "Application received", desc: "Auto-reply when someone applies via the public link.",
-    tokens: ["candidate_name", "job_title", "company"],
+    tokens: ["candidate_name", "job_title", "company_name"],
     subject: "We've received your application — {{job_title}}",
-    body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company}}. We've received your application and will be in touch if there's a fit.\n\nWarm regards,\nThe {{company}} Hiring Team" },
+    body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company_name}}. We've received your application and will be in touch if there's a fit.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
   { key: "welcome_hired", name: "Welcome — offer accepted", desc: "Sent after a candidate accepts their offer.",
-    tokens: ["candidate_name", "job_title", "company"],
-    subject: "Welcome to {{company}}, {{candidate_name}}!",
-    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.\n\nWelcome aboard,\nThe {{company}} Team" },
+    tokens: ["candidate_name", "job_title", "company_name"],
+    subject: "Welcome to {{company_name}}, {{candidate_name}}!",
+    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.\n\nWelcome aboard,\nThe {{company_name}} Team" },
 ];
 
+// Placeholders offered in every template's editor, on top of its own tokens.
+const COMMON_TOKENS = ["company_name", "company_address", "interviewer_name", "logo"];
 // Sample values used to render the live preview.
 const TOKEN_SAMPLES = {
   candidate_name: "Amira Hassan", job_title: "Senior Frontend Engineer", company: "Oryx Studio",
+  company_name: "Oryx Studio", company_address: "Level 12, Menara Aster, Jalan Ampang, 50450 Kuala Lumpur",
   hr_contact: "Farah (HR)", interviewer_name: "Jane Tan", booking_link: "aster.my/book/xxxx",
   date_time: "Tue 8 Jul, 2:00 PM", meeting_link: "meet.google.com/xxx-xxxx", apply_link: "aster.my/apply/xxxx",
 };
@@ -9338,6 +9341,18 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
   };
   // Insert a placeholder at the end of the body (real editor would insert at cursor).
   const insertToken = (tok) => { setBody((b) => `${b}{{${tok}}}`); setSavedMsg(null); };
+  // Preview: fill text tokens, and render {{logo}} as the actual logo image.
+  const renderPreviewBody = (text) => {
+    const parts = fillTokens(text).split("{{logo}}"); // logo isn't in samples, so it survives fillTokens
+    return parts.map((p, i) => (
+      <Fragment key={i}>
+        {p}
+        {i < parts.length - 1 && (logoUrl
+          ? <img src={logoUrl} alt={company || "logo"} style={{ height: 22, display: "inline-block", verticalAlign: "middle", margin: "0 3px" }} />
+          : <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] align-middle" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>logo</span>)}
+      </Fragment>
+    ));
+  };
 
   // ---- List view ----
   if (!selected) {
@@ -9389,7 +9404,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
             <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
               <p className="text-xs text-neutral-400 mb-2">Preview with sample data</p>
               <p className="text-sm font-semibold text-neutral-900 mb-2">{fillTokens(subject)}</p>
-              <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{fillTokens(body)}</div>
+              <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{renderPreviewBody(body)}</div>
               {/* Auto letterhead — added under every email automatically from the
                   logo + company name set in Settings. Not part of the editable body. */}
               <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
@@ -9413,7 +9428,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
               <div className="mt-3">
                 <p className="text-[11px] text-neutral-500 mb-1.5">Insert a placeholder:</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {def.tokens.map((tok) => (
+                  {[...new Set([...(def.tokens || []), ...COMMON_TOKENS])].map((tok) => (
                     <button key={tok} onClick={() => insertToken(tok)}
                       className="text-[11px] font-mono rounded-full px-2 py-0.5 border transition-colors hover:bg-neutral-50"
                       style={{ borderColor: "var(--line-strong)", color: "var(--brand)", background: "var(--brand-soft)" }}>
