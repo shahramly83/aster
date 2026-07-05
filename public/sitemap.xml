@@ -42,4 +42,38 @@
 
   <!-- Sign-up entry -->
   <url><loc>https://hireaster.com/signup</loc><changefreq>monthly</changefreq><priority>0.6</priority><lastmod>2026-07-05</lastmod></url>
+  <!-- Resources: blog -->
+  <url><loc>https://hireaster.com/blog</loc><changefreq>weekly</changefreq><priority>0.8</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/category/ai-hiring</loc><changefreq>weekly</changefreq><priority>0.6</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/category/recruiting-ops</loc><changefreq>weekly</changefreq><priority>0.6</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/category/interviewing</loc><changefreq>weekly</changefreq><priority>0.6</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/how-ai-resume-screening-works</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/bias-in-hiring-ai</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/cut-time-to-hire</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/building-a-talent-pipeline</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/structured-interviews-guide</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/blog/interview-questions-that-reveal-skill</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+
+  <!-- Resources: glossary -->
+  <url><loc>https://hireaster.com/resources/glossary</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/applicant-tracking-system</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/resume-parsing</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/candidate-sourcing</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/talent-pool</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/talent-crm</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/boolean-search</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/screening</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/structured-interview</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/scorecard</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/time-to-hire</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/time-to-fill</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/quality-of-hire</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/cost-per-hire</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/offer-acceptance-rate</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/passive-candidate</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/employer-brand</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/candidate-experience</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/recruitment-funnel</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/job-requisition</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/resources/glossary/deduplication</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
 </urlset>

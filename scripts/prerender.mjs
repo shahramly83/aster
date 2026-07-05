@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
+import { BLOG_POSTS, BLOG_CATEGORIES, GLOSSARY_TERMS } from "../src/resources-content.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = join(__dirname, "..", "dist");
@@ -31,6 +32,13 @@ const ROUTES = [
   "/solutions/industries/technology", "/solutions/industries/healthcare",
   "/solutions/industries/retail", "/solutions/industries/professional-services",
   "/solutions/industries/manufacturing",
+  // Resources — blog + glossary (derived from src/resources-content.js so they
+  // stay in sync as content is added).
+  "/blog",
+  ...BLOG_CATEGORIES.map((c) => `/blog/category/${c.slug}`),
+  ...BLOG_POSTS.map((p) => `/blog/${p.slug}`),
+  "/resources/glossary",
+  ...GLOSSARY_TERMS.map((t) => `/resources/glossary/${t.slug}`),
 ];
 
 const MIME = {

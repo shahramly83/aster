@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
+import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
 
@@ -2061,7 +2062,7 @@ function SchedulingPreview() {
   );
 }
 
-function LandingScreen({ navigate, goProduct, goSolution, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
+function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
@@ -2256,7 +2257,7 @@ function LandingScreen({ navigate, goProduct, goSolution, logoUrl, setSignupPlan
       {/* Shared marketing nav — identical on landing + product pages.
           onLanding lets Pricing/FAQ scroll in place; onCta keeps the landing's
           14-day-trial signup for Get started. */}
-      <MarketingNav navigate={navigate} goProduct={goProduct} goSolution={goSolution} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
+      <MarketingNav navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
 
       {/* Hero — the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
@@ -3059,7 +3060,7 @@ function LandingScreen({ navigate, goProduct, goSolution, logoUrl, setSignupPlan
       </section>
 
       {/* Shared marketing footer — identical on landing + product pages */}
-      <MarketingFooter navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} onLanding />
+      <MarketingFooter navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} onLanding />
     </div>
   );
 }
@@ -3481,11 +3482,16 @@ function scrollToLandingSection(id) {
 // route change when those sections are already on the current page. `onCta`
 // lets the landing page keep its 14-day-trial signup for Get started.
 // `current` = active product slug (or null); `currentSol` = active solution slug.
-function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, currentSol, logoUrl, onLanding = false, onCta }) {
+function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, current, currentSol, logoUrl, onLanding = false, onCta }) {
   const [menuOpen, setMenuOpen] = useState(false);   // mobile
   const [prodOpen, setProdOpen] = useState(false);   // desktop Product mega-menu
   const [solOpen, setSolOpen] = useState(false);     // desktop Solutions mega-menu
+  const [resOpen, setResOpen] = useState(false);     // desktop Resources menu
   const [scrolled, setScrolled] = useState(false);
+  const RESOURCES = [
+    { label: "Blog", desc: "Hiring, recruiting and AI, written well.", icon: "doc", go: () => goBlog({}) },
+    { label: "Recruiting glossary", desc: "Every hiring term, in plain English.", icon: "search", go: () => goGlossary("") },
+  ];
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -3499,7 +3505,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, cur
     if (!onLanding) navigate("landing");
     scrollToLandingSection(id);
   };
-  const closeMenus = () => { setProdOpen(false); setSolOpen(false); };
+  const closeMenus = () => { setProdOpen(false); setSolOpen(false); setResOpen(false); };
   // Both mega-menus share one full-width panel footprint (logo → Get started),
   // so switching between Product and Solutions swaps content in place instead of
   // shifting the dropdown left/right.
@@ -3513,11 +3519,14 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, cur
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between relative" onMouseLeave={closeMenus}>
           <button onClick={() => navigate("landing")} onMouseEnter={closeMenus} aria-label="Aster home"><BrandLogo onDark large logoUrl={logoUrl} /></button>
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <button onMouseEnter={() => { setProdOpen(true); setSolOpen(false); }} onClick={() => goProduct("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: current != null || prodOpen ? "#fff" : "var(--navy-ink)" }}>
+            <button onMouseEnter={() => { setProdOpen(true); setSolOpen(false); setResOpen(false); }} onClick={() => goProduct("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: current != null || prodOpen ? "#fff" : "var(--navy-ink)" }}>
               Product <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${prodOpen ? "rotate-180" : ""}`} />
             </button>
-            <button onMouseEnter={() => { setSolOpen(true); setProdOpen(false); }} onClick={() => goSolution("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: currentSol != null || solOpen ? "#fff" : "var(--navy-ink)" }}>
+            <button onMouseEnter={() => { setSolOpen(true); setProdOpen(false); setResOpen(false); }} onClick={() => goSolution("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: currentSol != null || solOpen ? "#fff" : "var(--navy-ink)" }}>
               Solutions <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${solOpen ? "rotate-180" : ""}`} />
+            </button>
+            <button onMouseEnter={() => { setResOpen(true); setProdOpen(false); setSolOpen(false); }} onClick={() => goBlog({})} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: resOpen ? "#fff" : "var(--navy-ink)" }}>
+              Resources <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${resOpen ? "rotate-180" : ""}`} />
             </button>
             <button onMouseEnter={closeMenus} onClick={() => goSection("pricing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
             <button onMouseEnter={closeMenus} onClick={() => goSection("faq")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>FAQ</button>
@@ -3590,6 +3599,35 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, cur
               </div>
             </div>
           )}
+
+          {/* Resources menu — compact two-item dropdown */}
+          {resOpen && (
+            <div className={panelWrap}>
+              <div className={panelCard} style={panelStyle}>
+                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(217,139,245,0.16), rgba(90,120,248,0.10))", borderRight: "1px solid var(--navy-line)" }}>
+                  <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #D98BF5 0%, transparent 70%)" }} />
+                  <div className="relative">
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="doc" className="w-5 h-5" /></span>
+                    <p className="text-white font-display font-semibold text-base" style={{ letterSpacing: "-0.01em", lineHeight: 1.25 }}>Learn to hire better.</p>
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Guides, definitions and playbooks from the Aster team.</p>
+                  </div>
+                  <button onClick={() => { closeMenus(); goBlog({}); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>Visit the blog <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                </div>
+                <div className="flex-1 p-4 grid sm:grid-cols-2 gap-x-3 gap-y-1 min-w-0">
+                  {RESOURCES.map((r) => (
+                    <button key={r.label} onClick={() => { closeMenus(); r.go(); }} className="group text-left flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.04]">
+                      <span className="shrink-0 mt-px text-[color:var(--navy-ink)] group-hover:text-[#C79BFF] transition-colors"><Icon name={r.icon} className="w-[18px] h-[18px]" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-white/90 group-hover:text-white truncate">{r.label}</span>
+                        <span className="block text-xs mt-0.5 leading-snug" style={{ color: "var(--navy-ink)" }}>{r.desc}</span>
+                      </span>
+                      <Icon name="arrowUpRight" className="w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 text-[#C79BFF]" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
       {menuOpen && (
@@ -3633,6 +3671,13 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, cur
                 <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
               </button>
             ))}
+            <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Resources</p>
+            {[["Blog", () => goBlog({})], ["Recruiting glossary", () => goGlossary("")]].map(([label, go]) => (
+              <button key={label} onClick={() => { setMenuOpen(false); go(); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                <span className="flex-1 text-white font-medium">{label}</span>
+                <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+              </button>
+            ))}
             <div className="mt-4 space-y-2.5">
               <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
               <button onClick={() => { setMenuOpen(false); cta(); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white">Get started</button>
@@ -3648,7 +3693,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, cur
 // every product page: brand · the full Product module directory · the Solutions
 // directory (role / stage / industry) · Explore + Get started. `onLanding`
 // skips the route change for Pricing/FAQ when those sections are on this page.
-function MarketingFooter({ navigate, goProduct, goSolution = () => {}, logoUrl, onLanding = false }) {
+function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, logoUrl, onLanding = false }) {
   const goSection = (id) => {
     if (!onLanding) navigate("landing");
     scrollToLandingSection(id);
@@ -3683,6 +3728,8 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, logoUrl, 
             <ul className="space-y-2.5 text-sm">
               <li><button onClick={() => goSection("pricing")} className="footer-link inline-block py-0.5 text-left">Pricing</button></li>
               <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
+              <li><button onClick={() => goBlog({})} className="footer-link inline-block py-0.5 text-left">Blog</button></li>
+              <li><button onClick={() => goGlossary("")} className="footer-link inline-block py-0.5 text-left">Glossary</button></li>
               <li><button onClick={() => goProduct("changelog")} className="footer-link inline-block py-0.5 text-left">What's new</button></li>
             </ul>
           </div>
@@ -4047,8 +4094,8 @@ function ProductCTA({ navigate }) {
 }
 
 // One page per module (or the overview hub / changelog). Slug "" = overview.
-function ProductScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, logoUrl };
+function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
   const isOverview = !slug;
   const isChangelog = slug === "changelog";
   const page = PRODUCT_PAGES[slug];
@@ -4181,8 +4228,8 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) 
 // Solutions pages share the exact visual language of the product pages (same
 // Hero, feature grid and highlight band) so the whole marketing site reads as
 // one system. Slug "" = the segmentation hub; any other slug = a segment page.
-function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, logoUrl };
+function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
   const isHub = !slug;
   const page = SOLUTIONS_PAGES[slug];
   const heroNav = { navigate, secondaryLabel: "All solutions", onSecondary: () => goSolution("") };
@@ -4345,6 +4392,258 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
   );
 }
 
+
+// ---------- Resources: Blog + Glossary ----------
+const _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtDate(iso) {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+const blogCat = (slug) => BLOG_CATEGORIES.find((c) => c.slug === slug);
+
+// Render a post's body blocks: { h } → heading, { ul } → list, { p } → paragraph.
+function ArticleBody({ blocks }) {
+  return blocks.map((b, i) =>
+    b.h ? (
+      <h2 key={i} className="text-white font-display font-semibold mt-9 mb-3" style={{ fontSize: "1.4rem", letterSpacing: "-0.01em" }}>{b.h}</h2>
+    ) : b.ul ? (
+      <ul key={i} className="my-4 space-y-2.5">
+        {b.ul.map((li, j) => (
+          <li key={j} className="flex items-start gap-3 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>
+            <span className="shrink-0 mt-2 w-1.5 h-1.5 rounded-full" style={{ background: "#C79BFF" }} /> <span>{li}</span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{b.p}</p>
+    )
+  );
+}
+
+function BlogPostCard({ post, onOpen, featured = false }) {
+  const cat = blogCat(post.category);
+  return (
+    <button onClick={onOpen} className={`group text-left rounded-2xl transition-all hover:-translate-y-1 flex flex-col ${featured ? "p-6 sm:p-8" : "p-5 sm:p-6"}`} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full self-start" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}>
+        <Icon name={cat?.icon || "doc"} className="w-3 h-3" /> {cat?.label}
+      </span>
+      <p className={`mt-3 text-white font-semibold font-display leading-snug ${featured ? "text-2xl" : "text-lg"}`} style={{ letterSpacing: "-0.01em" }}>{post.title}</p>
+      <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--navy-ink)" }}>{post.excerpt}</p>
+      <div className="mt-4 flex items-center gap-2 text-xs" style={{ color: "var(--ink-3)" }}>
+        <span className="text-white/70">{post.author.name}</span><span>·</span><span>{fmtDate(post.date)}</span><span>·</span><span>{post.readMins} min read</span>
+      </div>
+    </button>
+  );
+}
+
+function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
+
+  // ── Single post ──
+  if (slug) {
+    const post = BLOG_POSTS.find((p) => p.slug === slug);
+    if (!post) {
+      return (
+        <div style={{ background: "#050610", minHeight: "100vh" }}>
+          <MarketingNav {...nav} current={null} />
+          <div className="max-w-3xl mx-auto px-6 py-24 text-center">
+            <h1 className="text-2xl font-bold text-white font-display">Article not found</h1>
+            <button onClick={() => goBlog({})} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to the blog</button>
+          </div>
+        </div>
+      );
+    }
+    const category = blogCat(post.category);
+    const related = BLOG_POSTS.filter((p) => p.category === post.category && p.slug !== post.slug).slice(0, 2);
+    return (
+      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MarketingNav {...nav} current={null} />
+        {/* Article header */}
+        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.28) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.22) 0%, transparent 60%)" }} />
+          <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
+            <button onClick={() => goBlog({})} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All articles</button>
+            <button onClick={() => goBlog({ category: post.category })} className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+              <Icon name={category?.icon || "doc"} className="w-3.5 h-3.5" /> {category?.label}
+            </button>
+            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.9rem, 4vw, 2.9rem)", lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{post.title}</h1>
+            <div className="mt-6 flex items-center gap-3 text-sm" style={{ color: "var(--navy-ink)" }}>
+              <span className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold brand-gradient shrink-0">{post.author.name.charAt(0)}</span>
+              <span><span className="text-white/90 font-medium">{post.author.name}</span> · {post.author.role}</span>
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline">{fmtDate(post.date)} · {post.readMins} min read</span>
+            </div>
+          </div>
+        </section>
+        {/* Article body */}
+        <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            <article className="max-w-[42rem]"><ArticleBody blocks={post.body} /></article>
+            {/* Tags */}
+            {post.tags?.length > 0 && (
+              <div className="mt-10 flex flex-wrap gap-2">
+                {post.tags.map((t) => (
+                  <span key={t} className="text-xs px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>{t}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+        {/* Related */}
+        {related.length > 0 && (
+          <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6">
+              <h2 className="text-white font-display font-semibold text-xl mb-6">More in {category?.label}</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {related.map((p) => <BlogPostCard key={p.slug} post={p} onOpen={() => goBlog({ post: p.slug })} />)}
+              </div>
+            </div>
+          </section>
+        )}
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Category view or index ──
+  const activeCat = cat ? blogCat(cat) : null;
+  const posts = cat ? BLOG_POSTS.filter((p) => p.category === cat) : BLOG_POSTS;
+  const featured = !cat ? posts[0] : null;
+  const rest = featured ? posts.slice(1) : posts;
+  return (
+    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <MarketingNav {...nav} current={null} />
+      <MarketingHero
+        navigate={navigate}
+        eyebrow={activeCat ? activeCat.label : "The Aster blog"}
+        icon={activeCat ? activeCat.icon : "doc"}
+        title={activeCat ? activeCat.label : "Writing on hiring,"}
+        accent={activeCat ? "" : "done well."}
+        subtitle={activeCat ? activeCat.desc : "Practical pieces on AI screening, recruiting operations and structured interviews — for teams that want to hire faster without lowering the bar."}
+        secondaryLabel={cat ? "All articles" : undefined}
+        onSecondary={cat ? () => goBlog({}) : undefined}
+      />
+      {/* Category filters */}
+      <section className="pt-10" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => goBlog({})} className="text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: !cat ? "rgba(151,59,247,0.16)" : "rgba(255,255,255,0.03)", color: !cat ? "#fff" : "var(--navy-ink)", border: `1px solid ${!cat ? "rgba(178,116,255,0.3)" : "var(--navy-line)"}` }}>All</button>
+            {BLOG_CATEGORIES.map((c) => (
+              <button key={c.slug} onClick={() => goBlog({ category: c.slug })} className="inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: cat === c.slug ? "rgba(151,59,247,0.16)" : "rgba(255,255,255,0.03)", color: cat === c.slug ? "#fff" : "var(--navy-ink)", border: `1px solid ${cat === c.slug ? "rgba(178,116,255,0.3)" : "var(--navy-line)"}` }}>
+                <Icon name={c.icon} className="w-3.5 h-3.5" /> {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* Featured (index only) */}
+      {featured && (
+        <section className="pt-8" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <BlogPostCard post={featured} featured onOpen={() => goBlog({ post: featured.slug })} />
+          </div>
+        </section>
+      )}
+      {/* Grid */}
+      <section className="py-10 sm:py-14" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {rest.map((p) => <BlogPostCard key={p.slug} post={p} onOpen={() => goBlog({ post: p.slug })} />)}
+          </div>
+        </div>
+      </section>
+      <ProductCTA navigate={navigate} />
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
+
+function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
+
+  // ── Single term ──
+  if (slug) {
+    const term = GLOSSARY_TERMS.find((g) => g.slug === slug);
+    if (!term) {
+      return (
+        <div style={{ background: "#050610", minHeight: "100vh" }}>
+          <MarketingNav {...nav} current={null} />
+          <div className="max-w-3xl mx-auto px-6 py-24 text-center">
+            <h1 className="text-2xl font-bold text-white font-display">Term not found</h1>
+            <button onClick={() => goGlossary("")} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to the glossary</button>
+          </div>
+        </div>
+      );
+    }
+    const related = (term.related || []).map((s) => GLOSSARY_TERMS.find((g) => g.slug === s)).filter(Boolean);
+    return (
+      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MarketingNav {...nav} current={null} />
+        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.26) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.2) 0%, transparent 60%)" }} />
+          <div className="relative max-w-3xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
+            <button onClick={() => goGlossary("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> Recruiting glossary</button>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#C79BFF" }}>Definition</p>
+            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2rem, 4vw, 3rem)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>{term.term}</h1>
+            <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--navy-ink)" }}>{term.short}</p>
+          </div>
+        </section>
+        <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            <article className="max-w-[42rem]">
+              {term.body.map((p, i) => <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{p}</p>)}
+            </article>
+            {related.length > 0 && (
+              <div className="mt-10 pt-8" style={{ borderTop: "1px solid var(--navy-line)" }}>
+                <p className="text-sm font-semibold text-white mb-3">Related terms</p>
+                <div className="flex flex-wrap gap-2">
+                  {related.map((r) => (
+                    <button key={r.slug} onClick={() => goGlossary(r.slug)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full transition-colors hover:bg-white/[0.06]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+                      {r.term} <Icon name="arrowUpRight" className="w-3.5 h-3.5" style={{ color: "#C79BFF" }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Index (A–Z) ──
+  const sorted = [...GLOSSARY_TERMS].sort((a, b) => a.term.localeCompare(b.term));
+  return (
+    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <MarketingNav {...nav} current={null} />
+      <MarketingHero
+        navigate={navigate}
+        eyebrow="Recruiting glossary"
+        icon="doc"
+        title="Every hiring term,"
+        accent="in plain English."
+        subtitle="From applicant tracking systems to quality of hire — clear definitions of the words recruiters and hiring managers use every day."
+      />
+      <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {sorted.map((t) => (
+              <button key={t.slug} onClick={() => goGlossary(t.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1 flex flex-col" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                <p className="text-white font-semibold font-display flex items-center gap-1.5">{t.term} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{t.short}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+      <ProductCTA navigate={navigate} />
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
 
 function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft }) {
   const [companyName, setCompanyName] = useState("");
@@ -12754,11 +13053,15 @@ const SCREEN_TO_PATH = {
   apply: "/apply",
   product: "/product",
   solutions: "/solutions",
+  blog: "/blog",
+  glossary: "/resources/glossary",
 };
 const PATH_TO_SCREEN = {
   "/": "landing",
   "/product": "product",
   "/solutions": "solutions",
+  "/blog": "blog",
+  "/resources/glossary": "glossary",
   "/login": "login",
   "/forgot-password": "forgotPassword",
   "/signup": "signup",
@@ -12797,10 +13100,27 @@ function solutionSlugFromPath(pathname) {
   const m = (pathname || "").match(/^\/solutions\/(.+)$/);
   return m ? m[1] : null; // null → not a solutions path
 }
+// Blog: /blog (index), /blog/category/<slug>, /blog/<slug> (post).
+function blogInfoFromPath(pathname) {
+  if (pathname === "/blog") return { kind: "index", slug: "" };
+  let m = (pathname || "").match(/^\/blog\/category\/([^/]+)$/);
+  if (m) return { kind: "category", slug: m[1] };
+  m = (pathname || "").match(/^\/blog\/([^/]+)$/);
+  if (m) return { kind: "post", slug: m[1] };
+  return null;
+}
+// Glossary: /resources/glossary (index) and /resources/glossary/<slug> (term).
+function glossaryInfoFromPath(pathname) {
+  if (pathname === "/resources/glossary") return { kind: "index", slug: "" };
+  const m = (pathname || "").match(/^\/resources\/glossary\/([^/]+)$/);
+  return m ? { kind: "term", slug: m[1] } : null;
+}
 function screenFromPath(pathname) {
   if (candidateIdFromPath(pathname)) return "candidateProfile";
   if (productSlugFromPath(pathname) != null) return "product";
   if (solutionSlugFromPath(pathname) != null) return "solutions";
+  if (blogInfoFromPath(pathname)) return "blog";
+  if (glossaryInfoFromPath(pathname)) return "glossary";
   return PATH_TO_SCREEN[pathname] || "landing";
 }
 
@@ -12927,11 +13247,42 @@ const PAGE_META = {
     title: "Manufacturing & Logistics Hiring Software | Aster",
     description: "Fill skilled roles and every shift. Aster screens and schedules high-volume manufacturing and logistics applicants so no line runs short-staffed.",
   },
+  "/blog": {
+    title: "The Aster Blog — Hiring, Recruiting & AI",
+    description: "Practical writing on AI screening, recruiting operations and structured interviews — for teams that want to hire faster without lowering the bar.",
+  },
+  "/resources/glossary": {
+    title: "Recruiting Glossary — Hiring Terms Explained | Aster",
+    description: "Plain-English definitions of recruiting and hiring terms, from applicant tracking systems to quality of hire. A reference for anyone who hires.",
+  },
+};
+const clampDesc = (s, n = 160) => {
+  const t = (s || "").replace(/\s+/g, " ").trim();
+  return t.length <= n ? t : t.slice(0, n - 1).replace(/\s+\S*$/, "") + "…";
 };
 // Returns { title, description, path } for the current route. Marketing routes
 // get their keyword-optimized metadata from PAGE_META; app (authenticated)
 // screens fall back to the default marketing title since they're noindex.
-function routeMeta(screen, productSlug, solutionSlug) {
+function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug) {
+  // Blog: dynamic per post / category, static index.
+  if (screen === "blog") {
+    if (blogSlug) {
+      const post = BLOG_POSTS.find((p) => p.slug === blogSlug);
+      if (post) return { title: `${post.title} | Aster`, description: clampDesc(post.excerpt), path: `/blog/${blogSlug}` };
+    } else if (blogCat) {
+      const cat = BLOG_CATEGORIES.find((c) => c.slug === blogCat);
+      if (cat) return { title: `${cat.label} — Aster Blog`, description: clampDesc(cat.desc), path: `/blog/category/${blogCat}` };
+    }
+    return { ...PAGE_META["/blog"], path: "/blog" };
+  }
+  // Glossary: dynamic per term, static index.
+  if (screen === "glossary") {
+    if (glossarySlug) {
+      const t = GLOSSARY_TERMS.find((g) => g.slug === glossarySlug);
+      if (t) return { title: `${t.term} — Recruiting Glossary | Aster`, description: clampDesc(t.short), path: `/resources/glossary/${glossarySlug}` };
+    }
+    return { ...PAGE_META["/resources/glossary"], path: "/resources/glossary" };
+  }
   let path;
   if (screen === "product") path = "/product" + (productSlug ? `/${productSlug}` : "");
   else if (screen === "solutions") path = "/solutions" + (solutionSlug ? `/${solutionSlug}` : "");
@@ -12947,6 +13298,8 @@ function initialHistoryFromUrl() {
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
   if (screen === "product") return ["landing", "product"]; // public page; Back → landing
   if (screen === "solutions") return ["landing", "solutions"]; // public page; Back → landing
+  if (screen === "blog") return ["landing", "blog"]; // public content page
+  if (screen === "glossary") return ["landing", "glossary"]; // public content page
   return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
 }
 
@@ -12954,6 +13307,11 @@ export default function ResumeAIPreview() {
   const [history, setHistory] = useState(initialHistoryFromUrl);
   const [productSlug, setProductSlug] = useState(() => (typeof window !== "undefined" ? (productSlugFromPath(window.location.pathname) || "") : ""));
   const [solutionSlug, setSolutionSlug] = useState(() => (typeof window !== "undefined" ? (solutionSlugFromPath(window.location.pathname) || "") : ""));
+  // Resources: blog post slug + blog category slug (mutually exclusive; both ""
+  // = index) and the glossary term slug ("" = index), seeded from the URL.
+  const [blogSlug, setBlogSlug] = useState(() => { const i = typeof window !== "undefined" && blogInfoFromPath(window.location.pathname); return i && i.kind === "post" ? i.slug : ""; });
+  const [blogCat, setBlogCat] = useState(() => { const i = typeof window !== "undefined" && blogInfoFromPath(window.location.pathname); return i && i.kind === "category" ? i.slug : ""; });
+  const [glossarySlug, setGlossarySlug] = useState(() => { const i = typeof window !== "undefined" && glossaryInfoFromPath(window.location.pathname); return i && i.kind === "term" ? i.slug : ""; });
   const [jobs, setJobs] = useState(MOCK_JOBS);
   const [activeJobId, setActiveJobId] = useState("j1");
   // On the Free plan, only one job stays active; the rest are paused (kept, not
@@ -13072,7 +13430,7 @@ export default function ResumeAIPreview() {
   // page has its own title, description and canonical (crawlers render JS).
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const meta = routeMeta(screen, productSlug, solutionSlug);
+    const meta = routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug);
     document.title = meta.title;
     const setMeta = (selector, attr, key, value) => {
       let el = document.head.querySelector(selector);
@@ -13097,7 +13455,39 @@ export default function ResumeAIPreview() {
       document.head.appendChild(link);
     }
     link.setAttribute("href", url);
-  }, [screen, productSlug, solutionSlug]);
+
+    // Per-page structured data: BlogPosting for articles, DefinedTerm for
+    // glossary entries. Removed on pages that don't need it (the site-wide
+    // Organization/WebSite graph lives statically in index.html).
+    let ld = null;
+    if (screen === "blog" && blogSlug) {
+      const post = BLOG_POSTS.find((p) => p.slug === blogSlug);
+      if (post) ld = {
+        "@context": "https://schema.org", "@type": "BlogPosting",
+        headline: post.title, description: post.excerpt,
+        datePublished: post.date, dateModified: post.date,
+        author: { "@type": "Person", name: post.author.name, jobTitle: post.author.role },
+        publisher: { "@type": "Organization", name: "Aster", logo: { "@type": "ImageObject", url: SITE_ORIGIN + "/aster-mark.svg" } },
+        image: SITE_ORIGIN + "/og-image.svg",
+        mainEntityOfPage: { "@type": "WebPage", "@id": url },
+        keywords: (post.tags || []).join(", "),
+      };
+    } else if (screen === "glossary" && glossarySlug) {
+      const t = GLOSSARY_TERMS.find((g) => g.slug === glossarySlug);
+      if (t) ld = {
+        "@context": "https://schema.org", "@type": "DefinedTerm",
+        name: t.term, description: t.short, url,
+        inDefinedTermSet: { "@type": "DefinedTermSet", name: "Aster Recruiting Glossary", url: SITE_ORIGIN + "/resources/glossary" },
+      };
+    }
+    let ldEl = document.getElementById("ld-page");
+    if (ld) {
+      if (!ldEl) { ldEl = document.createElement("script"); ldEl.id = "ld-page"; ldEl.type = "application/ld+json"; document.head.appendChild(ldEl); }
+      ldEl.textContent = JSON.stringify(ld);
+    } else if (ldEl) {
+      ldEl.remove();
+    }
+  }, [screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug]);
 
   const navigate = (target, path) => {
     // Remember where we are before leaving, so Back can restore it.
@@ -13112,7 +13502,7 @@ export default function ResumeAIPreview() {
     } else if (target === "login") {
       setHistory(["login"]);
       if (typeof window !== "undefined") { window.history.pushState({ aster: true }, "", SCREEN_TO_PATH.login); window.scrollTo(0, 0); }
-    } else if ((target === "product" || target === "solutions") && target === screen) {
+    } else if ((target === "product" || target === "solutions" || target === "blog" || target === "glossary") && target === screen) {
       // Re-navigating within the same marketing section (solution → solution,
       // product → product): replace the current entry instead of stacking
       // another same-named one. The name-based history stack can't tell two
@@ -13130,7 +13520,7 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
-    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
+    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
       window.history.replaceState({ aster: true }, "", pathFor(history[0]));
@@ -13148,10 +13538,14 @@ export default function ResumeAIPreview() {
       const cid = candidateIdFromPath(path);
       const pslug = productSlugFromPath(path);
       const sslug = solutionSlugFromPath(path);
-      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (sslug != null ? "solutions" : (PATH_TO_SCREEN[path] || "landing")));
+      const binfo = blogInfoFromPath(path);
+      const ginfo = glossaryInfoFromPath(path);
+      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (PATH_TO_SCREEN[path] || "landing")))));
       if (cid) setViewCandidateId(cid);
       if (pslug != null) setProductSlug(pslug);
       if (sslug != null) setSolutionSlug(sslug);
+      if (binfo) { setBlogSlug(binfo.kind === "post" ? binfo.slug : ""); setBlogCat(binfo.kind === "category" ? binfo.slug : ""); }
+      if (ginfo) setGlossarySlug(ginfo.kind === "term" ? ginfo.slug : "");
       setHistory((h) => {
         const idx = h.lastIndexOf(target);
         if (idx >= 0) return h.slice(0, idx + 1);      // walk back to it in-stack
@@ -13180,6 +13574,19 @@ export default function ResumeAIPreview() {
   const goSolution = (slug = "") => {
     setSolutionSlug(slug);
     navigate("solutions", "/solutions" + (slug ? `/${slug}` : ""));
+  };
+
+  // Open a Resources page. goBlog({}) = index, {post} = article, {category} = filtered.
+  const goBlog = (opts = {}) => {
+    const post = opts.post || "";
+    const cat = opts.category || "";
+    setBlogSlug(post);
+    setBlogCat(cat);
+    navigate("blog", post ? `/blog/${post}` : cat ? `/blog/category/${cat}` : "/blog");
+  };
+  const goGlossary = (slug = "") => {
+    setGlossarySlug(slug);
+    navigate("glossary", slug ? `/resources/glossary/${slug}` : "/resources/glossary");
   };
 
   const handlePreviewBooking = (request) => {
@@ -13261,7 +13668,7 @@ export default function ResumeAIPreview() {
   if (screen === "landing") {
     return (
       <Shell>
-        <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
+        <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
       </Shell>
     );
   }
@@ -13269,7 +13676,7 @@ export default function ResumeAIPreview() {
   if (screen === "product") {
     return (
       <Shell>
-        <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} />
+        <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
       </Shell>
     );
   }
@@ -13277,7 +13684,23 @@ export default function ResumeAIPreview() {
   if (screen === "solutions") {
     return (
       <Shell>
-        <SolutionsScreen slug={solutionSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} />
+        <SolutionsScreen slug={solutionSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "blog") {
+    return (
+      <Shell>
+        <BlogScreen slug={blogSlug} cat={blogCat} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "glossary") {
+    return (
+      <Shell>
+        <GlossaryScreen slug={glossarySlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
       </Shell>
     );
   }
