@@ -9966,6 +9966,103 @@ const MOCK_INSIGHTS = {
   },
 };
 
+// --- Derived AI Experience Insights ---------------------------------------
+// When there's no curated MOCK_INSIGHTS for a candidate, compute solid, real
+// insights from the parsed resume so every profile shows substantive analysis
+// rather than a thin placeholder. This stands in for the real model output.
+const LEADERSHIP_RE = /\b(senior|lead|principal|staff|head|director|manager|chief|vp|vice president|founder|co-?founder|president|partner)\b/i;
+const DOMAIN_SHORT = {
+  "Finance & Fintech": "Fintech", "E-commerce & Retail": "E-commerce", "Media & Creative": "Media",
+  "Logistics & Operations": "Logistics", "Travel & Aviation": "Travel", "Professional Services": "Consulting",
+  Technology: "Tech", Healthcare: "Healthcare",
+};
+const ENTERPRISE_COMPANIES = new Set(["MDEC", "iPay88", "Maybank", "Shopee", "Pos Malaysia", "Naga DDB", "Leo Burnett", "AirAsia", "Gleneagles Hospital", "KPMG"]);
+const STARTUP_COMPANIES = new Set(["Grabtech", "Grab", "Setel", "StoreHub", "Piktochart", "Oryx Studio", "MoneyLion", "StashAway", "Fave", "Carsome", "FashionValet", "iflix", "Studio Kite"]);
+function parseDuration(duration) {
+  const nowY = new Date().getFullYear();
+  const s = String(duration || "");
+  const present = /present|current|now/i.test(s);
+  const yrs = (s.match(/\b(?:19|20)\d{2}\b/g) || []).map(Number);
+  if (!yrs.length) return null;
+  const start = yrs[0];
+  const end = present ? nowY : (yrs[1] ?? yrs[0]);
+  return { start, end: Math.max(end, start) };
+}
+function roleMonths(duration) {
+  const p = parseDuration(duration);
+  if (!p) return 12;
+  return Math.max(12, (p.end - p.start) * 12);
+}
+function deriveInsights(candidate) {
+  const p = candidate?.parsed || {};
+  const exp = (p.experience || []).filter(Boolean);
+  const raw = exp.map((e) => ({ e, months: roleMonths(e.duration) }));
+  const rawTotal = raw.reduce((s, r) => s + r.months, 0);
+  const totalYears = p.years_of_experience != null ? p.years_of_experience : Math.max(1, Math.round((rawTotal / 12) * 10) / 10);
+  // Scale role durations so domain / tenure figures sum to the stated total.
+  const scale = (p.years_of_experience != null && rawTotal > 0) ? (p.years_of_experience * 12) / rawTotal : 1;
+  const sm = (r) => r.months * scale;
+  const yrs = (m) => Math.round((m / 12) * 10) / 10;
+
+  const leadershipMonths = raw.filter((r) => LEADERSHIP_RE.test(r.e.title || "")).reduce((s, r) => s + sm(r), 0);
+
+  const domainMonths = {};
+  raw.forEach((r) => { const ind = COMPANY_INDUSTRY[r.e.company]; if (ind) domainMonths[ind] = (domainMonths[ind] || 0) + sm(r); });
+  const domain_experience = Object.entries(domainMonths)
+    .map(([d, m]) => ({ domain: DOMAIN_SHORT[d] || d, years: yrs(m) }))
+    .filter((x) => x.years > 0).sort((a, b) => b.years - a.years).slice(0, 3);
+
+  const companies = raw.map((r) => r.e.company).filter(Boolean);
+  const enterprise = companies.some((c) => ENTERPRISE_COMPANIES.has(c));
+  const startup = companies.some((c) => STARTUP_COMPANIES.has(c));
+  const hay = `${p.summary || ""} ${exp.map((e) => e.summary || "").join(" ")} ${p.location || ""}`.toLowerCase();
+  const remote = /\bremote\b|work from home|distributed team|hybrid/.test(hay);
+
+  const distinct = [...new Set(companies)];
+  const tenures = raw.map((r) => ({ company: r.e.company, months: Math.round(sm(r)) }));
+  const avg = tenures.length ? Math.round(tenures.reduce((s, t) => s + t.months, 0) / tenures.length) : null;
+  const longest = tenures.length ? tenures.reduce((a, b) => (b.months > a.months ? b : a)) : null;
+
+  const rt = Math.round(totalYears);
+  let progression;
+  if (exp.length >= 2) {
+    const first = exp[exp.length - 1], last = exp[0];
+    progression = `Progressed from ${first.title} at ${first.company} to ${last.title} at ${last.company} across ${rt} year${rt === 1 ? "" : "s"}${yrs(leadershipMonths) >= 1 ? ", stepping into leadership along the way" : ""}.`;
+  } else if (exp.length === 1) {
+    const e0 = exp[0];
+    const focus = (p.skills || []).slice(0, 2).join(" and ");
+    progression = `${rt} year${rt === 1 ? "" : "s"} at ${e0.company} as ${e0.title}${focus ? `, with deep hands-on work in ${focus}` : ""}.`;
+  } else {
+    progression = "The resume lists no dated roles, so a progression can't be inferred.";
+  }
+
+  const ranges = raw.map((r) => parseDuration(r.e.duration)).filter(Boolean).sort((a, b) => a.start - b.start);
+  const gaps = [];
+  for (let i = 1; i < ranges.length; i++) {
+    const g = ranges[i].start - ranges[i - 1].end;
+    if (g >= 1) gaps.push({ start: String(ranges[i - 1].end), end: String(ranges[i].start), duration_months: g * 12 });
+  }
+
+  return {
+    generated_at: new Date().toISOString(),
+    experience_insights: {
+      total_experience_years: totalYears,
+      leadership_experience_years: yrs(leadershipMonths),
+      domain_experience,
+      startup_experience: startup,
+      enterprise_experience: enterprise,
+      remote_work_mentioned: remote,
+    },
+    employment_analysis: {
+      number_of_employers: distinct.length,
+      average_tenure_months: avg,
+      longest_tenure: longest ? { company: longest.company, months: longest.months } : null,
+      career_progression: progression,
+      employment_gaps: gaps,
+    },
+  };
+}
+
 function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, authorName }) {
   const isPaid = plan !== "free";
   const [open, setOpen] = useState(false);
@@ -10172,26 +10269,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     if (!insightsUnlimited && setAiInsightsUsed) setAiInsightsUsed((n) => n + 1);
     setGenerating(true);
     setTimeout(() => {
-      setInsights(
-        MOCK_INSIGHTS[candidate.id] ?? {
-          generated_at: new Date().toISOString(),
-          experience_insights: {
-            total_experience_years: parsed.years_of_experience ?? 2,
-            leadership_experience_years: 0,
-            domain_experience: [],
-            startup_experience: false,
-            enterprise_experience: false,
-            remote_work_mentioned: false,
-          },
-          employment_analysis: {
-            number_of_employers: parsed.experience.length,
-            average_tenure_months: 24,
-            longest_tenure: null,
-            career_progression: "Not enough distinct roles in the resume to describe a clear progression.",
-            employment_gaps: [],
-          },
-        }
-      );
+      setInsights(MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate));
       setGenerating(false);
     }, 1600);
   };
