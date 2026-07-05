@@ -6853,6 +6853,21 @@ function resolveToken(input, options, aliases) {
   return { value: null, how: null };
 }
 
+// A field label with a black info icon; hovering (or focusing) the icon reveals
+// the usage instruction as a tooltip.
+function FieldLabel({ children, hint }) {
+  return (
+    <div className="flex items-center gap-1.5 mb-1.5">
+      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{children}</span>
+      <span tabIndex={0} className="relative group inline-flex items-center outline-none" style={{ color: "var(--ink)" }}>
+        <Icon name="info" className="w-3.5 h-3.5 cursor-help" />
+        <span className="pointer-events-none absolute left-0 bottom-full mb-2 w-60 rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 group-focus:opacity-100 group-focus:translate-y-0 transition-all duration-150 z-30"
+          style={{ background: "var(--ink)", color: "#fff", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>{hint}</span>
+      </span>
+    </div>
+  );
+}
+
 // A tag field with type-ahead suggestions from a stored list. Free-solo lets the
 // user add a value that isn't in the list (skills); restricted mode limits input
 // to known values (industry). Aliases + fuzzy matching mean synonyms and typos
@@ -7371,30 +7386,22 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both. AI ranks everyone by fit.</p>
                   <div className="mt-3 grid sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Skills</label>
+                      <FieldLabel hint="Type any skill and pick a suggestion. If it is not in the list, press Enter to add it as your own custom skill.">Skills</FieldLabel>
                       <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} aliases={SKILL_ALIASES} freeSolo />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
                           <button key={s} onClick={() => addSkill(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
-                      <p className="flex items-start gap-1.5 text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>
-                        <Icon name="info" className="w-3.5 h-3.5 shrink-0 mt-px" />
-                        <span>Not in the list? Just type it and press Enter to add it as a custom skill.</span>
-                      </p>
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Industry</label>
+                      <FieldLabel hint="Type to search our industry list and pick the closest match. Choosing from the list keeps the ranking accurate.">Industry</FieldLabel>
                       <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={ALL_INDUSTRIES} placeholder="Search industries…" onChange={invalidate} aliases={INDUSTRY_ALIASES} freeSolo={false} />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
                           <button key={s} onClick={() => addIndustry(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
-                      <p className="flex items-start gap-1.5 text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>
-                        <Icon name="info" className="w-3.5 h-3.5 shrink-0 mt-px" />
-                        <span>Type to search, then pick from the list so results stay accurate.</span>
-                      </p>
                     </div>
                   </div>
                   <div className="mt-4">
