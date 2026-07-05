@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
+import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
 
@@ -824,6 +825,19 @@ const BRAND_STYLES = `
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
 .reveal.reveal-in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+/* Long-form deep-dive panel swap */
+@keyframes lfSwap { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.lf-swap { animation: lfSwap .42s cubic-bezier(.22,1,.36,1) both; }
+/* Panel content swap — slides in from the right for spatial continuity */
+@keyframes lfSlide { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+.lf-slide { animation: lfSlide .44s cubic-bezier(.22,1,.36,1) both; }
+/* Pop-in for step badges once their card reveals */
+@keyframes lfPop { from { opacity: 0; transform: scale(.35); } to { opacity: 1; transform: scale(1); } }
+.reveal-in .lf-pop { animation: lfPop .55s cubic-bezier(.34,1.56,.64,1) both; }
+/* Gentle looping shimmer sweep for gradient rules/labels */
+@keyframes lfShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.lf-shimmer { background-size: 200% auto; animation: lfShimmer 4.5s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .lf-swap, .lf-slide, .reveal-in .lf-pop, .lf-shimmer { animation: none; } }
 
 /* Gradient hairlines */
 .hairline { height: 1px; background: linear-gradient(90deg, transparent, var(--line-strong) 20%, var(--line-strong) 80%, transparent); }
@@ -1527,7 +1541,7 @@ function Pipeline({ steps }) {
   );
 }
 
-function Reveal({ children, as: Tag = "div", delay = 0, className = "", style, ...rest }) {
+function Reveal({ children, as: Tag = "div", delay = 0, from = "up", className = "", style, ...rest }) {
   const ref = useRef(null);
   const reduce =
     typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1552,11 +1566,18 @@ function Reveal({ children, as: Tag = "div", delay = 0, className = "", style, .
     obs.observe(el);
     return () => obs.disconnect();
   }, [reduce]);
+  // Directional variants override the default translateY via inline transform
+  // (inline wins over the .reveal class), while keeping the reveal/reveal-in
+  // classes so child animations that key off .reveal-in still fire.
+  const hiddenT = { left: "translateX(-26px)", right: "translateX(26px)", scale: "scale(.94)", scaleX: "scaleX(0)" }[from];
+  const variantStyle = hiddenT
+    ? { transform: inView ? "none" : hiddenT, ...(from === "scaleX" ? { transformOrigin: "left" } : {}) }
+    : {};
   return (
     <Tag
       ref={ref}
       className={`reveal ${inView ? "reveal-in" : ""} ${className}`}
-      style={{ transitionDelay: inView ? `${delay}ms` : "0ms", ...style }}
+      style={{ transitionDelay: inView ? `${delay}ms` : "0ms", ...variantStyle, ...style }}
       {...rest}
     >
       {children}
@@ -3198,20 +3219,20 @@ const PRODUCT_PAGES = {
 // and industry — each a set of pages. Slugs may be nested (industries/<x>) so
 // the router treats the whole sub-path after /solutions/ as the slug.
 const SOLUTIONS_NAV = [
-  { group: "By role", slug: "role", items: [
+  { group: "By role", slug: "role", icon: "users", tint: "#D98BF5", items: [
     { slug: "recruiters", label: "For Recruiters", desc: "Screen and shortlist without the grind", icon: "search" },
     { slug: "hiring-managers", label: "For Hiring Managers", desc: "See only the candidates worth your time", icon: "briefcase" },
     { slug: "talent-leaders", label: "For Heads of Talent", desc: "Run hiring on data, not gut feel", icon: "target" },
     { slug: "people-ops", label: "For People / HR Ops", desc: "One consistent process across every role", icon: "users" },
     { slug: "founders", label: "For Founders", desc: "Make your first hires without a recruiter", icon: "star" },
   ]},
-  { group: "By company stage", slug: "stage", items: [
+  { group: "By company stage", slug: "stage", icon: "briefcase", tint: "#A98CFF", items: [
     { slug: "startups", label: "Startups", desc: "Hire fast on a founder's schedule", icon: "hire" },
     { slug: "scaleups", label: "Scaleups & Mid-market", desc: "Scale hiring without scaling headcount", icon: "matching" },
     { slug: "enterprise", label: "Enterprise", desc: "Security, roles and scale by default", icon: "lock" },
     { slug: "agencies", label: "Staffing & Agencies", desc: "Place more candidates, faster", icon: "interviewers" },
   ]},
-  { group: "By industry", slug: "industry", items: [
+  { group: "By industry", slug: "industry", icon: "dashboard", tint: "#7FA0FF", items: [
     { slug: "industries/technology", label: "Technology", desc: "Screen for real technical fit", icon: "settings" },
     { slug: "industries/healthcare", label: "Healthcare", desc: "Credentials and compliance, handled", icon: "shield" },
     { slug: "industries/retail", label: "Retail & Hospitality", desc: "Hire at volume, seasonally", icon: "card" },
@@ -3477,63 +3498,97 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, cur
     if (!onLanding) navigate("landing");
     scrollToLandingSection(id);
   };
+  const closeMenus = () => { setProdOpen(false); setSolOpen(false); };
+  // Both mega-menus share one full-width panel footprint (logo → Get started),
+  // so switching between Product and Solutions swaps content in place instead of
+  // shifting the dropdown left/right.
+  const panelWrap = "hidden md:block absolute left-4 right-4 sm:left-6 sm:right-6 top-full pt-2.5 z-50";
+  const panelCard = "rounded-2xl overflow-hidden flex";
+  const panelStyle = { background: "#0C0E1C", border: "1px solid var(--navy-line)", boxShadow: "0 30px 70px -30px rgba(0,0,0,0.9)" };
   return (
     <>
       <header className="sticky top-0 z-40" style={{ transition: "box-shadow .3s ease", background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)", backdropFilter: "blur(16px) saturate(150%)", WebkitBackdropFilter: "blur(16px) saturate(150%)", boxShadow: scrolled ? "0 10px 30px -18px rgba(0,0,0,0.8)" : "none" }}>
         <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <button onClick={() => navigate("landing")} aria-label="Aster home"><BrandLogo onDark large logoUrl={logoUrl} /></button>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between relative" onMouseLeave={closeMenus}>
+          <button onClick={() => navigate("landing")} onMouseEnter={closeMenus} aria-label="Aster home"><BrandLogo onDark large logoUrl={logoUrl} /></button>
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <div className="hidden md:block relative" onMouseEnter={() => setProdOpen(true)} onMouseLeave={() => setProdOpen(false)}>
-              <button onClick={() => goProduct("")} className={`inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: current != null ? "#fff" : "var(--navy-ink)" }}>
-                Product <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${prodOpen ? "rotate-180" : ""}`} />
-              </button>
-              {prodOpen && (
-                <div className="absolute left-0 top-full pt-2 w-[560px]">
-                  <div className="rounded-2xl p-2 grid grid-cols-2 gap-1" style={{ background: "#0C0E1C", border: "1px solid var(--navy-line)", boxShadow: "0 30px 70px -30px rgba(0,0,0,0.9)" }}>
-                    {PRODUCT_NAV.map((p) => (
-                      <button key={p.slug} onClick={() => { setProdOpen(false); goProduct(p.slug); }} className="text-left flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/[0.05]" style={current === p.slug ? { background: "rgba(151,59,247,0.12)" } : undefined}>
-                        <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={p.icon} className="w-4 h-4" /></span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium text-white truncate">{p.label}</span>
-                          <span className="block text-xs truncate" style={{ color: "var(--navy-ink)" }}>{p.desc}</span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="hidden md:block relative" onMouseEnter={() => setSolOpen(true)} onMouseLeave={() => setSolOpen(false)}>
-              <button onClick={() => goSolution("")} className={`inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: currentSol != null ? "#fff" : "var(--navy-ink)" }}>
-                Solutions <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${solOpen ? "rotate-180" : ""}`} />
-              </button>
-              {solOpen && (
-                <div className="absolute left-0 top-full pt-2 w-[720px] max-w-[calc(100vw-2rem)]">
-                  <div className="rounded-2xl p-3 grid grid-cols-3 gap-x-3 gap-y-1" style={{ background: "#0C0E1C", border: "1px solid var(--navy-line)", boxShadow: "0 30px 70px -30px rgba(0,0,0,0.9)" }}>
-                    {SOLUTIONS_NAV.map((g) => (
-                      <div key={g.group} className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase px-2 pt-1.5 pb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>{g.group}</p>
-                        {g.items.map((s) => (
-                          <button key={s.slug} onClick={() => { setSolOpen(false); goSolution(s.slug); }} className="w-full text-left flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-white/[0.05]" style={currentSol === s.slug ? { background: "rgba(151,59,247,0.12)" } : undefined}>
-                            <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={s.icon} className="w-3.5 h-3.5" /></span>
-                            <span className="text-sm font-medium text-white truncate">{s.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <button onClick={() => goSection("pricing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
-            <button onClick={() => goSection("faq")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>FAQ</button>
-            <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onClick={cta} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">Get started</button>
+            <button onMouseEnter={() => { setProdOpen(true); setSolOpen(false); }} onClick={() => goProduct("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: current != null || prodOpen ? "#fff" : "var(--navy-ink)" }}>
+              Product <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${prodOpen ? "rotate-180" : ""}`} />
+            </button>
+            <button onMouseEnter={() => { setSolOpen(true); setProdOpen(false); }} onClick={() => goSolution("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: currentSol != null || solOpen ? "#fff" : "var(--navy-ink)" }}>
+              Solutions <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${solOpen ? "rotate-180" : ""}`} />
+            </button>
+            <button onMouseEnter={closeMenus} onClick={() => goSection("pricing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
+            <button onMouseEnter={closeMenus} onClick={() => goSection("faq")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>FAQ</button>
+            <button onMouseEnter={closeMenus} onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "#fff" }}>Sign in</button>
+            <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">Get started</button>
             <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
               <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" /><span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
             </button>
           </div>
+
+          {/* Product mega-menu — full nav width */}
+          {prodOpen && (
+            <div className={panelWrap}>
+              <div className={panelCard} style={panelStyle}>
+                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.16), rgba(90,120,248,0.10))", borderRight: "1px solid var(--navy-line)" }}>
+                  <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+                  <div className="relative">
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="dashboard" className="w-5 h-5" /></span>
+                    <p className="text-white font-display font-semibold text-base" style={{ letterSpacing: "-0.01em", lineHeight: 1.25 }}>Everything you need to hire, in one platform.</p>
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Sourcing to offers, end to end.</p>
+                  </div>
+                  <button onClick={() => { closeMenus(); goProduct(""); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>Platform overview <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                </div>
+                <div className="flex-1 p-4 grid grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-1 min-w-0">
+                  {PRODUCT_NAV.filter((p) => p.slug !== "").map((p) => (
+                    <button key={p.slug} onClick={() => { closeMenus(); goProduct(p.slug); }} className={`group text-left flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.04] ${current === p.slug ? "bg-white/[0.05]" : ""}`}>
+                      <span className={`shrink-0 mt-px transition-colors ${current === p.slug ? "text-[#C79BFF]" : "text-[color:var(--navy-ink)] group-hover:text-[#C79BFF]"}`}><Icon name={p.icon} className="w-[18px] h-[18px]" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-white/90 group-hover:text-white truncate">{p.label}</span>
+                        <span className="block text-xs mt-0.5 leading-snug line-clamp-2 min-h-[2.5em]" style={{ color: "var(--navy-ink)" }}>{p.desc}</span>
+                      </span>
+                      <Icon name="arrowUpRight" className="w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 text-[#C79BFF]" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Solutions mega-menu — identical footprint to Product */}
+          {solOpen && (
+            <div className={panelWrap}>
+              <div className={panelCard} style={panelStyle}>
+                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(90,120,248,0.16), rgba(151,59,247,0.10))", borderRight: "1px solid var(--navy-line)" }}>
+                  <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 70%)" }} />
+                  <div className="relative">
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="target" className="w-5 h-5" /></span>
+                    <p className="text-white font-display font-semibold text-base" style={{ letterSpacing: "-0.01em", lineHeight: 1.25 }}>The same platform, framed for your team.</p>
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Pick the story that fits how you hire.</p>
+                  </div>
+                  <button onClick={() => { closeMenus(); goSolution(""); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>Browse all solutions <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                </div>
+                <div className="flex-1 p-4 grid grid-cols-3 gap-x-4 min-w-0">
+                  {SOLUTIONS_NAV.map((g) => (
+                    <div key={g.group} className="min-w-0">
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase px-3 pb-2" style={{ color: g.tint, letterSpacing: "0.08em" }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
+                      {g.items.map((s) => (
+                        <button key={s.slug} onClick={() => { closeMenus(); goSolution(s.slug); }} className={`group w-full text-left flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/[0.04] ${currentSol === s.slug ? "bg-white/[0.05]" : ""}`}>
+                          <span className={`shrink-0 mt-px transition-colors ${currentSol === s.slug ? "text-[#C79BFF]" : "text-[color:var(--navy-ink)] group-hover:text-[#C79BFF]"}`}><Icon name={s.icon} className="w-[18px] h-[18px]" /></span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium text-white/90 group-hover:text-white truncate">{s.label}</span>
+                            <span className="block text-xs mt-0.5 leading-snug line-clamp-2 min-h-[2.5em]" style={{ color: "var(--navy-ink)" }}>{s.desc}</span>
+                          </span>
+                          <Icon name="arrowUpRight" className="w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 text-[#C79BFF]" />
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
       {menuOpen && (
@@ -3558,7 +3613,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, cur
             </button>
             {SOLUTIONS_NAV.map((g) => (
               <div key={g.group}>
-                <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-3 mb-1" style={{ color: "var(--ink-3)" }}>{g.group}</p>
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-1 mt-3 mb-1" style={{ color: g.tint }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
                 <div className="flex flex-col gap-2">
                   {g.items.map((s) => (
                     <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -3602,9 +3657,10 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, logoUrl, 
       <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
       <div className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] max-w-[90vw] h-[240px] rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-12">
+        {/* top tier — lean: brand + product + explore + get started */}
+        <div className="py-12 sm:py-16 grid gap-10 sm:gap-x-8 sm:gap-y-12 md:grid-cols-12">
           {/* brand + tagline */}
-          <div className="md:col-span-3">
+          <div className="md:col-span-4">
             <BrandLogo onDark logoUrl={logoUrl} />
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--navy-ink)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
             <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
@@ -3612,46 +3668,55 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, logoUrl, 
             </div>
           </div>
           {/* full product directory (two columns) */}
-          <div className="md:col-span-3">
-            <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Product</p>
-            <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
+          <div className="md:col-span-4">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.08em", borderBottom: "1px solid #C79BFF22" }}><Icon name="dashboard" className="w-3.5 h-3.5" /> Product</p>
+            <ul className="grid grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
               {PRODUCT_NAV.map((p) => (
                 <li key={p.slug}><button onClick={() => goProduct(p.slug)} className="footer-link inline-block py-0.5 text-left">{p.label}</button></li>
               ))}
             </ul>
           </div>
-          {/* solutions directory — grouped by role / stage / industry */}
-          <div className="md:col-span-4">
-            <button onClick={() => goSolution("")} className="text-[11px] font-semibold uppercase mb-3.5 footer-link inline-block" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Solutions</button>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-              {SOLUTIONS_NAV.map((g) => (
-                <div key={g.group} className="break-inside-avoid">
-                  <p className="text-[11px] font-medium mb-2" style={{ color: "var(--navy-ink)" }}>{g.group}</p>
-                  <ul className="space-y-2 text-sm">
-                    {g.items.map((s) => (
-                      <li key={s.slug}><button onClick={() => goSolution(s.slug)} className="footer-link inline-block py-0.5 text-left">{s.label}</button></li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+          {/* explore */}
+          <div className="md:col-span-2">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "#A98CFF", letterSpacing: "0.08em", borderBottom: "1px solid #A98CFF22" }}><Icon name="search" className="w-3.5 h-3.5" /> Explore</p>
+            <ul className="space-y-2.5 text-sm">
+              <li><button onClick={() => goSection("pricing")} className="footer-link inline-block py-0.5 text-left">Pricing</button></li>
+              <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
+              <li><button onClick={() => goProduct("changelog")} className="footer-link inline-block py-0.5 text-left">What's new</button></li>
+            </ul>
           </div>
-          {/* explore + get started */}
-          <div className="md:col-span-2 space-y-8">
+          {/* get started */}
+          <div className="md:col-span-2">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "#7FA0FF", letterSpacing: "0.08em", borderBottom: "1px solid #7FA0FF22" }}><Icon name="hire" className="w-3.5 h-3.5" /> Get started</p>
+            <ul className="space-y-2.5 text-sm">
+              <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5 text-left">Sign in</button></li>
+              <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5 text-left">Create workspace</button></li>
+            </ul>
+          </div>
+        </div>
+
+        {/* full-width Solutions band — every segment reachable, spread out to breathe */}
+        <div className="py-10 sm:py-12" style={{ borderTop: "1px solid var(--navy-line)" }}>
+          <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
             <div>
-              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Explore</p>
-              <ul className="space-y-2.5 text-sm">
-                <li><button onClick={() => goSection("pricing")} className="footer-link inline-block py-0.5 text-left">Pricing</button></li>
-                <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
-              </ul>
+              <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Solutions</p>
+              <p className="text-sm mt-1.5" style={{ color: "var(--navy-ink)" }}>The same platform, framed by role, company stage and industry.</p>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
-              <ul className="space-y-2.5 text-sm">
-                <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5 text-left">Sign in</button></li>
-                <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5 text-left">Create workspace</button></li>
-              </ul>
-            </div>
+            <button onClick={() => goSolution("")} className="footer-link inline-flex items-center gap-1 text-sm" style={{ color: "#C79BFF" }}>All solutions <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>
+          </div>
+          <div className="grid gap-x-8 gap-y-8 sm:grid-cols-3">
+            {SOLUTIONS_NAV.map((g) => (
+              <div key={g.group}>
+                <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: g.tint, letterSpacing: "0.08em", borderBottom: `1px solid ${g.tint}22` }}>
+                  <Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}
+                </p>
+                <ul className="space-y-2 text-sm">
+                  {g.items.map((s) => (
+                    <li key={s.slug}><button onClick={() => goSolution(s.slug)} className="footer-link inline-block py-0.5 text-left">{s.label.replace(/^For /, "")}</button></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
         <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--navy-line)" }}>
@@ -3675,7 +3740,7 @@ function MarketingHero({ eyebrow, icon, title, accent, subtitle, chips, navigate
           <Icon name={icon} className="w-3.5 h-3.5" /> {eyebrow}
         </span>
         <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "17ch" }}>
-          {title} <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span>
+          {title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span>
         </h1>
         <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{subtitle}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -3693,6 +3758,214 @@ function MarketingHero({ eyebrow, icon, title, accent, subtitle, chips, navigate
         )}
       </div>
     </section>
+  );
+}
+
+// Renders the deep long-form content (intro → how it works → deep dive → use
+// cases → FAQ → closing) shared by every product and solution page. Each block
+// renders only if present, so pages without long-form data are unaffected.
+// Interactive deep-dive: vertical tabs (desktop) / accordion (mobile). Hovering
+// or tapping a title swaps the body with a soft fade, so five dense blocks read
+// as one focused feature instead of a wall of paragraphs.
+function DeepDiveTabs({ items }) {
+  const [active, setActive] = useState(0);
+  const cur = items[active] || items[0];
+  return (
+    <div className="mt-10">
+      <div className="hidden lg:grid grid-cols-12 gap-10 items-start">
+        <div className="col-span-5 flex flex-col gap-1.5">
+          {items.map((d, i) => {
+            const on = i === active;
+            return (
+              <button key={i} onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)} onClick={() => setActive(i)}
+                className="group relative text-left rounded-xl pl-5 pr-4 py-3.5 flex items-start gap-3 transition-all hover:bg-white/[0.03]"
+                style={on ? { background: "rgba(151,59,247,0.10)", border: "1px solid rgba(178,116,255,0.22)" } : { border: "1px solid transparent" }}>
+                <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full transition-all duration-300" style={{ background: "linear-gradient(180deg,#D65BFF,#5A78F8)", opacity: on ? 1 : 0, transform: on ? "scaleY(1)" : "scaleY(0.25)", transformOrigin: "center" }} />
+                <span className="font-display font-bold shrink-0 tnum" style={{ fontSize: "0.95rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
+                <span className="font-display font-semibold leading-snug transition-colors" style={{ color: on ? "#fff" : "var(--navy-ink)", fontSize: "1rem" }}>{d.title}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="col-span-7 pt-1">
+          <div key={active} className="lf-slide">
+            <p className="text-base sm:text-lg" style={{ color: "#D8DAEC", lineHeight: 1.8 }}>{cur.body}</p>
+          </div>
+        </div>
+      </div>
+      <div className="lg:hidden space-y-2.5">
+        {items.map((d, i) => {
+          const on = i === active;
+          return (
+            <div key={i} className="rounded-xl overflow-hidden transition-colors" style={{ background: on ? "rgba(151,59,247,0.08)" : "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+              <button onClick={() => setActive(i)} className="w-full text-left flex items-start gap-3 px-4 py-3.5">
+                <span className="font-display font-bold shrink-0 tnum" style={{ fontSize: "0.9rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
+                <span className="flex-1 font-display font-semibold leading-snug" style={{ color: "#fff", fontSize: "0.95rem" }}>{d.title}</span>
+                <Icon name="chevronDown" className="w-4 h-4 shrink-0 mt-0.5 transition-transform" style={{ transform: on ? "rotate(180deg)" : "none", color: "var(--navy-ink)" }} />
+              </button>
+              {on && <div className="px-4 pb-4 lf-swap"><p className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{d.body}</p></div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Intro: show the lede, tuck the supporting paragraphs behind Read more so the
+// section opens clean instead of as three stacked paragraphs.
+function IntroMore({ paras }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-6">
+      {open && (
+        <div className="space-y-5 lf-swap mb-4">
+          {paras.map((p, i) => (
+            <p key={i} className="text-base sm:text-lg" style={{ color: "var(--navy-ink)", lineHeight: 1.75 }}>{p}</p>
+          ))}
+        </div>
+      )}
+      <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>
+        {open ? "Show less" : "Read more"}
+        <Icon name="chevronDown" className="w-4 h-4 transition-transform" style={{ transform: open ? "rotate(180deg)" : "none" }} />
+      </button>
+    </div>
+  );
+}
+
+// Use cases: one scenario at a time via a segmented switcher, so three long
+// scenarios read as a single focused panel.
+function UseCaseTabs({ items }) {
+  const [active, setActive] = useState(0);
+  const cur = items[active] || items[0];
+  return (
+    <div className="mt-8">
+      <div className="flex flex-wrap gap-2 mb-5">
+        {items.map((u, i) => {
+          const on = i === active;
+          return (
+            <button key={i} onClick={() => setActive(i)}
+              className="text-sm font-medium px-4 py-2 rounded-full transition-all hover:bg-white/[0.05]"
+              style={on ? { background: "linear-gradient(135deg,#D65BFF,#5A78F8)", color: "#fff", transform: "translateY(-1px)", boxShadow: "0 8px 20px -10px rgba(151,59,247,0.9)" } : { border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+              Scenario {i + 1}
+            </button>
+          );
+        })}
+      </div>
+      <div key={active} className="lf-slide rounded-2xl p-7 sm:p-9" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.10), rgba(90,120,248,0.06))", border: "1px solid var(--navy-line)" }}>
+        <p className="text-white font-semibold font-display" style={{ fontSize: "clamp(1.05rem, 1.8vw, 1.25rem)" }}>{cur.title}</p>
+        <p className="mt-3 text-base sm:text-lg" style={{ color: "#D8DAEC", lineHeight: 1.75 }}>{cur.body}</p>
+      </div>
+    </div>
+  );
+}
+
+function MarketingLongform({ data }) {
+  if (!data) return null;
+  const { intro, howItWorks, deepDive, useCases, faq, closing } = data;
+  const BAND = "#07081A"; // subtle band to alternate against the #050610 base
+  return (
+    <>
+      {/* Intro — a large lede paragraph then supporting prose, editorial measure */}
+      {intro && intro.length > 0 && (
+        <section className="py-16 sm:py-24" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
+          <Reveal className="max-w-3xl mx-auto px-4 sm:px-6">
+            <span className="inline-block w-10 h-1 rounded-full mb-7" style={{ background: "linear-gradient(90deg, #D65BFF, #5A78F8)" }} />
+            <p className="text-white" style={{ fontSize: "clamp(1.3rem, 2.3vw, 1.6rem)", lineHeight: 1.5, letterSpacing: "-0.01em" }}>{intro[0]}</p>
+            {intro.length > 1 && <IntroMore paras={intro.slice(1)} />}
+          </Reveal>
+        </section>
+      )}
+
+      {/* How it works — numbered step cards, staggered in */}
+      {howItWorks && howItWorks.length > 0 && (
+        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <Reveal>
+              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>How it works</p>
+              <h2 className="font-display font-bold text-white mb-10" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>From setup to hire</h2>
+            </Reveal>
+            <div className="relative grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 mt-12">
+              {/* connector line behind the step numbers (desktop) — draws in from the left */}
+              <Reveal from="scaleX" delay={150} className="hidden lg:block absolute left-0 right-0 h-px" style={{ top: "20px", background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.35) 14%, rgba(143,160,255,0.35) 86%, transparent)" }} />
+              {howItWorks.map((s, i) => (
+                <Reveal key={i} delay={i * 110} className="relative">
+                  <span className="lf-pop relative z-10 inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white brand-gradient shadow-[0_8px_24px_-6px_rgba(151,59,247,0.9)]" style={{ outline: "5px solid #050610", animationDelay: `${i * 110 + 120}ms` }}>{i + 1}</span>
+                  <p className="text-white font-semibold font-display mt-5">{s.title}</p>
+                  <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{s.body}</p>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Deep dive — interactive vertical tabs (desktop) / accordion (mobile) */}
+      {deepDive && deepDive.length > 0 && (
+        <section className="py-16 sm:py-20" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <Reveal>
+              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>In depth</p>
+              <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>A closer look</h2>
+            </Reveal>
+            <Reveal><DeepDiveTabs items={deepDive} /></Reveal>
+          </div>
+        </section>
+      )}
+
+      {/* Use cases — labelled scenario cards, staggered in */}
+      {useCases && useCases.length > 0 && (
+        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <Reveal>
+              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>In practice</p>
+              <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Where it makes the difference</h2>
+            </Reveal>
+            <Reveal><UseCaseTabs items={useCases} /></Reveal>
+          </div>
+        </section>
+      )}
+
+      {/* FAQ — accordion */}
+      {faq && faq.length > 0 && (
+        <section className="py-16 sm:py-20" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            <Reveal>
+              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>FAQ</p>
+              <h2 className="font-display font-bold text-white mb-8" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Common questions</h2>
+            </Reveal>
+            <div className="space-y-3">
+              {faq.map((f, i) => (
+                <Reveal as="details" key={i} delay={Math.min(i, 4) * 50} className="group rounded-2xl px-5 sm:px-6 py-4 transition-colors hover:bg-white/[0.02]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none text-white font-medium text-[15px] sm:text-base">
+                    {f.q}
+                    <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-transform group-open:rotate-45" style={{ border: "1px solid var(--navy-line)", color: "#C79BFF" }}>
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                    </span>
+                  </summary>
+                  <p className="mt-3.5 text-sm sm:text-[15px] leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.a}</p>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Closing — a featured statement, left-aligned for readability */}
+      {closing && (
+        <section className="py-16 sm:py-24" style={{ background: "#050610", borderTop: "1px solid var(--navy-line)" }}>
+          <Reveal className="max-w-3xl mx-auto px-4 sm:px-6">
+            <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.12), rgba(90,120,248,0.07))", border: "1px solid var(--navy-line)" }}>
+              <div className="pointer-events-none absolute -top-20 -right-12 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+              <div className="relative">
+                <span className="inline-block w-10 h-1 rounded-full mb-6" style={{ background: "linear-gradient(90deg,#D65BFF,#5A78F8)" }} />
+                <p className="text-white" style={{ fontSize: "clamp(1.2rem, 2.1vw, 1.5rem)", lineHeight: 1.6, letterSpacing: "-0.01em" }}>{closing}</p>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+      )}
+    </>
   );
 }
 
@@ -3739,6 +4012,7 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) 
             </div>
           </div>
         </section>
+        <MarketingLongform data={PRODUCT_LONGFORM[""]} />
         <ProductCTA navigate={navigate} />
         <MarketingFooter {...nav} />
       </div>
@@ -3836,6 +4110,7 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) 
           </div>
         </section>
       )}
+      <MarketingLongform data={PRODUCT_LONGFORM[slug]} />
       <ProductCTA navigate={navigate} />
       <MarketingFooter {...nav} />
     </div>
@@ -3878,6 +4153,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
             ))}
           </div>
         </section>
+        <MarketingLongform data={SOLUTION_LONGFORM[""]} />
         <ProductCTA navigate={navigate} />
         <MarketingFooter {...nav} />
       </div>
@@ -4001,6 +4277,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }
           </div>
         </section>
       )}
+      <MarketingLongform data={SOLUTION_LONGFORM[slug]} />
       <ProductCTA navigate={navigate} />
       <MarketingFooter {...nav} />
     </div>
@@ -12607,6 +12884,14 @@ export default function ResumeAIPreview() {
     } else if (target === "login") {
       setHistory(["login"]);
       if (typeof window !== "undefined") { window.history.pushState({ aster: true }, "", SCREEN_TO_PATH.login); window.scrollTo(0, 0); }
+    } else if ((target === "product" || target === "solutions") && target === screen) {
+      // Re-navigating within the same marketing section (solution → solution,
+      // product → product): replace the current entry instead of stacking
+      // another same-named one. The name-based history stack can't tell two
+      // "solutions" entries apart, so stacking them corrupts Back/redirect. The
+      // caller has already set the slug, which re-renders; scroll to top like a
+      // forward move.
+      if (typeof window !== "undefined") { window.history.replaceState({ aster: true }, "", path || SCREEN_TO_PATH[target] || "/"); window.scrollTo(0, 0); }
     } else {
       setHistory((h) => [...h, target]);
       if (typeof window !== "undefined") window.history.pushState({ aster: true }, "", path || SCREEN_TO_PATH[target] || "/");
