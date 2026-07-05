@@ -2039,7 +2039,7 @@ function SchedulingPreview() {
   );
 }
 
-function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
+function LandingScreen({ navigate, goProduct, goSolution, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
@@ -2234,7 +2234,7 @@ function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupC
       {/* Shared marketing nav — identical on landing + product pages.
           onLanding lets Pricing/FAQ scroll in place; onCta keeps the landing's
           14-day-trial signup for Get started. */}
-      <MarketingNav navigate={navigate} goProduct={goProduct} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
+      <MarketingNav navigate={navigate} goProduct={goProduct} goSolution={goSolution} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
 
       {/* Hero — the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
@@ -2720,6 +2720,43 @@ function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupC
         </div>
       </section>
 
+      {/* Solutions — the same platform, framed for who's buying */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
+        <Reveal className="max-w-2xl mb-8 sm:mb-12">
+          <p className="eyebrow brand-text mb-2">Solutions</p>
+          <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
+            Built for how your team hires.
+          </h2>
+          <p className="text-neutral-500 mt-2">The same platform, framed for your role, your company stage and your industry.</p>
+        </Reveal>
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
+          {SOLUTIONS_NAV.map((g, gi) => (
+            <Reveal key={g.group} delay={gi * 70} className="rounded-3xl border p-6 sm:p-7 flex flex-col" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              <p className="text-[11px] font-semibold uppercase brand-text mb-4" style={{ letterSpacing: "0.09em" }}>{g.group}</p>
+              <ul className="space-y-1 flex-1">
+                {g.items.map((s) => (
+                  <li key={s.slug}>
+                    <button onClick={() => goSolution(s.slug)} className="group w-full text-left flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-neutral-50">
+                      <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={s.icon} className="w-4 h-4" /></span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-semibold text-neutral-900">{s.label}</span>
+                        <span className="block text-xs truncate" style={{ color: "var(--ink-3)" }}>{s.desc}</span>
+                      </span>
+                      <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-neutral-300 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          ))}
+        </div>
+        <Reveal className="mt-8 text-center">
+          <button onClick={() => goSolution("")} className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+            Explore all solutions <Icon name="arrowUpRight" className="w-4 h-4" />
+          </button>
+        </Reveal>
+      </section>
+
       {/* Pricing */}
       <section id="pricing" className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24 scroll-mt-20">
         <Reveal className="text-center mb-8">
@@ -3000,7 +3037,7 @@ function LandingScreen({ navigate, goProduct, logoUrl, setSignupPlan, setSignupC
       </section>
 
       {/* Shared marketing footer — identical on landing + product pages */}
-      <MarketingFooter navigate={navigate} goProduct={goProduct} logoUrl={logoUrl} onLanding />
+      <MarketingFooter navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} onLanding />
     </div>
   );
 }
@@ -3156,6 +3193,226 @@ const PRODUCT_PAGES = {
   },
 };
 
+// ───────────────────────── Solutions (segmentation) ─────────────────────────
+// The same product, framed for who's buying. Three axes — role, company stage,
+// and industry — each a set of pages. Slugs may be nested (industries/<x>) so
+// the router treats the whole sub-path after /solutions/ as the slug.
+const SOLUTIONS_NAV = [
+  { group: "By role", slug: "role", items: [
+    { slug: "recruiters", label: "For Recruiters", desc: "Screen and shortlist without the grind", icon: "search" },
+    { slug: "hiring-managers", label: "For Hiring Managers", desc: "See only the candidates worth your time", icon: "briefcase" },
+    { slug: "talent-leaders", label: "For Heads of Talent", desc: "Run hiring on data, not gut feel", icon: "target" },
+    { slug: "people-ops", label: "For People / HR Ops", desc: "One consistent process across every role", icon: "users" },
+    { slug: "founders", label: "For Founders", desc: "Make your first hires without a recruiter", icon: "star" },
+  ]},
+  { group: "By company stage", slug: "stage", items: [
+    { slug: "startups", label: "Startups", desc: "Hire fast on a founder's schedule", icon: "hire" },
+    { slug: "scaleups", label: "Scaleups & Mid-market", desc: "Scale hiring without scaling headcount", icon: "matching" },
+    { slug: "enterprise", label: "Enterprise", desc: "Security, roles and scale by default", icon: "lock" },
+    { slug: "agencies", label: "Staffing & Agencies", desc: "Place more candidates, faster", icon: "interviewers" },
+  ]},
+  { group: "By industry", slug: "industry", items: [
+    { slug: "industries/technology", label: "Technology", desc: "Screen for real technical fit", icon: "settings" },
+    { slug: "industries/healthcare", label: "Healthcare", desc: "Credentials and compliance, handled", icon: "shield" },
+    { slug: "industries/retail", label: "Retail & Hospitality", desc: "Hire at volume, seasonally", icon: "card" },
+    { slug: "industries/professional-services", label: "Professional Services", desc: "Hire billable talent that fits", icon: "doc" },
+    { slug: "industries/manufacturing", label: "Manufacturing & Logistics", desc: "Fill skilled roles and every shift", icon: "archive" },
+  ]},
+];
+// Flat lookup of every solution slug → its nav item (label/desc/icon/group).
+const SOLUTIONS_INDEX = SOLUTIONS_NAV.reduce((acc, g) => {
+  g.items.forEach((it) => { acc[it.slug] = { ...it, group: g.group }; });
+  return acc;
+}, {});
+
+const SOLUTIONS_PAGES = {
+  // ── By role ──
+  recruiters: {
+    eyebrow: "Solutions for recruiters", icon: "search",
+    title: "Screen every applicant,", accent: "read only the best.",
+    subtitle: "Aster does the first pass on every CV — parsing, scoring and ranking — so you spend the day talking to shortlisted people instead of reading resumes.",
+    chips: ["Auto-screening", "Ranked shortlists", "One-click scheduling"],
+    features: [
+      { icon: "doc", title: "Every resume, parsed", body: "Skills, experience and a one-line summary pulled from each CV the moment it lands. No manual data entry." },
+      { icon: "target", title: "Ranked by role fit", body: "A match score with the reasons puts the strongest candidates on top, so you start from a shortlist." },
+      { icon: "calendar", title: "Scheduling without the ping-pong", body: "Send one link and let candidates self-book. The Meet or Teams invite is created for you." },
+      { icon: "chat", title: "Reach candidates where they reply", body: "Templated emails and WhatsApp reminders keep candidates warm and cut no-shows." },
+    ],
+    highlight: { title: "From 46 applicants to a shortlist of 3", body: "Aster reads and ranks the whole pile as it arrives, so your morning starts with the people worth calling.", points: ["Bulk-upload the CVs you already have", "Source-tracked apply links show what's working", "Every candidate on one shared pipeline"] },
+  },
+  "hiring-managers": {
+    eyebrow: "Solutions for hiring managers", icon: "briefcase",
+    title: "See the shortlist,", accent: "skip the pile.",
+    subtitle: "You don't have time to read forty CVs. Aster hands you a ranked shortlist with the reasons behind each score, so you weigh in fast and get back to your day job.",
+    chips: ["Ranked shortlists", "Structured interviews", "Team scorecards"],
+    features: [
+      { icon: "target", title: "A shortlist you can trust", body: "Every applicant scored against the role, with the reasoning — not a black-box number." },
+      { icon: "interview", title: "Interview questions, drafted for you", body: "Role- and candidate-specific questions ready the moment an interview is booked." },
+      { icon: "star", title: "One scorecard, one decision", body: "Rate the same criteria as the rest of the panel and get a clear team score." },
+      { icon: "eye", title: "Only the candidates that are yours", body: "See the roles you're hiring for, without wading through the whole system." },
+    ],
+    highlight: { title: "Weigh in without living in the tool", body: "Aster surfaces the few candidates that matter and gives you a fast, structured way to say yes or no.", points: ["Deep links jump you straight to a candidate", "Feedback lives on the profile, not in DMs", "Move a candidate forward in one click"] },
+  },
+  "talent-leaders": {
+    eyebrow: "Solutions for heads of talent", icon: "target",
+    title: "Run hiring on data,", accent: "not gut feel.",
+    subtitle: "See every open role, every source and every bottleneck from one dashboard — and make the case for headcount with numbers instead of vibes.",
+    chips: ["Funnel analytics", "Source performance", "Time-to-hire"],
+    features: [
+      { icon: "dashboard", title: "The whole funnel, live", body: "Applied, interviewing, offer, hired — with drop-off visible at every stage." },
+      { icon: "link", title: "Know which sources work", body: "See which boards, links and referrals bring your best-fit candidates." },
+      { icon: "clock", title: "Find the bottlenecks", body: "Time-in-stage shows exactly where candidates wait and pipelines stall." },
+      { icon: "users", title: "A consistent process, every team", body: "Structured interviews and scorecards mean every role is run the same way." },
+    ],
+    highlight: { title: "Reporting your leadership will actually read", body: "Current, honest numbers on every role — no spreadsheet exports, no charts built by hand.", points: ["Compare roles, sources and time ranges", "Standardised scorecards reduce reviewer bias", "Export anytime; your data stays yours"] },
+  },
+  "people-ops": {
+    eyebrow: "Solutions for People / HR Ops", icon: "users",
+    title: "One hiring process,", accent: "every role.",
+    subtitle: "Give every hiring manager the same structured, on-brand workflow — parsing, scoring, scheduling and templated comms — without policing it by hand.",
+    chips: ["Standardised workflow", "Roles & access", "On-brand comms"],
+    features: [
+      { icon: "settings", title: "A process that runs itself", body: "Parsing, scoring, confirmations and reminders happen automatically, the same way every time." },
+      { icon: "chat", title: "Every message on-brand", body: "Editable email templates with placeholders for name, role, company and more." },
+      { icon: "lock", title: "Access on a need-to-know basis", body: "Interviewers see only their candidates; sensitive data stays controlled." },
+      { icon: "shield", title: "Privacy by default", body: "Candidate data is encrypted, exportable and deletable — yours to govern." },
+    ],
+    highlight: { title: "Consistency without the chasing", body: "Aster gives every team the same rails, so candidates get a professional experience and you get your time back.", points: ["Templates keep every touchpoint consistent", "An audit trail logs who did what", "No per-action fees or hidden limits"] },
+  },
+  founders: {
+    eyebrow: "Solutions for founders", icon: "star",
+    title: "Make your first hires,", accent: "without a recruiter.",
+    subtitle: "You're hiring between everything else. Aster reads the CVs, ranks the fits and books the interviews, so a great first team doesn't cost you your week.",
+    chips: ["Start free", "Set up in minutes", "No recruiter needed"],
+    features: [
+      { icon: "doc", title: "No CV reading", body: "Drop in applicants and get a ranked, summarised shortlist in seconds." },
+      { icon: "calendar", title: "Interviews book themselves", body: "Share a link; candidates pick a slot and the video invite is created for you." },
+      { icon: "target", title: "Know who's actually a fit", body: "A match score with reasons helps you make confident calls, fast." },
+      { icon: "hire", title: "One place, applied to hired", body: "Post a role, screen, interview and offer — without stitching five tools together." },
+    ],
+    highlight: { title: "Hiring shouldn't eat your week", body: "Aster does the heavy lifting so you spend minutes, not days, getting to the right people.", points: ["Free to start, no card required", "Bring CVs you already have", "Upgrade only when you're hiring at scale"] },
+  },
+  // ── By company stage ──
+  startups: {
+    eyebrow: "Solutions for startups", icon: "hire",
+    title: "Hire fast,", accent: "on a founder's schedule.",
+    subtitle: "Small team, high hiring bar, no time. Aster screens and schedules for you, so you move on great candidates before someone else does.",
+    chips: ["Free to start", "AI screening", "Self-scheduling"],
+    features: [
+      { icon: "target", title: "Start from a shortlist", body: "Every applicant ranked against the role, so you talk to the best first." },
+      { icon: "calendar", title: "Book interviews in a click", body: "One link, candidate self-books, invite created. No email tag." },
+      { icon: "doc", title: "Zero data entry", body: "CVs parsed into structured profiles automatically." },
+      { icon: "users", title: "Bring the team in", body: "Add teammates to interviews; everyone works from one board." },
+    ],
+    highlight: { title: "Move faster than the bigger names", body: "Speed wins early hires. Aster compresses two weeks of screening into an afternoon.", points: ["Set up in minutes, no project needed", "The Free plan covers your first role", "Scale up only when you do"] },
+  },
+  scaleups: {
+    eyebrow: "Solutions for scaleups & mid-market", icon: "matching",
+    title: "Scale hiring,", accent: "not headcount.",
+    subtitle: "Dozens of roles, more hiring managers, higher volume. Aster keeps quality and consistency high while your recruiting team stays lean.",
+    chips: ["Unlimited pipelines", "Team seats", "Analytics"],
+    features: [
+      { icon: "dashboard", title: "Every role in one view", body: "Track all open roles and stages from a single dashboard." },
+      { icon: "matching", title: "Rank at volume", body: "All applicants scored and ranked — not just the first ten." },
+      { icon: "users", title: "Whole hiring teams aligned", body: "Recruiters, managers and panels on the same pipeline with the right access." },
+      { icon: "link", title: "Spend where it works", body: "Source analytics show which channels bring your best candidates." },
+    ],
+    highlight: { title: "Quality that holds as you grow", body: "Structured screening and scorecards keep every hire consistent, even as the team and volume climb.", points: ["Standardised interviews across managers", "A talent CRM to re-engage past applicants", "WhatsApp reminders cut no-shows at scale"] },
+  },
+  enterprise: {
+    eyebrow: "Solutions for enterprise", icon: "lock",
+    title: "Enterprise hiring,", accent: "secure by default.",
+    subtitle: "Roles, access control, audit trails and SSO — the governance a large org needs, on top of AI screening that keeps every team fast.",
+    chips: ["SSO & audit logs", "Roles & permissions", "White label"],
+    features: [
+      { icon: "lock", title: "Granular access", body: "Role-based permissions keep candidate data on a need-to-know basis." },
+      { icon: "shield", title: "Security you can sign off on", body: "Encrypted in transit and at rest; data stays in your workspace." },
+      { icon: "archive", title: "A full audit trail", body: "Every action is logged, so you always know who did what." },
+      { icon: "settings", title: "Fits your stack", body: "SSO, calendar and messaging integrations, plus custom work on Enterprise." },
+    ],
+    highlight: { title: "Scale without losing control", body: "Aster gives large teams centralised governance and a consistent process across every department and region.", points: ["Single sign-on and audit logs", "White-label career site and comms", "Dedicated support and custom integrations"] },
+  },
+  agencies: {
+    eyebrow: "Solutions for staffing & agencies", icon: "interviewers",
+    title: "Place more candidates,", accent: "in less time.",
+    subtitle: "Your product is speed and fit. Aster screens inbound at volume, keeps a searchable talent pool, and re-engages the right people the moment a role opens.",
+    chips: ["Talent CRM", "Bulk intake", "Source tracking"],
+    features: [
+      { icon: "search", title: "A searchable talent pool", body: "Find people by skill, role or industry across everyone you've ever collected." },
+      { icon: "upload", title: "Bulk intake", body: "Drop in stacks of CVs or a whole ZIP; every one is parsed and scored." },
+      { icon: "matching", title: "Match candidates to roles", body: "AI ranks your pool against each new brief, typos and synonyms included." },
+      { icon: "link", title: "Track every source", body: "Source-tagged links show which channels place your best candidates." },
+    ],
+    highlight: { title: "Your next placement is already in your database", body: "Aster turns past applicants into an active pipeline, so you fill briefs from people you already know.", points: ["Dedup keeps one clean record per person", "Re-engage silver-medallists in a click", "Move candidates faster, applied to placed"] },
+  },
+  // ── By industry ──
+  "industries/technology": {
+    eyebrow: "Technology", icon: "settings",
+    title: "Screen for real", accent: "technical fit.",
+    subtitle: "Cut through keyword-stuffed CVs. Aster matches on actual skills and experience — and normalises 'JS' to 'JavaScript' — so genuine engineers rise to the top.",
+    chips: ["Skill matching", "Typo tolerance", "Fast pipelines"],
+    features: [
+      { icon: "matching", title: "Skill-level matching", body: "Rank candidates by the skills and stack you actually need, with synonym and typo handling." },
+      { icon: "target", title: "Fit with reasons", body: "A match score that explains why a candidate fits — not just a number." },
+      { icon: "calendar", title: "Move at engineering speed", body: "Self-scheduling and auto-invites keep strong candidates from going cold." },
+      { icon: "users", title: "Panel-ready interviews", body: "Add reviewers, share structured questions, and score the same criteria." },
+    ],
+    highlight: { title: "Signal over buzzwords", body: "Aster reads past the keyword soup and surfaces the candidates whose experience actually matches the role.", points: ["Two-sided skill normalisation", "Structured technical scorecards", "One pipeline for every eng team"] },
+  },
+  "industries/healthcare": {
+    eyebrow: "Healthcare", icon: "shield",
+    title: "Hire clinical talent,", accent: "with the details right.",
+    subtitle: "Certifications, licences and experience matter. Aster surfaces them from every CV and keeps candidate data private and compliant.",
+    chips: ["Credential capture", "Private by default", "High-volume intake"],
+    features: [
+      { icon: "doc", title: "Certifications, surfaced", body: "Parsing pulls licences, certifications and experience from each resume automatically." },
+      { icon: "target", title: "Match on what matters", body: "Rank candidates by the credentials and experience the role requires." },
+      { icon: "shield", title: "Privacy and compliance", body: "Candidate data is encrypted, access-controlled, and deletable on request." },
+      { icon: "calendar", title: "Fill shifts faster", body: "Self-scheduling and reminders keep clinical pipelines moving." },
+    ],
+    highlight: { title: "Care about candidates and their data", body: "Aster helps you hire qualified people quickly while treating sensitive information the way healthcare demands.", points: ["Certifications captured in structured profiles", "Access limited to your workspace", "Export or delete candidate data anytime"] },
+  },
+  "industries/retail": {
+    eyebrow: "Retail & Hospitality", icon: "card",
+    title: "Hire at volume,", accent: "keep it human.",
+    subtitle: "Seasonal peaks and high turnover mean lots of applicants, fast. Aster screens the flood, ranks for fit and books interviews so stores stay staffed.",
+    chips: ["High-volume screening", "Fast scheduling", "WhatsApp reminders"],
+    features: [
+      { icon: "matching", title: "Screen the flood", body: "Every applicant parsed and ranked, so volume never buries the good ones." },
+      { icon: "calendar", title: "Book on the spot", body: "Candidates self-book from live availability — ideal for walk-in-speed hiring." },
+      { icon: "chat", title: "Reach candidates on WhatsApp", body: "Confirmations and reminders where hourly candidates actually reply." },
+      { icon: "briefcase", title: "Apply links everywhere", body: "Share source-tracked links on socials, in-store QR codes and job boards." },
+    ],
+    highlight: { title: "Staffed for the season, not scrambling", body: "Aster turns a surge of applicants into a steady, ranked pipeline your managers can hire from fast.", points: ["Bulk intake for peak periods", "One tap to shortlist and schedule", "See which sources fill roles fastest"] },
+  },
+  "industries/professional-services": {
+    eyebrow: "Professional Services", icon: "doc",
+    title: "Hire billable talent", accent: "that actually fits.",
+    subtitle: "Consulting, legal, finance and agencies live and die by their people. Aster screens for the experience and client-ready skills each role needs.",
+    chips: ["Experience matching", "Structured interviews", "Team scorecards"],
+    features: [
+      { icon: "target", title: "Match on experience", body: "Rank candidates by the industries, skills and seniority the role calls for." },
+      { icon: "interview", title: "Consistent, structured interviews", body: "Role-specific questions so every partner assesses the same things." },
+      { icon: "star", title: "Decide as a team", body: "Collaborative scorecards roll up to one clear, defensible decision." },
+      { icon: "search", title: "Re-engage your network", body: "Search past applicants and alumni to fill a role from people you know." },
+    ],
+    highlight: { title: "Your people are the product", body: "Aster helps you hire client-ready talent quickly, with a process partners trust.", points: ["Structured scorecards remove guesswork", "A talent CRM keeps strong candidates warm", "One shared pipeline across offices"] },
+  },
+  "industries/manufacturing": {
+    eyebrow: "Manufacturing & Logistics", icon: "archive",
+    title: "Fill skilled roles", accent: "and every shift.",
+    subtitle: "From line operators to plant engineers, Aster screens high volumes for the certifications and hands-on experience the job needs — and books interviews fast.",
+    chips: ["High-volume intake", "Credential matching", "Fast scheduling"],
+    features: [
+      { icon: "upload", title: "Bulk intake", body: "Drop in stacks of applications; each is parsed and scored automatically." },
+      { icon: "target", title: "Match on certifications & skills", body: "Rank candidates by the licences and hands-on experience the role requires." },
+      { icon: "calendar", title: "Schedule without the back-and-forth", body: "Self-booking and reminders keep shift-based hiring moving." },
+      { icon: "link", title: "Track every channel", body: "Source-tagged links show which boards and referrals deliver." },
+    ],
+    highlight: { title: "Keep the line moving", body: "Aster turns high applicant volume into a ranked, ready pipeline, so roles and shifts get filled on time.", points: ["Certifications captured from each CV", "WhatsApp reminders cut no-shows", "One dashboard across sites"] },
+  },
+};
+
 // Jump to a section on the landing page (e.g. Pricing, FAQ) from anywhere. If
 // we're already on landing, smooth-scroll; otherwise route to landing first and
 // scroll once the section has mounted (poll a few frames — see goToPricing).
@@ -3171,13 +3428,15 @@ function scrollToLandingSection(id) {
 }
 
 // The single marketing top-nav, rendered identically on the landing page and
-// every product page. Product ▾ opens the module mega-menu; Pricing and FAQ
-// jump to the landing sections from wherever you are. `onLanding` skips the
+// every product page. Product ▾ and Solutions ▾ open mega-menus; Pricing and
+// FAQ jump to the landing sections from wherever you are. `onLanding` skips the
 // route change when those sections are already on the current page. `onCta`
 // lets the landing page keep its 14-day-trial signup for Get started.
-function MarketingNav({ navigate, goProduct, current, logoUrl, onLanding = false, onCta }) {
+// `current` = active product slug (or null); `currentSol` = active solution slug.
+function MarketingNav({ navigate, goProduct, goSolution = () => {}, current, currentSol, logoUrl, onLanding = false, onCta }) {
   const [menuOpen, setMenuOpen] = useState(false);   // mobile
-  const [prodOpen, setProdOpen] = useState(false);   // desktop mega-menu
+  const [prodOpen, setProdOpen] = useState(false);   // desktop Product mega-menu
+  const [solOpen, setSolOpen] = useState(false);     // desktop Solutions mega-menu
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -3219,6 +3478,28 @@ function MarketingNav({ navigate, goProduct, current, logoUrl, onLanding = false
                 </div>
               )}
             </div>
+            <div className="hidden md:block relative" onMouseEnter={() => setSolOpen(true)} onMouseLeave={() => setSolOpen(false)}>
+              <button onClick={() => goSolution("")} className={`inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: currentSol != null ? "#fff" : "var(--navy-ink)" }}>
+                Solutions <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${solOpen ? "rotate-180" : ""}`} />
+              </button>
+              {solOpen && (
+                <div className="absolute left-0 top-full pt-2 w-[720px] max-w-[calc(100vw-2rem)]">
+                  <div className="rounded-2xl p-3 grid grid-cols-3 gap-x-3 gap-y-1" style={{ background: "#0C0E1C", border: "1px solid var(--navy-line)", boxShadow: "0 30px 70px -30px rgba(0,0,0,0.9)" }}>
+                    {SOLUTIONS_NAV.map((g) => (
+                      <div key={g.group} className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase px-2 pt-1.5 pb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>{g.group}</p>
+                        {g.items.map((s) => (
+                          <button key={s.slug} onClick={() => { setSolOpen(false); goSolution(s.slug); }} className="w-full text-left flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-white/[0.05]" style={currentSol === s.slug ? { background: "rgba(151,59,247,0.12)" } : undefined}>
+                            <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={s.icon} className="w-3.5 h-3.5" /></span>
+                            <span className="text-sm font-medium text-white truncate">{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <button onClick={() => goSection("pricing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
             <button onClick={() => goSection("faq")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>FAQ</button>
             <button onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "#fff" }}>Sign in</button>
@@ -3244,6 +3525,25 @@ function MarketingNav({ navigate, goProduct, current, logoUrl, onLanding = false
                 <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
               </button>
             ))}
+            <button onClick={() => { setMenuOpen(false); goSolution(""); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3 mt-4" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.18)", color: "#C79BFF" }}><Icon name="target" className="w-5 h-5" /></span>
+              <span className="flex-1 text-white font-medium">Solutions</span>
+              <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+            </button>
+            {SOLUTIONS_NAV.map((g) => (
+              <div key={g.group}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-3 mb-1" style={{ color: "var(--ink-3)" }}>{g.group}</p>
+                <div className="flex flex-col gap-2">
+                  {g.items.map((s) => (
+                    <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.14)", color: "#C79BFF" }}><Icon name={s.icon} className="w-4 h-4" /></span>
+                      <span className="flex-1 text-white/90 text-[15px]">{s.label}</span>
+                      <Icon name="chevronRight" className="w-4 h-4 text-white/30" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
             <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Explore</p>
             {[["Pricing", "pricing"], ["FAQ", "faq"]].map(([label, id]) => (
               <button key={id} onClick={() => goSection(id)} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
@@ -3263,10 +3563,10 @@ function MarketingNav({ navigate, goProduct, current, logoUrl, onLanding = false
 }
 
 // The single marketing footer, rendered identically on the landing page and
-// every product page: brand · the full Product module directory · Explore
-// (landing sections) · Get started. `onLanding` skips the route change for the
-// Pricing/FAQ links when those sections are already on the current page.
-function MarketingFooter({ navigate, goProduct, logoUrl, onLanding = false }) {
+// every product page: brand · the full Product module directory · the Solutions
+// directory (role / stage / industry) · Explore + Get started. `onLanding`
+// skips the route change for Pricing/FAQ when those sections are on this page.
+function MarketingFooter({ navigate, goProduct, goSolution = () => {}, logoUrl, onLanding = false }) {
   const goSection = (id) => {
     if (!onLanding) navigate("landing");
     scrollToLandingSection(id);
@@ -3276,9 +3576,9 @@ function MarketingFooter({ navigate, goProduct, logoUrl, onLanding = false }) {
       <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
       <div className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] max-w-[90vw] h-[240px] rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-[1.4fr_2fr_0.8fr_1fr]">
+        <div className="py-12 sm:py-14 grid gap-10 sm:gap-8 md:grid-cols-12">
           {/* brand + tagline */}
-          <div>
+          <div className="md:col-span-3">
             <BrandLogo onDark logoUrl={logoUrl} />
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--navy-ink)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
             <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
@@ -3286,7 +3586,7 @@ function MarketingFooter({ navigate, goProduct, logoUrl, onLanding = false }) {
             </div>
           </div>
           {/* full product directory (two columns) */}
-          <div>
+          <div className="md:col-span-3">
             <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Product</p>
             <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
               {PRODUCT_NAV.map((p) => (
@@ -3294,21 +3594,38 @@ function MarketingFooter({ navigate, goProduct, logoUrl, onLanding = false }) {
               ))}
             </ul>
           </div>
-          {/* explore — landing sections */}
-          <div>
-            <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Explore</p>
-            <ul className="space-y-2.5 text-sm">
-              <li><button onClick={() => goSection("pricing")} className="footer-link inline-block py-0.5 text-left">Pricing</button></li>
-              <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
-            </ul>
+          {/* solutions directory — grouped by role / stage / industry */}
+          <div className="md:col-span-4">
+            <button onClick={() => goSolution("")} className="text-[11px] font-semibold uppercase mb-3.5 footer-link inline-block" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Solutions</button>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              {SOLUTIONS_NAV.map((g) => (
+                <div key={g.group} className="break-inside-avoid">
+                  <p className="text-[11px] font-medium mb-2" style={{ color: "var(--navy-ink)" }}>{g.group}</p>
+                  <ul className="space-y-2 text-sm">
+                    {g.items.map((s) => (
+                      <li key={s.slug}><button onClick={() => goSolution(s.slug)} className="footer-link inline-block py-0.5 text-left">{s.label}</button></li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </div>
-          {/* get started */}
-          <div>
-            <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
-            <ul className="space-y-2.5 text-sm">
-              <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5 text-left">Sign in</button></li>
-              <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5 text-left">Create workspace</button></li>
-            </ul>
+          {/* explore + get started */}
+          <div className="md:col-span-2 space-y-8">
+            <div>
+              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Explore</p>
+              <ul className="space-y-2.5 text-sm">
+                <li><button onClick={() => goSection("pricing")} className="footer-link inline-block py-0.5 text-left">Pricing</button></li>
+                <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase mb-3.5" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Get started</p>
+              <ul className="space-y-2.5 text-sm">
+                <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5 text-left">Sign in</button></li>
+                <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5 text-left">Create workspace</button></li>
+              </ul>
+            </div>
           </div>
         </div>
         <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--navy-line)" }}>
@@ -3317,6 +3634,39 @@ function MarketingFooter({ navigate, goProduct, logoUrl, onLanding = false }) {
         </div>
       </div>
     </footer>
+  );
+}
+
+// Shared hero for every marketing sub-page (product modules + solutions), so
+// the two sections render identically on-brand. The secondary CTA is caller-
+// supplied ("All products" vs "All solutions").
+function MarketingHero({ eyebrow, icon, title, accent, subtitle, chips, navigate, secondaryLabel, onSecondary }) {
+  return (
+    <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
+        <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+          <Icon name={icon} className="w-3.5 h-3.5" /> {eyebrow}
+        </span>
+        <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "17ch" }}>
+          {title} <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span>
+        </h1>
+        <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{subtitle}</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <button onClick={() => navigate("signup")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">Start free trial</button>
+          <button onClick={onSecondary} className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>{secondaryLabel}</button>
+        </div>
+        {chips && (
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            {chips.map((ch) => (
+              <span key={ch} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+                <Icon name="check" className="w-3 h-3" style={{ color: "#22C55E" }} /> {ch}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -3337,46 +3687,19 @@ function ProductCTA({ navigate }) {
 }
 
 // One page per module (or the overview hub / changelog). Slug "" = overview.
-function ProductScreen({ slug = "", navigate, goProduct, logoUrl }) {
-  const nav = { navigate, goProduct, logoUrl };
+function ProductScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, logoUrl };
   const isOverview = !slug;
   const isChangelog = slug === "changelog";
   const page = PRODUCT_PAGES[slug];
-
-  const Hero = ({ eyebrow, icon, title, accent, subtitle, chips }) => (
-    <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
-        <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
-          <Icon name={icon} className="w-3.5 h-3.5" /> {eyebrow}
-        </span>
-        <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "16ch" }}>
-          {title} <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span>
-        </h1>
-        <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{subtitle}</p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <button onClick={() => navigate("signup")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">Start free trial</button>
-          <button onClick={() => goProduct("")} className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>All products</button>
-        </div>
-        {chips && (
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-            {chips.map((ch) => (
-              <span key={ch} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
-                <Icon name="check" className="w-3 h-3" style={{ color: "#22C55E" }} /> {ch}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
+  const heroNav = { navigate, secondaryLabel: "All products", onSecondary: () => goProduct("") };
 
   // ── Overview hub ──
   if (isOverview) {
     return (
       <div className="overflow-x-clip" style={{ background: "#050610" }}>
         <MarketingNav {...nav} current="" />
-        <Hero eyebrow="The platform" icon="dashboard" title="Everything you need to hire," accent="in one platform." subtitle="Sourcing, tracking, AI screening, interviews, offers and analytics. Aster covers the whole hiring workflow so your team works from one place, not ten tabs." chips={["End to end", "AI-native", "Set up in minutes"]} />
+        <MarketingHero {...heroNav} eyebrow="The platform" icon="dashboard" title="Everything you need to hire," accent="in one platform." subtitle="Sourcing, tracking, AI screening, interviews, offers and analytics. Aster covers the whole hiring workflow so your team works from one place, not ten tabs." chips={["End to end", "AI-native", "Set up in minutes"]} />
         <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -3407,7 +3730,7 @@ function ProductScreen({ slug = "", navigate, goProduct, logoUrl }) {
     return (
       <div className="overflow-x-clip" style={{ background: "#050610" }}>
         <MarketingNav {...nav} current="changelog" />
-        <Hero eyebrow="What's new" icon="bell" title="Every release," accent="in one place." subtitle="A running log of what we've shipped: new modules, improvements and the small touches that make hiring smoother." chips={["Shipped weekly", "Read the highlights"]} />
+        <MarketingHero {...heroNav} eyebrow="What's new" icon="bell" title="Every release," accent="in one place." subtitle="A running log of what we've shipped: new modules, improvements and the small touches that make hiring smoother." chips={["Shipped weekly", "Read the highlights"]} />
         <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
           <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-6">
             {entries.map((e) => (
@@ -3448,7 +3771,7 @@ function ProductScreen({ slug = "", navigate, goProduct, logoUrl }) {
   return (
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} current={slug} />
-      <Hero eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
+      <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
       {/* Feature grid */}
       <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -3483,6 +3806,126 @@ function ProductScreen({ slug = "", navigate, goProduct, logoUrl }) {
                   ))}
                 </ul>
               </div>
+            </div>
+          </div>
+        </section>
+      )}
+      <ProductCTA navigate={navigate} />
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
+
+// Solutions pages share the exact visual language of the product pages (same
+// Hero, feature grid and highlight band) so the whole marketing site reads as
+// one system. Slug "" = the segmentation hub; any other slug = a segment page.
+function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, logoUrl };
+  const isHub = !slug;
+  const page = SOLUTIONS_PAGES[slug];
+  const heroNav = { navigate, secondaryLabel: "All solutions", onSecondary: () => goSolution("") };
+
+  // ── Segmentation hub ──
+  if (isHub) {
+    return (
+      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MarketingNav {...nav} currentSol="" />
+        <MarketingHero {...heroNav} eyebrow="Solutions" icon="target" title="The same platform," accent="framed for how you hire." subtitle="Whatever your role, company stage or industry, Aster reads every CV, ranks for fit and books the interviews. Find the version of the story that fits your team." chips={["By role", "By company stage", "By industry"]} />
+        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-14">
+            {SOLUTIONS_NAV.map((g) => (
+              <div key={g.group}>
+                <div className="flex items-center gap-3 mb-5">
+                  <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.25rem, 2.4vw, 1.6rem)", letterSpacing: "-0.02em" }}>{g.group}</h2>
+                  <span className="h-px flex-1" style={{ background: "var(--navy-line)" }} />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {g.items.map((s) => (
+                    <button key={s.slug} onClick={() => goSolution(s.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                      <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={s.icon} className="w-5 h-5" /></span>
+                      <p className="text-white font-semibold font-display flex items-center gap-1.5">{s.label} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
+                      <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{s.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Unknown slug ──
+  if (!page) {
+    return (
+      <div style={{ background: "#050610", minHeight: "100vh" }}>
+        <MarketingNav {...nav} currentSol={null} />
+        <div className="max-w-3xl mx-auto px-6 py-24 text-center">
+          <h1 className="text-2xl font-bold text-white font-display">Page not found</h1>
+          <button onClick={() => goSolution("")} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to Solutions</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Segment page ──
+  const seg = SOLUTIONS_INDEX[slug];
+  return (
+    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <MarketingNav {...nav} currentSol={slug} />
+      <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
+      {/* Feature grid */}
+      <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {page.features.map((f) => (
+              <div key={f.title} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={f.icon} className="w-5 h-5" /></span>
+                <p className="text-white font-semibold font-display">{f.title}</p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* Highlight band */}
+      {page.highlight && (
+        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
+              <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+              <div className="relative grid lg:grid-cols-2 gap-8 items-center">
+                <div>
+                  <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
+                  <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{page.highlight.body}</p>
+                </div>
+                <ul className="space-y-3">
+                  {page.highlight.points.map((pt, i) => (
+                    <li key={i} className="flex items-start gap-3 rounded-xl p-3.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="check" className="w-3.5 h-3.5" /></span>
+                      <span className="text-sm text-white/90">{pt}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+      {/* Related solutions in the same group */}
+      {seg && (
+        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <p className="text-[11px] font-semibold uppercase mb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>More {seg.group.toLowerCase()}</p>
+            <div className="flex flex-wrap gap-2.5">
+              {(SOLUTIONS_NAV.find((g) => g.group === seg.group)?.items || []).filter((s) => s.slug !== slug).map((s) => (
+                <button key={s.slug} onClick={() => goSolution(s.slug)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-xl transition-colors hover:bg-white/[0.06]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)", color: "#fff" }}>
+                  <span style={{ color: "#C79BFF" }}><Icon name={s.icon} className="w-4 h-4" /></span> {s.label}
+                </button>
+              ))}
             </div>
           </div>
         </section>
@@ -11901,10 +12344,12 @@ const SCREEN_TO_PATH = {
   schedulePicker: "/schedule",
   apply: "/apply",
   product: "/product",
+  solutions: "/solutions",
 };
 const PATH_TO_SCREEN = {
   "/": "landing",
   "/product": "product",
+  "/solutions": "solutions",
   "/login": "login",
   "/forgot-password": "forgotPassword",
   "/signup": "signup",
@@ -11936,9 +12381,17 @@ function productSlugFromPath(pathname) {
   const m = (pathname || "").match(/^\/product\/([^/]+)$/);
   return m ? m[1] : null; // null → not a product path
 }
+// Solutions pages: /solutions (hub) and /solutions/<slug>, where <slug> may be
+// nested (e.g. industries/technology). The whole sub-path is the slug.
+function solutionSlugFromPath(pathname) {
+  if (pathname === "/solutions") return "";
+  const m = (pathname || "").match(/^\/solutions\/(.+)$/);
+  return m ? m[1] : null; // null → not a solutions path
+}
 function screenFromPath(pathname) {
   if (candidateIdFromPath(pathname)) return "candidateProfile";
   if (productSlugFromPath(pathname) != null) return "product";
+  if (solutionSlugFromPath(pathname) != null) return "solutions";
   return PATH_TO_SCREEN[pathname] || "landing";
 }
 
@@ -11948,12 +12401,14 @@ function initialHistoryFromUrl() {
   const screen = screenFromPath(window.location.pathname);
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
   if (screen === "product") return ["landing", "product"]; // public page; Back → landing
+  if (screen === "solutions") return ["landing", "solutions"]; // public page; Back → landing
   return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
 }
 
 export default function ResumeAIPreview() {
   const [history, setHistory] = useState(initialHistoryFromUrl);
   const [productSlug, setProductSlug] = useState(() => (typeof window !== "undefined" ? (productSlugFromPath(window.location.pathname) || "") : ""));
+  const [solutionSlug, setSolutionSlug] = useState(() => (typeof window !== "undefined" ? (solutionSlugFromPath(window.location.pathname) || "") : ""));
   const [jobs, setJobs] = useState(MOCK_JOBS);
   const [activeJobId, setActiveJobId] = useState("j1");
   // On the Free plan, only one job stays active; the rest are paused (kept, not
@@ -12091,7 +12546,7 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
-    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
+    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
       window.history.replaceState({ aster: true }, "", pathFor(history[0]));
@@ -12108,9 +12563,11 @@ export default function ResumeAIPreview() {
       const path = window.location.pathname;
       const cid = candidateIdFromPath(path);
       const pslug = productSlugFromPath(path);
-      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (PATH_TO_SCREEN[path] || "landing"));
+      const sslug = solutionSlugFromPath(path);
+      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (sslug != null ? "solutions" : (PATH_TO_SCREEN[path] || "landing")));
       if (cid) setViewCandidateId(cid);
       if (pslug != null) setProductSlug(pslug);
+      if (sslug != null) setSolutionSlug(sslug);
       setHistory((h) => {
         const idx = h.lastIndexOf(target);
         if (idx >= 0) return h.slice(0, idx + 1);      // walk back to it in-stack
@@ -12134,6 +12591,11 @@ export default function ResumeAIPreview() {
   const goProduct = (slug = "") => {
     setProductSlug(slug);
     navigate("product", "/product" + (slug ? `/${slug}` : ""));
+  };
+
+  const goSolution = (slug = "") => {
+    setSolutionSlug(slug);
+    navigate("solutions", "/solutions" + (slug ? `/${slug}` : ""));
   };
 
   const handlePreviewBooking = (request) => {
@@ -12215,7 +12677,7 @@ export default function ResumeAIPreview() {
   if (screen === "landing") {
     return (
       <Shell>
-        <LandingScreen navigate={navigate} goProduct={goProduct} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
+        <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
       </Shell>
     );
   }
@@ -12223,7 +12685,15 @@ export default function ResumeAIPreview() {
   if (screen === "product") {
     return (
       <Shell>
-        <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} logoUrl={logoUrl} />
+        <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "solutions") {
+    return (
+      <Shell>
+        <SolutionsScreen slug={solutionSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} logoUrl={logoUrl} />
       </Shell>
     );
   }
