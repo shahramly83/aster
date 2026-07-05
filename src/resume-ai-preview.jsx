@@ -6912,6 +6912,55 @@ function FieldLabel({ children, hint }) {
   );
 }
 
+// A custom, on-brand dropdown for picking an open role. Replaces the native
+// <select> so options can show role meta and match the app's styling.
+function JobSelect({ jobs, value, onChange, disabled, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = jobs.find((j) => j.id === value);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  const metaOf = (j) => [j.department, j.location, cap(j.seniority_level)].filter(Boolean).join(" · ");
+  return (
+    <div ref={ref} className="relative flex-1">
+      <button type="button" disabled={disabled} onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}
+        className="w-full rounded-xl bg-white border px-3.5 py-2.5 text-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow disabled:opacity-60"
+        style={{ borderColor: open ? "var(--brand)" : "var(--line)" }}>
+        <span className="flex-1 text-left truncate" style={{ color: selected ? "var(--ink)" : "var(--ink-3)" }}>{selected ? selected.title : placeholder}</span>
+        <span className="shrink-0 transition-transform" style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-4 h-4" /></span>
+      </button>
+      {open && (
+        <div role="listbox" className="absolute z-30 left-0 right-0 mt-1.5 rounded-xl bg-white border p-1 max-h-72 overflow-y-auto" style={{ borderColor: "var(--line)", boxShadow: "0 18px 40px -18px rgba(18,19,42,0.28)" }}>
+          {jobs.length === 0 ? (
+            <div className="px-3 py-6 text-center text-sm" style={{ color: "var(--ink-3)" }}>No open positions yet.</div>
+          ) : jobs.map((j) => {
+            const sel = j.id === value;
+            return (
+              <button key={j.id} type="button" role="option" aria-selected={sel} onClick={() => { onChange(j.id); setOpen(false); }}
+                className="w-full text-left rounded-lg px-2.5 py-2 flex items-center gap-2.5 transition-colors hover:bg-neutral-50"
+                style={sel ? { background: "var(--brand-soft)" } : undefined}>
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={sel ? { background: "linear-gradient(135deg, var(--brand-0), var(--brand-2))", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{j.title}</span>
+                  {metaOf(j) && <span className="block text-[11px] truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{metaOf(j)}</span>}
+                </span>
+                {sel && <span className="shrink-0" style={{ color: "var(--brand)" }}><Icon name="check" className="w-4 h-4" /></span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // A tag field with type-ahead suggestions from a stored list. Free-solo lets the
 // user add a value that isn't in the list (skills); restricted mode limits input
 // to known values (industry). Aliases + fuzzy matching mean synonyms and typos
@@ -7486,11 +7535,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role. AI ranks every candidate by fit, then invite the strongest. Invites are tagged <span className="font-medium" style={{ color: "var(--ink-2)" }}>source: database</span>.</p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                    <select value={matchJobId} onChange={(e) => { setMatchJobId(e.target.value); setMatchScores(null); }} disabled={openJobs.length === 0}
-                      className="flex-1 rounded-xl bg-white border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 transition-shadow disabled:opacity-60" style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
-                      <option value="">Select an open position…</option>
-                      {openJobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
-                    </select>
+                    <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={runRoleMatch} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
                       <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
@@ -7537,11 +7582,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             {planNote}
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
-              <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+              <div>
                 {SEARCH_HELP.map((item, i) => {
                   const open = openTip === i;
                   return (
-                    <div key={item.title}>
+                    <div key={item.title} className={i > 0 ? "border-t" : ""} style={i > 0 ? { borderColor: "var(--line)" } : undefined}>
                       <button onClick={() => setOpenTip(open ? null : i)} aria-expanded={open} className="w-full flex items-center gap-2.5 py-2.5 px-1 text-left transition-colors hover:bg-neutral-50/60 rounded-lg">
                         <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={item.icon} className="w-3.5 h-3.5" /></span>
                         <span className="flex-1 text-[13px] font-medium min-w-0" style={{ color: "var(--ink)" }}>{item.title}</span>
