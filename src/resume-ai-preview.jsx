@@ -10082,6 +10082,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [insights, setInsights] = useState(candidate ? MOCK_INSIGHTS[candidate.id] ?? null : null);
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
   const copyProfileLink = async () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
     try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); } else { const ta = document.createElement("textarea"); ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* no-op */ }
@@ -10301,7 +10302,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               <Icon name={copied ? "check" : "link"} className="w-4 h-4" /> {copied ? "Copied" : "Copy link"}
             </button>
             {planLimits(plan).storeOriginal ? (
-              <button onClick={() => {}} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5">
+              <button onClick={() => setShowPdf(true)} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5">
                 <Icon name="doc" className="w-4 h-4" /> View original PDF
               </button>
             ) : (
@@ -10641,6 +10642,111 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             )}
           </aside>
         </div>{/* two-column grid */}
+      </div>
+      {showPdf && <ResumePdfModal candidate={candidate} onClose={() => setShowPdf(false)} />}
+    </div>
+  );
+}
+
+// The stored original resume, shown in a lightweight PDF-style viewer. The
+// preview has no binary file, so it renders the parsed resume as a clean
+// document and exports the same content on download.
+function ResumePdfModal({ candidate, onClose }) {
+  const p = candidate.parsed;
+  const fileName = `${(p.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`;
+  const download = () => {
+    const out = [];
+    out.push(p.name || "");
+    out.push([p.email, p.phone, p.location].filter(Boolean).join("  |  "));
+    if (p.summary) out.push("\nSUMMARY\n" + p.summary);
+    if (p.skills?.length) out.push("\nSKILLS\n" + p.skills.join(", "));
+    if (p.experience?.length) { out.push("\nEXPERIENCE"); p.experience.forEach((e) => out.push(`${e.title} · ${e.company}  (${e.duration})\n${e.summary || ""}`)); }
+    if (p.education?.length) { out.push("\nEDUCATION"); p.education.forEach((e) => out.push(`${e.degree} · ${e.institution}  (${e.year})`)); }
+    if (p.certifications?.length) out.push("\nCERTIFICATIONS\n" + p.certifications.join("\n"));
+    if (p.languages?.length) out.push("\nLANGUAGES\n" + p.languages.join(", "));
+    try {
+      const blob = new Blob([out.join("\n")], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = fileName.replace(/\.pdf$/i, ".txt");
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch { /* no-op */ }
+  };
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const contact = [p.email, p.phone, p.location].filter(Boolean);
+  const Section = ({ title, children }) => (
+    <div className="mt-5">
+      <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] pb-1 mb-2.5" style={{ color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>{title}</h3>
+      {children}
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl" style={{ background: "#20233A" }}>
+        {/* Viewer toolbar */}
+        <div className="flex items-center gap-3 px-4 py-3 shrink-0" style={{ background: "#2A2E48" }}>
+          <Icon name="doc" className="w-4 h-4 shrink-0" style={{ color: "rgba(255,255,255,0.8)" }} />
+          <span className="text-sm font-medium truncate" style={{ color: "rgba(255,255,255,0.92)" }}>{fileName}</span>
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            <button onClick={download} className="text-xs font-medium rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.9)" }}>
+              <Icon name="download" className="w-3.5 h-3.5" /> Download
+            </button>
+            <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.75)" }}>
+              <Icon name="close" className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        {/* Document page */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ background: "#3A3F5C" }}>
+          <div className="mx-auto bg-white shadow-xl px-8 sm:px-10 py-9 max-w-[620px]" style={{ color: "#1f2937" }}>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#111827" }}>{p.name}</h1>
+            {contact.length > 0 && <p className="text-xs mt-1.5" style={{ color: "#6b7280" }}>{contact.join("   ·   ")}</p>}
+            {(p.linkedin_url || p.portfolio_url) && (
+              <p className="text-xs mt-1" style={{ color: "#4f46e5" }}>{[p.linkedin_url && "LinkedIn", p.portfolio_url && "Portfolio"].filter(Boolean).join("   ·   ")}</p>
+            )}
+            {p.summary && <Section title="Summary"><p className="text-sm leading-relaxed" style={{ color: "#374151" }}>{p.summary}</p></Section>}
+            {p.experience?.length > 0 && (
+              <Section title="Experience">
+                <div className="space-y-3.5">
+                  {p.experience.map((e, i) => (
+                    <div key={i}>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="text-sm font-semibold" style={{ color: "#111827" }}>{e.title}<span style={{ color: "#6b7280", fontWeight: 400 }}> · {e.company}</span></p>
+                        <span className="text-xs shrink-0" style={{ color: "#9ca3af" }}>{e.duration}</span>
+                      </div>
+                      {e.summary && <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#4b5563" }}>{e.summary}</p>}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
+            {p.education?.length > 0 && (
+              <Section title="Education">
+                <div className="space-y-1.5">
+                  {p.education.map((e, i) => (
+                    <div key={i} className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm" style={{ color: "#111827" }}>{e.degree} · {e.institution}</p>
+                      <span className="text-xs shrink-0" style={{ color: "#9ca3af" }}>{e.year}</span>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
+            {p.skills?.length > 0 && (
+              <Section title="Skills"><p className="text-sm leading-relaxed" style={{ color: "#374151" }}>{p.skills.join(", ")}</p></Section>
+            )}
+            {p.certifications?.length > 0 && (
+              <Section title="Certifications"><ul className="text-sm space-y-1 list-disc list-inside" style={{ color: "#374151" }}>{p.certifications.map((c) => <li key={c}>{c}</li>)}</ul></Section>
+            )}
+            {p.languages?.length > 0 && (
+              <Section title="Languages"><p className="text-sm" style={{ color: "#374151" }}>{p.languages.join(", ")}</p></Section>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
