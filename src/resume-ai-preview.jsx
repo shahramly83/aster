@@ -10252,8 +10252,11 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, au
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed }) {
-  const [insights, setInsights] = useState(candidate ? MOCK_INSIGHTS[candidate.id] ?? null : null);
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
+  // Insights are never generated automatically. Once a user runs them they're
+  // saved in a session cache keyed by candidate id, so returning to the profile
+  // shows the saved result without spending another credit.
+  const insights = candidate ? (insightsCache[candidate.id] ?? null) : null;
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
@@ -10312,12 +10315,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const parsed = candidate.parsed;
 
   const handleGenerate = () => {
+    if (!candidate) return;
     // Gate on the plan's monthly allowance; a fresh (not cached) run consumes one.
     if (outOfInsights && !insights) { navigate("billing"); return; }
     if (!insightsUnlimited && setAiInsightsUsed) setAiInsightsUsed((n) => n + 1);
     setGenerating(true);
     setTimeout(() => {
-      setInsights(MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate));
+      const result = MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate);
+      if (setInsightsCache) setInsightsCache((prev) => ({ ...prev, [candidate.id]: result })); // save & keep
       setGenerating(false);
     }, 1600);
   };
@@ -11648,6 +11653,8 @@ export default function ResumeAIPreview() {
   // each billing period — here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
+  // Generated AI insights, kept for the session (candidate id -> insights).
+  const [insightsCache, setInsightsCache] = useState({});
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("professional");
   const [signupCycle, setSignupCycle] = useState("monthly");
@@ -12062,6 +12069,8 @@ export default function ResumeAIPreview() {
             onOpenNotifications={markActivitiesRead}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
+            insightsCache={insightsCache}
+            setInsightsCache={setInsightsCache}
           />
         )}
         {screen === "candidates" && (
