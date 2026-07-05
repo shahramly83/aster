@@ -6777,37 +6777,144 @@ const ALL_SKILLS = [
   "Leadership", "Team Management", "Communication", "Presentation", "Public Speaking", "Problem Solving", "Critical Thinking", "Time Management", "Cross-functional Collaboration", "Mentoring", "Strategic Planning",
 ];
 
+// --- Taxonomy resolution (aliases + fuzzy) --------------------------------
+// No fixed list ever covers every skill/industry, so we normalise free input
+// against the stored taxonomy in three layers: 1) an alias table for synonyms
+// and shorthand, 2) exact (case-insensitive) match, 3) edit-distance fuzzy for
+// typos. In production this deterministic resolver is where you'd plug an
+// embedding/LLM service that maps free text to the nearest canonical entry with
+// a confidence score (and routes low-confidence entries to a review queue).
+const norm = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+// Common shorthand and synonyms -> canonical value in the taxonomy.
+const SKILL_ALIASES = {
+  js: "JavaScript", ecmascript: "JavaScript", ts: "TypeScript", "react.js": "React", reactjs: "React",
+  "next.js": "Next.js", nextjs: "Next.js", "vue.js": "Vue", vuejs: "Vue", "node.js": "Node.js", nodejs: "Node.js", node: "Node.js",
+  py: "Python", golang: "Go", csharp: "C#", "c sharp": "C#", cpp: "C++", "c plus plus": "C++", dotnet: ".NET", "dot net": ".NET",
+  k8s: "Kubernetes", gcp: "Google Cloud", "google cloud platform": "Google Cloud", postgres: "PostgreSQL", postgre: "PostgreSQL",
+  mongo: "MongoDB", "rest api": "REST APIs", "rest apis": "REST APIs", rest: "REST APIs", gql: "GraphQL", "ci/cd": "CI/CD", cicd: "CI/CD",
+  ml: "Machine Learning", "ml engineering": "Machine Learning", dl: "Deep Learning", nlp: "Natural Language Processing",
+  tf: "TensorFlow", "power bi": "Power BI", powerbi: "Power BI",
+  ux: "UX Design", "ux design": "UX Design", ui: "UI Design", "user experience": "UX Research", "user interface": "UI Design",
+  pm: "Product Management", "product owner": "Product Management", "product mgmt": "Product Management", gtm: "Go-to-Market",
+  smm: "Social Media Marketing", "social media mgmt": "Social Media Marketing", ga: "Google Analytics", "google analytics 4": "Google Analytics",
+  sfdc: "Salesforce", "salesforce.com": "Salesforce", bd: "Business Development", "biz dev": "Business Development",
+  "fp&a": "FP&A", fpa: "FP&A", "ms excel": "Excel", "microsoft excel": "Excel", spreadsheets: "Excel",
+  "l&d": "Learning & Development", "comp & ben": "Compensation & Benefits", "comp and ben": "Compensation & Benefits",
+  "project mgmt": "Project Management", pmp: "Project Management", qa: "Quality Assurance", "quality assurance": "Quality Assurance",
+  rn: "Nursing", "registered nurse": "Nursing", ehr: "EMR", "electronic medical records": "EMR", cpr: "CPR",
+  "ip law": "Intellectual Property", comms: "Communication", "leadership skills": "Leadership",
+};
+// Loose industry terms funnel toward the industries actually present in the data
+// so a match still returns candidates.
+const INDUSTRY_ALIASES = {
+  fintech: "Finance & Fintech", finance: "Finance & Fintech", financial: "Finance & Fintech", "financial services": "Finance & Fintech",
+  banking: "Finance & Fintech", bank: "Finance & Fintech", tech: "Technology", software: "Technology", it: "Technology",
+  "information technology": "Technology", saas: "Technology", startup: "Technology",
+  ecommerce: "E-commerce & Retail", "e commerce": "E-commerce & Retail", "e-commerce": "E-commerce & Retail", retail: "E-commerce & Retail", shopping: "E-commerce & Retail",
+  medical: "Healthcare", hospital: "Healthcare", clinical: "Healthcare", health: "Healthcare", healthcare: "Healthcare", pharma: "Healthcare",
+  media: "Media & Creative", creative: "Media & Creative", advertising: "Media & Creative", "ad agency": "Media & Creative", marketing: "Media & Creative",
+  logistics: "Logistics & Operations", "supply chain": "Logistics & Operations", operations: "Logistics & Operations", shipping: "Logistics & Operations",
+  travel: "Travel & Aviation", aviation: "Travel & Aviation", airline: "Travel & Aviation", airlines: "Travel & Aviation",
+  consulting: "Professional Services", "professional services": "Professional Services", advisory: "Professional Services", audit: "Professional Services",
+};
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+// Typo tolerance scales with word length: shorter words allow fewer edits.
+const fuzzyThreshold = (len) => (len <= 4 ? 1 : len <= 7 ? 2 : 3);
+// Resolve free input to a canonical taxonomy value: alias -> exact -> fuzzy.
+// Returns { value, how: 'alias'|'exact'|'fuzzy'|null }.
+function resolveToken(input, options, aliases) {
+  const q = norm(input);
+  if (!q) return { value: null, how: null };
+  if (aliases && aliases[q]) return { value: aliases[q], how: "alias" };
+  const exact = options.find((o) => o.toLowerCase() === q);
+  if (exact) return { value: exact, how: "exact" };
+  let best = null, bd = Infinity;
+  for (const o of options) {
+    const d = levenshtein(q, o.toLowerCase());
+    if (d < bd) { bd = d; best = o; }
+  }
+  if (best && bd <= fuzzyThreshold(q.length)) return { value: best, how: "fuzzy" };
+  return { value: null, how: null };
+}
+
 // A tag field with type-ahead suggestions from a stored list. Free-solo lets the
 // user add a value that isn't in the list (skills); restricted mode limits input
-// to known values (industry). Used by the "Skills & industry" match tab.
-function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, freeSolo = true }) {
+// to known values (industry). Aliases + fuzzy matching mean synonyms and typos
+// still resolve to the right canonical entry. Used by the "Skills & industry" tab.
+function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, freeSolo = true, aliases = null }) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
-  const q = input.trim().toLowerCase();
-  const suggestions = q
-    ? options.filter((o) => o.toLowerCase().includes(q) && !tags.some((t) => t.toLowerCase() === o.toLowerCase())).slice(0, 8)
-    : [];
+  const [hint, setHint] = useState("");
+  const q = norm(input);
+  const suggestions = (() => {
+    if (!q) return [];
+    const taken = new Set(tags.map((t) => t.toLowerCase()));
+    const starts = [], contains = [], fuzzy = [];
+    for (const o of options) {
+      const lo = o.toLowerCase();
+      if (taken.has(lo)) continue;
+      if (lo.startsWith(q)) starts.push(o);
+      else if (lo.includes(q)) contains.push(o);
+      else {
+        const d = levenshtein(q, lo);
+        if (d <= fuzzyThreshold(q.length)) fuzzy.push([o, d]);
+      }
+    }
+    fuzzy.sort((a, b) => a[1] - b[1]);
+    const aliasHit = aliases && aliases[q];
+    const merged = [];
+    if (aliasHit && !taken.has(aliasHit.toLowerCase())) merged.push(aliasHit);
+    for (const o of [...starts, ...contains, ...fuzzy.map((f) => f[0])]) {
+      if (!merged.some((m) => m.toLowerCase() === o.toLowerCase())) merged.push(o);
+    }
+    return merged.slice(0, 8);
+  })();
   const add = (val) => {
-    const v = (val || "").trim();
-    if (!v) return;
-    const canon = options.find((o) => o.toLowerCase() === v.toLowerCase());
-    if (!freeSolo && !canon) return; // restricted: must be a known value
-    const value = canon || v;
+    const raw = (val || "").trim();
+    if (!raw) return;
+    const { value: resolved } = resolveToken(raw, options, aliases);
+    let value = resolved;
+    if (!value) {
+      if (!freeSolo) { setHint(`"${raw}" isn't in our list. Pick the closest match.`); return; }
+      value = raw; // free-text custom skill
+    }
     if (!tags.some((t) => t.toLowerCase() === value.toLowerCase())) { setTags([...tags, value]); onChange && onChange(); }
-    setInput(""); setOpen(false);
+    setInput(""); setOpen(false); setHint("");
   };
+  const isCustom = (tag) => !options.some((o) => o.toLowerCase() === tag.toLowerCase());
   return (
     <div className="relative">
       <div className="flex flex-wrap gap-1.5 rounded-xl bg-white border p-2 focus-within:ring-2 focus-within:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)" }}>
-        {tags.map((tag) => (
-          <span key={tag} className="inline-flex items-center gap-1 text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-            {tag}
-            <button onClick={() => { setTags(tags.filter((x) => x !== tag)); onChange && onChange(); }} aria-label={`Remove ${tag}`} className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/60"><Icon name="close" className="w-3 h-3" /></button>
-          </span>
-        ))}
+        {tags.map((tag) => {
+          const custom = isCustom(tag);
+          return (
+            <span key={tag} title={custom ? "Custom skill — not in our library, so it may match fewer candidates" : undefined}
+              className="inline-flex items-center gap-1 text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1"
+              style={custom ? { background: "#fff", color: "var(--ink-2)", border: "1px dashed var(--line-strong)" } : { background: "var(--brand-soft)", color: "var(--brand)" }}>
+              {custom && <span className="text-[9px] font-semibold uppercase tracking-wide opacity-60">custom</span>}
+              {tag}
+              <button onClick={() => { setTags(tags.filter((x) => x !== tag)); onChange && onChange(); }} aria-label={`Remove ${tag}`} className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/5"><Icon name="close" className="w-3 h-3" /></button>
+            </span>
+          );
+        })}
         <input
           value={input}
-          onChange={(e) => { setInput(e.target.value); setOpen(true); }}
+          onChange={(e) => { setInput(e.target.value); setOpen(true); setHint(""); }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
           onKeyDown={(e) => {
@@ -6819,10 +6926,14 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
           className="flex-1 min-w-[150px] bg-transparent px-1.5 py-1 text-sm focus:outline-none" style={{ color: "var(--ink)" }}
         />
       </div>
+      {hint && <p className="text-[11px] mt-1.5 px-1" style={{ color: "#DC2626" }}>{hint}</p>}
       {open && suggestions.length > 0 && (
         <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl bg-white border overflow-hidden max-h-56 overflow-y-auto" style={{ borderColor: "var(--line)", boxShadow: "0 18px 40px -18px rgba(18,19,42,0.28)" }}>
           {suggestions.map((s) => (
-            <button key={s} onMouseDown={(e) => { e.preventDefault(); add(s); }} className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition-colors" style={{ color: "var(--ink)" }}>{s}</button>
+            <button key={s} onMouseDown={(e) => { e.preventDefault(); add(s); }} className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition-colors flex items-center justify-between gap-2" style={{ color: "var(--ink)" }}>
+              <span>{s}</span>
+              {q && !s.toLowerCase().includes(q) && <span className="text-[10px] shrink-0" style={{ color: "var(--brand)" }}>did you mean?</span>}
+            </button>
           ))}
         </div>
       )}
@@ -7252,7 +7363,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   <div className="mt-3 grid sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Skills</label>
-                      <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} freeSolo />
+                      <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} aliases={SKILL_ALIASES} freeSolo />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
                           <button key={s} onClick={() => addSkill(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
@@ -7261,7 +7372,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Industry</label>
-                      <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={ALL_INDUSTRIES} placeholder="Search industries…" onChange={invalidate} freeSolo={false} />
+                      <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={ALL_INDUSTRIES} placeholder="Search industries…" onChange={invalidate} aliases={INDUSTRY_ALIASES} freeSolo={false} />
                     </div>
                   </div>
                   <div className="mt-4">
