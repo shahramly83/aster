@@ -3549,6 +3549,7 @@ function Icon({ name, className = "w-5 h-5" }) {
     calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
     check: <><path d="M5 12l4.5 4.5L19 7" /></>,
     star: <><path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" /></>,
+    info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></>,
     menu: <><path d="M3 6h18M3 12h18M3 18h18" /></>,
     close: <><path d="M6 6l12 12M18 6l-12 12" /></>,
     chevronDown: <><path d="M6 9l6 6 6-6" /></>,
@@ -7377,6 +7378,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                           <button key={s} onClick={() => addSkill(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
+                      <p className="flex items-start gap-1.5 text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>
+                        <Icon name="info" className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        <span>Not in the list? Just type it and press Enter to add it as a custom skill.</span>
+                      </p>
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>Industry</label>
@@ -7386,6 +7391,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                           <button key={s} onClick={() => addIndustry(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
+                      <p className="flex items-start gap-1.5 text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>
+                        <Icon name="info" className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        <span>Type to search, then pick from the list so results stay accurate.</span>
+                      </p>
                     </div>
                   </div>
                   <div className="mt-4">
