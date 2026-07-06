@@ -33,7 +33,7 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and retur
   "experience": [{ "title": string, "company": string, "industry": string, "duration": string, "summary": string }],
   "education": [{ "degree": string, "institution": string, "year": string }]
 }
-For each experience item, set "industry" to the industry of that COMPANY, based only on what the company itself actually does (use your own knowledge of the company from its name). Examples: "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media". Do NOT derive the industry from the candidate's job title, responsibilities or summary — those describe the person's role, not the company's business. If you do not recognise the company, or are not confident what it does, set "industry" to "Unknown" instead of guessing.
+For each experience item, set "industry" to the industry of that COMPANY, based on what the company itself actually does. Examples: "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media". Do NOT derive the industry from the candidate's job title, responsibilities or summary — those describe the person's role, not the company's business. If you don't already know the company (for example a small or local business), USE THE web_search TOOL to look up what that company does before deciding its industry. Search each unfamiliar company by its full name. Only set "industry" to "Unknown" if a web search still doesn't reveal what the company does.
 Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.`;
 
 function json(body: unknown, status = 200) {
@@ -131,26 +131,41 @@ Deno.serve(async (req) => {
     let parsed: Record<string, unknown> = {};
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
     if (apiKey) {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const baseBody = {
+        model: PARSE_MODEL,
+        max_tokens: 4000,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "document", source: { type: "base64", media_type: "application/pdf", data: resume_base64 } },
+            { type: "text", text: EXTRACT_PROMPT },
+          ],
+        }],
+      };
+      const callAnthropic = (withTools: boolean) => fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({
-          model: PARSE_MODEL,
-          max_tokens: 1500,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "document", source: { type: "base64", media_type: "application/pdf", data: resume_base64 } },
-              { type: "text", text: EXTRACT_PROMPT },
-            ],
-          }],
-        }),
+        body: JSON.stringify(withTools
+          ? { ...baseBody, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }] }
+          : baseBody),
       });
+
+      // Try with web search; if the tool isn't available on the account, fall
+      // back to a plain call so the parse still works.
+      let resp = await callAnthropic(true);
+      if (!resp.ok) {
+        console.error("anthropic (web search) error", resp.status, await resp.text());
+        resp = await callAnthropic(false);
+      }
       if (resp.ok) {
         const data = await resp.json();
-        const text = (data.content || []).map((b: any) => b.text || "").join("").trim();
-        const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-        try { parsed = JSON.parse(cleaned); } catch { /* keep {} on parse failure */ }
+        // The model may narrate around its searches; pull the JSON object out.
+        let text = (data.content || []).map((b: any) => (typeof b.text === "string" ? b.text : "")).join(" ").trim();
+        text = text.replace(/```json/gi, "").replace(/```/g, "");
+        const s = text.indexOf("{"), e = text.lastIndexOf("}");
+        if (s >= 0 && e > s) {
+          try { parsed = JSON.parse(text.slice(s, e + 1)); } catch (err) { console.error("json parse failed", err); }
+        }
       } else {
         console.error("anthropic error", resp.status, await resp.text());
       }
