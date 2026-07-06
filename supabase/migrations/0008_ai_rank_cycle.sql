@@ -16,6 +16,11 @@ language sql stable as $$
          (p_created + (((select idx from c) + 1) * 30) * interval '1 day')::date;
 $$;
 
+-- The return shape changed since 0007 (added resets_at), so drop first —
+-- create-or-replace can't change a function's return type.
+drop function if exists public.get_ai_rank_usage();
+drop function if exists public.bump_ai_rank();
+
 -- Current cycle's usage + the plan limit + the next reset date.
 create or replace function public.get_ai_rank_usage()
 returns table (used int, monthly_limit int, resets_at date)
