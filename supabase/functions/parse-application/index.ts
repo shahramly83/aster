@@ -15,7 +15,8 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const MODEL = "claude-haiku-4-5-20251001"; // fast + cheap; bump to a Sonnet/Opus id for tougher resumes
+const PARSE_MODEL = "claude-sonnet-5";          // strong company/industry knowledge for the resume parse
+const FACE_MODEL = "claude-haiku-4-5-20251001"; // cheap vision, just to pick the headshot
 
 const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and return ONLY a JSON object (no markdown, no commentary) with exactly these keys:
 {
@@ -94,7 +95,7 @@ async function pickFaceIndex(apiKey: string, imgs: Uint8Array[]): Promise<number
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 40, messages: [{ role: "user", content }] }),
+      body: JSON.stringify({ model: FACE_MODEL, max_tokens: 40, messages: [{ role: "user", content }] }),
     });
     if (!resp.ok) { console.error("face pick error", resp.status); return -1; }
     const data = await resp.json();
@@ -134,7 +135,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({
-          model: MODEL,
+          model: PARSE_MODEL,
           max_tokens: 1500,
           messages: [{
             role: "user",
