@@ -1539,8 +1539,8 @@ function ScoreRingLight({ value, size = 56, stroke = 5, loop = false, delay = 0 
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="font-bold tnum leading-none inline-flex items-center justify-center" style={{ color: "var(--ink)", fontSize: Math.round(size * 0.3) }}>
-          {value}<span style={{ fontSize: Math.round(size * 0.19), marginLeft: 1 }}>%</span>
+        <span className="font-bold tnum leading-none inline-flex items-center justify-center" style={{ color: "var(--ink)", fontSize: Math.round(size * (String(value).length >= 3 ? 0.23 : 0.3)) }}>
+          {value}<span style={{ fontSize: Math.round(size * (String(value).length >= 3 ? 0.15 : 0.19)), marginLeft: 1 }}>%</span>
         </span>
       </div>
     </div>
@@ -9164,17 +9164,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const q = query.trim().toLowerCase();
   let list = [];
   if (tab === "browse") {
-    const terms = q.split(/[\s,]+/).filter((t) => t.length > 1);
-    list = available.filter((c) => {
-      if (minYears > 0 && (c.parsed.years_of_experience ?? 0) < minYears) return false;
-      if (terms.length === 0) return true;
-      const name = c.parsed.name.toLowerCase();
-      const skills = c.parsed.skills.map((s) => s.toLowerCase());
-      const roles = c.parsed.experience.map((e) => e.title.toLowerCase());
-      return terms.some((t) => name.includes(t) || skills.some((s) => s.includes(t)) || roles.some((r) => r.includes(t)));
-    }).sort((a, b) => (sortBy === "experience"
-      ? (b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)
-      : a.parsed.name.localeCompare(b.parsed.name)));
+    // Browse by name only.
+    list = available
+      .filter((c) => !q || c.parsed.name.toLowerCase().includes(q))
+      .sort((a, b) => a.parsed.name.localeCompare(b.parsed.name));
   } else if (matchScores) {
     const pool = tab === "role" ? available.filter((c) => !alreadyApplied.has(c.id)) : available;
     list = [...pool];
@@ -9405,7 +9398,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   ) : null;
 
   const TABS = [
-    { key: "browse", short: "Browse", full: "Browse", icon: "users" },
+    { key: "browse", short: "By name", full: "Browse by name", icon: "users" },
     { key: "skills", short: "Skills", full: "Skills & industry", icon: "matching" },
     { key: "role", short: "Role", full: "Match to a role", icon: "briefcase" },
   ];
@@ -9487,36 +9480,19 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-5 h-5" /></span>
-              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search by name, skill, or role…"
+              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search by name…"
                 className="w-full rounded-2xl bg-white border pl-12 pr-10 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 transition-shadow"
                 style={{ borderColor: "var(--line)", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }} />
               {query && <button onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
             </div>
-            {POPULAR_SKILLS.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 mt-3">
-                <span className="text-xs" style={{ color: "var(--ink-3)" }}>Popular:</span>
-                {POPULAR_SKILLS.slice(0, 6).map((chip) => {
-                  const active = query === chip;
-                  return <button key={chip} onClick={() => { setQuery(active ? "" : chip); setPage(1); }} className="text-xs rounded-full px-3 py-1 font-medium transition-colors" style={active ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{chip}</button>;
-                })}
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-5 mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 mt-4 mb-3">
               <p className="text-sm" style={{ color: "var(--ink-2)" }}>
                 <span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{q ? ` · matching "${query}"` : " in your database"}
                 {pageCount > 1 && <span style={{ color: "var(--ink-3)" }}> · {pageStart + 1}–{Math.min(pageStart + PER_PAGE, shownList.length)} shown</span>}
               </p>
-              <div className="flex items-center gap-2">
-                <select value={minYears} onChange={(e) => { setMinYears(Number(e.target.value)); setPage(1); }} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Filter by experience">
-                  <option value={0}>Any experience</option><option value={3}>3+ years</option><option value={5}>5+ years</option><option value={8}>8+ years</option>
-                </select>
-                <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }} className="rounded-lg bg-white border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Sort candidates">
-                  <option value="name">Sort: Name (A–Z)</option><option value="experience">Sort: Most experience</option>
-                </select>
-                {(q || minYears > 0) && <button onClick={() => { setQuery(""); setMinYears(0); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>}
-              </div>
+              {q && <button onClick={() => { setQuery(""); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>}
             </div>
-            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name, skill, or role.` : "Your database is empty.") : (<>
+            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name.` : "Your database is empty.") : (<>
               <div className="grid sm:grid-cols-2 gap-3">
                 {browseItems.map((c) => browseCard(c))}
                 {lockedList.length > 0 && (
@@ -9571,7 +9547,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both. Matching candidates appear instantly.</p>
                   <div className="mt-3 grid sm:grid-cols-2 gap-3">
                     <div>
-                      <FieldLabel hint="Type any skill and pick a suggestion. If it is not in the list, press Enter to add it as your own custom skill.">Skills</FieldLabel>
+                      <FieldLabel hint="Skills are generated by AI from your current candidate database.">Skills</FieldLabel>
                       <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} aliases={{}} freeSolo />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8).map((s) => (
@@ -9580,7 +9556,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                       </div>
                     </div>
                     <div>
-                      <FieldLabel hint="Type to search our industry list and pick the closest match. Choosing from the list keeps the ranking accurate.">Industry</FieldLabel>
+                      <FieldLabel hint="Industries are generated by AI from your current candidate database.">Industry</FieldLabel>
                       <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={industryOptions} placeholder="Search industries…" onChange={invalidate} aliases={{}} freeSolo={false} />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8).map((s) => (
