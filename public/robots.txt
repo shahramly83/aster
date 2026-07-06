@@ -17,5 +17,6 @@ Disallow: /profile
 Disallow: /settings
 Disallow: /schedule
 Disallow: /apply
+Disallow: /admin
 
 Sitemap: https://hireaster.com/sitemap.xml

@@ -1,0 +1,751 @@
+// ============================================================================
+// Aster Admin Portal — internal-only console, fully separate from the customer
+// app. Mounted at /admin/* (see App.jsx). Renders standalone, so it injects its
+// own design tokens rather than relying on the marketing app's styles.
+//
+// Guardrails baked into the UI:
+//  - Admin accounts are separate from company (customer) users.
+//  - Candidate resumes are NEVER accessible here; candidate PII is masked.
+//  - Card/payment details are never stored or displayed (no digits anywhere).
+//  - Role-based access: Super Admin, Support Admin, Billing Admin — enforced in
+//    the nav AND in each screen (defense in depth), plus an audit trail.
+// All data below is mock data for the preview.
+// ============================================================================
+import { useState, useEffect, useMemo } from "react";
+
+const ADMIN_STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+:root{
+--bg:#FAFAFB;--card:#FFFFFF;--line:#ECECEF;--line-strong:#DEDEE3;
+--ink:#12132A;--ink-2:#56566A;--ink-3:#6E6E7C;
+--brand:#973BF7;--brand-2:#5A78F8;--brand-0:#D65BFF;--brand-soft:#F6EEFF;
+--adm:#0B0D1A;--adm-2:#141733;--adm-line:#24274A;--adm-ink:#9EA1C4;--adm-ink-2:#6E7199;
+--ok:#16A34A;--ok-soft:#E7F6EC;--warn:#B45309;--warn-soft:#FBF0E4;--danger:#DC2626;--danger-soft:#FCEBEB;--info:#2563EB;--info-soft:#E8EFFD;
+}
+.adm{font-family:'Inter',ui-sans-serif,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.adm-display{font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;letter-spacing:-0.02em;}
+.adm .grad{background:linear-gradient(135deg,#D65BFF,#973BF7 45%,#5A78F8);}
+.adm .txt-grad{background:linear-gradient(120deg,#D65BFF,#973BF7 48%,#5A78F8);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.adm-shadow{box-shadow:0 1px 2px rgba(18,19,42,.04),0 10px 26px -16px rgba(18,19,42,.16);}
+.adm .tnum{font-variant-numeric:tabular-nums;}
+.adm-row:hover{background:#FBFAFE;}
+.adm ::-webkit-scrollbar{width:10px;height:10px}.adm ::-webkit-scrollbar-thumb{background:#d9d9e3;border-radius:8px;border:2px solid transparent;background-clip:content-box}
+.adm-side ::-webkit-scrollbar-thumb{background:#2c2f52}
+`;
+
+// ---------------------------------------------------------------------------
+// Icons (stroke, currentColor)
+// ---------------------------------------------------------------------------
+const PATHS = {
+  dashboard: "M4 5h6v6H4zM14 5h6v4h-6zM14 13h6v6h-6zM4 15h6v4H4z",
+  building: "M4 21V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v15M15 10h4a1 1 0 0 1 1 1v10M3 21h18M7 8h1M11 8h1M7 12h1M11 12h1M7 16h1M11 16h1",
+  users: "M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM21 20v-1a3.5 3.5 0 0 0-3-3.46M16.5 4.2a3.5 3.5 0 0 1 0 6.6",
+  card: "M3 8h18M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Zm4 8h3",
+  chart: "M4 20V10M10 20V4M16 20v-7M4 20h16",
+  headset: "M4 13a8 8 0 0 1 16 0M4 13v3a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Zm16 0v3a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Zm-3 5a5 5 0 0 1-4 2",
+  flag: "M5 21V4M5 4c3-1.5 5 1.5 8 0s5 0 5 0v9c-2 0-2 1.5-5 0s-5 1.5-8 0",
+  audit: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4",
+  lock: "M6 11V8a6 6 0 0 1 12 0v3M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z",
+  search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3",
+  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  shield: "M12 3l8 3v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z",
+  check: "M4 12l5 5L20 6",
+  close: "M6 6l12 12M18 6L6 18",
+  chevronDown: "M6 9l6 6 6-6",
+  chevronRight: "M9 6l6 6-6 6",
+  arrowUpRight: "M7 17L17 7M8 7h9v9",
+  warning: "M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z",
+  key: "M15 7a4 4 0 1 1-4 4l-6 6H3v-2l6-6a4 4 0 0 1 6-2Z",
+  eyeOff: "M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.2A9.5 9.5 0 0 1 12 5c5 0 9 5 9 7a12 12 0 0 1-2.2 2.9M6.1 6.1C3.8 7.5 2 10 2 12c0 2 4 7 10 7a9.7 9.7 0 0 0 3.6-.7",
+  filter: "M4 5h16l-6 8v5l-4 2v-7L4 5Z",
+  ban: "M5.6 5.6l12.8 12.8M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
+  refresh: "M21 12a9 9 0 1 1-3-6.7M21 4v4h-4",
+  dot: "M12 12h.01",
+  bell: "M6 8a6 6 0 0 1 12 0c0 7 2 8 2 8H4s2-1 2-8M10.3 21a2 2 0 0 0 3.4 0",
+  spark: "M12 3l1.9 5.6L20 10l-6.1 1.4L12 17l-1.9-5.6L4 10l6.1-1.4L12 3Z",
+  external: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
+};
+function Icon({ name, className = "w-5 h-5" }) {
+  const filled = name === "dot";
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill={filled ? "currentColor" : "none"} stroke={filled ? "none" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {filled ? <circle cx="12" cy="12" r="4" /> : <path d={PATHS[name] || PATHS.dot} />}
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Roles & permissions (RBAC)
+// ---------------------------------------------------------------------------
+const ROLE_META = {
+  super:   { label: "Super Admin",   short: "Super",   tint: "#973BF7", blurb: "Full access to every area and action." },
+  support: { label: "Support Admin", short: "Support", tint: "#2563EB", blurb: "Accounts, users and support. No billing or flags." },
+  billing: { label: "Billing Admin", short: "Billing", tint: "#16A34A", blurb: "Subscriptions, revenue and audit. No user or support tools." },
+};
+
+// Which sections each role may open. Enforced in the sidebar and per screen.
+const SECTIONS = [
+  { key: "dashboard",     label: "Dashboard",        icon: "dashboard", roles: ["super", "support", "billing"] },
+  { key: "companies",     label: "Companies",        icon: "building",  roles: ["super", "support", "billing"] },
+  { key: "users",         label: "User management",  icon: "users",     roles: ["super", "support"] },
+  { key: "subscriptions", label: "Subscriptions",    icon: "card",      roles: ["super", "billing"] },
+  { key: "usage",         label: "Usage monitoring", icon: "chart",     roles: ["super", "support", "billing"] },
+  { key: "support",       label: "Support logs",     icon: "headset",   roles: ["super", "support"] },
+  { key: "flags",         label: "Feature flags",    icon: "flag",      roles: ["super"] },
+  { key: "audit",         label: "Audit logs",       icon: "audit",     roles: ["super", "billing"] },
+];
+
+// Fine-grained actions -> roles allowed.
+const PERMS = {
+  "company.suspend":     ["super"],
+  "company.restore":     ["super"],
+  "user.reset":          ["super", "support"],
+  "user.deactivate":     ["super"],
+  "subscription.change": ["super", "billing"],
+  "flag.toggle":         ["super"],
+  "support.resolve":     ["super", "support"],
+};
+const can = (role, action) => (PERMS[action] || []).includes(role);
+const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.roles || []).includes(role);
+
+// ---------------------------------------------------------------------------
+// Helpers — masking, formatting
+// ---------------------------------------------------------------------------
+// Candidate PII is masked wherever it could surface. Company (customer) users
+// are account holders and shown normally; candidates are applicants and are not.
+const maskName = (n) => (n || "").split(" ").map((p) => (p.length <= 1 ? p : p[0] + "•".repeat(Math.max(1, p.length - 1)))).join(" ");
+const maskEmail = (e) => {
+  const [u, d] = (e || "").split("@");
+  if (!d) return "•••";
+  return `${(u || "")[0] || "•"}•••@${d[0]}•••${d.slice(d.lastIndexOf("."))}`;
+};
+const money = (n) => "$" + n.toLocaleString("en-US");
+const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+
+// ---------------------------------------------------------------------------
+// Mock data
+// ---------------------------------------------------------------------------
+const ADMIN_ACCOUNTS = [
+  { id: "a1", name: "Priya Nair",   email: "priya@aster.co",  role: "super",   title: "Platform Lead" },
+  { id: "a2", name: "Marcus Lee",   email: "marcus@aster.co", role: "support", title: "Support Engineer" },
+  { id: "a3", name: "Dana Osei",    email: "dana@aster.co",   role: "billing", title: "Finance Ops" },
+];
+
+const INIT_COMPANIES = [
+  { id: "c1", name: "Oryx Studio",       plan: "Pro",        status: "active",    seats: 12, activeJobs: 5,  candidates: 1240, region: "MY", owner: "Shah Ramly",    mrr: 149, created: "2025-11-02" },
+  { id: "c2", name: "Grabtech",          plan: "Enterprise", status: "active",    seats: 60, activeJobs: 22, candidates: 8420, region: "SG", owner: "Jia Wei Tan",   mrr: 1200, created: "2025-04-18" },
+  { id: "c3", name: "Fave",              plan: "Pro",        status: "trial",     seats: 8,  activeJobs: 3,  candidates: 410,  region: "MY", owner: "Nadia Aziz",    mrr: 0, created: "2026-06-21" },
+  { id: "c4", name: "Studio Kite",       plan: "Starter",    status: "active",    seats: 4,  activeJobs: 2,  candidates: 220,  region: "MY", owner: "Ivan Lim",      mrr: 49, created: "2026-01-09" },
+  { id: "c5", name: "MDEC",              plan: "Enterprise", status: "active",    seats: 40, activeJobs: 14, candidates: 5100, region: "MY", owner: "Farah Idris",   mrr: 900, created: "2025-08-30" },
+  { id: "c6", name: "Wellfound Asia",    plan: "Pro",        status: "suspended", seats: 10, activeJobs: 0,  candidates: 980,  region: "SG", owner: "Kenji Sato",    mrr: 149, created: "2025-12-14" },
+  { id: "c7", name: "Homebase HR",       plan: "Starter",    status: "trial",     seats: 3,  activeJobs: 1,  candidates: 60,   region: "PH", owner: "Rina Cruz",     mrr: 0, created: "2026-06-28" },
+  { id: "c8", name: "Peoplebox",         plan: "Pro",        status: "active",    seats: 16, activeJobs: 7,  candidates: 2010, region: "IN", owner: "Arjun Mehta",   mrr: 149, created: "2025-10-05" },
+  { id: "c9", name: "Motion Recruit",    plan: "Starter",    status: "churned",   seats: 0,  activeJobs: 0,  candidates: 340,  region: "SG", owner: "Wei Ling Ong",  mrr: 0, created: "2025-05-22" },
+  { id: "c10", name: "Ceipal Labs",      plan: "Enterprise", status: "active",    seats: 28, activeJobs: 11, candidates: 3600, region: "IN", owner: "Sana Kapoor",   mrr: 780, created: "2025-09-12" },
+];
+
+const COMPANY_USERS = [
+  { id: "u1",  companyId: "c1", name: "Shah Ramly",      email: "shah@oryx.studio",     role: "Owner",       status: "active",   lastActive: "2h ago" },
+  { id: "u2",  companyId: "c1", name: "Amira Hassan",    email: "amira@oryx.studio",    role: "Recruiter",   status: "active",   lastActive: "1d ago" },
+  { id: "u3",  companyId: "c1", name: "Daniel Teoh",     email: "daniel@oryx.studio",   role: "Interviewer", status: "invited",  lastActive: "—" },
+  { id: "u4",  companyId: "c2", name: "Jia Wei Tan",     email: "jiawei@grabtech.com",  role: "Owner",       status: "active",   lastActive: "20m ago" },
+  { id: "u5",  companyId: "c2", name: "Lena Koh",        email: "lena@grabtech.com",    role: "Admin",       status: "active",   lastActive: "5h ago" },
+  { id: "u6",  companyId: "c2", name: "Ravi Nair",       email: "ravi@grabtech.com",    role: "Recruiter",   status: "suspended", lastActive: "3d ago" },
+  { id: "u7",  companyId: "c5", name: "Farah Idris",     email: "farah@mdec.my",        role: "Owner",       status: "active",   lastActive: "1h ago" },
+  { id: "u8",  companyId: "c5", name: "Hakim Yusof",     email: "hakim@mdec.my",        role: "Recruiter",   status: "active",   lastActive: "6h ago" },
+  { id: "u9",  companyId: "c8", name: "Arjun Mehta",     email: "arjun@peoplebox.ai",   role: "Owner",       status: "active",   lastActive: "4h ago" },
+  { id: "u10", companyId: "c8", name: "Divya Rao",       email: "divya@peoplebox.ai",   role: "Admin",       status: "invited",  lastActive: "—" },
+  { id: "u11", companyId: "c4", name: "Ivan Lim",        email: "ivan@studiokite.co",   role: "Owner",       status: "active",   lastActive: "2d ago" },
+  { id: "u12", companyId: "c10", name: "Sana Kapoor",    email: "sana@ceipallabs.com",  role: "Owner",       status: "active",   lastActive: "30m ago" },
+  { id: "u13", companyId: "c10", name: "Rohit Verma",    email: "rohit@ceipallabs.com", role: "Interviewer", status: "active",   lastActive: "1d ago" },
+];
+
+const INIT_SUBSCRIPTIONS = INIT_COMPANIES.map((c) => ({
+  companyId: c.id,
+  plan: c.plan,
+  cycle: c.plan === "Enterprise" ? "annual" : "monthly",
+  status: c.status === "trial" ? "trialing" : c.status === "churned" ? "canceled" : c.status === "suspended" ? "past_due" : "active",
+  mrr: c.mrr,
+  seats: c.seats,
+  renews: c.status === "churned" ? "—" : "2026-08-01",
+}));
+
+const INIT_USAGE = INIT_COMPANIES.map((c) => ({
+  companyId: c.id,
+  resumeParsing: [Math.min(c.candidates % 100, 100), 100],
+  aiRuns: [Math.min((c.activeJobs * 3) % 30, 30), 30],
+  activeJobs: [c.activeJobs, c.plan === "Enterprise" ? 50 : c.plan === "Pro" ? 10 : 3],
+  apiCalls: c.candidates * 7,
+}));
+
+// Support tickets. Any candidate reference is masked before it reaches the UI.
+const INIT_TICKETS = [
+  { id: "T-1042", companyId: "c1", subject: "Scheduling link not sending Meet invite", requester: "Amira Hassan", channel: "Email",  priority: "high",   status: "open",     updated: "12m ago", note: "Candidate " + maskName("Nurul Huda") + " did not receive the invite." },
+  { id: "T-1041", companyId: "c2", subject: "SSO login loop for new admins",           requester: "Lena Koh",     channel: "Chat",   priority: "urgent", status: "open",     updated: "40m ago", note: "Affects 3 users on the workspace." },
+  { id: "T-1040", companyId: "c5", subject: "Export of ranked shortlist to CSV fails",  requester: "Hakim Yusof",  channel: "Email",  priority: "normal", status: "pending",  updated: "3h ago",  note: "Reproduced on Chrome; investigating." },
+  { id: "T-1039", companyId: "c8", subject: "Billing invoice address update",           requester: "Arjun Mehta",  channel: "Email",  priority: "low",    status: "pending",  updated: "5h ago",  note: "Routed to billing." },
+  { id: "T-1038", companyId: "c6", subject: "Reactivate suspended workspace",           requester: "Kenji Sato",   channel: "Phone",  priority: "high",   status: "open",     updated: "1d ago",  note: "Payment recovered; awaiting review." },
+  { id: "T-1037", companyId: "c10", subject: "Bulk upload rejects ZIP over 50MB",       requester: "Rohit Verma",  channel: "Chat",   priority: "normal", status: "resolved", updated: "1d ago",  note: "Advised splitting the archive." },
+  { id: "T-1036", companyId: "c4", subject: "Add interviewer seat mid-cycle",           requester: "Ivan Lim",     channel: "Email",  priority: "low",    status: "resolved", updated: "2d ago",  note: "Seat added; prorated." },
+  { id: "T-1035", companyId: "c3", subject: "Trial extension request",                  requester: "Nadia Aziz",   channel: "Email",  priority: "normal", status: "open",     updated: "2d ago",  note: "Evaluating; 7 days remaining." },
+];
+
+const INIT_FLAGS = [
+  { key: "ai_dedup_v2",         label: "AI dedup v2",              desc: "Second-gen deduplication across old and new CVs.", enabled: true,  rollout: 100, env: "prod" },
+  { key: "voice_screening",     label: "Voice screening (beta)",   desc: "AI voice interview for phone-screen replacement.", enabled: false, rollout: 15,  env: "prod" },
+  { key: "career_site_builder", label: "Career site builder",      desc: "Hosted branded careers page and job board.",      enabled: true,  rollout: 100, env: "prod" },
+  { key: "whatsapp_scheduling", label: "WhatsApp scheduling",      desc: "Candidate self-booking over WhatsApp.",           enabled: true,  rollout: 60,  env: "prod" },
+  { key: "advanced_analytics",  label: "Advanced analytics",       desc: "Custom funnel reports and cohort breakdowns.",    enabled: false, rollout: 30,  env: "prod" },
+  { key: "sso_scim",            label: "SSO + SCIM provisioning",  desc: "Enterprise SSO and directory sync.",              enabled: true,  rollout: 100, env: "prod" },
+  { key: "new_billing_ui",      label: "New billing UI",           desc: "Redesigned in-app billing and invoices.",         enabled: false, rollout: 0,   env: "staging" },
+  { key: "ranked_reasons_v3",   label: "Ranked reasons v3",        desc: "Richer explanations on every match score.",       enabled: false, rollout: 5,   env: "prod" },
+];
+
+const INIT_AUDIT = [
+  { id: 1, actor: "Priya Nair",  role: "super",   action: "Enabled feature flag",      target: "ai_dedup_v2 (prod)",        at: "Jul 6, 2026 · 09:14", ip: "10.2.4.11" },
+  { id: 2, actor: "Dana Osei",   role: "billing", action: "Changed subscription plan", target: "Studio Kite → Pro",         at: "Jul 6, 2026 · 08:52", ip: "10.2.4.31" },
+  { id: 3, actor: "Marcus Lee",  role: "support", action: "Reset user password",       target: "lena@grabtech.com",         at: "Jul 5, 2026 · 17:20", ip: "10.2.4.22" },
+  { id: 4, actor: "Priya Nair",  role: "super",   action: "Suspended company",         target: "Wellfound Asia",            at: "Jul 5, 2026 · 15:03", ip: "10.2.4.11" },
+  { id: 5, actor: "Marcus Lee",  role: "support", action: "Resolved support ticket",   target: "T-1037 (Ceipal Labs)",      at: "Jul 5, 2026 · 11:40", ip: "10.2.4.22" },
+  { id: 6, actor: "Dana Osei",   role: "billing", action: "Viewed subscription",       target: "Grabtech",                  at: "Jul 5, 2026 · 10:12", ip: "10.2.4.31" },
+];
+
+// ---------------------------------------------------------------------------
+// Shared UI
+// ---------------------------------------------------------------------------
+const STATUS_TONE = {
+  active: "ok", trialing: "info", trial: "info", pending: "warn", open: "info", past_due: "warn",
+  suspended: "danger", churned: "ink", canceled: "ink", resolved: "ok", invited: "warn", high: "warn", urgent: "danger", normal: "info", low: "ink",
+};
+const TONE = {
+  ok: { bg: "var(--ok-soft)", fg: "var(--ok)" }, warn: { bg: "var(--warn-soft)", fg: "var(--warn)" },
+  danger: { bg: "var(--danger-soft)", fg: "var(--danger)" }, info: { bg: "var(--info-soft)", fg: "var(--info)" },
+  ink: { bg: "#EFEFF3", fg: "var(--ink-2)" }, brand: { bg: "var(--brand-soft)", fg: "var(--brand)" },
+};
+function Badge({ children, tone = "ink", dot = false }) {
+  const t = TONE[tone] || TONE.ink;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: t.bg, color: t.fg }}>
+      {dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: t.fg }} />}
+      {children}
+    </span>
+  );
+}
+const StatusBadge = ({ value }) => <Badge tone={STATUS_TONE[value] || "ink"} dot>{String(value).replace("_", " ")}</Badge>;
+
+function Card({ children, className = "", pad = "p-5 sm:p-6" }) {
+  return <div className={`rounded-2xl adm-shadow ${pad} ${className}`} style={{ background: "#fff", border: "1px solid var(--line)" }}>{children}</div>;
+}
+function StatCard({ icon, label, value, sub, tone = "brand" }) {
+  const t = TONE[tone] || TONE.brand;
+  return (
+    <Card pad="p-5">
+      <div className="flex items-start justify-between">
+        <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: t.bg, color: t.fg }}><Icon name={icon} className="w-5 h-5" /></span>
+      </div>
+      <p className="mt-4 text-2xl font-bold adm-display tnum text-neutral-900">{value}</p>
+      <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{label}</p>
+      {sub && <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>{sub}</p>}
+    </Card>
+  );
+}
+function SectionHead({ title, desc, children }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+      <div>
+        <h1 className="text-2xl font-bold adm-display text-neutral-900">{title}</h1>
+        {desc && <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{desc}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+function PrivacyNote({ children }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-xl px-4 py-3 mb-5 text-sm" style={{ background: "var(--brand-soft)", border: "1px solid #E7D7FB", color: "var(--ink-2)" }}>
+      <span style={{ color: "var(--brand)" }} className="shrink-0 mt-0.5"><Icon name="shield" className="w-4 h-4" /></span>
+      <span>{children}</span>
+    </div>
+  );
+}
+function TableShell({ head, children }) {
+  return (
+    <Card pad="p-0">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" style={{ minWidth: 640 }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--line)" }}>
+              {head.map((h, i) => (
+                <th key={i} className="text-left font-semibold px-4 sm:px-5 py-3.5 whitespace-nowrap" style={{ color: "var(--ink-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+const Td = ({ children, className = "", ...p }) => <td className={`px-4 sm:px-5 py-3.5 align-middle ${className}`} {...p}>{children}</td>;
+function ActionBtn({ children, onClick, disabled, tone = "ink", icon }) {
+  const danger = tone === "danger";
+  return (
+    <button onClick={onClick} disabled={disabled} title={disabled ? "You do not have permission for this action" : undefined}
+      className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ border: "1px solid var(--line)", color: disabled ? "var(--ink-3)" : danger ? "var(--danger)" : "var(--ink-2)", background: "#fff" }}>
+      {icon && <Icon name={disabled ? "lock" : icon} className="w-3.5 h-3.5" />} {children}
+    </button>
+  );
+}
+function Toggle({ on, onClick, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled} aria-pressed={on} title={disabled ? "Super Admin only" : undefined}
+      className="relative w-11 h-6 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+      style={{ background: on ? "var(--brand)" : "var(--line-strong)" }}>
+      <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform" style={{ transform: on ? "translateX(20px)" : "none", boxShadow: "0 1px 2px rgba(0,0,0,.25)" }} />
+    </button>
+  );
+}
+function NoAccess({ role }) {
+  return (
+    <div className="max-w-md mx-auto text-center py-20">
+      <span className="w-14 h-14 rounded-2xl inline-flex items-center justify-center" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}><Icon name="lock" className="w-7 h-7" /></span>
+      <h2 className="text-xl font-bold adm-display mt-5 text-neutral-900">Insufficient permissions</h2>
+      <p className="text-sm mt-2" style={{ color: "var(--ink-2)" }}>Your role ({ROLE_META[role].label}) does not have access to this area. This attempt is recorded in the audit log.</p>
+    </div>
+  );
+}
+function Bar({ value, max, tone = "brand" }) {
+  const p = Math.min(100, pct(value, max));
+  const over = p >= 90;
+  const t = TONE[over ? "warn" : tone];
+  return (
+    <div className="flex items-center gap-2.5 min-w-[120px]">
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+        <div className="h-full rounded-full" style={{ width: p + "%", background: t.fg }} />
+      </div>
+      <span className="text-xs tnum shrink-0" style={{ color: "var(--ink-3)" }}>{value}/{max}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Screens
+// ---------------------------------------------------------------------------
+function Dashboard({ role, companies, tickets, audit, go }) {
+  const active = companies.filter((c) => c.status === "active").length;
+  const trials = companies.filter((c) => c.status === "trial").length;
+  const mrr = companies.reduce((s, c) => s + c.mrr, 0);
+  const openTix = tickets.filter((t) => t.status === "open").length;
+  return (
+    <div>
+      <SectionHead title="Overview" desc="Platform health across all customer workspaces." />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon="building" label="Companies" value={companies.length} sub={`${active} active · ${trials} on trial`} tone="brand" />
+        {can(role, "subscription.change") || role === "billing" || role === "super"
+          ? <StatCard icon="card" label="Monthly recurring revenue" value={money(mrr)} sub="Across active subscriptions" tone="ok" />
+          : <StatCard icon="chart" label="Active jobs" value={companies.reduce((s, c) => s + c.activeJobs, 0)} sub="Across all workspaces" tone="info" />}
+        <StatCard icon="headset" label="Open support tickets" value={openTix} sub={`${tickets.length} total this week`} tone="warn" />
+        <StatCard icon="users" label="Workspace seats" value={companies.reduce((s, c) => s + c.seats, 0)} sub="Provisioned across companies" tone="info" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3 mt-4">
+        <div className="lg:col-span-2">
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold adm-display text-neutral-900">Recent admin activity</h3>
+              {sectionAllowed(role, "audit") && <button onClick={() => go("audit")} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>Audit log <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>}
+            </div>
+            <ul className="space-y-3">
+              {audit.slice(0, 5).map((a) => (
+                <li key={a.id} className="flex items-start gap-3">
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white grad text-[11px] font-bold">{a.actor.split(" ").map((x) => x[0]).join("")}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm text-neutral-900"><span className="font-medium">{a.actor}</span> · {a.action} <span style={{ color: "var(--ink-2)" }}>{a.target}</span></p>
+                    <p className="text-xs" style={{ color: "var(--ink-3)" }}>{a.at}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+        <Card>
+          <h3 className="font-semibold adm-display text-neutral-900 mb-4">Attention</h3>
+          <ul className="space-y-3 text-sm">
+            {companies.filter((c) => c.status === "suspended").map((c) => (
+              <li key={c.id} className="flex items-center gap-2.5"><span style={{ color: "var(--danger)" }}><Icon name="warning" className="w-4 h-4" /></span><span className="text-neutral-900">{c.name}</span><Badge tone="danger">suspended</Badge></li>
+            ))}
+            {companies.filter((c) => c.status === "trial").map((c) => (
+              <li key={c.id} className="flex items-center gap-2.5"><span style={{ color: "var(--warn)" }}><Icon name="dot" className="w-4 h-4" /></span><span className="text-neutral-900">{c.name}</span><Badge tone="info">trial</Badge></li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function Companies({ role, companies, setCompanies, audit }) {
+  const [q, setQ] = useState("");
+  const rows = companies.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
+  const setStatus = (c, status, action) => { setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status } : x)); audit(action, c.name); };
+  return (
+    <div>
+      <SectionHead title="Companies" desc="Every customer workspace on the platform.">
+        <label className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search companies" className="pl-9 pr-3 py-2 rounded-xl text-sm w-56" style={{ border: "1px solid var(--line)", background: "#fff" }} />
+        </label>
+      </SectionHead>
+      <PrivacyNote>Candidate records are counted here but their resumes and personal data are <strong>not accessible</strong> from the admin portal.</PrivacyNote>
+      <TableShell head={["Company", "Plan", "Status", "Seats", "Active jobs", "Candidates", "Region", "Actions"]}>
+        {rows.map((c) => (
+          <tr key={c.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td><div className="font-semibold text-neutral-900">{c.name}</div><div className="text-xs" style={{ color: "var(--ink-3)" }}>Owner: {c.owner}</div></Td>
+            <Td><Badge tone={c.plan === "Enterprise" ? "brand" : "ink"}>{c.plan}</Badge></Td>
+            <Td><StatusBadge value={c.status} /></Td>
+            <Td className="tnum">{c.seats}</Td>
+            <Td className="tnum">{c.activeJobs}</Td>
+            <Td><span className="inline-flex items-center gap-1.5 tnum"><span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /></span>{c.candidates.toLocaleString()}</span></Td>
+            <Td style={{ color: "var(--ink-2)" }}>{c.region}</Td>
+            <Td>
+              {c.status === "suspended"
+                ? <ActionBtn icon="refresh" disabled={!can(role, "company.restore")} onClick={() => setStatus(c, "active", "Restored company")}>Restore</ActionBtn>
+                : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "company.suspend")} onClick={() => setStatus(c, "suspended", "Suspended company")}>Suspend</ActionBtn>}
+            </Td>
+          </tr>
+        ))}
+      </TableShell>
+    </div>
+  );
+}
+
+function Users({ role, companies, audit }) {
+  const [users, setUsers] = useState(COMPANY_USERS);
+  const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
+  const setStatus = (u, status, action) => { setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status } : x)); audit(action, u.email); };
+  return (
+    <div>
+      <SectionHead title="User management" desc="Company user accounts (recruiters, admins, interviewers). These are customer team members, not candidates." />
+      <PrivacyNote>These are <strong>company users</strong>, separate from admin accounts and from candidates. Candidate/applicant records are never listed here.</PrivacyNote>
+      <TableShell head={["User", "Company", "Role", "Status", "Last active", "Actions"]}>
+        {users.map((u) => (
+          <tr key={u.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td><div className="font-semibold text-neutral-900">{u.name}</div><div className="text-xs" style={{ color: "var(--ink-3)" }}>{u.email}</div></Td>
+            <Td style={{ color: "var(--ink-2)" }}>{cName(u.companyId)}</Td>
+            <Td><Badge tone={u.role === "Owner" ? "brand" : "ink"}>{u.role}</Badge></Td>
+            <Td><StatusBadge value={u.status} /></Td>
+            <Td style={{ color: "var(--ink-2)" }}>{u.lastActive}</Td>
+            <Td>
+              <div className="flex gap-2">
+                <ActionBtn icon="key" disabled={!can(role, "user.reset")} onClick={() => audit("Reset user password", u.email)}>Reset password</ActionBtn>
+                {u.status === "suspended"
+                  ? <ActionBtn icon="refresh" disabled={!can(role, "user.deactivate")} onClick={() => setStatus(u, "active", "Reactivated user")}>Reactivate</ActionBtn>
+                  : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "user.deactivate")} onClick={() => setStatus(u, "suspended", "Deactivated user")}>Deactivate</ActionBtn>}
+              </div>
+            </Td>
+          </tr>
+        ))}
+      </TableShell>
+    </div>
+  );
+}
+
+function Subscriptions({ role, companies, subs, setSubs, audit }) {
+  const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
+  const total = subs.filter((s) => s.status === "active").reduce((a, s) => a + s.mrr, 0);
+  const change = (s, plan, mrr) => { setSubs((ss) => ss.map((x) => x.companyId === s.companyId ? { ...x, plan, mrr } : x)); audit("Changed subscription plan", `${cName(s.companyId)} → ${plan}`); };
+  return (
+    <div>
+      <SectionHead title="Subscriptions" desc="Plans, billing status and revenue by workspace.">
+        <div className="text-right"><p className="text-xs" style={{ color: "var(--ink-3)" }}>Active MRR</p><p className="text-lg font-bold adm-display tnum" style={{ color: "var(--ok)" }}>{money(total)}</p></div>
+      </SectionHead>
+      <PrivacyNote>Aster does <strong>not store or display card details</strong>. Payment methods are held by the payment processor; only plan and status are shown here.</PrivacyNote>
+      <TableShell head={["Company", "Plan", "Cycle", "Status", "MRR", "Renews", "Payment method", "Actions"]}>
+        {subs.map((s) => (
+          <tr key={s.companyId} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td className="font-semibold text-neutral-900">{cName(s.companyId)}</Td>
+            <Td><Badge tone={s.plan === "Enterprise" ? "brand" : "ink"}>{s.plan}</Badge></Td>
+            <Td style={{ color: "var(--ink-2)" }}>{s.cycle}</Td>
+            <Td><StatusBadge value={s.status} /></Td>
+            <Td className="tnum">{money(s.mrr)}</Td>
+            <Td style={{ color: "var(--ink-2)" }}>{s.renews}</Td>
+            <Td><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> On file (processor)</span></Td>
+            <Td>
+              {s.plan !== "Enterprise"
+                ? <ActionBtn icon="arrowUpRight" disabled={!can(role, "subscription.change")} onClick={() => change(s, "Enterprise", s.mrr < 500 ? 900 : s.mrr)}>Upgrade</ActionBtn>
+                : <ActionBtn disabled={!can(role, "subscription.change")} icon="refresh" onClick={() => change(s, "Pro", 149)}>Change plan</ActionBtn>}
+            </Td>
+          </tr>
+        ))}
+      </TableShell>
+    </div>
+  );
+}
+
+function Usage({ role, companies, usage }) {
+  const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
+  return (
+    <div>
+      <SectionHead title="Usage monitoring" desc="Aggregate consumption against plan limits. No candidate content is shown." />
+      <PrivacyNote>Usage is <strong>aggregate only</strong>. Individual candidate data and resumes are never exposed through monitoring.</PrivacyNote>
+      <TableShell head={["Company", "Resume parsing", "AI match runs", "Active jobs", "API calls (30d)"]}>
+        {usage.map((u) => (
+          <tr key={u.companyId} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td className="font-semibold text-neutral-900">{cName(u.companyId)}</Td>
+            <Td><Bar value={u.resumeParsing[0]} max={u.resumeParsing[1]} /></Td>
+            <Td><Bar value={u.aiRuns[0]} max={u.aiRuns[1]} tone="info" /></Td>
+            <Td><Bar value={u.activeJobs[0]} max={u.activeJobs[1]} tone="ok" /></Td>
+            <Td className="tnum" style={{ color: "var(--ink-2)" }}>{u.apiCalls.toLocaleString()}</Td>
+          </tr>
+        ))}
+      </TableShell>
+    </div>
+  );
+}
+
+function Support({ role, companies, tickets, setTickets, audit }) {
+  const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
+  const resolve = (t) => { setTickets((ts) => ts.map((x) => x.id === t.id ? { ...x, status: "resolved", updated: "just now" } : x)); audit("Resolved support ticket", `${t.id} (${cName(t.companyId)})`); };
+  return (
+    <div>
+      <SectionHead title="Support logs" desc="Customer support tickets and interactions." />
+      <PrivacyNote>Where a ticket mentions a candidate, their name is <strong>masked</strong> (e.g. {maskName("Nurul Huda")}). Resumes are never attached or viewable.</PrivacyNote>
+      <TableShell head={["Ticket", "Company", "Subject", "Requester", "Channel", "Priority", "Status", "Actions"]}>
+        {tickets.map((t) => (
+          <tr key={t.id} className="adm-row align-top" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td className="font-semibold text-neutral-900 tnum">{t.id}<div className="text-xs font-normal mt-0.5" style={{ color: "var(--ink-3)" }}>{t.updated}</div></Td>
+            <Td style={{ color: "var(--ink-2)" }}>{cName(t.companyId)}</Td>
+            <Td><div className="text-neutral-900">{t.subject}</div><div className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{t.note}</div></Td>
+            <Td style={{ color: "var(--ink-2)" }}>{t.requester}</Td>
+            <Td style={{ color: "var(--ink-2)" }}>{t.channel}</Td>
+            <Td><Badge tone={STATUS_TONE[t.priority]}>{t.priority}</Badge></Td>
+            <Td><StatusBadge value={t.status} /></Td>
+            <Td>{t.status !== "resolved" && <ActionBtn icon="check" disabled={!can(role, "support.resolve")} onClick={() => resolve(t)}>Resolve</ActionBtn>}</Td>
+          </tr>
+        ))}
+      </TableShell>
+    </div>
+  );
+}
+
+function Flags({ role, flags, setFlags, audit }) {
+  const toggle = (f) => { setFlags((fs) => fs.map((x) => x.key === f.key ? { ...x, enabled: !x.enabled } : x)); audit(f.enabled ? "Disabled feature flag" : "Enabled feature flag", `${f.key} (${f.env})`); };
+  return (
+    <div>
+      <SectionHead title="Feature flags" desc="Roll capabilities out or back across environments. Changes are audited." />
+      <PrivacyNote>Only <strong>Super Admins</strong> can toggle flags. Every change is written to the audit log with actor and time.</PrivacyNote>
+      <div className="grid gap-3">
+        {flags.map((f) => (
+          <Card key={f.key} pad="p-4 sm:p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-neutral-900">{f.label}</p>
+                  <Badge tone={f.env === "prod" ? "ok" : "warn"}>{f.env}</Badge>
+                  <span className="text-xs tnum" style={{ color: "var(--ink-3)" }}>· {f.rollout}% rollout</span>
+                </div>
+                <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{f.desc}</p>
+                <code className="text-[11px] mt-1.5 inline-block px-1.5 py-0.5 rounded" style={{ background: "#F3F3F7", color: "var(--ink-3)" }}>{f.key}</code>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <Badge tone={f.enabled ? "ok" : "ink"}>{f.enabled ? "On" : "Off"}</Badge>
+                <Toggle on={f.enabled} disabled={!can(role, "flag.toggle")} onClick={() => toggle(f)} />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Audit({ audit }) {
+  return (
+    <div>
+      <SectionHead title="Audit logs" desc="An immutable record of every administrative action." />
+      <PrivacyNote>The audit log is <strong>append-only</strong>. It records who did what, when, and from where — including blocked attempts.</PrivacyNote>
+      <TableShell head={["Actor", "Role", "Action", "Target", "When", "IP"]}>
+        {audit.map((a) => (
+          <tr key={a.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
+            <Td className="font-semibold text-neutral-900">{a.actor}</Td>
+            <Td><Badge tone={a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"}>{ROLE_META[a.role]?.short || a.role}</Badge></Td>
+            <Td style={{ color: "var(--ink-2)" }}>{a.action}</Td>
+            <Td className="text-neutral-900">{a.target}</Td>
+            <Td className="tnum" style={{ color: "var(--ink-2)" }}>{a.at}</Td>
+            <Td className="tnum" style={{ color: "var(--ink-3)" }}>{a.ip}</Td>
+          </tr>
+        ))}
+      </TableShell>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Login
+// ---------------------------------------------------------------------------
+function AdminLogin({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  return (
+    <div className="adm min-h-screen flex items-center justify-center px-4" style={{ background: "radial-gradient(60% 60% at 50% 0%, #17193A 0%, #0B0D1A 60%)" }}>
+      <div className="w-full max-w-md">
+        <div className="text-center mb-7">
+          <div className="inline-flex items-center gap-2.5 mb-4">
+            <span className="w-10 h-10 rounded-xl grad inline-flex items-center justify-center text-white font-extrabold adm-display">A</span>
+            <span className="text-white adm-display font-bold text-lg">Aster <span className="txt-grad">Admin</span></span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(220,38,38,0.14)", color: "#FCA5A5", border: "1px solid rgba(220,38,38,0.3)" }}>
+            <Icon name="lock" className="w-3.5 h-3.5" /> Internal team access only
+          </div>
+        </div>
+        <div className="rounded-2xl p-6 sm:p-7" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 30px 80px -30px rgba(0,0,0,0.7)" }}>
+          <h1 className="text-xl font-bold adm-display text-neutral-900">Sign in to the admin console</h1>
+          <p className="text-sm mt-1 mb-5" style={{ color: "var(--ink-2)" }}>Admin accounts are separate from customer logins.</p>
+          <div className="space-y-3">
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@aster.co" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
+            <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" placeholder="Password" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
+            <button onClick={() => onLogin(ADMIN_ACCOUNTS[0])} className="w-full grad text-white font-semibold py-2.5 rounded-xl">Sign in</button>
+          </div>
+          <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
+            <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Demo · sign in as a role</p>
+            <div className="grid gap-2">
+              {ADMIN_ACCOUNTS.map((a) => (
+                <button key={a.id} onClick={() => onLogin(a)} className="flex items-center gap-3 text-left rounded-xl px-3 py-2.5 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ border: "1px solid var(--line)" }}>
+                  <span className="w-8 h-8 rounded-lg grad text-white text-xs font-bold inline-flex items-center justify-center shrink-0">{a.name.split(" ").map((x) => x[0]).join("")}</span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-neutral-900">{a.name}</span><span className="block text-xs" style={{ color: "var(--ink-3)" }}>{a.email}</span></span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: TONE[a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"].bg, color: TONE[a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"].fg }}>{ROLE_META[a.role].label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <p className="text-center text-xs mt-5" style={{ color: "var(--adm-ink-2)" }}>Not an Aster employee? <a href="/" className="underline">Go to the main site</a>.</p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shell + root
+// ---------------------------------------------------------------------------
+function AdminShell({ admin, section, go, onLogout, children }) {
+  const rm = ROLE_META[admin.role];
+  const nav = SECTIONS.filter((s) => s.roles.includes(admin.role));
+  const [mobileNav, setMobileNav] = useState(false);
+  return (
+    <div className="adm min-h-screen flex" style={{ background: "var(--bg)" }}>
+      {/* Sidebar */}
+      <aside className={`adm-side fixed lg:static z-40 top-0 bottom-0 left-0 w-64 shrink-0 flex flex-col transition-transform ${mobileNav ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`} style={{ background: "var(--adm)", borderRight: "1px solid var(--adm-line)" }}>
+        <div className="h-16 flex items-center gap-2.5 px-5 shrink-0" style={{ borderBottom: "1px solid var(--adm-line)" }}>
+          <span className="w-8 h-8 rounded-lg grad inline-flex items-center justify-center text-white font-extrabold adm-display text-sm">A</span>
+          <span className="text-white adm-display font-bold">Aster <span className="txt-grad">Admin</span></span>
+        </div>
+        <div className="px-3 py-2">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md tracking-wider" style={{ background: "rgba(220,38,38,0.16)", color: "#FCA5A5" }}><Icon name="shield" className="w-3 h-3" /> INTERNAL · PRODUCTION</span>
+        </div>
+        <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5">
+          {nav.map((s) => {
+            const on = s.key === section;
+            return (
+              <button key={s.key} onClick={() => { go(s.key); setMobileNav(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors"
+                style={{ background: on ? "rgba(151,59,247,0.16)" : "transparent", color: on ? "#fff" : "var(--adm-ink)" }}>
+                <Icon name={s.icon} className="w-[18px] h-[18px]" /> <span className="font-medium">{s.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <div className="p-3" style={{ borderTop: "1px solid var(--adm-line)" }}>
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl" style={{ background: "var(--adm-2)" }}>
+            <span className="w-8 h-8 rounded-lg grad text-white text-xs font-bold inline-flex items-center justify-center shrink-0">{admin.name.split(" ").map((x) => x[0]).join("")}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-white font-medium truncate">{admin.name}</p>
+              <p className="text-[11px] truncate" style={{ color: rm.tint }}>{rm.label}</p>
+            </div>
+            <button onClick={onLogout} title="Sign out" className="p-1.5 rounded-lg" style={{ color: "var(--adm-ink)" }}><Icon name="logout" className="w-4 h-4" /></button>
+          </div>
+        </div>
+      </aside>
+      {mobileNav && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMobileNav(false)} />}
+
+      {/* Main */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="h-16 flex items-center justify-between gap-3 px-4 sm:px-8 sticky top-0 z-20" style={{ background: "rgba(250,250,251,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--line)" }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setMobileNav(true)} className="lg:hidden p-2 rounded-lg" style={{ border: "1px solid var(--line)" }} aria-label="Open menu"><Icon name="dashboard" className="w-4 h-4" /></button>
+            <div className="hidden sm:flex items-center gap-2 text-sm" style={{ color: "var(--ink-3)" }}>
+              <span className="font-medium" style={{ color: "var(--ink-2)" }}>Admin</span><Icon name="chevronRight" className="w-3.5 h-3.5" /><span className="text-neutral-900 font-semibold capitalize">{SECTIONS.find((s) => s.key === section)?.label || section}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: TONE[admin.role === "super" ? "brand" : admin.role === "billing" ? "ok" : "info"].bg, color: TONE[admin.role === "super" ? "brand" : admin.role === "billing" ? "ok" : "info"].fg }}>
+              <Icon name="shield" className="w-3.5 h-3.5" /> {rm.label}
+            </span>
+          </div>
+        </header>
+        <main className="flex-1 px-4 sm:px-8 py-6 sm:py-8 max-w-[1200px] w-full mx-auto">{children}</main>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminPortal() {
+  const [admin, setAdmin] = useState(null);
+  const initial = typeof window !== "undefined" ? (window.location.pathname.replace(/^\/admin\/?/, "") || "dashboard") : "dashboard";
+  const [section, setSection] = useState(SECTIONS.some((s) => s.key === initial) ? initial : "dashboard");
+
+  // Live, mutable state so actions feel real and feed the audit log.
+  const [companies, setCompanies] = useState(INIT_COMPANIES);
+  const [subs, setSubs] = useState(INIT_SUBSCRIPTIONS);
+  const [tickets, setTickets] = useState(INIT_TICKETS);
+  const [flags, setFlags] = useState(INIT_FLAGS);
+  const [audit, setAudit] = useState(INIT_AUDIT);
+  const usage = INIT_USAGE;
+
+  useEffect(() => {
+    const el = document.createElement("style");
+    el.textContent = ADMIN_STYLES;
+    document.head.appendChild(el);
+    document.title = "Aster Admin — Internal Console";
+    return () => el.remove();
+  }, []);
+
+  const logAudit = (action, target) => {
+    if (!admin) return;
+    setAudit((a) => [{ id: (a[0]?.id || 0) + 1, actor: admin.name, role: admin.role, action, target, at: "just now", ip: "10.2.4." + (admin.id === "a1" ? "11" : admin.id === "a2" ? "22" : "31") }, ...a]);
+  };
+
+  const go = (key) => {
+    setSection(key);
+    if (typeof window !== "undefined") window.history.pushState({ admin: true }, "", "/admin/" + key);
+    window.scrollTo(0, 0);
+  };
+
+  useEffect(() => {
+    const onPop = () => setSection(window.location.pathname.replace(/^\/admin\/?/, "") || "dashboard");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  if (!admin) return <AdminLogin onLogin={(a) => { setAdmin(a); go(section || "dashboard"); }} />;
+
+  const role = admin.role;
+  let screen;
+  if (!sectionAllowed(role, section)) {
+    screen = <NoAccess role={role} />;
+    // record the blocked attempt once per mount of a disallowed section
+  } else {
+    switch (section) {
+      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} audit={logAudit} />; break;
+      case "users":         screen = <Users role={role} companies={companies} audit={logAudit} />; break;
+      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} />; break;
+      case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
+      case "support":       screen = <Support role={role} companies={companies} tickets={tickets} setTickets={setTickets} audit={logAudit} />; break;
+      case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} />; break;
+      case "audit":         screen = <Audit audit={audit} />; break;
+      default:              screen = <Dashboard role={role} companies={companies} tickets={tickets} audit={audit} go={go} />;
+    }
+  }
+
+  return <AdminShell admin={admin} section={section} go={go} onLogout={() => setAdmin(null)}>{screen}</AdminShell>;
+}
