@@ -9035,6 +9035,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [matching, setMatching] = useState(false);
   const [matchScores, setMatchScores] = useState(P.matchScores ?? null); // null | { [id]: 0..1 }
   const [rankedMeta, setRankedMeta] = useState(P.rankedMeta ?? null);    // { mode:'skills'|'role', label, skills?, jobId? }
+  // Skills tab shows a plain filtered list first; "AI Rank" reveals fit % scores.
+  const [ranked, setRanked] = useState(false);
+  // Any change to the filter criteria drops back to the plain (un-ranked) view.
+  useEffect(() => { setRanked(false); }, [skillTags, industryTags, expLevels, tab]);
 
   // Save the view state on every change so returning from a profile keeps the
   // same tab, filters, page and results (scroll is handled centrally by the app).
@@ -9175,7 +9179,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     const pool = tab === "role" ? available.filter((c) => !alreadyApplied.has(c.id)) : available;
     list = [...pool];
     if (tab === "skills") list = list.filter((c) => (matchScores[c.id] ?? 0) > 0 && passesExp(c)); // real matches, within the chosen experience bands
-    list.sort((a, b) => ((matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
+    if (tab === "skills" && !ranked) {
+      list.sort((a, b) => (b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)); // plain view: most experienced first
+    } else {
+      list.sort((a, b) => ((matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
+    }
   }
 
   // Plan gating: show the top N, blur/lock the rest.
@@ -9332,6 +9340,50 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <div className="absolute inset-0 flex items-center justify-center px-4">
             <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
               <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more ${lockedList.length === 1 ? "match" : "matches"} hidden`} sub={`Your plan shows the top ${limits.aiMatches}. Upgrade for the full ranking.`} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Plain filtered list (no fit %), shown before the user clicks "AI Rank".
+  const plainList = (
+    <div className="space-y-2.5">
+      {shownList.map((c) => {
+        const yrs = c.parsed.years_of_experience;
+        const role = c.parsed.experience?.[0]?.title;
+        const descriptor = [yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+        const chips = (c.parsed.skills || []).slice(0, 4);
+        return (
+          <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: "var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }}>
+            <div className="flex items-center gap-4">
+              <button onClick={() => onViewCandidate(c.id)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
+                <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
+              </button>
+              <div className="min-w-0 flex-1">
+                <button onClick={() => onViewCandidate(c.id)} className="text-left"><p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></button>
+                <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
+              </div>
+              <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+            </div>
+          </div>
+        );
+      })}
+      {lockedList.length > 0 && (
+        <div className="relative pt-1">
+          <div className="space-y-2.5 blur-[3px] pointer-events-none select-none" aria-hidden="true">
+            {lockedList.slice(0, 2).map((c, i) => (
+              <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
+                <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center px-4">
+            <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
+              <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more ${lockedList.length === 1 ? "candidate" : "candidates"} hidden`} sub={`Your plan shows the top ${limits.aiMatches}. Upgrade to see everyone.`} />
             </div>
           </div>
         </div>
@@ -9557,13 +9609,20 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             </div>
             {matchScores && (
               <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} · ranked by fit <InfoHint dir="down" hint="The ring is a fit score from 0 to 100 percent, showing how closely each person matches what you searched for." /></p>
-                <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
+                <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{ranked ? " · ranked by fit" : ""} {ranked && <InfoHint dir="down" hint="The ring is a fit score from 0 to 100 percent, showing how closely each person matches what you searched for." />}</p>
+                <div className="flex items-center gap-3">
+                  {!ranked && list.length > 0 && (
+                    <button onClick={() => setRanked(true)} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity">
+                      <Icon name="matching" className="w-3.5 h-3.5" /> AI Rank
+                    </button>
+                  )}
+                  <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
+                </div>
               </div>
             )}
             {!matchScores ? emptyState("Search by skills or industry", "Add a skill or industry above and matching candidates appear here instantly.", "matching")
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
-              : rankedList}
+              : ranked ? rankedList : plainList}
           </>
         )}
 
