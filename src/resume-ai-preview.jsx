@@ -10612,17 +10612,9 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   // Flow: review job → upload a PDF resume → submit → AI parses → profile created.
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [confirmed, setConfirmed] = useState(false); // gates the upload
   const [stage, setStage] = useState("form"); // form | processing | done
   const [submitErr, setSubmitErr] = useState(null);
-
-  // "Aisha Rahman" → ", Aisha"; empty → "".
-  const firstNameOf = (full) => {
-    const t = full.trim();
-    if (!t) return "";
-    return ", " + t.split(" ")[0];
-  };
 
   // Accept either an array of bullets or a legacy string; always return an array.
   const toList = (v) =>
@@ -10714,7 +10706,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
     setFile(f);
   };
 
-  const canSubmit = file && isPdf(file) && name.trim() && email.trim() && stage === "form";
+  const canSubmit = file && isPdf(file) && confirmed && stage === "form";
 
   // A real job carries a uuid id; demo jobs use "j…" ids we never send to the DB.
   const isRealJob = (id) => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
@@ -10725,47 +10717,36 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
     r.onerror = reject;
     r.readAsDataURL(f);
   });
-  const applyError = (msg) =>
-    /job not open/i.test(msg || "") ? "This role is no longer accepting applications." : "Something went wrong submitting your application. Please try again.";
-
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    // A candidate who's already been hired is off the market — block a fresh
-    // application instead of creating a duplicate profile.
-    if (hiredEmails.has(email.trim().toLowerCase())) {
-      setStage("alreadyHired");
-      return;
-    }
     setSubmitErr(null);
     setStage("processing");
 
-    if (hasSupabase && isRealJob(job?.id)) {
-      // Preferred path: the edge function reads the PDF with Claude, stores it,
-      // and creates the candidate with the parsed profile filled in.
-      try {
-        const resume_base64 = await fileToBase64(file);
-        const { data, error } = await supabase.functions.invoke("parse-application", {
-          body: { job_id: job.id, name: name.trim(), email: email.trim(), resume_base64, filename: file?.name || null, source: "Career Page" },
-        });
-        if (error || data?.error) throw new Error(data?.error || error?.message || "function failed");
-        onApplied && onApplied();
-        setStage("done");
-        return;
-      } catch (_e) {
-        // Function not deployed / failed → still record the application (without
-        // AI-parsed fields) via the anon-safe RPC so nothing is lost.
-        const { error: rpcErr } = await supabase.rpc("submit_application", {
-          p_job_id: job.id, p_name: name.trim(), p_email: email.trim(), p_resume_filename: file?.name || null, p_source: "Career Page",
-        });
-        if (rpcErr) { setSubmitErr(applyError(rpcErr.message)); setStage("form"); return; }
-        onApplied && onApplied();
-        setStage("done");
-        return;
-      }
+    // Demo mode (no keys / preview of a demo job): simulate parsing.
+    if (!hasSupabase || !isRealJob(job?.id)) {
+      setTimeout(() => setStage("done"), 2200);
+      return;
     }
 
-    // Demo mode (no keys / preview of a demo job): simulate parsing.
-    setTimeout(() => setStage("done"), 2200);
+    // The edge function reads the PDF with Claude, pulls out the applicant's
+    // details, rejects anything that isn't a resume, and files the application.
+    try {
+      const resume_base64 = await fileToBase64(file);
+      const { data, error } = await supabase.functions.invoke("parse-application", {
+        body: { job_id: job.id, resume_base64, filename: file?.name || null, source: "Career Page" },
+      });
+      if (error || data?.error) {
+        const code = data?.error || "";
+        if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Please upload your CV as a PDF."); setStage("form"); return; }
+        if (/job not open/i.test(code)) { setSubmitErr("This role is no longer accepting applications."); setStage("form"); return; }
+        throw new Error(code || error?.message || "failed");
+      }
+      onApplied && onApplied();
+      setStage("done");
+    } catch (_e) {
+      setSubmitErr("Something went wrong reading your resume. Please try again.");
+      setStage("form");
+    }
   };
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
@@ -10780,27 +10761,14 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
           </p>
         </div>
 
-        {stage === "alreadyHired" ? (
-          <div className="text-center max-w-sm mx-auto mt-8">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
-              <span className="text-emerald-600 text-xl">✓</span>
-            </div>
-            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>You're already in our system</h1>
-            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              Our records show you've already been hired with us{firstNameOf(name)}. There's no need to apply again — our HR team will be your point of contact.
-            </p>
-            <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>
-              If you think this is a mistake, please reach out to the HR team directly.
-            </p>
-          </div>
-        ) : stage === "done" ? (
+        {stage === "done" ? (
           <div className="text-center max-w-sm mx-auto mt-8">
             <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-emerald-600 text-xl">✓</span>
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Application received</h1>
             <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              Thanks{firstNameOf(name)}! We've saved your latest resume for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> and added you to the process.
+              Thanks! We've read your resume and added you to the process for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               Our team reviews every applicant and will reach out if there's a fit. You'll get a confirmation by email.
@@ -10851,25 +10819,36 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
             <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
               <h2 className="text-sm font-semibold font-display mb-4" style={{ color: "var(--ink)" }}>Apply for this role</h2>
 
+              <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+                Just upload your resume — our AI reads your name, contact details and experience straight from it. No forms to fill in.
+              </p>
+
               <div className="space-y-3">
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Full name</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className={inputClass} disabled={stage !== "form"} />
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Email</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={inputClass} disabled={stage !== "form"} />
-                </div>
-                <div>
+                {/* Confirmation gate: the upload only unlocks once this is ticked. */}
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(e) => setConfirmed(e.target.checked)}
+                    disabled={stage !== "form"}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded accent-[color:var(--brand)]"
+                  />
+                  <span className="text-sm leading-snug" style={{ color: "var(--ink-2)" }}>
+                    I confirm this is my own CV and that it includes my current email address, so we can reach out about this role.
+                  </span>
+                </label>
+
+                <div className={confirmed ? "" : "opacity-50 pointer-events-none"}>
                   <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Resume (PDF only)</label>
                   <label className={`block rounded-xl border border-dashed px-4 py-6 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-neutral-50"}`} style={{ borderColor: "var(--line-strong)" }}>
-                    <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form"} />
+                    <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form" || !confirmed} />
                     {file ? (
                       <span className="text-sm" style={{ color: "var(--ink)" }}>{file.name}</span>
                     ) : (
                       <span className="text-sm" style={{ color: "var(--ink-3)" }}>Tap to choose your resume — PDF only</span>
                     )}
                   </label>
+                  {!confirmed && <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Tick the box above to upload.</p>}
                   {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
                 </div>
               </div>

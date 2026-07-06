@@ -17,8 +17,9 @@ const CORS = {
 
 const MODEL = "claude-haiku-4-5-20251001"; // fast + cheap; bump to a Sonnet/Opus id for tougher resumes
 
-const EXTRACT_PROMPT = `You are a resume parser. Read the attached resume PDF and return ONLY a JSON object (no markdown, no commentary) with exactly these keys:
+const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and return ONLY a JSON object (no markdown, no commentary) with exactly these keys:
 {
+  "is_resume": boolean,
   "name": string,
   "email": string | null,
   "phone": string | null,
@@ -31,7 +32,7 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached resume PDF an
   "experience": [{ "title": string, "company": string, "duration": string, "summary": string }],
   "education": [{ "degree": string, "institution": string, "year": string }]
 }
-Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.`;
+Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.`;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -85,6 +86,11 @@ Deno.serve(async (req) => {
       } else {
         console.error("anthropic error", resp.status, await resp.text());
       }
+    }
+
+    // Reject files the AI judged not to be a resume — nothing is created.
+    if (apiKey && parsed && parsed.is_resume === false) {
+      return json({ error: "not_a_resume" }, 422);
     }
 
     // Fall back to the form values so a row is always created.
