@@ -29,9 +29,10 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and retur
   "skills": string[],
   "languages": string[],
   "certifications": string[],
-  "experience": [{ "title": string, "company": string, "duration": string, "summary": string }],
+  "experience": [{ "title": string, "company": string, "industry": string, "duration": string, "summary": string }],
   "education": [{ "degree": string, "institution": string, "year": string }]
 }
+For each experience item, set "industry" to that company's industry (for example "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media"). Infer it from the company name, and if that's not enough, from the role title and summary. Use "Unknown" only when you genuinely cannot tell.
 Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.`;
 
 function json(body: unknown, status = 200) {
@@ -167,6 +168,13 @@ Deno.serve(async (req) => {
       return json({ error: "no_email" }, 422);
     }
 
+    const experience = Array.isArray(parsed.experience) ? parsed.experience : [];
+    // Distinct industries across the roles (drop blanks / "Unknown").
+    const industries = [...new Set(
+      experience
+        .map((e: any) => (e && e.industry ? String(e.industry).trim() : ""))
+        .filter((s: string) => s && !/^unknown$/i.test(s))
+    )];
     parsed = {
       name: fullName,
       email: finalEmail,
@@ -177,8 +185,9 @@ Deno.serve(async (req) => {
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],
       languages: Array.isArray(parsed.languages) ? parsed.languages : [],
       certifications: Array.isArray(parsed.certifications) ? parsed.certifications : [],
-      experience: Array.isArray(parsed.experience) ? parsed.experience : [],
+      experience,
       education: Array.isArray(parsed.education) ? parsed.education : [],
+      industries,
     };
 
     // --- Upsert candidate (reuse by email within the company) ---

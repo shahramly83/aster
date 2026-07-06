@@ -12495,6 +12495,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         </div>
       )}
+      {parsed.industries?.length > 0 && (
+        <div className="mt-4 pt-3.5" style={{ borderTop: "1px solid var(--line)" }}>
+          <p className="text-[11px] font-medium mb-2" style={{ color: "var(--ink-3)" }}>Industry experience</p>
+          <div className="flex flex-wrap gap-1.5">
+            {parsed.industries.map((ind) => <span key={ind} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--line)", color: "var(--ink-2)" }}>{ind}</span>)}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -12583,7 +12591,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {parsed.experience?.length ? parsed.experience.map((exp, i) => (
               <div key={i}>
                 <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-x-2">
-                  <p className="text-neutral-900 text-sm font-medium">{exp.title} · {exp.company}</p>
+                  <p className="text-neutral-900 text-sm font-medium">
+                    {exp.title} · {exp.company}
+                    {exp.industry && !/^unknown$/i.test(exp.industry) && (
+                      <span className="ml-2 align-middle text-[10px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: "var(--line)", color: "var(--ink-3)" }}>{exp.industry}</span>
+                    )}
+                  </p>
                   <span className="text-xs text-neutral-500 shrink-0">{exp.duration}</span>
                 </div>
                 <p className="text-sm text-neutral-600 mt-1">{exp.summary}</p>
