@@ -7892,6 +7892,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
   const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
   const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
   const [expiresAt, setExpiresAt] = useState(initialJob?.expires_at || ""); // yyyy-mm-dd; blank = never closes
+  const [screening, setScreening] = useState(initialJob?.applicant_screening || "strict"); // strict = AI turns away non-fits; open = everyone applies
   const [description, setDescription] = useState(initialJob?.description || "");
   const [responsibilities, setResponsibilities] = useState((initialJob?.responsibilities || []).join("\n"));
   const [requirements, setRequirements] = useState((initialJob?.requirements || []).join("\n"));
@@ -7920,6 +7921,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       salary_max: salaryMax ? Number(salaryMax) : null,
       salary_currency: "MYR",
       expires_at: expiresAt || null,
+      applicant_screening: screening,
       description: description.trim(),
       responsibilities: toLines(responsibilities),
       requirements: toLines(requirements),
@@ -8013,6 +8015,20 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
             onBlur={addJobSkill}
             placeholder={skills.length ? "" : "React, SQL, Data Analysis…"} className="flex-1 min-w-[140px] bg-transparent text-sm px-1 py-1 focus:outline-none" style={{ color: "var(--ink)" }} />
         </div>
+      </div>
+      <div>
+        <label className={labelClass}>Who can apply</label>
+        <select value={screening} onChange={(e) => setScreening(e.target.value)} className={inputClass}>
+          <option value="strict">Only strong matches</option>
+          <option value="open">Anyone can apply</option>
+        </select>
+        <p className="text-xs text-neutral-400 mt-1">
+          {screening === "strict"
+            ? (skills.length || seniorityLevels.length || requirements.trim()
+                ? "Aster reads each resume against the skills and requirements above and turns away anyone clearly off-target. You only see applicants worth a look."
+                : "Add key skills or requirements above for Aster to screen against. Until then, everyone who applies is let through.")
+            : "Everyone who uploads a resume becomes an applicant. Aster still reads and ranks them, but it won't turn anyone away."}
+        </p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div>

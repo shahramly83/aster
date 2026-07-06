@@ -139,7 +139,11 @@ Deno.serve(async (req) => {
     const roleSkills: string[] = Array.isArray(d.skills) ? d.skills : [];
     const roleSeniority: string[] = Array.isArray(d.seniority_levels) ? d.seniority_levels : (d.seniority_level ? [d.seniority_level] : []);
     const roleReqs: string[] = Array.isArray(d.requirements) ? d.requirements : [];
-    const hasRoleCriteria = roleSkills.length > 0 || roleSeniority.length > 0 || roleReqs.length > 0;
+    // The company can choose to screen applicants ("strict", the default) or let
+    // everyone through ("open"). Screening only rejects when the job also has
+    // criteria to screen against.
+    const screenApplicants = d.applicant_screening !== "open";
+    const hasRoleCriteria = screenApplicants && (roleSkills.length > 0 || roleSeniority.length > 0 || roleReqs.length > 0);
     const roleContext = hasRoleCriteria
       ? `\n\nTARGET ROLE: "${job.title || "this role"}"\nRequired skills: ${roleSkills.length ? roleSkills.join(", ") : "(not specified)"}\nSeniority wanted: ${roleSeniority.length ? roleSeniority.join(", ") : "(any)"}\nRequirements: ${roleReqs.length ? roleReqs.join("; ") : "(not specified)"}`
       : `\n\nNo target role criteria were given, so set is_fit to true.`;
