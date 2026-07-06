@@ -10718,6 +10718,15 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
 
   // A real job carries a uuid id; demo jobs use "j…" ids we never send to the DB.
   const isRealJob = (id) => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
+  // PDF file → base64 (without the data: prefix) for the parser function.
+  const fileToBase64 = (f) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] || "");
+    r.onerror = reject;
+    r.readAsDataURL(f);
+  });
+  const applyError = (msg) =>
+    /job not open/i.test(msg || "") ? "This role is no longer accepting applications." : "Something went wrong submitting your application. Please try again.";
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -10730,25 +10739,29 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
     setSubmitErr(null);
     setStage("processing");
 
-    // Real submission: create the candidate + application via the anon-safe RPC.
     if (hasSupabase && isRealJob(job?.id)) {
-      const { error } = await supabase.rpc("submit_application", {
-        p_job_id: job.id,
-        p_name: name.trim(),
-        p_email: email.trim(),
-        p_resume_filename: file?.name || null,
-        p_source: "Career Page",
-      });
-      if (error) {
-        setSubmitErr(/job not open/i.test(error.message)
-          ? "This role is no longer accepting applications."
-          : "Something went wrong submitting your application. Please try again.");
-        setStage("form");
+      // Preferred path: the edge function reads the PDF with Claude, stores it,
+      // and creates the candidate with the parsed profile filled in.
+      try {
+        const resume_base64 = await fileToBase64(file);
+        const { data, error } = await supabase.functions.invoke("parse-application", {
+          body: { job_id: job.id, name: name.trim(), email: email.trim(), resume_base64, filename: file?.name || null, source: "Career Page" },
+        });
+        if (error || data?.error) throw new Error(data?.error || error?.message || "function failed");
+        onApplied && onApplied();
+        setStage("done");
+        return;
+      } catch (_e) {
+        // Function not deployed / failed → still record the application (without
+        // AI-parsed fields) via the anon-safe RPC so nothing is lost.
+        const { error: rpcErr } = await supabase.rpc("submit_application", {
+          p_job_id: job.id, p_name: name.trim(), p_email: email.trim(), p_resume_filename: file?.name || null, p_source: "Career Page",
+        });
+        if (rpcErr) { setSubmitErr(applyError(rpcErr.message)); setStage("form"); return; }
+        onApplied && onApplied();
+        setStage("done");
         return;
       }
-      onApplied && onApplied(); // refresh the workspace so the applicant shows up
-      setStage("done");
-      return;
     }
 
     // Demo mode (no keys / preview of a demo job): simulate parsing.
