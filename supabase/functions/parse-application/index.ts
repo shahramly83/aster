@@ -124,9 +124,13 @@ Deno.serve(async (req) => {
     // The job must exist and be open — this is the only thing that authorises
     // creating rows for its company.
     const { data: job, error: jobErr } = await admin
-      .from("jobs").select("company_id, status, title, details").eq("id", job_id).maybeSingle();
+      .from("jobs").select("company_id, status, title, details, expires_at").eq("id", job_id).maybeSingle();
     if (jobErr || !job) return json({ error: "job not found" }, 404);
     if (job.status !== "open") return json({ error: "job not open" }, 409);
+    // Past its closing date → intake stops even though status is still 'open'.
+    if (job.expires_at && String(job.expires_at) < new Date().toISOString().slice(0, 10)) {
+      return json({ error: "job expired" }, 409);
+    }
     const companyId = job.company_id;
 
     // Describe the target role for the fit check (empty when the job has no

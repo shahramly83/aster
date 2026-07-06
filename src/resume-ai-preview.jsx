@@ -67,7 +67,7 @@ function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob })
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes] = await Promise.all([
-    supabase.from("jobs").select("id, title, status, details, created_at").eq("company_id", companyId),
+    supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, scheduled_at, status, provider").eq("company_id", companyId),
@@ -76,7 +76,7 @@ async function loadWorkspaceData(companyId) {
   const jobRows = jobsRes.data || [];
   if (jobsRes.error || !jobRows.length) return null; // empty workspace → keep demo
 
-  const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}) }));
+  const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}), posted_at: j.created_at, expires_at: j.expires_at || null }));
   const jobTitle = Object.fromEntries(jobs.map((j) => [j.id, j.title]));
 
   // Resume PDFs and profile photos live in the private resumes bucket; mint
@@ -7891,6 +7891,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
   const addJobSkill = () => { const v = skillInput.trim().replace(/,$/, ""); if (!v) return; setSkills((prev) => prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]); setSkillInput(""); };
   const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
   const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
+  const [expiresAt, setExpiresAt] = useState(initialJob?.expires_at || ""); // yyyy-mm-dd; blank = never closes
   const [description, setDescription] = useState(initialJob?.description || "");
   const [responsibilities, setResponsibilities] = useState((initialJob?.responsibilities || []).join("\n"));
   const [requirements, setRequirements] = useState((initialJob?.requirements || []).join("\n"));
@@ -7918,6 +7919,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       salary_min: salaryMin ? Number(salaryMin) : null,
       salary_max: salaryMax ? Number(salaryMax) : null,
       salary_currency: "MYR",
+      expires_at: expiresAt || null,
       description: description.trim(),
       responsibilities: toLines(responsibilities),
       requirements: toLines(requirements),
@@ -8012,7 +8014,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
             placeholder={skills.length ? "" : "React, SQL, Data Analysis…"} className="flex-1 min-w-[140px] bg-transparent text-sm px-1 py-1 focus:outline-none" style={{ color: "var(--ink)" }} />
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div>
           <label className={labelClass}>Salary min (MYR)</label>
           <input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="6000" className={inputClass} />
@@ -8020,6 +8022,11 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
         <div>
           <label className={labelClass}>Salary max (MYR)</label>
           <input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
+        </div>
+        <div className="col-span-2 sm:col-span-1">
+          <label className={labelClass}>Closing date <span className="text-neutral-400 font-normal">(optional)</span></label>
+          <input type="date" value={expiresAt} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setExpiresAt(e.target.value)} className={inputClass} />
+          <p className="text-xs text-neutral-400 mt-1">{expiresAt ? "Stops taking applications after this day. Leave blank to keep it open." : "Leave blank to keep the posting open until you close it."}</p>
         </div>
       </div>
       <div>
@@ -10828,6 +10835,14 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   const salary = formatSalary(job);
   const meta = [job.department, job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level, salary].filter(Boolean);
 
+  // Posting dates. expires_at is a plain YYYY-MM-DD; the posting stops taking
+  // applications once that day has passed (also enforced server-side).
+  const fmtDate = (d) => { try { return new Date(d.length === 10 ? d + "T00:00:00" : d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); } catch { return null; } };
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isExpired = !!job.expires_at && job.expires_at < todayStr;
+  const postedStr = job.posted_at ? fmtDate(job.posted_at) : null;
+  const closesStr = job.expires_at ? fmtDate(job.expires_at) : null;
+
   // Paused job (over the owner's plan limit): the public link still resolves,
   // but it stops taking applications until the owner reactivates. Nothing breaks.
   if (paused) {
@@ -10876,6 +10891,34 @@ This is what a candidate sees if they open the link after the role has closed.
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Position closed</h1>
             <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
               <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> has closed and isn't taking applications.
+            </p>
+            <p className="text-sm" style={{ color: "var(--ink-3)" }}>
+              Thanks for your interest. Keep an eye on our careers page for future openings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Past its closing date → same as closed: the link resolves but intake stops.
+  if (isExpired) {
+    return (
+      <div className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="max-w-xl mx-auto">
+          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
+            <p className="text-xs text-indigo-700">
+              This is what a candidate sees after the posting's closing date has passed.
+            </p>
+          </div>
+          <div className="text-center max-w-sm mx-auto mt-8">
+            <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
+              <span className="text-neutral-400 text-xl">⏳</span>
+            </div>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Applications closed</h1>
+            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
+              Applications for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> closed on {closesStr}.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               Thanks for your interest. Keep an eye on our careers page for future openings.
@@ -10946,6 +10989,7 @@ This is what a candidate sees if they open the link after the role has closed.
         if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Upload your CV as a PDF and try again."); setStage("form"); return; }
         if (code === "no_email") { setSubmitErr("We couldn't find an email on your resume. Add your email to the CV and upload again so the team can reach you."); setStage("form"); return; }
         if (code === "not_fit") { setFitReason(reason || ""); setStage("notFit"); return; }
+        if (/job expired/i.test(code)) { setSubmitErr("Applications for this role have closed. Take a look at our other open positions."); setStage("form"); return; }
         if (/job not open/i.test(code)) { setSubmitErr("This role isn't taking applications anymore."); setStage("form"); return; }
         throw new Error(code || error?.message || "failed");
       }
@@ -11022,6 +11066,12 @@ This is what a candidate sees. A public page, no login, reached only through the
               ))}
               {salary && <span className="text-xs rounded-full px-2.5 py-1 font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{salary}</span>}
             </div>
+            {(postedStr || closesStr) && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-xs" style={{ color: "var(--ink-3)" }}>
+                {postedStr && <span className="inline-flex items-center gap-1.5"><Icon name="calendar" className="w-3.5 h-3.5" /> Posted {postedStr}</span>}
+                {closesStr && <span className="inline-flex items-center gap-1.5"><Icon name="clock" className="w-3.5 h-3.5" /> Applications close {closesStr}</span>}
+              </div>
+            )}
 
             <div className="grid lg:grid-cols-[1fr_minmax(300px,360px)] gap-6 items-start mt-7">
               {/* Left: role details */}
