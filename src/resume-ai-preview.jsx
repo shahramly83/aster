@@ -5821,7 +5821,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
               <NotificationBell activities={activities} onOpen={onOpenNotifications} compact />
             </div>
           </div>
-          <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px]" style={{ background: "var(--bg)" }}>
+          <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px] overflow-x-clip" style={{ background: "var(--bg)" }}>
             {children}
           </div>
         </div>
@@ -6660,7 +6660,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           <div className="md:hidden order-2 flex justify-end">
             <DateRangePicker range={range} setRange={setRange} />
           </div>
-          <div className="order-3 lg:order-1 lg:col-span-2 flex flex-col">
+          <div className="order-3 lg:order-1 lg:col-span-2 flex flex-col min-w-0">
             {(() => {
               const heroCard = (k) => (
                 <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "" : "border act-shadow"}`} style={k.dark ? { background: "var(--navy)", border: "1px solid var(--navy-line)" } : { background: "#fff", borderColor: "var(--line)" }}>
@@ -6762,7 +6762,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           </div>
 
           {/* Right dark panel — plan card + quick actions + recent candidates */}
-          <div className="order-1 lg:order-2 lg:col-span-1">
+          <div className="order-1 lg:order-2 lg:col-span-1 min-w-0">
             <div className="rounded-3xl p-5 relative overflow-hidden grain h-full flex flex-col" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(151,59,247,0.35) 0%, transparent 60%)" }} />
               <div className="relative flex items-center justify-between">
