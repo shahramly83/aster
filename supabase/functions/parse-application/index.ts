@@ -191,6 +191,18 @@ Deno.serve(async (req) => {
         .map((e: any) => (e && e.industry ? String(e.industry).trim() : ""))
         .filter((s: string) => s && !/^unknown$/i.test(s))
     )];
+
+    // Record any new industries in the company's taxonomy (added if not present).
+    if (industries.length) {
+      try {
+        await admin.from("industries").upsert(
+          industries.map((name) => ({ company_id: companyId, name, key: name.toLowerCase() })),
+          { onConflict: "company_id,key", ignoreDuplicates: true },
+        );
+      } catch (e) {
+        console.error("industry taxonomy upsert failed", e); // non-fatal
+      }
+    }
     parsed = {
       name: fullName,
       email: finalEmail,
