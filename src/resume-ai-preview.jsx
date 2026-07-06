@@ -8003,7 +8003,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
         </div>
       </div>
       <div>
-        <label className={labelClass}>Key skills <span className="text-neutral-400 font-normal">(the AI matches applicants against these — press Enter to add)</span></label>
+        <label className={labelClass}>Key skills <span className="text-neutral-400 font-normal">(Aster ranks applicants against these. Press Enter to add.)</span></label>
         <div className="rounded-xl bg-neutral-100 border border-neutral-200 px-2 py-1.5 flex flex-wrap gap-1.5 items-center">
           {skills.map((s) => (
             <span key={s} className="text-xs rounded-full px-2 py-0.5 font-medium inline-flex items-center gap-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
@@ -8046,7 +8046,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
             if (!expiresAt) return <p className="text-xs text-neutral-400 mt-1">Leave blank to keep the posting open until you close it.</p>;
             const days = Math.round((new Date(expiresAt + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
             if (days < 0) return <p className="text-xs mt-1" style={{ color: "#B45309" }}>That date has passed, so this posting won't take applications. Pick a future date.</p>;
-            const label = days === 0 ? "Closes today — applications stop at the end of the day." : `Closes in ${days} day${days === 1 ? "" : "s"}. Applications stop after this day.`;
+            const label = days === 0 ? "Closes today. Applications stop at the end of the day." : `Closes in ${days} day${days === 1 ? "" : "s"}. Applications stop after this day.`;
             return <p className="text-xs text-neutral-400 mt-1">{label}</p>;
           })()}
         </div>
@@ -8069,7 +8069,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       </div>
       <div className="flex items-center gap-2 pt-1">
         <button onClick={handleSubmit} disabled={!canCreate} className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
-          {editing ? "Save changes" : "Create job"}
+          {editing ? "Save changes" : "Post job"}
         </button>
         <button onClick={onClose} className="text-sm rounded-xl px-4 py-2 transition-colors" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
           Cancel
@@ -8092,7 +8092,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
             <span className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="jobs" className="w-5 h-5" /></span>
             <div className="min-w-0">
               <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{editing ? "Edit job" : "New job posting"}</h2>
-              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{editing ? "Update the details — changes apply to the live posting." : "Fill in the details — share the link and rank applicants once it's live."}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{editing ? "Update the details. Changes go live on the posting right away." : "Add the details, then share the link and rank applicants as they apply."}</p>
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
