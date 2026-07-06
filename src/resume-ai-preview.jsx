@@ -9522,10 +9522,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const industryOptions = workspaceIndustries;
   const POPULAR_INDUSTRIES = workspaceIndustries;
   const SEARCH_HELP = [
-    { icon: "users", title: "Browse & filter", body: "Search your whole database by name, skill, or role, and narrow by years of experience." },
-    { icon: "matching", title: "Match by skills or industry", body: "Add the skills you're hiring for, pick an industry, or both, and AI ranks everyone by fit." },
-    { icon: "briefcase", title: "Match to a role", body: "Pick an open role and AI ranks candidates by fit, so you can invite the strongest to apply." },
-    { icon: "link", title: "Invite to apply", body: "Found someone good? Send them a link to apply. Even an older profile might still be keen." },
+    { icon: "users", title: "Browse by name", body: "Search your talent pool by name. As you type, matching people show up in a dropdown you can open straight away." },
+    { icon: "matching", title: "Match by skills or industry", body: "Filter by the skills and industries Aster read from your candidates' resumes, plus experience level. Matches appear instantly. Run AI Rank when you want each fit scored and explained (one credit)." },
+    { icon: "briefcase", title: "Match to a role", body: "Pick an open role and AI Rank scores every candidate against it, so you can invite the strongest to apply (one credit)." },
+    { icon: "link", title: "Invite to apply", body: "Found someone good? Send them the job's application page. Even an older profile might still be keen." },
   ];
 
   return (
