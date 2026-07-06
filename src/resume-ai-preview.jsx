@@ -13219,6 +13219,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </div>{/* two-column grid */}
       </div>
       {showPdf && <ResumePdfModal candidate={candidate} onClose={() => setShowPdf(false)} />}
+      <ConfirmDialog
+        open={confirmDelete}
+        tone="danger"
+        title="Delete this candidate?"
+        body={`${parsed.name || "This candidate"} and their applications, interviews and scorecards will be removed for good. This can't be undone.`}
+        confirmLabel="Delete candidate"
+        onConfirm={() => { setConfirmDelete(false); onDelete && onDelete(); }}
+        onClose={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
@@ -13847,15 +13856,6 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
         confirmLabel="Run AI Rank"
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
-      />
-      <ConfirmDialog
-        open={confirmDelete}
-        tone="danger"
-        title="Delete this candidate?"
-        body={`${parsed.name || "This candidate"} and their applications, interviews and scorecards will be removed for good. This can't be undone.`}
-        confirmLabel="Delete candidate"
-        onConfirm={() => { setConfirmDelete(false); onDelete && onDelete(); }}
-        onClose={() => setConfirmDelete(false)}
       />
     </div>
   );
