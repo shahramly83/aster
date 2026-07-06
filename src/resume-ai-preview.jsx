@@ -9447,7 +9447,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   ];
   // Popular skills across job families (not just engineering) — each exists in
   // the candidate pool so a quick-add always returns real matches.
-  const POPULAR_SKILLS = ["React", "Salesforce", "SEO", "Financial Modeling", "Recruiting", "SQL", "Account Management", "Project Management", "Copywriting", "Patient Care"];
+  // The most common real skills across this workspace's candidates (by frequency).
+  // Falls back to a broad sample only when nothing has been parsed yet.
+  const skillFreq = {};
+  available.forEach((c) => (c.parsed?.skills || []).forEach((s) => { const k = String(s).trim(); if (k) skillFreq[k] = (skillFreq[k] || 0) + 1; }));
+  const workspaceSkills = Object.keys(skillFreq).sort((a, b) => skillFreq[b] - skillFreq[a]);
+  const POPULAR_SKILLS = workspaceSkills.length ? workspaceSkills : ["React", "Salesforce", "SEO", "Financial Modeling", "Recruiting", "SQL", "Account Management", "Project Management", "Copywriting", "Patient Care"];
   // Industries present in the candidate pool, so a bubble always returns matches.
   // The real, AI-tagged industries present across this workspace's candidates.
   // Falls back to the broad list only when nothing has been tagged yet.
