@@ -8026,7 +8026,13 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
         <div className="col-span-2 sm:col-span-1">
           <label className={labelClass}>Closing date <span className="text-neutral-400 font-normal">(optional)</span></label>
           <input type="date" value={expiresAt} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setExpiresAt(e.target.value)} className={inputClass} />
-          <p className="text-xs text-neutral-400 mt-1">{expiresAt ? "Stops taking applications after this day. Leave blank to keep it open." : "Leave blank to keep the posting open until you close it."}</p>
+          {(() => {
+            if (!expiresAt) return <p className="text-xs text-neutral-400 mt-1">Leave blank to keep the posting open until you close it.</p>;
+            const days = Math.round((new Date(expiresAt + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
+            if (days < 0) return <p className="text-xs mt-1" style={{ color: "#B45309" }}>That date has passed, so this posting won't take applications. Pick a future date.</p>;
+            const label = days === 0 ? "Closes today — applications stop at the end of the day." : `Closes in ${days} day${days === 1 ? "" : "s"}. Applications stop after this day.`;
+            return <p className="text-xs text-neutral-400 mt-1">{label}</p>;
+          })()}
         </div>
       </div>
       <div>
