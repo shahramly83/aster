@@ -12773,6 +12773,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{parsed.years_of_experience} yrs</span>
           </div>
         )}
+        {seniorityFromYears(parsed.years_of_experience) && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs inline-flex items-center gap-1" style={{ color: "var(--ink-3)" }}>Seniority <InfoHint dir="down" hint="Aster's read of seniority from years of experience. It maps to the same levels you filter by in Candidate search." /></span>
+            <span className="text-[11px] rounded-full px-2 py-0.5 font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{seniorityFromYears(parsed.years_of_experience)}</span>
+          </div>
+        )}
         {topRole && (
           <div className="flex items-start justify-between gap-2">
             <span className="text-xs shrink-0" style={{ color: "var(--ink-3)" }}>Current role</span>
