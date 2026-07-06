@@ -8402,7 +8402,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   </button>
 
                   <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
-                    <button onClick={() => { setActiveJobId(job.id); navigate("applicants"); }} className="group/app inline-flex items-center gap-2 rounded-lg py-1 pr-2 transition-colors" title="View applicants">
+                    <button onClick={() => { setActiveJobId(job.id); navigate("applicants", `/applicants/${job.id}`); }} className="group/app inline-flex items-center gap-2 rounded-lg py-1 pr-2 transition-colors" title="View applicants">
                       <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
                         <Icon name="users" className="w-4 h-4" />
                       </span>
@@ -8609,7 +8609,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               </div>
 
               <div className="px-5 sm:px-6 py-4 border-t flex flex-wrap items-center gap-2 shrink-0" style={{ borderColor: "var(--line)" }}>
-                <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("applicants"); }} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90">
+                <button onClick={() => { setDetailJob(null); setActiveJobId(dj.id); navigate("applicants", `/applicants/${dj.id}`); }} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90">
                   <Icon name="users" className="w-4 h-4" /> View applicants{djN > 0 ? ` (${djN})` : ""}
                 </button>
                 <button onClick={() => { setDetailJob(null); setEditJob(dj); }} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
@@ -13668,8 +13668,15 @@ function compareInfoFromPath(pathname) {
   const m = (pathname || "").match(/^\/compare\/([^/]+)$/);
   return m ? { kind: "page", slug: m[1] } : null;
 }
+// Applicants: /applicants (first job) and /applicants/<jobId> so a specific
+// job's applicant list is refreshable and shareable.
+function applicantsJobFromPath(pathname) {
+  const m = (pathname || "").match(/^\/applicants\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 function screenFromPath(pathname) {
   if (candidateIdFromPath(pathname)) return "candidateProfile";
+  if (applicantsJobFromPath(pathname)) return "applicants";
   if (productSlugFromPath(pathname) != null) return "product";
   if (solutionSlugFromPath(pathname) != null) return "solutions";
   if (blogInfoFromPath(pathname)) return "blog";
@@ -13896,7 +13903,7 @@ export default function ResumeAIPreview() {
   // While true, hold the signed-in app behind a loader so a logged-in user never
   // sees a flash of demo data before their real workspace hydrates on refresh.
   const [restoring, setRestoring] = useState(hasSupabase);
-  const [activeJobId, setActiveJobId] = useState("j1");
+  const [activeJobId, setActiveJobId] = useState(() => (typeof window !== "undefined" ? (applicantsJobFromPath(window.location.pathname) || "j1") : "j1"));
   // On the Free plan, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
   const [keptJobId, setKeptJobId] = useState("j1");
@@ -14120,7 +14127,9 @@ export default function ResumeAIPreview() {
     if (!data) return;
     applyWorkspaceData(data);          // swaps candidates / applicants / matches
     setJobs(data.jobs);
-    if (data.jobs[0]) setActiveJobId(data.jobs[0].id);
+    // Keep the job the URL points at (e.g. /applicants/<id> on refresh); only
+    // fall back to the first job when the current id isn't a real one.
+    setActiveJobId((cur) => (data.jobs.some((j) => j.id === cur) ? cur : (data.jobs[0]?.id || cur)));
     setBookings(data.bookings);
     setScorecards(data.scorecards);
     setActivities(buildActivities());  // rebuilt from the now-real datasets
@@ -14173,7 +14182,7 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
-    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : scr === "compare" ? ("/compare" + (compareSlug ? `/${compareSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
+    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "applicants" && activeJobId ? `/applicants/${activeJobId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : scr === "compare" ? ("/compare" + (compareSlug ? `/${compareSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
       window.history.replaceState({ aster: true }, "", pathFor(history[0]));
@@ -14194,8 +14203,10 @@ export default function ResumeAIPreview() {
       const binfo = blogInfoFromPath(path);
       const ginfo = glossaryInfoFromPath(path);
       const cinfo = compareInfoFromPath(path);
-      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (cinfo ? "compare" : (PATH_TO_SCREEN[path] || "landing"))))));
+      const ajob = applicantsJobFromPath(path);
+      const target = cid ? "candidateProfile" : (ajob ? "applicants" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (cinfo ? "compare" : (PATH_TO_SCREEN[path] || "landing")))))));
       if (cid) setViewCandidateId(cid);
+      if (ajob) setActiveJobId(ajob);
       if (pslug != null) setProductSlug(pslug);
       if (sslug != null) setSolutionSlug(sslug);
       if (binfo) { setBlogSlug(binfo.kind === "post" ? binfo.slug : ""); setBlogCat(binfo.kind === "category" ? binfo.slug : ""); }
