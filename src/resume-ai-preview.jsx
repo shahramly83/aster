@@ -6191,8 +6191,30 @@ function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style 
   );
 }
 
+// Candidate avatars use the real photo extracted from the resume when we have
+// one, and fall back to the person's initials — never a generated stock face.
 function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot = true }) {
-  return <FaceAvatar src={src} name={name} size={size} style={{ border: "1px solid var(--line)" }} />;
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt={name || "Applicant"}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="rounded-full object-cover shrink-0"
+        style={{ width: size, height: size, border: "1px solid var(--line)" }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-full flex items-center justify-center font-semibold font-display shrink-0"
+      style={{ width: size, height: size, background: "var(--brand-soft)", color: "var(--brand)", fontSize: size * 0.36, border: "1px solid var(--line)" }}
+    >
+      {initials(name)}
+    </div>
+  );
 }
 
 // Shared activity feed used by both the header bell and the dashboard card.
