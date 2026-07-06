@@ -8992,7 +8992,7 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
   );
 }
 
-function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
+function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
   const limits = planLimits(plan);
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
@@ -9454,13 +9454,14 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   );
   // Runs-left note shown under both AI panels.
   // AI-match-runs usage — same meter method as the Upload screen's "Usage this month".
-  // Credits reset at the start of each calendar month; show that date.
-  const _reset = new Date(); _reset.setMonth(_reset.getMonth() + 1, 1);
-  const resetLabel = _reset.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  // Credits reset every 30 days from signup; show the next reset date.
+  const resetLabel = aiRankResetsAt
+    ? new Date(aiRankResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : "in 30 days";
   const planNote = limits.aiRunsPerMonth !== Infinity ? (
     <UsageMeter
-      title="AI Rank credits this month"
-      hint="Each AI Rank uses one credit. Your plan includes a set number of credits a month, and they reset on the 1st of each month."
+      title="AI Rank credits this cycle"
+      hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
         ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
@@ -14079,6 +14080,7 @@ export default function ResumeAIPreview() {
   // Shared monthly AI-match run counter (Free is limited; resets in production
   // each billing period — here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
+  const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
   const [insightsCache, setInsightsCache] = useState({});
@@ -14268,8 +14270,9 @@ export default function ResumeAIPreview() {
     // Load this month's AI Rank credit usage for the meter (per company).
     if (hasSupabase) {
       supabase.rpc("get_ai_rank_usage").then(({ data }) => {
-        const used = Array.isArray(data) ? data?.[0]?.used : data?.used;
-        if (typeof used === "number") setMatchRunsUsed(used);
+        const row = Array.isArray(data) ? data?.[0] : data;
+        if (row && typeof row.used === "number") setMatchRunsUsed(row.used);
+        if (row && row.resets_at) setAiRankResetsAt(row.resets_at);
       }).catch(() => { /* ignore */ });
     }
     const data = await loadWorkspaceData(companyId);
@@ -14706,7 +14709,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "search" && (
-          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} persist={searchStateRef} />
+          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} aiRankResetsAt={aiRankResetsAt} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} persist={searchStateRef} />
         )}
         {screen === "interviews" && (
           <InterviewsScreen
