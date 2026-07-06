@@ -15,8 +15,8 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const PARSE_MODEL = "claude-sonnet-5";          // strong company/industry knowledge for the resume parse
-const FACE_MODEL = "claude-haiku-4-5-20251001"; // cheap vision, just to pick the headshot
+const PARSE_MODEL = "claude-opus-4-8";           // most capable: best company/industry knowledge (higher cost/slower)
+const FACE_MODEL = "claude-haiku-4-5-20251001";  // cheap vision, just to pick the headshot
 
 const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and return ONLY a JSON object (no markdown, no commentary) with exactly these keys:
 {
