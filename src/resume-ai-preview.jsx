@@ -9038,8 +9038,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [rankedMeta, setRankedMeta] = useState(P.rankedMeta ?? null);    // { mode:'skills'|'role', label, skills?, jobId? }
   // Skills tab shows a plain filtered list first; "AI Rank" reveals fit % scores.
   const [ranked, setRanked] = useState(false);
+  const [aiRank, setAiRank] = useState(null);       // { scores:{id:0..1}, reasons:{id:string} } from Claude
+  const [aiRanking, setAiRanking] = useState(false); // request in flight
   // Any change to the filter criteria drops back to the plain (un-ranked) view.
-  useEffect(() => { setRanked(false); }, [skillTags, industryTags, expLevels, tab]);
+  useEffect(() => { setRanked(false); setAiRank(null); }, [skillTags, industryTags, expLevels, tab]);
 
   // Save the view state on every change so returning from a profile keeps the
   // same tab, filters, page and results (scroll is handled centrally by the app).
@@ -9180,9 +9182,37 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     if (tab === "skills" && !ranked) {
       list.sort((a, b) => (b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)); // plain view: most experienced first
     } else {
-      list.sort((a, b) => ((matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
+      const sc = aiRank?.scores || matchScores; // AI ranking when available, else the heuristic
+      list.sort((a, b) => ((sc[b.id] ?? 0) - (sc[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
     }
   }
+
+  // Click "AI Rank" → Claude (Sonnet) ranks the filtered candidates by fit and
+  // explains why. Falls back to the instant heuristic if the call fails.
+  const runAiRank = async () => {
+    if (!list.length) return;
+    if (!hasSupabase) { setRanked(true); return; }
+    setAiRanking(true);
+    try {
+      const payload = list.slice(0, 40).map((c) => ({
+        id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
+        years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
+      }));
+      const { data, error } = await supabase.functions.invoke("rank-candidates", {
+        body: { skills: skillTags, industries: industryTags, candidates: payload },
+      });
+      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error("rank failed");
+      const scores = {}, reasons = {};
+      data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
+      setAiRank({ scores, reasons });
+      setRanked(true);
+    } catch (_e) {
+      setAiRank(null);     // fall back to the heuristic already in matchScores
+      setRanked(true);
+    } finally {
+      setAiRanking(false);
+    }
+  };
 
   // Plan gating: show the top N, blur/lock the rest.
   const viewLimit = matchScores ? limits.aiMatches : limits.visibleCandidates;
@@ -9286,7 +9316,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const rankedList = (
     <div className="space-y-2.5">
       {shownList.map((c, idx) => {
-        const pct = Math.round((matchScores?.[c.id] ?? 0) * 100);
+        const pct = Math.round(((aiRank?.scores?.[c.id]) ?? (matchScores?.[c.id] ?? 0)) * 100);
         const isTop = idx === 0;
         const yrs = c.parsed.years_of_experience;
         const role = c.parsed.experience?.[0]?.title;
@@ -9298,7 +9328,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         const descriptor = isSkills
           ? [hasSkillCriteria ? `${matched.length}/${rankedMeta.skills.length} skills matched` : null, industryLabel, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ")
           : [yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
-        const insight = matchInsight(c, { pct, mode: rankedMeta?.mode, matched, industryLabel, yrs, role });
+        const insight = (aiRank?.reasons?.[c.id]) || matchInsight(c, { pct, mode: rankedMeta?.mode, matched, industryLabel, yrs, role });
         return (
           <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}>
             <div className="flex items-center gap-4">
@@ -9606,8 +9636,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{ranked ? " · ranked by fit" : ""} {ranked && <InfoHint dir="down" hint="A fit score from 0 to 100. The fuller the ring, the closer this person matches what you searched." />}</p>
                 <div className="flex items-center gap-3">
                   {!ranked && list.length > 0 && (
-                    <button onClick={() => setRanked(true)} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity">
-                      <Icon name="matching" className="w-3.5 h-3.5" /> AI Rank
+                    <button onClick={runAiRank} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
+                      <Icon name="matching" className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : "AI Rank"}
                     </button>
                   )}
                   <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
