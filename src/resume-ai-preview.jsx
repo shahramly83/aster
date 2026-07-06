@@ -13864,6 +13864,9 @@ export default function ResumeAIPreview() {
   const [userId, setUserId] = useState(null);
   const [workspaceLive, setWorkspaceLive] = useState(false);
   const canPersist = hasSupabase && workspaceLive && !!companyId;
+  // While true, hold the signed-in app behind a loader so a logged-in user never
+  // sees a flash of demo data before their real workspace hydrates on refresh.
+  const [restoring, setRestoring] = useState(hasSupabase);
   const [activeJobId, setActiveJobId] = useState("j1");
   // On the Free plan, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
@@ -14113,17 +14116,26 @@ export default function ResumeAIPreview() {
   // Restore a signed-in customer on load so the workspace greets them by their
   // real name / company / plan. Admins have no profile row, so they're ignored.
   useEffect(() => {
-    if (!hasSupabase) return;
+    if (!hasSupabase) return; // restoring stays false → mock/marketing renders as-is
     let cancelled = false;
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (cancelled || !session) return;
-      const sess = await loadCustomerSession(session.user.id, session.user.email);
-      if (cancelled || !sess) return;
-      setProfile(sess.profile);
-      setCompany(sess.company);
-      if (sess.plan) setPlan(sess.plan);
-      if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId); }
-    });
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled || !session) return;
+        const sess = await loadCustomerSession(session.user.id, session.user.email);
+        if (cancelled || !sess) return;
+        setProfile(sess.profile);
+        setCompany(sess.company);
+        if (sess.plan) setPlan(sess.plan);
+        if (sess.companyId) {
+          setCompanyId(sess.companyId);
+          setUserId(sess.userId);
+          await hydrateWorkspace(sess.companyId); // finish before revealing the app
+        }
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -14392,6 +14404,23 @@ export default function ResumeAIPreview() {
     return (
       <Shell>
         <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} />
+      </Shell>
+    );
+  }
+
+  // Hold the authenticated app until the session + workspace have hydrated, so a
+  // signed-in user never sees a flash of demo data before their real data loads.
+  // Marketing / login / sign-up screens all returned above, so this only gates
+  // the workspace.
+  if (restoring) {
+    return (
+      <Shell>
+        <div className="min-h-dvh flex items-center justify-center" style={{ background: "#070814" }}>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.18)", borderTopColor: "#FFFFFF" }} />
+            <p className="text-sm" style={{ color: "var(--navy-ink)" }}>Loading your workspace…</p>
+          </div>
+        </div>
       </Shell>
     );
   }
