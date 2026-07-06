@@ -10735,8 +10735,13 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
       const { data, error } = await supabase.functions.invoke("parse-application", {
         body: { job_id: job.id, resume_base64, filename: file?.name || null, source: "Career Page" },
       });
-      if (error || data?.error) {
-        const code = data?.error || "";
+      // On a non-2xx status, invoke returns `error` and the JSON body (with our
+      // reason code) sits on error.context, not in `data`. Read both.
+      let code = data?.error || "";
+      if (!code && error?.context?.json) {
+        try { const body = await error.context.json(); code = body?.error || ""; } catch { /* ignore */ }
+      }
+      if (error || code) {
         if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Please upload your CV as a PDF."); setStage("form"); return; }
         if (code === "no_email") { setSubmitErr("We couldn't find an email address on your resume. Please add your email to the CV and upload again."); setStage("form"); return; }
         if (/job not open/i.test(code)) { setSubmitErr("This role is no longer accepting applications."); setStage("form"); return; }
