@@ -12341,12 +12341,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // shows the saved result without spending another credit.
   const insights = candidate ? (insightsCache[candidate.id] ?? null) : null;
   const [generating, setGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
-  const copyProfileLink = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); } else { const ta = document.createElement("textarea"); ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* no-op */ }
-  };
   // AI Experience Insights are metered per plan, like AI match runs.
   const insightsLimit = planLimits(plan).aiInsightsPerMonth;
   const insightsUnlimited = insightsLimit === Infinity;
@@ -12545,9 +12540,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-            <button onClick={copyProfileLink} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5" title="Copy this candidate's profile link">
-              <Icon name={copied ? "check" : "link"} className="w-4 h-4" /> {copied ? "Copied" : "Copy link"}
-            </button>
             {planLimits(plan).storeOriginal ? (
               <button onClick={() => setShowPdf(true)} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5">
                 <Icon name="doc" className="w-4 h-4" /> View original PDF
