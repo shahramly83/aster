@@ -9096,7 +9096,20 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
   // Each tab is a clean, self-contained mode — switching clears any ranking.
   const switchTab = (t) => { if (t === tab) return; setTab(t); setMatchScores(null); setRankedMeta(null); setMatching(false); };
-  const consumeRun = () => { if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) setMatchRunsUsed((n) => n + 1); };
+  // Charge one AI Rank credit. Persists to the DB (per company, per month) via
+  // bump_ai_rank and syncs the meter to the server count; falls back to a local
+  // bump if Supabase isn't available.
+  const consumeRun = async () => {
+    if (limits.aiRunsPerMonth === Infinity) return;
+    if (hasSupabase) {
+      try {
+        const { data } = await supabase.rpc("bump_ai_rank");
+        const used = Array.isArray(data) ? data?.[0]?.used : data?.used;
+        if (typeof used === "number" && setMatchRunsUsed) { setMatchRunsUsed(used); return; }
+      } catch { /* fall through to a local bump */ }
+    }
+    if (setMatchRunsUsed) setMatchRunsUsed((n) => n + 1);
+  };
 
   // ---- Scoring ----
   // Fit against an open role: skill/role keyword overlap with the posting.
@@ -13329,7 +13342,14 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
       list.forEach((m) => { map[m.candidateId] = { score: m.score, rationale: m.rationale }; });
       setMatchResults(map);
       setMatching(false);
-      if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) setMatchRunsUsed((n) => n + 1);
+      // Charge an AI Rank credit against the shared per-company monthly pool.
+      if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) {
+        if (hasSupabase) {
+          supabase.rpc("bump_ai_rank").then(({ data }) => { const used = Array.isArray(data) ? data?.[0]?.used : data?.used; if (typeof used === "number") setMatchRunsUsed(used); }).catch(() => setMatchRunsUsed((n) => n + 1));
+        } else {
+          setMatchRunsUsed((n) => n + 1);
+        }
+      }
     }, 1400);
   };
 
@@ -14223,6 +14243,13 @@ export default function ResumeAIPreview() {
   // Replace the demo datasets with the signed-in company's real rows. A no-op
   // (keeps demo data) for an empty workspace or when Supabase isn't configured.
   const hydrateWorkspace = async (companyId) => {
+    // Load this month's AI Rank credit usage for the meter (per company).
+    if (hasSupabase) {
+      supabase.rpc("get_ai_rank_usage").then(({ data }) => {
+        const used = Array.isArray(data) ? data?.[0]?.used : data?.used;
+        if (typeof used === "number") setMatchRunsUsed(used);
+      }).catch(() => { /* ignore */ });
+    }
     const data = await loadWorkspaceData(companyId);
     if (!data) return;
     applyWorkspaceData(data);          // swaps candidates / applicants / matches
