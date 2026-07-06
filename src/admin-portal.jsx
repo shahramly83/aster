@@ -12,6 +12,7 @@
 // All data below is mock data for the preview.
 // ============================================================================
 import { useState, useEffect, useMemo } from "react";
+import { supabase, hasSupabase } from "./lib/supabase";
 
 const ADMIN_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -584,9 +585,32 @@ function Audit({ audit }) {
 // ---------------------------------------------------------------------------
 // Login
 // ---------------------------------------------------------------------------
+// Looks up the admin_users row for a signed-in auth user and returns the
+// admin object, or null if they are not an active Aster admin.
+async function fetchAdmin(userId, fallbackEmail) {
+  const { data, error } = await supabase
+    .from("admin_users").select("id, full_name, email, role, status").eq("id", userId).maybeSingle();
+  if (error || !data || data.status !== "active") return null;
+  return { id: data.id, name: data.full_name || fallbackEmail, email: data.email || fallbackEmail, role: data.role };
+}
+
 function AdminLogin({ onLogin }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const signIn = async () => {
+    setErr("");
+    if (!hasSupabase) { onLogin(ADMIN_ACCOUNTS[0]); return; } // mock preview
+    setBusy(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
+    if (error) { setErr(error.message); setBusy(false); return; }
+    const admin = await fetchAdmin(data.user.id, data.user.email);
+    if (!admin) { await supabase.auth.signOut(); setErr("This account is not an active Aster admin."); setBusy(false); return; }
+    onLogin(admin);
+  };
+
   return (
     <div className="adm min-h-screen flex items-center justify-center px-4" style={{ background: "radial-gradient(60% 60% at 50% 0%, #17193A 0%, #0B0D1A 60%)" }}>
       <div className="w-full max-w-md">
@@ -602,23 +626,26 @@ function AdminLogin({ onLogin }) {
         <div className="rounded-2xl p-6 sm:p-7" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 30px 80px -30px rgba(0,0,0,0.7)" }}>
           <h1 className="text-xl font-bold adm-display text-neutral-900">Sign in to the admin console</h1>
           <p className="text-sm mt-1 mb-5" style={{ color: "var(--ink-2)" }}>Admin accounts are separate from customer logins.</p>
-          <div className="space-y-3">
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@aster.co" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
-            <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" placeholder="Password" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
-            <button onClick={() => onLogin(ADMIN_ACCOUNTS[0])} className="w-full grad text-white font-semibold py-2.5 rounded-xl">Sign in</button>
-          </div>
-          <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
-            <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Demo · sign in as a role</p>
-            <div className="grid gap-2">
-              {ADMIN_ACCOUNTS.map((a) => (
-                <button key={a.id} onClick={() => onLogin(a)} className="flex items-center gap-3 text-left rounded-xl px-3 py-2.5 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ border: "1px solid var(--line)" }}>
-                  <span className="w-8 h-8 rounded-lg grad text-white text-xs font-bold inline-flex items-center justify-center shrink-0">{a.name.split(" ").map((x) => x[0]).join("")}</span>
-                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-neutral-900">{a.name}</span><span className="block text-xs" style={{ color: "var(--ink-3)" }}>{a.email}</span></span>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: TONE[a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"].bg, color: TONE[a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"].fg }}>{ROLE_META[a.role].label}</span>
-                </button>
-              ))}
+          <form onSubmit={(e) => { e.preventDefault(); signIn(); }} className="space-y-3">
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="you@aster.co" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
+            <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="current-password" placeholder="Password" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
+            {err && <p className="text-sm flex items-center gap-1.5" style={{ color: "var(--danger)" }}><Icon name="warning" className="w-4 h-4" /> {err}</p>}
+            <button type="submit" disabled={busy} className="w-full grad text-white font-semibold py-2.5 rounded-xl disabled:opacity-60">{busy ? "Signing in…" : "Sign in"}</button>
+          </form>
+          {!hasSupabase && (
+            <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
+              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Demo · sign in as a role</p>
+              <div className="grid gap-2">
+                {ADMIN_ACCOUNTS.map((a) => (
+                  <button key={a.id} onClick={() => onLogin(a)} className="flex items-center gap-3 text-left rounded-xl px-3 py-2.5 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ border: "1px solid var(--line)" }}>
+                    <span className="w-8 h-8 rounded-lg grad text-white text-xs font-bold inline-flex items-center justify-center shrink-0">{a.name.split(" ").map((x) => x[0]).join("")}</span>
+                    <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-neutral-900">{a.name}</span><span className="block text-xs" style={{ color: "var(--ink-3)" }}>{a.email}</span></span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: TONE[a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"].bg, color: TONE[a.role === "super" ? "brand" : a.role === "billing" ? "ok" : "info"].fg }}>{ROLE_META[a.role].label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <p className="text-center text-xs mt-5" style={{ color: "var(--adm-ink-2)" }}>Not an Aster employee? <a href="/" className="underline">Go to the main site</a>.</p>
       </div>
@@ -701,6 +728,7 @@ export default function AdminPortal() {
   const [flags, setFlags] = useState(INIT_FLAGS);
   const [audit, setAudit] = useState(INIT_AUDIT);
   const usage = INIT_USAGE;
+  const [restoring, setRestoring] = useState(hasSupabase);
 
   useEffect(() => {
     const el = document.createElement("style");
@@ -708,6 +736,23 @@ export default function AdminPortal() {
     document.head.appendChild(el);
     document.title = "Aster Admin — Internal Console";
     return () => el.remove();
+  }, []);
+
+  // Restore an existing Supabase session on load (persistent login), and sign
+  // the user out locally if the session ends.
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let active = true;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (active && data.session) {
+        const a = await fetchAdmin(data.session.user.id, data.session.user.email);
+        if (active && a) setAdmin(a);
+      }
+      if (active) setRestoring(false);
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { if (!session) setAdmin(null); });
+    return () => { active = false; sub?.subscription?.unsubscribe?.(); };
   }, []);
 
   const logAudit = (action, target) => {
@@ -727,6 +772,7 @@ export default function AdminPortal() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  if (restoring) return <div className="adm min-h-screen flex items-center justify-center" style={{ background: "#0B0D1A" }}><span className="text-sm" style={{ color: "var(--adm-ink)" }}>Loading…</span></div>;
   if (!admin) return <AdminLogin onLogin={(a) => { setAdmin(a); go(section || "dashboard"); }} />;
 
   const role = admin.role;
@@ -747,5 +793,6 @@ export default function AdminPortal() {
     }
   }
 
-  return <AdminShell admin={admin} section={section} go={go} onLogout={() => setAdmin(null)}>{screen}</AdminShell>;
+  const onLogout = async () => { if (hasSupabase) await supabase.auth.signOut(); setAdmin(null); };
+  return <AdminShell admin={admin} section={section} go={go} onLogout={onLogout}>{screen}</AdminShell>;
 }
