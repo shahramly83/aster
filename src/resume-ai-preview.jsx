@@ -11160,15 +11160,21 @@ This is what a candidate sees. A public page, no login, reached only through the
                   </p>
 
                   <div className="space-y-3">
-                    {/* Confirmation gate: the upload only unlocks once this is ticked. */}
+                    {/* Confirmation gate: the upload only unlocks once this is ticked.
+                        Custom box (native checkboxes render inconsistently per OS). */}
                     <label className="flex items-start gap-2.5 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={confirmed}
                         onChange={(e) => setConfirmed(e.target.checked)}
                         disabled={stage !== "form"}
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded accent-[color:var(--brand)]"
+                        className="peer sr-only"
                       />
+                      <span aria-hidden="true"
+                        className="mt-0.5 h-[18px] w-[18px] shrink-0 rounded-[6px] border flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-[color:var(--brand)]"
+                        style={{ borderColor: confirmed ? "var(--brand)" : "var(--line-strong)", background: confirmed ? "var(--brand)" : "#fff" }}>
+                        {confirmed && <Icon name="check" className="w-3 h-3 text-white" />}
+                      </span>
                       <span className="text-[13px] leading-snug" style={{ color: "var(--ink-2)" }}>
                         This is my resume, and it includes my current email so the team can reach me about this role.
                       </span>
