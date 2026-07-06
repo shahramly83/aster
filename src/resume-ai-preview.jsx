@@ -10961,7 +10961,7 @@ This is what a candidate sees if they open the link after the role has closed.
 
   return (
     <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
         <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
           <p className="text-xs text-indigo-700">
@@ -11008,98 +11008,110 @@ This is what a candidate sees. A public page, no login, reached only through the
           </div>
         ) : (
           <>
-            {/* Job details */}
-            <h1 className="text-xl sm:text-2xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>{job.title}</h1>
-            {meta.length > 0 && <p className="text-sm mb-4" style={{ color: "var(--ink-3)" }}>{meta.join(" · ")}</p>}
-
-            {/* Key facts */}
-            <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Job header */}
+            <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>{job.title}</h1>
+            <div className="flex flex-wrap items-center gap-1.5 mt-3">
               {[
-                ["Salary", salary || "Not disclosed"],
-                ["Type", (job.employment_type || "").replace(/_/g, " ") || "—"],
-                ["Location", job.location || "—"],
-                ["Work style", job.remote_type || "—"],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>{k}</p>
-                  <p className="text-sm font-medium capitalize" style={{ color: "var(--ink)" }}>{v}</p>
-                </div>
+                job.department,
+                job.location,
+                (job.employment_type || "").replace(/_/g, " ") || null,
+                job.remote_type,
+                (job.seniority_levels && job.seniority_levels.length ? job.seniority_levels.join(" · ") : job.seniority_level),
+              ].filter(Boolean).map((chip, i) => (
+                <span key={i} className="text-xs rounded-full px-2.5 py-1 font-medium capitalize" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{chip}</span>
               ))}
+              {salary && <span className="text-xs rounded-full px-2.5 py-1 font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{salary}</span>}
             </div>
 
-            {job.description && <p className="text-sm mb-6 leading-relaxed" style={{ color: "var(--ink-2)" }}>{job.description}</p>}
+            <div className="grid lg:grid-cols-[1fr_minmax(300px,360px)] gap-6 items-start mt-7">
+              {/* Left: role details */}
+              <div className="space-y-7 min-w-0">
+                {job.description && <p className="text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{job.description}</p>}
 
-            {[
-              ["What you'll do", toList(job.responsibilities)],
-              ["What we're looking for", toList(job.requirements)],
-              ["What we offer", toList(job.benefits)],
-            ].map(([heading, items]) =>
-              items.length > 0 ? (
-                <div key={heading} className="mb-6">
-                  <h2 className="text-sm font-semibold font-display mb-2" style={{ color: "var(--ink)" }}>{heading}</h2>
-                  <ul className="space-y-1.5">
-                    {items.map((it, i) => (
-                      <li key={i} className="text-sm flex gap-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                        <span className="shrink-0" style={{ color: "var(--brand)" }}>•</span> {it}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null
-            )}
+                {toList(job.skills).length > 0 && (
+                  <div>
+                    <h2 className="text-sm font-semibold font-display mb-2.5" style={{ color: "var(--ink)" }}>Skills</h2>
+                    <div className="flex flex-wrap gap-1.5">
+                      {toList(job.skills).map((s) => <span key={s} className="text-[13px] rounded-full px-2.5 py-1 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}
+                    </div>
+                  </div>
+                )}
 
-            <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
-              <h2 className="text-sm font-semibold font-display mb-4" style={{ color: "var(--ink)" }}>Apply for this role</h2>
-
-              <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-                No forms to fill in. Upload your resume and Aster reads your name, contact details and experience straight from it.
-              </p>
-
-              <div className="space-y-3">
-                {/* Confirmation gate: the upload only unlocks once this is ticked. */}
-                <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={confirmed}
-                    onChange={(e) => setConfirmed(e.target.checked)}
-                    disabled={stage !== "form"}
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded accent-[color:var(--brand)]"
-                  />
-                  <span className="text-sm leading-snug" style={{ color: "var(--ink-2)" }}>
-                    This is my resume, and it includes my current email so the team can reach me about this role.
-                  </span>
-                </label>
-
-                <div className={confirmed ? "" : "opacity-50 pointer-events-none"}>
-                  <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Resume (PDF only)</label>
-                  <label className={`block rounded-xl border border-dashed px-4 py-6 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-neutral-50"}`} style={{ borderColor: "var(--line-strong)" }}>
-                    <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form" || !confirmed} />
-                    {file ? (
-                      <span className="text-sm" style={{ color: "var(--ink)" }}>{file.name}</span>
-                    ) : (
-                      <span className="text-sm" style={{ color: "var(--ink-3)" }}>Tap to choose your resume. PDF only.</span>
-                    )}
-                  </label>
-                  {!confirmed && <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Tick the box above to turn on the upload.</p>}
-                  {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
-                </div>
+                {[
+                  ["What you'll do", toList(job.responsibilities)],
+                  ["What we're looking for", toList(job.requirements)],
+                  ["What we offer", toList(job.benefits)],
+                ].map(([heading, items]) =>
+                  items.length > 0 ? (
+                    <div key={heading}>
+                      <h2 className="text-sm font-semibold font-display mb-2.5" style={{ color: "var(--ink)" }}>{heading}</h2>
+                      <ul className="space-y-2">
+                        {items.map((it, i) => (
+                          <li key={i} className="text-[15px] flex gap-2.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                            <span className="shrink-0 mt-[9px] w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} /> <span className="min-w-0">{it}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null
+                )}
               </div>
 
-              {submitErr && <p className="text-xs text-rose-600 mt-4 text-center">{submitErr}</p>}
+              {/* Right: sticky apply card */}
+              <aside className="lg:sticky lg:top-6">
+                <div className="rounded-2xl bg-white border p-5 act-shadow" style={{ borderColor: "var(--line)" }}>
+                  <h2 className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>Apply for this role</h2>
+                  <p className="text-sm mt-2 mb-4 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                    No forms to fill in. Upload your resume and Aster reads your name, contact details and experience straight from it.
+                  </p>
 
-              <button
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                className="w-full mt-5 rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2.5 transition-opacity hover:opacity-90"
-              >
-                {stage === "processing" ? PROCESSING_STEPS[procStep] : "Submit application"}
-              </button>
+                  <div className="space-y-3">
+                    {/* Confirmation gate: the upload only unlocks once this is ticked. */}
+                    <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={confirmed}
+                        onChange={(e) => setConfirmed(e.target.checked)}
+                        disabled={stage !== "form"}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded accent-[color:var(--brand)]"
+                      />
+                      <span className="text-[13px] leading-snug" style={{ color: "var(--ink-2)" }}>
+                        This is my resume, and it includes my current email so the team can reach me about this role.
+                      </span>
+                    </label>
 
-              {stage === "processing" && (
-                <p className="text-xs text-center mt-3" style={{ color: "var(--ink-3)" }}>
-                  This isn't stuck. Aster is reading your resume and looking up the companies you've worked at. It can take up to a minute, so please keep this page open.
-                </p>
-              )}
+                    <div className={confirmed ? "" : "opacity-50 pointer-events-none"}>
+                      <label className={`block rounded-xl border-2 border-dashed px-4 py-7 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-[color:var(--brand-soft)]/40 hover:border-[color:var(--brand)]"}`} style={{ borderColor: file ? "var(--brand)" : "var(--line-strong)" }}>
+                        <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form" || !confirmed} />
+                        <span className="mx-auto mb-2 flex w-9 h-9 items-center justify-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={file ? "check" : "upload"} className="w-4 h-4" /></span>
+                        {file ? (
+                          <span className="block text-sm font-medium break-all" style={{ color: "var(--ink)" }}>{file.name}</span>
+                        ) : (
+                          <span className="block text-sm" style={{ color: "var(--ink-3)" }}>Tap to upload your resume<br /><span className="text-xs">PDF only</span></span>
+                        )}
+                      </label>
+                      {!confirmed && <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Tick the box above to turn on the upload.</p>}
+                      {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
+                    </div>
+                  </div>
+
+                  {submitErr && <p className="text-xs text-rose-600 mt-4 text-center">{submitErr}</p>}
+
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!canSubmit}
+                    className="w-full mt-4 rounded-xl brand-gradient disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 transition-all enabled:hover:-translate-y-0.5 enabled:hover:opacity-95"
+                  >
+                    {stage === "processing" ? PROCESSING_STEPS[procStep] : "Submit application"}
+                  </button>
+
+                  {stage === "processing" && (
+                    <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+                      This isn't stuck. Aster is reading your resume and looking up the companies you've worked at. It can take up to a minute, so please keep this page open.
+                    </p>
+                  )}
+                </div>
+              </aside>
             </div>
           </>
         )}
