@@ -2343,7 +2343,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     ]},
     { group: "AI screening", rows: [
       { label: "Resume parsing", free: "10 / month", starter: "100 / month", pro: "Unlimited", ent: "Unlimited" },
-      { label: "AI match runs", free: "3 / month", starter: "30 / month", pro: "Unlimited", ent: "Unlimited" },
+      { label: "AI Rank credits", free: "3 / month", starter: "30 / month", pro: "Unlimited", ent: "Unlimited" },
       { label: "Candidates ranked per run", free: "Top 3", starter: "Top 10", pro: "All applicants", ent: "All applicants" },
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
     ]},
@@ -2361,7 +2361,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   // Curated, scannable highlights for the mobile plan cards (keyed by plan.col).
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
-    free: { lead: "Includes", items: ["1 job posting", "10 resumes parsed / month", "3 AI match runs / month", "Interview scheduling + AI questions", "Community support"] },
+    free: { lead: "Includes", items: ["1 job posting", "10 resumes parsed / month", "3 AI Rank credits / month", "Interview scheduling + AI questions", "Community support"] },
     starter: { lead: "Everything in Free, plus", items: ["5 jobs · 3 team seats", "100 resumes · 30 match runs / month", "Top 10 candidates ranked", "Store & download CVs", "Collaborative scorecards", "Email support"] },
     pro: { lead: "Everything in Pro, plus", items: ["Unlimited jobs, parsing & matches", "All applicants ranked", "Multiple team seats", "WhatsApp Business reminders", "Priority support"] },
   };
@@ -9676,13 +9676,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     Match to an open role
                     <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the role you pick, so you can invite the best fits to apply." />
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role. AI ranks every candidate by fit. Open a profile to review them, then invite the strongest to apply.</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role and AI Rank scores every candidate against it. Each run uses one credit. Open a profile to review, then invite the strongest to apply.</p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={runRoleMatch} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
                       <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
-                      {matching ? "Matching…" : outOfRuns ? "Upgrade for more runs" : "Run AI match"}
+                      {matching ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
                     </button>
                   </div>
                   {openJobs.length === 0 && (
@@ -11012,7 +11012,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       price: "$0",
       cadence: "forever",
       blurb: "For trying things out on a single role.",
-      features: ["1 active job", "1 seat (just you)", "10 resumes/month", "3 AI match runs/month", "Community support"],
+      features: ["1 active job", "1 seat (just you)", "10 resumes/month", "3 AI Rank credits/month", "Community support"],
     },
     {
       key: "starter",
@@ -13421,12 +13421,12 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
           >
             <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
             {matching
-              ? "Matching…"
+              ? "Ranking…"
               : outOfRuns
-                ? "Upgrade for more runs"
+                ? "Out of credits"
                 : matchResults
-                  ? "Re-run matching"
-                  : "Run AI Matching"}
+                  ? "Re-run AI Rank"
+                  : "AI Rank"}
           </button>
         </div>
         {limits.aiRunsPerMonth !== Infinity && (
