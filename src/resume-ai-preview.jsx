@@ -9139,7 +9139,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     { key: "fresh", label: "Fresh graduate", min: 0, max: 2 },
     { key: "junior", label: "Junior", min: 1, max: 3 },
     { key: "mid", label: "Mid-level", min: 3, max: 7 },
-    { key: "senior", label: "Senior", min: 7, max: 10 },
+    { key: "senior", label: "Senior", min: 7, max: Infinity },
   ];
   const passesExp = (c) => {
     if (!expLevels.length) return true;
@@ -9172,18 +9172,21 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // their own flow, so clear this ranking when leaving.
   useEffect(() => {
     if (tab !== "skills") { setMatchScores(null); setRankedMeta(null); return; }
-    if (!skillTags.length && !industryTags.length) { setMatchScores(null); setRankedMeta(null); return; }
+    // Any one of skills, industry, or an experience band is enough to search on.
+    if (!skillTags.length && !industryTags.length && !expLevels.length) { setMatchScores(null); setRankedMeta(null); return; }
     const map = {};
     parsed.forEach((c) => {
       const inds = rawIndustriesOf(c);
       const indMatch = industryTags.length ? (industryTags.some((i) => inds.has(i)) ? 1 : 0) : 1;
       const skillS = skillTags.length ? scoreBySkills(c, skillTags) : 1;
+      // With no skills/industry (experience-only search), everyone scores 1 and the
+      // experience-band filter does the narrowing.
       map[c.id] = skillTags.length && industryTags.length ? skillS * indMatch : industryTags.length ? indMatch : skillS;
     });
     setMatchScores(map);
     setRankedMeta({ mode: "skills", skills: [...skillTags], industries: [...industryTags] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, skillTags, industryTags]);
+  }, [tab, skillTags, industryTags, expLevels]);
 
   // Invites (role tab only)
   const [invited, setInvited] = useState({});
@@ -9780,7 +9783,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                           <button key={l.key} onClick={() => setExpLevels((prev) => on ? prev.filter((k) => k !== l.key) : [...prev, l.key])}
                             className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors"
                             style={on ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
-                            {l.label} <span style={{ opacity: 0.6 }}>{l.min}-{l.max} yrs</span>
+                            {l.label} <span style={{ opacity: 0.6 }}>{l.max === Infinity ? `${l.min}+` : `${l.min}-${l.max}`} yrs</span>
                           </button>
                         );
                       })}
@@ -9793,7 +9796,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               <div className="flex items-center justify-between gap-3 mb-3">
                 <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{ranked ? " · ranked by fit" : ""} {ranked && <InfoHint dir="down" hint="A fit score from 0 to 100. The fuller the ring, the closer this person matches what you searched." />}</p>
                 <div className="flex items-center gap-3">
-                  {!ranked && list.length > 0 && (
+                  {!ranked && list.length > 0 && (skillTags.length > 0 || industryTags.length > 0) && (
                     <button onClick={() => askAiRank(runAiRank)} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
                       <Icon name={outOfRuns ? "lock" : "matching"} className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
                     </button>
@@ -9802,7 +9805,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 </div>
               </div>
             )}
-            {!matchScores ? emptyState("Search by skills or industry", "Add a skill or industry above and matching candidates appear here instantly.", "matching")
+            {!matchScores ? emptyState("Search by skills or industry", "Add a skill, industry, or experience level above and matching candidates appear here instantly.", "matching")
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
           </>
