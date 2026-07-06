@@ -8017,20 +8017,6 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
             placeholder={skills.length ? "" : "React, SQL, Data Analysis…"} className="flex-1 min-w-[140px] bg-transparent text-sm px-1 py-1 focus:outline-none" style={{ color: "var(--ink)" }} />
         </div>
       </div>
-      <div>
-        <label className={labelClass}>Who can apply</label>
-        <select value={screening} onChange={(e) => setScreening(e.target.value)} className={inputClass}>
-          <option value="strict">Only strong matches</option>
-          <option value="open">Anyone can apply</option>
-        </select>
-        <p className="text-xs text-neutral-400 mt-1">
-          {screening === "strict"
-            ? (skills.length || seniorityLevels.length || requirements.trim()
-                ? "Aster reads each resume against the skills and requirements above and turns away anyone clearly off-target. You only see applicants worth a look."
-                : "Add key skills or requirements above for Aster to screen against. Until then, everyone who applies is let through.")
-            : "Everyone who uploads a resume becomes an applicant. Aster still reads and ranks them, but it won't turn anyone away."}
-        </p>
-      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div>
           <label className={labelClass}>Salary min (MYR)</label>
@@ -8067,6 +8053,20 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       <div>
         <label className={labelClass}>What we offer <span className="text-neutral-400 font-normal">(one per line)</span></label>
         <textarea rows={3} value={benefits} onChange={(e) => setBenefits(e.target.value)} placeholder={"Health insurance\nFlexible hours\nLearning budget"} className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass}>Who can apply</label>
+        <select value={screening} onChange={(e) => setScreening(e.target.value)} className={inputClass}>
+          <option value="strict">Only strong matches</option>
+          <option value="open">Anyone can apply</option>
+        </select>
+        <p className="text-xs text-neutral-400 mt-1">
+          {screening === "strict"
+            ? (skills.length || seniorityLevels.length || requirements.trim()
+                ? "Aster reads each resume against the skills and requirements above and turns away anyone clearly off-target. You only see applicants worth a look."
+                : "Add key skills or requirements above for Aster to screen against. Until then, everyone who applies is let through.")
+            : "Everyone who uploads a resume becomes an applicant. Aster still reads and ranks them, but it won't turn anyone away."}
+        </p>
       </div>
       <div className="flex items-center gap-2 pt-1">
         <button onClick={handleSubmit} disabled={!canCreate} className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
