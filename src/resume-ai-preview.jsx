@@ -9164,9 +9164,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Everyone you can actually act on: unique people, not already hired.
   const available = parsed.filter((c) => !hiredIds.has(c.id));
   const availableCount = available.length;
-  // Skill suggestions = the stored taxonomy + whatever's actually in the pool,
-  // so every candidate skill is type-ahead-able and a picked one always matches.
-  const skillSuggestions = [...new Set([...ALL_SKILLS, ...available.flatMap((c) => canonicalizeSkills(c.parsed.skills))])].sort((a, b) => a.localeCompare(b));
+  // Skill suggestions come only from THIS workspace's own candidates, so the
+  // type-ahead never surfaces a shared/global list. The field is free-type, so
+  // you can still search any skill even if no one in the pool has it yet.
+  const skillSuggestions = [...new Set(available.flatMap((c) => canonicalizeSkills(c.parsed.skills)))].sort((a, b) => a.localeCompare(b));
   const openJobs = (jobs || []).filter((j) => j.status === "open");
   const matchJob = jobs?.find((j) => j.id === matchJobId);
   const alreadyApplied = matchJobId
