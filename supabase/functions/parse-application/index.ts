@@ -94,9 +94,14 @@ Deno.serve(async (req) => {
       return json({ error: "not_a_resume" }, 422);
     }
 
-    // Fall back to the form values so a row is always created.
     const fullName = (parsed.name as string) || name || "New applicant";
     const finalEmail = ((parsed.email as string) || email || "").toLowerCase().trim() || null;
+
+    // No email on the resume → we can't de-duplicate or contact them. Ask for one.
+    if (apiKey && !finalEmail) {
+      return json({ error: "no_email" }, 422);
+    }
+
     parsed = {
       name: fullName,
       email: finalEmail,

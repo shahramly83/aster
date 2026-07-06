@@ -10738,6 +10738,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
       if (error || data?.error) {
         const code = data?.error || "";
         if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Please upload your CV as a PDF."); setStage("form"); return; }
+        if (code === "no_email") { setSubmitErr("We couldn't find an email address on your resume. Please add your email to the CV and upload again."); setStage("form"); return; }
         if (/job not open/i.test(code)) { setSubmitErr("This role is no longer accepting applications."); setStage("form"); return; }
         throw new Error(code || error?.message || "failed");
       }
