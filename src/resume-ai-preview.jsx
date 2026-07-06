@@ -9136,10 +9136,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     if (limits.aiRunsPerMonth === Infinity) return;
     if (hasSupabase) {
       try {
-        const { data } = await supabase.rpc("bump_ai_rank");
+        const { data, error } = await supabase.rpc("bump_ai_rank");
+        if (error) console.error("bump_ai_rank failed:", error.message || error);
         const used = Array.isArray(data) ? data?.[0]?.used : data?.used;
         if (typeof used === "number" && setMatchRunsUsed) { setMatchRunsUsed(used); return; }
-      } catch { /* fall through to a local bump */ }
+      } catch (e) { console.error("bump_ai_rank threw:", e); }
     }
     if (setMatchRunsUsed) setMatchRunsUsed((n) => n + 1);
   };
@@ -14324,11 +14325,13 @@ export default function ResumeAIPreview() {
   const hydrateWorkspace = async (companyId) => {
     // Load this month's AI Rank credit usage for the meter (per company).
     if (hasSupabase) {
-      supabase.rpc("get_ai_rank_usage").then(({ data }) => {
+      supabase.rpc("get_ai_rank_usage").then(({ data, error }) => {
+        if (error) { console.error("get_ai_rank_usage failed:", error.message || error); return; }
         const row = Array.isArray(data) ? data?.[0] : data;
-        if (row && typeof row.used === "number") setMatchRunsUsed(row.used);
-        if (row && row.resets_at) setAiRankResetsAt(row.resets_at);
-      }).catch(() => { /* ignore */ });
+        if (!row) { console.warn("get_ai_rank_usage returned no row (no company for this session?)"); return; }
+        if (typeof row.used === "number") setMatchRunsUsed(row.used);
+        if (row.resets_at) setAiRankResetsAt(row.resets_at);
+      }).catch((e) => console.error("get_ai_rank_usage threw:", e));
     }
     const data = await loadWorkspaceData(companyId);
     if (!data) return;
