@@ -10694,6 +10694,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
 
   const isPdf = (f) => f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name));
 
+  const MAX_MB = 10; // resumes are tiny; anything bigger is usually not a CV
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -10702,7 +10703,13 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
       setFileError("Please upload a PDF file. Other formats aren't accepted.");
       return;
     }
+    if (f.size > MAX_MB * 1024 * 1024) {
+      setFile(null);
+      setFileError(`That file is ${(f.size / 1048576).toFixed(0)} MB — too large for a resume. Please upload your CV as a PDF under ${MAX_MB} MB.`);
+      return;
+    }
     setFileError(null);
+    setSubmitErr(null);
     setFile(f);
   };
 
