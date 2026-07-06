@@ -17,12 +17,13 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("full_name, role, companies ( name, plan )")
+    .select("company_id, full_name, role, companies ( name, plan )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
   const parts = (data.full_name || fallbackEmail || "").trim().split(/\s+/);
   return {
+    companyId: data.company_id,
     profile: {
       firstName: parts[0] || "there",
       lastName: parts.slice(1).join(" "),
@@ -33,9 +34,112 @@ async function loadCustomerSession(userId, fallbackEmail) {
   };
 }
 
+// created_at → the relative string the UI's recency parser understands
+// ("today" | "Nd ago"). Anything under a day reads as "today".
+function relDaysAgo(iso) {
+  if (!iso) return "today";
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return days <= 0 ? "today" : `${days}d ago`;
+}
+
+// Turn scorecard ratings into the hire recommendation the profile expects.
+function recommendationFromRatings(ratings) {
+  const vals = Object.values(ratings || {}).filter((n) => typeof n === "number");
+  if (!vals.length) return "yes";
+  const avg = vals.reduce((s, n) => s + n, 0) / vals.length;
+  return avg >= 3.6 ? "strong_yes" : avg >= 2.8 ? "yes" : avg >= 2 ? "no" : "strong_no";
+}
+
+// Swap the reassignable demo datasets for real ones. Every screen reads these
+// module bindings directly, so a root re-render after this call shows real data.
+function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob }) {
+  MOCK_JOBS = jobs;
+  MOCK_CANDIDATES = candidates;
+  APPLICANTS_BY_JOB = applicantsByJob;
+  MOCK_MATCHES = matchesByJob;
+}
+
+// Fetch the signed-in company's jobs, candidates, applications, interviews and
+// scorecards and map them into the shapes the app already renders. Returns null
+// on failure or when there's nothing to show (so callers keep the demo data).
+async function loadWorkspaceData(companyId) {
+  if (!hasSupabase || !companyId) return null;
+  const [jobsRes, candRes, appRes, ivRes, scRes] = await Promise.all([
+    supabase.from("jobs").select("id, title, status, details, created_at").eq("company_id", companyId),
+    supabase.from("candidates").select("id, parsed, file_name, status, has_photo, created_at").eq("company_id", companyId),
+    supabase.from("applications").select("candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
+    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, scheduled_at, status, provider").eq("company_id", companyId),
+    supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
+  ]);
+  const jobRows = jobsRes.data || [];
+  if (jobsRes.error || !jobRows.length) return null; // empty workspace → keep demo
+
+  const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}) }));
+  const jobTitle = Object.fromEntries(jobs.map((j) => [j.id, j.title]));
+
+  const candidates = (candRes.data || []).map((c) => ({
+    id: c.id,
+    fileName: c.file_name || "resume.pdf",
+    status: c.status || "parsed",
+    hasPhoto: !!c.has_photo,
+    parsed: c.parsed || null,
+  }));
+
+  // Interviewer display names, for booking + scorecard attribution.
+  const profRes = await supabase.from("profiles").select("id, full_name").eq("company_id", companyId);
+  const profName = Object.fromEntries((profRes.data || []).map((p) => [p.id, p.full_name || "Interviewer"]));
+
+  const applicantsByJob = {};
+  const matchesByJob = {};
+  for (const a of appRes.data || []) {
+    (applicantsByJob[a.job_id] ||= []).push({
+      candidateId: a.candidate_id,
+      appliedAt: relDaysAgo(a.created_at),
+      baseStage: a.stage,
+      rejectionEmailSent: false,
+      source: a.source || "Career Page",
+    });
+    if (a.match_score != null) {
+      (matchesByJob[a.job_id] ||= []).push({
+        candidateId: a.candidate_id,
+        score: a.match_score > 1 ? a.match_score / 100 : a.match_score,
+        rationale: a.match_reasons || "",
+      });
+    }
+  }
+
+  const bookings = {};
+  for (const iv of ivRes.data || []) {
+    if (iv.status !== "scheduled" || !iv.scheduled_at) continue;
+    const start = new Date(iv.scheduled_at);
+    bookings[iv.candidate_id] = {
+      status: "scheduled",
+      confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
+      provider: iv.provider || "google",
+      request: { candidateId: iv.candidate_id, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: profName[iv.interviewer_id] || "Interviewer" },
+    };
+  }
+
+  const scorecards = {};
+  for (const s of scRes.data || []) {
+    (scorecards[s.candidate_id] ||= []).push({
+      id: s.id,
+      interviewer: profName[s.interviewer_id] || "Interviewer",
+      ratings: s.ratings || {},
+      recommendation: recommendationFromRatings(s.ratings),
+      notes: s.notes || "",
+      submittedAt: relDaysAgo(s.created_at),
+    });
+  }
+
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards };
+}
+
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
 
-const MOCK_CANDIDATES = [
+// Reassignable so a signed-in workspace can swap this demo set for real
+// Supabase rows (see applyWorkspaceData). Left as the seed data in mock mode.
+let MOCK_CANDIDATES = [
   {
     id: "c1",
     fileName: "amira_hassan_resume.pdf",
@@ -516,7 +620,9 @@ const MOCK_CANDIDATES = [
   },
 ];
 
-const MOCK_JOBS = [
+// Reassignable (see applyWorkspaceData): held in `jobs` state, but also read as
+// a module binding by buildActivities, so it's swapped to real data on hydrate.
+let MOCK_JOBS = [
   {
     id: "j1",
     title: "Senior Frontend Engineer (React)",
@@ -645,7 +751,7 @@ const MOCK_JOBS = [
   },
 ];
 
-const MOCK_MATCHES = {
+let MOCK_MATCHES = {
   j1: [
     { candidateId: "c1", score: 0.91, rationale: "Strong match — 5+ years of React/TypeScript with direct design system ownership at Grabtech, which maps closely to the role's core responsibility. Prior Figma experience is a clean fit for the design handoff workflow." },
     { candidateId: "c3", score: 0.78, rationale: "Good technical overlap in React/TypeScript and strong creative engineering background, though experience skews toward 3D/animation work rather than design system architecture specifically." },
@@ -685,7 +791,7 @@ const SCORECARDS_BY_CANDIDATE = {
 // Applicants keyed by job id — the single source of truth for both the
 // Jobs card count and the Applicants screen. Base stages here; a shared
 // override (e.g. from a confirmed booking) can win at render time.
-const APPLICANTS_BY_JOB = {
+let APPLICANTS_BY_JOB = {
   j1: [
     { candidateId: "c1", appliedAt: "today", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
     { candidateId: "c3", appliedAt: "2d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "LinkedIn" },
@@ -13953,8 +14059,22 @@ export default function ResumeAIPreview() {
       setProfile(sess.profile);
       setCompany(sess.company);
       if (sess.plan) setPlan(sess.plan);
+      if (sess.companyId) hydrateWorkspace(sess.companyId);
     }
     navigate(dest);
+  };
+
+  // Replace the demo datasets with the signed-in company's real rows. A no-op
+  // (keeps demo data) for an empty workspace or when Supabase isn't configured.
+  const hydrateWorkspace = async (companyId) => {
+    const data = await loadWorkspaceData(companyId);
+    if (!data) return;
+    applyWorkspaceData(data);          // swaps candidates / applicants / matches
+    setJobs(data.jobs);
+    if (data.jobs[0]) setActiveJobId(data.jobs[0].id);
+    setBookings(data.bookings);
+    setScorecards(data.scorecards);
+    setActivities(buildActivities());  // rebuilt from the now-real datasets
   };
 
   // Sign out for real when Supabase is wired, then reset to defaults and return
@@ -13979,6 +14099,7 @@ export default function ResumeAIPreview() {
       setProfile(sess.profile);
       setCompany(sess.company);
       if (sess.plan) setPlan(sess.plan);
+      if (sess.companyId) hydrateWorkspace(sess.companyId);
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
