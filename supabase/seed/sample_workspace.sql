@@ -113,16 +113,17 @@ loop
   ) returning id into a8;
 
   -- ---------- applications (candidate -> job, with stage + AI match) ----------
+  -- match_reasons is a jsonb column, so each rationale is wrapped as a JSON string.
   insert into public.applications (company_id, candidate_id, job_id, stage, match_score, match_reasons, source) values
-  (co.id,a1,j1,'interviewing',94,'Strong design-system ownership and 6 years of production React with TypeScript match the core requirements.','LinkedIn'),
-  (co.id,a3,j1,'shortlisted',88,'Excellent React and TypeScript depth; creative UI background fits the design-system focus.','Career Page'),
-  (co.id,a4,j1,'applied',82,'Full-stack with a frontend lean; solid TypeScript, slightly less design-system experience.','Referral'),
-  (co.id,a5,j1,'applied',76,'Good React fundamentals and accessibility focus; earlier in career than the seniority target.','Career Page'),
-  (co.id,a1,j3,'shortlisted',79,'Design-system and Figma experience transfer well to product design.','Career Page'),
-  (co.id,a7,j3,'interviewing',91,'Five years of research-led product design with strong Figma and systems work.','LinkedIn'),
-  (co.id,a2,j2,'shortlisted',85,'Hands-on WordPress, PHP and WooCommerce match the role well.','JobStreet'),
-  (co.id,a6,j2,'offer',90,'Six years of WordPress and deep WooCommerce experience; strong fit.','Indeed'),
-  (co.id,a8,j4,'hired',87,'Proven tech recruiting with measurable time-to-hire improvements.','Referral');
+  (co.id,a1,j1,'interviewing',94,to_jsonb('Strong design-system ownership and 6 years of production React with TypeScript match the core requirements.'::text),'LinkedIn'),
+  (co.id,a3,j1,'shortlisted',88,to_jsonb('Excellent React and TypeScript depth; creative UI background fits the design-system focus.'::text),'Career Page'),
+  (co.id,a4,j1,'applied',82,to_jsonb('Full-stack with a frontend lean; solid TypeScript, slightly less design-system experience.'::text),'Referral'),
+  (co.id,a5,j1,'applied',76,to_jsonb('Good React fundamentals and accessibility focus; earlier in career than the seniority target.'::text),'Career Page'),
+  (co.id,a1,j3,'shortlisted',79,to_jsonb('Design-system and Figma experience transfer well to product design.'::text),'Career Page'),
+  (co.id,a7,j3,'interviewing',91,to_jsonb('Five years of research-led product design with strong Figma and systems work.'::text),'LinkedIn'),
+  (co.id,a2,j2,'shortlisted',85,to_jsonb('Hands-on WordPress, PHP and WooCommerce match the role well.'::text),'JobStreet'),
+  (co.id,a6,j2,'offer',90,to_jsonb('Six years of WordPress and deep WooCommerce experience; strong fit.'::text),'Indeed'),
+  (co.id,a8,j4,'hired',87,to_jsonb('Proven tech recruiting with measurable time-to-hire improvements.'::text),'Referral');
 
   -- ---------- interviews ----------
   insert into public.interviews (company_id, candidate_id, job_id, interviewer_id, scheduled_at, status, provider) values
