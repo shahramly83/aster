@@ -8920,8 +8920,8 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
       const lo = o.toLowerCase();
       if (taken.has(lo)) continue;
       if (lo.startsWith(q)) starts.push(o);
-      else if (lo.includes(q)) contains.push(o);
-      else {
+      else if (lo.split(/[\s/&+.,()-]+/).some((w) => w.startsWith(q))) contains.push(o); // any word starts with q
+      else if (q.length >= 3) {
         const d = levenshtein(q, lo);
         if (d <= fuzzyThreshold(q.length)) fuzzy.push([o, d]);
       }
@@ -9012,7 +9012,21 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Match-by-skills-or-industry tab (two searchable token fields)
   const [skillTags, setSkillTags] = useState(P.skillTags ?? []);
   const [industryTags, setIndustryTags] = useState(P.industryTags ?? []);
+  const [expLevels, setExpLevels] = useState(P.expLevels ?? []); // multi-select experience filter
   const [openTip, setOpenTip] = useState(null); // sidebar "how it works" accordion
+
+  // Experience bands for the multi-select filter (ranges overlap by design).
+  const EXP_LEVELS = [
+    { key: "fresh", label: "Fresh graduate", min: 0, max: 2 },
+    { key: "junior", label: "Junior", min: 1, max: 3 },
+    { key: "mid", label: "Mid-level", min: 3, max: 7 },
+    { key: "senior", label: "Senior", min: 7, max: 10 },
+  ];
+  const passesExp = (c) => {
+    if (!expLevels.length) return true;
+    const y = c.parsed?.years_of_experience ?? 0;
+    return EXP_LEVELS.filter((l) => expLevels.includes(l.key)).some((l) => y >= l.min && y <= l.max);
+  };
 
   // Match-to-a-role tab
   const [matchJobId, setMatchJobId] = useState(P.matchJobId ?? "");
@@ -9025,8 +9039,26 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Save the view state on every change so returning from a profile keeps the
   // same tab, filters, page and results (scroll is handled centrally by the app).
   useEffect(() => {
-    if (persist) persist.current = { ...persist.current, tab, query, minYears, sortBy, page, skillTags, industryTags, matchJobId, matchScores, rankedMeta };
-  }, [persist, tab, query, minYears, sortBy, page, skillTags, industryTags, matchJobId, matchScores, rankedMeta]);
+    if (persist) persist.current = { ...persist.current, tab, query, minYears, sortBy, page, skillTags, industryTags, expLevels, matchJobId, matchScores, rankedMeta };
+  }, [persist, tab, query, minYears, sortBy, page, skillTags, industryTags, expLevels, matchJobId, matchScores, rankedMeta]);
+
+  // Skills & industry is a normal, instant search: recompute the ranking as soon
+  // as the criteria change (no button, no metered "AI runs"). Other tabs keep
+  // their own flow, so clear this ranking when leaving.
+  useEffect(() => {
+    if (tab !== "skills") { setMatchScores(null); setRankedMeta(null); return; }
+    if (!skillTags.length && !industryTags.length) { setMatchScores(null); setRankedMeta(null); return; }
+    const map = {};
+    parsed.forEach((c) => {
+      const inds = rawIndustriesOf(c);
+      const indMatch = industryTags.length ? (industryTags.some((i) => inds.has(i)) ? 1 : 0) : 1;
+      const skillS = skillTags.length ? scoreBySkills(c, skillTags) : 1;
+      map[c.id] = skillTags.length && industryTags.length ? skillS * indMatch : industryTags.length ? indMatch : skillS;
+    });
+    setMatchScores(map);
+    setRankedMeta({ mode: "skills", skills: [...skillTags], industries: [...industryTags] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, skillTags, industryTags]);
 
   // Invites (role tab only)
   const [invited, setInvited] = useState({});
@@ -9116,15 +9148,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     const v = (raw || "").trim();
     if (!v) return;
     setSkillTags((prev) => (prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]));
-    setMatchScores(null);
   };
   const addIndustry = (raw) => {
     const v = (raw || "").trim();
     if (!v) return;
     setIndustryTags((prev) => (prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]));
-    setMatchScores(null);
   };
-  const invalidate = () => setMatchScores(null);
+  const invalidate = () => {}; // instant search now recomputes reactively; no manual clear
 
   // ---- Build the visible list for the active tab ----
   const q = query.trim().toLowerCase();
@@ -9144,7 +9174,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   } else if (matchScores) {
     const pool = tab === "role" ? available.filter((c) => !alreadyApplied.has(c.id)) : available;
     list = [...pool];
-    if (tab === "skills") list = list.filter((c) => (matchScores[c.id] ?? 0) > 0); // only real matches
+    if (tab === "skills") list = list.filter((c) => (matchScores[c.id] ?? 0) > 0 && passesExp(c)); // real matches, within the chosen experience bands
     list.sort((a, b) => ((matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0)) || ((b.parsed.years_of_experience ?? 0) - (a.parsed.years_of_experience ?? 0)));
   }
 
@@ -9486,13 +9516,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Match by skills or industry</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both. AI ranks everyone by fit.</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both. Matching candidates appear instantly.</p>
                   <div className="mt-3 grid sm:grid-cols-2 gap-3">
                     <div>
                       <FieldLabel hint="Type any skill and pick a suggestion. If it is not in the list, press Enter to add it as your own custom skill.">Skills</FieldLabel>
                       <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} aliases={{}} freeSolo />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                        {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
+                        {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8).map((s) => (
                           <button key={s} onClick={() => addSkill(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
@@ -9501,31 +9531,38 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                       <FieldLabel hint="Type to search our industry list and pick the closest match. Choosing from the list keeps the ranking accurate.">Industry</FieldLabel>
                       <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={industryOptions} placeholder="Search industries…" onChange={invalidate} aliases={{}} freeSolo={false} />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                        {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
+                        {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8).map((s) => (
                           <button key={s} onClick={() => addIndustry(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
                     </div>
                   </div>
                   <div className="mt-4">
-                    <button onClick={runSkillMatch} disabled={(!skillTags.length && !industryTags.length) || matching}
-                      className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
-                      <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
-                      {matching ? "Matching…" : outOfRuns ? "Upgrade for more runs" : "Run AI match"}
-                    </button>
+                    <p className="text-[11px] font-medium mb-1.5" style={{ color: "var(--ink-3)" }}>Experience level</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {EXP_LEVELS.map((l) => {
+                        const on = expLevels.includes(l.key);
+                        return (
+                          <button key={l.key} onClick={() => setExpLevels((prev) => on ? prev.filter((k) => k !== l.key) : [...prev, l.key])}
+                            className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors"
+                            style={on ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                            {l.label} <span style={{ opacity: 0.6 }}>{l.min}-{l.max} yrs</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            {matchScores && !matching && (
+            {matchScores && (
               <div className="flex items-center justify-between gap-3 mb-3">
                 <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"} · ranked by fit <InfoHint dir="down" hint="The ring is a fit score from 0 to 100 percent, showing how closely each person matches what you searched for." /></p>
-                <button onClick={() => setMatchScores(null)} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
+                <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
               </div>
             )}
-            {matching ? matchSkeleton
-              : !matchScores ? emptyState("Rank by skills or industry", (skillTags.length || industryTags.length) ? "Run the AI match to see the best fits." : "Search skills, an industry, or both, then run the AI match.", "matching")
-              : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills or industry.", "matching")
+            {!matchScores ? emptyState("Search by skills or industry", "Add a skill or industry above and matching candidates appear here instantly.", "matching")
+              : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : rankedList}
           </>
         )}
