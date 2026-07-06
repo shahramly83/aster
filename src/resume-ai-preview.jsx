@@ -5647,7 +5647,7 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
 function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNavigate, profile, unreadCount = 0 }) {
   const go = (key) => { navigate(key); if (onNavigate) onNavigate(); };
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full mt-1 mb-9 hidden md:flex items-center justify-center">
         <button onClick={() => go("dashboard")} aria-label="Go to dashboard" className="hover:opacity-90 transition-opacity">
           <BrandLogo logoUrl={logoUrl} onDark />
@@ -5670,7 +5670,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         </button>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto mt-2 pb-1">
+      <nav className="space-y-1 mt-2 pb-1">
         {NAV_ITEMS.map((item, i) => {
           const on = active === item.key;
           return (
