@@ -9435,14 +9435,17 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   );
   // Runs-left note shown under both AI panels.
   // AI-match-runs usage — same meter method as the Upload screen's "Usage this month".
+  // Credits reset at the start of each calendar month; show that date.
+  const _reset = new Date(); _reset.setMonth(_reset.getMonth() + 1, 1);
+  const resetLabel = _reset.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   const planNote = limits.aiRunsPerMonth !== Infinity ? (
     <UsageMeter
       title="AI Rank credits this month"
-      hint="Each AI Rank uses one credit. Your plan includes a set number of credits a month, and they reset on the 1st."
+      hint="Each AI Rank uses one credit. Your plan includes a set number of credits a month, and they reset on the 1st of each month."
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
-        ? `You've used all ${limits.aiRunsPerMonth} credits. They reset on the 1st.`
-        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · showing the top ${limits.aiMatches} matches.`}
+        ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
+        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · resets ${resetLabel}.`}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
     />
   ) : null;
