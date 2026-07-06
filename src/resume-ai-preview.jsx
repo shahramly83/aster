@@ -2377,8 +2377,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const faqs = [
     { cat: "General", q: "What is Aster?", a: "Aster is an AI recruitment platform. It screens every resume, ranks applicants against the role, and handles interview scheduling, so a shortlist that used to take two weeks takes an afternoon." },
     { cat: "General", q: "Who is Aster built for?", a: "Teams that hire regularly, from a founder making their first hires to a people team running dozens of roles at once. If you're drowning in CVs, Aster is for you." },
-    { cat: "General", q: "How does the AI match score work?", a: "Aster reads each resume, compares it against the role's requirements, and gives every applicant a score with the reasons behind it, so the strongest fits rise to the top instead of getting buried on page three." },
-    { cat: "General", q: "How accurate is the AI screening?", a: "The match score is a strong first pass, not a final decision. It surfaces the best-fit candidates with reasons, so your team reviews a shortlist instead of a pile, and you always make the call." },
+    { cat: "General", q: "How does the match score work?", a: "Aster reads each resume, compares it against the role's requirements, and gives every applicant a score with the reasons behind it, so the strongest fits rise to the top instead of getting buried on page three." },
+    { cat: "General", q: "How accurate is Aster's screening?", a: "The match score is a strong first pass, not a final decision. It surfaces the best-fit candidates with reasons, so your team reviews a shortlist instead of a pile, and you always make the call." },
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
     { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away. There's no setup project to run first." },
@@ -6435,7 +6435,7 @@ function FeatureCard({ onAction }) {
           Scale your hiring
         </p>
         <p className="text-sm mt-1 mb-4" style={{ color: "#5B4A54" }}>
-          Post unlimited jobs, screen candidates automatically, and hire with confidence using AI-powered recruitment.
+          Post unlimited jobs, let Aster screen every applicant as they apply, and start from a shortlist instead of a pile.
         </p>
         <button
           onClick={onAction}
@@ -6567,7 +6567,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const hour = new Date().getHours();
   const partOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
   const firstName = (profile?.firstName || "").trim() || "there";
-  const greeting = `Good ${partOfDay}, ${firstName}! 👋`;
+  const greeting = `Good ${partOfDay}, ${firstName}.`;
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
@@ -7833,7 +7833,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                     ))}
                     {typeof previewRow.confidence === "number" && (
                       <div>
-                        <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--ink-3)" }}>Parse confidence <InfoHint dir="up" hint="How sure the AI is that it read this resume correctly. Lower scores are flagged for you to check by hand." /></p>
+                        <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--ink-3)" }}>Parse confidence <InfoHint dir="up" hint="How sure Aster is that it read this resume correctly. Lower scores are flagged for you to check by hand." /></p>
                         <p className="text-sm font-semibold" style={{ color: previewRow.confidence >= 0.85 ? "#16A34A" : "#B45309" }}>{Math.round(previewRow.confidence * 100)}%</p>
                       </div>
                     )}
@@ -13668,8 +13668,8 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
         {limits.aiRunsPerMonth !== Infinity && (
           <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
             {outOfRuns
-              ? `You've used all ${limits.aiRunsPerMonth} match runs this month. Upgrade for unlimited runs, the full ranking, and the AI's reasoning.`
-              : `Your plan includes ${limits.aiRunsPerMonth} match runs a month (${runsLeft} left) — you'll see the top ${limits.aiMatches} fits with scores. Upgrade for unlimited runs and the reasoning.`}
+              ? `You've used all ${limits.aiRunsPerMonth} match runs this month. Upgrade for unlimited runs, the full ranking, and Aster's reasoning.`
+              : `Your plan includes ${limits.aiRunsPerMonth} match runs a month (${runsLeft} left). You'll see the top ${limits.aiMatches} fits with scores. Upgrade for unlimited runs and the reasoning.`}
           </p>
         )}
 
@@ -13765,7 +13765,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
                       <p className="text-xs mt-2.5" style={{ color: "var(--ink-2)" }}>{match.rationale}</p>
                     ) : (
                       <button onClick={() => navigate("billing")} className="text-xs mt-2.5 inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
-                        <Icon name="lock" className="w-3 h-3" /> See why — upgrade for the AI's reasoning
+                        <Icon name="lock" className="w-3 h-3" /> See why: upgrade for Aster's reasoning
                       </button>
                     )
                   )}
