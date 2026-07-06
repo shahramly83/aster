@@ -60,8 +60,9 @@ Deno.serve(async (req) => {
     const companyId = job.company_id;
 
     // --- Parse the PDF with Claude ---
+    // Accept the key under either secret name so an existing "aster" secret works.
     let parsed: Record<string, unknown> = {};
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
     if (apiKey) {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
