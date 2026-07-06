@@ -33,7 +33,7 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and retur
   "experience": [{ "title": string, "company": string, "industry": string, "duration": string, "summary": string }],
   "education": [{ "degree": string, "institution": string, "year": string }]
 }
-For each experience item, set "industry" to that company's industry (for example "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media"). Infer it from the company name, and if that's not enough, from the role title and summary. Use "Unknown" only when you genuinely cannot tell.
+For each experience item, set "industry" to the industry of that COMPANY, based only on what the company itself actually does (use your own knowledge of the company from its name). Examples: "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media". Do NOT derive the industry from the candidate's job title, responsibilities or summary — those describe the person's role, not the company's business. If you do not recognise the company, or are not confident what it does, set "industry" to "Unknown" instead of guessing.
 Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.`;
 
 function json(body: unknown, status = 200) {
