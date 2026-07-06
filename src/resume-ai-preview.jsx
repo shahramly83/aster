@@ -8094,6 +8094,19 @@ const JOB_CARD_BRAND = { bg: "#F9F4FF", tile: "var(--brand-soft)", ink: "var(--b
 const JOB_CARD_GREY = { bg: "#F7F7F9", tile: "#ECECEF", ink: "#56566A", line: "var(--line-strong)" };
 const colorForJob = (job) => (job.status === "closed" ? JOB_CARD_GREY : JOB_CARD_BRAND);
 
+// Whole days until a posting's closing date (null if it has none; negative = past).
+const jobExpiryDays = (job) => job?.expires_at
+  ? Math.round((new Date(job.expires_at + "T00:00:00") - new Date(new Date().toDateString())) / 86400000)
+  : null;
+// A compact urgency-styled closing chip for open roles; null when not worth showing.
+const closingChip = (days) => {
+  if (days == null) return null;
+  if (days < 0) return { style: { background: "#FEE2E2", color: "#B91C1C" }, label: "Closed" };
+  if (days === 0) return { style: { background: "#FEF3C7", color: "#92400E" }, label: "Closes today" };
+  if (days <= 7) return { style: { background: "#FEF3C7", color: "#92400E" }, label: `Closes in ${days}d` };
+  return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
+};
+
 function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
@@ -8431,6 +8444,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 : job.status === "open"
                   ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
                   : { bg: "#F1F1F4", color: "var(--ink-2)", dot: "#9A9AA6", label: "closed" };
+              // Closing countdown only matters while the role is live and taking applicants.
+              const closing = (job.status === "open" && !paused) ? closingChip(jobExpiryDays(job)) : null;
               const color = colorForJob(job);
               return (
                 <div key={job.id} className="group rounded-2xl act-shadow card-hover border p-5 flex flex-col" style={{ background: color.bg, borderColor: color.line, ...(paused ? { opacity: 0.9 } : {}) }}>
@@ -8464,6 +8479,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span key={c} className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }}>{c}</span>
                       ))}
                       {salary && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: color.tile, color: color.ink }}>{salary}</span>}
+                      {closing && <span className="text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1" style={closing.style}><Icon name="clock" className="w-3 h-3" /> {closing.label}</span>}
                     </div>
 
                     <p className="text-sm mt-3 leading-relaxed line-clamp-2" style={{ color: "var(--ink-2)" }}>{job.description}</p>
@@ -8523,6 +8539,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                             <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: badge.bg, color: badge.color }}>
                               <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} /> {badge.label}
                             </span>
+                            {(() => {
+                              const closing = (job.status === "open" && !paused) ? closingChip(jobExpiryDays(job)) : null;
+                              return closing && closing.style.color !== "var(--ink-2)"
+                                ? <span className="block text-[11px] mt-1" style={{ color: closing.style.color }}>{closing.label}</span>
+                                : null;
+                            })()}
                           </td>
                           <td className="px-4 py-3 hidden lg:table-cell w-40">
                             {pipeTotal === 0 ? (
