@@ -3917,13 +3917,13 @@ function IntroMore({ paras }) {
           <motion.div key="more" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: MOTION_EASE }} className="overflow-hidden">
             <div className="space-y-5 pt-1 mb-4">
               {paras.map((p, i) => (
-                <p key={i} className="text-sm" style={{ color: "var(--navy-ink)", lineHeight: 1.7 }}>{p}</p>
+                <p key={i} className="text-sm" style={{ color: "var(--ink-2)", lineHeight: 1.7 }}>{p}</p>
               ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-      <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>
+      <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:gap-2 transition-all brand-text">
         {open ? "Show less" : "Read more"}
         <Icon name="chevronDown" className="w-4 h-4 transition-transform" style={{ transform: open ? "rotate(180deg)" : "none" }} />
       </button>
@@ -3971,11 +3971,11 @@ function MarketingLongform({ data }) {
     <MotionConfig reducedMotion="user">
       {/* Intro — a large lede paragraph then supporting prose, editorial measure */}
       {intro && intro.length > 0 && (
-        <section className="py-16 sm:py-24" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
+        <section className="py-16 sm:py-24" style={{ background: "var(--bg)", borderTop: "1px solid var(--line)" }}>
           <MReveal className="max-w-6xl mx-auto px-4 sm:px-6">
             <div>
               <span className="inline-block w-10 h-1 rounded-full mb-7" style={{ background: "linear-gradient(90deg, #D65BFF, #5A78F8)" }} />
-              <p className="text-white" style={{ fontSize: "clamp(1.1rem, 1.7vw, 1.3rem)", lineHeight: 1.55, letterSpacing: "-0.01em" }}>{intro[0]}</p>
+              <p className="text-neutral-900" style={{ fontSize: "clamp(1.1rem, 1.7vw, 1.3rem)", lineHeight: 1.55, letterSpacing: "-0.01em" }}>{intro[0]}</p>
               {intro.length > 1 && <IntroMore paras={intro.slice(1)} />}
             </div>
           </MReveal>
@@ -4036,23 +4036,23 @@ function MarketingLongform({ data }) {
 
       {/* FAQ — accordion */}
       {faq && faq.length > 0 && (
-        <section className="py-16 sm:py-20" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
+        <section className="py-16 sm:py-20" style={{ background: "var(--bg)", borderTop: "1px solid var(--line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div>
             <MReveal>
-              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>FAQ</p>
-              <h2 className="font-display font-semibold text-white mb-8" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Common questions</h2>
+              <p className="text-[11px] font-semibold uppercase mb-2.5 brand-text" style={{ letterSpacing: "0.1em" }}>FAQ</p>
+              <h2 className="font-display font-semibold text-neutral-900 mb-8" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Common questions</h2>
             </MReveal>
             <motion.div className="space-y-3" variants={mStagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: "0px 0px -10% 0px" }}>
               {faq.map((f, i) => (
-                <motion.details variants={mFadeUp} key={i} className="group rounded-2xl px-5 sm:px-6 py-4 transition-colors hover:bg-white/[0.02]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none text-white font-medium text-base">
+                <motion.details variants={mFadeUp} key={i} className="group rounded-2xl px-5 sm:px-6 py-4 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none text-neutral-900 font-medium text-base">
                     {f.q}
-                    <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-transform group-open:rotate-45" style={{ border: "1px solid var(--navy-line)", color: "#C79BFF" }}>
+                    <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-transform group-open:rotate-45" style={{ border: "1px solid var(--line)", color: "var(--brand)" }}>
                       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                     </span>
                   </summary>
-                  <p className="mt-3.5 text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.a}</p>
+                  <p className="mt-3.5 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{f.a}</p>
                 </motion.details>
               ))}
             </motion.div>
@@ -4109,14 +4109,14 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
       <div className="overflow-x-clip" style={{ background: "#050610" }}>
         <MarketingNav {...nav} current="" />
         <MarketingHero {...heroNav} eyebrow="The platform" icon="dashboard" title="Everything you need to hire," accent="in one platform." subtitle="Sourcing, tracking, AI screening, interviews, offers and analytics. Aster covers the whole hiring workflow so your team works from one place, not ten tabs." chips={["End to end", "AI-native", "Set up in minutes"]} />
-        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+        <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {PRODUCT_NAV.filter((p) => p.slug !== "").map((p) => (
-                <button key={p.slug} onClick={() => goProduct(p.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={p.icon} className="w-5 h-5" /></span>
-                  <p className="text-white font-semibold font-display flex items-center gap-1.5">{p.label} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
-                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{p.desc}</p>
+                <button key={p.slug} onClick={() => goProduct(p.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={p.icon} className="w-5 h-5" /></span>
+                  <p className="text-neutral-900 font-semibold font-display flex items-center gap-1.5">{p.label} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} /></p>
+                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{p.desc}</p>
                 </button>
               ))}
             </div>
@@ -4141,18 +4141,18 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
       <div className="overflow-x-clip" style={{ background: "#050610" }}>
         <MarketingNav {...nav} current="changelog" />
         <MarketingHero {...heroNav} eyebrow="What's new" icon="bell" title="Every release," accent="in one place." subtitle="A running log of what we've shipped: new modules, improvements and the small touches that make hiring smoother." chips={["Shipped weekly", "Read the highlights"]} />
-        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+        <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
           <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-6">
             {entries.map((e) => (
-              <div key={e.date} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+              <div key={e.date} className="rounded-2xl p-6 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="text-white font-semibold font-display">{e.date}</span>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}>{e.tag}</span>
+                  <span className="text-neutral-900 font-semibold font-display">{e.date}</span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{e.tag}</span>
                 </div>
                 <ul className="space-y-2">
                   {e.items.map((it, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm" style={{ color: "var(--navy-ink)" }}>
-                      <span className="shrink-0 mt-0.5" style={{ color: "#22C55E" }}><Icon name="check" className="w-4 h-4" /></span> {it}
+                    <li key={i} className="flex items-start gap-2.5 text-sm" style={{ color: "var(--ink-2)" }}>
+                      <span className="shrink-0 mt-0.5" style={{ color: "#16A34A" }}><Icon name="check" className="w-4 h-4" /></span> {it}
                     </li>
                   ))}
                 </ul>
@@ -4182,23 +4182,23 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} current={slug} />
       <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
-      {/* Feature grid */}
-      <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+      {/* Feature grid — light band */}
+      <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2">
             {page.features.map((f) => (
-              <div key={f.title} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={f.icon} className="w-5 h-5" /></span>
-                <p className="text-white font-semibold font-display">{f.title}</p>
-                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.body}</p>
+              <div key={f.title} className="rounded-2xl p-6 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={f.icon} className="w-5 h-5" /></span>
+                <p className="text-neutral-900 font-semibold font-display">{f.title}</p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{f.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
-      {/* Highlight band */}
+      {/* Highlight band — dark */}
       {page.highlight && (
-        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
               <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
@@ -4242,20 +4242,20 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
       <div className="overflow-x-clip" style={{ background: "#050610" }}>
         <MarketingNav {...nav} currentSol="" />
         <MarketingHero {...heroNav} eyebrow="Solutions" icon="target" title="The same platform," accent="framed for how you hire." subtitle="Whatever your role, company stage or industry, Aster reads every CV, ranks for fit and books the interviews. Find the version of the story that fits your team." chips={["By role", "By company stage", "By industry"]} />
-        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+        <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-14">
             {SOLUTIONS_NAV.map((g) => (
               <div key={g.group}>
                 <div className="flex items-center gap-3 mb-5">
-                  <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.25rem, 2.4vw, 1.6rem)", letterSpacing: "-0.02em" }}>{g.group}</h2>
-                  <span className="h-px flex-1" style={{ background: "var(--navy-line)" }} />
+                  <h2 className="font-display font-semibold text-neutral-900" style={{ fontSize: "clamp(1.25rem, 2.4vw, 1.6rem)", letterSpacing: "-0.02em" }}>{g.group}</h2>
+                  <span className="h-px flex-1" style={{ background: "var(--line)" }} />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {g.items.map((s) => (
-                    <button key={s.slug} onClick={() => goSolution(s.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                      <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={s.icon} className="w-5 h-5" /></span>
-                      <p className="text-white font-semibold font-display flex items-center gap-1.5">{s.label} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
-                      <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{s.desc}</p>
+                    <button key={s.slug} onClick={() => goSolution(s.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                      <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={s.icon} className="w-5 h-5" /></span>
+                      <p className="text-neutral-900 font-semibold font-display flex items-center gap-1.5">{s.label} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} /></p>
+                      <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{s.desc}</p>
                     </button>
                   ))}
                 </div>
@@ -4312,28 +4312,28 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
         </section>
       )}
 
-      {/* How Aster helps — the fix, mapped to capabilities */}
-      <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+      {/* How Aster helps — the fix, on a light band */}
+      <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl mb-8 sm:mb-10">
-            <p className="text-[11px] font-semibold uppercase" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>How Aster helps</p>
-            <h2 className="font-display font-semibold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>What changes with Aster</h2>
+            <p className="text-[11px] font-semibold uppercase brand-text" style={{ letterSpacing: "0.1em" }}>How Aster helps</p>
+            <h2 className="font-display font-semibold text-neutral-900 mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>What changes with Aster</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {page.features.map((f) => (
-              <div key={f.title} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={f.icon} className="w-5 h-5" /></span>
-                <p className="text-white font-semibold font-display">{f.title}</p>
-                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.body}</p>
+              <div key={f.title} className="rounded-2xl p-6 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={f.icon} className="w-5 h-5" /></span>
+                <p className="text-neutral-900 font-semibold font-display">{f.title}</p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{f.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Highlight band */}
+      {/* Highlight band — dark */}
       {page.highlight && (
-        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
               <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
@@ -4407,32 +4407,33 @@ const blogCat = (slug) => BLOG_CATEGORIES.find((c) => c.slug === slug);
 function ArticleBody({ blocks }) {
   return blocks.map((b, i) =>
     b.h ? (
-      <h2 key={i} className="text-white font-display font-semibold mt-9 mb-3" style={{ fontSize: "1.4rem", letterSpacing: "-0.01em" }}>{b.h}</h2>
+      <h2 key={i} className="text-neutral-900 font-display font-semibold mt-9 mb-3" style={{ fontSize: "1.4rem", letterSpacing: "-0.01em" }}>{b.h}</h2>
     ) : b.ul ? (
       <ul key={i} className="my-4 space-y-2.5">
         {b.ul.map((li, j) => (
-          <li key={j} className="flex items-start gap-3 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>
-            <span className="shrink-0 mt-2 w-1.5 h-1.5 rounded-full" style={{ background: "#C79BFF" }} /> <span>{li}</span>
+          <li key={j} className="flex items-start gap-3 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>
+            <span className="shrink-0 mt-2 w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} /> <span>{li}</span>
           </li>
         ))}
       </ul>
     ) : (
-      <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{b.p}</p>
+      <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>{b.p}</p>
     )
   );
 }
 
-function BlogPostCard({ post, onOpen, featured = false }) {
+// Adapts to its section: light card on light bg, dark card on dark bg.
+function BlogPostCard({ post, onOpen, featured = false, dark = false }) {
   const cat = blogCat(post.category);
   return (
-    <button onClick={onOpen} className={`group text-left rounded-2xl transition-all hover:-translate-y-1 flex flex-col ${featured ? "p-6 sm:p-8" : "p-5 sm:p-6"}`} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full self-start" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}>
+    <button onClick={onOpen} className={`group text-left rounded-2xl transition-all hover:-translate-y-1 flex flex-col ${dark ? "" : "act-shadow"} ${featured ? "p-6 sm:p-8" : "p-5 sm:p-6"}`} style={{ background: dark ? "rgba(255,255,255,0.03)" : "#fff", border: `1px solid ${dark ? "var(--navy-line)" : "var(--line)"}` }}>
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full self-start" style={{ background: dark ? "rgba(151,59,247,0.16)" : "var(--brand-soft)", color: dark ? "#C79BFF" : "var(--brand)" }}>
         <Icon name={cat?.icon || "doc"} className="w-3 h-3" /> {cat?.label}
       </span>
-      <p className={`mt-3 text-white font-semibold font-display leading-snug ${featured ? "text-2xl" : "text-lg"}`} style={{ letterSpacing: "-0.01em" }}>{post.title}</p>
-      <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--navy-ink)" }}>{post.excerpt}</p>
+      <p className={`mt-3 font-semibold font-display leading-snug ${featured ? "text-2xl" : "text-lg"} ${dark ? "text-white" : "text-neutral-900"}`} style={{ letterSpacing: "-0.01em" }}>{post.title}</p>
+      <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: dark ? "var(--navy-ink)" : "var(--ink-2)" }}>{post.excerpt}</p>
       <div className="mt-4 flex items-center gap-2 text-xs" style={{ color: "var(--ink-3)" }}>
-        <span className="text-white/70">{post.author.name}</span><span>·</span><span>{fmtDate(post.date)}</span><span>·</span><span>{post.readMins} min read</span>
+        <span className="font-medium" style={{ color: dark ? "rgba(255,255,255,0.75)" : "var(--ink-2)" }}>{post.author.name}</span><span>·</span><span>{fmtDate(post.date)}</span><span>·</span><span>{post.readMins} min read</span>
       </div>
     </button>
   );
@@ -4478,14 +4479,14 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
           </div>
         </section>
         {/* Article body */}
-        <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+        <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <article className="max-w-none"><ArticleBody blocks={post.body} /></article>
             {/* Tags */}
             {post.tags?.length > 0 && (
               <div className="mt-10 flex flex-wrap gap-2">
                 {post.tags.map((t) => (
-                  <span key={t} className="text-xs px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>{t}</span>
+                  <span key={t} className="text-xs px-2.5 py-1 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t}</span>
                 ))}
               </div>
             )}
@@ -4493,11 +4494,11 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
         </section>
         {/* Related */}
         {related.length > 0 && (
-          <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+          <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
             <div className="max-w-6xl mx-auto px-4 sm:px-6">
-              <h2 className="text-white font-display font-semibold text-xl mb-6">More in {category?.label}</h2>
+              <h2 className="text-white font-display font-semibold text-xl mb-6">Keep reading in {category?.label}</h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                {related.map((p) => <BlogPostCard key={p.slug} post={p} onOpen={() => goBlog({ post: p.slug })} />)}
+                {related.map((p) => <BlogPostCard key={p.slug} post={p} dark onOpen={() => goBlog({ post: p.slug })} />)}
               </div>
             </div>
           </section>
@@ -4535,12 +4536,12 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
         </div>
       </section>
       {/* Category filters */}
-      <section className="pt-10" style={{ background: "#050610" }}>
+      <section className="pt-10" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => goBlog({})} className="text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: !cat ? "rgba(151,59,247,0.16)" : "rgba(255,255,255,0.03)", color: !cat ? "#fff" : "var(--navy-ink)", border: `1px solid ${!cat ? "rgba(178,116,255,0.3)" : "var(--navy-line)"}` }}>All</button>
+            <button onClick={() => goBlog({})} className="text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: !cat ? "var(--brand-soft)" : "#fff", color: !cat ? "var(--brand)" : "var(--ink-2)", border: `1px solid ${!cat ? "transparent" : "var(--line)"}` }}>All</button>
             {BLOG_CATEGORIES.map((c) => (
-              <button key={c.slug} onClick={() => goBlog({ category: c.slug })} className="inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: cat === c.slug ? "rgba(151,59,247,0.16)" : "rgba(255,255,255,0.03)", color: cat === c.slug ? "#fff" : "var(--navy-ink)", border: `1px solid ${cat === c.slug ? "rgba(178,116,255,0.3)" : "var(--navy-line)"}` }}>
+              <button key={c.slug} onClick={() => goBlog({ category: c.slug })} className="inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: cat === c.slug ? "var(--brand-soft)" : "#fff", color: cat === c.slug ? "var(--brand)" : "var(--ink-2)", border: `1px solid ${cat === c.slug ? "transparent" : "var(--line)"}` }}>
                 <Icon name={c.icon} className="w-3.5 h-3.5" /> {c.label}
               </button>
             ))}
@@ -4549,17 +4550,18 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
       </section>
       {/* Featured (index only) */}
       {featured && (
-        <section className="pt-8" style={{ background: "#050610" }}>
+        <section className="pt-8" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <BlogPostCard post={featured} featured onOpen={() => goBlog({ post: featured.slug })} />
           </div>
         </section>
       )}
-      {/* Grid */}
-      <section className="py-10 sm:py-14" style={{ background: "#050610" }}>
+      {/* Grid — dark band for rhythm against the light featured area above */}
+      <section className="py-12 sm:py-16 mt-4" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="text-white font-display font-semibold text-xl mb-6">{activeCat ? `More on ${activeCat.label.toLowerCase()}` : "All articles"}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {rest.map((p) => <BlogPostCard key={p.slug} post={p} onOpen={() => goBlog({ post: p.slug })} />)}
+            {rest.map((p) => <BlogPostCard key={p.slug} post={p} dark onOpen={() => goBlog({ post: p.slug })} />)}
           </div>
         </div>
       </section>
@@ -4598,25 +4600,27 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
             <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--navy-ink)" }}>{term.short}</p>
           </div>
         </section>
-        <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+        <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <article className="max-w-none">
-              {term.body.map((p, i) => <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{p}</p>)}
+              {term.body.map((p, i) => <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>{p}</p>)}
             </article>
-            {related.length > 0 && (
-              <div className="mt-10 pt-8" style={{ borderTop: "1px solid var(--navy-line)" }}>
-                <p className="text-sm font-semibold text-white mb-3">Related terms</p>
-                <div className="flex flex-wrap gap-2">
-                  {related.map((r) => (
-                    <button key={r.slug} onClick={() => goGlossary(r.slug)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full transition-colors hover:bg-white/[0.06]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
-                      {r.term} <Icon name="arrowUpRight" className="w-3.5 h-3.5" style={{ color: "#C79BFF" }} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </section>
+        {related.length > 0 && (
+          <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6">
+              <p className="text-sm font-semibold text-white mb-4">Related terms</p>
+              <div className="flex flex-wrap gap-2">
+                {related.map((r) => (
+                  <button key={r.slug} onClick={() => goGlossary(r.slug)} className="inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-full transition-colors hover:bg-white/[0.06]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+                    {r.term} <Icon name="arrowUpRight" className="w-3.5 h-3.5" style={{ color: "#C79BFF" }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
         <ProductCTA navigate={navigate} />
         <MarketingFooter {...nav} />
       </div>
@@ -4643,13 +4647,13 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
           </p>
         </div>
       </section>
-      <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+      <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {sorted.map((t) => (
-              <button key={t.slug} onClick={() => goGlossary(t.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1 flex flex-col" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                <p className="text-white font-semibold font-display flex items-center gap-1.5">{t.term} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
-                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{t.short}</p>
+              <button key={t.slug} onClick={() => goGlossary(t.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1 flex flex-col act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                <p className="text-neutral-900 font-semibold font-display flex items-center gap-1.5">{t.term} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} /></p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{t.short}</p>
               </button>
             ))}
           </div>
@@ -4667,26 +4671,26 @@ const competitorBySlug = (slug) => COMPARE_COMPETITORS.find((c) => c.slug === sl
 // A single matrix value. Never relies on colour alone: every state pairs an
 // icon (or dot) with a text label for accessibility.
 function MatrixCell({ v, brand = false }) {
-  if (v === "yes") return <span className="inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: brand ? "#C79BFF" : "#4ADE80" }}><Icon name="check" className="w-4 h-4" /> Yes</span>;
-  if (v === "partial") return <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: "#EAB308" }}><span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#EAB308" }} /> Limited</span>;
+  if (v === "yes") return <span className="inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: brand ? "var(--brand)" : "#16A34A" }}><Icon name="check" className="w-4 h-4" /> Yes</span>;
+  if (v === "partial") return <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: "#B45309" }}><span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#D97706" }} /> Limited</span>;
   if (v === "no") return <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /> No</span>;
-  return <span className="text-sm font-medium" style={{ color: brand ? "#fff" : "var(--navy-ink)" }}>{v}</span>;
+  return <span className="text-sm font-semibold" style={{ color: brand ? "var(--ink)" : "var(--ink-2)" }}>{v}</span>;
 }
 
 function CompareMatrix({ competitor }) {
   const cols = "minmax(9rem,1.6fr) minmax(5rem,1fr) minmax(5rem,1fr)";
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--navy-line)" }}>
+    <div className="rounded-2xl overflow-hidden act-shadow" style={{ border: "1px solid var(--line)", background: "#fff" }}>
       <div className="overflow-x-auto">
         <div className="min-w-[520px]">
-          <div className="grid items-center gap-3 px-4 sm:px-5 py-3.5" style={{ gridTemplateColumns: cols, background: "rgba(151,59,247,0.08)", borderBottom: "1px solid var(--navy-line)" }}>
+          <div className="grid items-center gap-3 px-4 sm:px-5 py-3.5" style={{ gridTemplateColumns: cols, background: "var(--brand-soft)", borderBottom: "1px solid var(--line)" }}>
             <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>Feature</span>
             <span className="text-sm font-bold brand-text">Aster</span>
-            <span className="text-sm font-semibold text-white/80">{competitor.name}</span>
+            <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{competitor.name}</span>
           </div>
           {COMPARE_ROWS.map((row, i) => (
-            <div key={row.key} className="grid items-center gap-3 px-4 sm:px-5 py-3.5" style={{ gridTemplateColumns: cols, borderBottom: i < COMPARE_ROWS.length - 1 ? "1px solid var(--navy-line)" : "none", background: i % 2 ? "rgba(255,255,255,0.015)" : "transparent" }}>
-              <span className="text-sm" style={{ color: "var(--navy-ink)" }}>{row.label}</span>
+            <div key={row.key} className="grid items-center gap-3 px-4 sm:px-5 py-3.5" style={{ gridTemplateColumns: cols, borderBottom: i < COMPARE_ROWS.length - 1 ? "1px solid var(--line)" : "none", background: i % 2 ? "rgba(18,19,42,0.025)" : "#fff" }}>
+              <span className="text-sm" style={{ color: "var(--ink-2)" }}>{row.label}</span>
               <MatrixCell v={ASTER_MATRIX[row.key]} brand />
               <MatrixCell v={competitor.matrix[row.key]} />
             </div>
@@ -4719,15 +4723,15 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
           </div>
         </section>
         {/* Matrix */}
-        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+        <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Feature by feature</h2>
+            <h2 className="text-neutral-900 font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Feature by feature</h2>
             <CompareMatrix competitor={competitor} />
             <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>Positioning reflects each tool's typical strengths; verify current features before relying on any single row.</p>
           </div>
         </section>
-        {/* Aster edge + when them */}
-        <section className="pb-14 sm:pb-16" style={{ background: "#050610" }}>
+        {/* Aster edge + when them — dark band */}
+        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 grid gap-5 lg:grid-cols-3">
             <div className="lg:col-span-2 rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
               <h3 className="text-white font-display font-semibold text-xl mb-4">Where Aster is different</h3>
@@ -4747,20 +4751,20 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        {/* Migration */}
-        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+        {/* Migration — light band */}
+        <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5 justify-between" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+            <div className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5 justify-between act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
               <div className="max-w-2xl">
-                <h3 className="text-white font-display font-semibold text-lg mb-2">Switching from {competitor.name}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{competitor.migration}</p>
+                <h3 className="text-neutral-900 font-display font-semibold text-lg mb-2">Switching from {competitor.name}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{competitor.migration}</p>
               </div>
-              <button onClick={() => goCompare("alternatives")} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors hover:bg-white/[0.06]" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>How migration works <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+              <button onClick={() => goCompare("alternatives")} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>How migration works <Icon name="arrowUpRight" className="w-4 h-4" /></button>
             </div>
           </div>
         </section>
-        {/* Other comparisons */}
-        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+        {/* Other comparisons — dark band */}
+        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 className="text-white font-display font-semibold text-xl mb-6">Other comparisons</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -4794,21 +4798,23 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{a.subtitle}</p>
           </div>
         </section>
-        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+        {/* Why teams switch — light band */}
+        <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Why teams switch</h2>
+            <h2 className="text-neutral-900 font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Why teams switch</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {a.reasons.map((r) => (
-                <div key={r.title} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={r.icon} className="w-5 h-5" /></span>
-                  <p className="text-white font-semibold font-display">{r.title}</p>
-                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{r.body}</p>
+                <div key={r.title} className="rounded-2xl p-6 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={r.icon} className="w-5 h-5" /></span>
+                  <p className="text-neutral-900 font-semibold font-display">{r.title}</p>
+                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{r.body}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
-        <section className="pb-14 sm:pb-16" style={{ background: "#050610" }}>
+        {/* How the move works — dark band */}
+        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>How the move works</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -4822,13 +4828,14 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+        {/* Compare links — light band */}
+        <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 className="text-white font-display font-semibold text-xl mb-6">Compare Aster with your current tool</h2>
+            <h2 className="text-neutral-900 font-display font-semibold text-xl mb-6">Compare Aster with your current tool</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {COMPARE_COMPETITORS.map((c) => (
-                <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <p className="text-white font-semibold font-display flex items-center gap-1.5">Aster vs {c.name} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
+                <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <p className="text-neutral-900 font-semibold font-display flex items-center gap-1.5">Aster vs {c.name} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} /></p>
                   <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{c.category}</p>
                 </button>
               ))}
@@ -4875,24 +4882,24 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
           </motion.div>
         </div>
       </section>
-      <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+      <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {COMPARE_COMPETITORS.map((c) => (
-              <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-6 transition-all hover:-translate-y-1 flex flex-col" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+              <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-6 transition-all hover:-translate-y-1 flex flex-col act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${c.tint}1f`, color: c.tint, border: `1px solid ${c.tint}44` }}>{c.category}</span>
-                  <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} />
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: c.tint }} /> {c.category}</span>
+                  <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} />
                 </div>
-                <p className="mt-4 text-white font-semibold font-display text-lg">Aster vs {c.name}</p>
-                <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--navy-ink)" }}>{c.subtitle}</p>
+                <p className="mt-4 text-neutral-900 font-semibold font-display text-lg">Aster vs {c.name}</p>
+                <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--ink-2)" }}>{c.subtitle}</p>
                 <span className="mt-4 text-sm font-semibold brand-text inline-flex items-center gap-1">See the comparison <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></span>
               </button>
             ))}
-            <button onClick={() => goCompare("alternatives")} className="group text-left rounded-2xl p-6 transition-all hover:-translate-y-1 flex flex-col" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
-              <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="hire" className="w-5 h-5" /></span>
-              <p className="text-white font-semibold font-display text-lg">Alternatives & migration</p>
-              <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--navy-ink)" }}>Switching from any ATS? See why teams move to Aster and how the migration works.</p>
+            <button onClick={() => goCompare("alternatives")} className="group text-left rounded-2xl p-6 transition-all hover:-translate-y-1 flex flex-col" style={{ background: "var(--brand-soft)", border: "1px solid var(--line)" }}>
+              <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line)" }}><Icon name="hire" className="w-5 h-5" /></span>
+              <p className="text-neutral-900 font-semibold font-display text-lg">Alternatives & migration</p>
+              <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--ink-2)" }}>Switching from any ATS? See why teams move to Aster and how the migration works.</p>
               <span className="mt-4 text-sm font-semibold brand-text inline-flex items-center gap-1">How switching works <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></span>
             </button>
           </div>
