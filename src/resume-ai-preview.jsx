@@ -4,6 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbSetCandidateStage, dbAddScorecard } from "./lib/persist";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
@@ -23,6 +24,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (error || !data) return null;
   const parts = (data.full_name || fallbackEmail || "").trim().split(/\s+/);
   return {
+    userId,
     companyId: data.company_id,
     profile: {
       firstName: parts[0] || "there",
@@ -7840,7 +7842,7 @@ function formatSalary(job) {
 }
 
 // Shared job form body — used inside the modal for both creating and editing.
-function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null }) {
+function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null, onCreate, onUpdate }) {
   const editing = !!initialJob;
   const limits = planLimits(plan);
   const atJobLimit = jobs.length >= limits.maxJobs;
@@ -7865,7 +7867,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
 
   const canCreate = title.trim() && description.trim();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canCreate) return;
     const payload = {
       title: title.trim(),
@@ -7884,8 +7886,13 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
     };
     if (editing) {
       setJobs(jobs.map((j) => (j.id === initialJob.id ? { ...j, ...payload } : j)));
+      onUpdate && onUpdate(initialJob.id, payload);
     } else {
-      setJobs([{ id: `j${Date.now()}`, status: "open", ...payload }, ...jobs]);
+      // Persist first so the card carries its real DB id (falls back to a local
+      // id in mock mode / empty workspace).
+      let id = `j${Date.now()}`;
+      if (onCreate) { const realId = await onCreate(payload); if (realId) id = realId; }
+      setJobs([{ id, status: "open", ...payload }, ...jobs]);
     }
     onClose();
   };
@@ -7986,7 +7993,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
 }
 
 // New/Edit Job as a centered modal sheet (opens over whatever screen you're on).
-function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null }) {
+function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null, onCreate, onUpdate }) {
   if (!open) return null;
   const editing = !!initialJob;
   return (
@@ -8004,7 +8011,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
         <div className="px-5 sm:px-6 py-5 max-h-[75vh] overflow-y-auto">
-          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} />
+          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} onCreate={onCreate} onUpdate={onUpdate} />
         </div>
       </div>
     </div>
@@ -8016,7 +8023,7 @@ const JOB_CARD_BRAND = { bg: "#F9F4FF", tile: "var(--brand-soft)", ink: "var(--b
 const JOB_CARD_GREY = { bg: "#F7F7F9", tile: "#ECECEF", ink: "#56566A", line: "var(--line-strong)" };
 const colorForJob = (job) => (job.status === "closed" ? JOB_CARD_GREY : JOB_CARD_BRAND);
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -8048,7 +8055,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [linkCopied, setLinkCopied] = useState(false);
 
   const toggleStatus = (jobId) => {
-    setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: j.status === "open" ? "closed" : "open" } : j)));
+    const next = jobs.find((j) => j.id === jobId)?.status === "open" ? "closed" : "open";
+    setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: next } : j)));
+    if (canPersist) dbSetJobStatus(jobId, next);
   };
 
   // Turn a free-typed source into a clean URL slug: "LinkedIn Post" → "linkedin_post"
@@ -8621,7 +8630,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       })()}
 
       {/* Edit job — reuses the New Job form pre-filled */}
-      <NewJobModal open={!!editJob} initialJob={editJob} onClose={() => setEditJob(null)} jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} />
+      <NewJobModal open={!!editJob} initialJob={editJob} onClose={() => setEditJob(null)} jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} />
 
       {/* Copy application link — source tagging modal */}
       {linkJob && (
@@ -13849,6 +13858,12 @@ export default function ResumeAIPreview() {
   // Compare: the competitor/alternatives slug ("" = hub), seeded from the URL.
   const [compareSlug, setCompareSlug] = useState(() => { const i = typeof window !== "undefined" && compareInfoFromPath(window.location.pathname); return i && i.kind === "page" ? i.slug : ""; });
   const [jobs, setJobs] = useState(MOCK_JOBS);
+  // Supabase identity + whether real workspace data has loaded. Writes only go
+  // to the DB once a live workspace is loaded, so demo ids never hit the DB.
+  const [companyId, setCompanyId] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [workspaceLive, setWorkspaceLive] = useState(false);
+  const canPersist = hasSupabase && workspaceLive && !!companyId;
   const [activeJobId, setActiveJobId] = useState("j1");
   // On the Free plan, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
@@ -13860,8 +13875,10 @@ export default function ResumeAIPreview() {
   const [jobStatusFilter, setJobStatusFilter] = useState(null);
   const [interviewers, setInterviewers] = useState(INITIAL_INTERVIEWERS);
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
-  const addScorecard = (candidateId, card) =>
+  const addScorecard = (candidateId, card) => {
     setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), card] }));
+    if (canPersist) dbAddScorecard(companyId, userId, { candidateId, ratings: card.ratings, notes: card.notes });
+  };
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [logoUrl, setLogoUrl] = useState(null);
   const [defaultProvider, setDefaultProvider] = useState("google");
@@ -14059,7 +14076,7 @@ export default function ResumeAIPreview() {
       setProfile(sess.profile);
       setCompany(sess.company);
       if (sess.plan) setPlan(sess.plan);
-      if (sess.companyId) hydrateWorkspace(sess.companyId);
+      if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId); }
     }
     navigate(dest);
   };
@@ -14075,12 +14092,18 @@ export default function ResumeAIPreview() {
     setBookings(data.bookings);
     setScorecards(data.scorecards);
     setActivities(buildActivities());  // rebuilt from the now-real datasets
+    setWorkspaceLive(true);            // real ids now in play → writes persist
   };
 
   // Sign out for real when Supabase is wired, then reset to defaults and return
   // to the login screen.
   const handleSignOut = async () => {
-    if (hasSupabase) { try { await supabase.auth.signOut(); } catch { /* ignore */ } }
+    if (hasSupabase) {
+      try { await supabase.auth.signOut(); } catch { /* ignore */ }
+      // Hard navigation so the swapped-in workspace data can't leak to the next
+      // person who uses this tab; a fresh load resets all module state to demo.
+      if (typeof window !== "undefined") { window.location.assign("/login"); return; }
+    }
     setProfile({ firstName: "Shah", lastName: "Ramly", role: "Hiring Manager" });
     setCompany("Oryx Studio");
     setPlan("starter");
@@ -14099,7 +14122,7 @@ export default function ResumeAIPreview() {
       setProfile(sess.profile);
       setCompany(sess.company);
       if (sess.plan) setPlan(sess.plan);
-      if (sess.companyId) hydrateWorkspace(sess.companyId);
+      if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId); }
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -14213,6 +14236,7 @@ export default function ResumeAIPreview() {
     setStageOverrides((prev) => {
       const current = prev[candidateId];
       if (current === "offer" || current === "hired") return prev;
+      if (canPersist) dbSetCandidateStage(companyId, candidateId, "interviewing");
       return { ...prev, [candidateId]: "interviewing" };
     });
   };
@@ -14228,6 +14252,7 @@ export default function ResumeAIPreview() {
   // HR manually changed a candidate's pipeline stage from the applicants list.
   const setCandidateStage = (candidateId, stage) => {
     setStageOverrides((prev) => ({ ...prev, [candidateId]: stage }));
+    if (canPersist) dbSetCandidateStage(companyId, candidateId, stage);
   };
 
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
@@ -14457,6 +14482,9 @@ export default function ResumeAIPreview() {
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
+            canPersist={canPersist}
+            companyId={companyId}
+            userId={userId}
           />
         )}
         {screen === "search" && (
@@ -14533,7 +14561,7 @@ export default function ResumeAIPreview() {
           />
         )}
       </SidebarLayout>
-      <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} />
+      <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbCreateJob(companyId, userId, p) : null} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} />
     </Shell>
   );
 }
