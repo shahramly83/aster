@@ -18,21 +18,29 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  -- Copy the field into a local so the DELETE below references a plpgsql
+  -- variable, not `old.…` inside a SQL statement (which errors as an unknown
+  -- table). jsonb_exists() is used instead of the `?` operator, which
+  -- plpgsql can misparse as a bind placeholder.
+  v_company uuid;
 begin
+  v_company := old.company_id;
+
   -- Skip during a full company teardown (industries cascade-delete anyway).
-  if not exists (select 1 from public.companies where id = old.company_id) then
+  if not exists (select 1 from public.companies where id = v_company) then
     return old;
   end if;
 
   delete from public.industries i
-  where i.company_id = old.company_id
+  where i.company_id = v_company
     and not exists (
       -- Any remaining candidate in this company whose parsed industries still
       -- include this tag keeps it alive.
       select 1 from public.candidates c
-      where c.company_id = old.company_id
+      where c.company_id = v_company
         and jsonb_typeof(c.parsed -> 'industries') = 'array'
-        and (c.parsed -> 'industries') ? i.name
+        and jsonb_exists(c.parsed -> 'industries', i.name)
     );
 
   return old;
