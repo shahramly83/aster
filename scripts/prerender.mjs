@@ -16,6 +16,7 @@ import { existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BLOG_POSTS, BLOG_CATEGORIES, GLOSSARY_TERMS } from "../src/resources-content.js";
+import { COMPARE_COMPETITORS } from "../src/comparison-content.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = join(__dirname, "..", "dist");
@@ -42,6 +43,10 @@ const ROUTES = [
   ...BLOG_POSTS.map((p) => `/blog/${p.slug}`),
   "/resources/glossary",
   ...GLOSSARY_TERMS.map((t) => `/resources/glossary/${t.slug}`),
+  // Comparisons
+  "/compare",
+  "/compare/alternatives",
+  ...COMPARE_COMPETITORS.map((c) => `/compare/${c.slug}`),
 ];
 
 const MIME = {

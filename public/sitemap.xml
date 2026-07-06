@@ -76,4 +76,12 @@
   <url><loc>https://hireaster.com/resources/glossary/recruitment-funnel</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
   <url><loc>https://hireaster.com/resources/glossary/job-requisition</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
   <url><loc>https://hireaster.com/resources/glossary/deduplication</loc><changefreq>monthly</changefreq><priority>0.5</priority><lastmod>2026-07-06</lastmod></url>
+  <!-- Comparisons -->
+  <url><loc>https://hireaster.com/compare</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/compare/alternatives</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/compare/greenhouse</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/compare/lever</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/compare/ashby</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/compare/workable</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
+  <url><loc>https://hireaster.com/compare/bamboohr</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>2026-07-06</lastmod></url>
 </urlset>

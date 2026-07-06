@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
+import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
 
@@ -2062,7 +2063,7 @@ function SchedulingPreview() {
   );
 }
 
-function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
+function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
@@ -2257,7 +2258,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       {/* Shared marketing nav — identical on landing + product pages.
           onLanding lets Pricing/FAQ scroll in place; onCta keeps the landing's
           14-day-trial signup for Get started. */}
-      <MarketingNav navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
+      <MarketingNav navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
 
       {/* Hero — the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
@@ -3060,7 +3061,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       </section>
 
       {/* Shared marketing footer — identical on landing + product pages */}
-      <MarketingFooter navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} onLanding />
+      <MarketingFooter navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} onLanding />
     </div>
   );
 }
@@ -3482,7 +3483,7 @@ function scrollToLandingSection(id) {
 // route change when those sections are already on the current page. `onCta`
 // lets the landing page keep its 14-day-trial signup for Get started.
 // `current` = active product slug (or null); `currentSol` = active solution slug.
-function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, current, currentSol, logoUrl, onLanding = false, onCta }) {
+function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, current, currentSol, logoUrl, onLanding = false, onCta }) {
   const [menuOpen, setMenuOpen] = useState(false);   // mobile
   const [prodOpen, setProdOpen] = useState(false);   // desktop Product mega-menu
   const [solOpen, setSolOpen] = useState(false);     // desktop Solutions mega-menu
@@ -3491,6 +3492,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
   const RESOURCES = [
     { label: "Blog", desc: "Hiring, recruiting and AI, written well.", icon: "doc", go: () => goBlog({}) },
     { label: "Recruiting glossary", desc: "Every hiring term, in plain English.", icon: "search", go: () => goGlossary("") },
+    { label: "Compare Aster", desc: "How Aster stacks up against other tools.", icon: "target", go: () => goCompare("") },
   ];
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -3672,7 +3674,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
               </button>
             ))}
             <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Resources</p>
-            {[["Blog", () => goBlog({})], ["Recruiting glossary", () => goGlossary("")]].map(([label, go]) => (
+            {[["Blog", () => goBlog({})], ["Recruiting glossary", () => goGlossary("")], ["Compare Aster", () => goCompare("")]].map(([label, go]) => (
               <button key={label} onClick={() => { setMenuOpen(false); go(); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
                 <span className="flex-1 text-white font-medium">{label}</span>
                 <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
@@ -3693,7 +3695,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // every product page: brand · the full Product module directory · the Solutions
 // directory (role / stage / industry) · Explore + Get started. `onLanding`
 // skips the route change for Pricing/FAQ when those sections are on this page.
-function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, logoUrl, onLanding = false }) {
+function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, onLanding = false }) {
   const goSection = (id) => {
     if (!onLanding) navigate("landing");
     scrollToLandingSection(id);
@@ -3730,6 +3732,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
               <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
               <li><button onClick={() => goBlog({})} className="footer-link inline-block py-0.5 text-left">Blog</button></li>
               <li><button onClick={() => goGlossary("")} className="footer-link inline-block py-0.5 text-left">Glossary</button></li>
+              <li><button onClick={() => goCompare("")} className="footer-link inline-block py-0.5 text-left">Compare</button></li>
             </ul>
           </div>
           {/* get started */}
@@ -4093,8 +4096,8 @@ function ProductCTA({ navigate }) {
 }
 
 // One page per module (or the overview hub / changelog). Slug "" = overview.
-function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
+function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
   const isOverview = !slug;
   const isChangelog = slug === "changelog";
   const page = PRODUCT_PAGES[slug];
@@ -4227,8 +4230,8 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
 // Solutions pages share the exact visual language of the product pages (same
 // Hero, feature grid and highlight band) so the whole marketing site reads as
 // one system. Slug "" = the segmentation hub; any other slug = a segment page.
-function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
+function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
   const isHub = !slug;
   const page = SOLUTIONS_PAGES[slug];
   const heroNav = { navigate, secondaryLabel: "All solutions", onSecondary: () => goSolution("") };
@@ -4435,8 +4438,8 @@ function BlogPostCard({ post, onOpen, featured = false }) {
   );
 }
 
-function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
+function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
 
   // ── Single post ──
   if (slug) {
@@ -4565,8 +4568,8 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
   );
 }
 
-function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, logoUrl };
+function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
 
   // ── Single term ──
   if (slug) {
@@ -4649,6 +4652,249 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
                 <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{t.short}</p>
               </button>
             ))}
+          </div>
+        </div>
+      </section>
+      <ProductCTA navigate={navigate} />
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
+
+// ---------- Compare: hub, competitor pages, alternatives ----------
+const competitorBySlug = (slug) => COMPARE_COMPETITORS.find((c) => c.slug === slug);
+
+// A single matrix value. Never relies on colour alone: every state pairs an
+// icon (or dot) with a text label for accessibility.
+function MatrixCell({ v, brand = false }) {
+  if (v === "yes") return <span className="inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: brand ? "#C79BFF" : "#4ADE80" }}><Icon name="check" className="w-4 h-4" /> Yes</span>;
+  if (v === "partial") return <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: "#EAB308" }}><span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#EAB308" }} /> Limited</span>;
+  if (v === "no") return <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /> No</span>;
+  return <span className="text-sm font-medium" style={{ color: brand ? "#fff" : "var(--navy-ink)" }}>{v}</span>;
+}
+
+function CompareMatrix({ competitor }) {
+  const cols = "minmax(9rem,1.6fr) minmax(5rem,1fr) minmax(5rem,1fr)";
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--navy-line)" }}>
+      <div className="overflow-x-auto">
+        <div className="min-w-[520px]">
+          <div className="grid items-center gap-3 px-4 sm:px-5 py-3.5" style={{ gridTemplateColumns: cols, background: "rgba(151,59,247,0.08)", borderBottom: "1px solid var(--navy-line)" }}>
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>Feature</span>
+            <span className="text-sm font-bold brand-text">Aster</span>
+            <span className="text-sm font-semibold text-white/80">{competitor.name}</span>
+          </div>
+          {COMPARE_ROWS.map((row, i) => (
+            <div key={row.key} className="grid items-center gap-3 px-4 sm:px-5 py-3.5" style={{ gridTemplateColumns: cols, borderBottom: i < COMPARE_ROWS.length - 1 ? "1px solid var(--navy-line)" : "none", background: i % 2 ? "rgba(255,255,255,0.015)" : "transparent" }}>
+              <span className="text-sm" style={{ color: "var(--navy-ink)" }}>{row.label}</span>
+              <MatrixCell v={ASTER_MATRIX[row.key]} brand />
+              <MatrixCell v={competitor.matrix[row.key]} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
+
+  // ── A single competitor comparison ──
+  const competitor = slug && slug !== "alternatives" ? competitorBySlug(slug) : null;
+  if (competitor) {
+    const others = COMPARE_COMPETITORS.filter((c) => c.slug !== competitor.slug).slice(0, 4);
+    return (
+      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MarketingNav {...nav} current={null} />
+        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.28) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.22) 0%, transparent 60%)" }} />
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
+            <button onClick={() => goCompare("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
+            <span className="inline-flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: `${competitor.tint}1f`, color: competitor.tint, border: `1px solid ${competitor.tint}55` }}>
+              <Icon name="target" className="w-3.5 h-3.5" /> {competitor.category}
+            </span>
+            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2rem, 4.4vw, 3.2rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>Aster vs {competitor.name}</h1>
+            <p className="mt-5 text-base sm:text-lg max-w-2xl leading-relaxed" style={{ color: "var(--navy-ink)" }}>{competitor.intro}</p>
+          </div>
+        </section>
+        {/* Matrix */}
+        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Feature by feature</h2>
+            <CompareMatrix competitor={competitor} />
+            <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>Positioning reflects each tool's typical strengths; verify current features before relying on any single row.</p>
+          </div>
+        </section>
+        {/* Aster edge + when them */}
+        <section className="pb-14 sm:pb-16" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 grid gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2 rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
+              <h3 className="text-white font-display font-semibold text-xl mb-4">Where Aster is different</h3>
+              <ul className="space-y-3">
+                {competitor.edge.map((e, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="check" className="w-3.5 h-3.5" /></span>
+                    <span className="text-sm sm:text-[15px] text-white/90 leading-relaxed">{e}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl p-6 sm:p-8 flex flex-col" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: `${competitor.tint}1f`, color: competitor.tint, border: `1px solid ${competitor.tint}44` }}><Icon name="star" className="w-5 h-5" /></span>
+              <h3 className="text-white font-display font-semibold text-lg mb-2">When {competitor.name} is the better fit</h3>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{competitor.whenThem}</p>
+            </div>
+          </div>
+        </section>
+        {/* Migration */}
+        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5 justify-between" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+              <div className="max-w-2xl">
+                <h3 className="text-white font-display font-semibold text-lg mb-2">Switching from {competitor.name}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{competitor.migration}</p>
+              </div>
+              <button onClick={() => goCompare("alternatives")} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors hover:bg-white/[0.06]" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>How migration works <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+            </div>
+          </div>
+        </section>
+        {/* Other comparisons */}
+        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <h2 className="text-white font-display font-semibold text-xl mb-6">Other comparisons</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {others.map((c) => (
+                <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <p className="text-white font-semibold font-display flex items-center gap-1.5">vs {c.name} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
+                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{c.category}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Alternatives / migration ──
+  if (slug === "alternatives") {
+    const a = COMPARE_ALTERNATIVES;
+    return (
+      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MarketingNav {...nav} current={null} />
+        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
+            <button onClick={() => goCompare("")} className="inline-flex items-center gap-1.5 text-sm mb-5 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
+            <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}><Icon name="target" className="w-3.5 h-3.5" /> {a.eyebrow}</span>
+            <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>{a.title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{a.accent}</span></h1>
+            <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{a.subtitle}</p>
+          </div>
+        </section>
+        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Why teams switch</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {a.reasons.map((r) => (
+                <div key={r.title} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.16)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.22)" }}><Icon name={r.icon} className="w-5 h-5" /></span>
+                  <p className="text-white font-semibold font-display">{r.title}</p>
+                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{r.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="pb-14 sm:pb-16" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>How the move works</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {a.steps.map((s) => (
+                <div key={s.n} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center mb-4 brand-gradient text-white font-bold font-display">{s.n}</span>
+                  <p className="text-white font-semibold font-display">{s.title}</p>
+                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{s.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <h2 className="text-white font-display font-semibold text-xl mb-6">Compare Aster with your current tool</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {COMPARE_COMPETITORS.map((c) => (
+                <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                  <p className="text-white font-semibold font-display flex items-center gap-1.5">Aster vs {c.name} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
+                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{c.category}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Hub ──
+  const h = COMPARE_HUB;
+  return (
+    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <MarketingNav {...nav} current={null} />
+      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
+          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}><Icon name="target" className="w-3.5 h-3.5" /> {h.eyebrow}</span>
+          <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>{h.title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{h.accent}</span></h1>
+          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{h.subtitle}</p>
+        </div>
+      </section>
+      {/* Aster dashboard screenshot — slides up below the header */}
+      <section className="pt-6 sm:pt-8 pb-6" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 48 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+            className="mx-auto w-[92%] sm:w-4/5"
+          >
+            <img
+              src="/dashboard-preview.png"
+              alt="The Aster hiring dashboard: total hires, candidates, the candidate journey, upcoming interviews and hiring analytics"
+              width={1440}
+              height={1006}
+              loading="lazy"
+              className="w-full rounded-2xl"
+              style={{ border: "1px solid var(--navy-line)", boxShadow: "0 50px 120px -40px rgba(0,0,0,0.85)" }}
+            />
+          </motion.div>
+        </div>
+      </section>
+      <section className="py-12 sm:py-16" style={{ background: "#050610" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {COMPARE_COMPETITORS.map((c) => (
+              <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-6 transition-all hover:-translate-y-1 flex flex-col" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${c.tint}1f`, color: c.tint, border: `1px solid ${c.tint}44` }}>{c.category}</span>
+                  <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} />
+                </div>
+                <p className="mt-4 text-white font-semibold font-display text-lg">Aster vs {c.name}</p>
+                <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--navy-ink)" }}>{c.subtitle}</p>
+                <span className="mt-4 text-sm font-semibold brand-text inline-flex items-center gap-1">See the comparison <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></span>
+              </button>
+            ))}
+            <button onClick={() => goCompare("alternatives")} className="group text-left rounded-2xl p-6 transition-all hover:-translate-y-1 flex flex-col" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
+              <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="hire" className="w-5 h-5" /></span>
+              <p className="text-white font-semibold font-display text-lg">Alternatives & migration</p>
+              <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--navy-ink)" }}>Switching from any ATS? See why teams move to Aster and how the migration works.</p>
+              <span className="mt-4 text-sm font-semibold brand-text inline-flex items-center gap-1">How switching works <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></span>
+            </button>
           </div>
         </div>
       </section>
@@ -13068,6 +13314,7 @@ const SCREEN_TO_PATH = {
   solutions: "/solutions",
   blog: "/blog",
   glossary: "/resources/glossary",
+  compare: "/compare",
 };
 const PATH_TO_SCREEN = {
   "/": "landing",
@@ -13075,6 +13322,7 @@ const PATH_TO_SCREEN = {
   "/solutions": "solutions",
   "/blog": "blog",
   "/resources/glossary": "glossary",
+  "/compare": "compare",
   "/login": "login",
   "/forgot-password": "forgotPassword",
   "/signup": "signup",
@@ -13128,12 +13376,19 @@ function glossaryInfoFromPath(pathname) {
   const m = (pathname || "").match(/^\/resources\/glossary\/([^/]+)$/);
   return m ? { kind: "term", slug: m[1] } : null;
 }
+// Compare: /compare (hub) and /compare/<slug> (a competitor or "alternatives").
+function compareInfoFromPath(pathname) {
+  if (pathname === "/compare") return { kind: "index", slug: "" };
+  const m = (pathname || "").match(/^\/compare\/([^/]+)$/);
+  return m ? { kind: "page", slug: m[1] } : null;
+}
 function screenFromPath(pathname) {
   if (candidateIdFromPath(pathname)) return "candidateProfile";
   if (productSlugFromPath(pathname) != null) return "product";
   if (solutionSlugFromPath(pathname) != null) return "solutions";
   if (blogInfoFromPath(pathname)) return "blog";
   if (glossaryInfoFromPath(pathname)) return "glossary";
+  if (compareInfoFromPath(pathname)) return "compare";
   return PATH_TO_SCREEN[pathname] || "landing";
 }
 
@@ -13268,6 +13523,14 @@ const PAGE_META = {
     title: "Recruiting Glossary — Hiring Terms Explained | Aster",
     description: "Plain-English definitions of recruiting and hiring terms, from applicant tracking systems to quality of hire. A reference for anyone who hires.",
   },
+  "/compare": {
+    title: "Compare Aster vs Greenhouse, Lever, Ashby & More",
+    description: "Honest, side-by-side comparisons of Aster against the ATS tools teams weigh it against, each with where the other tool is the better fit.",
+  },
+  "/compare/alternatives": {
+    title: "ATS Alternatives & Migration to Aster",
+    description: "Switching applicant tracking systems? See why teams move to Aster, and how the migration actually works, in four simple steps.",
+  },
 };
 const clampDesc = (s, n = 160) => {
   const t = (s || "").replace(/\s+/g, " ").trim();
@@ -13276,7 +13539,7 @@ const clampDesc = (s, n = 160) => {
 // Returns { title, description, path } for the current route. Marketing routes
 // get their keyword-optimized metadata from PAGE_META; app (authenticated)
 // screens fall back to the default marketing title since they're noindex.
-function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug) {
+function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug) {
   // Blog: dynamic per post / category, static index.
   if (screen === "blog") {
     if (blogSlug) {
@@ -13296,6 +13559,15 @@ function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossar
     }
     return { ...PAGE_META["/resources/glossary"], path: "/resources/glossary" };
   }
+  // Compare: dynamic per competitor, static hub + alternatives.
+  if (screen === "compare") {
+    if (compareSlug && compareSlug !== "alternatives") {
+      const c = COMPARE_COMPETITORS.find((x) => x.slug === compareSlug);
+      if (c) return { title: `Aster vs ${c.name}: Compared (2026)`, description: clampDesc(c.intro), path: `/compare/${compareSlug}` };
+    }
+    if (compareSlug === "alternatives") return { ...PAGE_META["/compare/alternatives"], path: "/compare/alternatives" };
+    return { ...PAGE_META["/compare"], path: "/compare" };
+  }
   let path;
   if (screen === "product") path = "/product" + (productSlug ? `/${productSlug}` : "");
   else if (screen === "solutions") path = "/solutions" + (solutionSlug ? `/${solutionSlug}` : "");
@@ -13313,6 +13585,7 @@ function initialHistoryFromUrl() {
   if (screen === "solutions") return ["landing", "solutions"]; // public page; Back → landing
   if (screen === "blog") return ["landing", "blog"]; // public content page
   if (screen === "glossary") return ["landing", "glossary"]; // public content page
+  if (screen === "compare") return ["landing", "compare"]; // public content page
   return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
 }
 
@@ -13325,6 +13598,8 @@ export default function ResumeAIPreview() {
   const [blogSlug, setBlogSlug] = useState(() => { const i = typeof window !== "undefined" && blogInfoFromPath(window.location.pathname); return i && i.kind === "post" ? i.slug : ""; });
   const [blogCat, setBlogCat] = useState(() => { const i = typeof window !== "undefined" && blogInfoFromPath(window.location.pathname); return i && i.kind === "category" ? i.slug : ""; });
   const [glossarySlug, setGlossarySlug] = useState(() => { const i = typeof window !== "undefined" && glossaryInfoFromPath(window.location.pathname); return i && i.kind === "term" ? i.slug : ""; });
+  // Compare: the competitor/alternatives slug ("" = hub), seeded from the URL.
+  const [compareSlug, setCompareSlug] = useState(() => { const i = typeof window !== "undefined" && compareInfoFromPath(window.location.pathname); return i && i.kind === "page" ? i.slug : ""; });
   const [jobs, setJobs] = useState(MOCK_JOBS);
   const [activeJobId, setActiveJobId] = useState("j1");
   // On the Free plan, only one job stays active; the rest are paused (kept, not
@@ -13443,7 +13718,7 @@ export default function ResumeAIPreview() {
   // page has its own title, description and canonical (crawlers render JS).
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const meta = routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug);
+    const meta = routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug);
     document.title = meta.title;
     const setMeta = (selector, attr, key, value) => {
       let el = document.head.querySelector(selector);
@@ -13500,7 +13775,7 @@ export default function ResumeAIPreview() {
     } else if (ldEl) {
       ldEl.remove();
     }
-  }, [screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug]);
+  }, [screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug]);
 
   const navigate = (target, path) => {
     // Remember where we are before leaving, so Back can restore it.
@@ -13515,7 +13790,7 @@ export default function ResumeAIPreview() {
     } else if (target === "login") {
       setHistory(["login"]);
       if (typeof window !== "undefined") { window.history.pushState({ aster: true }, "", SCREEN_TO_PATH.login); window.scrollTo(0, 0); }
-    } else if ((target === "product" || target === "solutions" || target === "blog" || target === "glossary") && target === screen) {
+    } else if ((target === "product" || target === "solutions" || target === "blog" || target === "glossary" || target === "compare") && target === screen) {
       // Re-navigating within the same marketing section (solution → solution,
       // product → product): replace the current entry instead of stacking
       // another same-named one. The name-based history stack can't tell two
@@ -13533,7 +13808,7 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
-    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
+    const pathFor = (scr) => (scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : scr === "compare" ? ("/compare" + (compareSlug ? `/${compareSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
       window.history.replaceState({ aster: true }, "", pathFor(history[0]));
@@ -13553,12 +13828,14 @@ export default function ResumeAIPreview() {
       const sslug = solutionSlugFromPath(path);
       const binfo = blogInfoFromPath(path);
       const ginfo = glossaryInfoFromPath(path);
-      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (PATH_TO_SCREEN[path] || "landing")))));
+      const cinfo = compareInfoFromPath(path);
+      const target = cid ? "candidateProfile" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (cinfo ? "compare" : (PATH_TO_SCREEN[path] || "landing"))))));
       if (cid) setViewCandidateId(cid);
       if (pslug != null) setProductSlug(pslug);
       if (sslug != null) setSolutionSlug(sslug);
       if (binfo) { setBlogSlug(binfo.kind === "post" ? binfo.slug : ""); setBlogCat(binfo.kind === "category" ? binfo.slug : ""); }
       if (ginfo) setGlossarySlug(ginfo.kind === "term" ? ginfo.slug : "");
+      if (cinfo) setCompareSlug(cinfo.kind === "page" ? cinfo.slug : "");
       setHistory((h) => {
         const idx = h.lastIndexOf(target);
         if (idx >= 0) return h.slice(0, idx + 1);      // walk back to it in-stack
@@ -13600,6 +13877,11 @@ export default function ResumeAIPreview() {
   const goGlossary = (slug = "") => {
     setGlossarySlug(slug);
     navigate("glossary", slug ? `/resources/glossary/${slug}` : "/resources/glossary");
+  };
+  // Open a comparison page ("" = hub, a competitor slug, or "alternatives").
+  const goCompare = (slug = "") => {
+    setCompareSlug(slug);
+    navigate("compare", slug ? `/compare/${slug}` : "/compare");
   };
 
   const handlePreviewBooking = (request) => {
@@ -13681,7 +13963,7 @@ export default function ResumeAIPreview() {
   if (screen === "landing") {
     return (
       <Shell>
-        <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
+        <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
       </Shell>
     );
   }
@@ -13689,7 +13971,7 @@ export default function ResumeAIPreview() {
   if (screen === "product") {
     return (
       <Shell>
-        <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
+        <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
   }
@@ -13697,7 +13979,7 @@ export default function ResumeAIPreview() {
   if (screen === "solutions") {
     return (
       <Shell>
-        <SolutionsScreen slug={solutionSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
+        <SolutionsScreen slug={solutionSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
   }
@@ -13705,7 +13987,7 @@ export default function ResumeAIPreview() {
   if (screen === "blog") {
     return (
       <Shell>
-        <BlogScreen slug={blogSlug} cat={blogCat} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
+        <BlogScreen slug={blogSlug} cat={blogCat} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
   }
@@ -13713,7 +13995,15 @@ export default function ResumeAIPreview() {
   if (screen === "glossary") {
     return (
       <Shell>
-        <GlossaryScreen slug={glossarySlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} logoUrl={logoUrl} />
+        <GlossaryScreen slug={glossarySlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "compare") {
+    return (
+      <Shell>
+        <CompareScreen slug={compareSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
   }
