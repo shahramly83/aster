@@ -10607,7 +10607,7 @@ function SchedulePickerScreen({ navigate, request, onConfirm }) {
   );
 }
 
-function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set() }) {
+function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied }) {
   // Public, no-login page a candidate reaches via the job's application link.
   // Flow: review job → upload a PDF resume → submit → AI parses → profile created.
   const [file, setFile] = useState(null);
@@ -10615,6 +10615,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set() })
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [stage, setStage] = useState("form"); // form | processing | done
+  const [submitErr, setSubmitErr] = useState(null);
 
   // "Aisha Rahman" → ", Aisha"; empty → "".
   const firstNameOf = (full) => {
@@ -10715,7 +10716,10 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set() })
 
   const canSubmit = file && isPdf(file) && name.trim() && email.trim() && stage === "form";
 
-  const handleSubmit = () => {
+  // A real job carries a uuid id; demo jobs use "j…" ids we never send to the DB.
+  const isRealJob = (id) => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
+
+  const handleSubmit = async () => {
     if (!canSubmit) return;
     // A candidate who's already been hired is off the market — block a fresh
     // application instead of creating a duplicate profile.
@@ -10723,8 +10727,31 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set() })
       setStage("alreadyHired");
       return;
     }
+    setSubmitErr(null);
     setStage("processing");
-    // Simulate the AI reading the resume and creating a candidate profile.
+
+    // Real submission: create the candidate + application via the anon-safe RPC.
+    if (hasSupabase && isRealJob(job?.id)) {
+      const { error } = await supabase.rpc("submit_application", {
+        p_job_id: job.id,
+        p_name: name.trim(),
+        p_email: email.trim(),
+        p_resume_filename: file?.name || null,
+        p_source: "Career Page",
+      });
+      if (error) {
+        setSubmitErr(/job not open/i.test(error.message)
+          ? "This role is no longer accepting applications."
+          : "Something went wrong submitting your application. Please try again.");
+        setStage("form");
+        return;
+      }
+      onApplied && onApplied(); // refresh the workspace so the applicant shows up
+      setStage("done");
+      return;
+    }
+
+    // Demo mode (no keys / preview of a demo job): simulate parsing.
     setTimeout(() => setStage("done"), 2200);
   };
 
@@ -10833,6 +10860,8 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set() })
                   {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
                 </div>
               </div>
+
+              {submitErr && <p className="text-xs text-rose-600 mt-4 text-center">{submitErr}</p>}
 
               <button
                 onClick={handleSubmit}
@@ -14403,7 +14432,7 @@ export default function ResumeAIPreview() {
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
     return (
       <Shell>
-        <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} />
+        <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} onApplied={() => { if (companyId) hydrateWorkspace(companyId); }} />
       </Shell>
     );
   }
