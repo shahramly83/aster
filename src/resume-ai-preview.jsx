@@ -68,7 +68,7 @@ async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at").eq("company_id", companyId),
-    supabase.from("candidates").select("id, parsed, file_name, status, has_photo, created_at").eq("company_id", companyId),
+    supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, scheduled_at, status, provider").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
@@ -79,11 +79,21 @@ async function loadWorkspaceData(companyId) {
   const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}) }));
   const jobTitle = Object.fromEntries(jobs.map((j) => [j.id, j.title]));
 
+  // Profile photos live in the private resumes bucket; mint short-lived signed
+  // URLs so the avatar can render them without making faces public.
+  const photoPaths = (candRes.data || []).map((c) => c.photo_path).filter(Boolean);
+  const urlByPath = {};
+  if (photoPaths.length) {
+    const { data: signed } = await supabase.storage.from("resumes").createSignedUrls(photoPaths, 3600);
+    (signed || []).forEach((s) => { if (s.path && s.signedUrl) urlByPath[s.path] = s.signedUrl; });
+  }
+
   const candidates = (candRes.data || []).map((c) => ({
     id: c.id,
     fileName: c.file_name || "resume.pdf",
     status: c.status || "parsed",
     hasPhoto: !!c.has_photo,
+    avatarUrl: c.photo_path ? (urlByPath[c.photo_path] || null) : null,
     parsed: c.parsed || null,
   }));
 
@@ -6181,8 +6191,8 @@ function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style 
   );
 }
 
-function CandidateAvatar({ name, hasPhoto, size = 40, showPhotoDot = true }) {
-  return <FaceAvatar name={name} size={size} style={{ border: "1px solid var(--line)" }} />;
+function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot = true }) {
+  return <FaceAvatar src={src} name={name} size={size} style={{ border: "1px solid var(--line)" }} />;
 }
 
 // Shared activity feed used by both the header bell and the dashboard card.
@@ -6767,7 +6777,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <div className="flex flex-wrap gap-2">
                     {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
                       <button key={c.id} onClick={() => goToCandidates(null)} title={c.parsed.name} className={`shrink-0 ${i >= 5 ? "hidden sm:block" : ""}`}>
-                        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={38} />
+                        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={38} />
                       </button>
                     ))}
                     {/* mobile: max 5 + overflow */}
@@ -9266,7 +9276,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     const role = c.parsed.experience?.[0]?.title;
     return (
       <button key={c.id} onClick={() => onViewCandidate(c.id)} className="text-left rounded-2xl bg-white border p-4 flex items-start gap-3.5 group transition-all hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(18,19,42,0.04)] hover:shadow-[0_14px_30px_-16px_rgba(18,19,42,0.22)]" style={{ borderColor: "var(--line)" }}>
-        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={44} showPhotoDot={false} />
+        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
           {role && <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{role}</p>}
@@ -9342,7 +9352,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </button>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={26} showPhotoDot={false} />
+                  <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={26} showPhotoDot={false} />
                   <button onClick={() => onViewCandidate(c.id)} className="min-w-0 flex-1 text-left">
                     <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
                   </button>
@@ -9365,7 +9375,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <div className="space-y-2.5 blur-[3px] pointer-events-none select-none" aria-hidden="true">
             {lockedList.slice(0, 2).map((c, i) => (
               <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
-                <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={44} showPhotoDot={false} />
+                <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
                 <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
               </div>
             ))}
@@ -9503,7 +9513,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     <div className="grid sm:grid-cols-2 gap-3 blur-[3px] pointer-events-none select-none" aria-hidden="true">
                       {lockedList.slice(0, 3).map((c, i) => (
                         <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-3.5" style={{ borderColor: "var(--line)" }}>
-                          <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} size={44} showPhotoDot={false} />
+                          <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
                           <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></div>
                         </div>
                       ))}
@@ -12493,7 +12503,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
         {/* Identity banner (full width) */}
         <div className="rounded-2xl bg-white border p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4" style={{ borderColor: "var(--line)" }}>
-          <CandidateAvatar name={parsed.name} hasPhoto={candidate.hasPhoto} size={64} />
+          <CandidateAvatar name={parsed.name} hasPhoto={candidate.hasPhoto} src={candidate.avatarUrl} size={64} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{parsed.name}</h2>
@@ -13379,7 +13389,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
                     <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0">
                       {match && scoreVisible
                         ? <ScoreRingLight value={Math.round(match.score * 100)} size={52} />
-                        : <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} />}
+                        : <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} />}
                     </button>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -13545,7 +13555,7 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
                 onClick={() => onViewCandidate(c.id)}
                 className="flex items-center gap-4 w-full text-left rounded-2xl bg-white act-shadow card-hover px-5 py-4 border border-[color:var(--line)]"
               >
-                <CandidateAvatar name={c.parsed?.name} hasPhoto={c.hasPhoto} size={48} />
+                <CandidateAvatar name={c.parsed?.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={48} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-lg font-semibold text-neutral-900 truncate">

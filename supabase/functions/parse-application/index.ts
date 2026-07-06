@@ -38,6 +38,71 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
 
+// ---- profile-photo extraction helpers ----
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  return btoa(bin);
+}
+
+// Read a JPEG's pixel dimensions from its SOF marker; null if not a valid JPEG.
+function jpegSize(b: Uint8Array): { w: number; h: number } | null {
+  if (b[0] !== 0xFF || b[1] !== 0xD8) return null;
+  let i = 2;
+  while (i + 9 < b.length) {
+    if (b[i] !== 0xFF) { i++; continue; }
+    const m = b[i + 1];
+    if ((m >= 0xC0 && m <= 0xC3) || (m >= 0xC5 && m <= 0xC7) || (m >= 0xC9 && m <= 0xCB) || (m >= 0xCD && m <= 0xCF)) {
+      const h = (b[i + 5] << 8) | b[i + 6];
+      const w = (b[i + 7] << 8) | b[i + 8];
+      return { w, h };
+    }
+    const len = (b[i + 2] << 8) | b[i + 3];
+    if (len < 2) return null;
+    i += 2 + len;
+  }
+  return null;
+}
+
+// Pull embedded JPEG streams out of the raw PDF and keep photo-shaped ones.
+function extractPhotos(bytes: Uint8Array): Uint8Array[] {
+  const out: Uint8Array[] = [];
+  for (let i = 0; i + 3 < bytes.length && out.length < 8;) {
+    if (bytes[i] === 0xFF && bytes[i + 1] === 0xD8 && bytes[i + 2] === 0xFF) {
+      let j = i + 3;
+      for (; j + 1 < bytes.length; j++) if (bytes[j] === 0xFF && bytes[j + 1] === 0xD9) { j += 2; break; }
+      const img = bytes.slice(i, j);
+      const size = img.length > 3000 ? jpegSize(img) : null;
+      if (size && size.w >= 60 && size.h >= 60 && size.w <= 5000 && size.h <= 5000) {
+        const ar = size.w / size.h;
+        if (ar >= 0.3 && ar <= 3) out.push(img); // skip banners/rules
+      }
+      i = j;
+    } else i++;
+  }
+  return out;
+}
+
+// Ask the model which extracted image is the applicant's face; -1 if none.
+async function pickFaceIndex(apiKey: string, imgs: Uint8Array[]): Promise<number> {
+  if (!imgs.length) return -1;
+  const content: unknown[] = imgs.map((img) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: toBase64(img) } }));
+  content.push({ type: "text", text: `These images were extracted from a resume PDF, in order. Reply with ONLY JSON {"index": n}: n is the 0-based index of the image that is a photo of the applicant themselves (a person's face / headshot), or -1 if none is a person's photo. Ignore company logos, icons, charts and decorative graphics.` });
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: MODEL, max_tokens: 40, messages: [{ role: "user", content }] }),
+    });
+    if (!resp.ok) { console.error("face pick error", resp.status); return -1; }
+    const data = await resp.json();
+    const text = (data.content || []).map((b: any) => b.text || "").join("").trim();
+    const j = JSON.parse(text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim());
+    return typeof j.index === "number" ? j.index : -1;
+  } catch (e) { console.error("face pick failed", e); return -1; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -146,14 +211,30 @@ Deno.serve(async (req) => {
       candidateId = ins.id;
     }
 
+    const pdfBytes = Uint8Array.from(atob(resume_base64), (c) => c.charCodeAt(0));
+
     // --- Store the PDF privately at resumes/{company}/{candidate}.pdf ---
     try {
-      const bytes = Uint8Array.from(atob(resume_base64), (c) => c.charCodeAt(0));
       const path = `${companyId}/${candidateId}.pdf`;
-      await admin.storage.from("resumes").upload(path, bytes, { contentType: "application/pdf", upsert: true });
+      await admin.storage.from("resumes").upload(path, pdfBytes, { contentType: "application/pdf", upsert: true });
       await admin.from("candidates").update({ resume_path: path }).eq("id", candidateId);
     } catch (e) {
       console.error("resume upload failed", e); // non-fatal
+    }
+
+    // --- Best-effort: pull the applicant's photo out of the resume ---
+    if (apiKey) {
+      try {
+        const imgs = extractPhotos(pdfBytes);
+        const idx = await pickFaceIndex(apiKey, imgs);
+        if (idx >= 0 && imgs[idx]) {
+          const photoPath = `${companyId}/${candidateId}_photo.jpg`;
+          await admin.storage.from("resumes").upload(photoPath, imgs[idx], { contentType: "image/jpeg", upsert: true });
+          await admin.from("candidates").update({ photo_path: photoPath, has_photo: true }).eq("id", candidateId);
+        }
+      } catch (e) {
+        console.error("photo extract failed", e); // non-fatal
+      }
     }
 
     // --- File the application (one per candidate per job) ---
