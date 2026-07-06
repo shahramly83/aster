@@ -8992,7 +8992,40 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
   );
 }
 
+// Small brand-styled confirm dialog, shown before any action that spends an
+// AI Rank credit so the user always okays it first.
+function ConfirmDialog({ open, title, body, confirmLabel = "Continue", onConfirm, onClose }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl" style={{ border: "1px solid var(--line)" }}>
+        <div className="flex items-start gap-3">
+          <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0"><Icon name="matching" className="w-4 h-4" /></span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
+            <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{body}</p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} className="text-sm font-medium rounded-xl px-4 py-2 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-2)" }}>Cancel</button>
+          <button onClick={onConfirm} className="text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 hover:opacity-95 transition-opacity">{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
+  const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
+  // Ask before spending a credit; out-of-credits goes straight to billing.
+  const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
   const limits = planLimits(plan);
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
@@ -9674,7 +9707,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{ranked ? " · ranked by fit" : ""} {ranked && <InfoHint dir="down" hint="A fit score from 0 to 100. The fuller the ring, the closer this person matches what you searched." />}</p>
                 <div className="flex items-center gap-3">
                   {!ranked && list.length > 0 && (
-                    <button onClick={runAiRank} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
+                    <button onClick={() => askAiRank(runAiRank)} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
                       <Icon name={outOfRuns ? "lock" : "matching"} className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
                     </button>
                   )}
@@ -9702,7 +9735,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role and AI Rank scores every candidate against it. Each run uses one credit. Open a profile to review, then invite the strongest to apply.</p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
-                    <button onClick={runRoleMatch} disabled={!matchJobId || matching}
+                    <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
                       <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
                       {matching ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
@@ -9767,6 +9800,16 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           </aside>
         </div>{/* grid */}
       </div>
+      <ConfirmDialog
+        open={!!confirmRun}
+        title="Run AI Rank?"
+        body={limits.aiRunsPerMonth === Infinity
+          ? "AI Rank scores your candidates with Claude and explains the fit."
+          : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
+        confirmLabel="Run AI Rank"
+        onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
+        onClose={() => setConfirmRun(null)}
+      />
     </div>
   );
 }
@@ -13338,6 +13381,8 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
+  const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
+  const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
   // Shared source of truth (also drives the count on the Jobs card).
@@ -13438,7 +13483,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
             </p>
           </div>
           <button
-            onClick={runMatching}
+            onClick={() => askAiRank(runMatching)}
             disabled={matching || visible.length === 0}
             className="shrink-0 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 flex items-center gap-2 transition-opacity"
           >
@@ -13579,6 +13624,16 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={!!confirmRun}
+        title="Run AI Rank?"
+        body={limits.aiRunsPerMonth === Infinity
+          ? "AI Rank scores these applicants against the role and explains the fit."
+          : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
+        confirmLabel="Run AI Rank"
+        onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
+        onClose={() => setConfirmRun(null)}
+      />
     </div>
   );
 }
