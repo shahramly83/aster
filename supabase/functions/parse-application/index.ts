@@ -33,7 +33,7 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and retur
   "experience": [{ "title": string, "company": string, "industry": string, "duration": string, "summary": string }],
   "education": [{ "degree": string, "institution": string, "year": string }]
 }
-For each experience item, set "industry" to the industry of that COMPANY, based on what the company itself actually does. Examples: "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media". Do NOT derive the industry from the candidate's job title, responsibilities or summary — those describe the person's role, not the company's business. If you don't already know the company (for example a small or local business), USE THE web_search TOOL to look up what that company does before deciding its industry. Search each unfamiliar company by its full name. Only set "industry" to "Unknown" if a web search still doesn't reveal what the company does.
+For each experience item, set "industry" to ONE concise, standard industry for that COMPANY, based on what the company itself mainly does. Examples: "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Software Development", "Digital Agency", "Furniture Manufacturing", "Interior Design", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media". Keep it to a short standard label (usually 1 to 3 words). NEVER combine two different industries into one label (no "X / Y" and no "X & Y" style tags): if a company spans several, choose the single most representative one. Do NOT derive the industry from the candidate's job title, responsibilities or summary — those describe the person's role, not the company's business. If you don't already know the company (for example a small or local business), USE THE web_search TOOL to look up what that company does before deciding its industry. Search each unfamiliar company by its full name. Only set "industry" to "Unknown" if a web search still doesn't reveal what the company does.
 Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.`;
 
 function json(body: unknown, status = 200) {
@@ -185,10 +185,12 @@ Deno.serve(async (req) => {
     }
 
     const experience = Array.isArray(parsed.experience) ? parsed.experience : [];
-    // Distinct industries across the roles (drop blanks / "Unknown").
+    // Distinct industries across the roles. Split on "/" as a safety net so a
+    // combined tag becomes separate atomic industries; drop blanks / "Unknown".
     const industries = [...new Set(
       experience
-        .map((e: any) => (e && e.industry ? String(e.industry).trim() : ""))
+        .flatMap((e: any) => (e && e.industry ? String(e.industry).split("/") : []))
+        .map((s: string) => s.trim())
         .filter((s: string) => s && !/^unknown$/i.test(s))
     )];
 
