@@ -10611,8 +10611,7 @@ function SchedulePickerScreen({ navigate, request, onConfirm }) {
         <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
         <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
           <p className="text-xs text-indigo-700">
-            Below is exactly what the candidate sees — a public page, no login, reached only
-            via the link sent by email.
+            Below is what the candidate sees. A public page, no login, reached only through the job's link.
           </p>
         </div>
         <h1 className="text-xl sm:text-2xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Interview: {request.jobTitle}</h1>
@@ -10675,7 +10674,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
           <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
           <div className="mt-6 rounded-xl border p-3 mb-6 flex items-center justify-between gap-3" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
             <p className="text-xs" style={{ color: "#92400E" }}>
-              Admin view: this role is paused because you're over your plan's job limit. Candidates who open the link see the message below — applications are closed until you reactivate.
+              Admin view: this role is paused because you're over your plan's job limit. Candidates who open the link see the message below, and applications stay closed until you reactivate.
             </p>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Reactivate</button>
           </div>
@@ -10685,10 +10684,10 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Applications paused</h1>
             <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> isn't accepting applications right now.
+              <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> isn't taking applications right now.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
-              Please check back soon, or explore our other open roles.
+              Check back soon, or take a look at our other open roles.
             </p>
           </div>
         </div>
@@ -10704,7 +10703,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
           <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
           <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
             <p className="text-xs text-indigo-700">
-              This is what a candidate sees if they open the link after the role has closed.
+This is what a candidate sees if they open the link after the role has closed.
             </p>
           </div>
           <div className="text-center max-w-sm mx-auto mt-8">
@@ -10713,10 +10712,10 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Position closed</h1>
             <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> is no longer accepting applications.
+              <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> has closed and isn't taking applications.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
-              Thanks for your interest — keep an eye on our careers page for future openings.
+              Thanks for your interest. Keep an eye on our careers page for future openings.
             </p>
           </div>
         </div>
@@ -10732,12 +10731,12 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
     if (!f) return;
     if (!isPdf(f)) {
       setFile(null);
-      setFileError("Please upload a PDF file. Other formats aren't accepted.");
+      setFileError("That's not a PDF. Upload your resume as a PDF file.");
       return;
     }
     if (f.size > MAX_MB * 1024 * 1024) {
       setFile(null);
-      setFileError(`That file is ${(f.size / 1048576).toFixed(0)} MB — too large for a resume. Please upload your CV as a PDF under ${MAX_MB} MB.`);
+      setFileError(`That file is ${(f.size / 1048576).toFixed(0)} MB, which is large for a resume. Upload a PDF under ${MAX_MB} MB.`);
       return;
     }
     setFileError(null);
@@ -10781,15 +10780,15 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
         try { const body = await error.context.json(); code = body?.error || ""; } catch { /* ignore */ }
       }
       if (error || code) {
-        if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Please upload your CV as a PDF."); setStage("form"); return; }
-        if (code === "no_email") { setSubmitErr("We couldn't find an email address on your resume. Please add your email to the CV and upload again."); setStage("form"); return; }
-        if (/job not open/i.test(code)) { setSubmitErr("This role is no longer accepting applications."); setStage("form"); return; }
+        if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Upload your CV as a PDF and try again."); setStage("form"); return; }
+        if (code === "no_email") { setSubmitErr("We couldn't find an email on your resume. Add your email to the CV and upload again so the team can reach you."); setStage("form"); return; }
+        if (/job not open/i.test(code)) { setSubmitErr("This role isn't taking applications anymore."); setStage("form"); return; }
         throw new Error(code || error?.message || "failed");
       }
       onApplied && onApplied();
       setStage("done");
     } catch (_e) {
-      setSubmitErr("Something went wrong reading your resume. Please try again.");
+      setSubmitErr("We couldn't read your resume just then. Give it another try.");
       setStage("form");
     }
   };
@@ -10802,7 +10801,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
         <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
         <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
           <p className="text-xs text-indigo-700">
-            This is exactly what a candidate sees — a public page, no login, reached only through the job's application link.
+This is what a candidate sees. A public page, no login, reached only through the job's application link.
           </p>
         </div>
 
@@ -10811,12 +10810,12 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
             <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-emerald-600 text-xl">✓</span>
             </div>
-            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Application received</h1>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>You're in</h1>
             <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              Thanks! We've read your resume and added you to the process for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
+              Aster has read your resume and added you as an applicant for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
-              Our team reviews every applicant and will reach out if there's a fit. You'll get a confirmation by email.
+              The team reviews every applicant and will be in touch if there's a fit. Look out for a confirmation in your inbox.
             </p>
           </div>
         ) : (
@@ -10865,7 +10864,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
               <h2 className="text-sm font-semibold font-display mb-4" style={{ color: "var(--ink)" }}>Apply for this role</h2>
 
               <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-                Just upload your resume — our AI reads your name, contact details and experience straight from it. No forms to fill in.
+                No forms to fill in. Upload your resume and Aster reads your name, contact details and experience straight from it.
               </p>
 
               <div className="space-y-3">
@@ -10879,7 +10878,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
                     className="mt-0.5 h-4 w-4 shrink-0 rounded accent-[color:var(--brand)]"
                   />
                   <span className="text-sm leading-snug" style={{ color: "var(--ink-2)" }}>
-                    I confirm this is my own CV and that it includes my current email address, so we can reach out about this role.
+                    This is my resume, and it includes my current email so the team can reach me about this role.
                   </span>
                 </label>
 
@@ -10890,10 +10889,10 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
                     {file ? (
                       <span className="text-sm" style={{ color: "var(--ink)" }}>{file.name}</span>
                     ) : (
-                      <span className="text-sm" style={{ color: "var(--ink-3)" }}>Tap to choose your resume — PDF only</span>
+                      <span className="text-sm" style={{ color: "var(--ink-3)" }}>Tap to choose your resume. PDF only.</span>
                     )}
                   </label>
-                  {!confirmed && <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Tick the box above to upload.</p>}
+                  {!confirmed && <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Tick the box above to turn on the upload.</p>}
                   {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
                 </div>
               </div>
@@ -10910,7 +10909,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
 
               {stage === "processing" && (
                 <p className="text-xs text-center mt-3" style={{ color: "var(--ink-3)" }}>
-                  We're pulling your details out of the PDF and setting up your profile — one moment.
+                  Aster is reading your resume and setting up your profile. This takes a few seconds.
                 </p>
               )}
             </div>
