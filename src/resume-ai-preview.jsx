@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbSetCandidateStage, dbAddScorecard } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate } from "./lib/persist";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
@@ -5576,6 +5576,7 @@ function Icon({ name, className = "w-5 h-5" }) {
     pin: <><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z" /><circle cx="12" cy="11" r="2" /></>,
     more: <><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none" /></>,
     filter: <><path d="M3 5h18l-7 8v5l-4 2v-7z" /></>,
+    trash: <><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6" /><path d="M10 11v6M14 11v6" /></>,
   };
   return (
     <svg viewBox="0 0 24 24" className={className} {...common} aria-hidden="true">
@@ -9079,7 +9080,7 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
 
 // Small brand-styled confirm dialog, shown before any action that spends an
 // AI Rank credit so the user always okays it first.
-function ConfirmDialog({ open, title, body, confirmLabel = "Continue", onConfirm, onClose }) {
+function ConfirmDialog({ open, title, body, confirmLabel = "Continue", onConfirm, onClose, tone = "brand", icon }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -9087,12 +9088,14 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", onConfirm
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   if (!open) return null;
+  const danger = tone === "danger";
+  const iconName = icon || (danger ? "trash" : "matching");
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl" style={{ border: "1px solid var(--line)" }}>
         <div className="flex items-start gap-3">
-          <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0"><Icon name="matching" className="w-4 h-4" /></span>
+          <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 ${danger ? "" : "brand-gradient"}`} style={danger ? { background: "#DC2626" } : undefined}><Icon name={iconName} className="w-4 h-4" /></span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
             <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{body}</p>
@@ -9100,7 +9103,7 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", onConfirm
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="text-sm font-medium rounded-xl px-4 py-2 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-2)" }}>Cancel</button>
-          <button onClick={onConfirm} className="text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 hover:opacity-95 transition-opacity">{confirmLabel}</button>
+          <button onClick={onConfirm} className={`text-sm font-semibold rounded-xl text-white px-4 py-2 hover:opacity-95 transition-opacity ${danger ? "" : "brand-gradient"}`} style={danger ? { background: "#DC2626" } : undefined}>{confirmLabel}</button>
         </div>
       </div>
     </div>
@@ -12637,7 +12640,8 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, au
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
+  const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
   // shows the saved result without spending another credit.
@@ -12863,6 +12867,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             ) : (
               <button onClick={() => navigate("billing")} className="rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title="On Free, the original file isn't stored">
                 <Icon name="lock" className="w-3.5 h-3.5" /> Original not stored · Pro
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={() => setConfirmDelete(true)} className="rounded-xl text-sm px-3 py-1.5 transition-colors inline-flex items-center gap-1.5 border hover:bg-rose-50" style={{ color: "#DC2626", borderColor: "#F3C7C7" }} title="Delete this candidate">
+                <Icon name="trash" className="w-4 h-4" /> Delete
               </button>
             )}
           </div>
@@ -13817,6 +13826,15 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
       />
+      <ConfirmDialog
+        open={confirmDelete}
+        tone="danger"
+        title="Delete this candidate?"
+        body={`${parsed.name || "This candidate"} and their applications, interviews and scorecards will be removed for good. This can't be undone.`}
+        confirmLabel="Delete candidate"
+        onConfirm={() => { setConfirmDelete(false); onDelete && onDelete(); }}
+        onClose={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
@@ -14699,6 +14717,16 @@ export default function ResumeAIPreview() {
     if (canPersist) dbSetCandidateStage(companyId, candidateId, stage);
   };
 
+  // Delete a candidate for good. Applications and scorecards cascade via FK; a DB
+  // trigger prunes any industry no other profile still has. Optimistically drop
+  // them locally so lists update at once, then persist + resync from the DB.
+  const deleteCandidate = (candidateId) => {
+    MOCK_CANDIDATES = MOCK_CANDIDATES.filter((c) => c.id !== candidateId);
+    setStageOverrides((prev) => { const { [candidateId]: _drop, ...rest } = prev; return rest; });
+    navigate(-1);
+    if (canPersist) dbDeleteCandidate(candidateId).then(() => { if (companyId) hydrateWorkspace(companyId); });
+  };
+
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
   // or 'declined'. Sending moves them to the Offer stage; accepting → Hired.
   const [offers, setOffers] = useState({});
@@ -14981,6 +15009,7 @@ export default function ResumeAIPreview() {
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? "applied") : "applied"}
             onSetStage={(s) => activeCandidate && setCandidateStage(activeCandidate.id, s)}
+            onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             onSendOffer={(emailSent) => activeCandidate && sendOffer(activeCandidate.id, emailSent)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}

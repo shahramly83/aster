@@ -49,6 +49,14 @@ export async function dbSetCandidateStage(companyId, candidateId, stage) {
   if (error) console.error("dbSetCandidateStage", error.message);
 }
 
+// Delete a candidate. Applications, interviews and scorecards cascade via FK;
+// a DB trigger prunes any now-unused industry from the company's taxonomy.
+export async function dbDeleteCandidate(candidateId) {
+  if (!hasSupabase) return;
+  const { error } = await supabase.from("candidates").delete().eq("id", candidateId);
+  if (error) console.error("dbDeleteCandidate", error.message);
+}
+
 export async function dbAddScorecard(companyId, userId, { candidateId, jobId = null, ratings, notes }) {
   if (!hasSupabase || !companyId) return;
   const { error } = await supabase.from("scorecards").insert({
