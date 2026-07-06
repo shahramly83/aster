@@ -10639,6 +10639,16 @@ function SchedulePickerScreen({ navigate, request, onConfirm }) {
   );
 }
 
+// Shown one after another while the resume is being read, so a longer parse
+// (the AI also looks companies up on the web) clearly reads as "working", not stuck.
+const PROCESSING_STEPS = [
+  "Reading your resume…",
+  "Pulling out your skills and experience…",
+  "Looking up the companies you've worked at…",
+  "Setting up your profile…",
+  "Almost there…",
+];
+
 function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied }) {
   // Public, no-login page a candidate reaches via the job's application link.
   // Flow: review job → upload a PDF resume → submit → AI parses → profile created.
@@ -10647,6 +10657,14 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   const [confirmed, setConfirmed] = useState(false); // gates the upload
   const [stage, setStage] = useState("form"); // form | processing | done
   const [submitErr, setSubmitErr] = useState(null);
+  const [procStep, setProcStep] = useState(0);
+
+  // Advance the status line while processing (holds on the last one).
+  useEffect(() => {
+    if (stage !== "processing") { setProcStep(0); return; }
+    const id = setInterval(() => setProcStep((i) => Math.min(i + 1, PROCESSING_STEPS.length - 1)), 4000);
+    return () => clearInterval(id);
+  }, [stage]);
 
   // Accept either an array of bullets or a legacy string; always return an array.
   const toList = (v) =>
@@ -10905,12 +10923,12 @@ This is what a candidate sees. A public page, no login, reached only through the
                 disabled={!canSubmit}
                 className="w-full mt-5 rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2.5 transition-opacity hover:opacity-90"
               >
-                {stage === "processing" ? "Reading your resume…" : "Submit application"}
+                {stage === "processing" ? PROCESSING_STEPS[procStep] : "Submit application"}
               </button>
 
               {stage === "processing" && (
                 <p className="text-xs text-center mt-3" style={{ color: "var(--ink-3)" }}>
-                  Aster is reading your resume and setting up your profile. This takes a few seconds.
+                  This isn't stuck. Aster is reading your resume and looking up the companies you've worked at. It can take up to a minute, so please keep this page open.
                 </p>
               )}
             </div>
