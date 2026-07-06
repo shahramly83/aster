@@ -27,22 +27,28 @@ Deno.serve(async (req) => {
     const { data: { user } } = await admin.auth.getUser(token);
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { skills = [], industries = [], candidates = [] } = await req.json();
+    const { skills = [], industries = [], role = null, candidates = [] } = await req.json();
     if (!Array.isArray(candidates) || candidates.length === 0) return json({ ranked: [] });
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
     if (!apiKey) return json({ error: "no_api_key" }, 500);
 
-    const prompt = `You are an expert technical recruiter. Rank the candidates below by how well they fit the search.
-
+    // Rank against a specific open role, or against loose skills/industry criteria.
+    const criteria = (role && role.title)
+      ? `the open role "${role.title}".
+Role description: ${role.description || "(none given)"}
+Key requirements: ${Array.isArray(role.requirements) && role.requirements.length ? role.requirements.join("; ") : "(none given)"}`
+      : `this search.
 Skills wanted: ${skills.length ? skills.join(", ") : "(none specified)"}
-Industry wanted: ${industries.length ? industries.join(", ") : "(none specified)"}
+Industry wanted: ${industries.length ? industries.join(", ") : "(none specified)"}`;
+
+    const prompt = `You are an expert technical recruiter. Rank the candidates below by how well they fit ${criteria}
 
 Candidates (JSON):
 ${JSON.stringify(candidates)}
 
-Score each candidate 0-100 for overall fit, weighing: how many of the wanted skills they have (and how central those skills are to their work), whether their industry experience matches, and their seniority/years. Be decisive and spread the scores out — the clear best fit should score much higher than a weak one. Return ONLY a JSON array, best fit first, no prose:
-[{ "id": "<candidate id>", "score": <0-100 integer>, "reason": "<one concise sentence on why they fit, naming the matching skills/industry>" }]`;
+Score each candidate 0-100 for overall fit, weighing: how well their actual skills and job titles match what's needed, relevant industry experience, and seniority/years. A candidate from an unrelated field should score low even if they're strong in their own area. Be decisive and spread the scores out — the clear best fit should score much higher than a weak one. In each reason, name the specific matching (or missing) skills/experience; do not use vague filler. Return ONLY a JSON array, best fit first, no prose:
+[{ "id": "<candidate id>", "score": <0-100 integer>, "reason": "<one concise, specific sentence>" }]`;
 
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

@@ -9134,15 +9134,34 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     return (rankedMeta?.skills || []).filter((w) => cand.has(String(w).toLowerCase()));
   };
 
-  const runRoleMatch = () => {
+  const runRoleMatch = async () => {
     if (!matchJob) return;
     if (outOfRuns) { navigate("billing"); return; }
     setMatching(true);
-    setTimeout(() => {
-      const map = {}; parsed.forEach((c) => { map[c.id] = scoreAgainstJob(c, matchJob); });
-      setMatchScores(map); setRankedMeta({ mode: "role", label: matchJob.title, jobId: matchJob.id });
-      setMatching(false); consumeRun();
-    }, 1200);
+    setAiRank(null);
+    // Heuristic scores as the base / fallback for anyone the AI omits.
+    const pool = parsed.filter((c) => !alreadyApplied.has(c.id));
+    const heur = {}; pool.forEach((c) => { heur[c.id] = scoreAgainstJob(c, matchJob); });
+    setMatchScores(heur);
+    setRankedMeta({ mode: "role", label: matchJob.title, jobId: matchJob.id });
+    try {
+      if (!hasSupabase) { consumeRun(); return; } // demo: heuristic only
+      const payload = pool.slice(0, 40).map((c) => ({
+        id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
+        years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
+      }));
+      const roleInfo = { title: matchJob.title, description: matchJob.description || "", requirements: matchJob.requirements || [] };
+      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload } });
+      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error("rank failed");
+      const scores = {}, reasons = {};
+      data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
+      setAiRank({ scores, reasons });
+      consumeRun(); // charged only on a real AI rank
+    } catch (_e) {
+      /* keep the heuristic ranking; no credit charged on failure */
+    } finally {
+      setMatching(false);
+    }
   };
   const runSkillMatch = () => {
     if (!skillTags.length && !industryTags.length) return; // need at least one criterion
