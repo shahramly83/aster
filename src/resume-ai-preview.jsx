@@ -8766,6 +8766,20 @@ function industriesOf(candidate) {
   return set;
 }
 
+// The candidate's RAW AI-tagged industries (exactly what the parser wrote),
+// used by candidate search so the real tags — not a canonicalised guess — drive
+// the suggestions and matching. Falls back to the company lookup for seeded data.
+function rawIndustriesOf(candidate) {
+  const set = new Set();
+  (candidate?.parsed?.industries || []).forEach((i) => { const s = String(i).trim(); if (s && !/^unknown$/i.test(s)) set.add(s); });
+  (candidate?.parsed?.experience || []).forEach((e) => {
+    const raw = e && e.industry ? String(e.industry).trim() : "";
+    const ind = raw && !/^unknown$/i.test(raw) ? raw : COMPANY_INDUSTRY[e?.company];
+    if (ind) set.add(ind);
+  });
+  return set;
+}
+
 // Searchable taxonomies for the skill / industry autocomplete fields. A real
 // product would carry a much larger canonical list; this is a broad, multi-
 // industry sample so the type-ahead feels real across every function.
@@ -9203,7 +9217,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     setTimeout(() => {
       const map = {};
       parsed.forEach((c) => {
-        const inds = industriesOf(c);
+        const inds = rawIndustriesOf(c);
         const indMatch = industryTags.length ? (industryTags.some((i) => inds.has(i)) ? 1 : 0) : 1;
         const skillS = skillTags.length ? scoreBySkills(c, skillTags) : 1;
         // Both set → must match an industry, ranked by skill fit. One set → that alone.
@@ -9360,7 +9374,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         const role = c.parsed.experience?.[0]?.title;
         const isSkills = rankedMeta?.mode === "skills";
         const hasSkillCriteria = isSkills && (rankedMeta.skills?.length > 0);
-        const industryLabel = isSkills && rankedMeta.industries?.length ? [...industriesOf(c)].find((i) => rankedMeta.industries.includes(i)) : null;
+        const industryLabel = isSkills && rankedMeta.industries?.length ? [...rawIndustriesOf(c)].find((i) => rankedMeta.industries.includes(i)) : null;
         const matched = hasSkillCriteria ? matchedSkills(c) : [];
         const chips = hasSkillCriteria ? matched : (c.parsed.skills || []).slice(0, 4);
         const descriptor = isSkills
@@ -9435,7 +9449,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // the candidate pool so a quick-add always returns real matches.
   const POPULAR_SKILLS = ["React", "Salesforce", "SEO", "Financial Modeling", "Recruiting", "SQL", "Account Management", "Project Management", "Copywriting", "Patient Care"];
   // Industries present in the candidate pool, so a bubble always returns matches.
-  const POPULAR_INDUSTRIES = ["Technology", "Finance & Fintech", "E-commerce & Retail", "Healthcare", "Media & Creative", "Travel & Aviation", "Logistics & Operations", "Professional Services"];
+  // The real, AI-tagged industries present across this workspace's candidates.
+  // Falls back to the broad list only when nothing has been tagged yet.
+  const workspaceIndustries = [...new Set(candidates.flatMap((c) => [...rawIndustriesOf(c)]))].sort((a, b) => a.localeCompare(b));
+  const industryOptions = workspaceIndustries.length ? workspaceIndustries : ALL_INDUSTRIES;
+  const POPULAR_INDUSTRIES = industryOptions;
   const SEARCH_HELP = [
     { icon: "users", title: "Browse & filter", body: "Search your whole database by name, skill, or role, and narrow by years of experience." },
     { icon: "matching", title: "Match by skills or industry", body: "Add the skills you're hiring for, pick an industry, or both, and AI ranks everyone by fit." },
@@ -9593,7 +9611,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     </div>
                     <div>
                       <FieldLabel hint="Type to search our industry list and pick the closest match. Choosing from the list keeps the ranking accurate.">Industry</FieldLabel>
-                      <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={ALL_INDUSTRIES} placeholder="Search industries…" onChange={invalidate} aliases={INDUSTRY_ALIASES} freeSolo={false} />
+                      <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={industryOptions} placeholder="Search industries…" onChange={invalidate} aliases={workspaceIndustries.length ? {} : INDUSTRY_ALIASES} freeSolo={false} />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
                           <button key={s} onClick={() => addIndustry(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
