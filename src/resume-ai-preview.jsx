@@ -6824,7 +6824,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   const L = planLimits(plan);
                   const items = [
                     { label: "Resume parsing", used: stats.totalCandidates, limit: L.resumeUploads },
-                    { label: "AI match runs", used: stats.matches, limit: L.aiRunsPerMonth },
+                    { label: "AI Rank credits", used: stats.matches, limit: L.aiRunsPerMonth },
                     { label: "Active jobs", used: stats.openJobs, limit: L.maxJobs },
                   ];
                   const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
@@ -9191,7 +9191,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // explains why. Falls back to the instant heuristic if the call fails.
   const runAiRank = async () => {
     if (!list.length) return;
-    if (!hasSupabase) { setRanked(true); return; }
+    if (outOfRuns) { navigate("billing"); return; } // out of this month's AI Rank credits
+    if (!hasSupabase) { consumeRun(); setRanked(true); return; } // demo: still count against the plan
     setAiRanking(true);
     try {
       const payload = list.slice(0, 40).map((c) => ({
@@ -9205,9 +9206,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       const scores = {}, reasons = {};
       data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
       setAiRank({ scores, reasons });
+      consumeRun(); // one credit per successful AI Rank
       setRanked(true);
     } catch (_e) {
-      setAiRank(null);     // fall back to the heuristic already in matchScores
+      setAiRank(null);     // fall back to the heuristic (no credit charged on failure)
       setRanked(true);
     } finally {
       setAiRanking(false);
@@ -9422,12 +9424,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // AI-match-runs usage — same meter method as the Upload screen's "Usage this month".
   const planNote = limits.aiRunsPerMonth !== Infinity ? (
     <UsageMeter
-      title="AI match runs this month"
-      hint="One run is a single AI ranking of your candidates. Each Run AI match uses one, and your plan includes a set number each month."
-      used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="runs used"
+      title="AI Rank credits this month"
+      hint="Each AI Rank uses one credit. Your plan includes a set number of credits a month, and they reset on the 1st."
+      used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
-        ? `You've used all ${limits.aiRunsPerMonth} runs. Resets on the 1st.`
-        : `${runsLeft} run${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · showing the top ${limits.aiMatches} matches.`}
+        ? `You've used all ${limits.aiRunsPerMonth} credits. They reset on the 1st.`
+        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · showing the top ${limits.aiMatches} matches.`}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
     />
   ) : null;
@@ -9637,7 +9639,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <div className="flex items-center gap-3">
                   {!ranked && list.length > 0 && (
                     <button onClick={runAiRank} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
-                      <Icon name="matching" className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : "AI Rank"}
+                      <Icon name={outOfRuns ? "lock" : "matching"} className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
                     </button>
                   )}
                   <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
