@@ -68,7 +68,7 @@ async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at").eq("company_id", companyId),
-    supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, created_at").eq("company_id", companyId),
+    supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, scheduled_at, status, provider").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
@@ -79,12 +79,12 @@ async function loadWorkspaceData(companyId) {
   const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}) }));
   const jobTitle = Object.fromEntries(jobs.map((j) => [j.id, j.title]));
 
-  // Profile photos live in the private resumes bucket; mint short-lived signed
-  // URLs so the avatar can render them without making faces public.
-  const photoPaths = (candRes.data || []).map((c) => c.photo_path).filter(Boolean);
+  // Resume PDFs and profile photos live in the private resumes bucket; mint
+  // short-lived signed URLs so the app can show them without making them public.
+  const filePaths = [...new Set((candRes.data || []).flatMap((c) => [c.photo_path, c.resume_path]).filter(Boolean))];
   const urlByPath = {};
-  if (photoPaths.length) {
-    const { data: signed } = await supabase.storage.from("resumes").createSignedUrls(photoPaths, 3600);
+  if (filePaths.length) {
+    const { data: signed } = await supabase.storage.from("resumes").createSignedUrls(filePaths, 3600);
     (signed || []).forEach((s) => { if (s.path && s.signedUrl) urlByPath[s.path] = s.signedUrl; });
   }
 
@@ -94,6 +94,7 @@ async function loadWorkspaceData(companyId) {
     status: c.status || "parsed",
     hasPhoto: !!c.has_photo,
     avatarUrl: c.photo_path ? (urlByPath[c.photo_path] || null) : null,
+    resumeUrl: c.resume_path ? (urlByPath[c.resume_path] || null) : null,
     parsed: c.parsed || null,
   }));
 
@@ -12883,7 +12884,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 // document and exports the same content on download.
 function ResumePdfModal({ candidate, onClose }) {
   const p = candidate.parsed;
-  const fileName = `${(p.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`;
+  const realPdf = candidate.resumeUrl || null; // signed URL to the stored original
+  const fileName = realPdf ? (candidate.fileName || "resume.pdf") : `${(p.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`;
   const download = () => {
     const out = [];
     out.push(p.name || "");
@@ -12922,15 +12924,25 @@ function ResumePdfModal({ candidate, onClose }) {
           <Icon name="doc" className="w-4 h-4 shrink-0" style={{ color: "rgba(255,255,255,0.8)" }} />
           <span className="text-sm font-medium truncate" style={{ color: "rgba(255,255,255,0.92)" }}>{fileName}</span>
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
-            <button onClick={download} className="text-xs font-medium rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.9)" }}>
-              <Icon name="download" className="w-3.5 h-3.5" /> Download
-            </button>
+            {realPdf ? (
+              <a href={realPdf} target="_blank" rel="noopener noreferrer" className="text-xs font-medium rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.9)" }}>
+                <Icon name="download" className="w-3.5 h-3.5" /> Open in new tab
+              </a>
+            ) : (
+              <button onClick={download} className="text-xs font-medium rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.9)" }}>
+                <Icon name="download" className="w-3.5 h-3.5" /> Download
+              </button>
+            )}
             <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.75)" }}>
               <Icon name="close" className="w-4 h-4" />
             </button>
           </div>
         </div>
-        {/* Document page */}
+        {/* Document page: the real uploaded PDF when we have it, else a clean
+            reconstruction from the parsed fields. */}
+        {realPdf ? (
+          <iframe title={fileName} src={realPdf} className="flex-1 w-full" style={{ border: 0, background: "#3A3F5C", minHeight: "60vh" }} />
+        ) : (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ background: "#3A3F5C" }}>
           <div className="mx-auto bg-white shadow-xl px-8 sm:px-10 py-9 max-w-[620px]" style={{ color: "#1f2937" }}>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#111827" }}>{p.name}</h1>
@@ -12977,6 +12989,7 @@ function ResumePdfModal({ candidate, onClose }) {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
