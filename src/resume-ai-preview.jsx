@@ -3,6 +3,35 @@ import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
+import { supabase, hasSupabase } from "./lib/supabase";
+
+// Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
+// into the friendly label the workspace greeting/sidebar expect.
+const ROLE_LABELS = { owner: "Owner", admin: "Admin", recruiter: "Recruiter", interviewer: "Interviewer" };
+
+// Load the signed-in customer's profile + company into the shape the app's
+// root state uses. Returns null when the user has no company profile (e.g. an
+// Aster admin, or a not-yet-provisioned signup) so callers can fall back or
+// bounce them out. RLS guarantees they can only read their own company's rows.
+async function loadCustomerSession(userId, fallbackEmail) {
+  if (!hasSupabase) return null;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("full_name, role, companies ( name, plan )")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const parts = (data.full_name || fallbackEmail || "").trim().split(/\s+/);
+  return {
+    profile: {
+      firstName: parts[0] || "there",
+      lastName: parts.slice(1).join(" "),
+      role: ROLE_LABELS[data.role] || "Hiring Manager",
+    },
+    company: data.companies?.name || "Your workspace",
+    plan: data.companies?.plan || "starter",
+  };
+}
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
 
@@ -1007,10 +1036,52 @@ function PreviewBanner() {
 
 // ---------- Screens ----------
 
-function LoginScreen({ onLogin, navigate, logoUrl }) {
-  const [email, setEmail] = useState("shah@example.com");
-  const [password, setPassword] = useState("••••••••");
+function LoginScreen({ onAuthed, navigate, logoUrl }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const signIn = async () => {
+    // No Supabase keys → mock mode: walk straight into the demo workspace.
+    if (!hasSupabase) { onAuthed(null); return; }
+    const em = email.trim();
+    if (!isValidEmail(em)) { setErr("Enter a valid email address."); return; }
+    if (!password) { setErr("Enter your password."); return; }
+    setBusy(true); setErr(null);
+    const { data, error } = await supabase.auth.signInWithPassword({ email: em, password });
+    if (error) {
+      setErr(/invalid login credentials/i.test(error.message) ? "Email or password is incorrect." : error.message);
+      setBusy(false);
+      return;
+    }
+    let sess = await loadCustomerSession(data.user.id, data.user.email);
+    if (!sess) {
+      // Authenticated but no company profile yet. If they signed up under email
+      // confirmation (so provisioning never ran), finish it now from the company
+      // name stashed on the account. Admins have no company_name and are skipped.
+      const cn = data.user.user_metadata?.company_name;
+      if (cn) {
+        const { error: rpcErr } = await supabase.rpc("create_company_and_owner", {
+          p_company_name: cn,
+          p_full_name: data.user.user_metadata?.full_name || null,
+        });
+        if (!rpcErr || /already exists/i.test(rpcErr.message)) {
+          sess = await loadCustomerSession(data.user.id, data.user.email);
+        }
+      }
+    }
+    if (!sess) {
+      // Genuinely not a customer workspace (e.g. an Aster admin). Don't leave
+      // them in a half-logged-in state.
+      await supabase.auth.signOut();
+      setErr("This account isn't linked to a workspace yet.");
+      setBusy(false);
+      return;
+    }
+    onAuthed(sess);
+  };
 
   const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--navy-ink)]";
   const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
@@ -1065,10 +1136,10 @@ function LoginScreen({ onLogin, navigate, logoUrl }) {
           <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Welcome back</h1>
           <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>Sign in to your Aster workspace.</p>
 
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onLogin && onLogin(); }}>
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
             <div>
               <label htmlFor="li-email" className={labelDark} style={{ color: "#D8DAF6" }}>Email</label>
-              <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
+              <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -1076,18 +1147,22 @@ function LoginScreen({ onLogin, navigate, logoUrl }) {
                 <button type="button" onClick={() => navigate && navigate("forgotPassword")} className="text-xs font-medium hover:opacity-80" style={{ color: "#C9A6FF" }}>Forgot password?</button>
               </div>
               <div className="relative">
-                <input id="li-password" name="current-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                <input id="li-password" name="current-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
                 <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
             </div>
+            {err && (
+              <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#FCA5A5", background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)" }}>{err}</p>
+            )}
             <button
               type="submit"
-              className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
+              disabled={busy}
+              className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-60 disabled:hover:translate-y-0"
             >
-              Sign in
-              <Icon name="arrowUpRight" className="w-4 h-4" />
+              {busy ? "Signing in…" : "Sign in"}
+              {!busy && <Icon name="arrowUpRight" className="w-4 h-4" />}
             </button>
           </form>
 
@@ -4911,13 +4986,16 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
   );
 }
 
-function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft }) {
+function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft }) {
   const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false); // email-confirmation pending
 
   const pwScore = (() => {
     if (!password) return 0;
@@ -4960,27 +5038,68 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
 
   const canSubmit = companyName.trim() && firstName.trim() && email.trim();
 
-  const handleSignUp = () => {
-    if (!canSubmit) return;
-    setCompany(companyName.trim());
-    setProfile({ firstName: firstName.trim(), lastName: lastName.trim(), role: "Hiring Manager" });
-    setPlanCycle && setPlanCycle(signupCycle);
-    if (signupTrial) {
-      // App models a Premium trial as the Free plan + remaining trial days.
-      setPlan && setPlan("free");
-      setTrialDaysLeft && setTrialDaysLeft(14);
-      navigate("dashboard");
-    } else if (isPaid) {
-      // Paid plan chosen from the pricing table → collect payment next.
-      setPlan && setPlan(signupPlan);
-      setTrialDaysLeft && setTrialDaysLeft(0);
-      navigate("billing");
-    } else {
-      // Genuine Free plan (or enterprise) — straight into the workspace.
-      setPlan && setPlan(signupPlan);
-      setTrialDaysLeft && setTrialDaysLeft(0);
-      navigate("dashboard");
+  const handleSignUp = async () => {
+    if (!canSubmit || busy) return;
+
+    // Mock mode (no Supabase keys): keep the original demo behaviour.
+    if (!hasSupabase) {
+      setCompany(companyName.trim());
+      setProfile({ firstName: firstName.trim(), lastName: lastName.trim(), role: "Hiring Manager" });
+      setPlanCycle && setPlanCycle(signupCycle);
+      if (signupTrial) {
+        // App models a Premium trial as the Free plan + remaining trial days.
+        setPlan && setPlan("free");
+        setTrialDaysLeft && setTrialDaysLeft(14);
+        navigate("dashboard");
+      } else if (isPaid) {
+        setPlan && setPlan(signupPlan);
+        setTrialDaysLeft && setTrialDaysLeft(0);
+        navigate("billing");
+      } else {
+        setPlan && setPlan(signupPlan);
+        setTrialDaysLeft && setTrialDaysLeft(0);
+        navigate("dashboard");
+      }
+      return;
     }
+
+    // Real signup against Supabase Auth.
+    const em = email.trim();
+    if (!isValidEmail(em)) { setErr("Enter a valid work email."); return; }
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) { setErr(pwProblem); return; }
+    setBusy(true); setErr(null);
+
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    const { data, error } = await supabase.auth.signUp({
+      email: em,
+      password,
+      options: { data: { full_name: fullName, company_name: companyName.trim() } },
+    });
+    if (error) {
+      setErr(/already registered/i.test(error.message) ? "An account with this email already exists. Try signing in." : error.message);
+      setBusy(false);
+      return;
+    }
+
+    // Email confirmation is on → no session yet. They must confirm, then sign in.
+    if (!data.session) { setSent(true); setBusy(false); return; }
+
+    // Create the company + owner profile + 14-day trial (SECURITY DEFINER RPC,
+    // which is how a brand-new user gets past RLS to provision themselves).
+    const { error: rpcErr } = await supabase.rpc("create_company_and_owner", {
+      p_company_name: companyName.trim(),
+      p_full_name: fullName,
+    });
+    if (rpcErr && !/already exists/i.test(rpcErr.message)) {
+      setErr(rpcErr.message);
+      setBusy(false);
+      return;
+    }
+
+    setPlanCycle && setPlanCycle(signupCycle);
+    const sess = await loadCustomerSession(data.user.id, em);
+    onAuthed && onAuthed(sess, isPaid ? "billing" : "dashboard");
   };
 
   // "Change" returns to the marketing site and scrolls to the pricing table so
@@ -5128,12 +5247,12 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
             </div>
             <div>
               <label htmlFor="su-email" className={labelDark} style={{ color: "#D8DAF6" }}>Work email{reqStar}</label>
-              <input id="su-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
+              <input id="su-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div>
               <label htmlFor="su-password" className={labelDark} style={{ color: "#D8DAF6" }}>Password</label>
               <div className="relative">
-                <input id="su-password" name="new-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                <input id="su-password" name="new-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Create a password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
                 <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
@@ -5151,14 +5270,30 @@ function SignUpScreen({ navigate, logoUrl, setCompany, setProfile, signupPlan = 
               <p className="text-[11px] mt-1.5" style={{ color: "var(--navy-ink)" }}>At least 8 characters, with a letter and a number.</p>
             </div>
 
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
-            >
-              {ctaText}
-              <Icon name={ctaIcon} className="w-4 h-4" />
-            </button>
+            {err && (
+              <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#FCA5A5", background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)" }}>{err}</p>
+            )}
+            {sent ? (
+              <div className="rounded-xl px-4 py-4 text-center" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.32)" }}>
+                <div className="mx-auto mb-2 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.18)", color: "#4ADE80" }}>
+                  <Icon name="check" className="w-4 h-4" />
+                </div>
+                <p className="text-sm font-semibold text-white">Confirm your email</p>
+                <p className="text-[13px] mt-1" style={{ color: "var(--navy-ink)" }}>
+                  We sent a confirmation link to <span className="text-white">{email.trim()}</span>. Click it, then sign in to finish setting up your workspace.
+                </p>
+                <button type="button" onClick={() => navigate("login")} className="mt-3 text-[13px] font-semibold hover:opacity-80" style={{ color: "#C7CCFF" }}>Go to sign in</button>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={!canSubmit || busy}
+                className="w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
+              >
+                {busy ? "Creating your workspace…" : ctaText}
+                {!busy && <Icon name={ctaIcon} className="w-4 h-4" />}
+              </button>
+            )}
           </form>
 
           {(signupTrial || isFreePlan) && (
@@ -13811,6 +13946,44 @@ export default function ResumeAIPreview() {
     }
   };
 
+  // Apply a loaded Supabase session to the workspace, then route in. In mock
+  // mode (no keys) sess is null and the demo profile is left untouched.
+  const applyCustomerSession = (sess, dest = "dashboard") => {
+    if (sess) {
+      setProfile(sess.profile);
+      setCompany(sess.company);
+      if (sess.plan) setPlan(sess.plan);
+    }
+    navigate(dest);
+  };
+
+  // Sign out for real when Supabase is wired, then reset to defaults and return
+  // to the login screen.
+  const handleSignOut = async () => {
+    if (hasSupabase) { try { await supabase.auth.signOut(); } catch { /* ignore */ } }
+    setProfile({ firstName: "Shah", lastName: "Ramly", role: "Hiring Manager" });
+    setCompany("Oryx Studio");
+    setPlan("starter");
+    navigate("login");
+  };
+
+  // Restore a signed-in customer on load so the workspace greets them by their
+  // real name / company / plan. Admins have no profile row, so they're ignored.
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let cancelled = false;
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (cancelled || !session) return;
+      const sess = await loadCustomerSession(session.user.id, session.user.email);
+      if (cancelled || !sess) return;
+      setProfile(sess.profile);
+      setCompany(sess.company);
+      if (sess.plan) setPlan(sess.plan);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // URL routing + phone/browser Back button: each navigate() pushes a matching
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
@@ -14018,7 +14191,7 @@ export default function ResumeAIPreview() {
   if (screen === "login") {
     return (
       <Shell>
-        <LoginScreen onLogin={() => navigate("dashboard")} navigate={navigate} logoUrl={logoUrl} />
+        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} />
       </Shell>
     );
   }
@@ -14037,6 +14210,7 @@ export default function ResumeAIPreview() {
         <SignUpScreen
           navigate={navigate}
           logoUrl={logoUrl}
+          onAuthed={applyCustomerSession}
           setCompany={setCompany}
           setProfile={setProfile}
           signupPlan={signupPlan}
@@ -14092,7 +14266,7 @@ export default function ResumeAIPreview() {
         navigate={navigate}
         active={activeNav}
         avatarUrl={avatarUrl}
-        onSignOut={() => navigate("login")}
+        onSignOut={handleSignOut}
         logoUrl={logoUrl}
         profile={profile}
         unreadCount={activities.filter((a) => !a.read).length}
