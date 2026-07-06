@@ -31,10 +31,13 @@ const EXTRACT_PROMPT = `You are a resume parser. Read the attached PDF and retur
   "languages": string[],
   "certifications": string[],
   "experience": [{ "title": string, "company": string, "industry": string, "duration": string, "summary": string }],
-  "education": [{ "degree": string, "institution": string, "year": string }]
+  "education": [{ "degree": string, "institution": string, "year": string }],
+  "is_fit": boolean,
+  "fit_reason": string
 }
 For each experience item, set "industry" to ONE concise, standard industry for that COMPANY, based on what the company itself mainly does. Examples: "Fintech", "Ride-hailing", "E-commerce", "SaaS", "Software Development", "Digital Agency", "Furniture Manufacturing", "Interior Design", "Education", "Healthcare", "Government", "Consulting", "Manufacturing", "Media". Keep it to a short standard label (usually 1 to 3 words). NEVER combine two different industries into one label (no "X / Y" and no "X & Y" style tags): if a company spans several, choose the single most representative one. Do NOT derive the industry from the candidate's job title, responsibilities or summary — those describe the person's role, not the company's business. If you don't already know the company (for example a small or local business), USE THE web_search TOOL to look up what that company does before deciding its industry. Search each unfamiliar company by its full name. Only set "industry" to "Unknown" if a web search still doesn't reveal what the company does.
-Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.`;
+Set "is_resume" to true ONLY if the document is genuinely a person's resume / CV. For anything else (an invoice, essay, report, cover letter with no CV, random document), set "is_resume" to false and leave the other fields null/empty. Use null or [] when a field is absent. Do not invent data. Keep summaries to one sentence.
+Judge "is_fit" against the TARGET ROLE described at the end of this message. Set is_fit to true when the candidate is a plausible fit — they have clearly relevant skills/experience and are roughly in the right seniority range. Set is_fit to false ONLY when the candidate is clearly from an unrelated field or clearly far below what the role needs. In "fit_reason", give ONE concise sentence naming the matching or missing skills/experience. If no target role is provided, set is_fit to true and fit_reason to "".`;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -121,10 +124,21 @@ Deno.serve(async (req) => {
     // The job must exist and be open — this is the only thing that authorises
     // creating rows for its company.
     const { data: job, error: jobErr } = await admin
-      .from("jobs").select("company_id, status").eq("id", job_id).maybeSingle();
+      .from("jobs").select("company_id, status, title, details").eq("id", job_id).maybeSingle();
     if (jobErr || !job) return json({ error: "job not found" }, 404);
     if (job.status !== "open") return json({ error: "job not open" }, 409);
     const companyId = job.company_id;
+
+    // Describe the target role for the fit check (empty when the job has no
+    // skills/seniority set, in which case everyone is treated as a fit).
+    const d = (job.details || {}) as any;
+    const roleSkills: string[] = Array.isArray(d.skills) ? d.skills : [];
+    const roleSeniority: string[] = Array.isArray(d.seniority_levels) ? d.seniority_levels : (d.seniority_level ? [d.seniority_level] : []);
+    const roleReqs: string[] = Array.isArray(d.requirements) ? d.requirements : [];
+    const hasRoleCriteria = roleSkills.length > 0 || roleSeniority.length > 0 || roleReqs.length > 0;
+    const roleContext = hasRoleCriteria
+      ? `\n\nTARGET ROLE: "${job.title || "this role"}"\nRequired skills: ${roleSkills.length ? roleSkills.join(", ") : "(not specified)"}\nSeniority wanted: ${roleSeniority.length ? roleSeniority.join(", ") : "(any)"}\nRequirements: ${roleReqs.length ? roleReqs.join("; ") : "(not specified)"}`
+      : `\n\nNo target role criteria were given, so set is_fit to true.`;
 
     // --- Parse the PDF with Claude ---
     // Accept the key under either secret name so an existing "aster" secret works.
@@ -138,7 +152,7 @@ Deno.serve(async (req) => {
           role: "user",
           content: [
             { type: "document", source: { type: "base64", media_type: "application/pdf", data: resume_base64 } },
-            { type: "text", text: EXTRACT_PROMPT },
+            { type: "text", text: EXTRACT_PROMPT + roleContext },
           ],
         }],
       };
@@ -174,6 +188,12 @@ Deno.serve(async (req) => {
     // Reject files the AI judged not to be a resume — nothing is created.
     if (apiKey && parsed && parsed.is_resume === false) {
       return json({ error: "not_a_resume" }, 422);
+    }
+
+    // Reject applicants the AI judged clearly not a fit for the role's skills /
+    // seniority (only when the job actually defines criteria). Nothing is created.
+    if (apiKey && hasRoleCriteria && parsed && parsed.is_fit === false) {
+      return json({ error: "not_fit", reason: String((parsed.fit_reason as string) || "").slice(0, 240) }, 422);
     }
 
     const fullName = (parsed.name as string) || name || "New applicant";

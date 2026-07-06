@@ -7884,7 +7884,11 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
   const [location, setLocation] = useState(initialJob?.location || "");
   const [employmentType, setEmploymentType] = useState(initialJob?.employment_type || "full_time");
   const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "hybrid");
-  const [seniority, setSeniority] = useState(initialJob?.seniority_level || "mid");
+  const SENIORITY_OPTIONS = ["junior", "mid", "senior", "lead", "principal"];
+  const [seniorityLevels, setSeniorityLevels] = useState(initialJob?.seniority_levels || (initialJob?.seniority_level ? [initialJob.seniority_level] : ["mid"]));
+  const [skills, setSkills] = useState(initialJob?.skills || []);
+  const [skillInput, setSkillInput] = useState("");
+  const addJobSkill = () => { const v = skillInput.trim().replace(/,$/, ""); if (!v) return; setSkills((prev) => prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]); setSkillInput(""); };
   const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
   const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
   const [description, setDescription] = useState(initialJob?.description || "");
@@ -7908,7 +7912,9 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       location: location || null,
       employment_type: employmentType,
       remote_type: remoteType,
-      seniority_level: seniority,
+      seniority_levels: seniorityLevels,
+      seniority_level: seniorityLevels[0] || null, // first, for compact display
+      skills: skills,
       salary_min: salaryMin ? Number(salaryMin) : null,
       salary_max: salaryMax ? Number(salaryMax) : null,
       salary_currency: "MYR",
@@ -7977,14 +7983,33 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
           </select>
         </div>
         <div>
-          <label className={labelClass}>Seniority</label>
-          <select value={seniority} onChange={(e) => setSeniority(e.target.value)} className={inputClass}>
-            <option value="junior">Junior</option>
-            <option value="mid">Mid</option>
-            <option value="senior">Senior</option>
-            <option value="lead">Lead</option>
-            <option value="principal">Principal</option>
-          </select>
+          <label className={labelClass}>Seniority <span className="text-neutral-400 font-normal">(pick any)</span></label>
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {SENIORITY_OPTIONS.map((s) => {
+              const on = seniorityLevels.includes(s);
+              return (
+                <button type="button" key={s} onClick={() => setSeniorityLevels((prev) => on ? prev.filter((x) => x !== s) : [...prev, s])}
+                  className="text-xs rounded-full px-3 py-1.5 font-medium capitalize transition-colors"
+                  style={on ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>Key skills <span className="text-neutral-400 font-normal">(the AI matches applicants against these — press Enter to add)</span></label>
+        <div className="rounded-xl bg-neutral-100 border border-neutral-200 px-2 py-1.5 flex flex-wrap gap-1.5 items-center">
+          {skills.map((s) => (
+            <span key={s} className="text-xs rounded-full px-2 py-0.5 font-medium inline-flex items-center gap-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              {s}<button type="button" onClick={() => setSkills((prev) => prev.filter((x) => x !== s))} className="hover:opacity-70" aria-label={`Remove ${s}`}>×</button>
+            </span>
+          ))}
+          <input value={skillInput} onChange={(e) => setSkillInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addJobSkill(); } else if (e.key === "Backspace" && !skillInput && skills.length) { setSkills((prev) => prev.slice(0, -1)); } }}
+            onBlur={addJobSkill}
+            placeholder={skills.length ? "" : "React, SQL, Data Analysis…"} className="flex-1 min-w-[140px] bg-transparent text-sm px-1 py-1 focus:outline-none" style={{ color: "var(--ink)" }} />
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -8741,6 +8766,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   );
 }
 
+// Seniority label from years of experience, aligned with the search filter bands.
+function seniorityFromYears(y) {
+  if (y == null) return null;
+  if (y >= 7) return "Senior";
+  if (y >= 3) return "Mid-level";
+  if (y >= 1) return "Junior";
+  return "Fresh graduate";
+}
+
 // The candidate's industries — only what the AI parser actually tagged on the
 // profile (parsed.industries + each role's industry). No mock/company lookup.
 function rawIndustriesOf(candidate) {
@@ -9388,14 +9422,15 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         const isTop = idx === 0;
         const yrs = c.parsed.years_of_experience;
         const role = c.parsed.experience?.[0]?.title;
+        const seniority = seniorityFromYears(yrs);
         const isSkills = rankedMeta?.mode === "skills";
         const hasSkillCriteria = isSkills && (rankedMeta.skills?.length > 0);
         const industryLabel = isSkills && rankedMeta.industries?.length ? [...rawIndustriesOf(c)].find((i) => rankedMeta.industries.includes(i)) : null;
         const matched = hasSkillCriteria ? matchedSkills(c) : [];
         const chips = hasSkillCriteria ? matched : (c.parsed.skills || []).slice(0, 4);
         const descriptor = isSkills
-          ? [hasSkillCriteria ? `${matched.length}/${rankedMeta.skills.length} skills matched` : null, industryLabel, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ")
-          : [yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+          ? [hasSkillCriteria ? `${matched.length}/${rankedMeta.skills.length} skills matched` : null, industryLabel, seniority, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ")
+          : [seniority, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
         const insight = (aiRank?.reasons?.[c.id]) || matchInsight(c, { pct, mode: rankedMeta?.mode, matched, industryLabel, yrs, role });
         return (
           <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}>
@@ -9449,7 +9484,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       {shownList.map((c) => {
         const yrs = c.parsed.years_of_experience;
         const role = c.parsed.experience?.[0]?.title;
-        const descriptor = [yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+        const descriptor = [seniorityFromYears(yrs), yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
         const chips = (c.parsed.skills || []).slice(0, 4);
         return (
           <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: "var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }}>
@@ -10757,14 +10792,15 @@ const PROCESSING_STEPS = [
   "Almost there…",
 ];
 
-function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied }) {
+function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied, logoUrl = null, company = "" }) {
   // Public, no-login page a candidate reaches via the job's application link.
   // Flow: review job → upload a PDF resume → submit → AI parses → profile created.
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState(null);
   const [confirmed, setConfirmed] = useState(false); // gates the upload
-  const [stage, setStage] = useState("form"); // form | processing | done
+  const [stage, setStage] = useState("form"); // form | processing | done | notFit
   const [submitErr, setSubmitErr] = useState(null);
+  const [fitReason, setFitReason] = useState("");
   const [procStep, setProcStep] = useState(0);
 
   // Advance the status line while processing (holds on the last one).
@@ -10902,13 +10938,14 @@ This is what a candidate sees if they open the link after the role has closed.
       });
       // On a non-2xx status, invoke returns `error` and the JSON body (with our
       // reason code) sits on error.context, not in `data`. Read both.
-      let code = data?.error || "";
+      let code = data?.error || "", reason = data?.reason || "";
       if (!code && error?.context?.json) {
-        try { const body = await error.context.json(); code = body?.error || ""; } catch { /* ignore */ }
+        try { const body = await error.context.json(); code = body?.error || ""; reason = body?.reason || reason; } catch { /* ignore */ }
       }
       if (error || code) {
         if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Upload your CV as a PDF and try again."); setStage("form"); return; }
         if (code === "no_email") { setSubmitErr("We couldn't find an email on your resume. Add your email to the CV and upload again so the team can reach you."); setStage("form"); return; }
+        if (code === "not_fit") { setFitReason(reason || ""); setStage("notFit"); return; }
         if (/job not open/i.test(code)) { setSubmitErr("This role isn't taking applications anymore."); setStage("form"); return; }
         throw new Error(code || error?.message || "failed");
       }
@@ -10932,6 +10969,18 @@ This is what a candidate sees. A public page, no login, reached only through the
           </p>
         </div>
 
+        {/* Company header — the company's logo when uploaded, else a mark + name. */}
+        <div className="flex items-center gap-3 mb-6">
+          {logoUrl ? (
+            <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-10 object-contain" style={{ maxWidth: 200 }} />
+          ) : (
+            <>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-5 h-5" /></div>
+              {company && <span className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{company}</span>}
+            </>
+          )}
+        </div>
+
         {stage === "done" ? (
           <div className="text-center max-w-sm mx-auto mt-8">
             <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
@@ -10944,6 +10993,18 @@ This is what a candidate sees. A public page, no login, reached only through the
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               The team reviews every applicant and will be in touch if there's a fit. Look out for a confirmation in your inbox.
             </p>
+          </div>
+        ) : stage === "notFit" ? (
+          <div className="text-center max-w-sm mx-auto mt-8">
+            <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
+              <Icon name="briefcase" className="w-5 h-5" style={{ color: "var(--ink-3)" }} />
+            </div>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Not the right match this time</h1>
+            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
+              Thanks for your interest in <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>. Based on what this role needs, your background isn't a close match right now, so we haven't added your application.
+            </p>
+            {fitReason && <p className="text-sm mt-2" style={{ color: "var(--ink-3)" }}>{fitReason}</p>}
+            <p className="text-sm mt-2" style={{ color: "var(--ink-3)" }}>Please keep an eye on our other openings that fit your experience.</p>
           </div>
         ) : (
           <>
@@ -14653,7 +14714,7 @@ export default function ResumeAIPreview() {
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
     return (
       <Shell>
-        <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} onApplied={() => { if (companyId) hydrateWorkspace(companyId); }} />
+        <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} logoUrl={logoUrl} company={company} onApplied={() => { if (companyId) hydrateWorkspace(companyId); }} />
       </Shell>
     );
   }
