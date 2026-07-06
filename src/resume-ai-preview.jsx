@@ -8741,79 +8741,18 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   );
 }
 
-// Map employers to a broad industry so candidates can be matched by sector
-// (fintech / healthcare / retail / …), not just by skill or role.
-const COMPANY_INDUSTRY = {
-  Grabtech: "Technology", Grab: "Technology", Setel: "Technology", StoreHub: "Technology",
-  Piktochart: "Technology", MDEC: "Technology", Freelance: "Technology", "Oryx Studio": "Technology",
-  MoneyLion: "Finance & Fintech", iPay88: "Finance & Fintech", StashAway: "Finance & Fintech", Maybank: "Finance & Fintech",
-  Fave: "E-commerce & Retail", Carsome: "E-commerce & Retail", FashionValet: "E-commerce & Retail", Shopee: "E-commerce & Retail",
-  "Pos Malaysia": "Logistics & Operations",
-  iflix: "Media & Creative", "Naga DDB": "Media & Creative", "Leo Burnett": "Media & Creative", "Studio Kite": "Media & Creative",
-  AirAsia: "Travel & Aviation",
-  "Gleneagles Hospital": "Healthcare",
-  KPMG: "Professional Services",
-};
-// The set of industries a candidate has worked in. Prefers industries captured
-// at ingestion (parsed.industries, normalised to canon), then infers from the
-// companies in the work history, so it stays right even when the parser sees
-// companies we don't have in the lookup.
-function industriesOf(candidate) {
-  const set = new Set();
-  (candidate?.parsed?.industries || []).forEach((i) => { const c = canonicalizeIndustry(i); if (c) set.add(c); });
-  (candidate?.parsed?.experience || []).forEach((e) => { const ind = COMPANY_INDUSTRY[e.company]; if (ind) set.add(ind); });
-  if (!set.size) set.add("Technology");
-  return set;
-}
-
-// The candidate's RAW AI-tagged industries (exactly what the parser wrote),
-// used by candidate search so the real tags — not a canonicalised guess — drive
-// the suggestions and matching. Falls back to the company lookup for seeded data.
+// The candidate's industries — only what the AI parser actually tagged on the
+// profile (parsed.industries + each role's industry). No mock/company lookup.
 function rawIndustriesOf(candidate) {
   const set = new Set();
   (candidate?.parsed?.industries || []).forEach((i) => { const s = String(i).trim(); if (s && !/^unknown$/i.test(s)) set.add(s); });
   (candidate?.parsed?.experience || []).forEach((e) => {
     const raw = e && e.industry ? String(e.industry).trim() : "";
-    const ind = raw && !/^unknown$/i.test(raw) ? raw : COMPANY_INDUSTRY[e?.company];
-    if (ind) set.add(ind);
+    if (raw && !/^unknown$/i.test(raw)) set.add(raw);
   });
   return set;
 }
 
-// Searchable taxonomies for the skill / industry autocomplete fields. A real
-// product would carry a much larger canonical list; this is a broad, multi-
-// industry sample so the type-ahead feels real across every function.
-const ALL_INDUSTRIES = [
-  "Accounting", "Advertising", "Aerospace & Defense", "Agriculture", "Airlines & Aviation", "Apparel & Fashion", "Architecture & Planning", "Automotive", "Banking", "Biotechnology", "Broadcast Media", "Chemicals", "Civil Engineering", "Computer Hardware", "Construction", "Consulting", "Consumer Electronics", "Consumer Goods", "Cybersecurity", "E-commerce & Retail", "Education", "Energy & Utilities", "Entertainment", "Environmental Services", "Events Services", "Finance & Fintech", "Financial Services", "Food & Beverage", "Gaming", "Government", "Healthcare", "Hospitality", "Human Resources", "Information Technology", "Insurance", "Legal Services", "Logistics & Operations", "Luxury Goods", "Management Consulting", "Manufacturing", "Maritime & Shipping", "Marketing & Advertising", "Media & Creative", "Medical Devices", "Mining & Metals", "Non-Profit", "Oil & Gas", "Pharmaceuticals", "Professional Services", "Public Relations", "Publishing", "Real Estate", "Recruitment & Staffing", "Renewable Energy", "Retail", "SaaS", "Semiconductors", "Sports & Fitness", "Supply Chain", "Technology", "Telecommunications", "Transportation", "Travel & Aviation", "Venture Capital", "Warehousing", "Wholesale",
-];
-const ALL_SKILLS = [
-  // Engineering
-  "JavaScript", "TypeScript", "React", "Next.js", "Vue", "Angular", "Svelte", "Node.js", "Express", "Python", "Django", "Flask", "Java", "Spring Boot", "Kotlin", "Swift", "Go", "Rust", "C++", "C#", ".NET", "PHP", "Laravel", "WordPress", "Ruby", "Ruby on Rails", "HTML", "CSS", "SCSS", "Sass", "Tailwind", "Bootstrap", "Redux", "GraphQL", "REST APIs", "WebSockets", "Three.js", "GSAP", "Framer Motion", "Webpack", "Vite", "Jest", "Cypress", "Playwright", "Testing", "Git", "CI/CD", "Docker", "Kubernetes", "Terraform", "AWS", "Azure", "Google Cloud", "Firebase", "Serverless", "Microservices", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQL", "Kafka", "Linux", "System Design", "Accessibility", "Design Systems", "React Native", "Flutter", "iOS Development", "Android Development",
-  // Data & AI
-  "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Data Analysis", "Data Visualization", "Tableau", "Power BI", "Looker", "Pandas", "R", "Statistics", "A/B Testing", "ETL", "Data Engineering", "Spark", "Snowflake", "Big Data", "Natural Language Processing", "D3",
-  // Design
-  "Figma", "Sketch", "Adobe XD", "Adobe Photoshop", "Illustrator", "InDesign", "After Effects", "Premiere Pro", "UX Research", "UI Design", "UX Design", "Wireframing", "Prototyping", "User Research", "Interaction Design", "Motion Design", "Typography", "Branding", "Print Design", "Design Thinking", "Usability Testing",
-  // Product
-  "Product Strategy", "Product Management", "Roadmapping", "Agile", "Scrum", "Kanban", "Jira", "Analytics", "Stakeholder Management", "Go-to-Market", "Product Discovery",
-  // Marketing
-  "SEO", "SEM", "SEO Writing", "Content Marketing", "Content Strategy", "Copywriting", "Email Marketing", "Social Media", "Social Media Marketing", "Google Analytics", "Google Ads", "Facebook Ads", "HubSpot", "Marketo", "Campaign Management", "Brand Marketing", "Brand Voice", "Growth Marketing", "Marketing Automation", "Influencer Marketing", "Storytelling", "Editing", "Video Editing",
-  // Sales
-  "Salesforce", "B2B Sales", "B2C Sales", "Cold Calling", "Cold Emailing", "Negotiation", "Pipeline Management", "Account Management", "Lead Generation", "CRM", "Business Development", "Sales Strategy", "Upselling", "Solution Selling",
-  // Finance
-  "Financial Modeling", "Financial Analysis", "Financial Reporting", "Forecasting", "Budgeting", "Valuation", "Accounting", "Bookkeeping", "Audit", "Taxation", "Excel", "VBA", "SAP", "QuickBooks", "Reconciliation", "Investment Analysis", "Risk Management", "Compliance", "FP&A", "Corporate Finance",
-  // HR
-  "Recruiting", "Technical Recruiting", "Talent Acquisition", "Onboarding", "Employee Relations", "Performance Management", "HRIS", "Compensation", "Compensation & Benefits", "Payroll", "Learning & Development", "Employee Engagement", "Workday",
-  // Operations & Supply Chain
-  "Project Management", "Program Management", "Process Improvement", "Lean", "Six Sigma", "Supply Chain", "Logistics", "Procurement", "Vendor Management", "Inventory Management", "Operations Management", "Quality Assurance", "Warehouse Management", "Demand Planning",
-  // Customer
-  "Customer Success", "Customer Onboarding", "Customer Support", "Retention", "Zendesk", "Intercom", "SaaS", "Churn Reduction", "Technical Support",
-  // Healthcare
-  "Patient Care", "Clinical Assessment", "Medication Administration", "EMR", "Triage", "Wound Care", "Phlebotomy", "CPR", "Nursing", "Patient Education", "Vital Signs", "Infection Control", "Medical Coding",
-  // Legal & other
-  "Contract Law", "Legal Research", "Corporate Law", "Intellectual Property", "Litigation", "Regulatory Affairs",
-  // Soft / cross-functional
-  "Leadership", "Team Management", "Communication", "Presentation", "Public Speaking", "Problem Solving", "Critical Thinking", "Time Management", "Cross-functional Collaboration", "Mentoring", "Strategic Planning",
-];
 
 // --- Taxonomy resolution (aliases + fuzzy) --------------------------------
 // No fixed list ever covers every skill/industry, so we normalise free input
@@ -8824,38 +8763,6 @@ const ALL_SKILLS = [
 // a confidence score (and routes low-confidence entries to a review queue).
 const norm = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
 
-// Common shorthand and synonyms -> canonical value in the taxonomy.
-const SKILL_ALIASES = {
-  js: "JavaScript", ecmascript: "JavaScript", ts: "TypeScript", "react.js": "React", reactjs: "React",
-  "next.js": "Next.js", nextjs: "Next.js", "vue.js": "Vue", vuejs: "Vue", "node.js": "Node.js", nodejs: "Node.js", node: "Node.js",
-  py: "Python", golang: "Go", csharp: "C#", "c sharp": "C#", cpp: "C++", "c plus plus": "C++", dotnet: ".NET", "dot net": ".NET",
-  k8s: "Kubernetes", gcp: "Google Cloud", "google cloud platform": "Google Cloud", postgres: "PostgreSQL", postgre: "PostgreSQL",
-  mongo: "MongoDB", "rest api": "REST APIs", "rest apis": "REST APIs", rest: "REST APIs", gql: "GraphQL", "ci/cd": "CI/CD", cicd: "CI/CD",
-  ml: "Machine Learning", "ml engineering": "Machine Learning", dl: "Deep Learning", nlp: "Natural Language Processing",
-  tf: "TensorFlow", "power bi": "Power BI", powerbi: "Power BI",
-  ux: "UX Design", "ux design": "UX Design", ui: "UI Design", "user experience": "UX Research", "user interface": "UI Design",
-  pm: "Product Management", "product owner": "Product Management", "product mgmt": "Product Management", gtm: "Go-to-Market",
-  smm: "Social Media Marketing", "social media mgmt": "Social Media Marketing", ga: "Google Analytics", "google analytics 4": "Google Analytics",
-  sfdc: "Salesforce", "salesforce.com": "Salesforce", bd: "Business Development", "biz dev": "Business Development",
-  "fp&a": "FP&A", fpa: "FP&A", "ms excel": "Excel", "microsoft excel": "Excel", spreadsheets: "Excel",
-  "l&d": "Learning & Development", "comp & ben": "Compensation & Benefits", "comp and ben": "Compensation & Benefits",
-  "project mgmt": "Project Management", pmp: "Project Management", qa: "Quality Assurance", "quality assurance": "Quality Assurance",
-  rn: "Nursing", "registered nurse": "Nursing", ehr: "EMR", "electronic medical records": "EMR", cpr: "CPR",
-  "ip law": "Intellectual Property", comms: "Communication", "leadership skills": "Leadership",
-};
-// Loose industry terms funnel toward the industries actually present in the data
-// so a match still returns candidates.
-const INDUSTRY_ALIASES = {
-  fintech: "Finance & Fintech", finance: "Finance & Fintech", financial: "Finance & Fintech", "financial services": "Finance & Fintech",
-  banking: "Finance & Fintech", bank: "Finance & Fintech", tech: "Technology", software: "Technology", it: "Technology",
-  "information technology": "Technology", saas: "Technology", startup: "Technology",
-  ecommerce: "E-commerce & Retail", "e commerce": "E-commerce & Retail", "e-commerce": "E-commerce & Retail", retail: "E-commerce & Retail", shopping: "E-commerce & Retail",
-  medical: "Healthcare", hospital: "Healthcare", clinical: "Healthcare", health: "Healthcare", healthcare: "Healthcare", pharma: "Healthcare",
-  media: "Media & Creative", creative: "Media & Creative", advertising: "Media & Creative", "ad agency": "Media & Creative", marketing: "Media & Creative",
-  logistics: "Logistics & Operations", "supply chain": "Logistics & Operations", operations: "Logistics & Operations", shipping: "Logistics & Operations",
-  travel: "Travel & Aviation", aviation: "Travel & Aviation", airline: "Travel & Aviation", airlines: "Travel & Aviation",
-  consulting: "Professional Services", "professional services": "Professional Services", advisory: "Professional Services", audit: "Professional Services",
-};
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length;
@@ -8890,32 +8797,6 @@ function resolveToken(input, options, aliases) {
   return { value: null, how: null };
 }
 
-// --- Shared capture normaliser --------------------------------------------
-// The single contract that keeps search accurate: the same resolver runs on both
-// sides of a match. Whatever the AI extracts at ingestion (Bulk Upload or a
-// candidate applying) is snapped to the canonical taxonomy before it's stored,
-// and the search query is snapped the same way, so a resume that says "JS", "k8s"
-// or "fintech" still lines up with a search for "JavaScript", "Kubernetes" or
-// "Finance & Fintech". Memoised so repeated values resolve once.
-const _skillCanon = new Map();
-function canonicalizeSkill(raw) {
-  const key = norm(raw);
-  if (!key) return (raw || "").trim();
-  if (_skillCanon.has(key)) return _skillCanon.get(key);
-  const { value } = resolveToken(raw, ALL_SKILLS, SKILL_ALIASES);
-  const out = value || raw.trim();
-  _skillCanon.set(key, out);
-  return out;
-}
-function canonicalizeSkills(list) {
-  const seen = new Set(), out = [];
-  (list || []).forEach((s) => { const c = canonicalizeSkill(s); const k = c.toLowerCase(); if (c && !seen.has(k)) { seen.add(k); out.push(c); } });
-  return out;
-}
-function canonicalizeIndustry(raw) {
-  const { value } = resolveToken(raw, ALL_INDUSTRIES, INDUSTRY_ALIASES);
-  return value || (raw || "").trim();
-}
 
 // A black info icon; hovering (or focusing) it reveals the given text as a
 // tooltip. Reused next to field labels and panel titles.
@@ -9167,7 +9048,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Skill suggestions come only from THIS workspace's own candidates, so the
   // type-ahead never surfaces a shared/global list. The field is free-type, so
   // you can still search any skill even if no one in the pool has it yet.
-  const skillSuggestions = [...new Set(available.flatMap((c) => canonicalizeSkills(c.parsed.skills)))].sort((a, b) => a.localeCompare(b));
+  const skillSuggestions = [...new Set(available.flatMap((c) => c.parsed?.skills || []))].sort((a, b) => a.localeCompare(b));
   const openJobs = (jobs || []).filter((j) => j.status === "open");
   const matchJob = jobs?.find((j) => j.id === matchJobId);
   const alreadyApplied = matchJobId
@@ -9193,12 +9074,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // matches a "JavaScript" search regardless of how the capture stored it.
   const scoreBySkills = (c, wanted) => {
     if (!wanted.length) return 0;
-    const cand = new Set(canonicalizeSkills(c.parsed.skills).map((s) => s.toLowerCase()));
-    return wanted.filter((w) => cand.has(canonicalizeSkill(w).toLowerCase())).length / wanted.length;
+    const cand = new Set((c.parsed?.skills || []).map((s) => String(s).toLowerCase()));
+    return wanted.filter((w) => cand.has(String(w).toLowerCase())).length / wanted.length;
   };
   const matchedSkills = (c) => {
-    const cand = new Set(canonicalizeSkills(c.parsed.skills).map((s) => s.toLowerCase()));
-    return (rankedMeta?.skills || []).filter((w) => cand.has(canonicalizeSkill(w).toLowerCase()));
+    const cand = new Set((c.parsed?.skills || []).map((s) => String(s).toLowerCase()));
+    return (rankedMeta?.skills || []).filter((w) => cand.has(String(w).toLowerCase()));
   };
 
   const runRoleMatch = () => {
@@ -9452,14 +9333,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // Falls back to a broad sample only when nothing has been parsed yet.
   const skillFreq = {};
   available.forEach((c) => (c.parsed?.skills || []).forEach((s) => { const k = String(s).trim(); if (k) skillFreq[k] = (skillFreq[k] || 0) + 1; }));
-  const workspaceSkills = Object.keys(skillFreq).sort((a, b) => skillFreq[b] - skillFreq[a]);
-  const POPULAR_SKILLS = workspaceSkills.length ? workspaceSkills : ["React", "Salesforce", "SEO", "Financial Modeling", "Recruiting", "SQL", "Account Management", "Project Management", "Copywriting", "Patient Care"];
+  const POPULAR_SKILLS = Object.keys(skillFreq).sort((a, b) => skillFreq[b] - skillFreq[a]);
   // Industries present in the candidate pool, so a bubble always returns matches.
   // The real, AI-tagged industries present across this workspace's candidates.
   // Falls back to the broad list only when nothing has been tagged yet.
   const workspaceIndustries = [...new Set(candidates.flatMap((c) => [...rawIndustriesOf(c)]))].sort((a, b) => a.localeCompare(b));
-  const industryOptions = workspaceIndustries.length ? workspaceIndustries : ALL_INDUSTRIES;
-  const POPULAR_INDUSTRIES = industryOptions;
+  const industryOptions = workspaceIndustries;
+  const POPULAR_INDUSTRIES = workspaceIndustries;
   const SEARCH_HELP = [
     { icon: "users", title: "Browse & filter", body: "Search your whole database by name, skill, or role, and narrow by years of experience." },
     { icon: "matching", title: "Match by skills or industry", body: "Add the skills you're hiring for, pick an industry, or both, and AI ranks everyone by fit." },
@@ -9530,13 +9410,15 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 style={{ borderColor: "var(--line)", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }} />
               {query && <button onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
             </div>
-            <div className="flex flex-wrap items-center gap-2 mt-3">
-              <span className="text-xs" style={{ color: "var(--ink-3)" }}>Popular:</span>
-              {["React", "Salesforce", "SEO", "Project Management", "Financial Modeling", "Adobe Photoshop"].map((chip) => {
-                const active = query === chip;
-                return <button key={chip} onClick={() => { setQuery(active ? "" : chip); setPage(1); }} className="text-xs rounded-full px-3 py-1 font-medium transition-colors" style={active ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{chip}</button>;
-              })}
-            </div>
+            {POPULAR_SKILLS.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <span className="text-xs" style={{ color: "var(--ink-3)" }}>Popular:</span>
+                {POPULAR_SKILLS.slice(0, 6).map((chip) => {
+                  const active = query === chip;
+                  return <button key={chip} onClick={() => { setQuery(active ? "" : chip); setPage(1); }} className="text-xs rounded-full px-3 py-1 font-medium transition-colors" style={active ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{chip}</button>;
+                })}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3 mt-5 mb-3">
               <p className="text-sm" style={{ color: "var(--ink-2)" }}>
                 <span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{q ? ` · matching "${query}"` : " in your database"}
@@ -9608,7 +9490,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   <div className="mt-3 grid sm:grid-cols-2 gap-3">
                     <div>
                       <FieldLabel hint="Type any skill and pick a suggestion. If it is not in the list, press Enter to add it as your own custom skill.">Skills</FieldLabel>
-                      <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} aliases={SKILL_ALIASES} freeSolo />
+                      <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} aliases={{}} freeSolo />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
                           <button key={s} onClick={() => addSkill(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
@@ -9617,7 +9499,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     </div>
                     <div>
                       <FieldLabel hint="Type to search our industry list and pick the closest match. Choosing from the list keeps the ranking accurate.">Industry</FieldLabel>
-                      <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={industryOptions} placeholder="Search industries…" onChange={invalidate} aliases={workspaceIndustries.length ? {} : INDUSTRY_ALIASES} freeSolo={false} />
+                      <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={industryOptions} placeholder="Search industries…" onChange={invalidate} aliases={{}} freeSolo={false} />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 5).map((s) => (
                           <button key={s} onClick={() => addIndustry(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
@@ -12180,7 +12062,7 @@ function deriveInsights(candidate) {
   const leadershipMonths = raw.filter((r) => LEADERSHIP_RE.test(r.e.title || "")).reduce((s, r) => s + sm(r), 0);
 
   const domainMonths = {};
-  raw.forEach((r) => { const ind = COMPANY_INDUSTRY[r.e.company]; if (ind) domainMonths[ind] = (domainMonths[ind] || 0) + sm(r); });
+  raw.forEach((r) => { const ind = r.e.industry && !/^unknown$/i.test(String(r.e.industry)) ? String(r.e.industry).trim() : null; if (ind) domainMonths[ind] = (domainMonths[ind] || 0) + sm(r); });
   const domain_experience = Object.entries(domainMonths)
     .map(([d, m]) => ({ domain: DOMAIN_SHORT[d] || d, years: yrs(m) }))
     .filter((x) => x.years > 0).sort((a, b) => b.years - a.years).slice(0, 3);
