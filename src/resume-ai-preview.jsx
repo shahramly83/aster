@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, Fragment, Component } from "react";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
@@ -9080,6 +9080,28 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
 
 // Small brand-styled confirm dialog, shown before any action that spends an
 // AI Rank credit so the user always okays it first.
+// Catches render-time crashes in a screen so the app shows a readable notice
+// (with the error text) and a reload, instead of unmounting to a blank page.
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error("App crashed:", error, info); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="min-h-dvh flex items-center justify-center p-6" style={{ background: "var(--bg)" }}>
+        <div className="max-w-md text-center">
+          <div className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: "#FEE2E2", color: "#DC2626" }}><Icon name="info" className="w-6 h-6" /></div>
+          <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Something broke on this screen</h1>
+          <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>The page hit an unexpected error. Reloading usually clears it. If it keeps happening, tell us what you were doing.</p>
+          <button onClick={() => { if (typeof window !== "undefined") window.location.reload(); }} className="text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 hover:opacity-95 transition-opacity">Reload</button>
+          <p className="text-xs mt-4 font-mono break-all" style={{ color: "var(--ink-3)" }}>{String(this.state.error?.message || this.state.error)}</p>
+        </div>
+      </div>
+    );
+  }
+}
+
 function ConfirmDialog({ open, title, body, confirmLabel = "Continue", onConfirm, onClose, tone = "brand", icon }) {
   useEffect(() => {
     if (!open) return;
@@ -14908,6 +14930,7 @@ export default function ResumeAIPreview() {
         activities={activities}
         onOpenNotifications={markActivitiesRead}
       >
+        <ErrorBoundary key={screen}>
         {screen === "dashboard" && (
           <DashboardScreen
             navigate={navigate}
@@ -14991,7 +15014,17 @@ export default function ResumeAIPreview() {
         {screen === "interviewers" && (
           <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} />
         )}
-        {screen === "candidateProfile" && (
+        {screen === "candidateProfile" && !activeCandidate && (
+          // The candidate isn't in the workspace (just deleted, or a stale deep
+          // link). Show a graceful notice instead of crashing on undefined.
+          <div className="px-4 sm:px-6 py-8 sm:py-10">
+            <div className="max-w-2xl mx-auto">
+              <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+              <p className="text-sm mt-4" style={{ color: "var(--ink-3)" }}>This candidate is no longer in your workspace.</p>
+            </div>
+          </div>
+        )}
+        {screen === "candidateProfile" && activeCandidate && (
           <CandidateProfileScreen
             navigate={navigate}
             candidate={activeCandidate}
@@ -15050,6 +15083,7 @@ export default function ResumeAIPreview() {
             hiredIds={hiredIds}
           />
         )}
+        </ErrorBoundary>
       </SidebarLayout>
       <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbCreateJob(companyId, userId, p) : null} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} />
     </Shell>
