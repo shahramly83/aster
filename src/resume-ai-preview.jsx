@@ -6639,7 +6639,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <Icon name="target" className="w-4 h-4" />
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white leading-tight">{trialDaysLeft} days left in your free trial</p>
+              <p className="text-sm font-semibold text-white leading-tight">{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
               <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--navy-ink)" }}>Full Premium access — unlimited AI matching &amp; jobs.</p>
             </div>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
@@ -6785,7 +6785,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 </div>
                 <p className="text-white font-display font-bold text-lg mt-6">{planLimits(plan).resumeUploads === Infinity ? "Unlimited resumes" : `${planLimits(plan).resumeUploads} resumes / mo`}</p>
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-[11px] text-white/80">{trialDaysLeft > 0 ? `Trial · ${trialDaysLeft} days left` : "Active"}</p>
+                  <p className="text-[11px] text-white/80">{trialDaysLeft > 0 ? `Trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left` : "Active"}</p>
                   <p className="text-[11px] text-white/80">{stats.openJobs} open role{stats.openJobs === 1 ? "" : "s"}</p>
                 </div>
               </div>
@@ -7414,7 +7414,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
                         {outOfQuota
                           ? `You've used all ${uploadLimit} parses on the ${planName} plan this month. Upgrade to keep going, or your allowance resets on the 1st.`
-                          : <>This batch has {files.length} resumes, but you have {remaining} left this month. Remove {files.length - remaining} to continue, or upgrade for more.</>}
+                          : <>This batch has {files.length} resume{files.length === 1 ? "" : "s"}, but you have {remaining} left this month. Remove {files.length - remaining} to continue, or upgrade for more.</>}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2.5">
                         <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
@@ -9767,7 +9767,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             subtitle={
               <span className="inline-flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
-                  <Icon name="users" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {availableCount} candidates
+                  <Icon name="users" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {availableCount} candidate{availableCount === 1 ? "" : "s"}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#ECFDF3", color: "#15803D" }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> {openJobs.length} open {openJobs.length === 1 ? "role" : "roles"}
@@ -10157,7 +10157,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const handleAdd = () => {
     if (!canAddInterviewers || !name || !email) return;
     if (atSeatCap) {
-      setBanner(`Your plan includes ${limits.seats} seats. Upgrade to Premium for unlimited team members.`);
+      setBanner(`Your plan includes ${limits.seats} seat${limits.seats === 1 ? "" : "s"}. Upgrade to Premium for unlimited team members.`);
       return;
     }
     setInterviewers([
@@ -10217,7 +10217,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
         {canAddInterviewers && limits.seats !== Infinity && (
           <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: atSeatCap ? "var(--brand-soft)" : "#fff" }}>
             <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              Your plan includes <span className="font-semibold">{limits.seats} seats</span> — {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Premium for unlimited seats." : "."}
+              Your plan includes <span className="font-semibold">{limits.seats} seat{limits.seats === 1 ? "" : "s"}</span> — {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Premium for unlimited seats." : "."}
             </p>
             {atSeatCap && <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>}
           </div>
