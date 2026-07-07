@@ -8171,7 +8171,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
   const buildLink = (jobId, source) => {
-    const base = `${SITE_ORIGIN}/apply/${jobId}`;
+    // Use the domain the recruiter is currently on, so links work on any host
+    // the app is served from (hireaster.com, the Vercel URL, etc.).
+    const origin = typeof window !== "undefined" ? window.location.origin : SITE_ORIGIN;
+    const base = `${origin}/apply/${jobId}`;
     const slug = slugifySource(source);
     return slug ? `${base}?source=${slug}` : base;
   };
@@ -9460,7 +9463,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const goToPage = (n) => { setPage(n); if (typeof window !== "undefined") window.scrollTo(0, 0); };
 
   // ---- Invites (role tab) ----
-  const inviteLink = (jobId) => `${SITE_ORIGIN}/apply/${jobId}?source=database`;
+  const inviteLink = (jobId) => `${typeof window !== "undefined" ? window.location.origin : SITE_ORIGIN}/apply/${jobId}?source=database`;
   const sendInvite = async (candidateId) => {
     if (!matchJob) return;
     const url = inviteLink(matchJob.id);
