@@ -66,17 +66,22 @@ function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob })
 // on failure or when there's nothing to show (so callers keep the demo data).
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
-  const [jobsRes, candRes, appRes, ivRes, scRes] = await Promise.all([
+  const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, scheduled_at, status, provider").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
+    supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
   ]);
   const jobRows = jobsRes.data || [];
   if (jobsRes.error || !jobRows.length) return null; // empty workspace → keep demo
 
-  const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}), posted_at: j.created_at, expires_at: j.expires_at || null }));
+  // Apply-page view stats keyed by job id: { total, uniques, sources:{src:count} }.
+  const viewsByJob = {};
+  (viewsRes?.data || []).forEach((r) => { viewsByJob[r.job_id] = { total: Number(r.total) || 0, uniques: Number(r.uniques) || 0, sources: r.sources || {} }; });
+
+  const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}), posted_at: j.created_at, expires_at: j.expires_at || null, viewStats: viewsByJob[j.id] || { total: 0, uniques: 0, sources: {} } }));
   const jobTitle = Object.fromEntries(jobs.map((j) => [j.id, j.title]));
 
   // Resume PDFs and profile photos live in the private resumes bucket; mint
@@ -8166,7 +8171,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
   const buildLink = (jobId, source) => {
-    const base = `https://yourapp.com/apply/${jobId}`;
+    const base = `${SITE_ORIGIN}/apply/${jobId}`;
     const slug = slugifySource(source);
     return slug ? `${base}?source=${slug}` : base;
   };
@@ -8505,15 +8510,21 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     </div>
                   </button>
 
-                  <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
-                    <button onClick={() => { setActiveJobId(job.id); navigate("applicants", `/applicants/${job.id}`); }} className="group/app inline-flex items-center gap-2 rounded-lg py-1 pr-2 transition-colors" title="View applicants">
-                      <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
-                        <Icon name="users" className="w-4 h-4" />
+                  <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <button onClick={() => { setActiveJobId(job.id); navigate("applicants", `/applicants/${job.id}`); }} className="group/app inline-flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors" title="View applicants">
+                        <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
+                          <Icon name="users" className="w-4 h-4" />
+                        </span>
+                        <span className="text-sm leading-tight text-left" style={{ color: "var(--ink-2)" }}>
+                          <span className="font-bold tnum group-hover/app:underline" style={{ color: "var(--ink)" }}>{n}</span> applicant{n === 1 ? "" : "s"}
+                        </span>
+                      </button>
+                      <span className="inline-flex items-center gap-1.5 text-sm shrink-0" style={{ color: "var(--ink-2)" }} title={`${job.viewStats?.total || 0} apply-page views`}>
+                        <Icon name="eye" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />
+                        <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span> view{(job.viewStats?.total || 0) === 1 ? "" : "s"}
                       </span>
-                      <span className="text-sm leading-tight text-left" style={{ color: "var(--ink-2)" }}>
-                        <span className="font-bold tnum group-hover/app:underline" style={{ color: "var(--ink)" }}>{n}</span> applicant{n === 1 ? "" : "s"}
-                      </span>
-                    </button>
+                    </div>
                     {!paused && jobMenu(job, true)}
                   </div>
                 </div>
@@ -8679,6 +8690,47 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                           <p className="text-sm font-semibold mt-0.5 capitalize truncate" style={{ color: "var(--ink)" }}>{f.value}</p>
                         </div>
                       ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Apply-page view analytics */}
+                {(() => {
+                  const vs = dj.viewStats || { total: 0, uniques: 0, sources: {} };
+                  const srcEntries = Object.entries(vs.sources || {}).sort((a, b) => b[1] - a[1]);
+                  const SRC_LABEL = { direct: "Direct link", linkedin: "LinkedIn", careers: "Careers site", database: "Database invite", jobstreet: "JobStreet", indeed: "Indeed", twitter: "X / Twitter", facebook: "Facebook" };
+                  const conv = vs.total > 0 ? Math.round((djN / vs.total) * 100) : null;
+                  return (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide mb-2 inline-flex items-center gap-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>
+                        <Icon name="eye" className="w-3.5 h-3.5" /> Apply page views
+                      </p>
+                      <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                        <div className="grid grid-cols-3 gap-4">
+                          {[["Total views", vs.total], ["Unique visitors", vs.uniques], ["Views → applied", conv == null ? "—" : `${conv}%`]].map(([label, value]) => (
+                            <div key={label} className="min-w-0">
+                              <p className="text-2xl font-bold font-display tnum" style={{ color: "var(--ink)" }}>{value}</p>
+                              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{label}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {srcEntries.length > 0 && (
+                          <div className="mt-4 pt-3.5 space-y-2" style={{ borderTop: "1px solid var(--line)" }}>
+                            <p className="text-[11px] font-medium" style={{ color: "var(--ink-3)" }}>By source</p>
+                            {srcEntries.map(([src, cnt]) => {
+                              const pct = vs.total > 0 ? Math.round((cnt / vs.total) * 100) : 0;
+                              return (
+                                <div key={src} className="flex items-center gap-2.5">
+                                  <span className="text-xs w-28 shrink-0 truncate" style={{ color: "var(--ink-2)" }}>{SRC_LABEL[src] || src}</span>
+                                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}><div style={{ width: `${pct}%`, height: "100%", background: "var(--brand)" }} /></div>
+                                  <span className="text-xs tnum w-8 text-right" style={{ color: "var(--ink-2)" }}>{cnt}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {vs.total === 0 && <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>No views yet. Share this role's apply link (Copy job URL) to start tracking.</p>}
+                      </div>
                     </div>
                   );
                 })()}
@@ -9408,7 +9460,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const goToPage = (n) => { setPage(n); if (typeof window !== "undefined") window.scrollTo(0, 0); };
 
   // ---- Invites (role tab) ----
-  const inviteLink = (jobId) => `https://yourapp.com/apply/${jobId}?source=database`;
+  const inviteLink = (jobId) => `${SITE_ORIGIN}/apply/${jobId}?source=database`;
   const sendInvite = async (candidateId) => {
     if (!matchJob) return;
     const url = inviteLink(matchJob.id);
@@ -10871,7 +10923,10 @@ const PROCESSING_STEPS = [
   "Almost there…",
 ];
 
-function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied, logoUrl = null, company = "" }) {
+function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied, logoUrl = null, company = "", isPublic = false }) {
+  // A tiny helper: the "admin preview" back link only makes sense inside the app.
+  // On the real public page (isPublic) there's nothing to go back to.
+  const adminBack = isPublic ? null : <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>;
   // Public, no-login page a candidate reaches via the job's application link.
   // Flow: review job → upload a PDF resume → submit → AI parses → profile created.
   const [file, setFile] = useState(null);
@@ -10921,13 +10976,15 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
     return (
       <div className="px-4 sm:px-6 py-8 sm:py-10">
         <div className="max-w-xl mx-auto">
-          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          {adminBack}
+          {!isPublic && (
           <div className="mt-6 rounded-xl border p-3 mb-6 flex items-center justify-between gap-3" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
             <p className="text-xs" style={{ color: "#92400E" }}>
               Admin view: this role is paused because you're over your plan's job limit. Candidates who open the link see the message below, and applications stay closed until you reactivate.
             </p>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Reactivate</button>
           </div>
+          )}
           <div className="text-center max-w-sm mx-auto mt-8">
             <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-neutral-400 text-xl">⏸</span>
@@ -10950,12 +11007,14 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
     return (
       <div className="px-4 sm:px-6 py-8 sm:py-10">
         <div className="max-w-xl mx-auto">
-          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          {adminBack}
+          {!isPublic && (
           <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
             <p className="text-xs text-indigo-700">
 This is what a candidate sees if they open the link after the role has closed.
             </p>
           </div>
+          )}
           <div className="text-center max-w-sm mx-auto mt-8">
             <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-neutral-400 text-xl">🔒</span>
@@ -10978,12 +11037,14 @@ This is what a candidate sees if they open the link after the role has closed.
     return (
       <div className="px-4 sm:px-6 py-8 sm:py-10">
         <div className="max-w-xl mx-auto">
-          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          {adminBack}
+          {!isPublic && (
           <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
             <p className="text-xs text-indigo-700">
               This is what a candidate sees after the posting's closing date has passed.
             </p>
           </div>
+          )}
           <div className="text-center max-w-sm mx-auto mt-8">
             <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-neutral-400 text-xl">⏳</span>
@@ -11078,12 +11139,14 @@ This is what a candidate sees if they open the link after the role has closed.
   return (
     <div className="px-4 sm:px-6 py-8 sm:py-10">
       <div className="max-w-4xl mx-auto">
-        <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+        {adminBack}
+        {!isPublic && (
         <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
           <p className="text-xs text-indigo-700">
 This is what a candidate sees. A public page, no login, reached only through the job's application link.
           </p>
         </div>
+        )}
 
         {/* Company header — the company's logo when uploaded, else a mark + name. */}
         <div className="flex items-center gap-3 mb-6">
@@ -14095,7 +14158,13 @@ function applicantsJobFromPath(pathname) {
   const m = (pathname || "").match(/^\/applicants\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
 }
+// Public apply page: /apply/<jobId> — the shareable link a candidate opens.
+function applyJobFromPath(pathname) {
+  const m = (pathname || "").match(/^\/apply\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 function screenFromPath(pathname) {
+  if (applyJobFromPath(pathname)) return "apply";
   if (candidateIdFromPath(pathname)) return "candidateProfile";
   if (applicantsJobFromPath(pathname)) return "applicants";
   if (productSlugFromPath(pathname) != null) return "product";
@@ -14294,6 +14363,7 @@ function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossar
 function initialHistoryFromUrl() {
   if (typeof window === "undefined") return ["landing"];
   const screen = screenFromPath(window.location.pathname);
+  if (screen === "apply") return ["apply"]; // public apply link: standalone, no dashboard base
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
   if (screen === "product") return ["landing", "product"]; // public page; Back → landing
   if (screen === "solutions") return ["landing", "solutions"]; // public page; Back → landing
@@ -14379,6 +14449,8 @@ export default function ResumeAIPreview() {
   const [previewRequest, setPreviewRequest] = useState(null);
   // The job whose public application page we're previewing (via a job's apply link).
   const [previewApplyJob, setPreviewApplyJob] = useState(null);
+  // Public apply page (someone opened /apply/<jobId> from the outside — no login).
+  const [publicApply, setPublicApply] = useState(null); // { id, status: loading|ok|notfound, job?, company? }
   // Booking state per candidate, shared across the profile and the public
   // booking preview: { [candidateId]: { status, confirmedSlot, request } }.
   // status: 'sent' (invite out) | 'scheduled' (candidate confirmed a time).
@@ -14416,6 +14488,32 @@ export default function ResumeAIPreview() {
 
   const screen = history[history.length - 1];
   const [newJobOpen, setNewJobOpen] = useState(false);
+
+  // Public apply link: fetch the job's public details and record a view. Only
+  // runs on a real /apply/<id> visit (not the in-app admin preview, which sets
+  // previewApplyJob) — so admin previews never inflate the view count.
+  useEffect(() => {
+    if (screen !== "apply" || previewApplyJob) return;
+    const id = applyJobFromPath(window.location.pathname);
+    if (!id || publicApply?.id === id) return;
+    setPublicApply({ id, status: "loading" });
+    (async () => {
+      if (!hasSupabase) { setPublicApply({ id, status: "notfound" }); return; }
+      const { data, error } = await supabase.rpc("get_public_job", { p_job_id: id });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (error || !row) { setPublicApply({ id, status: "notfound" }); return; }
+      const job = { id: row.id, title: row.title, status: row.status, expires_at: row.expires_at, ...(row.details || {}) };
+      setPublicApply({ id, status: "ok", job, company: row.company_name || "" });
+      // Record the visit: unique per browser per day, tagged with ?source=.
+      try {
+        const source = new URLSearchParams(window.location.search).get("source");
+        let vid = localStorage.getItem("aster_vid");
+        if (!vid) { vid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("aster_vid", vid); }
+        supabase.rpc("track_job_view", { p_job_id: id, p_visitor: vid, p_source: source });
+      } catch { /* tracking is best-effort */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, previewApplyJob]);
 
   // Central scroll management: forward navigation starts the new screen at the
   // top; Back restores the scroll position of the screen you're returning to.
@@ -14877,9 +14975,34 @@ export default function ResumeAIPreview() {
   }
 
   if (screen === "apply") {
-    // Resolve the live job by id so its status is always current (a job
-    // toggled closed after opening the preview should reflect immediately).
-    const liveApplyJob = previewApplyJob ? (jobs.find((j) => j.id === previewApplyJob.id) || previewApplyJob) : null;
+    // Public visit via /apply/<id> (no in-app preview): render the standalone
+    // apply page for the fetched job, with no admin chrome.
+    if (!previewApplyJob) {
+      const p = publicApply;
+      const centered = (node) => (
+        <Shell><div className="min-h-dvh flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>{node}</div></Shell>
+      );
+      if (!p || p.status === "loading") {
+        return centered(<div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid var(--line-strong)", borderTopColor: "var(--brand)" }} />);
+      }
+      if (p.status === "notfound" || !p.job) {
+        return centered(
+          <div className="text-center max-w-sm">
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Job not found</h1>
+            <p className="text-sm" style={{ color: "var(--ink-2)" }}>This job posting isn't available. The link may be out of date, or the role has been taken down.</p>
+          </div>
+        );
+      }
+      return (
+        <Shell>
+          <ApplyScreen navigate={navigate} job={p.job} isPublic company={p.company} logoUrl={null} onApplied={() => {}} />
+        </Shell>
+      );
+    }
+
+    // In-app admin preview: resolve the live job by id so its status is always
+    // current (a job toggled closed after opening the preview reflects at once).
+    const liveApplyJob = jobs.find((j) => j.id === previewApplyJob.id) || previewApplyJob;
     const _applyLimits = planLimits(plan);
     const applyPaused = !!liveApplyJob && _applyLimits.maxJobs !== Infinity && jobs.length > _applyLimits.maxJobs && liveApplyJob.id !== keptJobId;
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));

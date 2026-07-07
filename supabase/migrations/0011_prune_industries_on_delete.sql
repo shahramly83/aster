@@ -15,7 +15,9 @@
 create or replace function public._prune_industries_after_candidate_delete()
 returns trigger
 language plpgsql
+
 security definer
+
 set search_path = public
 as $$
 declare
