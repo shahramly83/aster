@@ -4780,16 +4780,21 @@ function ArticleCtaCard({ navigate }) {
 // Sticky left rail for an article: reading progress, share buttons, soft CTA.
 function ArticleRail({ title, navigate }) {
   const progress = useReadingProgress();
+  const labelCls = "text-[11px] font-semibold uppercase";
+  const labelStyle = { color: "var(--ink-3)", letterSpacing: "0.06em" };
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className={labelCls} style={labelStyle}>Reading progress</span>
+          <span className="text-[11px] font-medium tnum" style={{ color: "var(--ink-3)" }}>{Math.round(progress * 100)}%</span>
+        </div>
         <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
           <div className="h-full rounded-full transition-[width] duration-150" style={{ width: `${progress * 100}%`, background: "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
         </div>
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Share</span>
-          <span className="text-[11px] font-medium tnum" style={{ color: "var(--ink-3)" }}>{Math.round(progress * 100)}%</span>
-        </div>
+      </div>
+      <div>
+        <span className={labelCls} style={labelStyle}>Share</span>
         <div className="mt-2"><ShareButtons title={title} /></div>
       </div>
       <ArticleCtaCard navigate={navigate} />
@@ -4852,12 +4857,8 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
         </section>
         {/* Article body — sticky utility rail (left) + prose (right) */}
         <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-12">
-            {/* Left rail — sticky on desktop */}
-            <aside className="hidden lg:block">
-              <div className="sticky top-24"><ArticleRail title={post.title} navigate={navigate} /></div>
-            </aside>
-            {/* Main column */}
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-12">
+            {/* Main column (left) */}
             <div className="min-w-0">
               <article id="article-body" className="max-w-[43rem]"><ArticleBody blocks={post.body} /></article>
               {/* Tags */}
@@ -4874,6 +4875,10 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
                 <ArticleCtaCard navigate={navigate} />
               </div>
             </div>
+            {/* Right rail — sticky on desktop */}
+            <aside className="hidden lg:block">
+              <div className="sticky top-24"><ArticleRail title={post.title} navigate={navigate} /></div>
+            </aside>
           </div>
         </section>
         {/* Related */}
