@@ -6,7 +6,7 @@ name: Daily blog article
 
 on:
   schedule:
-    - cron: "0 13 * * *" # daily at 13:00 UTC
+    - cron: "0 13 * * 1,4" # Mon & Thu at 13:00 UTC (twice weekly)
   workflow_dispatch: {} # allow manual runs from the Actions tab
 
 concurrency:
