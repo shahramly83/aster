@@ -1666,7 +1666,7 @@ function Pipeline({ steps }) {
         </div>
         <div className="flex items-center gap-2 rounded-lg px-2.5 py-2" style={innerTile}>
           <span style={{ color: "var(--navy-ink)" }}><Icon name="briefcase" className="w-3.5 h-3.5" /></span>
-          <span className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>aster.co/apply/fe-eng</span>
+          <span className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>hireaster.com/apply/fe-eng</span>
           <span className="ml-auto shrink-0 text-[10px] font-semibold brand-text">Copy</span>
         </div>
         <div className="flex items-center justify-between pt-0.5">
@@ -12059,8 +12059,8 @@ const COMMON_TOKENS = ["company_name", "company_address", "interviewer_name", "l
 const TOKEN_SAMPLES = {
   candidate_name: "Amira Hassan", job_title: "Senior Frontend Engineer", company: "Oryx Studio",
   company_name: "Oryx Studio", company_address: "Level 12, Menara Aster, Jalan Ampang, 50450 Kuala Lumpur",
-  hr_contact: "Farah (HR)", interviewer_name: "Jane Tan", booking_link: "aster.my/book/xxxx",
-  date_time: "Tue 8 Jul, 2:00 PM", meeting_link: "meet.google.com/xxx-xxxx", apply_link: "aster.my/apply/xxxx",
+  hr_contact: "Farah (HR)", interviewer_name: "Jane Tan", booking_link: "hireaster.com/book/xxxx",
+  date_time: "Tue 8 Jul, 2:00 PM", meeting_link: "meet.google.com/xxx-xxxx", apply_link: "hireaster.com/apply/xxxx",
 };
 const fillTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => TOKEN_SAMPLES[k] ?? `{{${k}}}`);
 
