@@ -39,6 +39,14 @@ export async function dbSetJobStatus(jobId, status) {
   if (error) console.error("dbSetJobStatus", error.message);
 }
 
+// Delete a job outright. Callers restrict this to drafts (which have no
+// applicants). Any applications/views cascade via FK.
+export async function dbDeleteJob(jobId) {
+  if (!hasSupabase) return;
+  const { error } = await supabase.from("jobs").delete().eq("id", jobId);
+  if (error) console.error("dbDeleteJob", error.message);
+}
+
 // The app models pipeline stage per candidate (not per application), so a stage
 // change updates every application that candidate has in this workspace.
 export async function dbSetCandidateStage(companyId, candidateId, stage) {

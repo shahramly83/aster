@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate } from "./lib/persist";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
@@ -8183,10 +8183,25 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [linkSource, setLinkSource] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
 
+  const [confirmDeleteJob, setConfirmDeleteJob] = useState(null); // draft pending deletion
+  const [limitPrompt, setLimitPrompt] = useState(false);          // reopen/publish blocked at limit
+
   const toggleStatus = (jobId) => {
-    const next = jobs.find((j) => j.id === jobId)?.status === "open" ? "closed" : "open";
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
+    const next = job.status === "open" ? "closed" : "open";
+    // Reopening (or publishing a draft) makes the role live again — it takes a
+    // slot from the plan's job allowance, so block it when there's none free.
+    if (next === "open" && atJobLimit) { setLimitPrompt(true); return; }
     setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: next } : j)));
     if (canPersist) dbSetJobStatus(jobId, next);
+  };
+
+  // Only drafts can be deleted (published/closed roles keep their record).
+  const deleteJob = (job) => {
+    if (!job || job.status !== "draft") return;
+    setJobs(jobs.filter((j) => j.id !== job.id));
+    if (canPersist) dbDeleteJob(job.id);
   };
 
   // Turn a free-typed source into a clean URL slug: "LinkedIn Post" → "linkedin_post"
@@ -8303,6 +8318,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
               <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : job.status === "draft" ? "Publish role" : "Reopen this role"}
             </button>
+            {job.status === "draft" && (
+              <button role="menuitem" onClick={() => { setMenuJob(null); setConfirmDeleteJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-rose-50" style={{ color: "#B91C1C" }}>
+                <Icon name="trash" className="w-4 h-4" /> Delete draft
+              </button>
+            )}
           </div>
         </>
       )}
@@ -8847,6 +8867,27 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
       {/* Edit job — reuses the New Job form pre-filled */}
       <NewJobModal open={!!editJob} initialJob={editJob} onClose={() => setEditJob(null)} jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} />
+
+      {/* Delete a draft (only drafts are deletable) */}
+      <ConfirmDialog
+        open={!!confirmDeleteJob}
+        tone="danger"
+        title="Delete this draft?"
+        body={`"${confirmDeleteJob?.title || "This draft"}" will be removed. Drafts aren't published and have no applicants, so nothing else is affected.`}
+        confirmLabel="Delete draft"
+        onConfirm={() => { deleteJob(confirmDeleteJob); setConfirmDeleteJob(null); }}
+        onClose={() => setConfirmDeleteJob(null)}
+      />
+
+      {/* Reopening/publishing blocked — no free job slot on the plan */}
+      <ConfirmDialog
+        open={limitPrompt}
+        title="You're at your plan's job limit"
+        body={`Your plan allows ${limits.maxJobs} live role${limits.maxJobs === 1 ? "" : "s"}. Close another role to free a slot, or upgrade for more.`}
+        confirmLabel="Upgrade"
+        onConfirm={() => { setLimitPrompt(false); navigate("billing"); }}
+        onClose={() => setLimitPrompt(false)}
+      />
 
       {/* Copy application link — source tagging modal */}
       {linkJob && (
