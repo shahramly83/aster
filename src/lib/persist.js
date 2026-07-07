@@ -5,19 +5,19 @@
 import { supabase, hasSupabase } from "./supabase";
 
 // Split a job form payload into the row's columns + its details jsonb.
-// expires_at is a real column (used to stop intake once a posting closes), so
-// it's lifted out of the details blob.
+// expires_at and status are real columns (status is 'open' | 'closed' | 'draft'),
+// so they're lifted out of the details blob.
 function splitJob(payload) {
-  const { title, expires_at = null, ...details } = payload;
-  return { title, expires_at, details };
+  const { title, expires_at = null, status, ...details } = payload;
+  return { title, expires_at, status, details };
 }
 
 export async function dbCreateJob(companyId, userId, payload) {
   if (!hasSupabase || !companyId) return null;
-  const { title, expires_at, details } = splitJob(payload);
+  const { title, expires_at, status, details } = splitJob(payload);
   const { data, error } = await supabase
     .from("jobs")
-    .insert({ company_id: companyId, title, status: "open", created_by: userId || null, expires_at, details })
+    .insert({ company_id: companyId, title, status: status || "open", created_by: userId || null, expires_at, details })
     .select("id")
     .single();
   if (error) { console.error("dbCreateJob", error.message); return null; }
@@ -26,8 +26,10 @@ export async function dbCreateJob(companyId, userId, payload) {
 
 export async function dbUpdateJob(jobId, payload) {
   if (!hasSupabase) return;
-  const { title, expires_at, details } = splitJob(payload);
-  const { error } = await supabase.from("jobs").update({ title, expires_at, details }).eq("id", jobId);
+  const { title, expires_at, status, details } = splitJob(payload);
+  const row = { title, expires_at, details };
+  if (status) row.status = status; // publish / save-as-draft can change it
+  const { error } = await supabase.from("jobs").update(row).eq("id", jobId);
   if (error) console.error("dbUpdateJob", error.message);
 }
 

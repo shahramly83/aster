@@ -7884,7 +7884,11 @@ function formatSalary(job) {
 function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null, onCreate, onUpdate }) {
   const editing = !!initialJob;
   const limits = planLimits(plan);
-  const atJobLimit = jobs.length >= limits.maxJobs;
+  // Drafts don't count against the plan's job limit — only published/live roles do.
+  const atJobLimit = jobs.filter((j) => j.status !== "draft").length >= limits.maxJobs;
+  // Publishing is blocked at the limit only when it would add a new live role
+  // (a brand-new job, or publishing an existing draft). Editing a live job is fine.
+  const publishBlocked = atJobLimit && (!editing || initialJob?.status !== "open");
   const [title, setTitle] = useState(initialJob?.title || "");
   const [department, setDepartment] = useState(initialJob?.department || "");
   const [location, setLocation] = useState(initialJob?.location || "");
@@ -7910,12 +7914,17 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-sm text-neutral-700 mb-1";
 
-  const canCreate = title.trim() && description.trim();
+  // A draft only needs a title; publishing needs a description too.
+  const canDraft = !!title.trim();
+  const canPublish = title.trim() && description.trim();
 
-  const handleSubmit = async () => {
-    if (!canCreate) return;
+  // status = "open" (publish) or "draft" (save as draft).
+  const handleSubmit = async (status) => {
+    if (status === "draft" ? !canDraft : !canPublish) return;
+    if (status === "open" && publishBlocked) return;
     const payload = {
       title: title.trim(),
+      status,
       department: department || null,
       location: location || null,
       employment_type: employmentType,
@@ -7941,22 +7950,10 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       // id in mock mode / empty workspace).
       let id = `j${Date.now()}`;
       if (onCreate) { const realId = await onCreate(payload); if (realId) id = realId; }
-      setJobs([{ id, status: "open", ...payload }, ...jobs]);
+      setJobs([{ id, ...payload }, ...jobs]);
     }
     onClose();
   };
-
-  if (atJobLimit && !editing) {
-    return (
-      <div className="rounded-2xl bg-white border" style={{ borderColor: "var(--line)" }}>
-        <UpgradeLock
-          navigate={navigate}
-          title={`You've reached your plan's ${limits.maxJobs}-job limit`}
-          sub="Upgrade for more active roles, larger AI matching quotas, and more team seats."
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -8073,14 +8070,31 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
             : "Everyone who uploads a resume becomes an applicant. Aster still reads and ranks them, but it won't turn anyone away."}
         </p>
       </div>
-      <div className="flex items-center gap-2 pt-1">
-        <button onClick={handleSubmit} disabled={!canCreate} className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
-          {editing ? "Save changes" : "Post job"}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <button
+          onClick={() => handleSubmit("open")}
+          disabled={!canPublish || publishBlocked}
+          title={publishBlocked ? `You've reached your plan's ${limits.maxJobs} live-role limit. Save as draft, or upgrade.` : undefined}
+          className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
+          Publish
         </button>
-        <button onClick={onClose} className="text-sm rounded-xl px-4 py-2 transition-colors" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
+        <button
+          onClick={() => handleSubmit("draft")}
+          disabled={!canDraft}
+          className="rounded-xl border disabled:opacity-40 text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50"
+          style={{ color: "var(--ink-2)", borderColor: "var(--line-strong)" }}>
+          {editing && initialJob?.status === "draft" ? "Keep as draft" : "Save as draft"}
+        </button>
+        <button onClick={onClose} className="text-sm rounded-xl px-4 py-2 transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-3)" }}>
           Cancel
         </button>
       </div>
+      {publishBlocked && (
+        <p className="text-xs" style={{ color: "#B45309" }}>
+          You've reached your plan's {limits.maxJobs} live-role limit. You can still save this as a draft, or{" "}
+          <button onClick={() => navigate("billing")} className="font-semibold underline" style={{ color: "var(--brand)" }}>upgrade for more</button>.
+        </p>
+      )}
     </div>
   );
 }
@@ -8114,7 +8128,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
 // Soft brand tint for open roles; closed roles go grey to read as inactive.
 const JOB_CARD_BRAND = { bg: "#F9F4FF", tile: "var(--brand-soft)", ink: "var(--brand)", line: "#E9DAFB" };
 const JOB_CARD_GREY = { bg: "#F7F7F9", tile: "#ECECEF", ink: "#56566A", line: "var(--line-strong)" };
-const colorForJob = (job) => (job.status === "closed" ? JOB_CARD_GREY : JOB_CARD_BRAND);
+const colorForJob = (job) => (job.status === "open" ? JOB_CARD_BRAND : JOB_CARD_GREY);
 
 // Plain-spoken "Posted …" recency for a job card. Null when no post date.
 const postedAgoLabel = (iso) => {
@@ -8151,17 +8165,19 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // A just-posted job is prepended (newest first); jump back to page 1 so it's visible.
   useEffect(() => { setPage(0); }, [jobs.length]);
   const limits = planLimits(plan);
-  const atJobLimit = jobs.length >= limits.maxJobs;
-  // When a plan is capped and holds more jobs than allowed, everything beyond the
+  // Drafts are unpublished, so they never count toward the plan's job cap or get paused.
+  const liveJobs = jobs.filter((j) => j.status !== "draft");
+  const atJobLimit = liveJobs.length >= limits.maxJobs;
+  // When a plan is capped and holds more live jobs than allowed, everything beyond the
   // cap is paused (retained, but public apply links stop taking new applicants).
   // The kept job is prioritised, then the earliest jobs fill the remaining slots.
-  const overJobLimit = limits.maxJobs !== Infinity && jobs.length > limits.maxJobs;
+  const overJobLimit = limits.maxJobs !== Infinity && liveJobs.length > limits.maxJobs;
   const keptSet = new Set();
   if (overJobLimit) {
-    const ordered = [...jobs].sort((a, b) => (a.id === keptJobId ? -1 : b.id === keptJobId ? 1 : 0));
+    const ordered = [...liveJobs].sort((a, b) => (a.id === keptJobId ? -1 : b.id === keptJobId ? 1 : 0));
     ordered.slice(0, limits.maxJobs).forEach((j) => keptSet.add(j.id));
   }
-  const pausedIds = overJobLimit ? new Set(jobs.filter((j) => !keptSet.has(j.id)).map((j) => j.id)) : new Set();
+  const pausedIds = overJobLimit ? new Set(liveJobs.filter((j) => !keptSet.has(j.id)).map((j) => j.id)) : new Set();
   // Link-source modal: which job we're generating a link for, and the source tag.
   const [linkJob, setLinkJob] = useState(null); // job object or null
   const [linkSource, setLinkSource] = useState("");
@@ -8250,11 +8266,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const SORT_LABELS = { newest: "Newest", applicants: "Most applicants", oldest: "Oldest", az: "A–Z" };
   const openCount = jobs.filter((j) => j.status === "open").length;
   const closedCount = jobs.filter((j) => j.status === "closed").length;
+  const draftCount = jobs.filter((j) => j.status === "draft").length;
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const pageJobs = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const STATUS_LABELS = { all: "All", open: "Open", closed: "Closed" };
-  const STATUS_DOT = { open: "#22C55E", closed: "#9A9AA6" };
+  const STATUS_LABELS = { all: "All", open: "Open", draft: "Draft", closed: "Closed" };
+  const STATUS_DOT = { open: "#22C55E", draft: "#D97706", closed: "#9A9AA6" };
   const setStatus = (v) => { setStatusFilter(v); setPage(0); setFilterOpen(false); };
 
   // Shared ⋯ actions menu — used by both the card grid and the list/table view.
@@ -8284,7 +8301,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               </button>
             )}
             <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
-              <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : "Reopen this role"}
+              <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : job.status === "draft" ? "Publish role" : "Reopen this role"}
             </button>
           </div>
         </>
@@ -8313,6 +8330,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#ECFDF3", color: "#15803D" }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> {openCount} open
                 </span>
+                {draftCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D97706" }} /> {draftCount} draft{draftCount === 1 ? "" : "s"}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#9A9AA6" }} /> {closedCount} closed
                 </span>
@@ -8359,7 +8381,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setFilterOpen(false)} />
                 <div role="listbox" className="absolute right-0 z-20 mt-1.5 w-40 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
-                  {["all", "open", "closed"].map((v) => {
+                  {["all", "open", "draft", "closed"].map((v) => {
                     const on = statusFilter === v;
                     return (
                       <button
@@ -8475,7 +8497,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "paused" }
                 : job.status === "open"
                   ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
-                  : { bg: "#F1F1F4", color: "var(--ink-2)", dot: "#9A9AA6", label: "closed" };
+                  : job.status === "draft"
+                    ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "draft" }
+                    : { bg: "#F1F1F4", color: "var(--ink-2)", dot: "#9A9AA6", label: "closed" };
               // Closing countdown only matters while the role is live and taking applicants.
               const closing = (job.status === "open" && !paused) ? closingChip(jobExpiryDays(job)) : null;
               const color = colorForJob(job);
@@ -8563,7 +8587,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "paused" }
                         : job.status === "open"
                           ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
-                          : { bg: "#F1F1F4", color: "var(--ink-2)", dot: "#9A9AA6", label: "closed" };
+                          : job.status === "draft"
+                            ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "draft" }
+                            : { bg: "#F1F1F4", color: "var(--ink-2)", dot: "#9A9AA6", label: "closed" };
                       const counts = stageCountsFor(job.id);
                       const pipeTotal = JOB_STAGES.reduce((s, st) => s + counts[st.key], 0);
                       return (
