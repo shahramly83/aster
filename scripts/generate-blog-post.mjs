@@ -154,7 +154,7 @@ async function generateOnce(client, feedback) {
     max_tokens: 32000,
     system: buildSystem(),
     thinking: { type: "adaptive" },
-    output_config: { effort: "high", format: { type: "json_schema", name: "article", schema: ARTICLE_SCHEMA } },
+    output_config: { effort: "high", format: { type: "json_schema", schema: ARTICLE_SCHEMA } },
     messages,
   });
   const msg = await stream.finalMessage();
