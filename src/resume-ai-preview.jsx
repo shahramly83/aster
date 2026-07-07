@@ -5250,27 +5250,6 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
           <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{h.subtitle}</p>
         </div>
       </section>
-      {/* Aster dashboard screenshot, slides up below the header */}
-      <section className="pt-6 sm:pt-8 pb-6" style={{ background: "#050610" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 48 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-            className="mx-auto w-[92%] sm:w-4/5"
-          >
-            <img
-              src="/dashboard-preview.png"
-              alt="The Aster hiring dashboard: total hires, candidates, the candidate journey, upcoming interviews and hiring analytics"
-              width={1440}
-              height={1006}
-              loading="lazy"
-              className="w-full rounded-2xl"
-              style={{ border: "1px solid var(--navy-line)", boxShadow: "0 50px 120px -40px rgba(0,0,0,0.85)" }}
-            />
-          </motion.div>
-        </div>
-      </section>
       <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
