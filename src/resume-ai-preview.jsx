@@ -720,9 +720,9 @@ let MOCK_JOBS = [
     salary_currency: "MYR",
     status: "open",
     description:
-      "Own the end-to-end design of our products — from research and wireframes to polished UI in Figma. Partner closely with engineering on handoff.",
+      "Own the end-to-end design of our products, from research and wireframes to polished UI in Figma. Partner closely with engineering on handoff.",
     responsibilities: [
-      "Run discovery — user research, flows and wireframes",
+      "Run discovery: user research, flows and wireframes",
       "Design polished, accessible UI in Figma",
       "Contribute to and maintain our design system",
       "Prototype and test ideas before handoff",
@@ -771,13 +771,13 @@ let MOCK_JOBS = [
 
 let MOCK_MATCHES = {
   j1: [
-    { candidateId: "c1", score: 0.91, rationale: "Strong match — 5+ years of React/TypeScript with direct design system ownership at Grabtech, which maps closely to the role's core responsibility. Prior Figma experience is a clean fit for the design handoff workflow." },
+    { candidateId: "c1", score: 0.91, rationale: "Strong match: 5+ years of React/TypeScript with direct design system ownership at Grabtech, which maps closely to the role's core responsibility. Prior Figma experience is a clean fit for the design handoff workflow." },
     { candidateId: "c3", score: 0.78, rationale: "Good technical overlap in React/TypeScript and strong creative engineering background, though experience skews toward 3D/animation work rather than design system architecture specifically." },
     { candidateId: "c6", score: 0.74, rationale: "Solid full-stack React/Node background with production experience; slightly less design-system depth than the top candidates." },
-    { candidateId: "c8", score: 0.69, rationale: "Senior frontend with strong testing and performance habits — a dependable fit, though less design-system-specific evidence in the resume." },
+    { candidateId: "c8", score: 0.69, rationale: "Senior frontend with strong testing and performance habits, a dependable fit, though less design-system-specific evidence in the resume." },
     { candidateId: "c5", score: 0.63, rationale: "Accessible, responsive UI focus is relevant, but fewer years and less TypeScript depth than the leading applicants." },
     { candidateId: "c7", score: 0.57, rationale: "UI-focused with Tailwind and design-system exposure; earlier-career, so ramp-up on complex architecture is likely." },
-    { candidateId: "c2", score: 0.42, rationale: "Limited fit — primary stack is Vue/WordPress rather than React, and experience is freelance SME sites rather than large-scale design systems." },
+    { candidateId: "c2", score: 0.42, rationale: "Limited fit: primary stack is Vue/WordPress rather than React, and experience is freelance SME sites rather than large-scale design systems." },
   ],
 };
 
@@ -786,7 +786,7 @@ const INITIAL_INTERVIEWERS = [
   { id: "iv2", name: "Ahmad Zulkifli", email: "ahmad@company.com", timezone: "Asia/Kuala_Lumpur" },
 ];
 
-// Collaborative scorecards — structured interview feedback, one per interviewer.
+// Collaborative scorecards, structured interview feedback, one per interviewer.
 const SCORE_CRITERIA = [
   { key: "technical", label: "Technical skills" },
   { key: "communication", label: "Communication" },
@@ -801,12 +801,12 @@ const RECOMMENDATIONS = [
 ];
 const SCORECARDS_BY_CANDIDATE = {
   c1: [
-    { id: "sc1", interviewer: "Jane Tan", ratings: { technical: 4, communication: 4, cultureFit: 3, experience: 4 }, recommendation: "strong_yes", notes: "Excellent design-system depth — walked through real trade-offs clearly. I'd move fast to an offer.", submittedAt: "2d ago" },
+    { id: "sc1", interviewer: "Jane Tan", ratings: { technical: 4, communication: 4, cultureFit: 3, experience: 4 }, recommendation: "strong_yes", notes: "Excellent design-system depth, walked through real trade-offs clearly. I'd move fast to an offer.", submittedAt: "2d ago" },
     { id: "sc2", interviewer: "Ahmad Zulkifli", ratings: { technical: 4, communication: 2, cultureFit: 3, experience: 3 }, recommendation: "yes", notes: "Strong technically but a little terse explaining decisions. Worth a second chat on collaboration style.", submittedAt: "1d ago" },
   ],
 };
 
-// Applicants keyed by job id — the single source of truth for both the
+// Applicants keyed by job id, the single source of truth for both the
 // Jobs card count and the Applicants screen. Base stages here; a shared
 // override (e.g. from a confirmed booking) can win at render time.
 let APPLICANTS_BY_JOB = {
@@ -984,7 +984,7 @@ const BRAND_STYLES = `
 /* Long-form deep-dive panel swap */
 @keyframes lfSwap { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .lf-swap { animation: lfSwap .42s cubic-bezier(.22,1,.36,1) both; }
-/* Panel content swap — slides in from the right for spatial continuity */
+/* Panel content swap, slides in from the right for spatial continuity */
 @keyframes lfSlide { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
 .lf-slide { animation: lfSlide .44s cubic-bezier(.22,1,.36,1) both; }
 /* Pop-in for step badges once their card reveals */
@@ -1046,7 +1046,7 @@ const BRAND_STYLES = `
 button:not(:disabled), [role="button"], [role="menuitem"], [role="option"], a[href], summary, select, label[for] { cursor: pointer; }
 button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 
-/* Refined scrollbars, site-wide — thin, rounded, floating, subtle */
+/* Refined scrollbars, site-wide: thin, rounded, floating, subtle */
 * { scrollbar-width: thin; scrollbar-color: rgba(120,122,150,0.38) transparent; }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1061,7 +1061,7 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 @keyframes probSwap { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .prob-swap { animation: probSwap .45s cubic-bezier(.22,1,.36,1) both; }
 
-/* Looping match-ring fill (landing preview) — fills, holds, then resets */
+/* Looping match-ring fill (landing preview): fills, holds, then resets */
 @keyframes ringLoop {
   0% { stroke-dashoffset: var(--circ); }
   35% { stroke-dashoffset: var(--off); }
@@ -1152,7 +1152,7 @@ function PreviewBanner() {
   return (
     <div className="border-b px-4 sm:px-6 py-2 text-center" style={{ background: "var(--brand-soft)", borderColor: "#EBDBFF" }}>
       <p className="text-xs" style={{ color: "var(--brand-2)" }}>
-        In-chat preview — mock data only, no real backend calls
+        In-chat preview: mock data only, no real backend calls
       </p>
     </div>
   );
@@ -1304,7 +1304,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
   );
 }
 
-// Standard email shape check — same rule used on the server side.
+// Standard email shape check, same rule used on the server side.
 const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || "").trim());
 // Minimum production password policy: 8+ chars with at least one letter and one number.
 const passwordProblem = (pw) => {
@@ -1631,7 +1631,7 @@ function Pipeline({ steps }) {
         </div>
       </div>
     ),
-    // 2 · Let AI screen — the signature ranked list
+    // 2 · Let AI screen, the signature ranked list
     (
       <div className="space-y-2">
         {[
@@ -1686,7 +1686,7 @@ function Pipeline({ steps }) {
         <div className="h-[3px] rounded-full absolute top-0 left-0 brand-gradient" style={{ width: visible ? "100%" : "0%", transition: "width 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
         {!reduce && visible && <span className="pipe-pulse-h absolute w-2.5 h-2.5 rounded-full" style={{ top: -3, ...pulseDot }} />}
       </div>
-      {/* Mobile: vertical rail down the left — fills as you scroll the section */}
+      {/* Mobile: vertical rail down the left, fills as you scroll the section */}
       <div className="md:hidden absolute" style={{ left: 27, top: 20, bottom: 20, width: 3 }}>
         <div className="w-full h-full rounded-full" style={{ background: "var(--navy-line)" }} />
         <div className="w-full rounded-full absolute top-0 left-0 brand-gradient" style={{ height: `${reduce ? 100 : railFill}%`, transition: reduce ? "none" : "height .12s linear" }} />
@@ -1788,7 +1788,7 @@ function Reveal({ children, as: Tag = "div", delay = 0, from = "up", className =
 }
 
 // Counts a number up from 0 to `to` when it scrolls into view. With `loop`, it
-// holds at the target, resets to 0, and counts again — continuously.
+// holds at the target, resets to 0, and counts again, continuously.
 function CountUp({ to, duration = 1100, delay = 0, loop = false, hold = 1500, className, style }) {
   const [val, setVal] = useState(0);
   const ref = useRef(null);
@@ -1885,7 +1885,7 @@ function PipelinePreview() {
   ];
   return (
     <div className="w-full max-w-sm rounded-2xl bg-white shadow-soft p-3.5" style={{ border: "1px solid var(--line)" }}>
-      {/* board header — one board the whole team shares */}
+      {/* board header, one board the whole team shares */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>Hiring pipeline</span>
         <span className="inline-flex items-center gap-1.5">
@@ -1967,7 +1967,7 @@ function ApplyPagePreview() {
           </span>
         </span>
       </div>
-      {/* mini apply page — colors + button load in once the URL is typed */}
+      {/* mini apply page, colors + button load in once the URL is typed */}
       <div className="px-4 py-3.5">
         <div className="flex items-center gap-2 mb-2.5" style={ap(0)}>
           <span className="w-6 h-6 rounded-md brand-gradient shrink-0" />
@@ -2027,7 +2027,7 @@ function TeamInterviewPreview() {
         </div>
         <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold shrink-0 ${invited ? "meet-glow" : ""}`} style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="link" className="w-2.5 h-2.5" /> Meet</span>
       </div>
-      {/* the panel — teammates join one by one, then all get invited */}
+      {/* the panel, teammates join one by one, then all get invited */}
       <div className="rounded-xl bg-white px-3 py-2.5 shadow-soft" style={{ border: "1px solid var(--line)" }}>
         <div className="flex items-center gap-2.5" style={{ minHeight: 32 }}>
           <div className="flex -space-x-2">
@@ -2266,7 +2266,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
-  const [probMode, setProbMode] = useState("problem"); // "problem" | "aster" — before/after toggle
+  const [probMode, setProbMode] = useState("problem"); // "problem" | "aster", before/after toggle
   const [probTouched, setProbTouched] = useState(false); // hide the "flip me" hint once used
 
   // Mobile pricing carousel
@@ -2454,12 +2454,12 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </defs>
       </svg>
 
-      {/* Shared marketing nav — identical on landing + product pages.
+      {/* Shared marketing nav, identical on landing + product pages.
           onLanding lets Pricing/FAQ scroll in place; onCta keeps the landing's
           14-day-trial signup for Get started. */}
       <MarketingNav navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
 
-      {/* Hero — the AI match score is the thesis */}
+      {/* Hero, the AI match score is the thesis */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(70% 55% at 78% 12%, rgba(90,120,248,0.35) 0%, transparent 60%), radial-gradient(60% 50% at 10% 90%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
@@ -2505,7 +2505,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <p className="mt-4 text-xs" style={{ color: "var(--ink-3)" }}>No credit card · Set up in minutes</p>
           </div>
 
-          {/* Right: the signature — Aster parsing a resume in seconds */}
+          {/* Right: the signature, Aster parsing a resume in seconds */}
           <div className="relative rounded-2xl p-5 sm:p-6" style={{ background: "linear-gradient(180deg, rgba(30,33,72,0.72), rgba(22,24,58,0.66))", border: "1px solid var(--navy-line)", backdropFilter: "blur(8px)", boxShadow: "0 2px 0 0 rgba(255,255,255,0.04) inset, 0 50px 100px -40px rgba(0,0,0,0.85)" }}>
             {/* top edge highlight */}
             <div className="pointer-events-none absolute inset-x-6 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.55), transparent)" }} />
@@ -2585,7 +2585,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </h2>
           <p className="text-neutral-500 mt-3">See the six that slow every team down, then flip to how Aster fixes each one.</p>
         </Reveal>
-        {/* Before / after switch — sits right above the cards */}
+        {/* Before / after switch, sits right above the cards */}
         <Reveal delay={60} className="mb-5 flex items-center gap-3 flex-wrap">
           <div className={`flex w-full sm:inline-flex sm:w-auto rounded-full border p-1 ${probTouched ? "" : "toggle-pulse"}`} style={{ borderColor: probTouched ? "var(--line)" : "var(--brand)", background: "#fff" }}>
             {[["problem", "The old way"], ["aster", "With Aster"]].map(([key, label]) => {
@@ -2618,18 +2618,18 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             const aster = probMode === "aster";
             return (
               <Reveal key={p.pain} delay={i * 70} className="group relative overflow-hidden rounded-2xl border p-6 sm:p-7 card-lift shadow-soft h-full flex flex-col" style={{ borderColor: aster ? "#E4D3FB" : "var(--line)", background: aster ? "#F8F2FF" : "#fff", transition: "background .4s ease, border-color .4s ease" }}>
-                {/* top accent bar — lights up in the Aster state */}
+                {/* top accent bar, lights up in the Aster state */}
                 <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: "linear-gradient(90deg, #D65BFF, #973BF7, #5A78F8)", opacity: aster ? 1 : 0, transition: "opacity .4s ease" }} />
                 {/* numbered watermark */}
                 <span className="pointer-events-none absolute top-4 right-5 font-display font-extrabold tnum leading-none select-none" style={{ fontSize: "2rem", color: aster ? "rgba(151,59,247,0.12)" : "rgba(18,19,42,0.055)", transition: "color .4s ease" }}>{`0${i + 1}`}</span>
-                {/* icon + persistent problem label — the constant that maps problem↔fix */}
+                {/* icon + persistent problem label, the constant that maps problem↔fix */}
                 <div className="flex items-center gap-3 mb-4 pr-10">
                   <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={aster ? { background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #ECDCFF" } : { background: "#FFF1F2", color: "#F43F5E", border: "1px solid #FFE4E6" }}>
                     <Icon name={p.icon} className="w-5 h-5" />
                   </span>
                   <h3 className="font-semibold text-neutral-900 leading-snug text-[17px]">{p.pain}</h3>
                 </div>
-                {/* swapping body — one message at a time, animated on toggle */}
+                {/* swapping body, one message at a time, animated on toggle */}
                 <div key={probMode} className="prob-swap flex-1" style={{ animationDelay: `${i * 45}ms` }}>
                   {aster ? (
                     <p className="text-[15px] leading-relaxed" style={{ color: "var(--ink)" }}>{p.result}</p>
@@ -2642,7 +2642,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           })}
         </div>
 
-        {/* compact stat band — the payoff, so it belongs to the "With Aster" view only */}
+        {/* compact stat band, the payoff, so it belongs to the "With Aster" view only */}
         {probMode === "aster" && (
           <div key="stats" className="prob-swap mt-8">
             <p className="text-center text-[11px] font-semibold uppercase brand-text mb-3" style={{ letterSpacing: "0.09em" }}>What changes with Aster</p>
@@ -2667,7 +2667,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </h2>
         </Reveal>
         <div className="space-y-4 sm:space-y-5">
-          {/* 1 · Role-fit match score — light row, visual right */}
+          {/* 1 · Role-fit match score, light row, visual right */}
           <Reveal className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-8 sm:p-10 lg:p-12 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-4">
@@ -2708,7 +2708,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             </div>
           </Reveal>
 
-          {/* 2 · AI resume parsing — light row, visual left */}
+          {/* 2 · AI resume parsing, light row, visual left */}
           <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <div className="relative overflow-hidden w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
@@ -2744,7 +2744,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             </div>
           </Reveal>
 
-          {/* 3 · Interview scheduling — light row, visual right */}
+          {/* 3 · Interview scheduling, light row, visual right */}
           <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-8 sm:p-10 lg:p-12 flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-4">
@@ -2761,7 +2761,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             </div>
           </Reveal>
 
-          {/* 4 · One shared pipeline — light row, visual left */}
+          {/* 4 · One shared pipeline, light row, visual left */}
           <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <PipelinePreview />
@@ -2779,13 +2779,13 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </Reveal>
         </div>
 
-        {/* More capabilities — full-width alternating rows, continuing the big rows above */}
+        {/* More capabilities, full-width alternating rows, continuing the big rows above */}
         <div className="space-y-4 sm:space-y-5 mt-4 sm:mt-5">
           {moreFeatures.map((f, i) => {
             const visualRight = i % 2 === 0; // alternate the preview side, row by row
             return (
             <Reveal key={f.title} delay={60} className="rounded-3xl border overflow-hidden grid grid-cols-1 lg:grid-cols-2 items-stretch bg-white" style={{ borderColor: "var(--line)" }}>
-              {/* feature-specific preview — big panel, alternating side */}
+              {/* feature-specific preview, big panel, alternating side */}
               <div className={`p-6 sm:p-8 lg:p-10 flex items-center justify-center overflow-hidden order-2 border-t lg:border-t-0 ${visualRight ? "lg:order-2 lg:border-l" : "lg:order-1 lg:border-r"}`} style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
                 <div className="w-full max-w-xs sm:max-w-sm">
                 {(() => {
@@ -2857,7 +2857,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </div>
       </section>
 
-      {/* How it works — dark "show the product working" band */}
+      {/* How it works, dark "show the product working" band */}
       <section className="relative overflow-hidden grain py-14 sm:py-24" style={{ background: "#0A0B1A" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 45% at 15% 0%, rgba(90,120,248,0.22) 0%, transparent 60%), radial-gradient(55% 50% at 90% 100%, rgba(151,59,247,0.20) 0%, transparent 60%)" }} />
         <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
@@ -2881,7 +2881,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             Teams around the world hire faster with Aster.
           </h2>
         </Reveal>
-        {/* Featured testimonial — dark focal card */}
+        {/* Featured testimonial, dark focal card */}
         <Reveal as="figure" className="relative overflow-hidden grain rounded-3xl p-8 sm:p-10 mb-4 shadow-float" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
           <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(50% 70% at 100% 0%, rgba(151,59,247,0.30) 0%, transparent 60%), radial-gradient(45% 60% at 0% 100%, rgba(90,120,248,0.24) 0%, transparent 60%)" }} />
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.6), transparent)" }} />
@@ -2943,7 +2943,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </div>
       </section>
 
-      {/* Solutions — the same platform, framed for who's buying */}
+      {/* Solutions, the same platform, framed for who's buying */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
         <Reveal className="max-w-2xl mb-8 sm:mb-12">
           <p className="eyebrow brand-text mb-2">Solutions</p>
@@ -3011,7 +3011,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             {plans.slice(0, 3).map((plan) => (
               <div key={plan.key} className={`snap-start snap-always shrink-0 w-[85%] sm:w-[46%] max-w-[340px] rounded-2xl border flex flex-col relative p-5 sm:p-6 ${plan.popular ? "" : "card-lift"}`}
                 style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 24px 50px -24px rgba(151,59,247,0.42)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
-                {/* header — name + inline popular pill (no overhang to clip) */}
+                {/* header, name + inline popular pill (no overhang to clip) */}
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.3rem", letterSpacing: "-0.01em" }}>
                     {plan.popular ? <span className="brand-text">{plan.name}</span> : plan.name}
@@ -3019,7 +3019,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   {plan.popular && <span className="shrink-0 text-[10px] px-2 py-1 rounded-full brand-gradient text-white font-semibold">Popular</span>}
                 </div>
                 <p className="text-sm text-neutral-500 mt-1">{plan.tagline}</p>
-                {/* price — baseline aligned, never wraps */}
+                {/* price, baseline aligned, never wraps */}
                 <div className="mt-4 flex items-baseline gap-1.5">
                   <span className="font-bold font-display text-neutral-900 tnum" style={{ fontSize: "2.1rem", letterSpacing: "-0.02em" }}>{plan.price}</span>
                   {plan.sub && <span className="text-sm text-neutral-500">{plan.sub}</span>}
@@ -3030,7 +3030,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
                   {plan.cta}
                 </button>
-                {/* curated highlights — clean "what you get", full matrix on desktop */}
+                {/* curated highlights, clean "what you get", full matrix on desktop */}
                 {(() => {
                   const h = planHighlights[plan.col];
                   if (!h) return null;
@@ -3117,7 +3117,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           ))}
         </div>
 
-        {/* Enterprise — highlighted separately, below the table */}
+        {/* Enterprise, highlighted separately, below the table */}
         <Reveal className="mt-6 rounded-2xl overflow-hidden grain relative shadow-float" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
           <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(45% 80% at 100% 0%, rgba(151,59,247,0.28) 0%, transparent 60%), radial-gradient(40% 70% at 0% 100%, rgba(90,120,248,0.22) 0%, transparent 60%)" }} />
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.6), transparent)" }} />
@@ -3162,7 +3162,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>
               Everything worth knowing before you start. Can&rsquo;t find what you&rsquo;re after? Just ask.
             </p>
-            {/* categories — horizontal tabs on mobile, vertical list on desktop */}
+            {/* categories, horizontal tabs on mobile, vertical list on desktop */}
             <div className="mt-6 grid grid-cols-2 gap-2 lg:flex lg:flex-col lg:gap-1" role="tablist" aria-label="FAQ categories">
               {faqCategories.map((cat) => {
                 const on = cat === faqCat;
@@ -3182,7 +3182,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 );
               })}
             </div>
-            {/* contact card — desktop only (mobile version is rendered last) */}
+            {/* contact card, desktop only (mobile version is rendered last) */}
             <div className="hidden lg:block mt-8 rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
               <p className="font-display font-semibold text-white">Still have questions?</p>
               <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
@@ -3214,7 +3214,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             })}
           </div>
 
-          {/* contact card — mobile only, rendered last */}
+          {/* contact card, mobile only, rendered last */}
           <div className="lg:hidden rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
             <p className="font-display font-semibold text-white">Still have questions?</p>
             <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
@@ -3236,7 +3236,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         <Reveal className="relative max-w-2xl mx-auto">
           <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Ready to make your next hire?</h2>
           <p className="mt-3 max-w-md mx-auto" style={{ color: "var(--navy-ink)" }}>Post your first role in minutes. No credit card required.</p>
-          {/* proof band — time saved, recruiter productivity, speed to hire */}
+          {/* proof band, time saved, recruiter productivity, speed to hire */}
           <div className="mt-9 flex justify-center">
             <div className="flex divide-x divide-white/10">
               {[
@@ -3259,7 +3259,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </Reveal>
       </section>
 
-      {/* Shared marketing footer — identical on landing + product pages */}
+      {/* Shared marketing footer, identical on landing + product pages */}
       <MarketingFooter navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} onLanding />
     </div>
   );
@@ -3417,8 +3417,8 @@ const PRODUCT_PAGES = {
 };
 
 // ───────────────────────── Solutions (segmentation) ─────────────────────────
-// The same product, framed for who's buying. Three axes — role, company stage,
-// and industry — each a set of pages. Slugs may be nested (industries/<x>) so
+// The same product, framed for who's buying. Three axes (role, company stage,
+// and industry), each a set of pages. Slugs may be nested (industries/<x>) so
 // the router treats the whole sub-path after /solutions/ as the slug.
 const SOLUTIONS_NAV = [
   { group: "By role", slug: "role", icon: "users", tint: "#D98BF5", items: [
@@ -3636,7 +3636,7 @@ const SOLUTIONS_PAGES = {
   },
 };
 
-// The "Sound familiar?" problem list per segment — name the pain before the
+// The "Sound familiar?" problem list per segment, name the pain before the
 // fix (brand voice). Keyed by the same slugs as SOLUTIONS_PAGES.
 const SOLUTION_PAINS = {
   recruiters: ["Opening and reading 50+ CVs for every role, by hand.", "The best-fit candidate buried on page 3 of a spreadsheet.", "A dozen emails just to lock one interview slot."],
@@ -3655,7 +3655,7 @@ const SOLUTION_PAINS = {
   "industries/manufacturing": ["High volumes of applications for every shift and role.", "Certifications and licences to verify by hand.", "Scheduling interviews across sites and shifts."],
 };
 // Honest, platform-level proof points (from the brand proof line) shown on
-// every solution page — the "results" of the before → after story.
+// every solution page, the "results" of the before → after story.
 const SOLUTION_OUTCOMES = [
   { stat: "3×", label: "faster shortlists" },
   { stat: "46 → 3", label: "applicants to a shortlist" },
@@ -3664,7 +3664,7 @@ const SOLUTION_OUTCOMES = [
 
 // Jump to a section on the landing page (e.g. Pricing, FAQ) from anywhere. If
 // we're already on landing, smooth-scroll; otherwise route to landing first and
-// scroll once the section has mounted (poll a few frames — see goToPricing).
+// scroll once the section has mounted (poll a few frames, see goToPricing).
 function scrollToLandingSection(id) {
   if (typeof window === "undefined") return;
   let tries = 0;
@@ -3738,7 +3738,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             </button>
           </div>
 
-          {/* Product mega-menu — full nav width */}
+          {/* Product mega-menu, full nav width */}
           {prodOpen && (
             <div className={panelWrap}>
               <div className={panelCard} style={panelStyle}>
@@ -3767,7 +3767,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             </div>
           )}
 
-          {/* Solutions mega-menu — identical footprint to Product */}
+          {/* Solutions mega-menu, identical footprint to Product */}
           {solOpen && (
             <div className={panelWrap}>
               <div className={panelCard} style={panelStyle}>
@@ -3801,7 +3801,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             </div>
           )}
 
-          {/* Resources menu — compact two-item dropdown */}
+          {/* Resources menu, compact two-item dropdown */}
           {resOpen && (
             <div className={panelWrap}>
               <div className={panelCard} style={panelStyle}>
@@ -3904,7 +3904,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
       <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
       <div className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] max-w-[90vw] h-[240px] rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
-        {/* top tier — lean: brand + product + explore + get started */}
+        {/* top tier, lean: brand + product + explore + get started */}
         <div className="py-12 sm:py-16 grid gap-10 sm:gap-x-8 sm:gap-y-12 md:grid-cols-12">
           {/* brand + tagline */}
           <div className="md:col-span-4">
@@ -3944,7 +3944,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
           </div>
         </div>
 
-        {/* full-width Solutions band — every segment reachable, spread out to breathe */}
+        {/* full-width Solutions band, every segment reachable, spread out to breathe */}
         <div className="py-10 sm:py-12" style={{ borderTop: "1px solid var(--navy-line)" }}>
           <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
             <div>
@@ -4168,7 +4168,7 @@ function MarketingLongform({ data }) {
   const BAND = "#07081A"; // subtle band to alternate against the #050610 base
   return (
     <MotionConfig reducedMotion="user">
-      {/* Intro — a large lede paragraph then supporting prose, editorial measure */}
+      {/* Intro, a large lede paragraph then supporting prose, editorial measure */}
       {intro && intro.length > 0 && (
         <section className="py-16 sm:py-24" style={{ background: "var(--bg)", borderTop: "1px solid var(--line)" }}>
           <MReveal className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4181,7 +4181,7 @@ function MarketingLongform({ data }) {
         </section>
       )}
 
-      {/* How it works — spring-popped numbered stepper, staggered in */}
+      {/* How it works, spring-popped numbered stepper, staggered in */}
       {howItWorks && howItWorks.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4205,7 +4205,7 @@ function MarketingLongform({ data }) {
         </section>
       )}
 
-      {/* Deep dive — interactive vertical tabs (desktop) / accordion (mobile) */}
+      {/* Deep dive, interactive vertical tabs (desktop) / accordion (mobile) */}
       {deepDive && deepDive.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4218,7 +4218,7 @@ function MarketingLongform({ data }) {
         </section>
       )}
 
-      {/* Use cases — one scenario at a time, single readable column */}
+      {/* Use cases, one scenario at a time, single readable column */}
       {useCases && useCases.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4233,7 +4233,7 @@ function MarketingLongform({ data }) {
         </section>
       )}
 
-      {/* FAQ — accordion */}
+      {/* FAQ: accordion */}
       {faq && faq.length > 0 && (
         <section className="py-16 sm:py-20" style={{ background: "var(--bg)", borderTop: "1px solid var(--line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4260,7 +4260,7 @@ function MarketingLongform({ data }) {
         </section>
       )}
 
-      {/* Closing — a featured statement, left-aligned for readability */}
+      {/* Closing, a featured statement, left-aligned for readability */}
       {closing && (
         <section className="py-16 sm:py-24" style={{ background: "#050610", borderTop: "1px solid var(--navy-line)" }}>
           <MReveal className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4381,7 +4381,7 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} current={slug} />
       <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
-      {/* Feature grid — light band */}
+      {/* Feature grid, light band */}
       <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -4395,7 +4395,7 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
           </div>
         </div>
       </section>
-      {/* Highlight band — dark */}
+      {/* Highlight band, dark */}
       {page.highlight && (
         <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4490,7 +4490,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
       <MarketingNav {...nav} currentSol={slug} />
       <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
 
-      {/* The problem — name the pain before the fix */}
+      {/* The problem, name the pain before the fix */}
       {pains && (
         <section className="py-14 sm:py-20" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[0.85fr_1.4fr] gap-8 lg:gap-14 items-start">
@@ -4511,7 +4511,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
         </section>
       )}
 
-      {/* How Aster helps — the fix, on a light band */}
+      {/* How Aster helps, the fix, on a light band */}
       <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl mb-8 sm:mb-10">
@@ -4530,7 +4530,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
         </div>
       </section>
 
-      {/* Highlight band — dark */}
+      {/* Highlight band, dark */}
       {page.highlight && (
         <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -4555,7 +4555,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
         </section>
       )}
 
-      {/* Outcomes — honest, platform-level proof (the "after") */}
+      {/* Outcomes, honest, platform-level proof (the "after") */}
       <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="rounded-3xl p-8 sm:p-10 grid sm:grid-cols-3 gap-8 sm:gap-4 items-center" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--navy-line)" }}>
@@ -4716,7 +4716,7 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
   return (
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} current={null} />
-      {/* Blog header — a content hub, so no product CTAs here */}
+      {/* Blog header, a content hub, so no product CTAs here */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
@@ -4755,7 +4755,7 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
           </div>
         </section>
       )}
-      {/* Grid — dark band for rhythm against the light featured area above */}
+      {/* Grid, dark band for rhythm against the light featured area above */}
       <section className="py-12 sm:py-16 mt-4" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <h2 className="text-white font-display font-semibold text-xl mb-6">{activeCat ? `More on ${activeCat.label.toLowerCase()}` : "All articles"}</h2>
@@ -4831,7 +4831,7 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
   return (
     <div className="overflow-x-clip" style={{ background: "#050610" }}>
       <MarketingNav {...nav} current={null} />
-      {/* Glossary header — a reference page, so no product CTA here */}
+      {/* Glossary header, a reference page, so no product CTA here */}
       <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
@@ -4929,7 +4929,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>Positioning reflects each tool's typical strengths; verify current features before relying on any single row.</p>
           </div>
         </section>
-        {/* Aster edge + when them — dark band */}
+        {/* Aster edge + when them, dark band */}
         <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 grid gap-5 lg:grid-cols-3">
             <div className="lg:col-span-2 rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
@@ -4950,7 +4950,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        {/* Migration — light band */}
+        {/* Migration, light band */}
         <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5 justify-between act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
@@ -4962,7 +4962,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        {/* Other comparisons — dark band */}
+        {/* Other comparisons, dark band */}
         <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 className="text-white font-display font-semibold text-xl mb-6">Other comparisons</h2>
@@ -4997,7 +4997,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{a.subtitle}</p>
           </div>
         </section>
-        {/* Why teams switch — light band */}
+        {/* Why teams switch, light band */}
         <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 className="text-neutral-900 font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Why teams switch</h2>
@@ -5012,7 +5012,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        {/* How the move works — dark band */}
+        {/* How the move works, dark band */}
         <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>How the move works</h2>
@@ -5027,7 +5027,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        {/* Compare links — light band */}
+        {/* Compare links, light band */}
         <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 className="text-neutral-900 font-display font-semibold text-xl mb-6">Compare Aster with your current tool</h2>
@@ -5060,7 +5060,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
           <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{h.subtitle}</p>
         </div>
       </section>
-      {/* Aster dashboard screenshot — slides up below the header */}
+      {/* Aster dashboard screenshot, slides up below the header */}
       <section className="pt-6 sm:pt-8 pb-6" style={{ background: "#050610" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <motion.div
@@ -5133,11 +5133,11 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const pwColor = ["#2A2D57", "#F59E0B", "#5A78F8", "#22C55E"][pwScore];
 
   // Two entry paths into sign-up:
-  //  • Trial  — from any generic landing CTA. A 14-day full-Premium trial; the
+  //  • Trial: from any generic landing CTA. A 14-day full-Premium trial; the
   //    plan price is shown struck-through with a "Free for 14 days" note.
-  //  • Paid   — the user clicked "Choose Pro/Premium" on the pricing table. The
+  //  • Paid: the user clicked "Choose Pro/Premium" on the pricing table. The
   //    price is shown as-is and sign-up continues to payment (billing).
-  //  • Free   — the genuine $0 Free plan ("Get started" on the pricing table).
+  //  • Free: the genuine $0 Free plan ("Get started" on the pricing table).
   const isEnterprise = signupPlan === "enterprise";
   const isPaid = !signupTrial && (signupPlan === "starter" || signupPlan === "professional");
   const isFreePlan = !signupTrial && signupPlan === "free";
@@ -5598,14 +5598,14 @@ const LOGIN_BG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAU
 function BrandLogo({ logoUrl, compact = false, onDark = false, large = false }) {
   // Shows the full Aster logo artwork. A user-uploaded logo (Settings)
   // always wins. Otherwise we pick the colour variant for light contexts
-  // and the dedicated white wordmark for the dark navy sidebar — both are
+  // and the dedicated white wordmark for the dark navy sidebar, both are
   // transparent PNGs, so no white box and no filter tricks.
   const src = logoUrl || (onDark ? ACTIVYS_LOGO_WHITE : ACTIVYS_LOGO);
   const h = compact ? "h-7" : large ? "h-9 sm:h-11" : "h-9";
   return (
     <img
       src={src}
-      alt="Aster — smarter hiring, stronger teams"
+      alt="Aster: smarter hiring, stronger teams"
       className={`${h} w-auto object-contain`}
     />
   );
@@ -5797,12 +5797,12 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
   return (
     <div className="min-h-screen md:p-4" style={{ background: "#0B0D14" }}>
       <div className="md:flex md:gap-4 md:items-start">
-        {/* Desktop icon rail — dark rounded, sticky */}
+        {/* Desktop icon rail, dark rounded, sticky */}
         <aside className="hidden md:flex w-[76px] shrink-0 flex-col rounded-[26px] py-5 sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
           <IconSidebar navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
         </aside>
 
-        {/* Mobile drawer — keeps the labelled nav */}
+        {/* Mobile drawer, keeps the labelled nav */}
         {mobileOpen && (
           <div className="md:hidden fixed inset-0 z-40">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
@@ -5812,7 +5812,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
           </div>
         )}
 
-        {/* Content — rounded light panel inside the dark frame */}
+        {/* Content, rounded light panel inside the dark frame */}
         <div className="flex-1 min-w-0">
           <div className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-30" style={{ background: "var(--navy)", borderBottom: "1px solid var(--navy-line)" }}>
             <button onClick={() => setMobileOpen(true)} className="burger w-9 h-9 flex flex-col items-center justify-center gap-[5px] rounded-lg transition-transform active:scale-90" aria-label="Open menu">
@@ -6039,7 +6039,7 @@ function NotificationBell({ activities, onOpen, onActivityClick, compact = false
               {activities.length === 0 ? (
                 <div className="px-3 py-8 text-center">
                   <p className="text-sm" style={{ color: "var(--ink-2)" }}>You&rsquo;re all caught up</p>
-                  <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>New activity — applications, interviews, and hires — shows up here.</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>New activity (applications, interviews, and hires) shows up here.</p>
                 </div>
               ) : (
                 activities.slice(0, MAX_NOTIFICATIONS).map((a) => (
@@ -6142,7 +6142,7 @@ function faceUrl(seed, gender) {
   return `https://randomuser.me/api/portraits/${g}/${idx}.jpg`;
 }
 
-// Per-name face overrides — real photos (drop files in public/avatars/) and/or
+// Per-name face overrides, real photos (drop files in public/avatars/) and/or
 // a forced gender. Applies anywhere a person with this name is shown. Missing
 // image files fall back gracefully to the person's initials.
 const FACE_OVERRIDES = {
@@ -6199,7 +6199,7 @@ function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style 
 }
 
 // Candidate avatars use the real photo extracted from the resume when we have
-// one, and fall back to the person's initials — never a generated stock face.
+// one, and fall back to the person's initials, never a generated stock face.
 function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot = true }) {
   const [failed, setFailed] = useState(false);
   if (src && !failed) {
@@ -6516,7 +6516,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const [showAllSources, setShowAllSources] = useState(false);
 
   const allApplicants = Object.values(APPLICANTS_BY_JOB).flat();
-  // Hired candidates (a completed hire — the headline win). Global per candidate.
+  // Hired candidates (a completed hire, the headline win). Global per candidate.
   const hiredCandidates = candidates.filter((c) => hiredIds.has(c.id));
   const stats = {
     totalCandidates: candidates.length,
@@ -6589,7 +6589,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 
   const donutColors = ["#973BF7", "#3B82F6", "#93C5FD", "#D1D5DB"];
 
-  // Top Roles — applicants per role, derived from real applicant data.
+  // Top Roles: applicants per role, derived from real applicant data.
   const roleCounts = jobs
     .map((j) => ({ label: j.title, value: applicantCountFor(j.id) }))
     .filter((r) => r.value > 0)
@@ -6598,7 +6598,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const roleSegments = roleCounts.slice(0, 3).map((r, i) => ({ ...r, color: donutColors[i] }));
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
-  // Application Source — distribution of where applicants came from.
+  // Application Source: distribution of where applicants came from.
   const sourcePalette = { "Career Page": "#973BF7", LinkedIn: "#3B82F6", Referral: "#93C5FD", JobStreet: "#A5B4FC", Indeed: "#6366F1", Glassdoor: "#22C55E", Database: "#C7D2FE", Others: "#D1D5DB" };
   const sourceCounts = {};
   Object.values(APPLICANTS_BY_JOB).flat().forEach((a) => {
@@ -6640,7 +6640,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white leading-tight">{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--navy-ink)" }}>Full Premium access — unlimited AI matching &amp; jobs.</p>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--navy-ink)" }}>Full Premium access: unlimited AI matching &amp; jobs.</p>
             </div>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -6659,9 +6659,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           navigate={navigate}
         />
 
-        {/* Bento — charts + interviews (left) · plan panel (right) */}
+        {/* Bento, charts + interviews (left) · plan panel (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-          {/* Date filter on mobile — sits below the plan panel */}
+          {/* Date filter on mobile, sits below the plan panel */}
           <div className="md:hidden order-2 flex justify-end">
             <DateRangePicker range={range} setRange={setRange} />
           </div>
@@ -6703,7 +6703,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               const fmax = Math.max(...funnel.map((f) => f.value), 1);
               return (
                 <div className="flex-1 flex flex-col gap-4 md:gap-5">
-                  {/* Stats — 2×2: Total Candidates | New Applications · Total Job Postings | Total Hires */}
+                  {/* Stats, 2×2: Total Candidates | New Applications · Total Job Postings | Total Hires */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                     {heroCard({ ...kpis[5], dark: true, celebrate: true })}
                     {heroCard(kpis[0])}
@@ -6711,7 +6711,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     {heroCard({ label: "New Applicants", value: stageCount("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
                   </div>
 
-                  {/* Bottom row — Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
+                  {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Your hiring funnel, showing how many applicants have reached each stage from Applied through to Hired.")}
@@ -6766,7 +6766,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             })()}
           </div>
 
-          {/* Right dark panel — plan card + quick actions + recent candidates */}
+          {/* Right dark panel, plan card + quick actions + recent candidates */}
           <div className="order-1 lg:order-2 lg:col-span-1 min-w-0">
             <div className="rounded-3xl p-5 relative overflow-hidden grain h-full flex flex-col" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(151,59,247,0.35) 0%, transparent 60%)" }} />
@@ -6801,7 +6801,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>{stats.totalCandidates} total</button>
                 </div>
                 {candidates.filter((c) => c.parsed).length === 0 ? (
-                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>No candidates yet — upload CVs or share an apply link.</p>
+                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>No candidates yet. Upload CVs or share an apply link.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
@@ -6824,7 +6824,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   </div>
                 )}
               </div>
-              {/* Plan usage — how much of this month's limits you've used */}
+              {/* Plan usage, how much of this month's limits you've used */}
               <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--navy-line)" }}>
                 {(() => {
                   const L = planLimits(plan);
@@ -6905,15 +6905,15 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 }
 
 
-// What the parser accepts and how it handles each file — shown beside the dropzone.
+// What the parser accepts and how it handles each file, shown beside the dropzone.
 const UPLOAD_ACCEPT = [
-  { icon: "doc", title: "PDF, Word, or ZIP", body: <>Upload resumes as PDF (.pdf) or Word (.doc, .docx) — or drop a <span className="font-medium" style={{ color: "var(--ink-2)" }}>ZIP</span> and we'll unpack the resumes inside it.</> },
+  { icon: "doc", title: "PDF, Word, or ZIP", body: <>Upload resumes as PDF (.pdf) or Word (.doc, .docx), or drop a <span className="font-medium" style={{ color: "var(--ink-2)" }}>ZIP</span> and we'll unpack the resumes inside it.</> },
   { icon: "search", title: "Text-readable files", body: <>Your resume must contain selectable text. Image-only files or scanned documents without readable text can't be parsed automatically.</> },
   { icon: "users", title: "Standard resume content", body: (
-    <>The document should include basic candidate information — <span className="font-medium" style={{ color: "var(--ink-2)" }}>full name</span>, <span className="font-medium" style={{ color: "var(--ink-2)" }}>contact details</span>, and <span className="font-medium" style={{ color: "var(--ink-2)" }}>work experience, education or skills</span>. Our AI analyzes each file and assigns a confidence score from what it extracts.</>
+    <>The document should include basic candidate information: <span className="font-medium" style={{ color: "var(--ink-2)" }}>full name</span>, <span className="font-medium" style={{ color: "var(--ink-2)" }}>contact details</span>, and <span className="font-medium" style={{ color: "var(--ink-2)" }}>work experience, education or skills</span>. Our AI analyzes each file and assigns a confidence score from what it extracts.</>
   ) },
   { icon: "shield", title: "Manual review when needed", body: <>If our AI can't confidently read a resume, we'll flag it as <span className="font-medium" style={{ color: "#B45309" }}>Needs review</span> so you can check the details before trusting the parsed profile.</> },
-  { icon: "check", title: "Automatic duplicate check", body: <>Each resume is matched against people already in your system — and others in the same batch. A matching <span className="font-medium" style={{ color: "var(--ink-2)" }}>email</span> (or the same <span className="font-medium" style={{ color: "var(--ink-2)" }}>name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for review. Anyone already hired is skipped automatically.</> },
+  { icon: "check", title: "Automatic duplicate check", body: <>Each resume is matched against people already in your system, and others in the same batch. A matching <span className="font-medium" style={{ color: "var(--ink-2)" }}>email</span> (or the same <span className="font-medium" style={{ color: "var(--ink-2)" }}>name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for review. Anyone already hired is skipped automatically.</> },
 ];
 
 // Seeded past import runs so the history has something to show on first load.
@@ -6929,7 +6929,7 @@ const IMPORT_HISTORY_SEED = [
       { fileName: "arun_pillai.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.88, person: { name: "Arun Pillai", email: "arun.pillai@email.com", phone: "+60 14-700 3333" } },
       { fileName: "grace_lim_updated.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.91, person: { name: "Grace Lim", email: "grace.lim@email.com", phone: "+60 16-600 4444" } },
       { fileName: "daniel_wong_(1).pdf", uploadStatus: "done", parseStatus: "duplicate", confidence: 0.93, person: { name: "Daniel Wong", email: "daniel.wong@email.com", phone: "+60 12-900 1111" }, dup: { matchName: "Daniel Wong", on: "email", inBatch: true, hired: false, verdict: "duplicate" } },
-      { fileName: "office_map.pdf", uploadStatus: "done", parseStatus: "rejected", reason: "This doesn't read like a resume — no contact details or work history anywhere in it." },
+      { fileName: "office_map.pdf", uploadStatus: "done", parseStatus: "rejected", reason: "This doesn't read like a resume: no contact details or work history anywhere in it." },
     ],
   },
   {
@@ -6941,12 +6941,12 @@ const IMPORT_HISTORY_SEED = [
       { fileName: "tan_sue_ann.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.87, person: { name: "Tan Sue Ann", email: "sueann.tan@email.com", phone: "+60 12-400 6666" } },
       { fileName: "kavitha_nair.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.89, person: { name: "Kavitha Nair", email: "kavitha.nair@email.com", phone: "+60 17-300 7777" } },
       { fileName: "j_lee_cv.pdf", uploadStatus: "done", parseStatus: "review", confidence: 0.6, person: { name: "Jonathan Lee", email: "", phone: "+60 16-200 8888" }, dup: { matchName: "Jonathan Lee", on: "name", inBatch: false, hired: false, verdict: "review" } },
-      { fileName: "scanned_resume.pdf", uploadStatus: "done", parseStatus: "flagged", confidence: 0.44, reason: "This looks like a scan — we only found bits and pieces. Worth a quick look before you trust it." },
+      { fileName: "scanned_resume.pdf", uploadStatus: "done", parseStatus: "flagged", confidence: 0.44, reason: "This looks like a scan: we only found bits and pieces. Worth a quick look before you trust it." },
     ],
   },
 ];
 
-// Dependency-free ZIP reader — parses the central directory to list the files
+// Dependency-free ZIP reader, parses the central directory to list the files
 // inside an archive (names + sizes). No decompression needed just to enumerate,
 // so this works fully client-side for real .zip files the user picks.
 function readZipEntries(buf) {
@@ -7020,10 +7020,10 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   const outOfQuota = remaining === 0; // no parses left this month
 
   // Simulated batch: a realistic mix so every outcome shows. `person` carries the
-  // identity the AI would extract (name/email/phone) — used for duplicate detection.
-  //   parsed   — looks like a resume, structured fields extracted
-  //   flagged  — parsed but low confidence, needs a human to review
-  //   rejected — failed a gate (wrong type / no readable text / not a resume)
+  // identity the AI would extract (name/email/phone), used for duplicate detection.
+  //   parsed: looks like a resume, structured fields extracted
+  //   flagged: parsed but low confidence, needs a human to review
+  //   rejected: failed a gate (wrong type / no readable text / not a resume)
   const SAMPLE_BATCH = [
     { fileName: "priya_nair_resume.pdf", verdict: "parsed", confidence: 0.94, person: { name: "Priya Nair", email: "priya.nair@email.com", phone: "+60 12-111 2222" } },
     { fileName: "amira_hassan_updated_cv.pdf", verdict: "parsed", confidence: 0.92, person: { name: "Amira Hassan", email: "amira.hassan@email.com", phone: "+60 12-345 6789" } },
@@ -7031,18 +7031,18 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     { fileName: "siti_r_2026.pdf", verdict: "parsed", confidence: 0.90, person: { name: "Siti Rahman", email: "siti.r@gmail.com", phone: "+60 19-876 5432" } },
     { fileName: "farah_iman_cv.pdf", verdict: "parsed", confidence: 0.90, person: { name: "Farah Iman", email: "farah.iman@email.com", phone: "+60 11-303 4455" } },
     { fileName: "priya_nair_(1).pdf", verdict: "parsed", confidence: 0.94, person: { name: "Priya Nair", email: "priya.nair@email.com", phone: "+60 12-111 2222" } },
-    { fileName: "portfolio_scan.pdf", verdict: "flagged", confidence: 0.41, reason: "This looks like a scan — we only found bits and pieces. Worth a quick look before you trust it." },
-    { fileName: "company_brochure.pdf", verdict: "rejected", reason: "This doesn't read like a resume — no contact details, work history or education anywhere in it." },
-    { fileName: "budget_2026.xlsx", verdict: "rejected", reason: "We can't take spreadsheets — send resumes as a PDF or Word file." },
+    { fileName: "portfolio_scan.pdf", verdict: "flagged", confidence: 0.41, reason: "This looks like a scan: we only found bits and pieces. Worth a quick look before you trust it." },
+    { fileName: "company_brochure.pdf", verdict: "rejected", reason: "This doesn't read like a resume: no contact details, work history or education anywhere in it." },
+    { fileName: "budget_2026.xlsx", verdict: "rejected", reason: "We can't take spreadsheets. Send resumes as a PDF or Word file." },
     { fileName: "ravi_kumar_cv.pdf", verdict: "parsed", confidence: 0.86, person: { name: "Ravi Kumar", email: "ravi.kumar@email.com", phone: "+60 14-555 6666" } },
     { fileName: "lim_weijie_updated.pdf", verdict: "parsed", confidence: 0.88, person: { name: "Lim Wei Jie", email: "weijie.lim2@outlook.com", phone: "+60 16-777 8888" } },
   ];
 
-  // Identity match — the AI cross-checks each parsed resume against people already
+  // Identity match, the AI cross-checks each parsed resume against people already
   // in the system (and earlier files in the same batch) on email, phone and name.
   const normEmail = (e) => (e || "").trim().toLowerCase();
   // Canonicalize MY numbers so local (019…) and international (+6019…) forms
-  // of the same number reconcile — otherwise real duplicates slip through.
+  // of the same number reconcile, otherwise real duplicates slip through.
   const normPhone = (p) => {
     let d = (p || "").replace(/\D/g, "");
     if (d.startsWith("60")) d = "0" + d.slice(2);
@@ -7080,10 +7080,10 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     const kb = Math.max(1, Math.round(sizeBytes / 1024));
     return RESUME_EXT.test(name)
       ? { fileName: name, sizeKb: kb, verdict: "parsed", confidence: undefined, person: { name: nameFromFile(name), email: "", phone: "" } }
-      : { fileName: name, sizeKb: kb, verdict: "rejected", reason: "Not a PDF or Word document — skipped." };
+      : { fileName: name, sizeKb: kb, verdict: "rejected", reason: "Not a PDF or Word document. Skipped." };
   };
 
-  // Real ZIP import — reads the archive, lists the resumes inside, builds the batch.
+  // Real ZIP import: reads the archive, lists the resumes inside, builds the batch.
   const processZip = async (file) => {
     setZipError(null);
     try {
@@ -7100,7 +7100,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   };
   const handleZipFile = (e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) processZip(file); };
 
-  // Real drag & drop — a dropped .zip is unpacked; loose files become the batch.
+  // Real drag & drop: a dropped .zip is unpacked; loose files become the batch.
   const [dragOver, setDragOver] = useState(false);
   const handleDrop = (e) => {
     e.preventDefault();
@@ -7118,11 +7118,11 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     setSkipped(0);
   };
   // Plan enforcement: block a batch that would exceed the resumes LEFT this month
-  // (allowance minus what's already been parsed) — not just the raw monthly cap.
+  // (allowance minus what's already been parsed), not just the raw monthly cap.
   const overLimit = remaining !== Infinity && files.length > remaining;
 
   const runBatch = () => {
-    if (overLimit) return; // guard — plan limit exceeded
+    if (overLimit) return; // guard: plan limit exceeded
     setStage("uploading");
     setRows(files.map((f) => ({ ...f, uploadStatus: "pending", parseStatus: "pending" })));
 
@@ -7143,7 +7143,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
           hired: isExisting && hiredIds.has(dup.match.id),
           verdict: dup.verdict, // "duplicate" (auto) | "review" (needs a human)
         };
-        // A soft "review" hit isn't a confirmed dupe — still treat it as a
+        // A soft "review" hit isn't a confirmed dupe, still treat it as a
         // possible new person so later identical files can flag against it too.
         if (dup.verdict !== "duplicate") {
           seen.push({ id: f.fileName, name: f.person.name, email: f.person.email, phone: f.person.phone, source: "batch" });
@@ -7155,11 +7155,11 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
 
     let i = 0;
     const uploadInterval = setInterval(() => {
-      const idx = i; // capture — the setRows updater runs after i++, so read a stable index
+      const idx = i; // capture: the setRows updater runs after i++, so read a stable index
       setRows((prev) => {
         const next = [...prev];
         if (next[idx]) {
-          // A file with an unsupported type never uploads — it's blocked at the gate.
+          // A file with an unsupported type never uploads, it's blocked at the gate.
           const blockedAtUpload = next[idx].verdict === "rejected" && /\.(xlsx|xls|csv|png|jpg|jpeg|zip)$/i.test(next[idx].fileName);
           next[idx] = { ...next[idx], uploadStatus: blockedAtUpload ? "blocked" : "done" };
         }
@@ -7171,7 +7171,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
         setStage("parsing");
         let j = 0;
         const parseInterval = setInterval(() => {
-          const jdx = j; // capture — the setRows updater runs after j++
+          const jdx = j; // capture: the setRows updater runs after j++
           setRows((prev) => {
             const next = [...prev];
             if (next[jdx]) {
@@ -7188,7 +7188,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
           if (j >= files.length) {
             clearInterval(parseInterval);
             setStage("done");
-            // Count against this month's allowance — only the "Parsed ✓" rows
+            // Count against this month's allowance, only the "Parsed ✓" rows
             // (new candidates), matching the results headline.
             const added = files.filter((f) => f.verdict === "parsed" && !dupMap[f.fileName]).length;
             if (added) setUsedThisMonth((n) => n + added);
@@ -7200,7 +7200,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
 
   const dupActionFor = (row) => (row.dup?.hired ? "skip" : dupActions[row.fileName] || "skip");
 
-  // Bulk-resolve every still-open duplicate at once — the key to handling a big
+  // Bulk-resolve every still-open duplicate at once, the key to handling a big
   // batch (e.g. 100 files) without clicking through each duplicate individually.
   const openDuplicates = rows.filter((r) => r.parseStatus === "duplicate" && !r.dup?.hired && !resolved[r.fileName]);
   const bulkResolveDuplicates = (action) => {
@@ -7231,7 +7231,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     setViewingPast(run.label);
     setStage("done");
   };
-  // Back to a fresh, empty upload screen — saving the just-finished live run to
+  // Back to a fresh, empty upload screen, saving the just-finished live run to
   // history first (reopening a past run must not re-save a duplicate).
   const resetUpload = () => {
     if (!viewingPast && stage === "done" && rows.length) {
@@ -7303,12 +7303,12 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 items-start">
-          {/* Main workspace — dropzone while idle, results while parsing */}
+          {/* Main workspace, dropzone while idle, results while parsing */}
           <div className="lg:col-span-2 space-y-5">
         {stage === "idle" && (
           <>
             {files.length === 0 && outOfQuota && (
-              /* Out of monthly parses — blocking state in place of the dropzone */
+              /* Out of monthly parses, blocking state in place of the dropzone */
               <div className="rounded-2xl border bg-white act-shadow p-8 text-center" style={{ borderColor: "#FECACA" }}>
                 <span className="mx-auto mb-4 flex w-14 h-14 items-center justify-center rounded-2xl" style={{ background: "#FEE2E2", color: "#DC2626" }}>
                   <Icon name="lock" className="w-7 h-7" />
@@ -7323,7 +7323,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               </div>
             )}
             {files.length === 0 && !outOfQuota && (
-              /* Empty dropzone — the whole area is the target, with an explicit button inside */
+              /* Empty dropzone, the whole area is the target, with an explicit button inside */
               <button
                 onClick={pickFiles}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -7355,7 +7355,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               </div>
             )}
             {files.length > 0 && (
-              /* Files selected — review the batch, then parse */
+              /* Files selected, review the batch, then parse */
               <div className="rounded-2xl border bg-white act-shadow overflow-hidden" style={{ borderColor: "var(--line)" }}>
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b" style={{ borderColor: "var(--line)" }}>
                   <div className="flex items-center gap-3 min-w-0">
@@ -7409,7 +7409,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                   {overLimit && (
                     <div className="mb-3 rounded-xl border p-3.5" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
                       <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
-                        <Icon name="lock" className="w-3.5 h-3.5" /> {outOfQuota ? "No parses left this month — upload blocked" : "Over your monthly allowance — upload blocked"}
+                        <Icon name="lock" className="w-3.5 h-3.5" /> {outOfQuota ? "No parses left this month. Upload blocked" : "Over your monthly allowance. Upload blocked"}
                       </p>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
                         {outOfQuota
@@ -7438,7 +7438,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               </div>
             )}
 
-            {/* Import history — every past batch, reopenable as a read-only log.
+            {/* Import history, every past batch, reopenable as a read-only log.
                 Hidden once files are selected so it doesn't distract mid-import. */}
             {files.length === 0 && history.length > 0 && (
               <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
@@ -7486,7 +7486,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
 
         {stage !== "idle" && (
           <div className="space-y-4">
-            {/* Reopened past run — read-only banner */}
+            {/* Reopened past run, read-only banner */}
             {viewingPast && (
               <div className="rounded-2xl border p-3.5 flex items-center gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
                 <span className="flex w-9 h-9 items-center justify-center rounded-lg shrink-0" style={{ background: "#fff", color: "var(--brand)" }}><Icon name="clock" className="w-4 h-4" /></span>
@@ -7497,7 +7497,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 <button onClick={resetUpload} className="inline-flex items-center gap-1 text-xs font-semibold shrink-0 rounded-lg px-3 py-2 bg-white hover:bg-neutral-50 transition-colors" style={{ border: "1px solid var(--line-strong)", color: "var(--ink)" }}><Icon name="chevronLeft" className="w-3.5 h-3.5" /> Back</button>
               </div>
             )}
-            {/* While working — a real progress bar instead of a status line */}
+            {/* While working, a real progress bar instead of a status line */}
             {stage !== "done" && (() => {
               const processed = stage === "uploading"
                 ? rows.filter((r) => r.uploadStatus !== "pending").length
@@ -7518,7 +7518,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               );
             })()}
 
-            {/* When done — headline stat + outcome tabs + bulk duplicate resolve */}
+            {/* When done, headline stat + outcome tabs + bulk duplicate resolve */}
             {stage === "done" && (() => {
               const s = summary();
               const tabs = [
@@ -7531,7 +7531,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
               ].filter((t) => t.key === "all" || t.count > 0);
               return (
                 <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
-                  {/* Headline — the parsed total (matches the "Parsed ✓" rows) */}
+                  {/* Headline, the parsed total (matches the "Parsed ✓" rows) */}
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{s.parsed}</span>
                     <span className="text-sm" style={{ color: "var(--ink-2)" }}>of {rows.length} resume{rows.length === 1 ? "" : "s"} parsed into new candidates</span>
@@ -7622,7 +7622,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 {(row.parseStatus === "rejected" || row.parseStatus === "skipped") && (
                   <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
                     <Icon name="close" className="w-3 h-3" />
-                    {row.uploadStatus === "blocked" ? "File wasn't uploaded — nothing added." : "No file stored — no candidate created."}
+                    {row.uploadStatus === "blocked" ? "File wasn't uploaded. Nothing added." : "No file stored. No candidate created."}
                   </p>
                 )}
                 {row.parseStatus === "parsed" && typeof row.confidence === "number" && (
@@ -7631,12 +7631,12 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 {row.parseStatus === "duplicate" && row.dup && (
                   <div className="mt-2">
                     <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-                      Matched to <span className="font-semibold">{row.dup.matchName}</span> — same <span className="font-medium">{row.dup.on}</span>
+                      Matched to <span className="font-semibold">{row.dup.matchName}</span>, same <span className="font-medium">{row.dup.on}</span>
                       {row.dup.inBatch ? " (already in this batch)" : ""}.
                     </p>
                     {row.dup.hired ? (
                       <p className="text-xs mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>
-                        <Icon name="check" className="w-3 h-3" /> Already hired — not re-added
+                        <Icon name="check" className="w-3 h-3" /> Already hired, not re-added
                       </p>
                     ) : (
                       <div className="mt-2 inline-flex rounded-lg border p-0.5" style={{ borderColor: "var(--line-strong)" }}>
@@ -7661,7 +7661,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                     {!row.dup.hired && (
                       <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
                         {dupActionFor(row) === "update"
-                          ? "The existing profile will be refreshed with this resume — pipeline stage and history are kept."
+                          ? "The existing profile will be refreshed with this resume. Pipeline stage and history are kept."
                           : "Kept the existing profile. No duplicate created."}
                       </p>
                     )}
@@ -7671,7 +7671,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 {row.parseStatus === "review" && row.dup && (
                   <div className="mt-2">
                     <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-                      Possible match to <span className="font-semibold">{row.dup.matchName}</span> — same <span className="font-medium">{row.dup.on}</span>{row.dup.inBatch ? " (in this batch)" : ""}, but no matching email. Is this the same person?
+                      Possible match to <span className="font-semibold">{row.dup.matchName}</span>, same <span className="font-medium">{row.dup.on}</span>{row.dup.inBatch ? " (in this batch)" : ""}, but no matching email. Is this the same person?
                     </p>
                     <div className="mt-2 inline-flex rounded-lg border p-0.5" style={{ borderColor: "var(--line-strong)" }}>
                       {[
@@ -7721,7 +7721,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
         )}
           </div>
 
-          {/* Sidebar — usage monitor + how parsing works. Sticks while the main
+          {/* Sidebar, usage monitor + how parsing works. Sticks while the main
               column scrolls; self-start lets it shrink below the grid-row height. */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             <UsageMeter
@@ -7770,7 +7770,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
         </div>
       </div>
 
-      {/* Document preview — view the original resume + what the AI pulled out of it */}
+      {/* Document preview, view the original resume + what the AI pulled out of it */}
       {previewRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Preview of ${previewRow.fileName}`}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPreviewRow(null)} />
@@ -7793,7 +7793,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                   <p className="text-xl font-bold" style={{ color: "#1A1A22" }}>{previewRow.person?.name || previewRow.fileName.replace(/\.[^.]+$/, "")}</p>
                   {previewRow.person
                     ? <p className="text-xs mt-1" style={{ color: "#5A5A66" }}>{previewRow.person.email} · {previewRow.person.phone}</p>
-                    : <p className="text-xs mt-1" style={{ color: "#B45309" }}>Low confidence — fields couldn't be read reliably</p>}
+                    : <p className="text-xs mt-1" style={{ color: "#B45309" }}>Low confidence: fields couldn't be read reliably</p>}
                   <div className="mt-6 space-y-5">
                     {[
                       { h: "Professional Summary", lines: [92, 100, 74] },
@@ -7880,7 +7880,7 @@ function formatSalary(job) {
   return `${job.salary_currency} ${fmt(job.salary_min ?? job.salary_max)}+`;
 }
 
-// Shared job form body — used inside the modal for both creating and editing.
+// Shared job form body, used inside the modal for both creating and editing.
 function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost }) {
   const editing = !!initialJob;
   const limits = planLimits(plan);
@@ -8168,7 +8168,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   useEffect(() => { setPage(0); }, [jobs.length]);
   const limits = planLimits(plan);
   // Job posting is metered per 30-day cycle (see jobPostUsage), not by a
-  // concurrent cap, so nothing is auto-paused — the credit gate does the work.
+  // concurrent cap, so nothing is auto-paused, the credit gate does the work.
   const pausedIds = new Set();
   // Link-source modal: which job we're generating a link for, and the source tag.
   const [linkJob, setLinkJob] = useState(null); // job object or null
@@ -8183,7 +8183,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     if (!job) return;
     const next = job.status === "open" ? "closed" : "open";
     // Reopening a closed role (or publishing a draft) makes it live and spends a
-    // job credit for the cycle — block when this cycle's credits are used up.
+    // job credit for the cycle, block when this cycle's credits are used up.
     if (next === "open" && jobPostBlocked) { setLimitPrompt(true); return; }
     setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: next } : j)));
     if (canPersist) dbSetJobStatus(jobId, next);
@@ -8282,7 +8282,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const STATUS_DOT = { open: "#22C55E", draft: "#D97706", closed: "#9A9AA6" };
   const setStatus = (v) => { setStatusFilter(v); setPage(0); setFilterOpen(false); };
 
-  // Shared ⋯ actions menu — used by both the card grid and the list/table view.
+  // Shared ⋯ actions menu, used by both the card grid and the list/table view.
   const jobMenu = (job, up = false) => (
     <div className="relative shrink-0">
       <button
@@ -8322,7 +8322,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     </div>
   );
 
-  // Sidebar content — job-post credits meter + a "how it works" accordion,
+  // Sidebar content, job-post credits meter + a "how it works" accordion,
   // mirroring the Candidate Search sidebar for a consistent look across screens.
   const jobCreditFmt = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   const jobPostsLeft = jobPostUsage.limit != null ? Math.max(jobPostUsage.limit - jobPostUsage.used, 0) : null;
@@ -8330,7 +8330,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const jobRenews = jobPostUsage.resetsAt ? ` · renews ${jobCreditFmt(jobPostUsage.resetsAt)}` : "";
   const JOBS_HELP = [
     { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Publishing spends one job credit." },
-    { icon: "doc", title: "Save it as a draft", body: "Not ready to go live? Save it as a draft and keep editing. Drafts are free — they don't spend a credit until you publish." },
+    { icon: "doc", title: "Save it as a draft", body: "Not ready to go live? Save it as a draft and keep editing. Drafts are free and don't spend a credit until you publish." },
     { icon: "matching", title: "Aster screens every applicant", body: "As people apply, Aster reads each resume and ranks it against the role, so the strongest fits rise to the top on their own." },
     { icon: "link", title: "Share the apply link", body: "Copy a role's application link to post on job boards or send to candidates, then watch views climb right on the job card." },
   ];
@@ -8374,7 +8374,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           />
         </div>
 
-        {/* Toolbar — search, status dropdown, and the primary New Job action */}
+        {/* Toolbar, search, status dropdown, and the primary New Job action */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <div className="relative w-full sm:w-72 lg:w-[calc(33.333%-0.833rem)]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-4 h-4" /></span>
@@ -8454,7 +8454,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             )}
           </div>
 
-          {/* View toggle — desktop only; mobile always uses cards */}
+          {/* View toggle, desktop only; mobile always uses cards */}
           <div className="hidden md:inline-flex rounded-xl border p-0.5 bg-white shrink-0" style={{ borderColor: "var(--line-strong)" }}>
             {[["grid", "dashboard", "Card view"], ["list", "menu", "List view"]].map(([v, ic, lbl]) => {
               const on = view === v;
@@ -8496,7 +8496,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>
         ) : (
           <>
-          {/* Cards — always on mobile; on desktop only when grid view is picked */}
+          {/* Cards, always on mobile; on desktop only when grid view is picked */}
           <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 ${view === "list" ? "md:hidden" : ""}`}>
             {pageJobs.map((job) => {
               const salary = formatSalary(job);
@@ -8518,7 +8518,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   {paused && (
                     <div className="flex items-center justify-between gap-2 mb-3 rounded-lg px-2.5 py-1.5" style={{ background: "#FEF3C7" }}>
                       <span className="text-[11px] font-medium inline-flex items-center gap-1" style={{ color: "#92400E" }}>
-                        <Icon name="lock" className="w-3 h-3" /> Paused — over your plan's job limit
+                        <Icon name="lock" className="w-3 h-3" /> Paused, over your plan's job limit
                       </span>
                       <button onClick={() => navigate("billing")} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
                     </div>
@@ -8699,7 +8699,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   ? `You've used all ${jobPostUsage.limit} job posts this cycle${jobRenews}. You can still save drafts.`
                   : `${jobPostsLeft} post${jobPostsLeft === 1 ? "" : "s"} left on your ${jobPlanLabel} plan${jobRenews}.`}
                 onManage={() => navigate("billing")}
-                onUpgrade={() => navigate("billing")}
+                onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
               />
             )}
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
@@ -8892,7 +8892,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         );
       })()}
 
-      {/* Edit job — reuses the New Job form pre-filled */}
+      {/* Edit job, reuses the New Job form pre-filled */}
       <NewJobModal open={!!editJob} initialJob={editJob} onClose={() => setEditJob(null)} jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={onConsumeJobPost} />
 
       {/* Delete a draft (only drafts are deletable) */}
@@ -8906,7 +8906,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         onClose={() => setConfirmDeleteJob(null)}
       />
 
-      {/* Reopening/publishing blocked — this cycle's job credits are used up */}
+      {/* Reopening/publishing blocked, this cycle's job credits are used up */}
       <ConfirmDialog
         open={limitPrompt}
         title="You're out of job posts for this cycle"
@@ -8916,7 +8916,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         onClose={() => setLimitPrompt(false)}
       />
 
-      {/* Copy application link — source tagging modal */}
+      {/* Copy application link, source tagging modal */}
       {linkJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLinkJob(null)} />
@@ -8958,7 +8958,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
             {linkCopied === "fail" && (
               <p className="text-xs mt-2" style={{ color: "var(--ink-2)" }}>
-                Couldn't copy automatically here — tap the link above to select it, then copy.
+                Couldn't copy automatically here. Tap the link above to select it, then copy.
               </p>
             )}
 
@@ -9001,7 +9001,7 @@ function seniorityFromYears(y) {
   return "Fresh graduate";
 }
 
-// The candidate's industries — only what the AI parser actually tagged on the
+// The candidate's industries, only what the AI parser actually tagged on the
 // profile (parsed.industries + each role's industry). No mock/company lookup.
 function rawIndustriesOf(candidate) {
   const set = new Set();
@@ -9214,7 +9214,7 @@ function TokenAutocomplete({ tags, setTags, options, placeholder, onChange, free
         {tags.map((tag) => {
           const custom = isCustom(tag);
           return (
-            <span key={tag} title={custom ? "Custom skill — not in our library, so it may match fewer candidates" : undefined}
+            <span key={tag} title={custom ? "Custom skill, not in our library, so it may match fewer candidates" : undefined}
               className="inline-flex items-center gap-1 text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1"
               style={custom ? { background: "#fff", color: "var(--ink-2)", border: "1px dashed var(--line-strong)" } : { background: "var(--brand-soft)", color: "var(--brand)" }}>
               {custom && <span className="text-[9px] font-semibold uppercase tracking-wide opacity-60">custom</span>}
@@ -9391,7 +9391,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [invited, setInvited] = useState({});
   const [inviteBanner, setInviteBanner] = useState(null);
 
-  // Deduplicate by email — the same person can have more than one resume on file
+  // Deduplicate by email, the same person can have more than one resume on file
   // (an old CV and a newer one). A real ATS shows them once, not twice.
   const seenEmails = new Set();
   const parsed = candidates.filter((c) => {
@@ -9414,7 +9414,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     ? new Set((APPLICANTS_BY_JOB[matchJobId] || []).map((a) => a.candidateId))
     : new Set();
 
-  // Each tab is a clean, self-contained mode — switching clears any ranking.
+  // Each tab is a clean, self-contained mode, switching clears any ranking.
   const switchTab = (t) => { if (t === tab) return; setTab(t); setMatchScores(null); setRankedMeta(null); setMatching(false); };
   // Charge one AI Rank credit. Persists to the DB (per company, per month) via
   // bump_ai_rank and syncs the meter to the server count; falls back to a local
@@ -9503,7 +9503,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     }, 1000);
   };
 
-  // Quick-add a skill chip — editing criteria invalidates any existing ranking.
+  // Quick-add a skill chip, editing criteria invalidates any existing ranking.
   const addSkill = (raw) => {
     const v = (raw || "").trim();
     if (!v) return;
@@ -9775,7 +9775,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     </div>
   );
   // Runs-left note shown under both AI panels.
-  // AI-match-runs usage — same meter method as the Upload screen's "Usage this month".
+  // AI-match-runs usage, same meter method as the Upload screen's "Usage this month".
   // Credits reset every 30 days from signup; show the next reset date.
   const resetLabel = aiRankResetsAt
     ? new Date(aiRankResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
@@ -9797,7 +9797,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     { key: "skills", short: "Skills", full: "Skills & industry", icon: "matching" },
     { key: "role", short: "Role", full: "Match to a role", icon: "briefcase" },
   ];
-  // Popular skills across job families (not just engineering) — each exists in
+  // Popular skills across job families (not just engineering), each exists in
   // the candidate pool so a quick-add always returns real matches.
   // The most common real skills across this workspace's candidates (by frequency).
   // Falls back to a broad sample only when nothing has been parsed yet.
@@ -9854,7 +9854,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           {/* Main workspace */}
           <div className="lg:col-span-2 min-w-0">
 
-        {/* Tabs — three separate ways to find people */}
+        {/* Tabs, three separate ways to find people */}
         <div className="flex gap-1 p-1 rounded-2xl mb-5 sm:inline-flex" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           {TABS.map((t) => {
             const active = tab === t.key;
@@ -10065,7 +10065,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
           </div>{/* main workspace */}
 
-          {/* Sidebar — AI-run usage monitor + how search works (matches Bulk Upload) */}
+          {/* Sidebar, AI-run usage monitor + how search works (matches Bulk Upload) */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {planNote}
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
@@ -10132,7 +10132,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
           <div className="rounded-2xl bg-white act-shadow border p-10 text-center" style={{ borderColor: "var(--line)" }}>
             <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
             <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-              Send a candidate an interview invite — once they pick a time, it shows up here with the position and their details.
+              Send a candidate an interview invite. Once they pick a time, it shows up here with the position and their details.
             </p>
           </div>
         ) : (
@@ -10209,7 +10209,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const ownerName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim();
 
   // The meeting-link type and calendar are a single workspace choice, connected
-  // once in Settings — not something each interviewer sets up individually.
+  // once in Settings, not something each interviewer sets up individually.
   const meetLabel = defaultProvider === "microsoft" ? "Microsoft Teams" : "Google Meet";
   const calSystem = defaultProvider === "microsoft" ? "Microsoft 365" : "Google Workspace";
 
@@ -10262,7 +10262,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
               onClick={() => (atSeatCap ? navigate("billing") : setShowForm((s) => !s))}
               className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors"
             >
-              {atSeatCap ? "Seats full — upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
+              {atSeatCap ? "Seats full, upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
             </button>
           ) : (
             <button
@@ -10277,7 +10277,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
         {!canAddInterviewers && (
           <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
             <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              The Free plan includes <span className="font-semibold">1 seat — just you</span>. Upgrade to invite teammates, each with their own login.
+              The Free plan includes <span className="font-semibold">1 seat, just you</span>. Upgrade to invite teammates, each with their own login.
             </p>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -10285,22 +10285,22 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
         {canAddInterviewers && limits.seats !== Infinity && (
           <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: atSeatCap ? "var(--brand-soft)" : "#fff" }}>
             <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              Your plan includes <span className="font-semibold">{limits.seats} seat{limits.seats === 1 ? "" : "s"}</span> — {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Premium for unlimited seats." : "."}
+              Your plan includes <span className="font-semibold">{limits.seats} seat{limits.seats === 1 ? "" : "s"}</span>, {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Premium for unlimited seats." : "."}
             </p>
             {atSeatCap && <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>}
           </div>
         )}
         <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-          Your team. Invite teammates to run interviews — each gets their own login and sees only the interviews assigned to them. Availability and {meetLabel} links come from your workspace calendar, so there's no per-person setup.
+          Your team. Invite teammates to run interviews. Each gets their own login and sees only the interviews assigned to them. Availability and {meetLabel} links come from your workspace calendar, so there's no per-person setup.
         </p>
 
-        {/* Workspace calendar status — one connection covers everyone */}
+        {/* Workspace calendar status, one connection covers everyone */}
         <div className="mb-6 rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: calendarConnected ? "#F0FDF4" : "#FFF7ED" }}>
           <div className="flex items-center gap-2 min-w-0">
             <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: calendarConnected ? "#16A34A" : "#B45309" }} />
             <p className="text-sm min-w-0" style={{ color: calendarConnected ? "#166534" : "#92400E" }}>
               {calendarConnected
-                ? `${calSystem} calendar connected — all interviewers are covered.`
+                ? `${calSystem} calendar connected. All interviewers are covered.`
                 : `Connect your ${calSystem} calendar to enable scheduling for everyone.`}
             </p>
           </div>
@@ -10331,12 +10331,12 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
             <button onClick={handleAdd} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">
               Send invite
             </button>
-            <p className="text-xs text-neutral-400">They'll get an email to join your workspace. Teammates are included in your plan — they don't buy their own.</p>
+            <p className="text-xs text-neutral-400">They'll get an email to join your workspace. Teammates are included in your plan. They don't buy their own.</p>
           </div>
         )}
 
         <div className="space-y-2">
-          {/* Account owner — always a member, can't be removed */}
+          {/* Account owner, always a member, can't be removed */}
           <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -10417,7 +10417,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   );
 }
 
-// Deterministic mock slots — five weekday afternoons/mornings spread across
+// Deterministic mock slots, five weekday afternoons/mornings spread across
 // the next two weeks, standing in for what find-available-slots computes
 // from real Google Calendar free/busy data + Claude's slot picks.
 function generateMockSlots() {
@@ -10491,7 +10491,7 @@ function buildQuestionPool(p, roleTitle) {
     r0 && { category: "Experience", question: `At ${r0.company} you were ${r0.title}. What was the hardest technical trade-off you made there, and how would it apply to what we're building?` },
     { category: "Role fit", question: `This role leans on ${isFrontend ? "design systems and component architecture" : "the core responsibilities in the posting"}. Where's the biggest gap between your current experience and what this role needs?` },
     { category: "Behavioral", question: `Tell me about a time you disagreed with a teammate on an approach. How did you resolve it?` },
-    { category: "Depth check", question: `You mention ${s0} — go deep on a limitation you've hit with it in production and how you worked around it.` },
+    { category: "Depth check", question: `You mention ${s0}. Go deep on a limitation you've hit with it in production and how you worked around it.` },
     { category: "Technical", question: `How do you decide when to reach for ${s1} versus building something yourself? Give a recent example.` },
     r1 && { category: "Experience", question: `Before ${r0?.company ?? "your last role"}, you were at ${r1.company}. What made you move on, and what did you carry forward?` },
     { category: "Role fit", question: `What would your first 30 days in the ${roleTitle} role look like if you wanted to make an early impact?` },
@@ -10562,7 +10562,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
 
   const copyAll = () => {
     const visible = pool.slice(0, visibleCount);
-    const notes = `Interview questions — ${p.name}${activeJob ? ` · ${activeJob.title}` : ""}\n\n` +
+    const notes = `Interview questions: ${p.name}${activeJob ? ` · ${activeJob.title}` : ""}\n\n` +
       visible.map((q, i) => `${i + 1}. [${q.category}] ${q.question}`).join("\n");
     copyText(notes);
     setCopiedAll(true);
@@ -10702,7 +10702,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
 
   // Shared booking (from the root) is the source of truth once an invite has
-  // gone out — it survives navigating to the candidate's booking page and back,
+  // gone out, it survives navigating to the candidate's booking page and back,
   // and reflects the candidate confirming a time.
   const bookingStatus = booking?.status; // undefined | 'sent' | 'scheduled'
   const sentRequest = booking?.request;
@@ -10765,7 +10765,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           ? `Scheduling for the ${fixedJob.title} role. `
           : ""}
         Finds the interviewer's free calendar slots, sends the candidate a link to pick one, then
-        creates the calendar event and Meet link automatically — no back-and-forth.
+        creates the calendar event and Meet link automatically, no back-and-forth.
       </p>
 
       {bookingStatus === "scheduled" ? (
@@ -10790,7 +10790,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
               </span>
             ))}
           </div>
-          <p className="text-sm text-amber-600">Invite sent — waiting for the candidate to pick a time.</p>
+          <p className="text-sm text-amber-600">Invite sent, waiting for the candidate to pick a time.</p>
           <button
             onClick={() => onPreviewBooking(sentRequest)}
             className="text-sm text-indigo-600 hover:text-indigo-700 mt-1"
@@ -11124,7 +11124,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
     );
   }
 
-  // Closed jobs can't take new applications — the public link shows a notice.
+  // Closed jobs can't take new applications, the public link shows a notice.
   if (job.status !== "open") {
     return (
       <div className="px-4 sm:px-6 py-8 sm:py-10">
@@ -11270,7 +11270,7 @@ This is what a candidate sees. A public page, no login, reached only through the
         </div>
         )}
 
-        {/* Company header — the company's logo when uploaded, else a mark + name. */}
+        {/* Company header, the company's logo when uploaded, else a mark + name. */}
         <div className="flex items-center gap-3 mb-6">
           {logoUrl ? (
             <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-10 object-contain" style={{ maxWidth: 200 }} />
@@ -11445,12 +11445,12 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   // charged in USD; applicable taxes are added at checkout by billing country.
   const PRICES = {
     starter: {
-      monthly: { price: "$89", cadence: "per month", renewCopy: "$89/month", nextAmount: "$89.00", invAmount: "$89.00", invDesc: "Pro — monthly" },
-      yearly: { price: "$71", cadence: "per month, billed yearly", renewCopy: "$852/year", nextAmount: "$852.00", invAmount: "$852.00", invDesc: "Pro — yearly" },
+      monthly: { price: "$89", cadence: "per month", renewCopy: "$89/month", nextAmount: "$89.00", invAmount: "$89.00", invDesc: "Pro monthly" },
+      yearly: { price: "$71", cadence: "per month, billed yearly", renewCopy: "$852/year", nextAmount: "$852.00", invAmount: "$852.00", invDesc: "Pro yearly" },
     },
     professional: {
-      monthly: { price: "$199", cadence: "per month", renewCopy: "$199/month", nextAmount: "$199.00", invAmount: "$199.00", invDesc: "Premium — monthly" },
-      yearly: { price: "$159", cadence: "per month, billed yearly", renewCopy: "$1,908/year", nextAmount: "$1,908.00", invAmount: "$1,908.00", invDesc: "Premium — yearly" },
+      monthly: { price: "$199", cadence: "per month", renewCopy: "$199/month", nextAmount: "$199.00", invAmount: "$199.00", invDesc: "Premium monthly" },
+      yearly: { price: "$159", cadence: "per month, billed yearly", renewCopy: "$1,908/year", nextAmount: "$1,908.00", invAmount: "$1,908.00", invDesc: "Premium yearly" },
     },
   };
   const rmHint = { starter: {}, professional: {} };
@@ -11500,7 +11500,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   const paidSub = plan === "starter" || plan === "professional"; // has a card + invoices
   const rank = { free: 0, starter: 1, professional: 2, enterprise: 3 };
 
-  // Mock invoice history — "what they've paid". Reflects the saved billing cycle.
+  // Mock invoice history, "what they've paid". Reflects the saved billing cycle.
   const invoices = paidSub && saved
     ? planCycle === "yearly"
       ? [{ id: "INV-2025-01", date: "1 Jan 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" }]
@@ -11515,7 +11515,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
   const choosePlan = (p) => {
     if (p.key === "enterprise") {
-      setMsg("Preview only — in the real app this opens a “Contact sales” form. No plan change made.");
+      setMsg("Preview only. In the real app this opens a “Contact sales” form. No plan change made.");
       return;
     }
     const cycleMatters = p.key === "starter" || p.key === "professional";
@@ -11544,7 +11544,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
     setKeptJobId && setKeptJobId(keepJob);
     setPlan("free");
     setShowDowngrade(false);
-    setMsg("Preview: downgraded to Free. In production this takes effect at the end of your billing period — nothing is deleted, and re-upgrading restores everything.");
+    setMsg("Preview: downgraded to Free. In production this takes effect at the end of your billing period. Nothing is deleted, and re-upgrading restores everything.");
   };
 
   const otherJobs = jobs.filter((j) => j.id !== keepJob).length;
@@ -11578,12 +11578,12 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
               <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Free (trial)" : current.name}</p>
               <p className="text-sm text-neutral-500 mt-0.5">
                 {trialDaysLeft > 0
-                  ? `Full Premium access — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
+                  ? `Full Premium access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
                   : paidSub && saved
                     ? `${saved.renewCopy} · renews 1 ${planCycle === "yearly" ? "Jan 2026" : "Jul 2025"} · plus tax`
                     : plan === "free"
-                      ? "No charge — you're on the free tier."
-                      : "Custom pricing — billed by agreement."}
+                      ? "No charge, you're on the free tier."
+                      : "Custom pricing, billed by agreement."}
               </p>
             </div>
             {paidSub && saved && (
@@ -11596,7 +11596,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
           </div>
           {paidSub && (
             <button
-              onClick={() => setMsg("Preview: in production this cancels at period end — access continues until 1 Jul 2025.")}
+              onClick={() => setMsg("Preview: in production this cancels at period end. Access continues until 1 Jul 2025.")}
               className="mt-4 text-xs text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
             >
               Cancel subscription
@@ -11700,7 +11700,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
             })}
           </div>
 
-          {/* Enterprise — highlighted separately */}
+          {/* Enterprise, highlighted separately */}
           <div className="mt-3 rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-4" style={{ borderColor: "#E6D3FF", background: "var(--brand-soft)" }}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -11777,13 +11777,13 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
         </div>
       </div>
 
-      {/* Downgrade confirmation — shows exactly what gets paused/locked */}
+      {/* Downgrade confirmation, shows exactly what gets paused/locked */}
       {showDowngrade && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 overflow-y-auto" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setShowDowngrade(false)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow my-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Downgrade to Free?</h3>
             <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-              Nothing is deleted — over-limit items are paused and come back if you upgrade again. Here's what changes on Free:
+              Nothing is deleted. Over-limit items are paused and come back if you upgrade again. Here's what changes on Free:
             </p>
 
             <div className="space-y-2.5 mb-4">
@@ -11825,7 +11825,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
               <div className="rounded-xl border p-3 flex gap-2.5" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
                 <span className="shrink-0 mt-0.5" style={{ color: "#16A34A" }}><Icon name="calendar" className="w-4 h-4" /></span>
                 <p className="text-xs" style={{ color: "#166534" }}>
-                  Interviews already booked will still happen — nothing on the calendar is cancelled.
+                  Interviews already booked will still happen. Nothing on the calendar is cancelled.
                 </p>
               </div>
             </div>
@@ -11854,31 +11854,31 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 // In production these live in an `email_templates` table (per org); here they're
 // editable in-memory so the UX (edit + insert placeholder + live preview) is real.
 const EMAIL_TEMPLATE_DEFS = [
-  { key: "sourcing_invite", name: "Sourcing invite — reconnect", desc: "Sent when you invite someone from your database to apply for an open role.",
+  { key: "sourcing_invite", name: "Sourcing invite: reconnect", desc: "Sent when you invite someone from your database to apply for an open role.",
     tokens: ["candidate_name", "job_title", "apply_link"],
     subject: "A {{job_title}} role you might like",
     body: "Hi {{candidate_name}},\n\nIt has been a while since we last connected, but your background stood out to us and we are now hiring a {{job_title}}. If you are interested, tap the link below to see the role and apply with your latest resume. It only takes a minute.\n\n{{apply_link}}\n\nWe would love to reconnect." },
-  { key: "offer", name: "Offer — you've been selected", desc: "Sent when you make an offer. Includes the accept / decline links.",
+  { key: "offer", name: "Offer: you've been selected", desc: "Sent when you make an offer. Includes the accept / decline links.",
     tokens: ["candidate_name", "job_title", "company_name", "hr_contact"],
     subject: "You've been selected for the {{job_title}} role",
     body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Our HR team ({{hr_contact}}) will be in touch with the details.\n\nPlease confirm whether you'd like to accept using the buttons below.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
-  { key: "rejection", name: "Rejection — application update", desc: "Sent when you reject a candidate with an email.",
+  { key: "rejection", name: "Rejection: application update", desc: "Sent when you reject a candidate with an email.",
     tokens: ["candidate_name", "job_title", "company_name"],
-    subject: "Update on your application — {{job_title}}",
+    subject: "Update on your application: {{job_title}}",
     body: "Hi {{candidate_name}},\n\nThank you for applying for the {{job_title}} role at {{company_name}} and for the time you invested.\n\nAfter careful consideration we've decided not to move forward at this time. We genuinely appreciate your interest and wish you all the best.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
   { key: "interview_invite", name: "Interview invite", desc: "Sent when you invite a candidate to pick an interview slot.",
     tokens: ["candidate_name", "job_title", "interviewer_name", "booking_link"],
-    subject: "Interview invitation — {{job_title}}",
+    subject: "Interview invitation: {{job_title}}",
     body: "Hi {{candidate_name}},\n\nWe'd love to interview you for the {{job_title}} role. Your interviewer will be {{interviewer_name}}.\n\nPlease pick a time that works for you here: {{booking_link}}\n\nSee you soon,\nThe Hiring Team" },
   { key: "interview_confirmation", name: "Interview confirmation", desc: "Sent once the candidate picks a slot.",
     tokens: ["candidate_name", "job_title", "date_time", "meeting_link"],
-    subject: "Your interview is confirmed — {{date_time}}",
+    subject: "Your interview is confirmed: {{date_time}}",
     body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}.\n\nJoin here: {{meeting_link}}\n\nLooking forward to speaking,\nThe Hiring Team" },
   { key: "application_received", name: "Application received", desc: "Auto-reply when someone applies via the public link.",
     tokens: ["candidate_name", "job_title", "company_name"],
-    subject: "We've received your application — {{job_title}}",
+    subject: "We've received your application: {{job_title}}",
     body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company_name}}. We've received your application and will be in touch if there's a fit.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
-  { key: "welcome_hired", name: "Welcome — offer accepted", desc: "Sent after a candidate accepts their offer.",
+  { key: "welcome_hired", name: "Welcome: offer accepted", desc: "Sent after a candidate accepts their offer.",
     tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Welcome to {{company_name}}, {{candidate_name}}!",
     body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.\n\nWelcome aboard,\nThe {{company_name}} Team" },
@@ -11913,7 +11913,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
   const dirty = def && (subject !== templates[selected].subject || body !== templates[selected].body);
   const save = () => {
     setTemplates((prev) => ({ ...prev, [selected]: { subject, body } }));
-    setSavedMsg("Saved — future emails of this type will use this wording.");
+    setSavedMsg("Saved. Future emails of this type will use this wording.");
   };
   // Insert a placeholder at the end of the body (real editor would insert at cursor).
   const insertToken = (tok) => { setBody((b) => `${b}{{${tok}}}`); setSavedMsg(null); };
@@ -11981,7 +11981,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
               <p className="text-xs text-neutral-400 mb-2">Preview with sample data</p>
               <p className="text-sm font-semibold text-neutral-900 mb-2">{fillTokens(subject)}</p>
               <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{renderPreviewBody(body)}</div>
-              {/* Auto letterhead — added under every email automatically from the
+              {/* Auto letterhead, added under every email automatically from the
                   logo + company name set in Settings. Not part of the editable body. */}
               <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
                 {logoUrl ? (
@@ -11999,7 +11999,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
               <textarea value={body} onChange={(e) => { setBody(e.target.value); setSavedMsg(null); }} rows={12}
                 className="w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 resize-y font-mono leading-relaxed" />
               <p className="text-[11px] mt-2 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
-                <Icon name="check" className="w-3 h-3" /> Your logo{company ? ` and “${company}”` : ""} are added automatically under the signature — no need to include them here. Change them in Settings.
+                <Icon name="check" className="w-3 h-3" /> Your logo{company ? ` and “${company}”` : ""} are added automatically under the signature. No need to include them here. Change them in Settings.
               </p>
               <div className="mt-3">
                 <p className="text-[11px] text-neutral-500 mb-1.5">Insert a placeholder:</p>
@@ -12031,7 +12031,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [newEmail, setNewEmail] = useState("");
   const [emailMsg, setEmailMsg] = useState(null);
 
-  // Staged (draft) edits — nothing is committed until Save. Cancel reverts.
+  // Staged (draft) edits, nothing is committed until Save. Cancel reverts.
   const [dLogo, setDLogo] = useState(logoUrl);
   const [dCompany, setDCompany] = useState(company || "");
   const [dAvatar, setDAvatar] = useState(avatarUrl);
@@ -12217,14 +12217,14 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
 }
 
 function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free" }) {
-  // Staged (draft) edits for the calendar provider — Save/Cancel form.
+  // Staged (draft) edits for the calendar provider, Save/Cancel form.
   const [dProvider, setDProvider] = useState(provider);
   const [dCalConnected, setDCalConnected] = useState(calendarConnected);
   const [connectingCal, setConnectingCal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
 
-  // WhatsApp Business — BSP-assisted connection. Included on Professional & up
+  // WhatsApp Business, BSP-assisted connection. Included on Professional & up
   // (not Starter). Self-contained (connecting an integration is an immediate
   // action, separate from the Save/Cancel form).
   const hasWhatsApp = planLimits(plan).whatsapp;
@@ -12238,7 +12238,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
   const savedMeetName = provider === "microsoft" ? "Teams" : "Google Meet";
 
   // Upcoming interviews already booked on the CURRENTLY SAVED provider. These
-  // keep their existing links if the user switches — used to warn on switch.
+  // keep their existing links if the user switches, used to warn on switch.
   const upcomingOnSaved = Object.values(bookings).filter(
     (b) => b && b.status === "scheduled" && b.confirmedSlot?.start && (b.provider || "google") === provider
   ).length;
@@ -12276,7 +12276,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
         <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Settings</h1>
         <p className="text-sm text-neutral-500 mb-6">Email templates, calendar, messaging, and usage for your workspace.</p>
 
-        {/* Email templates — the wording behind every automated email */}
+        {/* Email templates, the wording behind every automated email */}
         <button onClick={() => navigate("emailTemplates")} className={`${cardClass} mb-4 w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
           <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
             <Icon name="doc" className="w-5 h-5" />
@@ -12288,11 +12288,11 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
           <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
         </button>
 
-        {/* 4 — Meeting & calendar */}
+        {/* 4: Meeting & calendar */}
         <div className={`${cardClass} mb-4`}>
           <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Meeting &amp; calendar</h2>
           <p className="text-sm text-neutral-600 mb-3">
-            Used for every interview across the workspace. Connect once here — all interviewers are covered, no per-person setup.
+            Used for every interview across the workspace. Connect once here. All interviewers are covered, no per-person setup.
           </p>
           <div className="grid grid-cols-2 gap-3 mb-4">
             {["google", "microsoft"].map((p) => (
@@ -12321,7 +12321,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
                 <Icon name="bell" className="w-4 h-4" />
               </span>
               <p className="text-xs leading-relaxed" style={{ color: "#92400E" }}>
-                You have {upcomingOnSaved} upcoming interview{upcomingOnSaved === 1 ? "" : "s"} on {savedMeetName}. Switching won't change {upcomingOnSaved === 1 ? "it" : "them"} — {upcomingOnSaved === 1 ? "that interview keeps its" : "those interviews keep their"} existing {savedMeetName} link{upcomingOnSaved === 1 ? "" : "s"}. Only new interviews will use {meetName}.
+                You have {upcomingOnSaved} upcoming interview{upcomingOnSaved === 1 ? "" : "s"} on {savedMeetName}. Switching won't change {upcomingOnSaved === 1 ? "it" : "them"}; {upcomingOnSaved === 1 ? "that interview keeps its" : "those interviews keep their"} existing {savedMeetName} link{upcomingOnSaved === 1 ? "" : "s"}. Only new interviews will use {meetName}.
               </p>
             </div>
           )}
@@ -12331,7 +12331,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{calSystem} calendar</p>
               <p className="text-xs" style={{ color: "var(--ink-2)" }}>
                 {dCalConnected
-                  ? `Connected — interviews auto-create ${meetName} links and check everyone's availability.`
+                  ? `Connected. Interviews auto-create ${meetName} links and check everyone's availability.`
                   : `Connect to check availability and auto-create ${meetName} links.`}
               </p>
             </div>
@@ -12351,7 +12351,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
           </div>
         </div>
 
-        {/* 5 — WhatsApp Business (Pro, BSP-assisted, bring-your-own-number) */}
+        {/* 5: WhatsApp Business (Pro, BSP-assisted, bring-your-own-number) */}
         <div className={cardClass}>
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
@@ -12384,7 +12384,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
                   {[
                     ["confirmed", "Interview confirmed", "Sent when a candidate books a time"],
                     ["received", "Application received", "Sent when someone applies"],
-                    ["reminder", "Interview reminder — 24h before", "Auto-reminder the day before"],
+                    ["reminder", "Interview reminder, 24h before", "Auto-reminder the day before"],
                   ].map(([key, name, desc]) => (
                     <label key={key} className="flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer" style={{ borderColor: "var(--line)" }}>
                       <input type="checkbox" checked={waTemplates[key]} onChange={(e) => setWaTemplates((t) => ({ ...t, [key]: e.target.checked }))} />
@@ -12404,13 +12404,13 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
                 </button>
                 {waTested && <span className="text-xs" style={{ color: "#166534" }}>Test message sent to your number ✓</span>}
               </div>
-              <p className="text-xs text-neutral-400">Each message is billed to your Meta/WhatsApp account by our messaging partner — Aster doesn't charge per message.</p>
+              <p className="text-xs text-neutral-400">Each message is billed to your Meta/WhatsApp account by our messaging partner. Aster doesn't charge per message.</p>
             </div>
           ) : waStatus === "pending" ? (
             <div className="rounded-xl border p-4" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
               <p className="text-sm font-medium mb-1" style={{ color: "#92400E" }}>Verification pending</p>
               <p className="text-xs mb-3" style={{ color: "#92400E" }}>
-                Your number is registered with our messaging partner. Meta is verifying your business — this usually takes a few hours. We'll email you when it's live.
+                Your number is registered with our messaging partner. Meta is verifying your business. This usually takes a few hours. We'll email you when it's live.
               </p>
               <button onClick={() => setWaStatus("connected")} className="text-xs rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors">
                 Simulate approval (preview)
@@ -12432,12 +12432,12 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               >
                 {waStatus === "connecting" ? "Connecting…" : "Connect WhatsApp Business"}
               </button>
-              <p className="text-xs text-neutral-400 mt-2">We set you up through our WhatsApp messaging partner — no Meta dashboard wrangling. Messages are billed to your own Meta account.</p>
+              <p className="text-xs text-neutral-400 mt-2">We set you up through our WhatsApp messaging partner. No Meta dashboard wrangling. Messages are billed to your own Meta account.</p>
             </div>
           )}
         </div>
 
-        {/* Save / Cancel bar — sticky within the content column, so it never
+        {/* Save / Cancel bar, sticky within the content column, so it never
             underlaps the sidebar or its Log out button on any screen size. */}
         <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center justify-between gap-3">
@@ -12566,7 +12566,7 @@ function InsightsDisplay({ insights }) {
   );
 }
 
-// Mock insights per candidate — stands in for the real Claude analysis
+// Mock insights per candidate, stands in for the real Claude analysis
 const MOCK_INSIGHTS = {
   c1: {
     generated_at: new Date().toISOString(),
@@ -12871,7 +12871,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // booking shows the candidate confirmed a time, or the application is already
   // at the interviewing/offer/hired stage.
   // Interview questions are only available once an interview is actually
-  // scheduled — not merely because the candidate sits at a later stage.
+  // scheduled, not merely because the candidate sits at a later stage.
   const isBooked = booking?.status === "scheduled";
   const questionsUnlocked = isBooked;
   // Detect whether the scheduled interview has already happened (its slot is in
@@ -12883,7 +12883,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     : null;
   const stageRank = { applied: 0, shortlisted: 1, interviewing: 2, offer: 3, hired: 4, rejected: 5 };
   const decided = stage === "hired" || stage === "rejected";
-  // A hired (or rejected) candidate is closed out — no more scheduling or offers.
+  // A hired (or rejected) candidate is closed out, no more scheduling or offers.
   const isHired = hiredIds.has(candidate?.id) || stage === "hired";
   const isClosed = isHired || stage === "rejected";
   // Offer response state: 'sent' (awaiting candidate) | 'accepted' | 'declined'.
@@ -12927,7 +12927,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     setInviteMsg(`Invite sent to ${candidateEmail} using the Sourcing invite template. When ${firstName} applies through the link, AI refreshes the profile with their latest resume and moves them into your hiring workflow.`);
   };
 
-  // Reworked AI Experience Insights card — plan-metered (meter lives in sidebar).
+  // Reworked AI Experience Insights card, plan-metered (meter lives in sidebar).
   const aiInsightsCard = (
     <div className="rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
       <div className="flex items-start justify-between gap-3 mb-2.5">
@@ -12969,7 +12969,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     </div>
   );
 
-  // Sidebar "at a glance" card — scannable summary that fills the second column.
+  // Sidebar "at a glance" card, scannable summary that fills the second column.
   const topRole = parsed.experience?.[0];
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
@@ -13177,14 +13177,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <div className="flex items-start gap-2">
               <span className="text-amber-600 text-sm shrink-0">⚠</span>
               <p className="text-sm text-amber-700">
-                Not stated in resume. AI could not find a salary expectation — please confirm
+                Not stated in resume. AI could not find a salary expectation, please confirm
                 directly with the candidate.
               </p>
             </div>
           )}
         </div>
 
-        {/* Database view — this candidate isn't in a pipeline for a job you're
+        {/* Database view, this candidate isn't in a pipeline for a job you're
             viewing, so interview / scorecard / decision tools are hidden. Show
             their profile and a way to invite them to apply, even if it's an old
             profile. Those tools appear once they actually apply to a role. */}
@@ -13275,7 +13275,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           isScheduled={questionsUnlocked}
         />
 
-        {/* After the interview — unlocks once the scheduled slot is in the past.
+        {/* After the interview, unlocks once the scheduled slot is in the past.
             This closes the gap between "interview scheduled" and a hire/reject
             decision: collect team scorecards, then move the candidate forward. */}
         {isBooked && !interviewPast && (
@@ -13336,14 +13336,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               ) : offerStatus === "sent" ? (
                 <div className="mt-2">
                   <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#BFDBFE", background: "#EFF6FF" }}>
-                    <p className="text-sm font-medium" style={{ color: "#1E40AF" }}>Offer sent — awaiting {firstName}'s response</p>
+                    <p className="text-sm font-medium" style={{ color: "#1E40AF" }}>Offer sent, awaiting {firstName}'s response</p>
                     <p className="text-xs mt-0.5" style={{ color: "#1E40AF" }}>
                       {offer?.emailSent === false
                         ? "Recorded internally (no email on file). Update the stage once they confirm."
                         : `${firstName} was emailed that they've been selected and asked to accept or decline. The HR team will follow up with details.`}
                     </p>
                   </div>
-                  <p className="text-[11px] mb-2" style={{ color: "var(--ink-3)" }}>Preview — simulate the candidate's reply:</p>
+                  <p className="text-[11px] mb-2" style={{ color: "var(--ink-3)" }}>Preview. Simulate the candidate's reply:</p>
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => onRespondOffer && onRespondOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
                       Candidate accepts ✓
@@ -13558,7 +13558,7 @@ function StageBadge({ stage }) {
 function buildRejectionDraft(name, jobTitle) {
   const first = (name || "there").split(" ")[0];
   return {
-    subject: `Update on your application — ${jobTitle}`,
+    subject: `Update on your application: ${jobTitle}`,
     body: `Hi ${first},\n\nThank you for taking the time to apply for the ${jobTitle} role and for sharing your background with us.\n\nAfter careful consideration, we've decided not to move forward with your application at this time. This was a competitive process and the decision wasn't easy.\n\nWe genuinely appreciate your interest, and we'd welcome you to apply for future roles that match your experience. We wish you all the best in your search.\n\nWarm regards,\nThe Hiring Team`,
   };
 }
@@ -13567,7 +13567,7 @@ function buildOfferDraft(name, jobTitle) {
   const first = (name || "there").split(" ")[0];
   return {
     subject: `You've been selected for the ${jobTitle} role`,
-    body: `Hi ${first},\n\nCongratulations! Following your interview, we're delighted to let you know that you've been selected for the ${jobTitle} role.\n\nOur HR team will be in touch shortly with the full details — compensation, start date, and everything you'll need for the next steps.\n\nBefore we proceed, please let us know whether you'd like to accept this offer using the Accept or Decline buttons below. We can't move forward until we hear from you.\n\nWe're excited about the possibility of you joining the team and look forward to your response.\n\nWarm regards,\nThe Hiring Team`,
+    body: `Hi ${first},\n\nCongratulations! Following your interview, we're delighted to let you know that you've been selected for the ${jobTitle} role.\n\nOur HR team will be in touch shortly with the full details: compensation, start date, and everything you'll need for the next steps.\n\nBefore we proceed, please let us know whether you'd like to accept this offer using the Accept or Decline buttons below. We can't move forward until we hear from you.\n\nWe're excited about the possibility of you joining the team and look forward to your response.\n\nWarm regards,\nThe Hiring Team`,
   };
 }
 
@@ -13685,7 +13685,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   const [open, setOpen] = useState(false);
   const [showReject, setShowReject] = useState(false);
 
-  // Offer & Hired are NOT manually selectable here — they only happen through
+  // Offer & Hired are NOT manually selectable here, they only happen through
   // the offer → accept flow on the candidate's profile, so HR can't skip the
   // funnel or fake a hire the candidate never confirmed. Reject is always
   // available (except on someone already hired). A hired candidate is final.
@@ -13777,7 +13777,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
 }
 
 function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set() }) {
-  // Real activity signal per applicant — an event worth noticing, not presence.
+  // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
     const t = (a.appliedAt || "").toLowerCase();
@@ -13805,7 +13805,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
 
   const [stageFilter, setStageFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
-  // Inline AI matching — ranks these applicants against the job.
+  // Inline AI matching, ranks these applicants against the job.
   const [matching, setMatching] = useState(false);
   const [matchResults, setMatchResults] = useState(null); // null until run: { [candidateId]: {score, rationale} }
 
@@ -13870,7 +13870,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
       <div className="max-w-2xl mx-auto">
         <BackLink onClick={() => navigate("jobs")}>← Jobs</BackLink>
         <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>
-          Applicants{job ? ` — ${job.title}` : ""}
+          Applicants{job ? `: ${job.title}` : ""}
         </h1>
         <p className="text-sm text-neutral-600 mb-4">
           Candidates who applied directly through the public job link. Tap the stage pill to move them through the pipeline or reject with a reviewed email.
@@ -13884,7 +13884,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
             </p>
             <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
               {visible.length === 0
-                ? "No applicants yet — matching becomes available once someone applies."
+                ? "No applicants yet. Matching becomes available once someone applies."
                 : matchResults
                   ? "Ranked by fit against this role. Best matches shown first."
                   : "Score every candidate against this role and see who fits best."}
@@ -14053,7 +14053,7 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
 
   const isHiredView = !!(filter && filter.hired);
   let title = "Candidates";
-  // Only parsed candidates are shown — unparsed ones have no name/role to display yet.
+  // Only parsed candidates are shown, unparsed ones have no name/role to display yet.
   let base = candidates.filter((c) => c.status === "parsed");
 
   if (filter) {
@@ -14161,7 +14161,7 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
                   {currentRole(c) && (
                     <p className="text-sm text-neutral-500 truncate">
                       {hiredIds.has(c.id)
-                        ? (hiredDates[c.id] ? `Hired ${new Date(hiredDates[c.id]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "Hired — no longer available")
+                        ? (hiredDates[c.id] ? `Hired ${new Date(hiredDates[c.id]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "Hired, no longer available")
                         : currentRole(c)}
                     </p>
                   )}
@@ -14280,7 +14280,7 @@ function applicantsJobFromPath(pathname) {
   const m = (pathname || "").match(/^\/applicants\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
 }
-// Public apply page: /apply/<jobId> — the shareable link a candidate opens.
+// Public apply page: /apply/<jobId>, the shareable link a candidate opens.
 function applyJobFromPath(pathname) {
   const m = (pathname || "").match(/^\/apply\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
@@ -14302,12 +14302,12 @@ function screenFromPath(pathname) {
 // Search engines that render JS pick these up, giving each marketing route a
 // unique, keyword-optimized title + description + canonical instead of sharing
 // the homepage's. Copy below is validated (title ≤ 60, meta ≤ 160 chars) and
-// mirrors docs/seo/content-briefs.md — one primary keyword per page.
+// mirrors docs/seo/content-briefs.md, one primary keyword per page.
 const SITE_ORIGIN = "https://hireaster.com";
 const DEFAULT_META = {
-  title: "Aster — AI Recruitment Software for Growing Teams",
+  title: "Aster: AI Recruitment Software for Growing Teams",
   description:
-    "AI recruitment software that screens every resume, ranks applicants by role fit, and books interviews — turning a two-week shortlist into an afternoon.",
+    "AI recruitment software that screens every resume, ranks applicants by role fit, and books interviews, turning a two-week shortlist into an afternoon.",
 };
 // Path → { title, description }. Keyword-optimized per docs/seo/content-briefs.md.
 const PAGE_META = {
@@ -14322,11 +14322,11 @@ const PAGE_META = {
   },
   "/product/ats": {
     title: "Applicant Tracking System (ATS) | Aster",
-    description: "One shared pipeline from applied to hired. Aster's applicant tracking system keeps every candidate, stage and teammate in sync — no spreadsheets.",
+    description: "One shared pipeline from applied to hired. Aster's applicant tracking system keeps every candidate, stage and teammate in sync. No spreadsheets.",
   },
   "/product/ai": {
     title: "AI Resume Screening Software | Aster Intelligence",
-    description: "Aster's AI reads every resume, scores each applicant by role fit, and dedupes your database — handing you a ranked shortlist with the reasons why.",
+    description: "Aster's AI reads every resume, scores each applicant by role fit, and dedupes your database, handing you a ranked shortlist with the reasons why.",
   },
   "/product/interviews": {
     title: "Structured Interview & Scorecard Software | Aster",
@@ -14338,7 +14338,7 @@ const PAGE_META = {
   },
   "/product/analytics": {
     title: "Recruitment Analytics & Reporting Software | Aster",
-    description: "See what's working across hiring — time-to-hire, pipeline health and source quality. Aster's recruitment analytics turn hiring data into decisions.",
+    description: "See what's working across hiring: time-to-hire, pipeline health and source quality. Aster's recruitment analytics turn hiring data into decisions.",
   },
   "/product/career-site": {
     title: "Career Site Builder & Job Board | Aster",
@@ -14353,20 +14353,20 @@ const PAGE_META = {
     description: "Put the busywork on autopilot. Automate stage moves, candidate emails and reminders with Aster's recruitment automation and custom hiring workflows.",
   },
   "/product/integrations": {
-    title: "Integrations — Calendar, Email & More | Aster",
+    title: "Integrations: Calendar, Email & More | Aster",
     description: "Connect the tools your team already uses. Aster integrates with Google and Microsoft calendars, email, messaging and job boards out of the box.",
   },
   "/product/changelog": {
-    title: "What's New — Product Updates | Aster",
-    description: "The latest Aster releases and improvements — new features, fixes and changes across the hiring platform, updated regularly.",
+    title: "What's New: Product Updates | Aster",
+    description: "The latest Aster releases and improvements: new features, fixes and changes across the hiring platform, updated regularly.",
   },
   "/solutions": {
     title: "Solutions by Role, Stage & Industry | Aster",
-    description: "See how Aster helps recruiters, hiring managers and founders — across startups, enterprise and every industry — hire faster with AI.",
+    description: "See how Aster helps recruiters, hiring managers and founders (across startups, enterprise and every industry) hire faster with AI.",
   },
   "/solutions/recruiters": {
     title: "Recruiting Software for Recruiters | Aster",
-    description: "Aster does the first pass on every CV — parsing, scoring and ranking — so recruiters spend the day talking to shortlisted people, not reading resumes.",
+    description: "Aster does the first pass on every CV (parsing, scoring and ranking) so recruiters spend the day talking to shortlisted people, not reading resumes.",
   },
   "/solutions/hiring-managers": {
     title: "Hiring Software for Hiring Managers | Aster",
@@ -14386,7 +14386,7 @@ const PAGE_META = {
   },
   "/solutions/startups": {
     title: "Recruiting Software for Startups | Aster",
-    description: "Hire fast on a founder's schedule. Aster gives startups AI screening, a simple pipeline and one-click scheduling — without an enterprise price tag.",
+    description: "Hire fast on a founder's schedule. Aster gives startups AI screening, a simple pipeline and one-click scheduling, without an enterprise price tag.",
   },
   "/solutions/scaleups": {
     title: "Recruiting Software for Scaleups & Mid-Market | Aster",
@@ -14421,11 +14421,11 @@ const PAGE_META = {
     description: "Fill skilled roles and every shift. Aster screens and schedules high-volume manufacturing and logistics applicants so no line runs short-staffed.",
   },
   "/blog": {
-    title: "The Aster Blog — Hiring, Recruiting & AI",
-    description: "Practical writing on AI screening, recruiting operations and structured interviews — for teams that want to hire faster without lowering the bar.",
+    title: "The Aster Blog: Hiring, Recruiting & AI",
+    description: "Practical writing on AI screening, recruiting operations and structured interviews, for teams that want to hire faster without lowering the bar.",
   },
   "/resources/glossary": {
-    title: "Recruiting Glossary — Hiring Terms Explained | Aster",
+    title: "Recruiting Glossary: Hiring Terms Explained | Aster",
     description: "Plain-English definitions of recruiting and hiring terms, from applicant tracking systems to quality of hire. A reference for anyone who hires.",
   },
   "/compare": {
@@ -14452,7 +14452,7 @@ function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossar
       if (post) return { title: `${post.title} | Aster`, description: clampDesc(post.excerpt), path: `/blog/${blogSlug}` };
     } else if (blogCat) {
       const cat = BLOG_CATEGORIES.find((c) => c.slug === blogCat);
-      if (cat) return { title: `${cat.label} — Aster Blog`, description: clampDesc(cat.desc), path: `/blog/category/${blogCat}` };
+      if (cat) return { title: `${cat.label}: Aster Blog`, description: clampDesc(cat.desc), path: `/blog/category/${blogCat}` };
     }
     return { ...PAGE_META["/blog"], path: "/blog" };
   }
@@ -14460,7 +14460,7 @@ function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossar
   if (screen === "glossary") {
     if (glossarySlug) {
       const t = GLOSSARY_TERMS.find((g) => g.slug === glossarySlug);
-      if (t) return { title: `${t.term} — Recruiting Glossary | Aster`, description: clampDesc(t.short), path: `/resources/glossary/${glossarySlug}` };
+      if (t) return { title: `${t.term}: Recruiting Glossary | Aster`, description: clampDesc(t.short), path: `/resources/glossary/${glossarySlug}` };
     }
     return { ...PAGE_META["/resources/glossary"], path: "/resources/glossary" };
   }
@@ -14538,7 +14538,7 @@ export default function ResumeAIPreview() {
   // Microsoft 365 tenant), rather than per interviewer. Powers availability +
   // event creation for everyone.
   const [calendarConnected, setCalendarConnected] = useState(true);
-  // User profile — the greeting, sidebar and settings all read from this.
+  // User profile, the greeting, sidebar and settings all read from this.
   const [profile, setProfile] = useState({ firstName: "Shah", lastName: "Ramly", role: "Hiring Manager" });
   const [company, setCompany] = useState("Oryx Studio");
   const [plan, setPlan] = useState("starter");
@@ -14548,7 +14548,7 @@ export default function ResumeAIPreview() {
   const trialActive = plan === "free" && trialDaysLeft > 0;
   const effectivePlan = trialActive ? "professional" : plan;
   // Shared monthly AI-match run counter (Free is limited; resets in production
-  // each billing period — here it's per session).
+  // each billing period, here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
   const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
   // Job-posting credits for the current 30-day cycle (limit null = unlimited).
@@ -14577,13 +14577,13 @@ export default function ResumeAIPreview() {
   // the unread badge on the bell.
   const [activities, setActivities] = useState(buildActivities);
   const markActivitiesRead = () => setActivities((list) => list.map((a) => ({ ...a, read: true })));
-  // Dashboard date range — defaults to today (current date).
+  // Dashboard date range, defaults to today (current date).
   const today0 = startOfDay(new Date());
   const [dateRange, setDateRange] = useState({ start: today0, end: today0 });
   const [previewRequest, setPreviewRequest] = useState(null);
   // The job whose public application page we're previewing (via a job's apply link).
   const [previewApplyJob, setPreviewApplyJob] = useState(null);
-  // Public apply page (someone opened /apply/<jobId> from the outside — no login).
+  // Public apply page (someone opened /apply/<jobId> from the outside, no login).
   const [publicApply, setPublicApply] = useState(null); // { id, status: loading|ok|notfound, job?, company? }
   // Booking state per candidate, shared across the profile and the public
   // booking preview: { [candidateId]: { status, confirmedSlot, request } }.
@@ -14625,7 +14625,7 @@ export default function ResumeAIPreview() {
 
   // Public apply link: fetch the job's public details and record a view. Only
   // runs on a real /apply/<id> visit (not the in-app admin preview, which sets
-  // previewApplyJob) — so admin previews never inflate the view count.
+  // previewApplyJob), so admin previews never inflate the view count.
   useEffect(() => {
     if (screen !== "apply" || previewApplyJob) return;
     const id = applyJobFromPath(window.location.pathname);
@@ -14644,8 +14644,8 @@ export default function ResumeAIPreview() {
       try {
         vid = localStorage.getItem("aster_vid");
         if (!vid) { vid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("aster_vid", vid); }
-      } catch { /* private mode / storage blocked — still record the view, just no dedup */ }
-      // Must await (or .then) — the supabase query builder is lazy and won't send
+      } catch { /* private mode / storage blocked, still record the view, just no dedup */ }
+      // Must await (or .then), the supabase query builder is lazy and won't send
       // the request otherwise. Best-effort, so swallow any error.
       try { await supabase.rpc("track_job_view", { p_job_id: id, p_visitor: vid, p_source: source }); } catch { /* ignore */ }
     })();
