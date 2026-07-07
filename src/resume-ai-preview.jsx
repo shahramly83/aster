@@ -13073,17 +13073,40 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
   const parsed = candidate.parsed;
 
-  const handleGenerate = () => {
-    if (!candidate) return;
-    // Gate on the plan's monthly allowance; a fresh (not cached) run consumes one.
+  // Run AI Experience Insights: Claude (Haiku) reads the parsed resume and
+  // returns the deep read. Falls back to the instant derived analysis when
+  // Supabase isn't configured or the call fails. Plan gate: block + send to
+  // billing when the monthly allowance is spent, and charge one credit only on
+  // a successful run (never on failure), like AI Rank.
+  const handleGenerate = async () => {
+    if (!candidate || generating) return;
     if (outOfInsights && !insights) { navigate("billing"); return; }
-    if (!insightsUnlimited && setAiInsightsUsed) setAiInsightsUsed((n) => n + 1);
+
+    const save = (result) => { if (setInsightsCache) setInsightsCache((prev) => ({ ...prev, [candidate.id]: result })); };
+    const charge = () => { if (!insightsUnlimited && setAiInsightsUsed) setAiInsightsUsed((n) => n + 1); };
+
+    // Demo mode (no backend): keep the derived read, but still meter the plan.
+    if (!hasSupabase) {
+      setGenerating(true);
+      setTimeout(() => {
+        save(MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate));
+        charge();
+        setGenerating(false);
+      }, 1600);
+      return;
+    }
+
     setGenerating(true);
-    setTimeout(() => {
-      const result = MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate);
-      if (setInsightsCache) setInsightsCache((prev) => ({ ...prev, [candidate.id]: result })); // save & keep
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-experience", { body: { candidate } });
+      if (error || data?.error || !data?.insights) throw new Error("analyze failed");
+      save(data.insights);
+      charge(); // one credit per successful run
+    } catch (_e) {
+      save(MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate)); // still show a result; no credit charged on failure
+    } finally {
       setGenerating(false);
-    }, 1600);
+    }
   };
 
   const openJobsForInvite = (jobs || []).filter((j) => j.status === "open");

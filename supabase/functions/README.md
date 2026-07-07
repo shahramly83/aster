@@ -1,5 +1,24 @@
 # Edge functions
 
+All three share one secret, `ANTHROPIC_API_KEY` (set once, below). Deploy each
+with `supabase functions deploy <name>`. Until a function is deployed the app
+falls back to its built-in behaviour, so nothing breaks in a fresh clone.
+
+## `analyze-experience`
+
+Powers **AI Experience Insights** on the candidate profile. The client sends one
+candidate's already-parsed resume; Claude (Haiku, `claude-haiku-4-5-20251001`)
+returns the deep read — total and leadership experience, domain exposure,
+employer tenure, career progression, and any employment gaps. A signed-in user
+is required, and the function reads nothing from the database (it only analyses
+what it's given). If it isn't deployed, the button falls back to the instant
+derived analysis, and every run is still metered against the plan's monthly AI
+insight allowance.
+
+```bash
+supabase functions deploy analyze-experience
+```
+
 ## `parse-application`
 
 Reads an applicant's PDF resume with Claude, stores the file privately, and
