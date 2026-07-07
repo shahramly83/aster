@@ -7881,14 +7881,13 @@ function formatSalary(job) {
 }
 
 // Shared job form body — used inside the modal for both creating and editing.
-function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null, onCreate, onUpdate }) {
+function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost }) {
   const editing = !!initialJob;
   const limits = planLimits(plan);
-  // Drafts don't count against the plan's job limit — only published/live roles do.
-  const atJobLimit = jobs.filter((j) => j.status !== "draft").length >= limits.maxJobs;
-  // Publishing is blocked at the limit only when it would add a new live role
-  // (a brand-new job, or publishing an existing draft). Editing a live job is fine.
-  const publishBlocked = atJobLimit && (!editing || initialJob?.status !== "open");
+  // Publishing spends one job credit for the cycle, unless the role is already
+  // live (re-saving an open job). Drafts never spend a credit.
+  const willConsumeCredit = !editing || initialJob?.status !== "open";
+  const publishBlocked = jobPostBlocked && willConsumeCredit;
   const [title, setTitle] = useState(initialJob?.title || "");
   const [department, setDepartment] = useState(initialJob?.department || "");
   const [location, setLocation] = useState(initialJob?.location || "");
@@ -7952,6 +7951,8 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       if (onCreate) { const realId = await onCreate(payload); if (realId) id = realId; }
       setJobs([{ id, ...payload }, ...jobs]);
     }
+    // Publishing (going live from a non-live state) spends a job credit.
+    if (status === "open" && willConsumeCredit && onConsumeJobPost) onConsumeJobPost();
     onClose();
   };
 
@@ -8074,7 +8075,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
         <button
           onClick={() => handleSubmit("open")}
           disabled={!canPublish || publishBlocked}
-          title={publishBlocked ? `You've reached your plan's ${limits.maxJobs} live-role limit. Save as draft, or upgrade.` : undefined}
+          title={publishBlocked ? `You've used all ${jobPostUsage.limit} job posts this cycle. Save as draft, or upgrade.` : undefined}
           className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
           Publish
         </button>
@@ -8091,7 +8092,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
       </div>
       {publishBlocked && (
         <p className="text-xs" style={{ color: "#B45309" }}>
-          You've reached your plan's {limits.maxJobs} live-role limit. You can still save this as a draft, or{" "}
+          You've used all {jobPostUsage.limit} job posts for this cycle{jobPostUsage.resetsAt ? ` (renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })})` : ""}. You can still save this as a draft, or{" "}
           <button onClick={() => navigate("billing")} className="font-semibold underline" style={{ color: "var(--brand)" }}>upgrade for more</button>.
         </p>
       )}
@@ -8100,7 +8101,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
 }
 
 // New/Edit Job as a centered modal sheet (opens over whatever screen you're on).
-function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null, onCreate, onUpdate }) {
+function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost }) {
   if (!open) return null;
   const editing = !!initialJob;
   return (
@@ -8118,7 +8119,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
         <div className="px-5 sm:px-6 py-5 max-h-[75vh] overflow-y-auto">
-          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} onCreate={onCreate} onUpdate={onUpdate} />
+          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} onCreate={onCreate} onUpdate={onUpdate} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={onConsumeJobPost} />
         </div>
       </div>
     </div>
@@ -8150,7 +8151,7 @@ const closingChip = (days) => {
   return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
 };
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -8165,19 +8166,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // A just-posted job is prepended (newest first); jump back to page 1 so it's visible.
   useEffect(() => { setPage(0); }, [jobs.length]);
   const limits = planLimits(plan);
-  // Drafts are unpublished, so they never count toward the plan's job cap or get paused.
-  const liveJobs = jobs.filter((j) => j.status !== "draft");
-  const atJobLimit = liveJobs.length >= limits.maxJobs;
-  // When a plan is capped and holds more live jobs than allowed, everything beyond the
-  // cap is paused (retained, but public apply links stop taking new applicants).
-  // The kept job is prioritised, then the earliest jobs fill the remaining slots.
-  const overJobLimit = limits.maxJobs !== Infinity && liveJobs.length > limits.maxJobs;
-  const keptSet = new Set();
-  if (overJobLimit) {
-    const ordered = [...liveJobs].sort((a, b) => (a.id === keptJobId ? -1 : b.id === keptJobId ? 1 : 0));
-    ordered.slice(0, limits.maxJobs).forEach((j) => keptSet.add(j.id));
-  }
-  const pausedIds = overJobLimit ? new Set(liveJobs.filter((j) => !keptSet.has(j.id)).map((j) => j.id)) : new Set();
+  // Job posting is metered per 30-day cycle (see jobPostUsage), not by a
+  // concurrent cap, so nothing is auto-paused — the credit gate does the work.
+  const pausedIds = new Set();
   // Link-source modal: which job we're generating a link for, and the source tag.
   const [linkJob, setLinkJob] = useState(null); // job object or null
   const [linkSource, setLinkSource] = useState("");
@@ -8190,11 +8181,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
     const next = job.status === "open" ? "closed" : "open";
-    // Reopening (or publishing a draft) makes the role live again — it takes a
-    // slot from the plan's job allowance, so block it when there's none free.
-    if (next === "open" && atJobLimit) { setLimitPrompt(true); return; }
+    // Reopening a closed role (or publishing a draft) makes it live and spends a
+    // job credit for the cycle — block when this cycle's credits are used up.
+    if (next === "open" && jobPostBlocked) { setLimitPrompt(true); return; }
     setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: next } : j)));
     if (canPersist) dbSetJobStatus(jobId, next);
+    if (next === "open" && onConsumeJobPost) onConsumeJobPost();
   };
 
   // Only drafts can be deleted (published/closed roles keep their record).
@@ -8460,28 +8452,20 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             })}
           </div>
 
-          {atJobLimit ? (
-            <button
-              onClick={() => navigate("billing")}
-              className="order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl border px-4 py-2.5 transition-colors hover:bg-neutral-50"
-              style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
-            >
-              <Icon name="lock" className="w-4 h-4" /> Post a job <LockBadge />
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate("newJob")}
-              className="order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
-              style={{ boxShadow: "0 12px 26px -12px rgba(151,59,247,0.75)" }}
-            >
-              <Icon name="jobs" className="w-4 h-4" /> Post a job
-            </button>
-          )}
+          <button
+            onClick={() => navigate("newJob")}
+            className="order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
+            style={{ boxShadow: "0 12px 26px -12px rgba(151,59,247,0.75)" }}
+          >
+            <Icon name="jobs" className="w-4 h-4" /> Post a job
+          </button>
         </div>
-        {atJobLimit && (
-          <div className="rounded-xl border p-3 mb-5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
-            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              Your plan includes <span className="font-semibold">{limits.maxJobs} active job{limits.maxJobs === 1 ? "" : "s"}</span>. Upgrade for more roles, seats, and AI runs.
+        {jobPostUsage.limit != null && (
+          <div className="rounded-xl border p-3 mb-5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: jobPostBlocked ? "#FEF3C7" : "var(--brand-soft)" }}>
+            <p className="text-xs" style={{ color: jobPostBlocked ? "#92400E" : "var(--ink-2)" }}>
+              {jobPostBlocked
+                ? <>You've used all <span className="font-semibold">{jobPostUsage.limit} job posts</span> this cycle{jobPostUsage.resetsAt ? ` (renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })})` : ""}. You can still save drafts.</>
+                : <><span className="font-semibold">{jobPostUsage.used} of {jobPostUsage.limit}</span> job posts used this cycle{jobPostUsage.resetsAt ? ` · renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : ""}.</>}
             </p>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -8498,7 +8482,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <p className="text-xs mt-1 mb-4 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>
               {jobs.length === 0 ? "Create your first role to start collecting and screening applicants." : "Try a different search, or clear the status filter."}
             </p>
-            {jobs.length === 0 && !atJobLimit ? (
+            {jobs.length === 0 ? (
               <button onClick={() => navigate("newJob")} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">Post a job</button>
             ) : jobs.length > 0 && (statusFilter !== "all" || q) ? (
               <button onClick={() => { setSearch(""); setStatus("all"); }} className="text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Clear filters</button>
@@ -8866,7 +8850,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       })()}
 
       {/* Edit job — reuses the New Job form pre-filled */}
-      <NewJobModal open={!!editJob} initialJob={editJob} onClose={() => setEditJob(null)} jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} />
+      <NewJobModal open={!!editJob} initialJob={editJob} onClose={() => setEditJob(null)} jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={onConsumeJobPost} />
 
       {/* Delete a draft (only drafts are deletable) */}
       <ConfirmDialog
@@ -8879,11 +8863,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         onClose={() => setConfirmDeleteJob(null)}
       />
 
-      {/* Reopening/publishing blocked — no free job slot on the plan */}
+      {/* Reopening/publishing blocked — this cycle's job credits are used up */}
       <ConfirmDialog
         open={limitPrompt}
-        title="You're at your plan's job limit"
-        body={`Your plan allows ${limits.maxJobs} live role${limits.maxJobs === 1 ? "" : "s"}. Close another role to free a slot, or upgrade for more.`}
+        title="You're out of job posts for this cycle"
+        body={`You've used all ${jobPostUsage.limit ?? ""} job posts on your plan this cycle.${jobPostUsage.resetsAt ? ` They renew on ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.` : ""} Upgrade for more, or wait for the reset.`}
         confirmLabel="Upgrade"
         onConfirm={() => { setLimitPrompt(false); navigate("billing"); }}
         onClose={() => setLimitPrompt(false)}
@@ -14520,10 +14504,22 @@ export default function ResumeAIPreview() {
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const trialActive = plan === "free" && trialDaysLeft > 0;
   const effectivePlan = trialActive ? "professional" : plan;
+  // Job-posting credits: blocked when this cycle's usage hits the plan limit.
+  const jobPostBlocked = jobPostUsage.limit != null && jobPostUsage.used >= jobPostUsage.limit;
+  const consumeJobPost = async () => {
+    if (!hasSupabase) { setJobPostUsage((u) => ({ ...u, used: u.used + 1 })); return; }
+    try {
+      const { data } = await supabase.rpc("bump_job_post");
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) setJobPostUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
+    } catch (e) { console.error("bump_job_post", e); }
+  };
   // Shared monthly AI-match run counter (Free is limited; resets in production
   // each billing period — here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
   const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
+  // Job-posting credits for the current 30-day cycle (limit null = unlimited).
+  const [jobPostUsage, setJobPostUsage] = useState({ used: 0, limit: null, resetsAt: null });
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
   const [insightsCache, setInsightsCache] = useState({});
@@ -14750,6 +14746,12 @@ export default function ResumeAIPreview() {
         if (typeof row.used === "number") setMatchRunsUsed(row.used);
         if (row.resets_at) setAiRankResetsAt(row.resets_at);
       }).catch((e) => console.error("get_ai_rank_usage threw:", e));
+      // Job-posting credits for this cycle (same 30-day cycle as AI Rank).
+      supabase.rpc("get_job_post_usage").then(({ data, error }) => {
+        if (error) { console.error("get_job_post_usage failed:", error.message || error); return; }
+        const row = Array.isArray(data) ? data?.[0] : data;
+        if (row) setJobPostUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
+      }).catch((e) => console.error("get_job_post_usage threw:", e));
     }
     const data = await loadWorkspaceData(companyId);
     if (!data) return;
@@ -15102,7 +15104,7 @@ export default function ResumeAIPreview() {
     // current (a job toggled closed after opening the preview reflects at once).
     const liveApplyJob = jobs.find((j) => j.id === previewApplyJob.id) || previewApplyJob;
     const _applyLimits = planLimits(plan);
-    const applyPaused = !!liveApplyJob && _applyLimits.maxJobs !== Infinity && jobs.length > _applyLimits.maxJobs && liveApplyJob.id !== keptJobId;
+    const applyPaused = false; // job posting is metered per cycle now, not by a concurrent cap that pauses roles
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
     return (
       <Shell>
@@ -15218,6 +15220,9 @@ export default function ResumeAIPreview() {
             canPersist={canPersist}
             companyId={companyId}
             userId={userId}
+            jobPostUsage={jobPostUsage}
+            jobPostBlocked={jobPostBlocked}
+            onConsumeJobPost={consumeJobPost}
           />
         )}
         {screen === "search" && (
@@ -15306,7 +15311,7 @@ export default function ResumeAIPreview() {
         )}
         </ErrorBoundary>
       </SidebarLayout>
-      <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbCreateJob(companyId, userId, p) : null} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} />
+      <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbCreateJob(companyId, userId, p) : null} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={consumeJobPost} />
     </Shell>
   );
 }
