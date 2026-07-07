@@ -14508,12 +14508,15 @@ export default function ResumeAIPreview() {
       const job = { id: row.id, title: row.title, status: row.status, expires_at: row.expires_at, ...(row.details || {}) };
       setPublicApply({ id, status: "ok", job, company: row.company_name || "" });
       // Record the visit: unique per browser per day, tagged with ?source=.
+      let source = null, vid = null;
+      try { source = new URLSearchParams(window.location.search).get("source"); } catch { /* ignore */ }
       try {
-        const source = new URLSearchParams(window.location.search).get("source");
-        let vid = localStorage.getItem("aster_vid");
+        vid = localStorage.getItem("aster_vid");
         if (!vid) { vid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("aster_vid", vid); }
-        supabase.rpc("track_job_view", { p_job_id: id, p_visitor: vid, p_source: source });
-      } catch { /* tracking is best-effort */ }
+      } catch { /* private mode / storage blocked — still record the view, just no dedup */ }
+      // Must await (or .then) — the supabase query builder is lazy and won't send
+      // the request otherwise. Best-effort, so swallow any error.
+      try { await supabase.rpc("track_job_view", { p_job_id: id, p_visitor: vid, p_source: source }); } catch { /* ignore */ }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, previewApplyJob]);
