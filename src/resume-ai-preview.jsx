@@ -14504,6 +14504,12 @@ export default function ResumeAIPreview() {
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const trialActive = plan === "free" && trialDaysLeft > 0;
   const effectivePlan = trialActive ? "professional" : plan;
+  // Shared monthly AI-match run counter (Free is limited; resets in production
+  // each billing period — here it's per session).
+  const [matchRunsUsed, setMatchRunsUsed] = useState(0);
+  const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
+  // Job-posting credits for the current 30-day cycle (limit null = unlimited).
+  const [jobPostUsage, setJobPostUsage] = useState({ used: 0, limit: null, resetsAt: null });
   // Job-posting credits: blocked when this cycle's usage hits the plan limit.
   const jobPostBlocked = jobPostUsage.limit != null && jobPostUsage.used >= jobPostUsage.limit;
   const consumeJobPost = async () => {
@@ -14514,12 +14520,6 @@ export default function ResumeAIPreview() {
       if (row) setJobPostUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
     } catch (e) { console.error("bump_job_post", e); }
   };
-  // Shared monthly AI-match run counter (Free is limited; resets in production
-  // each billing period — here it's per session).
-  const [matchRunsUsed, setMatchRunsUsed] = useState(0);
-  const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
-  // Job-posting credits for the current 30-day cycle (limit null = unlimited).
-  const [jobPostUsage, setJobPostUsage] = useState({ used: 0, limit: null, resetsAt: null });
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
   const [insightsCache, setInsightsCache] = useState({});
