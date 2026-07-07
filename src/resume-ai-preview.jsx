@@ -920,6 +920,54 @@ const BRAND_STYLES = `
 .card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
 .act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 1px 3px rgba(18,19,42,.02); }
 
+/* Blog article prose — an editorial reading experience */
+.article-prose { color: var(--ink); font-size: 1.075rem; line-height: 1.78; }
+.article-prose > p { margin: 1.3rem 0; color: #35364C; }
+.article-prose > p:first-child { margin-top: 0; }
+.article-prose > p.lead {
+  font-size: clamp(1.2rem, 2vw, 1.4rem); line-height: 1.55; font-weight: 500;
+  color: var(--ink); margin: 0 0 1.6rem;
+}
+.article-prose > p.lead::first-letter {
+  float: left; font-family: 'Plus Jakarta Sans', ui-sans-serif, sans-serif; font-weight: 800;
+  font-size: 3.5rem; line-height: .72; margin: .32rem .62rem 0 0;
+  background-image: linear-gradient(135deg, var(--brand-0) 0%, var(--brand) 55%, var(--brand-2) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--brand);
+}
+.article-prose h2 {
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, sans-serif; font-weight: 700; color: var(--ink);
+  font-size: 1.5rem; letter-spacing: -0.02em; line-height: 1.25; margin: 2.9rem 0 .95rem;
+}
+.article-prose h2::before {
+  content: ""; display: block; width: 2.25rem; height: 3px; border-radius: 3px; margin-bottom: .95rem;
+  background-image: linear-gradient(90deg, var(--brand-0), var(--brand-2));
+}
+.article-prose ul { margin: 1.5rem 0; padding: 0; list-style: none; }
+.article-prose ul li { position: relative; padding-left: 1.65rem; margin: .72rem 0; color: #35364C; line-height: 1.72; }
+.article-prose ul li::before {
+  content: ""; position: absolute; left: .15rem; top: .62em; width: .46rem; height: .46rem; border-radius: 50%;
+  background-image: linear-gradient(135deg, var(--brand-0), var(--brand-2));
+}
+.article-prose strong { color: var(--ink); font-weight: 600; }
+.article-prose .pquote {
+  margin: 2.4rem 0; padding: .15rem 0 .15rem 1.6rem;
+  border-left: 3px solid transparent; border-image: linear-gradient(180deg, var(--brand-0), var(--brand-2)) 1;
+}
+.article-prose .pquote p {
+  margin: 0; font-family: 'Plus Jakarta Sans', ui-sans-serif, sans-serif; font-weight: 600;
+  font-size: clamp(1.35rem, 2.4vw, 1.6rem); line-height: 1.38; letter-spacing: -0.01em; color: var(--ink);
+}
+.article-prose .pquote cite { display: block; margin-top: .7rem; font-style: normal; font-size: .9rem; color: var(--ink-3); }
+.article-prose .callout {
+  margin: 2.1rem 0; padding: 1.15rem 1.3rem; border-radius: .95rem;
+  background: var(--brand-soft); border: 1px solid rgba(151,59,247,.16);
+}
+.article-prose .callout .callout-label {
+  display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--brand); margin-bottom: .45rem;
+}
+.article-prose .callout p { margin: 0; color: var(--ink); font-size: 1rem; line-height: 1.65; }
+
 /* Login background animations */
 @keyframes loginKenBurns {
   0%   { transform: scale(1.08) translate3d(0, 0, 0); }
@@ -4603,21 +4651,43 @@ function fmtDate(iso) {
 const blogCat = (slug) => BLOG_CATEGORIES.find((c) => c.slug === slug);
 
 // Render a post's body blocks: { h } → heading, { ul } → list, { p } → paragraph.
+// Inline **bold** → <strong>. A no-op for plain strings.
+function renderInline(text) {
+  if (typeof text !== "string" || !text.includes("**")) return text;
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, k) =>
+    part.length > 4 && part.startsWith("**") && part.endsWith("**")
+      ? <strong key={k}>{part.slice(2, -2)}</strong>
+      : part
+  );
+}
+
+// Renders an article's blocks as an editorial page. The first paragraph becomes
+// the lead (larger, with a drop cap). Supported blocks: { h } heading,
+// { p } paragraph, { ul } list, { quote, cite } pull quote, { note, label } callout.
 function ArticleBody({ blocks }) {
-  return blocks.map((b, i) =>
-    b.h ? (
-      <h2 key={i} className="text-neutral-900 font-display font-semibold mt-9 mb-3" style={{ fontSize: "1.4rem", letterSpacing: "-0.01em" }}>{b.h}</h2>
-    ) : b.ul ? (
-      <ul key={i} className="my-4 space-y-2.5">
-        {b.ul.map((li, j) => (
-          <li key={j} className="flex items-start gap-3 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>
-            <span className="shrink-0 mt-2 w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} /> <span>{li}</span>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <p key={i} className="my-4 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>{b.p}</p>
-    )
+  const leadIdx = blocks.findIndex((b) => b.p);
+  return (
+    <div className="article-prose">
+      {blocks.map((b, i) => {
+        if (b.h) return <h2 key={i}>{renderInline(b.h)}</h2>;
+        if (b.quote) return (
+          <figure key={i} className="pquote">
+            <p>{renderInline(b.quote)}</p>
+            {b.cite && <cite>{b.cite}</cite>}
+          </figure>
+        );
+        if (b.note) return (
+          <aside key={i} className="callout">
+            <span className="callout-label">{b.label || "Worth remembering"}</span>
+            <p>{renderInline(b.note)}</p>
+          </aside>
+        );
+        if (b.ul) return (
+          <ul key={i}>{b.ul.map((li, j) => <li key={j}>{renderInline(li)}</li>)}</ul>
+        );
+        return <p key={i} className={i === leadIdx ? "lead" : ""}>{renderInline(b.p)}</p>;
+      })}
+    </div>
   );
 }
 
@@ -4669,6 +4739,9 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
               <Icon name={category?.icon || "doc"} className="w-3.5 h-3.5" /> {category?.label}
             </button>
             <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.9rem, 4vw, 2.9rem)", lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{post.title}</h1>
+            {post.excerpt && (
+              <p className="mt-5 max-w-2xl" style={{ fontSize: "clamp(1.05rem, 1.7vw, 1.25rem)", lineHeight: 1.55, color: "rgba(255,255,255,0.72)", textWrap: "pretty" }}>{post.excerpt}</p>
+            )}
             <div className="mt-6 flex items-center gap-3 text-sm" style={{ color: "var(--navy-ink)" }}>
               <span className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold brand-gradient shrink-0">{post.author.name.charAt(0)}</span>
               <span><span className="text-white/90 font-medium">{post.author.name}</span> · {post.author.role}</span>
@@ -4679,8 +4752,8 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
         </section>
         {/* Article body */}
         <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <article className="max-w-none"><ArticleBody blocks={post.body} /></article>
+          <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: "43rem" }}>
+            <article><ArticleBody blocks={post.body} /></article>
             {/* Tags */}
             {post.tags?.length > 0 && (
               <div className="mt-10 flex flex-wrap gap-2">
