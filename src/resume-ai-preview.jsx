@@ -8161,6 +8161,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [sortBy, setSortBy] = useState("newest"); // newest | applicants | oldest | az
   const [sortOpen, setSortOpen] = useState(false);
   const [view, setView] = useState("grid"); // grid | list
+  const [openHelp, setOpenHelp] = useState(null); // sidebar "how it works" accordion
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
   // A just-posted job is prepended (newest first); jump back to page 1 so it's visible.
@@ -8321,6 +8322,19 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     </div>
   );
 
+  // Sidebar content — job-post credits meter + a "how it works" accordion,
+  // mirroring the Candidate Search sidebar for a consistent look across screens.
+  const jobCreditFmt = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  const jobPostsLeft = jobPostUsage.limit != null ? Math.max(jobPostUsage.limit - jobPostUsage.used, 0) : null;
+  const jobPlanLabel = plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current";
+  const jobRenews = jobPostUsage.resetsAt ? ` · renews ${jobCreditFmt(jobPostUsage.resetsAt)}` : "";
+  const JOBS_HELP = [
+    { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Publishing spends one job credit." },
+    { icon: "doc", title: "Save it as a draft", body: "Not ready to go live? Save it as a draft and keep editing. Drafts are free — they don't spend a credit until you publish." },
+    { icon: "matching", title: "Aster screens every applicant", body: "As people apply, Aster reads each resume and ranks it against the role, so the strongest fits rise to the top on their own." },
+    { icon: "link", title: "Share the apply link", body: "Copy a role's application link to post on job boards or send to candidates, then watch views climb right on the job card." },
+  ];
+
   return (
     <div
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
@@ -8460,19 +8474,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <Icon name="jobs" className="w-4 h-4" /> Post a job
           </button>
         </div>
-        {jobPostUsage.limit != null && (
-          <div className="rounded-xl border p-3 mb-5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: jobPostBlocked ? "#FEF3C7" : "var(--brand-soft)" }}>
-            <p className="text-xs" style={{ color: jobPostBlocked ? "#92400E" : "var(--ink-2)" }}>
-              {jobPostBlocked
-                ? <>You've used all <span className="font-semibold">{jobPostUsage.limit} job posts</span> this cycle{jobPostUsage.resetsAt ? ` (renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })})` : ""}. You can still save drafts.</>
-                : <><span className="font-semibold">{jobPostUsage.used} of {jobPostUsage.limit}</span> job posts used this cycle{jobPostUsage.resetsAt ? ` · renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : ""}.</>}
-            </p>
-            {jobPostBlocked && (
-              <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
-            )}
-          </div>
-        )}
-
+        {/* Jobs list in the main column; credits usage + how-it-works sidebar. */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 lg:items-start">
+          <div className="min-w-0">
         {filtered.length === 0 ? (
           <div className="rounded-2xl bg-white act-shadow px-5 py-12 border text-center" style={{ borderColor: "var(--line)" }}>
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
@@ -8681,6 +8685,43 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           )}
           </>
         )}
+          </div>{/* main column */}
+
+          <aside className="mt-5 lg:mt-0 space-y-5 lg:sticky lg:top-4 lg:self-start">
+            {jobPostUsage.limit != null && (
+              <UsageMeter
+                title="Job post credits this cycle"
+                hint="Publishing a role (or reopening a closed one) uses one job credit; drafts are free. Your plan includes a set number of posts each cycle, renewing every 30 days from your signup date."
+                used={jobPostUsage.used}
+                limit={jobPostUsage.limit}
+                unit="credits used"
+                note={jobPostBlocked
+                  ? `You've used all ${jobPostUsage.limit} job posts this cycle${jobRenews}. You can still save drafts.`
+                  : `${jobPostsLeft} post${jobPostsLeft === 1 ? "" : "s"} left on your ${jobPlanLabel} plan${jobRenews}.`}
+                onManage={() => navigate("billing")}
+                onUpgrade={() => navigate("billing")}
+              />
+            )}
+            <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
+              <div>
+                {JOBS_HELP.map((item, i) => {
+                  const open = openHelp === i;
+                  return (
+                    <div key={item.title} className={i > 0 ? "border-t" : ""} style={i > 0 ? { borderColor: "var(--line)" } : undefined}>
+                      <button onClick={() => setOpenHelp(open ? null : i)} aria-expanded={open} className="w-full flex items-center gap-2.5 py-2.5 px-1 text-left transition-colors hover:bg-neutral-50/60 rounded-lg">
+                        <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={item.icon} className="w-3.5 h-3.5" /></span>
+                        <span className="flex-1 text-[13px] font-medium min-w-0" style={{ color: "var(--ink)" }}>{item.title}</span>
+                        <span className="shrink-0 transition-transform" style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-4 h-4" /></span>
+                      </button>
+                      {open && <p className="text-xs leading-relaxed pb-3 pl-[2.15rem] pr-1" style={{ color: "var(--ink-3)" }}>{item.body}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+        </div>{/* jobs + sidebar */}
       </div>
 
       {/* Full job details */}
