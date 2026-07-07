@@ -8697,6 +8697,22 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   );
                 })()}
 
+                {/* Posted / closing dates */}
+                {dj.posted_at && (() => {
+                  const d = new Date(dj.posted_at);
+                  const abs = d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+                  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+                  const rel = days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+                  const closes = dj.expires_at ? new Date(dj.expires_at + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null;
+                  return (
+                    <p className="text-xs flex flex-wrap items-center gap-x-1.5 gap-y-1 -mt-1.5" style={{ color: "var(--ink-3)" }}>
+                      <Icon name="calendar" className="w-3.5 h-3.5" />
+                      <span>Posted <span style={{ color: "var(--ink-2)" }}>{abs}</span> · {rel}</span>
+                      {closes && <span>· Closes <span style={{ color: "var(--ink-2)" }}>{closes}</span></span>}
+                    </p>
+                  );
+                })()}
+
                 {/* Apply-page view analytics */}
                 {(() => {
                   const vs = dj.viewStats || { total: 0, uniques: 0, sources: {} };
