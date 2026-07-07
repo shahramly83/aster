@@ -8467,7 +8467,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 ? <>You've used all <span className="font-semibold">{jobPostUsage.limit} job posts</span> this cycle{jobPostUsage.resetsAt ? ` (renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })})` : ""}. You can still save drafts.</>
                 : <><span className="font-semibold">{jobPostUsage.used} of {jobPostUsage.limit}</span> job posts used this cycle{jobPostUsage.resetsAt ? ` · renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : ""}.</>}
             </p>
-            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+            {jobPostBlocked && (
+              <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+            )}
           </div>
         )}
 
