@@ -1,6 +1,11 @@
-// Resources content — blog + glossary seed data for the marketing site.
+// Resources content: blog + glossary seed data for the marketing site.
 // Kept separate from the app so writers can extend it without touching UI code.
-// Body blocks: { h: "..." } heading · { p: "..." } paragraph · { ul: [...] } list.
+// Body blocks: { h } heading · { p } paragraph · { ul } list · { quote, cite }
+// pull quote · { note, label } callout.
+//
+// GENERATED_POSTS holds articles written by the daily Opus job
+// (scripts/generate-blog-post.mjs); they are merged ahead of the seed set below.
+import { GENERATED_POSTS } from "./generated-posts.js";
 
 export const BLOG_CATEGORIES = [
   { slug: "ai-hiring", label: "AI & Hiring", desc: "How AI is changing screening, matching and hiring decisions.", icon: "matching", tint: "#D98BF5" },
@@ -8,7 +13,7 @@ export const BLOG_CATEGORIES = [
   { slug: "interviewing", label: "Interviewing", desc: "Structured interviews, scorecards and fairer decisions.", icon: "interview", tint: "#7FA0FF" },
 ];
 
-export const BLOG_POSTS = [
+const SEED_BLOG_POSTS = [
   {
     slug: "how-ai-resume-screening-works",
     title: "How AI resume screening actually works (and where it doesn't)",
@@ -277,6 +282,9 @@ export const BLOG_POSTS = [
     ],
   },
 ];
+
+// Generated posts (newest first) sit ahead of the hand-written seed set.
+export const BLOG_POSTS = [...GENERATED_POSTS, ...SEED_BLOG_POSTS];
 
 export const GLOSSARY_TERMS = [
   { slug: "applicant-tracking-system", term: "Applicant Tracking System (ATS)", short: "Software that manages job applications through every stage of hiring, from applied to hired.", related: ["recruitment-funnel", "resume-parsing", "job-requisition"],
