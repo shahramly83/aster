@@ -196,7 +196,12 @@ async function main() {
       try {
         draft = await generateOnce(client, feedback);
       } catch (e) {
-        console.error(`  generation error: ${e.message}`);
+        // Surface everything useful for CI: HTTP status, API error type, and
+        // the response body, not just e.message (which is often opaque).
+        console.error(`  generation error: ${e.name || "Error"}: ${e.message}`);
+        if (e.status != null) console.error(`  http status: ${e.status}`);
+        if (e.error) console.error(`  api error: ${JSON.stringify(e.error)}`);
+        else if (e.response?.body) console.error(`  response body: ${JSON.stringify(e.response.body)}`);
         feedback = "the previous output was malformed";
         continue;
       }
@@ -255,6 +260,8 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  console.error(e?.stack || e);
+  if (e?.status != null) console.error(`http status: ${e.status}`);
+  if (e?.error) console.error(`api error: ${JSON.stringify(e.error)}`);
   process.exit(1);
 });
