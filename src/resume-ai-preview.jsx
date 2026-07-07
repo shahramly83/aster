@@ -4708,6 +4708,105 @@ function BlogPostCard({ post, onOpen, featured = false, dark = false }) {
   );
 }
 
+// Reading progress (0..1) for the article marked with id="article-body".
+function useReadingProgress() {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const el = document.getElementById("article-body");
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const total = el.offsetHeight - window.innerHeight;
+      const val = total > 0 ? -rect.top / total : rect.top <= 0 ? 1 : 0;
+      setP(Math.min(Math.max(val, 0), 1));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+  return p;
+}
+
+// Copy-link / LinkedIn / X share buttons. Reads the live page URL at click time.
+function ShareButtons({ title }) {
+  const [copied, setCopied] = useState(false);
+  const here = () => (typeof window !== "undefined" ? window.location.href : "https://hireaster.com");
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(here());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch { /* clipboard blocked; ignore */ }
+  };
+  const share = (net) => {
+    const u = encodeURIComponent(here());
+    const t = encodeURIComponent(title);
+    const href = net === "linkedin"
+      ? `https://www.linkedin.com/sharing/share-offsite/?url=${u}`
+      : `https://twitter.com/intent/tweet?url=${u}&text=${t}`;
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+  const cls = "w-9 h-9 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-50";
+  const style = { border: "1px solid var(--line)", background: "#fff" };
+  return (
+    <div className="flex items-center gap-1.5">
+      <button onClick={copy} aria-label="Copy link" title={copied ? "Copied" : "Copy link"} className={cls} style={{ ...style, color: copied ? "var(--brand)" : "var(--ink-2)" }}>
+        <Icon name={copied ? "check" : "link"} className="w-4 h-4" />
+      </button>
+      <button onClick={() => share("linkedin")} aria-label="Share on LinkedIn" title="Share on LinkedIn" className={cls} style={{ ...style, color: "var(--ink-2)" }}>
+        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5A2.5 2.5 0 1 0 5 8.5a2.5 2.5 0 0 0-.02-5ZM3 9h4v12H3V9Zm6 0h3.8v1.64h.05c.53-1 1.83-2.06 3.77-2.06 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.28c0-1.26-.03-2.88-1.76-2.88-1.76 0-2.03 1.37-2.03 2.79V21H9V9Z"/></svg>
+      </button>
+      <button onClick={() => share("x")} aria-label="Share on X" title="Share on X" className={cls} style={{ ...style, color: "var(--ink-2)" }}>
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.29 8.33L23 22h-6.72l-5.26-6.88L4.99 22H2l7.79-8.9L1.5 2h6.88l4.75 6.28L18.9 2Zm-2.36 18h1.86L7.55 3.9H5.55L16.54 20Z"/></svg>
+      </button>
+    </div>
+  );
+}
+
+// Soft conversion card, styled in the brand gradient.
+function ArticleCtaCard({ navigate }) {
+  return (
+    <button onClick={() => navigate("signup")} className="group block w-full text-left rounded-2xl p-5 brand-gradient text-white transition-transform hover:-translate-y-0.5 shadow-[0_16px_40px_-16px_rgba(151,59,247,0.9)]">
+      <p className="text-[13px] font-semibold leading-snug">See how Aster keeps your pipeline warm</p>
+      <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold">Get started <Icon name="arrowUpRight" className="w-4 h-4 transition-transform group-hover:translate-x-0.5" /></span>
+    </button>
+  );
+}
+
+// Sticky left rail for an article: reading progress, share buttons, soft CTA.
+function ArticleRail({ title, navigate }) {
+  const progress = useReadingProgress();
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+          <div className="h-full rounded-full transition-[width] duration-150" style={{ width: `${progress * 100}%`, background: "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+        </div>
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Share</span>
+          <span className="text-[11px] font-medium tnum" style={{ color: "var(--ink-3)" }}>{Math.round(progress * 100)}%</span>
+        </div>
+        <div className="mt-2"><ShareButtons title={title} /></div>
+      </div>
+      <ArticleCtaCard navigate={navigate} />
+    </div>
+  );
+}
+
+// Full-width progress bar pinned to the top, for mobile where the rail is hidden.
+function MobileReadingBar() {
+  const progress = useReadingProgress();
+  return (
+    <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-1" style={{ background: "rgba(0,0,0,0.06)" }}>
+      <div className="h-full transition-[width] duration-150" style={{ width: `${progress * 100}%`, background: "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+    </div>
+  );
+}
+
 function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
   const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
 
@@ -4729,6 +4828,7 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
     const related = BLOG_POSTS.filter((p) => p.category === post.category && p.slug !== post.slug).slice(0, 2);
     return (
       <div className="overflow-x-clip" style={{ background: "#050610" }}>
+        <MobileReadingBar />
         <MarketingNav {...nav} current={null} />
         {/* Article header */}
         <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
@@ -4750,18 +4850,30 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
             </div>
           </div>
         </section>
-        {/* Article body */}
+        {/* Article body — sticky utility rail (left) + prose (right) */}
         <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
-          <div className="mx-auto px-4 sm:px-6" style={{ maxWidth: "43rem" }}>
-            <article><ArticleBody blocks={post.body} /></article>
-            {/* Tags */}
-            {post.tags?.length > 0 && (
-              <div className="mt-10 flex flex-wrap gap-2">
-                {post.tags.map((t) => (
-                  <span key={t} className="text-xs px-2.5 py-1 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t}</span>
-                ))}
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-12">
+            {/* Left rail — sticky on desktop */}
+            <aside className="hidden lg:block">
+              <div className="sticky top-24"><ArticleRail title={post.title} navigate={navigate} /></div>
+            </aside>
+            {/* Main column */}
+            <div className="min-w-0">
+              <article id="article-body" className="max-w-[43rem]"><ArticleBody blocks={post.body} /></article>
+              {/* Tags */}
+              {post.tags?.length > 0 && (
+                <div className="mt-10 flex flex-wrap gap-2">
+                  {post.tags.map((t) => (
+                    <span key={t} className="text-xs px-2.5 py-1 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t}</span>
+                  ))}
+                </div>
+              )}
+              {/* Mobile: share + CTA below the article (rail is hidden) */}
+              <div className="lg:hidden mt-10 space-y-5">
+                <ShareButtons title={post.title} />
+                <ArticleCtaCard navigate={navigate} />
               </div>
-            )}
+            </div>
           </div>
         </section>
         {/* Related */}
