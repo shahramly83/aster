@@ -7974,7 +7974,7 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
           <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Kuala Lumpur" className={inputClass} />
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={labelClass}>Employment type</label>
           <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={inputClass}>
@@ -7992,20 +7992,20 @@ function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJo
             <option value="remote">Remote</option>
           </select>
         </div>
-        <div>
-          <label className={labelClass}>Seniority <span className="text-neutral-400 font-normal">(pick any)</span></label>
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            {SENIORITY_OPTIONS.map((s) => {
-              const on = seniorityLevels.includes(s);
-              return (
-                <button type="button" key={s} onClick={() => setSeniorityLevels((prev) => on ? prev.filter((x) => x !== s) : [...prev, s])}
-                  className="text-xs rounded-full px-3 py-1.5 font-medium capitalize transition-colors"
-                  style={on ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
-                  {s}
-                </button>
-              );
-            })}
-          </div>
+      </div>
+      <div>
+        <label className={labelClass}>Seniority <span className="text-neutral-400 font-normal">(pick any)</span></label>
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {SENIORITY_OPTIONS.map((s) => {
+            const on = seniorityLevels.includes(s);
+            return (
+              <button type="button" key={s} onClick={() => setSeniorityLevels((prev) => on ? prev.filter((x) => x !== s) : [...prev, s])}
+                className="text-xs rounded-full px-3 py-1.5 font-medium capitalize transition-colors"
+                style={on ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                {s}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div>
