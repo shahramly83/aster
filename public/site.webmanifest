@@ -1,5 +1,5 @@
 {
-  "name": "Aster — AI recruitment platform",
+  "name": "Aster: AI recruitment platform",
   "short_name": "Aster",
   "description": "AI recruitment platform that screens every resume, ranks applicants against the role, and automates interview scheduling.",
   "start_url": "/",
@@ -8,7 +8,6 @@
   "background_color": "#FAFAFB",
   "theme_color": "#973BF7",
   "icons": [
-    { "src": "/aster-mark.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
-    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+    { "src": "/aster-mark.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
   ]
 }
