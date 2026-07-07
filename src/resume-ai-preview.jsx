@@ -8116,6 +8116,13 @@ const JOB_CARD_BRAND = { bg: "#F9F4FF", tile: "var(--brand-soft)", ink: "var(--b
 const JOB_CARD_GREY = { bg: "#F7F7F9", tile: "#ECECEF", ink: "#56566A", line: "var(--line-strong)" };
 const colorForJob = (job) => (job.status === "closed" ? JOB_CARD_GREY : JOB_CARD_BRAND);
 
+// Plain-spoken "Posted …" recency for a job card. Null when no post date.
+const postedAgoLabel = (iso) => {
+  if (!iso) return null;
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return days <= 0 ? "Posted today" : days === 1 ? "Posted yesterday" : `Posted ${days} days ago`;
+};
+
 // Whole days until a posting's closing date (null if it has none; negative = past).
 const jobExpiryDays = (job) => job?.expires_at
   ? Math.round((new Date(job.expires_at + "T00:00:00") - new Date(new Date().toDateString())) / 86400000)
@@ -8507,6 +8514,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       {closing && <span className="text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1" style={closing.style}><Icon name="clock" className="w-3 h-3" /> {closing.label}</span>}
                     </div>
 
+                    {job.posted_at && <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
+
                     <p className="text-sm mt-3 leading-relaxed line-clamp-2" style={{ color: "var(--ink-2)" }}>{job.description}</p>
                     <div className="mt-4 flex-1 flex flex-col justify-end">
                       <JobPipelineBar jobId={job.id} />
@@ -8561,7 +8570,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <tr key={job.id} onClick={() => setDetailJob(job)} className="cursor-pointer transition-colors hover:bg-neutral-50" style={{ borderBottom: "1px solid var(--line)" }}>
                           <td className="px-4 py-3 max-w-[280px]">
                             <p className="font-semibold truncate" style={{ color: "var(--ink)" }}>{job.title}</p>
-                            {job.department && <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{job.department}</p>}
+                            {(job.department || job.posted_at) && <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{[job.department, postedAgoLabel(job.posted_at)].filter(Boolean).join(" · ")}</p>}
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{job.location || "—"}</td>
                           <td className="px-4 py-3 hidden sm:table-cell capitalize whitespace-nowrap" style={{ color: "var(--ink-2)" }}>{(job.employment_type || "").replace(/_/g, "-") || "—"}</td>
