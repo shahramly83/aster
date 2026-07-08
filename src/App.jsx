@@ -1,9 +1,16 @@
 import ResumeAIPreview from './resume-ai-preview'
 import AdminPortal from './admin-portal'
+import HelpPortal from './help-portal'
 
-// The internal Admin Portal is a separate app mounted at /admin/*, fully
-// isolated from the customer-facing site.
+// Three surfaces share one build, chosen at runtime:
+//   * help.hireaster.com        -> the public support center (HelpPortal)
+//   * <any host>/admin/*        -> the internal Admin Portal
+//   * everything else           -> the customer-facing site (ResumeAIPreview)
+// The help subdomain is a domain alias on the same Vercel project.
 export default function App() {
-  const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
-  return isAdmin ? <AdminPortal /> : <ResumeAIPreview />
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname.startsWith('help.')) return <HelpPortal />
+    if (window.location.pathname.startsWith('/admin')) return <AdminPortal />
+  }
+  return <ResumeAIPreview />
 }

@@ -505,9 +505,10 @@ function Usage({ role, companies, usage }) {
   );
 }
 
-function Support({ role, companies, tickets, setTickets, audit }) {
-  const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
-  const resolve = (t) => { setTickets((ts) => ts.map((x) => x.id === t.id ? { ...x, status: "resolved", updated: "just now" } : x)); audit("Resolved support ticket", `${t.id} (${cName(t.companyId)})`); };
+function Support({ role, companies, tickets, onResolve }) {
+  // Real (DB) tickets carry the company name inline; mock rows reference a
+  // mock company id, so fall back to a lookup.
+  const cName = (t) => t.company || companies.find((c) => c.id === t.companyId)?.name || "—";
   return (
     <div>
       <SectionHead title="Support logs" desc="Customer support tickets and interactions." />
@@ -516,13 +517,13 @@ function Support({ role, companies, tickets, setTickets, audit }) {
         {tickets.map((t) => (
           <tr key={t.id} className="adm-row align-top" style={{ borderBottom: "1px solid var(--line)" }}>
             <Td className="font-semibold text-neutral-900 tnum">{t.id}<div className="text-xs font-normal mt-0.5" style={{ color: "var(--ink-3)" }}>{t.updated}</div></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{cName(t.companyId)}</Td>
+            <Td style={{ color: "var(--ink-2)" }}>{cName(t)}</Td>
             <Td><div className="text-neutral-900">{t.subject}</div><div className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{t.note}</div></Td>
-            <Td style={{ color: "var(--ink-2)" }}>{t.requester}</Td>
+            <Td style={{ color: "var(--ink-2)" }}>{t.requester}{t.email && <div className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{t.email}</div>}</Td>
             <Td style={{ color: "var(--ink-2)" }}>{t.channel}</Td>
             <Td><Badge tone={STATUS_TONE[t.priority]}>{t.priority}</Badge></Td>
             <Td><StatusBadge value={t.status} /></Td>
-            <Td>{t.status !== "resolved" && <ActionBtn icon="check" disabled={!can(role, "support.resolve")} onClick={() => resolve(t)}>Resolve</ActionBtn>}</Td>
+            <Td>{t.status !== "resolved" && <ActionBtn icon="check" disabled={!can(role, "support.resolve")} onClick={() => onResolve(t)}>Resolve</ActionBtn>}</Td>
           </tr>
         ))}
       </TableShell>
@@ -716,6 +717,36 @@ function AdminShell({ admin, section, go, onLogout, children }) {
   );
 }
 
+// Turn an ISO timestamp into a compact "12m ago" style string for the table.
+function relTime(iso) {
+  if (!iso) return "";
+  const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (secs < 60) return "just now";
+  if (secs < 3600) return Math.floor(secs / 60) + "m ago";
+  if (secs < 86400) return Math.floor(secs / 3600) + "h ago";
+  return Math.floor(secs / 86400) + "d ago";
+}
+
+// Map a support_tickets row (with embedded company + requester) to the shape
+// the Support table renders. Real rows carry the company name inline.
+function mapTicketRow(r) {
+  return {
+    id: r.id,
+    companyId: r.company_id,
+    // Public help-center tickets have no company; account tickets carry one.
+    company: r.companies?.name || (r.company_id ? "—" : "Public"),
+    subject: r.subject,
+    // Public tickets carry a free-text name/email; account tickets a profile.
+    requester: r.requester_name || r.requester?.full_name || "—",
+    email: r.requester_email || null,
+    channel: r.channel || "—",
+    priority: r.priority,
+    status: r.status,
+    updated: relTime(r.updated_at || r.created_at),
+    note: r.body || "",
+  };
+}
+
 export default function AdminPortal() {
   const [admin, setAdmin] = useState(null);
   const initial = typeof window !== "undefined" ? (window.location.pathname.replace(/^\/admin\/?/, "") || "dashboard") : "dashboard";
@@ -760,6 +791,33 @@ export default function AdminPortal() {
     setAudit((a) => [{ id: (a[0]?.id || 0) + 1, actor: admin.name, role: admin.role, action, target, at: "just now", ip: "10.2.4." + (admin.id === "a1" ? "11" : admin.id === "a2" ? "22" : "31") }, ...a]);
   };
 
+  // Load real support tickets once an admin who can see them is signed in.
+  // Company name + requester are embedded via foreign keys; RLS returns every
+  // company's tickets for super/support (billing has no support policy).
+  useEffect(() => {
+    if (!hasSupabase || !admin || !["super", "support"].includes(admin.role)) return;
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from("support_tickets")
+        .select("id, subject, channel, priority, status, body, company_id, requester_name, requester_email, created_at, updated_at, companies(name), requester:profiles(full_name)")
+        .order("updated_at", { ascending: false });
+      if (active && !error && data) setTickets(data.map(mapTicketRow));
+    })();
+    return () => { active = false; };
+  }, [admin]);
+
+  // Resolve persists to the DB (when live) before updating the table + audit log.
+  const resolveTicket = async (t) => {
+    if (hasSupabase) {
+      const { error } = await supabase.from("support_tickets").update({ status: "resolved" }).eq("id", t.id);
+      if (error) return;
+    }
+    setTickets((ts) => ts.map((x) => x.id === t.id ? { ...x, status: "resolved", updated: "just now" } : x));
+    const name = t.company || companies.find((c) => c.id === t.companyId)?.name || t.companyId;
+    logAudit("Resolved support ticket", `${t.id} (${name})`);
+  };
+
   const go = (key) => {
     setSection(key);
     if (typeof window !== "undefined") window.history.pushState({ admin: true }, "", "/admin/" + key);
@@ -786,7 +844,7 @@ export default function AdminPortal() {
       case "users":         screen = <Users role={role} companies={companies} audit={logAudit} />; break;
       case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} />; break;
       case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
-      case "support":       screen = <Support role={role} companies={companies} tickets={tickets} setTickets={setTickets} audit={logAudit} />; break;
+      case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} />; break;
       case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} />; break;
       case "audit":         screen = <Audit audit={audit} />; break;
       default:              screen = <Dashboard role={role} companies={companies} tickets={tickets} audit={audit} go={go} />;
