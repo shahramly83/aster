@@ -26,6 +26,7 @@ export default function HelpPortal() {
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot: stays empty for humans
   const [status, setStatus] = useState("idle"); // idle | submitting | done
   const [ticketId, setTicketId] = useState(null);
   const [err, setErr] = useState(null);
@@ -47,6 +48,9 @@ export default function HelpPortal() {
     }
     if (!email.includes("@")) { setErr("That email address does not look right."); return; }
 
+    // Honeypot tripped (bot autofilled the hidden field): act as if it worked.
+    if (website.trim()) { setTicketId("T-0"); setStatus("done"); return; }
+
     setStatus("submitting");
     // Prefix the subject with the chosen category for quick triage.
     const fullSubject = `[${category}] ${subject.trim()}`;
@@ -55,6 +59,7 @@ export default function HelpPortal() {
       if (hasSupabase) {
         const { data, error } = await supabase.rpc("submit_support_ticket", {
           p_name: name.trim(), p_email: email.trim(), p_subject: fullSubject, p_body: message.trim() || null,
+          p_website: website,
         });
         if (error) throw error;
         id = data;
@@ -99,6 +104,14 @@ export default function HelpPortal() {
             </div>
 
             <form onSubmit={submit} className="rounded-2xl bg-white border border-[color:var(--line)] p-5 sm:p-7 shadow-[0_18px_50px_-24px_rgba(15,18,34,0.25)]">
+              {/* Honeypot: hidden from humans (off-screen, not tabbable, aria-hidden).
+                  Bots that autofill every field trip it and get silently dropped. */}
+              <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
+                <label>Company website
+                  <input type="text" name="website" tabIndex={-1} autoComplete="off"
+                    value={website} onChange={(e) => setWebsite(e.target.value)} />
+                </label>
+              </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Your name">
                   <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Lee" autoComplete="name" />
