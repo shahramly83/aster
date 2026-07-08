@@ -30,3 +30,6 @@ dist-ssr
 
 # Claude Code tooling (not part of the app)
 .claude/
+
+# Supabase CLI update-check cache (regenerated on every CLI run)
+supabase/.temp/cli-latest
