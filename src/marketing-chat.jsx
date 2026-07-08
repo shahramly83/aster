@@ -14,6 +14,17 @@ import { supabase, supabaseUrl, supabaseAnonKey, hasSupabase } from "./lib/supab
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+// Persist the conversation + open state for the browsing session, so closing the
+// widget just minimizes it (the chat is kept) and the visitor can pick it back up
+// on any page. sessionStorage clears when the tab closes, which suits a marketing
+// chat. The widget is mounted per page, so every instance reads the same store.
+const STORE_KEY = "asterChat.v1";
+function loadStore() {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(window.sessionStorage.getItem(STORE_KEY) || "{}") || {}; }
+  catch { return {}; }
+}
+
 const STARTERS = [
   "What does Aster do?",
   "How much does it cost?",
@@ -34,8 +45,8 @@ function ChatIcon({ className }) {
 }
 
 export default function MarketingChat({ onStartTrial }) {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([]); // {role:'user'|'assistant', content}
+  const [open, setOpen] = useState(() => !!loadStore().open);
+  const [messages, setMessages] = useState(() => loadStore().messages || []); // {role:'user'|'assistant', content}
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   // Lead capture: null = chatting, "form" = collecting an email, "sent" = filed.
@@ -54,9 +65,23 @@ export default function MarketingChat({ onStartTrial }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, open]);
 
+  // Auto-focus the input only on larger screens. On mobile, focusing pops the
+  // keyboard immediately and hides the intro/starters, so we let the visitor
+  // read first and tap the field when they're ready.
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (open && typeof window !== "undefined" && window.innerWidth >= 640) inputRef.current?.focus();
   }, [open]);
+
+  // Save the conversation once it settles (not on every streamed token).
+  useEffect(() => {
+    if (busy || typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        STORE_KEY,
+        JSON.stringify({ open, messages: messages.filter((m) => m.content) })
+      );
+    } catch { /* storage full or blocked: non-fatal */ }
+  }, [open, messages, busy]);
 
   async function send(text) {
     const q = (text ?? input).trim();
@@ -207,18 +232,18 @@ export default function MarketingChat({ onStartTrial }) {
         <button
           onClick={() => setOpen(true)}
           aria-label="Ask Aster"
-          className="fixed z-[60] bottom-5 right-5 sm:bottom-6 sm:right-6 flex items-center gap-2 rounded-full pl-4 pr-5 py-3.5 text-white font-semibold text-sm brand-gradient transition-transform hover:-translate-y-0.5 active:translate-y-0"
+          className="fixed z-[60] bottom-4 right-4 sm:bottom-6 sm:right-6 flex items-center justify-center gap-2 rounded-full text-white font-semibold text-sm brand-gradient transition-transform hover:-translate-y-0.5 active:translate-y-0 w-14 h-14 sm:w-auto sm:h-auto sm:pl-4 sm:pr-5 sm:py-3.5"
           style={{ boxShadow: bubbleShadow }}
         >
-          <ChatIcon className="w-5 h-5" />
-          Ask Aster
+          <ChatIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline">Ask Aster</span>
         </button>
       )}
 
       {/* Panel */}
       {open && (
         <div
-          className="fixed z-[60] bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[380px] h-[560px] max-h-[86vh] sm:max-h-[calc(100vh-3rem)] flex flex-col overflow-hidden bg-white sm:rounded-2xl border"
+          className="fixed z-[60] inset-0 sm:inset-auto sm:bottom-6 sm:right-6 w-full sm:w-[380px] h-full sm:h-[560px] sm:max-h-[calc(100vh-3rem)] flex flex-col overflow-hidden bg-white sm:rounded-2xl sm:border"
           style={{ borderColor: "var(--line)", boxShadow: "0 30px 70px -24px rgba(18,19,42,0.4)" }}
           role="dialog"
           aria-label="Ask Aster chat"
