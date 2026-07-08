@@ -894,19 +894,28 @@ const BRAND_STYLES = `
   --card: #FFFFFF;
   --line: #ECECEF;
   --line-strong: #DEDEE3;
-  --ink: #12132A;
-  --ink-2: #56566A;
-  --ink-3: #6E6E7C;
-  --brand: #973BF7;
-  --brand-2: #5A78F8;
-  --brand-0: #D65BFF;
-  --brand-soft: #F6EEFF;
-  --navy: #16183A;
-  --navy-2: #1E2148;
-  --navy-line: #2A2D57;
-  --navy-ink: #AEB0CE;
-  --pink: #FCE7EA;
-  --pink-ink: #1C1E3A;
+  --ink: #0F1B33;
+  --ink-2: #4A5568;
+  --ink-3: #6B7280;
+  --brand: #0B2AE0;
+  --brand-2: #3550EE;
+  --brand-0: #5570F5;
+  --brand-soft: #EAEEFE;
+  /* Marketing brand surfaces, centralized so a brand recolor cascades. To
+     rebrand the marketing pages, change --brand (and these) in this one place. */
+  --brand-deep: #0A1FC2;                 /* darkest brand: nav bar + hero top */
+  --brand-tint: #B9C7FF;                 /* light tint for text on brand surfaces */
+  --hero-grad: linear-gradient(180deg, #0A1FC2 0%, #0F27D8 55%, #1B34E6 100%);
+  --brand-glow-1: rgba(120,142,255,0.5); /* hero glow orb, upper-left */
+  --brand-glow-2: rgba(53,80,238,0.55);  /* hero glow orb, lower-right */
+  --brand-rgb: 11, 42, 224;              /* --brand as RGB, for brand-tinted shadows/glows */
+  --brand-deep-rgb: 11, 31, 194;         /* deep brand as RGB, for faint decorative rings */
+  --navy: #0E1E3D;
+  --navy-2: #16274A;
+  --navy-line: #24365E;
+  --navy-ink: #A9B4CC;
+  --pink: #EEF3FC;
+  --pink-ink: #0F1B33;
 }
 .font-display { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
 .act-app, .act-app input, .act-app select, .act-app textarea, .act-app button {
@@ -914,8 +923,8 @@ const BRAND_STYLES = `
 }
 .act-app { font-feature-settings: 'cv05','ss01'; }
 .tnum { font-variant-numeric: tabular-nums; }
-.brand-gradient { background-image: linear-gradient(135deg, var(--brand-0) 0%, var(--brand) 48%, var(--brand-2) 100%); }
-.brand-text { background-image: linear-gradient(135deg, var(--brand-0) 0%, var(--brand) 48%, var(--brand-2) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand-gradient { background-image: none; background-color: var(--brand); }
+.brand-text { background-image: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--brand); -webkit-text-fill-color: var(--brand); }
 .card-hover { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
 .card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
 .act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 1px 3px rgba(18,19,42,.02); }
@@ -998,8 +1007,8 @@ const BRAND_STYLES = `
 
 /* Sign-up form polish */
 .signup-field { min-width: 0; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
-.signup-field:focus { border-color: var(--brand) !important; background: var(--navy) !important; box-shadow: 0 0 0 3px rgba(151,59,247,0.30); }
-.signup-benefit-ic { box-shadow: inset 0 0 0 1px rgba(214,91,255,0.35); }
+.signup-field:focus { border-color: var(--brand) !important; background: #fff !important; box-shadow: 0 0 0 3px var(--brand-soft); }
+.signup-benefit-ic { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35); }
 .signup-panel-grid {
   background-image: linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
   background-size: 44px 44px;
@@ -1029,6 +1038,12 @@ const BRAND_STYLES = `
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
 .reveal.reveal-in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+/* Pipeline panel: a longer upward slide (ease-out ~0.6s) that rests tucked
+   behind the section below it. The overlap (negative margin + z-index) is set
+   from JS off the panel's measured height; here we only own the entrance. */
+.reveal.pipeline-rise { transform: translateY(64px); transition: opacity .6s ease-out, transform .6s ease-out; }
+.reveal.pipeline-rise.reveal-in { transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal.pipeline-rise { transform: none; transition: none; } }
 /* Long-form deep-dive panel swap */
 @keyframes lfSwap { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .lf-swap { animation: lfSwap .42s cubic-bezier(.22,1,.36,1) both; }
@@ -1153,10 +1168,10 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 /* Footer links: subtle hover to white with a tiny nudge */
-.footer-link { color: var(--navy-ink); transition: color .18s ease; position: relative; }
-.footer-link:hover { color: #fff; }
-.footer-social { color: var(--navy-ink); transition: color .18s ease, border-color .18s ease, background .18s ease; }
-.footer-social:hover { color: #fff; border-color: rgba(178,116,255,0.5); background: rgba(151,59,247,0.14); }
+.footer-link { color: var(--ink-2); transition: color .18s ease; position: relative; }
+.footer-link:hover { color: var(--brand); }
+.footer-social { color: var(--ink-2); transition: color .18s ease, border-color .18s ease, background .18s ease; }
+.footer-social:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
 
 /* Feature-preview items animate in (staggered) once their card scrolls into view */
 @keyframes pvIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
@@ -1165,7 +1180,7 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { .pv-item { opacity: 1; } .reveal-in .pv-item { animation: none; } }
 
 /* Draw attention to the before/after toggle until it's used */
-@keyframes togglePulse { 0% { box-shadow: 0 0 0 0 rgba(151,59,247,0.30); } 70% { box-shadow: 0 0 0 12px rgba(151,59,247,0); } 100% { box-shadow: 0 0 0 0 rgba(151,59,247,0); } }
+@keyframes togglePulse { 0% { box-shadow: 0 0 0 0 rgba(11,42,224,0.30); } 70% { box-shadow: 0 0 0 12px rgba(11,42,224,0); } 100% { box-shadow: 0 0 0 0 rgba(11,42,224,0); } }
 .toggle-pulse { animation: togglePulse 1.9s ease-out infinite; }
 @keyframes hintNudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
 .hint-nudge { animation: hintNudge 1.2s ease-in-out infinite; }
@@ -1214,49 +1229,81 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
   const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [mfaChallenge, setMfaChallenge] = useState(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaErr, setMfaErr] = useState(null);
+  // A session that lands here still needing aal2 (e.g. after an SSO redirect)
+  // gets the code prompt straight away.
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let off = false;
+    (async () => {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (off || !aal || aal.nextLevel !== "aal2" || aal.currentLevel !== "aal1") return;
+      const { data: list } = await supabase.auth.mfa.listFactors();
+      const totp = (list?.totp || []).find((f) => f.status === "verified");
+      if (!totp) return;
+      const { data: ch, error } = await supabase.auth.mfa.challenge({ factorId: totp.id });
+      if (!error && !off) { setMfaChallenge({ factorId: totp.id, challengeId: ch.id }); setMfaCode(""); }
+    })();
+    return () => { off = true; };
+  }, []);
+
+  // Surface the "work email only" rejection after a Google redirect bounce.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("sso_error") === "domain") setErr("Use your work email to continue. Personal accounts (Gmail, Yahoo, Outlook, etc.) aren't allowed.");
+  }, []);
+
+  const finishAuth = async (user) => {
+    let sess = await loadCustomerSession(user.id, user.email);
+    if (!sess) {
+      const cn = user.user_metadata?.company_name;
+      if (cn) {
+        const { error: rpcErr } = await supabase.rpc("create_company_and_owner", { p_company_name: cn, p_full_name: user.user_metadata?.full_name || null });
+        if (!rpcErr || /already exists/i.test(rpcErr.message)) sess = await loadCustomerSession(user.id, user.email);
+      }
+    }
+    if (!sess) { await supabase.auth.signOut(); setErr("This account isn't linked to a workspace yet."); setBusy(false); return; }
+    onAuthed(sess);
+  };
 
   const signIn = async () => {
-    // No Supabase keys → mock mode: walk straight into the demo workspace.
+    // No Supabase keys -> mock mode: walk straight into the demo workspace.
     if (!hasSupabase) { onAuthed(null); return; }
     const em = email.trim();
     if (!isValidEmail(em)) { setErr("Enter a valid email address."); return; }
     if (!password) { setErr("Enter your password."); return; }
     setBusy(true); setErr(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email: em, password });
-    if (error) {
-      setErr(/invalid login credentials/i.test(error.message) ? "Email or password is incorrect." : error.message);
-      setBusy(false);
-      return;
-    }
-    let sess = await loadCustomerSession(data.user.id, data.user.email);
-    if (!sess) {
-      // Authenticated but no company profile yet. If they signed up under email
-      // confirmation (so provisioning never ran), finish it now from the company
-      // name stashed on the account. Admins have no company_name and are skipped.
-      const cn = data.user.user_metadata?.company_name;
-      if (cn) {
-        const { error: rpcErr } = await supabase.rpc("create_company_and_owner", {
-          p_company_name: cn,
-          p_full_name: data.user.user_metadata?.full_name || null,
-        });
-        if (!rpcErr || /already exists/i.test(rpcErr.message)) {
-          sess = await loadCustomerSession(data.user.id, data.user.email);
-        }
+    if (error) { setErr(/invalid login credentials/i.test(error.message) ? "Email or password is incorrect." : error.message); setBusy(false); return; }
+    // Two-factor step-up: if this account has TOTP enrolled, ask for a code (AAL2).
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === "aal2" && aal.currentLevel === "aal1") {
+      const { data: list } = await supabase.auth.mfa.listFactors();
+      const totp = (list?.totp || []).find((f) => f.status === "verified");
+      if (totp) {
+        const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: totp.id });
+        if (!chErr) { setMfaChallenge({ factorId: totp.id, challengeId: ch.id }); setMfaCode(""); setBusy(false); return; }
       }
     }
-    if (!sess) {
-      // Genuinely not a customer workspace (e.g. an Aster admin). Don't leave
-      // them in a half-logged-in state.
-      await supabase.auth.signOut();
-      setErr("This account isn't linked to a workspace yet.");
-      setBusy(false);
-      return;
-    }
-    onAuthed(sess);
+    await finishAuth(data.user);
   };
 
-  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--navy-ink)]";
-  const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+  const verifyMfa = async () => {
+    if (!mfaChallenge) return;
+    setBusy(true); setMfaErr(null);
+    const { error } = await supabase.auth.mfa.verify({ factorId: mfaChallenge.factorId, challengeId: mfaChallenge.challengeId, code: mfaCode.trim() });
+    if (error) { setMfaErr("That code didn't match. Try again."); setBusy(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    await finishAuth(user);
+  };
+
+  const cancelMfa = async () => { setMfaChallenge(null); setMfaCode(""); setMfaErr(null); if (hasSupabase) { try { await supabase.auth.signOut(); } catch { /* ignore */ } } };
+
+  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]";
+  const fieldDarkStyle = { background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink)" };
   const labelDark = "block text-[13px] font-medium mb-1.5";
 
   const points = [
@@ -1266,10 +1313,10 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
   ];
 
   return (
-    <div className="min-h-dvh flex" style={{ background: "#05060F" }}>
+    <div className="min-h-dvh flex" style={{ background: "#fff" }}>
       {/* ---------- Left: brand panel (fixed, centered) ---------- */}
       <aside className="hidden lg:flex lg:w-1/2 sticky top-0 h-dvh self-start overflow-hidden flex-col justify-center px-8">
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #241357 0%, #120e35 46%, #05060f 100%)" }} />
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #2540F0 0%, #0B2AE0 46%, #0A1FC2 100%)" }} />
         <div className="signup-panel-grid pointer-events-none absolute inset-0" />
         <div className="login-orb-a pointer-events-none absolute -top-32 -left-24 w-[540px] h-[540px] rounded-full blur-3xl opacity-[0.42]" style={{ background: "radial-gradient(circle, var(--brand-0) 0%, transparent 68%)" }} />
         <div className="login-orb-b pointer-events-none absolute top-1/3 -right-24 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.38]" style={{ background: "radial-gradient(circle, var(--brand-2) 0%, transparent 70%)" }} />
@@ -1285,10 +1332,10 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
           <ul className="mt-8 space-y-3.5">
             {points.map((b, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(214,91,255,0.16)", color: "#E5A6FF" }}>
+                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.16)", color: "#fff" }}>
                   <Icon name="check" className="w-3 h-3" />
                 </span>
-                <span className="text-[14px] leading-snug" style={{ color: "#E7E8F6" }}>{b}</span>
+                <span className="text-[14px] leading-snug" style={{ color: "rgba(255,255,255,0.9)" }}>{b}</span>
               </li>
             ))}
           </ul>
@@ -1297,36 +1344,45 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
 
       {/* ---------- Right: sign-in form ---------- */}
       <main className="flex-1 flex items-center justify-center px-5 py-12 sm:px-8 lg:py-16 relative overflow-hidden">
-        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 0%, #1a1148 0%, #08091b 60%, #05060f 100%)" }} />
-        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
+        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "#fff" }} />
+        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-[0.18]" style={{ background: "radial-gradient(circle, var(--brand-soft) 0%, transparent 70%)" }} />
 
         <div className="w-full max-w-md min-w-0 relative z-10">
           <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-flex [&_img]:!h-11">
-            <BrandLogo onDark logoUrl={logoUrl} />
+            <BrandLogo logoUrl={logoUrl} />
           </button>
 
-          <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Welcome back</h1>
-          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>Sign in to your Aster workspace.</p>
+          <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Welcome back</h1>
+          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>Sign in to your Aster workspace.</p>
 
+          {mfaChallenge ? (
+            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); verifyMfa(); }}>
+              <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>Two-factor is on for this account. Enter the 6-digit code from your authenticator app.</p>
+              <input autoFocus inputMode="numeric" autoComplete="one-time-code" value={mfaCode} onChange={(e) => { setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setMfaErr(null); }} placeholder="123456" className={`${fieldDark} text-center tracking-[0.4em] font-mono text-lg`} style={fieldDarkStyle} />
+              {mfaErr && <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{mfaErr}</p>}
+              <button type="submit" disabled={busy || mfaCode.length < 6} className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all disabled:opacity-60">{busy ? "Verifying…" : "Verify & sign in"}</button>
+              <button type="button" onClick={cancelMfa} className="w-full text-sm font-medium py-2" style={{ color: "var(--ink-3)" }}>Use a different account</button>
+            </form>
+          ) : (<>
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
             <div>
-              <label htmlFor="li-email" className={labelDark} style={{ color: "#D8DAF6" }}>Email</label>
+              <label htmlFor="li-email" className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
               <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="li-password" className="text-[13px] font-medium" style={{ color: "#D8DAF6" }}>Password</label>
-                <button type="button" onClick={() => navigate && navigate("forgotPassword")} className="text-xs font-medium hover:opacity-80" style={{ color: "#C9A6FF" }}>Forgot password?</button>
+                <label htmlFor="li-password" className="text-[13px] font-medium" style={{ color: "var(--ink)" }}>Password</label>
+                <button type="button" onClick={() => navigate && navigate("forgotPassword")} className="text-xs font-medium hover:opacity-80" style={{ color: "var(--brand)" }}>Forgot password?</button>
               </div>
               <div className="relative">
                 <input id="li-password" name="current-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
+                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
             </div>
             {err && (
-              <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#FCA5A5", background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)" }}>{err}</p>
+              <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>
             )}
             <button
               type="submit"
@@ -1338,11 +1394,22 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
             </button>
           </form>
 
-          <div className="hairline-dark my-5" />
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px flex-1" style={{ background: "var(--line)" }} />
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>or</span>
+            <div className="h-px flex-1" style={{ background: "var(--line)" }} />
+          </div>
+          <div className="space-y-2.5">
+            <SsoButton onClick={signInWithGoogle} label="Sign in with Google" mark={GoogleMark} />
+            <SsoButton onClick={signInWithMicrosoft} label="Sign in with Microsoft" mark={MicrosoftMark} />
+          </div>
+          </>)}
 
-          <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
+          <div className="my-5" style={{ borderTop: "1px solid var(--line)" }} />
+
+          <p className="text-sm text-center" style={{ color: "var(--ink-2)" }}>
             Don't have an account?{" "}
-            <button onClick={() => navigate && navigate("signup")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>
+            <button onClick={() => navigate && navigate("signup")} className="font-semibold hover:opacity-80" style={{ color: "var(--brand)" }}>
               Sign up
             </button>
           </p>
@@ -1361,6 +1428,85 @@ const passwordProblem = (pw) => {
   return null;
 };
 
+// ---- Google SSO, restricted to business email domains --------------------
+// Consumer providers we reject for Google sign-in (work domains only). This is
+// the front-end gate; production should also enforce it server-side (e.g. inside
+// create_company_and_owner or a Supabase auth hook) since a client can be bypassed.
+const CONSUMER_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "yahoo.co.in", "ymail.com", "rocketmail.com",
+  "hotmail.com", "hotmail.co.uk", "hotmail.fr", "outlook.com", "live.com", "msn.com",
+  "icloud.com", "me.com", "mac.com", "aol.com", "protonmail.com", "proton.me", "pm.me",
+  "gmx.com", "gmx.net", "mail.com", "yandex.com", "yandex.ru", "zoho.com", "tutanota.com",
+  "hey.com", "fastmail.com", "qq.com", "163.com", "126.com", "naver.com",
+]);
+const emailDomain = (email) => (email || "").trim().toLowerCase().split("@")[1] || "";
+const isBusinessEmail = (email) => {
+  const d = emailDomain(email);
+  return !!d && d.includes(".") && !CONSUMER_EMAIL_DOMAINS.has(d);
+};
+// jane@acme-corp.io → "Acme Corp"; used to seed a first-time SSO user's workspace.
+const companyFromEmail = (email) => {
+  const d = emailDomain(email);
+  const core = d.split(".").slice(0, -1).join(" ").replace(/[-_]+/g, " ").trim();
+  return core.split(/\s+/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "Your workspace";
+};
+// Kick off Google OAuth. `hd:"*"` hints Google to prefer a hosted (Workspace)
+// account, but the real personal-account block happens post-redirect in the
+// session bootstrap via isBusinessEmail — hd alone does not guarantee it.
+const signInWithGoogle = () =>
+  supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined,
+      queryParams: { prompt: "select_account", hd: "*" },
+    },
+  });
+
+// Microsoft / Teams (Azure AD / Entra) OAuth. The same work-domain gate in the
+// session bootstrap applies, and personal Microsoft domains (outlook/hotmail/
+// live) are already in CONSUMER_EMAIL_DOMAINS, so they're rejected too.
+const signInWithMicrosoft = () =>
+  supabase.auth.signInWithOAuth({
+    provider: "azure",
+    options: {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined,
+      scopes: "email openid profile",
+      queryParams: { prompt: "select_account" },
+    },
+  });
+
+const GoogleMark = (
+  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.28-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+  </svg>
+);
+const MicrosoftMark = (
+  <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
+    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+  </svg>
+);
+
+// White provider button (Google / Microsoft) with the official brand mark.
+function SsoButton({ onClick, label, mark, disabled = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-semibold transition-colors hover:bg-neutral-50 disabled:opacity-60"
+      style={{ background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink)" }}
+    >
+      {mark}{label}
+    </button>
+  );
+}
+
 // Self-contained password-reset flow. Mirrors a real four-step server flow:
 //   request → sent → reset → done
 // In production the "reset" step is reached by the tokenised link in the email;
@@ -1375,8 +1521,8 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
   const [pwErr, setPwErr] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--navy-ink)]";
-  const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]";
+  const fieldDarkStyle = { background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink)" };
   const labelDark = "block text-[13px] font-medium mb-1.5";
   const primaryBtn = "w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2";
   const points = [
@@ -1406,10 +1552,10 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
   };
 
   return (
-    <div className="min-h-dvh flex" style={{ background: "#05060F" }}>
+    <div className="min-h-dvh flex" style={{ background: "#fff" }}>
       {/* ---------- Left: brand panel (fixed, centered) ---------- */}
       <aside className="hidden lg:flex lg:w-1/2 sticky top-0 h-dvh self-start overflow-hidden flex-col justify-center px-8">
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #241357 0%, #120e35 46%, #05060f 100%)" }} />
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #2540F0 0%, #0B2AE0 46%, #0A1FC2 100%)" }} />
         <div className="signup-panel-grid pointer-events-none absolute inset-0" />
         <div className="login-orb-a pointer-events-none absolute -top-32 -left-24 w-[540px] h-[540px] rounded-full blur-3xl opacity-[0.42]" style={{ background: "radial-gradient(circle, var(--brand-0) 0%, transparent 68%)" }} />
         <div className="login-orb-b pointer-events-none absolute top-1/3 -right-24 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.38]" style={{ background: "radial-gradient(circle, var(--brand-2) 0%, transparent 70%)" }} />
@@ -1425,10 +1571,10 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
           <ul className="mt-8 space-y-3.5">
             {points.map((b, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(214,91,255,0.16)", color: "#E5A6FF" }}>
+                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.16)", color: "#fff" }}>
                   <Icon name="check" className="w-3 h-3" />
                 </span>
-                <span className="text-[14px] leading-snug" style={{ color: "#E7E8F6" }}>{b}</span>
+                <span className="text-[14px] leading-snug" style={{ color: "rgba(255,255,255,0.9)" }}>{b}</span>
               </li>
             ))}
           </ul>
@@ -1437,49 +1583,49 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
 
       {/* ---------- Right: reset flow (vertically centered) ---------- */}
       <main className="flex-1 flex items-center justify-center px-5 py-12 sm:px-8 lg:py-16 relative overflow-hidden">
-        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 0%, #1a1148 0%, #08091b 60%, #05060f 100%)" }} />
-        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
+        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "#fff" }} />
+        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-[0.18]" style={{ background: "radial-gradient(circle, var(--brand-soft) 0%, transparent 70%)" }} />
 
         <div className="w-full max-w-md min-w-0 relative z-10">
           <button onClick={() => navigate("login")} aria-label="Back to sign in" className="lg:hidden mb-8 inline-flex [&_img]:!h-11">
-            <BrandLogo onDark logoUrl={logoUrl} />
+            <BrandLogo logoUrl={logoUrl} />
           </button>
 
           {step === "request" && (
             <>
-              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Reset your password</h1>
-              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>Enter the email for your account and we'll send you a reset link.</p>
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Reset your password</h1>
+              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>Enter the email for your account and we'll send you a reset link.</p>
               <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); sendLink(); }}>
                 <div>
-                  <label htmlFor="fp-email" className={labelDark} style={{ color: "#D8DAF6" }}>Email</label>
+                  <label htmlFor="fp-email" className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
                   <input
                     id="fp-email" name="email" type="email" value={email} autoComplete="email" placeholder="you@company.com"
                     onChange={(e) => { setEmail(e.target.value); setEmailErr(null); }}
                     className={fieldDark} style={fieldDarkStyle}
                   />
-                  {emailErr && <p className="text-xs mt-1.5" style={{ color: "#FCA5A5" }}>{emailErr}</p>}
+                  {emailErr && <p className="text-xs mt-1.5" style={{ color: "#B42318" }}>{emailErr}</p>}
                 </div>
                 <button type="submit" disabled={busy} className={primaryBtn}>
                   {busy ? "Sending…" : "Send reset link"}
                   {!busy && <Icon name="arrowUpRight" className="w-4 h-4" />}
                 </button>
               </form>
-              <div className="hairline-dark my-5" />
-              <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
+              <div className="my-5" style={{ borderTop: "1px solid var(--line)" }} />
+              <p className="text-sm text-center" style={{ color: "var(--ink-2)" }}>
                 Remembered it?{" "}
-                <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>Back to sign in</button>
+                <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "var(--brand)" }}>Back to sign in</button>
               </p>
             </>
           )}
 
           {step === "sent" && (
             <>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: "rgba(151,59,247,0.18)", color: "#C9A6FF" }}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                 <Icon name="chat" className="w-5 h-5" />
               </div>
-              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Check your email</h1>
-              <p className="text-sm mt-1.5 mb-6 leading-relaxed" style={{ color: "var(--navy-ink)" }}>
-                If an account exists for <span className="font-semibold" style={{ color: "#FFFFFF" }}>{email}</span>, we've sent a reset link. It expires in 30 minutes.
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Check your email</h1>
+              <p className="text-sm mt-1.5 mb-6 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                If an account exists for <span className="font-semibold" style={{ color: "var(--ink)" }}>{email}</span>, we've sent a reset link. It expires in 30 minutes.
               </p>
               <div className="space-y-3">
                 {/* Simulates clicking the tokenised link in the email. */}
@@ -1487,37 +1633,37 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
                   Open reset link
                   <Icon name="arrowUpRight" className="w-4 h-4" />
                 </button>
-                <button onClick={sendLink} disabled={busy} className="w-full rounded-xl text-sm font-medium py-3 transition-colors disabled:opacity-60 hover:bg-white/5" style={{ border: "1px solid var(--navy-line)", color: "#FFFFFF" }}>
+                <button onClick={sendLink} disabled={busy} className="w-full rounded-xl text-sm font-medium py-3 transition-colors disabled:opacity-60 hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink)" }}>
                   {busy ? "Sending…" : "Resend email"}
                 </button>
               </div>
-              <div className="hairline-dark my-5" />
-              <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
-                <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>Back to sign in</button>
+              <div className="my-5" style={{ borderTop: "1px solid var(--line)" }} />
+              <p className="text-sm text-center" style={{ color: "var(--ink-2)" }}>
+                <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "var(--brand)" }}>Back to sign in</button>
               </p>
             </>
           )}
 
           {step === "reset" && (
             <>
-              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Set a new password</h1>
-              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>Choose a password you haven't used before.</p>
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Set a new password</h1>
+              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>Choose a password you haven't used before.</p>
               <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submitNewPassword(); }}>
                 <div>
-                  <label htmlFor="fp-newpw" className={labelDark} style={{ color: "#D8DAF6" }}>New password</label>
+                  <label htmlFor="fp-newpw" className={labelDark} style={{ color: "var(--ink)" }}>New password</label>
                   <div className="relative">
                     <input id="fp-newpw" name="new-password" type={showPw ? "text" : "password"} value={newPw} autoComplete="new-password" placeholder="Create a new password" onChange={(e) => { setNewPw(e.target.value); setPwErr(null); }} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                    <button type="button" onClick={() => setShowPw((s) => !s)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
+                    <button type="button" onClick={() => setShowPw((s) => !s)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                       <Icon name="eye" className="w-4 h-4" />
                     </button>
                   </div>
-                  <p className="text-[11px] mt-1.5" style={{ color: "var(--navy-ink)" }}>At least 8 characters, with a letter and a number.</p>
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-2)" }}>At least 8 characters, with a letter and a number.</p>
                 </div>
                 <div>
-                  <label htmlFor="fp-confpw" className={labelDark} style={{ color: "#D8DAF6" }}>Confirm new password</label>
+                  <label htmlFor="fp-confpw" className={labelDark} style={{ color: "var(--ink)" }}>Confirm new password</label>
                   <input id="fp-confpw" name="new-password" type={showPw ? "text" : "password"} value={confPw} autoComplete="new-password" placeholder="Re-enter the new password" onChange={(e) => { setConfPw(e.target.value); setPwErr(null); }} className={fieldDark} style={fieldDarkStyle} />
                 </div>
-                {pwErr && <p className="text-xs" style={{ color: "#FCA5A5" }}>{pwErr}</p>}
+                {pwErr && <p className="text-xs" style={{ color: "#B42318" }}>{pwErr}</p>}
                 <button type="submit" disabled={busy} className={primaryBtn}>
                   {busy ? "Updating…" : "Update password"}
                 </button>
@@ -1527,11 +1673,11 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
 
           {step === "done" && (
             <>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: "rgba(34,197,94,0.18)", color: "#6EE7A5" }}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: "rgba(34,197,94,0.15)", color: "#16A34A" }}>
                 <Icon name="check" className="w-5 h-5" />
               </div>
-              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Password updated</h1>
-              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>You can now sign in with your new password.</p>
+              <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Password updated</h1>
+              <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>You can now sign in with your new password.</p>
               <button onClick={() => navigate("login")} className={primaryBtn}>
                 Back to sign in
                 <Icon name="arrowUpRight" className="w-4 h-4" />
@@ -1548,13 +1694,15 @@ function MatchRing({ value, size = 52, stroke = 5, filled = true, delay = 0, gra
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const target = circ * (1 - value / 100);
+  // Strong matches read green (a great fit), weaker ones fall back to brand blue / grey.
+  const accent = value >= 80 ? "#16A34A" : gradient ? "var(--brand)" : "#9AA3B2";
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line-strong)" strokeWidth={stroke} />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke={gradient ? "url(#matchGrad)" : "rgba(174,176,206,0.7)"}
+          stroke={accent}
           strokeWidth={stroke} strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={filled ? target : circ}
@@ -1562,7 +1710,7 @@ function MatchRing({ value, size = 52, stroke = 5, filled = true, delay = 0, gra
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="font-bold tnum leading-none inline-flex items-center justify-center" style={{ color: gradient ? "#fff" : "var(--navy-ink)", fontSize: Math.round(size * 0.3) }}>
+        <span className="font-bold tnum leading-none inline-flex items-center justify-center" style={{ color: value >= 80 ? "#16A34A" : gradient ? "var(--brand)" : "var(--ink-2)", fontSize: Math.round(size * 0.3) }}>
           {value}<span style={{ fontSize: Math.round(size * 0.19), marginLeft: 1 }}>%</span>
         </span>
       </div>
@@ -1639,19 +1787,17 @@ function Pipeline({ steps }) {
   }, [reduce]);
 
   const pulseDot = {
-    background: "#fff",
-    boxShadow: "0 0 12px 3px rgba(178,116,255,0.85)",
+    background: "var(--brand)",
+    boxShadow: "0 0 10px 2px rgba(var(--brand-rgb),0.55)",
   };
 
-  // Dark glass preview surface shared by every step card
+  // Light preview surface shared by every step card
   const glass = {
-    background: "linear-gradient(180deg, rgba(30,33,72,0.66), rgba(22,24,58,0.6))",
-    border: "1px solid var(--navy-line)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    boxShadow: "0 2px 0 0 rgba(255,255,255,0.04) inset, 0 34px 66px -34px rgba(0,0,0,0.8)",
+    background: "#fff",
+    border: "1px solid var(--line)",
+    boxShadow: "0 20px 44px -26px rgba(15,27,51,0.18), 0 1px 3px rgba(15,27,51,0.04)",
   };
-  const innerTile = { background: "rgba(255,255,255,0.04)", border: "1px solid var(--navy-line)" };
+  const innerTile = { background: "#F7F9FC", border: "1px solid var(--line)" };
 
   // Each step gets a live product preview, told left → right
   const previews = [
@@ -1659,23 +1805,23 @@ function Pipeline({ steps }) {
     (
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-white truncate">Senior Frontend Engineer</p>
-          <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-1" style={{ background: "rgba(34,197,94,0.16)", color: "#4ADE80" }}>
+          <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>Senior Frontend Engineer</p>
+          <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-1" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>
             <span className="live-dot w-1 h-1 rounded-full" style={{ background: "#22C55E" }} /> Live
           </span>
         </div>
         <div className="flex items-center gap-2 rounded-lg px-2.5 py-2" style={innerTile}>
-          <span style={{ color: "var(--navy-ink)" }}><Icon name="briefcase" className="w-3.5 h-3.5" /></span>
-          <span className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>hireaster.com/apply/fe-eng</span>
+          <span style={{ color: "var(--ink-3)" }}><Icon name="briefcase" className="w-3.5 h-3.5" /></span>
+          <span className="text-xs truncate" style={{ color: "var(--ink-2)" }}>hireaster.com/apply/fe-eng</span>
           <span className="ml-auto shrink-0 text-[10px] font-semibold brand-text">Copy</span>
         </div>
         <div className="flex items-center justify-between pt-0.5">
           <div className="flex -space-x-2">
             {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, k) => (
-              <FaceAvatar key={k} seed={`applied-${k}`} name={["A", "S", "D", "P"][k]} size={24} className="border-2" style={{ borderColor: "#16183A" }} />
+              <FaceAvatar key={k} seed={`applied-${k}`} name={["A", "S", "D", "P"][k]} size={24} className="border-2" style={{ borderColor: "#fff" }} />
             ))}
           </div>
-          <span className="text-xs" style={{ color: "var(--navy-ink)" }}><b className="text-white tnum">24</b> applied</span>
+          <span className="text-xs" style={{ color: "var(--ink-3)" }}><b className="tnum" style={{ color: "var(--ink)" }}>24</b> applied</span>
         </div>
       </div>
     ),
@@ -1687,13 +1833,13 @@ function Pipeline({ steps }) {
           { name: "Siti Rahman", note: "Frontend · 5 yrs", match: 78 },
           { name: "Daniel Teoh", note: "Junior", match: 42 },
         ].map((c) => (
-          <div key={c.name} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5" style={{ background: c.top ? "rgba(151,59,247,0.16)" : "transparent", border: c.top ? "1px solid rgba(178,116,255,0.4)" : "1px solid transparent" }}>
+          <div key={c.name} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5" style={{ background: c.top ? "#ECFDF3" : "transparent", border: c.top ? "1px solid #BBF7D0" : "1px solid transparent" }}>
             <MatchRing value={c.match} size={34} stroke={4} filled gradient={c.top} />
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-xs font-semibold text-white truncate">{c.name}</p>
-              <p className="text-[11px] truncate" style={{ color: "var(--navy-ink)" }}>{c.note}</p>
+              <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>{c.name}</p>
+              <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{c.note}</p>
             </div>
-            {c.top && <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold">Top</span>}
+            {c.top && <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full text-white font-semibold" style={{ background: "#16A34A" }}>Top</span>}
           </div>
         ))}
       </div>
@@ -1703,21 +1849,21 @@ function Pipeline({ steps }) {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <span className="w-5 h-5 rounded-full brand-gradient text-white flex items-center justify-center shrink-0"><Icon name="check" className="w-3 h-3" /></span>
-          <p className="text-sm font-semibold text-white">Interview confirmed</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Interview confirmed</p>
         </div>
         <div className="rounded-lg px-2.5 py-2.5 space-y-2.5" style={innerTile}>
           <div className="flex items-center gap-2.5">
             <FaceAvatar name="Amira Hassan" size={28} />
             <div className="min-w-0 text-left">
-              <p className="text-xs font-semibold text-white truncate">Amira Hassan</p>
-              <p className="text-[11px]" style={{ color: "var(--navy-ink)" }}>Thu, Jul 10 · 2:00 PM</p>
+              <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>Amira Hassan</p>
+              <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Thu, Jul 10 · 2:00 PM</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md text-white" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)" }}>
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md" style={{ color: "var(--ink-2)", background: "#fff", border: "1px solid var(--line)" }}>
               <Icon name="calendar" className="w-3 h-3" /> Google Meet
             </span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md" style={{ background: "rgba(34,197,94,0.16)", color: "#4ADE80" }}>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>
               <Icon name="offer" className="w-3 h-3" /> Offer
             </span>
           </div>
@@ -1730,13 +1876,13 @@ function Pipeline({ steps }) {
     <div ref={ref} className="relative">
       {/* Desktop: horizontal rail through the badge centers */}
       <div className="hidden md:block absolute" style={{ top: 27, left: "16.66%", right: "16.66%" }}>
-        <div className="h-[3px] w-full rounded-full" style={{ background: "var(--navy-line)" }} />
+        <div className="h-[3px] w-full rounded-full" style={{ background: "var(--line-strong)" }} />
         <div className="h-[3px] rounded-full absolute top-0 left-0 brand-gradient" style={{ width: visible ? "100%" : "0%", transition: "width 1.5s cubic-bezier(.22,1,.36,1) .1s" }} />
         {!reduce && visible && <span className="pipe-pulse-h absolute w-2.5 h-2.5 rounded-full" style={{ top: -3, ...pulseDot }} />}
       </div>
       {/* Mobile: vertical rail down the left, fills as you scroll the section */}
       <div className="md:hidden absolute" style={{ left: 27, top: 20, bottom: 20, width: 3 }}>
-        <div className="w-full h-full rounded-full" style={{ background: "var(--navy-line)" }} />
+        <div className="w-full h-full rounded-full" style={{ background: "var(--line-strong)" }} />
         <div className="w-full rounded-full absolute top-0 left-0 brand-gradient" style={{ height: `${reduce ? 100 : railFill}%`, transition: reduce ? "none" : "height .12s linear" }} />
         {!reduce && railFill > 0 && railFill < 100 && (
           <span className="absolute w-2.5 h-2.5 rounded-full" style={{ left: -3.5, top: `${railFill}%`, transform: "translateY(-50%)", transition: "top .12s linear", ...pulseDot }} />
@@ -1757,7 +1903,7 @@ function Pipeline({ steps }) {
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center relative z-10 shrink-0 brand-gradient text-white"
               style={{
-                boxShadow: visible ? "0 10px 24px -8px rgba(151,59,247,0.6)" : "none",
+                boxShadow: visible ? "0 10px 24px -8px rgba(var(--brand-rgb),0.45)" : "none",
                 transform: visible ? "scale(1)" : "scale(.7)",
                 transition: `transform .5s cubic-bezier(.34,1.56,.64,1) ${0.25 + i * 0.35}s, box-shadow .5s ease ${0.25 + i * 0.35}s`,
               }}
@@ -1768,8 +1914,8 @@ function Pipeline({ steps }) {
               <div className="flex items-center gap-2 md:justify-center mb-1">
                 <span className="text-[11px] font-semibold uppercase tnum brand-text" style={{ letterSpacing: "0.08em" }}>Step {s.n}</span>
               </div>
-              <h3 className="font-semibold text-white">{s.title}</h3>
-              <p className="text-sm leading-relaxed mt-1 md:max-w-[16rem] md:mx-auto" style={{ color: "var(--navy-ink)" }}>{s.body}</p>
+              <h3 className="font-semibold" style={{ color: "var(--ink)" }}>{s.title}</h3>
+              <p className="text-sm leading-relaxed mt-1 md:max-w-[16rem] md:mx-auto" style={{ color: "var(--ink-2)" }}>{s.body}</p>
               {/* Live product preview */}
               <div
                 className="relative mt-5 rounded-2xl p-4 text-left overflow-hidden"
@@ -1780,7 +1926,6 @@ function Pipeline({ steps }) {
                   transition: `opacity .6s ease ${0.45 + i * 0.35}s, transform .6s ease ${0.45 + i * 0.35}s`,
                 }}
               >
-                <div className="pointer-events-none absolute inset-x-5 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.5), transparent)" }} />
                 {previews[i]}
               </div>
             </div>
@@ -1926,27 +2071,27 @@ function UploadPreview() {
 
 function PipelinePreview() {
   const COLS = [
-    { name: "Applied", n: 24, color: "var(--brand)", chips: [["A", "#D65BFF"], ["S", "#5A78F8"]] },
-    { name: "Screening", n: 8, color: "var(--brand)", chips: [["P", "#973BF7"], ["R", "#7B5CF0"]] },
-    { name: "Interview", n: 3, color: "var(--brand)", chips: [["D", "#5A78F8"]] },
+    { name: "Applied", n: 24, color: "var(--brand)", chips: [["A", "#0B2AE0"], ["S", "#3550EE"]] },
+    { name: "Screening", n: 8, color: "var(--brand)", chips: [["P", "#5570F5"], ["R", "#7C93F8"]] },
+    { name: "Interview", n: 3, color: "var(--brand)", chips: [["D", "#3550EE"]] },
     { name: "Offer", n: 1, color: "#16A34A", chips: [["M", "#16A34A"]] },
   ];
   return (
-    <div className="w-full max-w-sm rounded-2xl bg-white shadow-soft p-3.5" style={{ border: "1px solid var(--line)" }}>
+    <div className="w-full h-full flex flex-col">
       {/* board header, one board the whole team shares */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>Hiring pipeline</span>
         <span className="inline-flex items-center gap-1.5">
           <span className="flex -space-x-1.5">
-            {["#D65BFF", "#5A78F8", "#973BF7"].map((c) => <span key={c} className="w-4 h-4 rounded-full border-2 border-white" style={{ background: c }} />)}
+            {["#0B2AE0", "#3550EE", "#5570F5"].map((c) => <span key={c} className="w-4 h-4 rounded-full border-2 border-white" style={{ background: c }} />)}
           </span>
           <span className="text-[9px] font-medium" style={{ color: "var(--ink-3)" }}>Shared</span>
         </span>
       </div>
-      {/* kanban columns */}
-      <div className="grid grid-cols-4 gap-1.5">
+      {/* kanban columns, stretched to fill the panel height */}
+      <div className="grid grid-cols-4 gap-1.5 flex-1">
         {COLS.map((col, i) => (
-          <div key={col.name} className="rounded-lg p-1.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+          <div key={col.name} className="rounded-lg p-1.5 flex flex-col justify-center" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
             <p className="text-[7px] font-semibold uppercase truncate mb-1" style={{ color: "var(--ink-3)", letterSpacing: "0.03em" }}>{col.name}</p>
             <p className="text-lg font-bold font-display tnum leading-none mb-1.5" style={{ color: col.color }}><CountUp to={col.n} delay={i * 150} loop /></p>
             <div className="space-y-1">
@@ -2030,7 +2175,7 @@ function ApplyPagePreview() {
 }
 
 function TeamInterviewPreview() {
-  const PEOPLE = [["A", "#D65BFF"], ["S", "#5A78F8"], ["D", "#973BF7"], ["M", "#7B5CF0"]];
+  const PEOPLE = [["A", "#0B2AE0"], ["S", "#3550EE"], ["D", "#5570F5"], ["M", "#7C93F8"]];
   const ref = useRef(null);
   const [joined, setJoined] = useState(0);
   const [invited, setInvited] = useState(false);
@@ -2338,6 +2483,28 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     if (!child) return;
     el.scrollTo({ left: child.offsetLeft - (el.clientWidth - child.offsetWidth) / 2, behavior: "smooth" });
   };
+  // Layered depth: the "One shared pipeline" grey panel comes to rest with its
+  // bottom half tucked behind the section below it. We pull the next section up
+  // by half the panel's measured height (recomputed on resize), and let z-index
+  // stack the next section over the panel.
+  const nextSectionRef = useRef(null);
+  useEffect(() => {
+    const next = nextSectionRef.current;
+    const panel = next && next.parentElement && next.parentElement.querySelector("[data-pipeline-panel]");
+    if (!panel || !next) return;
+    const apply = () => {
+      // Only overlap on the wide (side-by-side) layout; on stacked mobile the
+      // panel is very tall and a 50% pull would swallow whole sections.
+      const wide = typeof window !== "undefined" && window.innerWidth >= 1024;
+      next.style.marginTop = wide ? `-${Math.round(panel.offsetHeight * 0.5)}px` : "";
+    };
+    apply();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+    if (ro) ro.observe(panel);
+    window.addEventListener("resize", apply);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", apply); };
+  }, []);
+
   const prefersReduced = () =>
     typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [shown, setShown] = useState(prefersReduced);
@@ -2492,43 +2659,37 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
 
   return (
     <div className="overflow-x-clip" style={{ background: "#fff", color: "var(--ink)" }}>
-      {/* Shared gradient for the match rings */}
-      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
-        <defs>
-          <linearGradient id="matchGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#D65BFF" />
-            <stop offset="100%" stopColor="#5A78F8" />
-          </linearGradient>
-        </defs>
-      </svg>
-
       {/* Shared marketing nav, identical on landing + product pages.
           onLanding lets Pricing/FAQ scroll in place; onCta keeps the landing's
           14-day-trial signup for Get started. */}
       <MarketingNav navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} current={null} logoUrl={logoUrl} onLanding onCta={goTrial} />
 
       {/* Hero, the AI match score is the thesis */}
-      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(70% 55% at 78% 12%, rgba(90,120,248,0.35) 0%, transparent 60%), radial-gradient(60% 50% at 10% 90%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
+      {/* Pulled up under the sticky nav (-4rem) with matching pt-16, so the hero's
+          blue runs continuously behind the transparent landing nav: no seam. */}
+      <section className="relative overflow-hidden pt-16" style={{ background: "var(--hero-grad)", marginTop: "-4rem" }}>
+        {/* soft glow orbs for depth */}
+        <div className="pointer-events-none absolute -top-24 -left-16 w-[520px] h-[520px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, var(--brand-glow-1) 0%, transparent 68%)" }} />
+        <div className="pointer-events-none absolute -bottom-32 -right-10 w-[560px] h-[560px] rounded-full blur-3xl opacity-70" style={{ background: "radial-gradient(circle, var(--brand-glow-2) 0%, transparent 70%)" }} />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           {/* Left: copy */}
           <div>
-            <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}>
+            <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.22)" }}>
               <span className="live-dot w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
               AI recruitment for growing teams
             </span>
-            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2.25rem, 4.8vw, 3.65rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>
+            <h1 className="font-display font-bold" style={{ color: "#fff", fontSize: "clamp(2.25rem, 4.8vw, 3.65rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>
               Hire the right person,{" "}
-              <span className="brand-text" style={{ paddingBottom: "0.08em", display: "inline-block" }}>without reading every CV.</span>
+              <span style={{ color: "var(--brand-tint)", paddingBottom: "0.08em", display: "inline-block" }}>without reading every CV.</span>
             </h1>
-            <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>
+            <p className="mt-5 text-base sm:text-lg max-w-md" style={{ color: "rgba(255,255,255,0.82)", lineHeight: 1.6 }}>
               Aster reads every resume, scores each applicant against the role, and books the interviews. A two-week shortlist now takes an afternoon.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button onClick={() => goTrial()} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">
+              <button onClick={() => goTrial()} className="font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] hover:opacity-95" style={{ background: "#fff", color: "var(--brand)" }}>
                 Start free trial
               </button>
-              <a href="#pricing" className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>
+              <a href="#pricing" className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/10" style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.28)" }}>
                 See pricing
               </a>
             </div>
@@ -2536,7 +2697,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <div className="mt-7 flex items-center gap-4 flex-wrap">
               <div className="flex -space-x-2.5">
                 {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, i) => (
-                  <FaceAvatar key={i} seed={`hero-${i}`} name={["A", "S", "D", "P"][i]} size={28} className="border-2" style={{ borderColor: "#070814" }} />
+                  <FaceAvatar key={i} seed={`hero-${i}`} name={["A", "S", "D", "P"][i]} size={28} className="border-2" style={{ borderColor: "#fff" }} />
                 ))}
               </div>
               <div className="flex items-center gap-1.5">
@@ -2547,39 +2708,37 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                     </svg>
                   ))}
                 </div>
-                <span className="text-xs" style={{ color: "var(--navy-ink)" }}>Loved by fast-moving hiring teams</span>
+                <span className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>Loved by fast-moving hiring teams</span>
               </div>
             </div>
-            <p className="mt-4 text-xs" style={{ color: "var(--ink-3)" }}>No credit card · Set up in minutes</p>
+            <p className="mt-4 text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>No credit card · Set up in minutes</p>
           </div>
 
           {/* Right: the signature, Aster parsing a resume in seconds */}
-          <div className="relative rounded-2xl p-5 sm:p-6" style={{ background: "linear-gradient(180deg, rgba(30,33,72,0.72), rgba(22,24,58,0.66))", border: "1px solid var(--navy-line)", backdropFilter: "blur(8px)", boxShadow: "0 2px 0 0 rgba(255,255,255,0.04) inset, 0 50px 100px -40px rgba(0,0,0,0.85)" }}>
-            {/* top edge highlight */}
-            <div className="pointer-events-none absolute inset-x-6 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.55), transparent)" }} />
+          <div className="relative rounded-2xl p-5 sm:p-6" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18), 0 2px 8px rgba(15,27,51,0.04)" }}>
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>Parsing resume</p>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "rgba(151,59,247,0.18)", color: "#fff" }}>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                 <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI parsing
               </span>
             </div>
 
             {/* The document being scanned */}
-            <div className="relative overflow-hidden rounded-xl p-3.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+            <div className="relative overflow-hidden rounded-xl p-3.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.2)", color: "#fff" }}>
+                <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                   <Icon name="doc" className="w-4 h-4" />
                 </span>
-                <p className="text-xs font-medium text-white truncate">amira_hassan_cv.pdf</p>
-                <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: "rgba(255,255,255,0.08)", color: "var(--navy-ink)" }}>PDF</span>
+                <p className="text-xs font-medium truncate" style={{ color: "var(--ink)" }}>amira_hassan_cv.pdf</p>
+                <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: "#EDEFF3", color: "var(--ink-3)" }}>PDF</span>
               </div>
               <div className="space-y-2">
                 {["82%", "60%", "72%", "45%", "68%", "38%"].map((w, i) => (
-                  <div key={i} className="h-2 rounded-full" style={{ width: w, background: "rgba(255,255,255,0.09)" }} />
+                  <div key={i} className="h-2 rounded-full" style={{ width: w, background: "#E4E8F0" }} />
                 ))}
               </div>
               {/* sweeping scan line */}
-              <div className="scan-line pointer-events-none absolute inset-x-0" style={{ height: 26, background: "linear-gradient(180deg, transparent, rgba(178,116,255,0.28), transparent)", boxShadow: "0 0 18px 2px rgba(178,116,255,0.35)" }} />
+              <div className="scan-line pointer-events-none absolute inset-x-0" style={{ height: 26, background: "linear-gradient(180deg, transparent, rgba(var(--brand-rgb),0.12), transparent)" }} />
             </div>
 
             {/* Structured fields Aster extracted */}
@@ -2594,28 +2753,28 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                     key={f.label}
                     className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
                     style={{
-                      background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)",
+                      background: "#F7F9FC", border: "1px solid var(--line)",
                       opacity: shown ? 1 : 0, transform: shown ? "translateY(0)" : "translateY(6px)",
                       transition: `opacity .5s ease ${180 + i * 160}ms, transform .5s ease ${180 + i * 160}ms`,
                     }}
                   >
-                    <span className="text-xs" style={{ color: "var(--navy-ink)" }}>{f.label}</span>
-                    <span className="text-sm font-medium text-white">{f.value}</span>
+                    <span className="text-xs" style={{ color: "var(--ink-3)" }}>{f.label}</span>
+                    <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{f.value}</span>
                   </div>
                 ))}
                 <div
                   className="flex items-center gap-2 flex-wrap rounded-lg px-3 py-2.5"
                   style={{
-                    background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)",
+                    background: "#F7F9FC", border: "1px solid var(--line)",
                     opacity: shown ? 1 : 0, transform: shown ? "translateY(0)" : "translateY(6px)",
                     transition: "opacity .5s ease 500ms, transform .5s ease 500ms",
                   }}
                 >
-                  <span className="text-xs mr-1" style={{ color: "var(--navy-ink)" }}>Skills</span>
+                  <span className="text-xs mr-1" style={{ color: "var(--ink-3)" }}>Skills</span>
                   {["React", "TypeScript"].map((s) => (
-                    <span key={s} className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "rgba(178,116,255,0.18)", color: "#fff" }}>{s}</span>
+                    <span key={s} className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>
                   ))}
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.06)", color: "var(--navy-ink)" }}>+4</span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "#EDEFF3", color: "var(--ink-3)" }}>+4</span>
                 </div>
               </div>
             </div>
@@ -2646,7 +2805,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   className="relative flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-sm font-medium rounded-full px-4 py-2 transition-colors"
                   style={on ? { color: key === "aster" ? "#fff" : "var(--ink)" } : { color: "var(--ink-3)" }}
                 >
-                  {on && <span className={`absolute inset-0 rounded-full ${key === "aster" ? "brand-gradient" : ""}`} style={key === "aster" ? { boxShadow: "0 8px 20px -10px rgba(151,59,247,0.8)" } : { background: "#F1F1F4" }} />}
+                  {on && <span className={`absolute inset-0 rounded-full ${key === "aster" ? "brand-gradient" : ""}`} style={key === "aster" ? { boxShadow: "0 8px 20px -10px rgba(var(--brand-rgb),0.6)" } : { background: "#F1F1F4" }} />}
                   <span className="relative inline-flex items-center gap-1.5">
                     {key === "aster" && on && <Icon name="check" className="w-3.5 h-3.5" />}
                     {label}
@@ -2665,14 +2824,14 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           {problems.map((p, i) => {
             const aster = probMode === "aster";
             return (
-              <Reveal key={p.pain} delay={i * 70} className="group relative overflow-hidden rounded-2xl border p-6 sm:p-7 card-lift shadow-soft h-full flex flex-col" style={{ borderColor: aster ? "#E4D3FB" : "var(--line)", background: aster ? "#F8F2FF" : "#fff", transition: "background .4s ease, border-color .4s ease" }}>
+              <Reveal key={p.pain} delay={i * 70} className="group relative overflow-hidden rounded-2xl border p-6 sm:p-7 card-lift shadow-soft h-full flex flex-col" style={{ borderColor: aster ? "#CBD8F5" : "var(--line)", background: aster ? "var(--brand-soft)" : "#fff", transition: "background .4s ease, border-color .4s ease" }}>
                 {/* top accent bar, lights up in the Aster state */}
-                <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: "linear-gradient(90deg, #D65BFF, #973BF7, #5A78F8)", opacity: aster ? 1 : 0, transition: "opacity .4s ease" }} />
+                <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: "var(--brand)", opacity: aster ? 1 : 0, transition: "opacity .4s ease" }} />
                 {/* numbered watermark */}
-                <span className="pointer-events-none absolute top-4 right-5 font-display font-extrabold tnum leading-none select-none" style={{ fontSize: "2rem", color: aster ? "rgba(151,59,247,0.12)" : "rgba(18,19,42,0.055)", transition: "color .4s ease" }}>{`0${i + 1}`}</span>
+                <span className="pointer-events-none absolute top-4 right-5 font-display font-extrabold tnum leading-none select-none" style={{ fontSize: "2rem", color: aster ? "rgba(var(--brand-rgb),0.12)" : "rgba(18,19,42,0.055)", transition: "color .4s ease" }}>{`0${i + 1}`}</span>
                 {/* icon + persistent problem label, the constant that maps problem↔fix */}
                 <div className="flex items-center gap-3 mb-4 pr-10">
-                  <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={aster ? { background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #ECDCFF" } : { background: "#FFF1F2", color: "#F43F5E", border: "1px solid #FFE4E6" }}>
+                  <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={aster ? { background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #CBD8F5" } : { background: "#F1F3F7", color: "#6B7280", border: "1px solid var(--line)" }}>
                     <Icon name={p.icon} className="w-5 h-5" />
                   </span>
                   <h3 className="font-semibold text-neutral-900 leading-snug text-[17px]">{p.pain}</h3>
@@ -2742,13 +2901,13 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                     { name: "Siti Rahman", note: "Product-minded frontend · 5 yrs", match: 78 },
                     { name: "Daniel Teoh", note: "Strong CSS, growing into React", match: 42 },
                   ].map((c, ci) => (
-                    <div key={c.name} className="pv-item flex items-center gap-3 rounded-xl px-2.5 py-2" style={{ animationDelay: `${ci * 130}ms`, background: c.top ? "var(--brand-soft)" : "var(--bg)", border: c.top ? "1px solid #D9D0FF" : "1px solid var(--line)" }}>
+                    <div key={c.name} className="pv-item flex items-center gap-3 rounded-xl px-2.5 py-2" style={{ animationDelay: `${ci * 130}ms`, background: c.top ? "#ECFDF3" : "var(--bg)", border: c.top ? "1px solid #BBF7D0" : "1px solid var(--line)" }}>
                       <ScoreRingLight value={c.match} size={40} stroke={4} loop delay={ci * 260} />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-neutral-900 truncate">{c.name}</p>
                         <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{c.note}</p>
                       </div>
-                      {c.top && <span className="text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold shrink-0">Top</span>}
+                      {c.top && <span className="text-[9px] px-1.5 py-0.5 rounded-full text-white font-semibold shrink-0" style={{ background: "#16A34A" }}>Top</span>}
                     </div>
                   ))}
                 </div>
@@ -2761,7 +2920,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <div className="relative overflow-hidden w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
                 {/* AI scan beam sweeping down the document, in a loop */}
-                <div className="scan-line pointer-events-none absolute inset-x-0 z-10" style={{ height: 22, background: "linear-gradient(180deg, transparent, rgba(151,59,247,0.16), transparent)", boxShadow: "0 0 16px 2px rgba(151,59,247,0.26)" }} />
+                <div className="scan-line pointer-events-none absolute inset-x-0 z-10" style={{ height: 22, background: "linear-gradient(180deg, transparent, rgba(var(--brand-rgb),0.12), transparent)" }} />
                 <div className="flex items-center gap-2.5 mb-3.5">
                   <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
                   <div className="min-w-0">
@@ -2809,8 +2968,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             </div>
           </Reveal>
 
-          {/* 4 · One shared pipeline, light row, visual left */}
-          <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          {/* 4 · One shared pipeline, light row, visual left. Slides up on scroll
+              and rests with its bottom half tucked behind the section below it. */}
+          <Reveal delay={60} data-pipeline-panel className="pipeline-rise rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff", position: "relative", zIndex: 1 }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <PipelinePreview />
             </div>
@@ -2827,8 +2987,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </Reveal>
         </div>
 
-        {/* More capabilities, full-width alternating rows, continuing the big rows above */}
-        <div className="space-y-4 sm:space-y-5 mt-4 sm:mt-5">
+        {/* More capabilities, full-width alternating rows, continuing the big rows above.
+            Sits above the pipeline panel and is pulled up (via JS) to overlap its bottom half. */}
+        <div ref={nextSectionRef} className="relative space-y-4 sm:space-y-5 mt-4 sm:mt-5" style={{ zIndex: 2 }}>
           {moreFeatures.map((f, i) => {
             const visualRight = i % 2 === 0; // alternate the preview side, row by row
             return (
@@ -2905,17 +3066,15 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </div>
       </section>
 
-      {/* How it works, dark "show the product working" band */}
-      <section className="relative overflow-hidden grain py-14 sm:py-24" style={{ background: "#0A0B1A" }}>
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 45% at 15% 0%, rgba(90,120,248,0.22) 0%, transparent 60%), radial-gradient(55% 50% at 90% 100%, rgba(151,59,247,0.20) 0%, transparent 60%)" }} />
-        <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
+      {/* How it works, light "show the product working" band */}
+      <section className="relative overflow-hidden py-14 sm:py-24" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
           <Reveal className="max-w-2xl mx-auto text-center mb-8 sm:mb-12">
             <p className="eyebrow brand-text mb-2">How it works</p>
-            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
+            <h2 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
               From open role to signed offer
             </h2>
-            <p className="mt-3" style={{ color: "var(--navy-ink)" }}>Three steps. Aster does the heavy lifting in between.</p>
+            <p className="mt-3" style={{ color: "var(--ink-2)" }}>Three steps. Aster does the heavy lifting in between.</p>
           </Reveal>
           <Pipeline steps={steps} />
         </div>
@@ -2929,26 +3088,24 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             Teams around the world hire faster with Aster.
           </h2>
         </Reveal>
-        {/* Featured testimonial, dark focal card */}
-        <Reveal as="figure" className="relative overflow-hidden grain rounded-3xl p-8 sm:p-10 mb-4 shadow-float" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
-          <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(50% 70% at 100% 0%, rgba(151,59,247,0.30) 0%, transparent 60%), radial-gradient(45% 60% at 0% 100%, rgba(90,120,248,0.24) 0%, transparent 60%)" }} />
-          <div className="pointer-events-none absolute inset-x-10 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.6), transparent)" }} />
+        {/* Featured testimonial, light focal card */}
+        <Reveal as="figure" className="relative overflow-hidden rounded-3xl p-8 sm:p-10 mb-4" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
           <div className="relative grid lg:grid-cols-[1fr_auto] gap-8 lg:gap-10 items-center">
             <div>
               <span className="block font-display font-bold leading-none brand-text" style={{ fontSize: "3.5rem" }} aria-hidden="true">&ldquo;</span>
-              <blockquote className="-mt-3 text-white font-display font-semibold" style={{ fontSize: "clamp(1.25rem, 2.3vw, 1.7rem)", lineHeight: 1.4, letterSpacing: "-0.01em", textWrap: "balance" }}>
+              <blockquote className="-mt-3 font-display font-semibold" style={{ color: "var(--ink)", fontSize: "clamp(1.25rem, 2.3vw, 1.7rem)", lineHeight: 1.4, letterSpacing: "-0.01em", textWrap: "balance" }}>
                 {testimonials[0].quote}
               </blockquote>
               <figcaption className="mt-6 flex items-center gap-3">
                 <FaceAvatar src={testimonials[0].photo} name={testimonials[0].name} gender={testimonials[0].gender} size={44} />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white">{testimonials[0].name}</p>
-                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>{testimonials[0].role}</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{testimonials[0].name}</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{testimonials[0].role}</p>
                 </div>
               </figcaption>
             </div>
             {/* Proof panel */}
-            <div className="flex lg:flex-col gap-8 lg:gap-5 lg:pl-10 lg:border-l" style={{ borderColor: "var(--navy-line)" }}>
+            <div className="flex lg:flex-col gap-8 lg:gap-5 lg:pl-10 lg:border-l" style={{ borderColor: "#DCE4F7" }}>
               <div>
                 <div className="flex gap-0.5 mb-1.5" style={{ color: "#F5A623" }}>
                   {[0, 1, 2, 3, 4].map((s) => (
@@ -2957,11 +3114,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                     </svg>
                   ))}
                 </div>
-                <p className="text-xs" style={{ color: "var(--navy-ink)" }}>Rated by hiring teams</p>
+                <p className="text-xs" style={{ color: "var(--ink-2)" }}>Rated by hiring teams</p>
               </div>
               <div>
                 <p className="font-display font-bold brand-text" style={{ fontSize: "1.9rem", letterSpacing: "-0.02em" }}>2 wks</p>
-                <p className="text-xs" style={{ color: "var(--navy-ink)" }}>faster to first hire</p>
+                <p className="text-xs" style={{ color: "var(--ink-2)" }}>faster to first hire</p>
               </div>
             </div>
           </div>
@@ -3058,7 +3215,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           >
             {plans.slice(0, 3).map((plan) => (
               <div key={plan.key} className={`snap-start snap-always shrink-0 w-[85%] sm:w-[46%] max-w-[340px] rounded-2xl border flex flex-col relative p-5 sm:p-6 ${plan.popular ? "" : "card-lift"}`}
-                style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 24px 50px -24px rgba(151,59,247,0.42)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
+                style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 24px 50px -24px rgba(var(--brand-rgb),0.32)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
                 {/* header, name + inline popular pill (no overhang to clip) */}
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.3rem", letterSpacing: "-0.01em" }}>
@@ -3074,7 +3231,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 </div>
                 <p className="text-xs font-semibold mt-1.5 min-h-[1rem]" style={{ color: "#166534" }}>{plan.note || ""}</p>
                 <button onClick={() => goSignup(plan.key)}
-                  className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(151,59,247,0.9)]"}`}
+                  className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(var(--brand-rgb),0.6)]"}`}
                   style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
                   {plan.cta}
                 </button>
@@ -3124,7 +3281,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         <div className="hidden lg:grid grid-cols-3 gap-5 mt-8 items-stretch">
           {plans.slice(0, 3).map((plan) => (
             <div key={plan.key} className={`rounded-2xl border flex flex-col relative p-6 xl:p-7 ${plan.popular ? "" : "card-lift"}`}
-              style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 30px 60px -30px rgba(151,59,247,0.4)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
+              style={{ borderColor: plan.popular ? "var(--brand)" : "var(--line)", background: "#fff", boxShadow: plan.popular ? "0 0 0 1px var(--brand), 0 30px 60px -30px rgba(var(--brand-rgb),0.32)" : "0 1px 2px rgba(18,19,42,0.05)" }}>
               <div className="flex items-center justify-between gap-2">
                 <h4 className="font-bold font-display text-neutral-900" style={{ fontSize: "1.4rem", letterSpacing: "-0.01em" }}>
                   {plan.popular ? <span className="brand-text">{plan.name}</span> : plan.name}
@@ -3138,7 +3295,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               </div>
               <p className="text-xs font-semibold mt-1.5 min-h-[1rem]" style={{ color: "#166534" }}>{plan.note || ""}</p>
               <button onClick={() => goSignup(plan.key)}
-                className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(151,59,247,0.9)]"}`}
+                className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(var(--brand-rgb),0.6)]"}`}
                 style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
                 {plan.cta}
               </button>
@@ -3166,48 +3323,44 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </div>
 
         {/* Enterprise, highlighted separately, below the table */}
-        <Reveal className="mt-6 rounded-2xl overflow-hidden grain relative shadow-float" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
-          <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(45% 80% at 100% 0%, rgba(151,59,247,0.28) 0%, transparent 60%), radial-gradient(40% 70% at 0% 100%, rgba(90,120,248,0.22) 0%, transparent 60%)" }} />
-          <div className="pointer-events-none absolute inset-x-10 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.6), transparent)" }} />
+        <Reveal className="mt-6 rounded-2xl overflow-hidden relative" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
           <div className="relative p-6 sm:p-8 flex flex-col md:flex-row md:items-center gap-6">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
-                <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.2)", color: "#fff" }}><Icon name="shield" className="w-[18px] h-[18px]" /></span>
-                <span className="text-[11px] font-semibold uppercase" style={{ color: "#B274FF", letterSpacing: "0.09em" }}>Enterprise</span>
+                <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="shield" className="w-[18px] h-[18px]" /></span>
+                <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}>Enterprise</span>
               </div>
-              <h3 className="font-display font-bold text-white mb-1.5" style={{ fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For organizations with security &amp; scale needs</h3>
-              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--navy-ink)" }}>Everything in Premium, plus enterprise controls and hands-on support.</p>
+              <h3 className="font-display font-bold mb-1.5" style={{ color: "var(--ink)", fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For organizations with security &amp; scale needs</h3>
+              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--ink-2)" }}>Everything in Premium, plus enterprise controls and hands-on support.</p>
               <div className="flex flex-wrap gap-2 mt-4">
                 {["SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding", "Unlimited everything"].map((c) => (
-                  <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)", color: "#fff" }}>
-                    <span style={{ color: "#B274FF" }}><Icon name="check" className="w-3 h-3" /></span> {c}
+                  <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                    <span style={{ color: "var(--brand)" }}><Icon name="check" className="w-3 h-3" /></span> {c}
                   </span>
                 ))}
               </div>
             </div>
-            <div className="shrink-0 md:border-l md:pl-6 flex flex-col md:items-end gap-3" style={{ borderColor: "var(--navy-line)" }}>
+            <div className="shrink-0 md:border-l md:pl-6 flex flex-col md:items-end gap-3" style={{ borderColor: "var(--line-strong)" }}>
               <div className="md:text-right">
-                <p className="font-display font-bold text-white leading-none" style={{ fontSize: "1.6rem" }}>Custom</p>
-                <p className="text-xs mt-1" style={{ color: "var(--navy-ink)" }}>Tailored to your team</p>
+                <p className="font-display font-bold leading-none" style={{ color: "var(--ink)", fontSize: "1.6rem" }}>Custom</p>
+                <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Tailored to your team</p>
               </div>
-              <button onClick={() => goSignup("enterprise")} className="brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.9)]">Contact sales</button>
+              <button onClick={() => goSignup("enterprise")} className="brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Contact sales</button>
             </div>
           </div>
         </Reveal>
 
         <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Premium trial. Full access, no card required.</p>
       </section>
-      <section id="faq" className="relative overflow-hidden grain py-14 sm:py-24 scroll-mt-20" style={{ background: "#0A0B1A" }}>
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 45% at 100% 0%, rgba(151,59,247,0.18) 0%, transparent 60%), radial-gradient(45% 50% at 0% 100%, rgba(90,120,248,0.16) 0%, transparent 60%)" }} />
-        <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
+      <section id="faq" className="relative overflow-hidden py-14 sm:py-24 scroll-mt-20" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)" }}>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_1fr] gap-6 lg:gap-14">
           {/* Left rail (desktop) / header + tabs (mobile) */}
           <div className="lg:sticky lg:top-24 self-start">
             <p className="eyebrow brand-text mb-2">FAQ</p>
-            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.2vw, 2.25rem)", letterSpacing: "-0.02em", lineHeight: 1.12 }}>
+            <h2 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(1.6rem, 3.2vw, 2.25rem)", letterSpacing: "-0.02em", lineHeight: 1.12 }}>
               Answers to the questions that come up most.
             </h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
               Everything worth knowing before you start. Can&rsquo;t find what you&rsquo;re after? Just ask.
             </p>
             {/* categories, horizontal tabs on mobile, vertical list on desktop */}
@@ -3221,21 +3374,21 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                     aria-selected={on}
                     onClick={() => { setFaqCat(cat); const first = faqs.find((f) => f.cat === cat); setFaqOpenQ(first ? first.q : null); }}
                     className={`w-full min-w-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center lg:justify-between gap-2 text-center lg:text-left ${on
-                      ? "bg-white/[0.07] border border-[color:var(--navy-line)] text-white"
-                      : "bg-white/[0.03] lg:bg-transparent border border-[color:var(--navy-line)] lg:border-transparent text-[color:var(--navy-ink)] hover:text-white"}`}
+                      ? "bg-white border border-[color:var(--brand)] text-[color:var(--brand)] shadow-[0_1px_2px_rgba(18,19,42,0.05)]"
+                      : "bg-white lg:bg-transparent border border-[color:var(--line)] lg:border-transparent text-[color:var(--ink-2)] hover:text-[color:var(--ink)]"}`}
                   >
                     <span className="truncate">{cat}</span>
-                    {on && <span className="hidden lg:block shrink-0" style={{ color: "#B274FF" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
+                    {on && <span className="hidden lg:block shrink-0" style={{ color: "var(--brand)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>}
                   </button>
                 );
               })}
             </div>
             {/* contact card, desktop only (mobile version is rendered last) */}
-            <div className="hidden lg:block mt-8 rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-              <p className="font-display font-semibold text-white">Still have questions?</p>
-              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
+            <div className="hidden lg:block mt-8 rounded-2xl p-5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+              <p className="font-display font-semibold" style={{ color: "var(--ink)" }}>Still have questions?</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
               <a href="mailto:hello@aster.co" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
-                Email us <Icon name="arrowUpRight" className="w-4 h-4" />
+                Support team <Icon name="arrowUpRight" className="w-4 h-4" />
               </a>
             </div>
           </div>
@@ -3245,66 +3398,89 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             {faqs.filter((f) => f.cat === faqCat).map((f) => {
               const open = f.q === faqOpenQ;
               return (
-                <div key={f.q} className="rounded-2xl overflow-hidden transition-colors" style={{ background: open ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", border: `1px solid ${open ? "rgba(178,116,255,0.4)" : "var(--navy-line)"}` }}>
+                <div key={f.q} className="rounded-2xl overflow-hidden transition-colors" style={{ background: "#fff", border: `1px solid ${open ? "var(--brand)" : "var(--line)"}`, boxShadow: open ? "0 8px 24px -16px rgba(var(--brand-rgb),0.35)" : "none" }}>
                   <button
                     onClick={() => setFaqOpenQ(open ? null : f.q)}
                     className="w-full flex items-center justify-between gap-4 text-left px-5 sm:px-6 py-4 sm:py-5"
                     aria-expanded={open}
                   >
-                    <span className="text-sm sm:text-base font-semibold text-white">{f.q}</span>
-                    <span className="shrink-0 transition-transform" style={{ color: "var(--navy-ink)", transform: open ? "rotate(180deg)" : "none" }}>
+                    <span className="text-sm sm:text-base font-semibold" style={{ color: "var(--ink)" }}>{f.q}</span>
+                    <span className="shrink-0 transition-transform" style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none" }}>
                       <Icon name="chevronDown" className="w-4 h-4" />
                     </span>
                   </button>
-                  {open && <p className="px-5 sm:px-6 pb-5 text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{f.a}</p>}
+                  {open && <p className="px-5 sm:px-6 pb-5 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{f.a}</p>}
                 </div>
               );
             })}
           </div>
 
           {/* contact card, mobile only, rendered last */}
-          <div className="lg:hidden rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-            <p className="font-display font-semibold text-white">Still have questions?</p>
-            <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
+          <div className="lg:hidden rounded-2xl p-5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+            <p className="font-display font-semibold" style={{ color: "var(--ink)" }}>Still have questions?</p>
+            <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
             <a href="mailto:hello@aster.co" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
-              Email us <Icon name="arrowUpRight" className="w-4 h-4" />
+              Support team <Icon name="arrowUpRight" className="w-4 h-4" />
             </a>
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="relative overflow-hidden grain px-4 sm:px-6 py-16 sm:py-28 text-center" style={{ background: "radial-gradient(120% 140% at 50% -25%, #1B1E4C 0%, #0D0F26 48%, #070813 100%)" }}>
-        {/* On-brand aurora: deep indigo dome + drifting brand glows + a focus glow behind the CTA */}
-        <div className="login-orb-a pointer-events-none absolute -top-32 -left-20 w-[560px] h-[560px] rounded-full blur-3xl opacity-45" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 68%)" }} />
-        <div className="login-orb-b pointer-events-none absolute -bottom-32 -right-16 w-[600px] h-[600px] rounded-full blur-3xl opacity-45" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 68%)" }} />
-        <div className="login-glow pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[46%] w-[720px] max-w-[92vw] h-[440px] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(151,59,247,0.55) 0%, rgba(90,120,248,0.28) 42%, transparent 72%)" }} />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.5]" style={{ background: "radial-gradient(60% 55% at 82% 8%, rgba(214,91,255,0.18) 0%, transparent 60%)" }} />
-        <div className="pointer-events-none absolute inset-x-0 top-0 hairline-dark" />
-        <Reveal className="relative max-w-2xl mx-auto">
-          <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Ready to make your next hire?</h2>
-          <p className="mt-3 max-w-md mx-auto" style={{ color: "var(--navy-ink)" }}>Post your first role in minutes. No credit card required.</p>
-          {/* proof band, time saved, recruiter productivity, speed to hire */}
-          <div className="mt-9 flex justify-center">
-            <div className="flex divide-x divide-white/10">
+      {/* Final CTA, a bold cobalt panel that anchors the page before the footer.
+          Wrapped in the same max-w-6xl + px as the nav so the panel edges line up
+          with the nav logo (left) and Get started button (right). */}
+      <section className="relative py-16 sm:py-24">
+       <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <Reveal className="relative rounded-3xl overflow-hidden px-6 sm:px-12 py-12 sm:py-16" style={{ background: "var(--brand)", boxShadow: "0 40px 80px -40px rgba(var(--brand-rgb),0.55)" }}>
+          {/* faint concentric rings for depth, drawn with solid borders (no gradients) */}
+          <div className="pointer-events-none absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.12)" }} />
+          <div className="pointer-events-none absolute -right-10 -top-10 w-[300px] h-[300px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
+          <div className="pointer-events-none absolute -left-20 -bottom-28 w-[380px] h-[380px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
+
+          <div className="relative text-center">
+            <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase px-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.12)", color: "#fff", letterSpacing: "0.08em" }}>
+              <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#4ADE80" }} /> Start hiring smarter
+            </span>
+            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 4vw, 2.75rem)", letterSpacing: "-0.02em", textWrap: "balance" }}>Ready to make your next hire?</h2>
+            <p className="mt-3 max-w-md mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Post your first role in minutes. No credit card required.</p>
+
+            {/* proof stats as bordered glass chips */}
+            <div className="mt-9 grid grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
               {[
                 { to: 3, suffix: "×", label: "Faster shortlists" },
                 { to: 12, suffix: "h", label: "Saved weekly per recruiter" },
                 { to: 2, suffix: " wks", label: "Sooner to hire" },
               ].map((s) => (
-                <div key={s.label} className="px-3 sm:px-8 text-center min-w-0">
+                <div key={s.label} className="rounded-2xl px-2 sm:px-4 py-4" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.16)" }}>
                   <p className="font-display font-bold text-white tnum leading-none whitespace-nowrap" style={{ fontSize: "clamp(1.35rem, 5vw, 2.1rem)", letterSpacing: "-0.02em" }}>
                     <CountUp to={s.to} />{s.suffix}
                   </p>
-                  <p className="text-[11px] sm:text-xs mt-1.5 max-w-[6.5rem] sm:max-w-[7.5rem] mx-auto leading-snug" style={{ color: "var(--navy-ink)" }}>{s.label}</p>
+                  <p className="text-[11px] sm:text-xs mt-2 leading-snug" style={{ color: "rgba(255,255,255,0.72)" }}>{s.label}</p>
                 </div>
               ))}
             </div>
+
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <button onClick={() => goTrial()} className="font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>
+                Create your workspace
+              </button>
+              <a href="#pricing" className="px-6 py-3.5 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>
+                See pricing
+              </a>
+            </div>
+
+            {/* social proof */}
+            <div className="mt-8 flex items-center justify-center gap-3">
+              <div className="flex -space-x-2.5">
+                {["A", "S", "D", "P"].map((n, i) => (
+                  <FaceAvatar key={i} seed={`cta-${i}`} name={n} size={30} className="border-2" style={{ borderColor: "var(--brand)" }} />
+                ))}
+              </div>
+              <span className="text-sm" style={{ color: "rgba(255,255,255,0.82)" }}>Trusted by 1,200+ hiring teams</span>
+            </div>
           </div>
-          <button onClick={() => goTrial()} className="mt-9 brand-gradient text-white font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-14px_rgba(151,59,247,0.95)]">
-            Create your workspace
-          </button>
         </Reveal>
+       </div>
       </section>
 
       {/* Shared marketing footer, identical on landing + product pages */}
@@ -3730,7 +3906,7 @@ function scrollToLandingSection(id) {
 // route change when those sections are already on the current page. `onCta`
 // lets the landing page keep its 14-day-trial signup for Get started.
 // `current` = active product slug (or null); `currentSol` = active solution slug.
-function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, current, currentSol, logoUrl, onLanding = false, onCta }) {
+function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, current, currentSol, logoUrl, onLanding = false, light = false, onCta }) {
   const [menuOpen, setMenuOpen] = useState(false);   // mobile
   const [prodOpen, setProdOpen] = useState(false);   // desktop Product mega-menu
   const [solOpen, setSolOpen] = useState(false);     // desktop Solutions mega-menu
@@ -3761,53 +3937,107 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
   const panelWrap = "hidden md:block absolute left-4 right-4 sm:left-6 sm:right-6 top-full pt-2.5 z-50";
   const panelCard = "rounded-2xl overflow-hidden flex";
   const panelStyle = { background: "#0C0E1C", border: "1px solid var(--navy-line)", boxShadow: "0 30px 70px -30px rgba(0,0,0,0.9)" };
+  // Marketing nav (landing + product/solutions): seamless royal blue over the hero
+  // at the top with a white logo and white links; once scrolled it turns into a
+  // frosted white bar with a black logo and dark links/CTA. Other (still dark)
+  // pages keep the dark nav. navLight = the frosted-white scrolled state.
+  const blueNav = onLanding || light;
+  const navLight = blueNav && scrolled;
+  const navRest = blueNav ? (scrolled ? "var(--ink-2)" : "rgba(255,255,255,0.82)") : "var(--ink-2)";
+  const navActive = navLight ? "var(--ink)" : "#fff";
+  const navHover = blueNav ? (scrolled ? "hover:bg-black/[0.045]" : "hover:bg-white/[0.12]") : "hover:bg-white/[0.06]";
+  const headerStyle = blueNav
+    ? (scrolled
+        ? { transition: "box-shadow .3s ease, background .3s ease", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(14px) saturate(140%)", WebkitBackdropFilter: "blur(14px) saturate(140%)", boxShadow: "0 10px 30px -20px rgba(15,27,51,0.18)" }
+        : { transition: "box-shadow .3s ease, background .3s ease", background: onLanding ? "transparent" : "var(--brand-deep)", boxShadow: "none" })
+    : { transition: "box-shadow .3s ease", background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)", backdropFilter: "blur(16px) saturate(150%)", WebkitBackdropFilter: "blur(16px) saturate(150%)", boxShadow: scrolled ? "0 10px 30px -18px rgba(0,0,0,0.8)" : "none" };
+  // Dropdown + mobile menu theme, matched to the nav (light on the blue landing
+  // nav, dark navy on the still-dark marketing pages).
+  const menuPanelStyle = blueNav
+    ? { background: "#fff", border: "1px solid var(--line)", boxShadow: "0 30px 70px -30px rgba(15,27,51,0.22)" }
+    : panelStyle;
+  const mPromoBg = blueNav ? "var(--brand-soft)" : null;      // else per-menu gradient
+  const mPromoBorder = blueNav ? "var(--line)" : "var(--navy-line)";
+  const mPromoHead = blueNav ? "var(--ink)" : "#fff";
+  const mPromoSub = blueNav ? "var(--ink-2)" : "var(--ink-2)";
+  const mAccent = blueNav ? "var(--brand)" : "#C79BFF";       // promo icon/link accent
+  const mAccentBg = blueNav ? "var(--brand-soft)" : "rgba(151,59,247,0.2)";
+  const mAccentBorder = blueNav ? "1px solid #CBD8F5" : "1px solid rgba(178,116,255,0.28)";
+  const mItemHover = blueNav ? "hover:bg-[color:var(--brand-soft)]" : "hover:bg-white/[0.04]";
+  const mItemActive = blueNav ? "bg-[color:var(--brand-soft)]" : "bg-white/[0.05]";
+  const mLabel = blueNav ? "text-[color:var(--ink)]" : "text-white/90 group-hover:text-white";
+  const mDesc = blueNav ? "var(--ink-3)" : "var(--ink-2)";
+  const iconRest = blueNav ? "text-[color:var(--ink-3)] group-hover:text-[color:var(--brand)]" : "text-[color:var(--navy-ink)] group-hover:text-[#C79BFF]";
+  const iconActive = blueNav ? "text-[color:var(--brand)]" : "text-[#C79BFF]";
+  const arrowC = blueNav ? "text-[color:var(--brand)]" : "text-[#C79BFF]";
+  // Mobile menu overlay theme
+  const mobBg = blueNav ? "rgba(255,255,255,0.98)" : "rgba(6,7,18,0.92)";
+  const mobCard = blueNav ? { background: "#fff", border: "1px solid var(--line)" } : { background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" };
+  const mobCardSm = blueNav ? { background: "#fff", border: "1px solid var(--line)" } : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" };
+  const mobChip = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(151,59,247,0.18)", color: "#C79BFF" };
+  const mobChipSm = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(151,59,247,0.14)", color: "#C79BFF" };
+  const mobLabel = blueNav ? "text-[color:var(--ink)]" : "text-white";
+  const mobLabelSub = blueNav ? "text-[color:var(--ink-2)]" : "text-white/90";
+  const mobChev = blueNav ? "text-[color:var(--ink-3)]" : "text-white/40";
+  const mobChevSm = blueNav ? "text-[color:var(--ink-3)]" : "text-white/30";
   return (
     <>
-      <header className="sticky top-0 z-40" style={{ transition: "box-shadow .3s ease", background: "linear-gradient(180deg, #0A0B18 0%, #070814 100%)", backdropFilter: "blur(16px) saturate(150%)", WebkitBackdropFilter: "blur(16px) saturate(150%)", boxShadow: scrolled ? "0 10px 30px -18px rgba(0,0,0,0.8)" : "none" }}>
-        <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />
+      <header className="sticky top-0 z-40" style={headerStyle}>
+        {!blueNav && <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between relative" onMouseLeave={closeMenus}>
-          <button onClick={() => navigate("landing")} onMouseEnter={closeMenus} aria-label="Aster home"><BrandLogo onDark large logoUrl={logoUrl} /></button>
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            <button onMouseEnter={() => { setProdOpen(true); setSolOpen(false); setResOpen(false); }} onClick={() => goProduct("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: current != null || prodOpen ? "#fff" : "var(--navy-ink)" }}>
+          {/* logo, left */}
+          <button onClick={() => navigate("landing")} onMouseEnter={closeMenus} aria-label="Aster home"><BrandLogo onDark={!navLight} black={navLight} large xl={blueNav} logoUrl={logoUrl} /></button>
+
+          {/* primary nav, centered */}
+          <nav className="hidden md:flex items-center gap-0.5 sm:gap-1 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <button onMouseEnter={() => { setProdOpen(true); setSolOpen(false); setResOpen(false); }} onClick={() => goProduct("")} className={`inline-flex items-center gap-1 ${navHover} ${linkC}`} style={{ color: current != null || prodOpen ? navActive : navRest }}>
               Product <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${prodOpen ? "rotate-180" : ""}`} />
             </button>
-            <button onMouseEnter={() => { setSolOpen(true); setProdOpen(false); setResOpen(false); }} onClick={() => goSolution("")} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: currentSol != null || solOpen ? "#fff" : "var(--navy-ink)" }}>
+            <button onMouseEnter={() => { setSolOpen(true); setProdOpen(false); setResOpen(false); }} onClick={() => goSolution("")} className={`inline-flex items-center gap-1 ${navHover} ${linkC}`} style={{ color: currentSol != null || solOpen ? navActive : navRest }}>
               Solutions <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${solOpen ? "rotate-180" : ""}`} />
             </button>
-            <button onMouseEnter={() => { setResOpen(true); setProdOpen(false); setSolOpen(false); }} onClick={() => goBlog({})} className={`hidden md:inline-flex items-center gap-1 hover:bg-white/[0.06] ${linkC}`} style={{ color: resOpen ? "#fff" : "var(--navy-ink)" }}>
+            <button onMouseEnter={() => { setResOpen(true); setProdOpen(false); setSolOpen(false); }} onClick={() => goBlog({})} className={`inline-flex items-center gap-1 ${navHover} ${linkC}`} style={{ color: resOpen ? navActive : navRest }}>
               Resources <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${resOpen ? "rotate-180" : ""}`} />
             </button>
-            <button onMouseEnter={closeMenus} onClick={() => goSection("pricing")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>Pricing</button>
-            <button onMouseEnter={closeMenus} onClick={() => goSection("faq")} className={`hidden md:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "var(--navy-ink)" }}>FAQ</button>
-            <button onMouseEnter={closeMenus} onClick={() => navigate("login")} className={`hidden sm:block hover:bg-white/[0.06] ${linkC}`} style={{ color: "#fff" }}>Sign in</button>
-            <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(151,59,247,0.9)]">Get started</button>
+            <button onMouseEnter={closeMenus} onClick={() => goSection("pricing")} className={`block ${navHover} ${linkC}`} style={{ color: navRest }}>Pricing</button>
+            <button onMouseEnter={closeMenus} onClick={() => goSection("faq")} className={`block ${navHover} ${linkC}`} style={{ color: navRest }}>FAQ</button>
+          </nav>
+
+          {/* actions, right */}
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <button onMouseEnter={closeMenus} onClick={() => navigate("login")} className={`hidden sm:block ${navHover} ${linkC}`} style={{ color: navActive }}>Sign in</button>
+            {blueNav
+              ? (scrolled
+                  ? <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0" style={{ background: "#14181F", color: "#fff", boxShadow: "0 10px 28px -16px rgba(20,24,31,0.6)" }}>Get started</button>
+                  : <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-14px_rgba(15,27,51,0.5)]" style={{ background: "#fff", color: "var(--brand)" }}>Get started</button>)
+              : <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>}
             <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
-              <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" /><span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
+              <span className="burger-bar block h-[2px] w-[18px] rounded-full" style={{ background: navLight ? "var(--ink)" : "#fff" }} /><span className="burger-bar block h-[2px] w-[12px] rounded-full" style={{ background: navLight ? "var(--ink)" : "#fff" }} />
             </button>
           </div>
 
           {/* Product mega-menu, full nav width */}
           {prodOpen && (
             <div className={panelWrap}>
-              <div className={panelCard} style={panelStyle}>
-                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.16), rgba(90,120,248,0.10))", borderRight: "1px solid var(--navy-line)" }}>
-                  <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+              <div className={panelCard} style={menuPanelStyle}>
+                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: mPromoBg || "linear-gradient(160deg, rgba(151,59,247,0.16), rgba(90,120,248,0.10))", borderRight: `1px solid ${mPromoBorder}` }}>
+                  {!blueNav && <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />}
                   <div className="relative">
-                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="dashboard" className="w-5 h-5" /></span>
-                    <p className="text-white font-display font-semibold text-base" style={{ letterSpacing: "-0.01em", lineHeight: 1.25 }}>Everything you need to hire, in one platform.</p>
-                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Sourcing to offers, end to end.</p>
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: mAccentBg, color: mAccent, border: mAccentBorder }}><Icon name="dashboard" className="w-5 h-5" /></span>
+                    <p className="font-display font-semibold text-base" style={{ color: mPromoHead, letterSpacing: "-0.01em", lineHeight: 1.25 }}>Everything you need to hire, in one platform.</p>
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: mPromoSub }}>Sourcing to offers, end to end.</p>
                   </div>
-                  <button onClick={() => { closeMenus(); goProduct(""); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>Platform overview <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                  <button onClick={() => { closeMenus(); goProduct(""); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: mAccent }}>Platform overview <Icon name="arrowUpRight" className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 grid grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-1 min-w-0">
                   {PRODUCT_NAV.filter((p) => p.slug !== "").map((p) => (
-                    <button key={p.slug} onClick={() => { closeMenus(); goProduct(p.slug); }} className={`group text-left flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.04] ${current === p.slug ? "bg-white/[0.05]" : ""}`}>
-                      <span className={`shrink-0 mt-px transition-colors ${current === p.slug ? "text-[#C79BFF]" : "text-[color:var(--navy-ink)] group-hover:text-[#C79BFF]"}`}><Icon name={p.icon} className="w-[18px] h-[18px]" /></span>
+                    <button key={p.slug} onClick={() => { closeMenus(); goProduct(p.slug); }} className={`group text-left flex items-start gap-3 rounded-xl px-3 py-3 transition-colors ${mItemHover} ${current === p.slug ? mItemActive : ""}`}>
+                      <span className={`shrink-0 mt-px transition-colors ${current === p.slug ? iconActive : iconRest}`}><Icon name={p.icon} className="w-[18px] h-[18px]" /></span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-white/90 group-hover:text-white truncate">{p.label}</span>
-                        <span className="block text-xs mt-0.5 leading-snug line-clamp-2 min-h-[2.5em]" style={{ color: "var(--navy-ink)" }}>{p.desc}</span>
+                        <span className={`block text-sm font-medium truncate ${mLabel}`}>{p.label}</span>
+                        <span className="block text-xs mt-0.5 leading-snug line-clamp-2 min-h-[2.5em]" style={{ color: mDesc }}>{p.desc}</span>
                       </span>
-                      <Icon name="arrowUpRight" className="w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 text-[#C79BFF]" />
+                      <Icon name="arrowUpRight" className={`w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 ${arrowC}`} />
                     </button>
                   ))}
                 </div>
@@ -3818,28 +4048,28 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
           {/* Solutions mega-menu, identical footprint to Product */}
           {solOpen && (
             <div className={panelWrap}>
-              <div className={panelCard} style={panelStyle}>
-                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(90,120,248,0.16), rgba(151,59,247,0.10))", borderRight: "1px solid var(--navy-line)" }}>
-                  <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 70%)" }} />
+              <div className={panelCard} style={menuPanelStyle}>
+                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: mPromoBg || "linear-gradient(160deg, rgba(90,120,248,0.16), rgba(151,59,247,0.10))", borderRight: `1px solid ${mPromoBorder}` }}>
+                  {!blueNav && <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #5A78F8 0%, transparent 70%)" }} />}
                   <div className="relative">
-                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="target" className="w-5 h-5" /></span>
-                    <p className="text-white font-display font-semibold text-base" style={{ letterSpacing: "-0.01em", lineHeight: 1.25 }}>The same platform, framed for your team.</p>
-                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Pick the story that fits how you hire.</p>
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: mAccentBg, color: mAccent, border: mAccentBorder }}><Icon name="target" className="w-5 h-5" /></span>
+                    <p className="font-display font-semibold text-base" style={{ color: mPromoHead, letterSpacing: "-0.01em", lineHeight: 1.25 }}>The same platform, framed for your team.</p>
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: mPromoSub }}>Pick the story that fits how you hire.</p>
                   </div>
-                  <button onClick={() => { closeMenus(); goSolution(""); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>Browse all solutions <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                  <button onClick={() => { closeMenus(); goSolution(""); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: mAccent }}>Browse all solutions <Icon name="arrowUpRight" className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 grid grid-cols-3 gap-x-4 min-w-0">
                   {SOLUTIONS_NAV.map((g) => (
                     <div key={g.group} className="min-w-0">
-                      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase px-3 pb-2" style={{ color: g.tint, letterSpacing: "0.08em" }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase px-3 pb-2" style={{ color: blueNav ? "var(--brand)" : g.tint, letterSpacing: "0.08em" }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
                       {g.items.map((s) => (
-                        <button key={s.slug} onClick={() => { closeMenus(); goSolution(s.slug); }} className={`group w-full text-left flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/[0.04] ${currentSol === s.slug ? "bg-white/[0.05]" : ""}`}>
-                          <span className={`shrink-0 mt-px transition-colors ${currentSol === s.slug ? "text-[#C79BFF]" : "text-[color:var(--navy-ink)] group-hover:text-[#C79BFF]"}`}><Icon name={s.icon} className="w-[18px] h-[18px]" /></span>
+                        <button key={s.slug} onClick={() => { closeMenus(); goSolution(s.slug); }} className={`group w-full text-left flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${mItemHover} ${currentSol === s.slug ? mItemActive : ""}`}>
+                          <span className={`shrink-0 mt-px transition-colors ${currentSol === s.slug ? iconActive : iconRest}`}><Icon name={s.icon} className="w-[18px] h-[18px]" /></span>
                           <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-white/90 group-hover:text-white truncate">{s.label}</span>
-                            <span className="block text-xs mt-0.5 leading-snug line-clamp-2 min-h-[2.5em]" style={{ color: "var(--navy-ink)" }}>{s.desc}</span>
+                            <span className={`block text-sm font-medium truncate ${mLabel}`}>{s.label}</span>
+                            <span className="block text-xs mt-0.5 leading-snug line-clamp-2 min-h-[2.5em]" style={{ color: mDesc }}>{s.desc}</span>
                           </span>
-                          <Icon name="arrowUpRight" className="w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 text-[#C79BFF]" />
+                          <Icon name="arrowUpRight" className={`w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 ${arrowC}`} />
                         </button>
                       ))}
                     </div>
@@ -3852,25 +4082,25 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
           {/* Resources menu, compact two-item dropdown */}
           {resOpen && (
             <div className={panelWrap}>
-              <div className={panelCard} style={panelStyle}>
-                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(217,139,245,0.16), rgba(90,120,248,0.10))", borderRight: "1px solid var(--navy-line)" }}>
-                  <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #D98BF5 0%, transparent 70%)" }} />
+              <div className={panelCard} style={menuPanelStyle}>
+                <div className="hidden lg:flex w-[240px] shrink-0 p-6 flex-col justify-between relative overflow-hidden" style={{ background: mPromoBg || "linear-gradient(160deg, rgba(217,139,245,0.16), rgba(90,120,248,0.10))", borderRight: `1px solid ${mPromoBorder}` }}>
+                  {!blueNav && <div className="pointer-events-none absolute -top-10 -left-8 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, #D98BF5 0%, transparent 70%)" }} />}
                   <div className="relative">
-                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(151,59,247,0.2)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.28)" }}><Icon name="doc" className="w-5 h-5" /></span>
-                    <p className="text-white font-display font-semibold text-base" style={{ letterSpacing: "-0.01em", lineHeight: 1.25 }}>Learn to hire better.</p>
-                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--navy-ink)" }}>Guides, definitions and playbooks from the Aster team.</p>
+                    <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: mAccentBg, color: mAccent, border: mAccentBorder }}><Icon name="doc" className="w-5 h-5" /></span>
+                    <p className="font-display font-semibold text-base" style={{ color: mPromoHead, letterSpacing: "-0.01em", lineHeight: 1.25 }}>Learn to hire better.</p>
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: mPromoSub }}>Guides, definitions and playbooks from the Aster team.</p>
                   </div>
-                  <button onClick={() => { closeMenus(); goBlog({}); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: "#C79BFF" }}>Visit the blog <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                  <button onClick={() => { closeMenus(); goBlog({}); }} className="relative mt-6 inline-flex items-center gap-1.5 text-sm font-semibold self-start hover:gap-2 transition-all" style={{ color: mAccent }}>Visit the blog <Icon name="arrowUpRight" className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 grid sm:grid-cols-2 gap-x-3 gap-y-1 min-w-0">
                   {RESOURCES.map((r) => (
-                    <button key={r.label} onClick={() => { closeMenus(); r.go(); }} className="group text-left flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.04]">
-                      <span className="shrink-0 mt-px text-[color:var(--navy-ink)] group-hover:text-[#C79BFF] transition-colors"><Icon name={r.icon} className="w-[18px] h-[18px]" /></span>
+                    <button key={r.label} onClick={() => { closeMenus(); r.go(); }} className={`group text-left flex items-start gap-3 rounded-xl px-3 py-3 transition-colors ${mItemHover}`}>
+                      <span className={`shrink-0 mt-px transition-colors ${iconRest}`}><Icon name={r.icon} className="w-[18px] h-[18px]" /></span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-white/90 group-hover:text-white truncate">{r.label}</span>
-                        <span className="block text-xs mt-0.5 leading-snug" style={{ color: "var(--navy-ink)" }}>{r.desc}</span>
+                        <span className={`block text-sm font-medium truncate ${mLabel}`}>{r.label}</span>
+                        <span className="block text-xs mt-0.5 leading-snug" style={{ color: mDesc }}>{r.desc}</span>
                       </span>
-                      <Icon name="arrowUpRight" className="w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 text-[#C79BFF]" />
+                      <Icon name="arrowUpRight" className={`w-4 h-4 shrink-0 mt-px opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 ${arrowC}`} />
                     </button>
                   ))}
                 </div>
@@ -3880,34 +4110,34 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
         </div>
       </header>
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-[70] flex flex-col overflow-y-auto" style={{ background: "rgba(6,7,18,0.92)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)" }}>
+        <div className="md:hidden fixed inset-0 z-[70] flex flex-col overflow-y-auto" style={{ background: mobBg, backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)" }}>
           <div className="flex items-center justify-between h-16 px-4 shrink-0">
-            <BrandLogo onDark large logoUrl={logoUrl} />
-            <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="w-11 h-11 flex items-center justify-center rounded-full" style={{ color: "#fff", border: "1px solid var(--navy-line)", background: "rgba(255,255,255,0.06)" }}><Icon name="close" className="w-5 h-5" /></button>
+            <BrandLogo large black={blueNav} onDark={!blueNav} logoUrl={logoUrl} />
+            <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="w-11 h-11 flex items-center justify-center rounded-full" style={blueNav ? { color: "var(--ink)", border: "1px solid var(--line)", background: "#fff" } : { color: "#fff", border: "1px solid var(--navy-line)", background: "rgba(255,255,255,0.06)" }}><Icon name="close" className="w-5 h-5" /></button>
           </div>
           <nav className="flex-1 px-5 pt-3 pb-8 flex flex-col gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--ink-3)" }}>Product</p>
             {PRODUCT_NAV.map((p) => (
-              <button key={p.slug} onClick={() => { setMenuOpen(false); goProduct(p.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.18)", color: "#C79BFF" }}><Icon name={p.icon} className="w-5 h-5" /></span>
-                <span className="flex-1 text-white font-medium">{p.label}</span>
-                <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+              <button key={p.slug} onClick={() => { setMenuOpen(false); goProduct(p.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={mobCard}>
+                <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={mobChip}><Icon name={p.icon} className="w-5 h-5" /></span>
+                <span className={`flex-1 font-medium ${mobLabel}`}>{p.label}</span>
+                <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
               </button>
             ))}
-            <button onClick={() => { setMenuOpen(false); goSolution(""); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3 mt-4" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.18)", color: "#C79BFF" }}><Icon name="target" className="w-5 h-5" /></span>
-              <span className="flex-1 text-white font-medium">Solutions</span>
-              <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+            <button onClick={() => { setMenuOpen(false); goSolution(""); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3 mt-4" style={mobCard}>
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={mobChip}><Icon name="target" className="w-5 h-5" /></span>
+              <span className={`flex-1 font-medium ${mobLabel}`}>Solutions</span>
+              <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
             </button>
             {SOLUTIONS_NAV.map((g) => (
               <div key={g.group}>
-                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-1 mt-3 mb-1" style={{ color: g.tint }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-1 mt-3 mb-1" style={{ color: blueNav ? "var(--brand)" : g.tint }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
                 <div className="flex flex-col gap-2">
                   {g.items.map((s) => (
-                    <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                      <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.14)", color: "#C79BFF" }}><Icon name={s.icon} className="w-4 h-4" /></span>
-                      <span className="flex-1 text-white/90 text-[15px]">{s.label}</span>
-                      <Icon name="chevronRight" className="w-4 h-4 text-white/30" />
+                    <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-2.5" style={mobCardSm}>
+                      <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={mobChipSm}><Icon name={s.icon} className="w-4 h-4" /></span>
+                      <span className={`flex-1 text-[15px] ${mobLabelSub}`}>{s.label}</span>
+                      <Icon name="chevronRight" className={`w-4 h-4 ${mobChevSm}`} />
                     </button>
                   ))}
                 </div>
@@ -3915,20 +4145,20 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             ))}
             <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Explore</p>
             {[["Pricing", "pricing"], ["FAQ", "faq"]].map(([label, id]) => (
-              <button key={id} onClick={() => goSection(id)} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                <span className="flex-1 text-white font-medium">{label}</span>
-                <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+              <button key={id} onClick={() => goSection(id)} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={mobCard}>
+                <span className={`flex-1 font-medium ${mobLabel}`}>{label}</span>
+                <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
               </button>
             ))}
             <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Resources</p>
             {[["Blog", () => goBlog({})], ["Recruiting glossary", () => goGlossary("")], ["Compare Aster", () => goCompare("")]].map(([label, go]) => (
-              <button key={label} onClick={() => { setMenuOpen(false); go(); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                <span className="flex-1 text-white font-medium">{label}</span>
-                <Icon name="chevronRight" className="w-5 h-5 text-white/40" />
+              <button key={label} onClick={() => { setMenuOpen(false); go(); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={mobCard}>
+                <span className={`flex-1 font-medium ${mobLabel}`}>{label}</span>
+                <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
               </button>
             ))}
             <div className="mt-4 space-y-2.5">
-              <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
+              <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border" style={blueNav ? { borderColor: "var(--line-strong)", color: "var(--ink)", background: "#fff" } : { borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
               <button onClick={() => { setMenuOpen(false); cta(); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white">Get started</button>
             </div>
           </nav>
@@ -3942,29 +4172,42 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // every product page: brand · the full Product module directory · the Solutions
 // directory (role / stage / industry) · Explore + Get started. `onLanding`
 // skips the route change for Pricing/FAQ when those sections are on this page.
-function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, onLanding = false }) {
+// Legal documents in footer + cross-link order. One source of truth.
+const LEGAL_NAV = [
+  { slug: "privacy", label: "Privacy policy" },
+  { slug: "terms", label: "Terms of service" },
+  { slug: "dpa", label: "Data processing agreement" },
+  { slug: "cookies", label: "Cookie policy" },
+  { slug: "aup", label: "Acceptable use policy" },
+  { slug: "subprocessors", label: "Subprocessors" },
+];
+function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, goTrust, goLegal, goGettingStarted, logoUrl, onLanding = false }) {
   const goSection = (id) => {
     if (!onLanding) navigate("landing");
     scrollToLandingSection(id);
   };
+  // These links work on every page: use the real handler when a route-aware
+  // screen provides it, else fall back to a plain navigation (slug is always
+  // reset by the target route, so no manual reset is needed here).
+  const goTrustSafe = goTrust || (() => navigate("trust", "/trust"));
+  const goLegalSafe = goLegal || ((slug) => navigate("legal", `/legal/${slug || "privacy"}`));
+  const goGettingStartedSafe = goGettingStarted || (() => navigate("gettingStarted", "/getting-started"));
   return (
-    <footer className="relative overflow-hidden" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent 8%, rgba(151,59,247,0.55) 38%, rgba(90,120,248,0.55) 62%, transparent 92%)" }} />
-      <div className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] max-w-[90vw] h-[240px] rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+    <footer className="relative overflow-hidden" style={{ background: "#F5F7FA", borderTop: "1px solid var(--line)" }}>
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
         {/* top tier, lean: brand + product + explore + get started */}
         <div className="py-12 sm:py-16 grid gap-10 sm:gap-x-8 sm:gap-y-12 md:grid-cols-12">
           {/* brand + tagline */}
           <div className="md:col-span-4">
-            <BrandLogo onDark logoUrl={logoUrl} />
-            <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--navy-ink)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
-            <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
+            <BrandLogo logoUrl={logoUrl} black large />
+            <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--ink-2)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
+            <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
               <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> No credit card required
             </div>
           </div>
           {/* full product directory (two columns) */}
           <div className="md:col-span-4">
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.08em", borderBottom: "1px solid #C79BFF22" }}><Icon name="dashboard" className="w-3.5 h-3.5" /> Product</p>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.08em", borderBottom: "1px solid var(--line)" }}><Icon name="dashboard" className="w-3.5 h-3.5" /> Product</p>
             <ul className="grid grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
               {PRODUCT_NAV.map((p) => (
                 <li key={p.slug}><button onClick={() => goProduct(p.slug)} className="footer-link inline-block py-0.5 text-left">{p.label}</button></li>
@@ -3973,7 +4216,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
           </div>
           {/* explore */}
           <div className="md:col-span-2">
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "#A98CFF", letterSpacing: "0.08em", borderBottom: "1px solid #A98CFF22" }}><Icon name="search" className="w-3.5 h-3.5" /> Explore</p>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.08em", borderBottom: "1px solid var(--line)" }}><Icon name="search" className="w-3.5 h-3.5" /> Explore</p>
             <ul className="space-y-2.5 text-sm">
               <li><button onClick={() => goSection("pricing")} className="footer-link inline-block py-0.5 text-left">Pricing</button></li>
               <li><button onClick={() => goSection("faq")} className="footer-link inline-block py-0.5 text-left">FAQ</button></li>
@@ -3984,7 +4227,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
           </div>
           {/* get started */}
           <div className="md:col-span-2">
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "#7FA0FF", letterSpacing: "0.08em", borderBottom: "1px solid #7FA0FF22" }}><Icon name="hire" className="w-3.5 h-3.5" /> Get started</p>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.08em", borderBottom: "1px solid var(--line)" }}><Icon name="hire" className="w-3.5 h-3.5" /> Get started</p>
             <ul className="space-y-2.5 text-sm">
               <li><button onClick={() => navigate("login")} className="footer-link inline-block py-0.5 text-left">Sign in</button></li>
               <li><button onClick={() => navigate("signup")} className="footer-link inline-block py-0.5 text-left">Create workspace</button></li>
@@ -3993,18 +4236,18 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
         </div>
 
         {/* full-width Solutions band, every segment reachable, spread out to breathe */}
-        <div className="py-10 sm:py-12" style={{ borderTop: "1px solid var(--navy-line)" }}>
+        <div className="py-10 sm:py-12" style={{ borderTop: "1px solid var(--line)" }}>
           <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
             <div>
               <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Solutions</p>
-              <p className="text-sm mt-1.5" style={{ color: "var(--navy-ink)" }}>The same platform, framed by role, company stage and industry.</p>
+              <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>The same platform, framed by role, company stage and industry.</p>
             </div>
-            <button onClick={() => goSolution("")} className="footer-link inline-flex items-center gap-1 text-sm" style={{ color: "#C79BFF" }}>All solutions <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>
+            <button onClick={() => goSolution("")} className="footer-link inline-flex items-center gap-1 text-sm" style={{ color: "var(--brand)" }}>All solutions <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>
           </div>
           <div className="grid gap-x-8 gap-y-8 sm:grid-cols-3">
             {SOLUTIONS_NAV.map((g) => (
               <div key={g.group}>
-                <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: g.tint, letterSpacing: "0.08em", borderBottom: `1px solid ${g.tint}22` }}>
+                <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.08em", borderBottom: "1px solid var(--line)" }}>
                   <Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}
                 </p>
                 <ul className="space-y-2 text-sm">
@@ -4016,7 +4259,26 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
             ))}
           </div>
         </div>
-        <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--navy-line)" }}>
+        {/* Support + Legal, as columns matching the tiers above */}
+        <div className="py-10 sm:py-12 grid gap-10 sm:gap-x-8 sm:gap-y-10 md:grid-cols-12" style={{ borderTop: "1px solid var(--line)" }}>
+          <div className="md:col-span-3">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.08em", borderBottom: "1px solid var(--line)" }}><Icon name="chat" className="w-3.5 h-3.5" /> Support</p>
+            <ul className="space-y-2.5 text-sm">
+              <li><a href="https://help.hireaster.com" target="_blank" rel="noopener noreferrer" className="footer-link inline-flex items-center gap-1 py-0.5">Support ticket <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></a></li>
+              <li><button onClick={() => goGettingStartedSafe()} className="footer-link inline-block py-0.5 text-left">Getting started</button></li>
+              <li><button onClick={() => goTrustSafe("")} className="footer-link inline-block py-0.5 text-left">Trust &amp; security</button></li>
+            </ul>
+          </div>
+          <div className="md:col-span-9">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase mb-3.5 pb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.08em", borderBottom: "1px solid var(--line)" }}><Icon name="doc" className="w-3.5 h-3.5" /> Legal</p>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-2.5 text-sm">
+              {LEGAL_NAV.map((l) => (
+                <li key={l.slug}><button onClick={() => goLegalSafe(l.slug)} className="footer-link inline-block py-0.5 text-left">{l.label}</button></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--line)" }}>
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Aster · All rights reserved</p>
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>Hire the right person, without reading every CV.</p>
         </div>
@@ -4028,32 +4290,817 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
 // Shared hero for every marketing sub-page (product modules + solutions), so
 // the two sections render identically on-brand. The secondary CTA is caller-
 // supplied ("All products" vs "All solutions").
-function MarketingHero({ eyebrow, icon, title, accent, subtitle, chips, navigate, secondaryLabel, onSecondary }) {
+// ── Per-module hero animations ─────────────────────────────────────────────
+// Each product page shows a compact, animated preview that mirrors what that
+// module does. Light-themed, self-contained, and reduced-motion aware.
+
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Aster Intelligence: a resume being parsed into structured fields (the signature).
+function HeroParsePreview() {
+  const [shown, setShown] = useState(prefersReducedMotion);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const t = setTimeout(() => setShown(true), 220);
+    return () => clearTimeout(t);
+  }, []);
   return (
-    <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
-        <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+    <div className="w-full max-w-sm rounded-2xl p-5 sm:p-6" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18)" }}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs" style={{ color: "var(--ink-3)" }}>Parsing resume</p>
+        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI parsing
+        </span>
+      </div>
+      <div className="relative overflow-hidden rounded-xl p-3.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
+          <p className="text-xs font-medium truncate" style={{ color: "var(--ink)" }}>amira_hassan_cv.pdf</p>
+          <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: "#EDEFF3", color: "var(--ink-3)" }}>PDF</span>
+        </div>
+        <div className="space-y-2">
+          {["82%", "60%", "72%", "45%", "68%", "38%"].map((w, i) => (
+            <div key={i} className="h-2 rounded-full" style={{ width: w, background: "#E4E8F0" }} />
+          ))}
+        </div>
+        <div className="scan-line pointer-events-none absolute inset-x-0" style={{ height: 26, background: "linear-gradient(180deg, transparent, rgba(var(--brand-rgb),0.12), transparent)" }} />
+      </div>
+      <div className="mt-4">
+        <p className="text-[10px] font-semibold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Extracted</p>
+        <div className="space-y-2">
+          {[{ label: "Name", value: "Amira Hassan" }, { label: "Experience", value: "6 yrs · Senior" }].map((f, i) => (
+            <div key={f.label} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: "#F7F9FC", border: "1px solid var(--line)", opacity: shown ? 1 : 0, transform: shown ? "translateY(0)" : "translateY(6px)", transition: `opacity .5s ease ${180 + i * 160}ms, transform .5s ease ${180 + i * 160}ms` }}>
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{f.label}</span>
+              <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{f.value}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 flex-wrap rounded-lg px-3 py-2.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)", opacity: shown ? 1 : 0, transform: shown ? "translateY(0)" : "translateY(6px)", transition: "opacity .5s ease 500ms, transform .5s ease 500ms" }}>
+            <span className="text-xs mr-1" style={{ color: "var(--ink-3)" }}>Skills</span>
+            {["React", "TypeScript"].map((s) => (
+              <span key={s} className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>
+            ))}
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "#EDEFF3", color: "var(--ink-3)" }}>+4</span>
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] mt-4" style={{ color: "var(--ink-3)" }}>Skills, experience, and summary. Structured in 2.4 seconds.</p>
+    </div>
+  );
+}
+
+// Offer Management: an offer letter that moves Draft → Sent → Accepted.
+function OfferPreview() {
+  const [stage, setStage] = useState(prefersReducedMotion() ? 2 : 0);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const t1 = setTimeout(() => setStage(1), 1000);
+    const t2 = setTimeout(() => setStage(2), 2200);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  const status = [{ label: "Draft", bg: "#EDEFF3", color: "var(--ink-3)" }, { label: "Sent", bg: "var(--brand-soft)", color: "var(--brand)" }, { label: "Accepted", bg: "#DCFCE7", color: "#16A34A" }][stage];
+  const accepted = stage >= 2;
+  return (
+    <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18)" }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="offer" className="w-4 h-4" /></span>
+          <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Offer letter</p>
+        </div>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.bg, color: status.color, transition: "background .4s, color .4s" }}>{status.label}</span>
+      </div>
+      <div className="rounded-xl p-3.5 space-y-2.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
+        {[["Candidate", "Amira Hassan"], ["Role", "Senior Frontend Engineer"], ["Salary", "$140,000 / yr"], ["Start date", "Aug 1, 2026"]].map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between gap-3">
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>{k}</span>
+            <span className="text-xs font-medium truncate" style={{ color: "var(--ink)" }}>{v}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: accepted ? "#DCFCE7" : "#F7F9FC", border: `1px solid ${accepted ? "#BBF7D0" : "var(--line)"}`, transition: "background .4s, border-color .4s" }}>
+        <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: accepted ? "#16A34A" : "var(--ink-3)", transition: "background .4s" }}><Icon name="check" className="w-3 h-3" /></span>
+        <span className="text-xs font-medium" style={{ color: accepted ? "#16A34A" : "var(--ink-2)" }}>{accepted ? "Signed & accepted" : "Awaiting signature"}</span>
+      </div>
+    </div>
+  );
+}
+
+// Analytics & Reporting: KPI tiles + a bar chart that grows into view.
+function AnalyticsPreview() {
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); return; }
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setGo(true); o.disconnect(); } }), { threshold: 0.4 });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [reduce]);
+  const bars = [40, 66, 52, 80, 61, 92, 74];
+  return (
+    <div ref={ref} className="w-full max-w-sm rounded-2xl p-5" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18)" }}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Hiring analytics</p>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>This quarter</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {[["Time to hire", "12d"], ["Offers", "18"], ["Accept rate", "86%"]].map(([l, v]) => (
+          <div key={l} className="rounded-lg p-2.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
+            <p className="font-display font-bold text-base leading-none" style={{ color: "var(--brand)" }}>{v}</p>
+            <p className="text-[9px] mt-1 leading-tight" style={{ color: "var(--ink-3)" }}>{l}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-end gap-1.5 h-24 rounded-lg p-2.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
+        {bars.map((h, i) => (
+          <div key={i} className="flex-1 rounded-t" style={{ height: go ? `${h}%` : "4%", background: i === 5 ? "var(--brand)" : "#C7D2FE", transition: `height .7s cubic-bezier(.22,1,.36,1) ${i * 70}ms` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Integrations: apps connecting one by one, toggles sliding on.
+function IntegrationsPreview() {
+  const items = [{ name: "Google Calendar", icon: "calendar" }, { name: "Microsoft 365", icon: "calendar" }, { name: "WhatsApp Business", icon: "chat" }, { name: "Slack", icon: "users" }];
+  const [on, setOn] = useState(prefersReducedMotion() ? items.length : 0);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const timers = items.map((_, i) => setTimeout(() => setOn((o) => Math.max(o, i + 1)), 700 + i * 500));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  return (
+    <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18)" }}>
+      <p className="text-sm font-semibold mb-4" style={{ color: "var(--ink)" }}>Connected apps</p>
+      <div className="space-y-2.5">
+        {items.map((it, i) => {
+          const active = i < on;
+          return (
+            <div key={it.name} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
+              <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: active ? "var(--brand-soft)" : "#EDEFF3", color: active ? "var(--brand)" : "var(--ink-3)", transition: "background .3s, color .3s" }}><Icon name={it.icon} className="w-4 h-4" /></span>
+              <span className="flex-1 text-xs font-medium" style={{ color: "var(--ink)" }}>{it.name}</span>
+              <span className="w-9 h-5 rounded-full relative shrink-0" style={{ background: active ? "#16A34A" : "#D5D8E0", transition: "background .3s" }}>
+                <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white" style={{ left: active ? "18px" : "2px", transition: "left .3s cubic-bezier(.34,1.56,.64,1)", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Applicant Tracking: a full-bleed shared pipeline board. Transparent fill so it
+// blends into the grey showcase panel; candidate cards stream in per column.
+function PipelineHeroAnim() {
+  const COLS = [
+    { name: "Applied", n: 24, cards: [["AH", "Amira Hassan", 91], ["SR", "Siti Rahman", 78], ["JL", "Jun Lee", 64]] },
+    { name: "Screening", n: 8, cards: [["DT", "Daniel Teoh", 72], ["MK", "Mei Kwan", 69]] },
+    { name: "Interview", n: 3, cards: [["PN", "Priya Nair", 88], ["RA", "Rizal Aziz", 75]] },
+    { name: "Offer", n: 1, accent: "#16A34A", cards: [["AH", "Amira Hassan", 91]] },
+  ];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); return; }
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setGo(true); o.disconnect(); } }), { threshold: 0.25 });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [reduce]);
+  let d = 0;
+  return (
+    <div ref={ref} className="w-full">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <span className="text-sm sm:text-base font-semibold" style={{ color: "var(--ink)" }}>Hiring pipeline</span>
+        <span className="inline-flex items-center gap-2">
+          <span className="flex -space-x-1.5">{["#0B2AE0", "#3550EE", "#5570F5"].map((c) => <span key={c} className="w-5 h-5 rounded-full" style={{ background: c, border: "2px solid #F7F9FC" }} />)}</span>
+          <span className="text-[11px] font-medium" style={{ color: "var(--ink-3)" }}>Shared board</span>
+        </span>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {COLS.map((col, ci) => (
+          <div key={col.name} className="rounded-2xl p-2.5 sm:p-3" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid var(--line)" }}>
+            <div className="flex items-center justify-between mb-2.5 px-1">
+              <span className="text-[10px] sm:text-[11px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}>{col.name}</span>
+              <span className="text-sm font-bold font-display tnum" style={{ color: col.accent || "var(--brand)" }}><CountUp to={col.n} delay={ci * 140} /></span>
+            </div>
+            <div className="space-y-2">
+              {col.cards.map((c, k) => {
+                const delay = 220 + d++ * 90;
+                return (
+                  <div key={k} className="flex items-center gap-2 rounded-xl bg-white px-2.5 py-2" style={{ border: "1px solid var(--line)", opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(10px)", transition: `opacity .5s ease ${delay}ms, transform .5s ease ${delay}ms` }}>
+                    <span className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: col.accent || "var(--brand)" }}>{c[0]}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold truncate" style={{ color: "var(--ink)" }}>{c[1]}</p>
+                      <div className="h-1 rounded-full mt-1" style={{ width: `${c[2]}%`, background: col.accent || "var(--brand)", opacity: 0.5, transition: "width 1s cubic-bezier(.22,1,.36,1)" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// The grey showcase panel: fills with a module animation, slides up into view on
+// scroll (ease-out ~0.6s), and rests tucked ~50% behind the following section.
+function HeroShowcase({ children }) {
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [inView, setInView] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setInView(true); return; }
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setInView(true); o.disconnect(); } }), { threshold: 0.15 });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [reduce]);
+  return (
+    <div ref={ref} className="relative z-0 max-w-5xl mx-auto px-4 sm:px-6" style={{ marginBottom: "clamp(-240px, -22vh, -150px)" }}>
+      <div
+        className="relative overflow-hidden rounded-3xl p-6 sm:p-10 flex items-center"
+        style={{
+          minHeight: "clamp(320px, 46vh, 480px)", background: "#F7F9FC", border: "1px solid var(--line)",
+          opacity: inView ? 1 : 0, transform: inView ? "translateY(0)" : "translateY(60px)",
+          transition: "opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1)",
+        }}
+      >
+        <div className="pointer-events-none absolute -right-20 -top-24 w-[360px] h-[360px] rounded-full" style={{ border: "1px solid rgba(var(--brand-deep-rgb),0.06)" }} />
+        <div className="pointer-events-none absolute -left-16 -bottom-24 w-[320px] h-[320px] rounded-full" style={{ border: "1px solid rgba(var(--brand-deep-rgb),0.05)" }} />
+        <div className="relative w-full">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// Sourcing & Talent CRM: bulk resume upload parsing in, growing a big talent
+// database. Full-bleed + transparent so it fills the grey showcase panel.
+function SourcingHeroAnim() {
+  const FILES = ["priya_nair.pdf", "daniel_teoh.pdf", "mei_kwan.pdf", "rizal_aziz.pdf"];
+  const TOTAL = 12480;
+  const AV = ["#0B2AE0", "#3550EE", "#5570F5", "#7C93F8", "#16A34A", "#0B2AE0", "#3550EE", "#5570F5"];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  const [done, setDone] = useState(reduce ? FILES.length : 0);
+  const [count, setCount] = useState(reduce ? TOTAL : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); setDone(FILES.length); setCount(TOTAL); return; }
+    let timers = [], raf, startTs = null;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const runCount = (ts) => { if (startTs == null) startTs = ts; const p = Math.min((ts - startTs) / 1300, 1); setCount(Math.round(ease(p) * TOTAL)); if (p < 1) raf = requestAnimationFrame(runCount); };
+    const o = new IntersectionObserver((es) => es.forEach((e) => {
+      if (e.isIntersecting) {
+        setGo(true);
+        FILES.forEach((_, i) => timers.push(setTimeout(() => setDone((d) => Math.max(d, i + 1)), 550 + i * 520)));
+        timers.push(setTimeout(() => { raf = requestAnimationFrame(runCount); }, 350));
+        o.disconnect();
+      }
+    }), { threshold: 0.25 });
+    o.observe(el);
+    return () => { o.disconnect(); timers.forEach(clearTimeout); cancelAnimationFrame(raf); };
+  }, [reduce]);
+  return (
+    <div ref={ref} className="w-full grid gap-4 lg:grid-cols-2 items-stretch">
+      {/* Bulk upload */}
+      <div className="rounded-2xl p-4 sm:p-5" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center gap-2.5 mb-3.5">
+          <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="upload" className="w-4 h-4" /></span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Bulk upload</p>
+            <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>PDF, Word or ZIP</p>
+          </div>
+          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} /> Parsing
+          </span>
+        </div>
+        <div className="space-y-2">
+          {FILES.map((fn, i) => {
+            const isDone = i < done;
+            return (
+              <div key={fn} className="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2.5" style={{ border: "1px solid var(--line)", opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(8px)", transition: `opacity .4s ease ${i * 80}ms, transform .4s ease ${i * 80}ms` }}>
+                <span className="shrink-0" style={{ color: isDone ? "var(--ink-3)" : "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
+                <span className="text-[12px] truncate flex-1" style={{ color: "var(--ink-2)" }}>{fn}</span>
+                {isDone ? (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1 shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Parsed</span>
+                ) : (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 shrink-0" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} /> Parsing…</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* Talent database */}
+      <div className="rounded-2xl p-4 sm:p-5 flex flex-col" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Talent database</p>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>+128 this week</span>
+        </div>
+        <p className="font-display font-bold leading-none tnum" style={{ color: "var(--brand)", fontSize: "clamp(2rem, 4.4vw, 2.9rem)" }}>{count.toLocaleString()}</p>
+        <p className="text-[11px] mt-1.5 mb-4" style={{ color: "var(--ink-3)" }}>candidates in your talent pool</p>
+        <div className="grid grid-cols-8 gap-1.5 mt-auto">
+          {Array.from({ length: 32 }).map((_, i) => (
+            <span key={i} className="rounded-full" style={{ aspectRatio: "1 / 1", background: AV[i % AV.length], opacity: go ? (i < 12 ? 1 : 0.28) : 0, transform: go ? "scale(1)" : "scale(0.4)", transition: `opacity .4s ease ${200 + i * 22}ms, transform .4s cubic-bezier(.34,1.56,.64,1) ${200 + i * 22}ms` }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Interviews & Scorecards: a collaborative scorecard filling in per criterion,
+// rolling up to a team score + recommendation. Full-bleed, transparent.
+function ScorecardHeroAnim() {
+  const CRITERIA = [["Technical skills", 5], ["Problem solving", 4], ["Communication", 5], ["Culture add", 4]];
+  const INTERVIEWERS = [["JT", "Jane Tan", "#0B2AE0"], ["MK", "Mei Kwan", "#3550EE"], ["RA", "Rizal Aziz", "#5570F5"]];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  const [score, setScore] = useState(reduce ? 46 : 0); // 4.6 × 10
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); setScore(46); return; }
+    let timers = [], raf, startTs = null;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const run = (ts) => { if (startTs == null) startTs = ts; const p = Math.min((ts - startTs) / 1200, 1); setScore(Math.round(ease(p) * 46)); if (p < 1) raf = requestAnimationFrame(run); };
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setGo(true); timers.push(setTimeout(() => { raf = requestAnimationFrame(run); }, 700)); o.disconnect(); } }), { threshold: 0.25 });
+    o.observe(el);
+    return () => { o.disconnect(); timers.forEach(clearTimeout); cancelAnimationFrame(raf); };
+  }, [reduce]);
+  return (
+    <div ref={ref} className="w-full grid gap-4 lg:grid-cols-[1.3fr_1fr] items-stretch">
+      {/* Scorecard */}
+      <div className="rounded-2xl p-4 sm:p-5" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <FaceAvatar name="Amira Hassan" size={36} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Amira Hassan</p>
+            <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Senior Frontend Engineer · Scorecard</p>
+          </div>
+          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Collaborative</span>
+        </div>
+        <div className="space-y-3">
+          {CRITERIA.map(([label, rating], ci) => (
+            <div key={label}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium" style={{ color: "var(--ink-2)" }}>{label}</span>
+                <span className="text-[11px] font-semibold tnum" style={{ color: "var(--brand)" }}>{rating}.0</span>
+              </div>
+              <div className="flex gap-1.5">
+                {[0, 1, 2, 3, 4].map((i) => {
+                  const on = i < rating;
+                  const delay = 750 + ci * 160 + i * 70;
+                  return <span key={i} className="h-2 flex-1 rounded-full" style={{ background: go && on ? "var(--brand)" : "#E4E8F0", transition: `background .35s ease ${delay}ms` }} />;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Team score */}
+      <div className="rounded-2xl p-4 sm:p-5 flex flex-col" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <p className="text-sm font-semibold mb-3" style={{ color: "var(--ink)" }}>Team score</p>
+        <div className="flex items-end gap-2 mb-1">
+          <span className="font-display font-bold leading-none tnum" style={{ color: "var(--brand)", fontSize: "clamp(2.2rem, 4.6vw, 3rem)" }}>{(score / 10).toFixed(1)}</span>
+          <span className="text-sm font-medium mb-1.5" style={{ color: "var(--ink-3)" }}>/ 5.0</span>
+        </div>
+        <p className="text-[11px] mb-4" style={{ color: "var(--ink-3)" }}>Average across {INTERVIEWERS.length} interviewers</p>
+        <div className="space-y-2 mb-4">
+          {INTERVIEWERS.map(([ini, name, c], i) => (
+            <div key={name} className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5" style={{ border: "1px solid var(--line)", opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(8px)", transition: `opacity .4s ease ${300 + i * 120}ms, transform .4s ease ${300 + i * 120}ms` }}>
+              <span className="w-6 h-6 rounded-full text-white text-[9px] font-bold flex items-center justify-center shrink-0" style={{ background: c }}>{ini}</span>
+              <span className="text-[11px] font-medium flex-1 truncate" style={{ color: "var(--ink-2)" }}>{name}</span>
+              <span className="flex gap-0.5" style={{ color: "#F5A623" }}>{[0, 1, 2, 3, 4].map((k) => <svg key={k} viewBox="0 0 24 24" className="w-3 h-3" fill="currentColor" aria-hidden="true"><path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" /></svg>)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-auto flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: go ? "#DCFCE7" : "#F7F9FC", border: `1px solid ${go ? "#BBF7D0" : "var(--line)"}`, transition: "background .5s ease .9s, border-color .5s ease .9s" }}>
+          <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: go ? "#16A34A" : "var(--ink-3)", transition: "background .5s ease .9s" }}><Icon name="check" className="w-3.5 h-3.5" /></span>
+          <span className="text-xs font-semibold" style={{ color: go ? "#16A34A" : "var(--ink-2)", transition: "color .5s ease .9s" }}>Recommendation: Strong hire</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Career Site & Job Board: the public careers page. A branded browser window
+// with open roles + Apply buttons, and source-tracked applications flowing in.
+function CareerSiteHeroAnim() {
+  const URL = "northwind.hireaster.com/careers";
+  const JOBS = [["Senior Frontend Engineer", "Remote · Full-time"], ["Product Designer", "Singapore · Full-time"], ["Data Analyst", "Kuala Lumpur · Hybrid"], ["Customer Success Lead", "Remote · Full-time"]];
+  const SOURCES = [["LinkedIn", "#0B2AE0"], ["JobStreet", "#3550EE"], ["Careers page", "#16A34A"]];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  const [typed, setTyped] = useState(reduce ? URL : "");
+  const [apps, setApps] = useState(reduce ? 37 : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); setTyped(URL); setApps(37); return; }
+    let timers = [], raf, startTs = null;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const run = (ts) => { if (startTs == null) startTs = ts; const p = Math.min((ts - startTs) / 1100, 1); setApps(Math.round(ease(p) * 37)); if (p < 1) raf = requestAnimationFrame(run); };
+    const o = new IntersectionObserver((es) => es.forEach((e) => {
+      if (e.isIntersecting) {
+        for (let i = 1; i <= URL.length; i++) timers.push(setTimeout(() => setTyped(URL.slice(0, i)), 300 + i * 34));
+        const done = 300 + URL.length * 34;
+        timers.push(setTimeout(() => setGo(true), done + 150));
+        timers.push(setTimeout(() => { raf = requestAnimationFrame(run); }, done + 450));
+        o.disconnect();
+      }
+    }), { threshold: 0.25 });
+    o.observe(el);
+    return () => { o.disconnect(); timers.forEach(clearTimeout); cancelAnimationFrame(raf); };
+  }, [reduce]);
+  return (
+    <div ref={ref} className="w-full">
+      <div className="rounded-2xl overflow-hidden bg-white" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 50px -30px rgba(15,27,51,0.2)" }}>
+        {/* browser chrome + URL typing */}
+        <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "#F4F4F6", borderBottom: "1px solid var(--line)" }}>
+          <span className="flex gap-1.5 shrink-0">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />)}</span>
+          <span className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 flex-1 min-w-0 max-w-md" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+            <span style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3 h-3" /></span>
+            <span className="text-[12px] whitespace-nowrap truncate" style={{ color: "var(--ink-2)" }}>{typed}<span className="inline-block w-px h-3 align-middle animate-pulse" style={{ background: "var(--brand)", marginLeft: 1, opacity: typed === URL ? 0 : 1 }} /></span>
+          </span>
+        </div>
+        {/* public careers page */}
+        <div className="p-5 sm:p-6">
+          <div className="flex items-center gap-3 mb-4" style={{ opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(8px)", transition: "opacity .4s ease, transform .4s ease" }}>
+            <span className="w-10 h-10 rounded-xl brand-gradient shrink-0 flex items-center justify-center text-white font-bold font-display">N</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Careers at Northwind</p>
+              <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Build the future of work with us</p>
+            </div>
+            <span className="ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>12 open roles</span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-2.5">
+            {JOBS.map(([title, meta], i) => (
+              <div key={title} className="flex items-center justify-between gap-3 rounded-xl px-3.5 py-3" style={{ background: "#F7F9FC", border: "1px solid var(--line)", opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(10px)", transition: `opacity .45s ease ${150 + i * 110}ms, transform .45s ease ${150 + i * 110}ms` }}>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>{title}</p>
+                  <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>{meta}</p>
+                </div>
+                <span className="text-[11px] font-semibold px-3 py-1.5 rounded-lg brand-gradient text-white shrink-0">Apply</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* source-tracked applications */}
+        <div className="flex items-center gap-3 px-5 py-3 flex-wrap" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)" }}>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--ink-2)" }}><span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> <b className="tnum" style={{ color: "var(--ink)" }}>+{apps}</b> applications this week</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            {SOURCES.map(([s, c]) => <span key={s} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} /> {s}</span>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Integrations: an Aster hub with a pulsing ring; apps connect one by one,
+// their icons lighting up + a green check popping in. Full-bleed, fills panel.
+function IntegrationsHeroAnim() {
+  const APPS = [
+    ["Google Calendar", "calendar", "#4285F4", "Calendar"],
+    ["Microsoft 365", "calendar", "#0F6CBD", "Calendar"],
+    ["WhatsApp Business", "chat", "#25D366", "Messaging"],
+    ["Zoom", "interview", "#2D8CFF", "Video"],
+    ["Gmail", "doc", "#EA4335", "Email"],
+    ["LinkedIn", "briefcase", "#0A66C2", "Sourcing"],
+  ];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  const [on, setOn] = useState(reduce ? APPS.length : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); setOn(APPS.length); return; }
+    let timers = [];
+    const o = new IntersectionObserver((es) => es.forEach((e) => {
+      if (e.isIntersecting) {
+        setGo(true);
+        APPS.forEach((_, i) => timers.push(setTimeout(() => setOn((v) => Math.max(v, i + 1)), 650 + i * 360)));
+        o.disconnect();
+      }
+    }), { threshold: 0.25 });
+    o.observe(el);
+    return () => { o.disconnect(); timers.forEach(clearTimeout); };
+  }, [reduce]);
+  const allSynced = on >= APPS.length;
+  return (
+    <div ref={ref} className="w-full">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <span className="text-sm sm:text-base font-semibold" style={{ color: "var(--ink)" }}>Integrations</span>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5" style={{ background: allSynced ? "#DCFCE7" : "var(--brand-soft)", color: allSynced ? "#166534" : "var(--brand)", transition: "background .4s, color .4s" }}>
+          {allSynced ? <><Icon name="check" className="w-3 h-3" /> All synced</> : <><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} /> Syncing…</>}
+        </span>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[auto_1fr] items-center">
+        {/* Aster hub */}
+        <div className="hidden lg:flex flex-col items-center justify-center pr-3">
+          <div className="relative flex items-center justify-center">
+            <span className="absolute w-16 h-16 rounded-2xl animate-ping" style={{ background: "var(--brand)", opacity: 0.14 }} />
+            <span className="absolute w-24 h-24 rounded-full" style={{ border: "1px solid #CBD8F5" }} />
+            <span className="relative w-16 h-16 rounded-2xl brand-gradient flex items-center justify-center text-white shadow-[0_12px_30px_-10px_rgba(var(--brand-rgb),0.6)]"><Icon name="link" className="w-7 h-7" /></span>
+          </div>
+          <p className="mt-3 text-xs font-semibold" style={{ color: "var(--ink)" }}>Aster</p>
+          <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>one workspace</p>
+        </div>
+        {/* App tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+          {APPS.map(([name, icon, color, cat], i) => {
+            const connected = i < on;
+            return (
+              <div key={name} className="relative rounded-xl bg-white px-3 py-3 flex items-center gap-2.5" style={{ border: `1px solid ${connected ? "#CBD8F5" : "var(--line)"}`, opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(10px)", transition: `opacity .4s ease ${i * 70}ms, transform .4s ease ${i * 70}ms, border-color .3s ease` }}>
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: connected ? color + "1A" : "#EDEFF3", color: connected ? color : "var(--ink-3)", transition: "background .3s, color .3s" }}><Icon name={icon} className="w-4 h-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-semibold truncate" style={{ color: "var(--ink)" }}>{name}</p>
+                  <p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>{cat}</p>
+                </div>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: connected ? "#16A34A" : "#E4E8F0", transform: connected ? "scale(1)" : "scale(0.6)", transition: "background .3s, transform .3s cubic-bezier(.34,1.56,.64,1)" }}><Icon name="check" className="w-3 h-3" /></span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Aster Intelligence: AI screening ranks candidates by fit, top match in green.
+function AiScreeningHeroAnim() {
+  const CANDS = [
+    ["Amira Hassan", "React · 6 yrs · led a design system", 91, ["Design systems", "6 yrs React", "TypeScript"]],
+    ["Siti Rahman", "Product-minded frontend · 5 yrs", 82, ["Product sense", "Vue → React"]],
+    ["Priya Nair", "Senior FE · fintech background", 76, ["Fintech", "Testing"]],
+    ["Daniel Teoh", "Strong CSS, growing into React", 44, ["Junior", "Strong CSS"]],
+  ];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); return; }
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setGo(true); o.disconnect(); } }), { threshold: 0.25 });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [reduce]);
+  return (
+    <div ref={ref} className="w-full">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div><p className="text-sm sm:text-base font-semibold" style={{ color: "var(--ink)" }}>Ranked for Senior Frontend Engineer</p><p className="text-[11px]" style={{ color: "var(--ink-3)" }}>24 candidates scored by fit</p></div>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI match</span>
+      </div>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        {CANDS.map((c, i) => {
+          const top = i === 0;
+          return (
+            <div key={c[0]} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: top ? "#ECFDF3" : "rgba(255,255,255,0.6)", border: `1px solid ${top ? "#BBF7D0" : "var(--line)"}`, opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(10px)", transition: `opacity .45s ease ${i * 110}ms, transform .45s ease ${i * 110}ms` }}>
+              <ScoreRingLight value={c[2]} size={44} stroke={4} loop delay={i * 260} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2"><p className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>{c[0]}</p>{top && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ background: "#16A34A" }}>TOP</span>}</div>
+                <p className="text-[11px] truncate mb-1" style={{ color: "var(--ink-3)" }}>{c[1]}</p>
+                <div className="flex flex-wrap gap-1">{c[3].map((r) => <span key={r} className="text-[9px] font-medium px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{r}</span>)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Offer Management: an offer moving Draft → Accepted + a live offers tracker.
+function OfferHeroAnim() {
+  const reduce = prefersReducedMotion();
+  const ref = useRef(null);
+  const [go, setGo] = useState(reduce);
+  const [stage, setStage] = useState(reduce ? 2 : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); setStage(2); return; }
+    let timers = [];
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setGo(true); timers.push(setTimeout(() => setStage(1), 900)); timers.push(setTimeout(() => setStage(2), 2100)); o.disconnect(); } }), { threshold: 0.25 });
+    o.observe(el);
+    return () => { o.disconnect(); timers.forEach(clearTimeout); };
+  }, [reduce]);
+  const status = [{ l: "Draft", bg: "#EDEFF3", c: "var(--ink-3)" }, { l: "Sent", bg: "var(--brand-soft)", c: "var(--brand)" }, { l: "Accepted", bg: "#DCFCE7", c: "#16A34A" }][stage];
+  const accepted = stage >= 2;
+  const OFFERS = [["Amira Hassan", "Sr. Frontend", "Accepted", "#16A34A", "#DCFCE7"], ["Jun Lee", "Product Designer", "Pending", "var(--brand)", "var(--brand-soft)"], ["Mei Kwan", "Data Analyst", "Accepted", "#16A34A", "#DCFCE7"], ["Rizal Aziz", "CS Lead", "Declined", "#B91C1C", "#FEE2E2"]];
+  return (
+    <div ref={ref} className="w-full grid gap-4 lg:grid-cols-[1.15fr_1fr] items-stretch">
+      <div className="rounded-2xl p-4 sm:p-5" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2"><span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="offer" className="w-4 h-4" /></span><p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Offer letter</p></div>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: status.bg, color: status.c, transition: "background .4s, color .4s" }}>{status.l}</span>
+        </div>
+        <div className="rounded-xl p-3.5 space-y-2.5 bg-white" style={{ border: "1px solid var(--line)" }}>
+          {[["Candidate", "Amira Hassan"], ["Role", "Senior Frontend Engineer"], ["Salary", "$140,000 / yr"], ["Start date", "Aug 1, 2026"]].map(([k, v]) => <div key={k} className="flex items-center justify-between gap-3"><span className="text-xs" style={{ color: "var(--ink-3)" }}>{k}</span><span className="text-xs font-medium truncate" style={{ color: "var(--ink)" }}>{v}</span></div>)}
+        </div>
+        <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: accepted ? "#DCFCE7" : "#F7F9FC", border: `1px solid ${accepted ? "#BBF7D0" : "var(--line)"}`, transition: "background .4s, border-color .4s" }}>
+          <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: accepted ? "#16A34A" : "var(--ink-3)", transition: "background .4s" }}><Icon name="check" className="w-3 h-3" /></span>
+          <span className="text-xs font-medium" style={{ color: accepted ? "#16A34A" : "var(--ink-2)" }}>{accepted ? "Signed & accepted" : "Awaiting signature"}</span>
+        </div>
+      </div>
+      <div className="rounded-2xl p-4 sm:p-5 flex flex-col" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-3"><p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Offers this month</p><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>82% accepted</span></div>
+        <div className="space-y-2">
+          {OFFERS.map(([name, role, st, c, bg], i) => <div key={name} className="flex items-center gap-2.5 rounded-lg bg-white px-2.5 py-2" style={{ border: "1px solid var(--line)", opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(8px)", transition: `opacity .4s ease ${200 + i * 100}ms, transform .4s ease ${200 + i * 100}ms` }}>
+            <FaceAvatar name={name} size={28} />
+            <div className="min-w-0 flex-1"><p className="text-[11px] font-semibold truncate" style={{ color: "var(--ink)" }}>{name}</p><p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>{role}</p></div>
+            <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: bg, color: c }}>{st}</span>
+          </div>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Analytics & Reporting: KPI tiles + a bar chart + a hiring funnel.
+function AnalyticsHeroAnim() {
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); return; }
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setGo(true); o.disconnect(); } }), { threshold: 0.25 });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [reduce]);
+  const bars = [38, 58, 46, 72, 55, 84, 66, 90, 74];
+  const FUNNEL = [["Applied", 1240, "var(--brand)"], ["Screened", 420, "#3550EE"], ["Interviewed", 96, "#5570F5"], ["Offer", 22, "#16A34A"]];
+  const maxF = 1240;
+  return (
+    <div ref={ref} className="w-full">
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mb-3">
+        {[["Time to hire", "12d", "-3d"], ["Offer accept", "82%", "+6%"], ["Cost per hire", "$1.2k", "-18%"]].map(([l, v, d]) => <div key={l} className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}><div className="flex items-center justify-between"><p className="font-display font-bold text-lg leading-none" style={{ color: "var(--brand)" }}>{v}</p><span className="text-[9px] font-semibold" style={{ color: "#16A34A" }}>{d}</span></div><p className="text-[10px] mt-1.5" style={{ color: "var(--ink-3)" }}>{l}</p></div>)}
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+          <p className="text-xs font-semibold mb-3" style={{ color: "var(--ink)" }}>Hires per month</p>
+          <div className="flex items-end gap-1.5 h-28">{bars.map((h, i) => <div key={i} className="flex-1 rounded-t" style={{ height: go ? `${h}%` : "4%", background: i === 7 ? "var(--brand)" : "#C7D2FE", transition: `height .7s cubic-bezier(.22,1,.36,1) ${i * 60}ms` }} />)}</div>
+        </div>
+        <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+          <p className="text-xs font-semibold mb-3" style={{ color: "var(--ink)" }}>Hiring funnel</p>
+          <div className="space-y-2.5">{FUNNEL.map(([l, n, c], i) => <div key={l}><div className="flex items-center justify-between mb-1"><span className="text-[11px]" style={{ color: "var(--ink-2)" }}>{l}</span><span className="text-[11px] font-semibold tnum" style={{ color: "var(--ink)" }}>{n.toLocaleString()}</span></div><div className="h-2 rounded-full" style={{ background: "#EDEFF3" }}><div className="h-2 rounded-full" style={{ width: go ? `${Math.max(8, n / maxF * 100)}%` : "0%", background: c, transition: `width .8s cubic-bezier(.22,1,.36,1) ${i * 120}ms` }} /></div></div>)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Collaboration & Hiring Teams: the panel + a live shared activity feed.
+function CollaborationHeroAnim() {
+  const TEAM = [["JT", "Jane Tan", "Recruiter", "#0B2AE0"], ["MK", "Mei Kwan", "Hiring Manager", "#3550EE"], ["RA", "Rizal Aziz", "Interviewer", "#5570F5"], ["PL", "Priya Lim", "Head of Talent", "#16A34A"]];
+  const FEED = [["Jane Tan", "rated Amira", "Technical 5 / 5", "#0B2AE0"], ["Mei Kwan", "left a note", "“Great system design”", "#3550EE"], ["Rizal Aziz", "moved to Offer", "Interview → Offer", "#5570F5"], ["Priya Lim", "approved the hire", "Strong hire", "#16A34A"]];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [go, setGo] = useState(reduce);
+  const [n, setN] = useState(reduce ? FEED.length : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setGo(true); setN(FEED.length); return; }
+    let timers = [];
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { setGo(true); FEED.forEach((_, i) => timers.push(setTimeout(() => setN((v) => Math.max(v, i + 1)), 600 + i * 480))); o.disconnect(); } }), { threshold: 0.25 });
+    o.observe(el);
+    return () => { o.disconnect(); timers.forEach(clearTimeout); };
+  }, [reduce]);
+  return (
+    <div ref={ref} className="w-full grid gap-4 lg:grid-cols-[1fr_1.2fr] items-stretch">
+      <div className="rounded-2xl p-4 sm:p-5" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-3"><p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Hiring team</p><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>4 members</span></div>
+        <div className="space-y-2">
+          {TEAM.map(([ini, name, role, c], i) => <div key={name} className="flex items-center gap-2.5 rounded-lg bg-white px-2.5 py-2" style={{ border: "1px solid var(--line)", opacity: go ? 1 : 0, transform: go ? "translateY(0)" : "translateY(8px)", transition: `opacity .4s ease ${i * 90}ms, transform .4s ease ${i * 90}ms` }}>
+            <span className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: c }}>{ini}</span>
+            <div className="min-w-0 flex-1"><p className="text-[11px] font-semibold truncate" style={{ color: "var(--ink)" }}>{name}</p><p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>{role}</p></div>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
+          </div>)}
+        </div>
+      </div>
+      <div className="rounded-2xl p-4 sm:p-5" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-3"><p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Activity</p><span className="inline-flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--ink-3)" }}><span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Live</span></div>
+        <div className="space-y-2">
+          {FEED.map(([name, action, detail, c], i) => { const shown = i < n; return (
+            <div key={i} className="flex items-start gap-2.5 rounded-lg bg-white px-2.5 py-2" style={{ border: "1px solid var(--line)", opacity: shown ? 1 : 0, transform: shown ? "translateY(0)" : "translateY(8px)", transition: "opacity .4s ease, transform .4s ease" }}>
+              <span className="w-6 h-6 rounded-full shrink-0 mt-0.5" style={{ background: c }} />
+              <div className="min-w-0 flex-1"><p className="text-[11px] leading-snug" style={{ color: "var(--ink-2)" }}><b style={{ color: "var(--ink)" }}>{name}</b> {action}</p><span className="inline-block text-[10px] font-medium px-2 py-0.5 rounded mt-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{detail}</span></div>
+            </div>
+          ); })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Automation & Workflows: a workflow whose steps activate in sequence.
+function AutomationHeroAnim() {
+  const STEPS = [["When a candidate is rejected", "target", "Trigger"], ["Send a warm rejection email", "doc", "Action"], ["When an interview is booked", "calendar", "Trigger"], ["Create the Meet link + invite", "link", "Action"], ["WhatsApp reminder, 1h before", "chat", "Action"]];
+  const ref = useRef(null);
+  const reduce = prefersReducedMotion();
+  const [on, setOn] = useState(reduce ? STEPS.length : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setOn(STEPS.length); return; }
+    let timers = [];
+    const o = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { STEPS.forEach((_, i) => timers.push(setTimeout(() => setOn((v) => Math.max(v, i + 1)), 500 + i * 500))); o.disconnect(); } }), { threshold: 0.25 });
+    o.observe(el);
+    return () => { o.disconnect(); timers.forEach(clearTimeout); };
+  }, [reduce]);
+  return (
+    <div ref={ref} className="w-full">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <span className="text-sm sm:text-base font-semibold" style={{ color: "var(--ink)" }}>Workflow</span>
+        <span className="inline-flex items-center gap-2 text-[11px] font-semibold" style={{ color: "var(--brand)" }}>Automation on
+          <span className="w-9 h-5 rounded-full relative" style={{ background: "#16A34A" }}><span className="absolute top-0.5 left-[18px] w-4 h-4 rounded-full bg-white" style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} /></span>
+        </span>
+      </div>
+      <div className="relative">
+        <div className="absolute left-[15px] top-2 bottom-2 w-px" style={{ background: "var(--line-strong)" }} />
+        <div className="space-y-2.5">
+          {STEPS.map(([label, icon, tag], i) => {
+            const active = i < on;
+            const isTrigger = tag === "Trigger";
+            return (
+              <div key={i} className="relative flex items-center gap-3 pl-0">
+                <span className="relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: active ? (isTrigger ? "var(--brand)" : "#16A34A") : "#E4E8F0", color: active ? "#fff" : "var(--ink-3)", transform: active ? "scale(1)" : "scale(0.85)", transition: "background .35s, transform .35s cubic-bezier(.34,1.56,.64,1)" }}><Icon name={icon} className="w-4 h-4" /></span>
+                <div className="flex-1 flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5" style={{ background: active ? "#fff" : "rgba(255,255,255,0.5)", border: `1px solid ${active ? "#CBD8F5" : "var(--line)"}`, opacity: active ? 1 : 0.55, transition: "background .35s, border-color .35s, opacity .35s" }}>
+                  <span className="text-xs font-medium truncate" style={{ color: "var(--ink)" }}>{label}</span>
+                  <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: isTrigger ? "var(--brand-soft)" : "#DCFCE7", color: isTrigger ? "var(--brand)" : "#166534" }}>{tag}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Map a product slug to the animation that best represents it.
+function ModulePreview({ slug }) {
+  switch (slug) {
+    case "sourcing": return <SourcingHeroAnim />;
+    case "ats": return <PipelineHeroAnim />;
+    case "ai": return <AiScreeningHeroAnim />;
+    case "interviews": return <ScorecardHeroAnim />;
+    case "offers": return <OfferHeroAnim />;
+    case "analytics": return <AnalyticsHeroAnim />;
+    case "career-site": return <CareerSiteHeroAnim />;
+    case "collaboration": return <CollaborationHeroAnim />;
+    case "automation": return <AutomationHeroAnim />;
+    case "integrations": return <IntegrationsHeroAnim />;
+    default: return <HeroParsePreview />;
+  }
+}
+
+function MarketingHero({ eyebrow, icon, title, accent, subtitle, chips, navigate, secondaryLabel, onSecondary, preview }) {
+  return (
+    <section className="relative" style={{ background: "#fff", ...(preview ? {} : { borderBottom: "1px solid var(--line)" }) }}>
+      <div className={`relative max-w-4xl mx-auto px-4 sm:px-6 text-center ${preview ? "pt-14 sm:pt-20 pb-8 sm:pb-10" : "py-14 sm:py-20"}`}>
+        <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}>
           <Icon name={icon} className="w-3.5 h-3.5" /> {eyebrow}
         </span>
-        <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "17ch" }}>
-          {title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span>
+        <h1 className="font-display font-bold mx-auto" style={{ color: "var(--ink)", fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "17ch" }}>
+          {title} <span style={{ color: "var(--brand)", paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span>
         </h1>
-        <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{subtitle}</p>
+        <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>{subtitle}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <button onClick={() => navigate("signup")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">Start free trial</button>
-          <button onClick={onSecondary} className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>{secondaryLabel}</button>
+          <button onClick={() => navigate("signup")} className="text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 hover:opacity-95 shadow-[0_14px_40px_-16px_rgba(var(--brand-rgb),0.7)]" style={{ background: "var(--brand)" }}>Start free trial</button>
+          <button onClick={onSecondary} className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--ink)", border: "1px solid var(--line-strong)" }}>{secondaryLabel}</button>
         </div>
         {chips && (
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
             {chips.map((ch) => (
-              <span key={ch} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
-                <Icon name="check" className="w-3 h-3" style={{ color: "#22C55E" }} /> {ch}
+              <span key={ch} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                <Icon name="check" className="w-3 h-3" style={{ color: "#16A34A" }} /> {ch}
               </span>
             ))}
           </div>
         )}
       </div>
+      {/* Half-screen animated showcase, one per module; slides up + tucks behind next section */}
+      {preview && <HeroShowcase>{preview}</HeroShowcase>}
     </section>
   );
 }
@@ -4073,6 +5120,53 @@ function MReveal({ children, as, className, style, delay = 0, ...rest }) {
     <Comp className={className} style={style} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "0px 0px -12% 0px" }} transition={{ duration: 0.55, ease: MOTION_EASE, delay }} {...rest}>
       {children}
     </Comp>
+  );
+}
+
+// One "How it works" step card. The body collapses to a few lines with a
+// Read more / Read less toggle; the toggle only appears when the text actually
+// overflows the collapsed height (measured on mount + resize).
+function StepCard({ s, i }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const check = () => {
+      // measure against the collapsed clamp height without flashing the toggle
+      const wasExpanded = el.style.webkitLineClamp === "unset";
+      if (wasExpanded) return;
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return (
+    <motion.div variants={mFadeUp} className="group relative rounded-2xl p-6 h-full overflow-hidden card-hover flex flex-col" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+      <span className="pointer-events-none absolute top-3 right-4 font-display font-extrabold tnum leading-none select-none" style={{ fontSize: "2.6rem", color: "rgba(var(--brand-deep-rgb),0.06)" }}>{`0${i + 1}`}</span>
+      <span className="relative inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold" style={{ background: "#fff", border: "1.5px solid var(--brand)", color: "var(--brand)" }}>{i + 1}</span>
+      <p className="relative font-semibold font-display text-base mt-4" style={{ color: "var(--ink)" }}>{s.title}</p>
+      <p
+        ref={bodyRef}
+        className="relative text-sm mt-2"
+        style={{ color: "var(--ink-2)", lineHeight: 1.7, display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: expanded ? "unset" : 4, overflow: "hidden" }}
+      >
+        {s.body}
+      </p>
+      {(overflows || expanded) && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="relative mt-auto pt-3 self-start text-sm font-semibold inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
+          style={{ color: "var(--brand)" }}
+          aria-expanded={expanded}
+        >
+          {expanded ? "Read less" : "Read more"}
+          <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </button>
+      )}
+    </motion.div>
   );
 }
 
@@ -4103,12 +5197,12 @@ function DeepDiveTabs({ items }) {
           {items.map((d, i) => {
             const on = i === active;
             return (
-              <button key={i} onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)} onClick={() => setActive(i)}
-                className="group relative text-left rounded-xl pl-5 pr-4 py-3.5 flex items-start gap-3 transition-colors hover:bg-white/[0.03]"
-                style={on ? { background: "rgba(151,59,247,0.10)", border: "1px solid rgba(178,116,255,0.22)" } : { border: "1px solid transparent" }}>
-                {on && <motion.span layoutId="dd-accent" className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full" style={{ background: "linear-gradient(180deg,#D65BFF,#5A78F8)" }} transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
-                <span className="font-display font-semibold shrink-0 tnum" style={{ fontSize: "0.8rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
-                <span className="font-medium leading-snug transition-colors" style={{ color: on ? "#fff" : "var(--navy-ink)", fontSize: "1rem" }}>{d.title}</span>
+              <button key={i} onClick={() => setActive(i)}
+                className="group relative text-left rounded-xl pl-5 pr-4 py-3.5 flex items-start gap-3 transition-colors hover:bg-[color:var(--brand-soft)]"
+                style={on ? { background: "var(--brand-soft)", border: "1px solid #CBD8F5" } : { border: "1px solid transparent" }}>
+                {on && <motion.span layoutId="dd-accent" className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full" style={{ background: "var(--brand)" }} transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
+                <span className="font-display font-semibold shrink-0 tnum" style={{ fontSize: "0.8rem", color: on ? "var(--brand)" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
+                <span className="font-medium leading-snug transition-colors" style={{ color: on ? "var(--ink)" : "var(--ink-2)", fontSize: "1rem" }}>{d.title}</span>
               </button>
             );
           })}
@@ -4118,7 +5212,7 @@ function DeepDiveTabs({ items }) {
             <motion.div key={active} className="space-y-4"
               initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -14 }} transition={{ duration: 0.3, ease: MOTION_EASE }}>
               {splitParas(cur.body).map((p, k) => (
-                <p key={k} className="text-sm" style={{ color: "#C9CBDE", lineHeight: 1.7 }}>{p}</p>
+                <p key={k} className="text-sm" style={{ color: "var(--ink-2)", lineHeight: 1.7 }}>{p}</p>
               ))}
             </motion.div>
           </AnimatePresence>
@@ -4128,18 +5222,18 @@ function DeepDiveTabs({ items }) {
         {items.map((d, i) => {
           const on = i === active;
           return (
-            <div key={i} className="rounded-xl overflow-hidden transition-colors" style={{ background: on ? "rgba(151,59,247,0.08)" : "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+            <div key={i} className="rounded-xl overflow-hidden transition-colors" style={{ background: on ? "var(--brand-soft)" : "#fff", border: `1px solid ${on ? "#CBD8F5" : "var(--line)"}` }}>
               <button onClick={() => setActive(i)} className="w-full text-left flex items-start gap-3 px-4 py-3.5">
-                <span className="font-display font-semibold shrink-0 tnum" style={{ fontSize: "0.8rem", color: on ? "#C79BFF" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
-                <span className="flex-1 font-medium leading-snug" style={{ color: "#fff", fontSize: "1rem" }}>{d.title}</span>
-                <Icon name="chevronDown" className="w-4 h-4 shrink-0 mt-0.5 transition-transform" style={{ transform: on ? "rotate(180deg)" : "none", color: "var(--navy-ink)" }} />
+                <span className="font-display font-semibold shrink-0 tnum" style={{ fontSize: "0.8rem", color: on ? "var(--brand)" : "var(--ink-3)" }}>{String(i + 1).padStart(2, "0")}</span>
+                <span className="flex-1 font-medium leading-snug" style={{ color: "var(--ink)", fontSize: "1rem" }}>{d.title}</span>
+                <Icon name="chevronDown" className="w-4 h-4 shrink-0 mt-0.5 transition-transform" style={{ transform: on ? "rotate(180deg)" : "none", color: "var(--ink-3)" }} />
               </button>
               <AnimatePresence initial={false}>
                 {on && (
                   <motion.div key="body" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: MOTION_EASE }} className="overflow-hidden">
                     <div className="px-4 pb-4 space-y-3">
                       {splitParas(d.body).map((p, k) => (
-                        <p key={k} className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{p}</p>
+                        <p key={k} className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{p}</p>
                       ))}
                     </div>
                   </motion.div>
@@ -4191,18 +5285,18 @@ function UseCaseTabs({ items }) {
           return (
             <button key={i} onClick={() => setActive(i)}
               className="relative text-sm font-medium px-4 py-2 rounded-full transition-colors"
-              style={{ color: on ? "#fff" : "var(--navy-ink)", border: on ? "1px solid transparent" : "1px solid var(--navy-line)" }}>
-              {on && <motion.span layoutId="uc-pill" className="absolute inset-0 rounded-full" style={{ background: "linear-gradient(135deg,#D65BFF,#5A78F8)", boxShadow: "0 8px 20px -10px rgba(151,59,247,0.9)" }} transition={{ type: "spring", stiffness: 360, damping: 30 }} />}
+              style={{ color: on ? "#fff" : "var(--ink-2)", border: on ? "1px solid transparent" : "1px solid var(--line-strong)" }}>
+              {on && <motion.span layoutId="uc-pill" className="absolute inset-0 rounded-full" style={{ background: "var(--brand)", boxShadow: "0 8px 20px -10px rgba(var(--brand-rgb),0.6)" }} transition={{ type: "spring", stiffness: 360, damping: 30 }} />}
               <span className="relative z-10">Scenario {i + 1}</span>
             </button>
           );
         })}
       </div>
-      <div className="rounded-2xl p-7 sm:p-9" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.10), rgba(90,120,248,0.06))", border: "1px solid var(--navy-line)" }}>
+      <div className="rounded-2xl p-7 sm:p-9" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
         <AnimatePresence mode="wait">
           <motion.div key={active} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: MOTION_EASE }}>
-            <p className="text-white font-medium font-display text-base">{cur.title}</p>
-            <p className="mt-2.5 text-sm" style={{ color: "#C9CBDE", lineHeight: 1.7 }}>{cur.body}</p>
+            <p className="font-medium font-display text-base" style={{ color: "var(--ink)" }}>{cur.title}</p>
+            <p className="mt-2.5 text-sm" style={{ color: "var(--ink-2)", lineHeight: 1.7 }}>{cur.body}</p>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -4213,7 +5307,6 @@ function UseCaseTabs({ items }) {
 function MarketingLongform({ data }) {
   if (!data) return null;
   const { intro, howItWorks, deepDive, useCases, faq, closing } = data;
-  const BAND = "#07081A"; // subtle band to alternate against the #050610 base
   return (
     <MotionConfig reducedMotion="user">
       {/* Intro, a large lede paragraph then supporting prose, editorial measure */}
@@ -4221,7 +5314,7 @@ function MarketingLongform({ data }) {
         <section className="py-16 sm:py-24" style={{ background: "var(--bg)", borderTop: "1px solid var(--line)" }}>
           <MReveal className="max-w-6xl mx-auto px-4 sm:px-6">
             <div>
-              <span className="inline-block w-10 h-1 rounded-full mb-7" style={{ background: "linear-gradient(90deg, #D65BFF, #5A78F8)" }} />
+              <span className="inline-block w-10 h-1 rounded-full mb-7" style={{ background: "var(--brand)" }} />
               <p className="text-neutral-900" style={{ fontSize: "clamp(1.1rem, 1.7vw, 1.3rem)", lineHeight: 1.55, letterSpacing: "-0.01em" }}>{intro[0]}</p>
               {intro.length > 1 && <IntroMore paras={intro.slice(1)} />}
             </div>
@@ -4231,22 +5324,16 @@ function MarketingLongform({ data }) {
 
       {/* How it works, spring-popped numbered stepper, staggered in */}
       {howItWorks && howItWorks.length > 0 && (
-        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+        <section className="py-16 sm:py-20" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <MReveal>
-              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>How it works</p>
-              <h2 className="font-display font-semibold text-white mb-10" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>From setup to hire</h2>
+              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.1em" }}>How it works</p>
+              <h2 className="font-display font-semibold mb-10" style={{ color: "var(--ink)", fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>From setup to hire</h2>
             </MReveal>
-            <motion.div className="relative grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 mt-12"
+            <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-10"
               variants={mStagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: "0px 0px -12% 0px" }}>
-              <motion.div className="hidden lg:block absolute left-0 right-0 h-px origin-left" style={{ top: "20px", background: "linear-gradient(90deg, transparent, rgba(178,116,255,0.35) 14%, rgba(143,160,255,0.35) 86%, transparent)" }}
-                initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, ease: MOTION_EASE, delay: 0.15 }} />
               {howItWorks.map((s, i) => (
-                <motion.div key={i} variants={mFadeUp} className="relative">
-                  <motion.span variants={mPop} className="relative z-10 inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white brand-gradient shadow-[0_8px_24px_-6px_rgba(151,59,247,0.9)]" style={{ outline: "5px solid #050610" }}>{i + 1}</motion.span>
-                  <p className="text-white font-medium font-display text-base mt-5">{s.title}</p>
-                  <p className="text-sm mt-2" style={{ color: "var(--navy-ink)", lineHeight: 1.7 }}>{s.body}</p>
-                </motion.div>
+                <StepCard key={i} s={s} i={i} />
               ))}
             </motion.div>
           </div>
@@ -4255,11 +5342,11 @@ function MarketingLongform({ data }) {
 
       {/* Deep dive, interactive vertical tabs (desktop) / accordion (mobile) */}
       {deepDive && deepDive.length > 0 && (
-        <section className="py-16 sm:py-20" style={{ background: BAND, borderTop: "1px solid var(--navy-line)" }}>
+        <section className="py-16 sm:py-20" style={{ background: "#fff" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <MReveal>
-              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>In depth</p>
-              <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>A closer look</h2>
+              <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.1em" }}>In depth</p>
+              <h2 className="font-display font-semibold" style={{ color: "var(--ink)", fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>A closer look</h2>
             </MReveal>
             <MReveal delay={0.08}><DeepDiveTabs items={deepDive} /></MReveal>
           </div>
@@ -4268,12 +5355,12 @@ function MarketingLongform({ data }) {
 
       {/* Use cases, one scenario at a time, single readable column */}
       {useCases && useCases.length > 0 && (
-        <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+        <section className="py-16 sm:py-20" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div>
               <MReveal>
-                <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>In practice</p>
-                <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Where it makes the difference</h2>
+                <p className="text-[11px] font-semibold uppercase mb-2.5" style={{ color: "var(--brand)", letterSpacing: "0.1em" }}>In practice</p>
+                <h2 className="font-display font-semibold" style={{ color: "var(--ink)", fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em" }}>Where it makes the difference</h2>
               </MReveal>
               <MReveal delay={0.08}><UseCaseTabs items={useCases} /></MReveal>
             </div>
@@ -4310,13 +5397,12 @@ function MarketingLongform({ data }) {
 
       {/* Closing, a featured statement, left-aligned for readability */}
       {closing && (
-        <section className="py-16 sm:py-24" style={{ background: "#050610", borderTop: "1px solid var(--navy-line)" }}>
+        <section className="py-16 sm:py-24" style={{ background: "#fff", borderTop: "1px solid var(--line)" }}>
           <MReveal className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: "linear-gradient(160deg, rgba(151,59,247,0.12), rgba(90,120,248,0.07))", border: "1px solid var(--navy-line)" }}>
-              <div className="pointer-events-none absolute -top-20 -right-12 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+            <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
               <div className="relative">
-                <span className="inline-block w-10 h-1 rounded-full mb-6" style={{ background: "linear-gradient(90deg,#D65BFF,#5A78F8)" }} />
-                <p className="text-white" style={{ fontSize: "clamp(1.1rem, 1.7vw, 1.3rem)", lineHeight: 1.6, letterSpacing: "-0.01em" }}>{closing}</p>
+                <span className="inline-block w-10 h-1 rounded-full mb-6" style={{ background: "var(--brand)" }} />
+                <p style={{ color: "var(--ink)", fontSize: "clamp(1.1rem, 1.7vw, 1.3rem)", lineHeight: 1.6, letterSpacing: "-0.01em" }}>{closing}</p>
               </div>
             </div>
           </MReveal>
@@ -4328,14 +5414,19 @@ function MarketingLongform({ data }) {
 
 function ProductCTA({ navigate }) {
   return (
-    <section className="relative overflow-hidden" style={{ background: "#070814" }}>
-      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 60% at 50% 0%, rgba(151,59,247,0.28) 0%, transparent 60%)" }} />
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center">
-        <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Start from a shortlist, not a pile.</h2>
-        <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)" }}>Create your workspace and let Aster read, score and schedule for you. Free to start, no card required.</p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <button onClick={() => navigate("signup")} className="brand-gradient text-white font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.95)]">Start free trial</button>
-          <button onClick={() => navigate("landing")} className="px-6 py-3 rounded-xl font-medium transition-colors hover:bg-white/5" style={{ color: "#fff", border: "1px solid var(--navy-line)" }}>See pricing</button>
+    <section className="relative py-16 sm:py-24" style={{ background: "#fff", borderTop: "1px solid var(--line)" }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="relative overflow-hidden rounded-3xl px-6 sm:px-12 py-14 sm:py-16 text-center" style={{ background: "var(--brand)", boxShadow: "0 40px 80px -40px rgba(var(--brand-rgb),0.55)" }}>
+          <div className="pointer-events-none absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.12)" }} />
+          <div className="pointer-events-none absolute -left-20 -bottom-28 w-[380px] h-[380px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
+          <div className="relative">
+            <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Start from a shortlist, not a pile.</h2>
+            <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Create your workspace and let Aster read, score and schedule for you. Free to start, no card required.</p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <button onClick={() => navigate("signup")} className="font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>Start free trial</button>
+              <button onClick={() => navigate("landing")} className="px-6 py-3 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>See pricing</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -4344,7 +5435,7 @@ function ProductCTA({ navigate }) {
 
 // One page per module (or the overview hub / changelog). Slug "" = overview.
 function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl, light: true };
   const isOverview = !slug;
   const isChangelog = slug === "changelog";
   const page = PRODUCT_PAGES[slug];
@@ -4353,10 +5444,10 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
   // ── Overview hub ──
   if (isOverview) {
     return (
-      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <div className="overflow-x-clip" style={{ background: "#fff" }}>
         <MarketingNav {...nav} current="" />
-        <MarketingHero {...heroNav} eyebrow="The platform" icon="dashboard" title="Everything you need to hire," accent="in one platform." subtitle="Sourcing, tracking, AI screening, interviews, offers and analytics. Aster covers the whole hiring workflow so your team works from one place, not ten tabs." chips={["End to end", "AI-native", "Set up in minutes"]} />
-        <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
+        <MarketingHero {...heroNav} eyebrow="The platform" icon="dashboard" title="Everything you need to hire," accent="in one platform." subtitle="Sourcing, tracking, AI screening, interviews, offers and analytics. Aster covers the whole hiring workflow so your team works from one place, not ten tabs." chips={["End to end", "AI-native", "Set up in minutes"]} preview={<HeroParsePreview />} />
+        <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {PRODUCT_NAV.filter((p) => p.slug !== "").map((p) => (
@@ -4385,10 +5476,10 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
       { date: "Apr 2026", tag: "Improved", items: ["Reworked Candidate Search with Browse, Skills and Role tabs", "Bulk resume upload accepts PDF, Word and ZIP", "Collaborative scorecards roll up to a team score"] },
     ];
     return (
-      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <div className="overflow-x-clip" style={{ background: "#fff" }}>
         <MarketingNav {...nav} current="changelog" />
         <MarketingHero {...heroNav} eyebrow="What's new" icon="bell" title="Every release," accent="in one place." subtitle="A running log of what we've shipped: new modules, improvements and the small touches that make hiring smoother." chips={["Shipped weekly", "Read the highlights"]} />
-        <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
+        <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg)" }}>
           <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-6">
             {entries.map((e) => (
               <div key={e.date} className="rounded-2xl p-6 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
@@ -4416,21 +5507,21 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
   // ── Standard module page ──
   if (!page) {
     return (
-      <div style={{ background: "#050610", minHeight: "100vh" }}>
+      <div style={{ background: "#fff", minHeight: "100vh" }}>
         <MarketingNav {...nav} current={null} />
         <div className="max-w-3xl mx-auto px-6 py-24 text-center">
-          <h1 className="text-2xl font-bold text-white font-display">Page not found</h1>
+          <h1 className="text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Page not found</h1>
           <button onClick={() => goProduct("")} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to Product</button>
         </div>
       </div>
     );
   }
   return (
-    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+    <div className="overflow-x-clip" style={{ background: "#fff" }}>
       <MarketingNav {...nav} current={slug} />
-      <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
+      <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} preview={<ModulePreview slug={slug} />} />
       {/* Feature grid, light band */}
-      <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
+      <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2">
             {page.features.map((f) => (
@@ -4445,20 +5536,19 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
       </section>
       {/* Highlight band, dark */}
       {page.highlight && (
-        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+        <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
-              <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+            <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
               <div className="relative grid lg:grid-cols-2 gap-8 items-center">
                 <div>
-                  <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
-                  <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{page.highlight.body}</p>
+                  <h2 className="font-display font-semibold" style={{ color: "var(--ink)", fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
+                  <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>{page.highlight.body}</p>
                 </div>
                 <ul className="space-y-3">
                   {page.highlight.points.map((pt, i) => (
-                    <li key={i} className="flex items-start gap-3 rounded-xl p-3.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                      <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="check" className="w-3.5 h-3.5" /></span>
-                      <span className="text-sm text-white/90">{pt}</span>
+                    <li key={i} className="flex items-start gap-3 rounded-xl p-3.5" style={{ background: "#fff", border: "1px solid #DCE4F7" }}>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#DCFCE7", color: "#16A34A" }}><Icon name="check" className="w-3.5 h-3.5" /></span>
+                      <span className="text-sm" style={{ color: "var(--ink-2)" }}>{pt}</span>
                     </li>
                   ))}
                 </ul>
@@ -4478,7 +5568,7 @@ function ProductScreen({ slug = "", navigate, goProduct, goSolution, goBlog = ()
 // Hero, feature grid and highlight band) so the whole marketing site reads as
 // one system. Slug "" = the segmentation hub; any other slug = a segment page.
 function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl, light: true };
   const isHub = !slug;
   const page = SOLUTIONS_PAGES[slug];
   const heroNav = { navigate, secondaryLabel: "All solutions", onSecondary: () => goSolution("") };
@@ -4486,10 +5576,10 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
   // ── Segmentation hub ──
   if (isHub) {
     return (
-      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <div className="overflow-x-clip" style={{ background: "#fff" }}>
         <MarketingNav {...nav} currentSol="" />
         <MarketingHero {...heroNav} eyebrow="Solutions" icon="target" title="The same platform," accent="framed for how you hire." subtitle="Whatever your role, company stage or industry, Aster reads every CV, ranks for fit and books the interviews. Find the version of the story that fits your team." chips={["By role", "By company stage", "By industry"]} />
-        <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
+        <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-14">
             {SOLUTIONS_NAV.map((g) => (
               <div key={g.group}>
@@ -4520,10 +5610,10 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
   // ── Unknown slug ──
   if (!page) {
     return (
-      <div style={{ background: "#050610", minHeight: "100vh" }}>
+      <div style={{ background: "#fff", minHeight: "100vh" }}>
         <MarketingNav {...nav} currentSol={null} />
         <div className="max-w-3xl mx-auto px-6 py-24 text-center">
-          <h1 className="text-2xl font-bold text-white font-display">Page not found</h1>
+          <h1 className="text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Page not found</h1>
           <button onClick={() => goSolution("")} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to Solutions</button>
         </div>
       </div>
@@ -4534,24 +5624,24 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
   const seg = SOLUTIONS_INDEX[slug];
   const pains = SOLUTION_PAINS[slug];
   return (
-    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+    <div className="overflow-x-clip" style={{ background: "#fff" }}>
       <MarketingNav {...nav} currentSol={slug} />
       <MarketingHero {...heroNav} eyebrow={page.eyebrow} icon={page.icon} title={page.title} accent={page.accent} subtitle={page.subtitle} chips={page.chips} />
 
       {/* The problem, name the pain before the fix */}
       {pains && (
-        <section className="py-14 sm:py-20" style={{ background: "#070814", borderTop: "1px solid var(--navy-line)" }}>
+        <section className="py-14 sm:py-20" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[0.85fr_1.4fr] gap-8 lg:gap-14 items-start">
             <div>
-              <p className="text-[11px] font-semibold uppercase" style={{ color: "#C79BFF", letterSpacing: "0.1em" }}>The problem</p>
-              <h2 className="font-display font-semibold text-white mt-2.5" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Sound familiar?</h2>
-              <p className="mt-3 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>Hiring the way most teams still do it, before Aster does the first pass for you.</p>
+              <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.1em" }}>The problem</p>
+              <h2 className="font-display font-semibold mt-2.5" style={{ color: "var(--ink)", fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>Sound familiar?</h2>
+              <p className="mt-3 text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>Hiring the way most teams still do it, before Aster does the first pass for you.</p>
             </div>
             <ul className="space-y-3">
               {pains.map((p, i) => (
-                <li key={i} className="flex items-start gap-3.5 rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "rgba(180,83,9,0.16)", color: "#F0A868", border: "1px solid rgba(240,168,104,0.28)" }}><Icon name="close" className="w-3.5 h-3.5" /></span>
-                  <span className="text-sm leading-relaxed text-white/85">{p}</span>
+                <li key={i} className="flex items-start gap-3.5 rounded-xl p-4" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "#FEF3E7", color: "#C2701C", border: "1px solid #FBD9B4" }}><Icon name="close" className="w-3.5 h-3.5" /></span>
+                  <span className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{p}</span>
                 </li>
               ))}
             </ul>
@@ -4560,7 +5650,7 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
       )}
 
       {/* How Aster helps, the fix, on a light band */}
-      <section className="py-16 sm:py-20" style={{ background: "var(--bg)" }}>
+      <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl mb-8 sm:mb-10">
             <p className="text-[11px] font-semibold uppercase brand-text" style={{ letterSpacing: "0.1em" }}>How Aster helps</p>
@@ -4580,20 +5670,19 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
 
       {/* Highlight band, dark */}
       {page.highlight && (
-        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+        <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
-              <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #973BF7 0%, transparent 70%)" }} />
+            <div className="rounded-3xl p-8 sm:p-12 relative overflow-hidden" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
               <div className="relative grid lg:grid-cols-2 gap-8 items-center">
                 <div>
-                  <h2 className="font-display font-semibold text-white" style={{ fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
-                  <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--navy-ink)" }}>{page.highlight.body}</p>
+                  <h2 className="font-display font-semibold" style={{ color: "var(--ink)", fontSize: "clamp(1.5rem, 2.8vw, 2.1rem)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{page.highlight.title}</h2>
+                  <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>{page.highlight.body}</p>
                 </div>
                 <ul className="space-y-3">
                   {page.highlight.points.map((pt, i) => (
-                    <li key={i} className="flex items-start gap-3 rounded-xl p-3.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                      <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="check" className="w-3.5 h-3.5" /></span>
-                      <span className="text-sm text-white/90">{pt}</span>
+                    <li key={i} className="flex items-start gap-3 rounded-xl p-3.5" style={{ background: "#fff", border: "1px solid #DCE4F7" }}>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#DCFCE7", color: "#16A34A" }}><Icon name="check" className="w-3.5 h-3.5" /></span>
+                      <span className="text-sm" style={{ color: "var(--ink-2)" }}>{pt}</span>
                     </li>
                   ))}
                 </ul>
@@ -4604,14 +5693,14 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
       )}
 
       {/* Outcomes, honest, platform-level proof (the "after") */}
-      <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+      <section className="py-16 sm:py-20" style={{ background: "#fff" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="rounded-3xl p-8 sm:p-10 grid sm:grid-cols-3 gap-8 sm:gap-4 items-center" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--navy-line)" }}>
+          <div className="rounded-3xl p-8 sm:p-10 grid sm:grid-cols-3 gap-8 sm:gap-4 items-center" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
             {SOLUTION_OUTCOMES.map((o, i) => (
               <div key={i} className="text-center relative">
-                {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px" style={{ background: "var(--navy-line)" }} />}
+                {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px" style={{ background: "var(--line-strong)" }} />}
                 <p className="brand-text font-display font-bold" style={{ fontSize: "clamp(1.9rem, 4vw, 2.6rem)", letterSpacing: "-0.02em", lineHeight: 1 }}>{o.stat}</p>
-                <p className="text-sm mt-2" style={{ color: "var(--navy-ink)" }}>{o.label}</p>
+                <p className="text-sm mt-2" style={{ color: "var(--ink-2)" }}>{o.label}</p>
               </div>
             ))}
           </div>
@@ -4621,13 +5710,13 @@ function SolutionsScreen({ slug = "", navigate, goProduct, goSolution, goBlog = 
 
       {/* Related solutions in the same group */}
       {seg && (
-        <section className="pb-16 sm:pb-20" style={{ background: "#050610" }}>
+        <section className="pb-16 sm:pb-20" style={{ background: "#fff" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <p className="text-[11px] font-semibold uppercase mb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>More {seg.group.toLowerCase()}</p>
             <div className="flex flex-wrap gap-2.5">
               {(SOLUTIONS_NAV.find((g) => g.group === seg.group)?.items || []).filter((s) => s.slug !== slug).map((s) => (
-                <button key={s.slug} onClick={() => goSolution(s.slug)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-xl transition-colors hover:bg-white/[0.06]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)", color: "#fff" }}>
-                  <span style={{ color: "#C79BFF" }}><Icon name={s.icon} className="w-4 h-4" /></span> {s.label}
+                <button key={s.slug} onClick={() => goSolution(s.slug)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-xl transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink)" }}>
+                  <span style={{ color: "var(--brand)" }}><Icon name={s.icon} className="w-4 h-4" /></span> {s.label}
                 </button>
               ))}
             </div>
@@ -4700,7 +5789,7 @@ function BlogPostCard({ post, onOpen, featured = false, dark = false }) {
         <Icon name={cat?.icon || "doc"} className="w-3 h-3" /> {cat?.label}
       </span>
       <p className={`mt-3 font-semibold font-display leading-snug ${featured ? "text-2xl" : "text-lg"} ${dark ? "text-white" : "text-neutral-900"}`} style={{ letterSpacing: "-0.01em" }}>{post.title}</p>
-      <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: dark ? "var(--navy-ink)" : "var(--ink-2)" }}>{post.excerpt}</p>
+      <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: dark ? "var(--ink-2)" : "var(--ink-2)" }}>{post.excerpt}</p>
       <div className="mt-4 flex items-center gap-2 text-xs" style={{ color: "var(--ink-3)" }}>
         <span className="font-medium" style={{ color: dark ? "rgba(255,255,255,0.75)" : "var(--ink-2)" }}>{post.author.name}</span><span>·</span><span>{fmtDate(post.date)}</span><span>·</span><span>{post.readMins} min read</span>
       </div>
@@ -4813,17 +5902,17 @@ function MobileReadingBar() {
 }
 
 function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl, light: true };
 
   // ── Single post ──
   if (slug) {
     const post = BLOG_POSTS.find((p) => p.slug === slug);
     if (!post) {
       return (
-        <div style={{ background: "#050610", minHeight: "100vh" }}>
+        <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
           <MarketingNav {...nav} current={null} />
           <div className="max-w-3xl mx-auto px-6 py-24 text-center">
-            <h1 className="text-2xl font-bold text-white font-display">Article not found</h1>
+            <h1 className="text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Article not found</h1>
             <button onClick={() => goBlog({})} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to the blog</button>
           </div>
         </div>
@@ -4832,24 +5921,24 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
     const category = blogCat(post.category);
     const related = BLOG_POSTS.filter((p) => p.category === post.category && p.slug !== post.slug).slice(0, 2);
     return (
-      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
         <MobileReadingBar />
         <MarketingNav {...nav} current={null} />
         {/* Article header */}
-        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.28) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.22) 0%, transparent 60%)" }} />
+        <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
-            <button onClick={() => goBlog({})} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All articles</button>
-            <button onClick={() => goBlog({ category: post.category })} className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+            <button onClick={() => goBlog({})} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All articles</button>
+            <button onClick={() => goBlog({ category: post.category })} className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}>
               <Icon name={category?.icon || "doc"} className="w-3.5 h-3.5" /> {category?.label}
             </button>
-            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.9rem, 4vw, 2.9rem)", lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{post.title}</h1>
+            <h1 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(1.9rem, 4vw, 2.9rem)", lineHeight: 1.1, letterSpacing: "-0.02em", textWrap: "balance" }}>{post.title}</h1>
             {post.excerpt && (
-              <p className="mt-5 max-w-2xl" style={{ fontSize: "clamp(1.05rem, 1.7vw, 1.25rem)", lineHeight: 1.55, color: "rgba(255,255,255,0.72)", textWrap: "pretty" }}>{post.excerpt}</p>
+              <p className="mt-5 max-w-2xl" style={{ fontSize: "clamp(1.05rem, 1.7vw, 1.25rem)", lineHeight: 1.55, color: "var(--ink-2)", textWrap: "pretty" }}>{post.excerpt}</p>
             )}
-            <div className="mt-6 flex items-center gap-3 text-sm" style={{ color: "var(--navy-ink)" }}>
+            <div className="mt-6 flex items-center gap-3 text-sm" style={{ color: "var(--ink-3)" }}>
               <span className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold brand-gradient shrink-0">{post.author.name.charAt(0)}</span>
-              <span><span className="text-white/90 font-medium">{post.author.name}</span> · {post.author.role}</span>
+              <span><span className="font-medium" style={{ color: "var(--ink)" }}>{post.author.name}</span> · {post.author.role}</span>
               <span className="hidden sm:inline">·</span>
               <span className="hidden sm:inline">{fmtDate(post.date)} · {post.readMins} min read</span>
             </div>
@@ -4883,11 +5972,11 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
         </section>
         {/* Related */}
         {related.length > 0 && (
-          <section className="py-16 sm:py-20" style={{ background: "#050610" }}>
+          <section className="py-16 sm:py-20" style={{ background: "#fff" }}>
             <div className="max-w-6xl mx-auto px-4 sm:px-6">
-              <h2 className="text-white font-display font-semibold text-xl mb-6">Keep reading in {category?.label}</h2>
+              <h2 className="font-display font-semibold text-xl mb-6" style={{ color: "var(--ink)" }}>Keep reading in {category?.label}</h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                {related.map((p) => <BlogPostCard key={p.slug} post={p} dark onOpen={() => goBlog({ post: p.slug })} />)}
+                {related.map((p) => <BlogPostCard key={p.slug} post={p} onOpen={() => goBlog({ post: p.slug })} />)}
               </div>
             </div>
           </section>
@@ -4904,22 +5993,22 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
   const featured = !cat ? posts[0] : null;
   const rest = featured ? posts.slice(1) : posts;
   return (
-    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+    <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
       <MarketingNav {...nav} current={null} />
       {/* Blog header, a content hub, so no product CTAs here */}
-      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+      <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
           {cat && (
-            <button onClick={() => goBlog({})} className="inline-flex items-center gap-1.5 text-sm mb-5 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All articles</button>
+            <button onClick={() => goBlog({})} className="inline-flex items-center gap-1.5 text-sm mb-5 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All articles</button>
           )}
-          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}>
             <Icon name={activeCat ? activeCat.icon : "doc"} className="w-3.5 h-3.5" /> {activeCat ? activeCat.label : "The Aster blog"}
           </span>
-          <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>
+          <h1 className="font-display font-bold mx-auto" style={{ color: "var(--ink)", fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>
             {activeCat ? activeCat.label : (<>Writing on hiring, <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>done well.</span></>)}
           </h1>
-          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>
+          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>
             {activeCat ? activeCat.desc : "Practical writing on AI screening, recruiting operations and structured interviews, for teams that want to hire faster without lowering the bar."}
           </p>
         </div>
@@ -4945,12 +6034,12 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
           </div>
         </section>
       )}
-      {/* Grid, dark band for rhythm against the light featured area above */}
-      <section className="py-12 sm:py-16 mt-4" style={{ background: "#050610" }}>
+      {/* Grid, light band; cards use act-shadow for separation */}
+      <section className="py-12 sm:py-16 mt-4" style={{ background: "#fff" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <h2 className="text-white font-display font-semibold text-xl mb-6">{activeCat ? `More on ${activeCat.label.toLowerCase()}` : "All articles"}</h2>
+          <h2 className="font-display font-semibold text-xl mb-6" style={{ color: "var(--ink)" }}>{activeCat ? `More on ${activeCat.label.toLowerCase()}` : "All articles"}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {rest.map((p) => <BlogPostCard key={p.slug} post={p} dark onOpen={() => goBlog({ post: p.slug })} />)}
+            {rest.map((p) => <BlogPostCard key={p.slug} post={p} onOpen={() => goBlog({ post: p.slug })} />)}
           </div>
         </div>
       </section>
@@ -4960,17 +6049,17 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
 }
 
 function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl, light: true };
 
   // ── Single term ──
   if (slug) {
     const term = GLOSSARY_TERMS.find((g) => g.slug === slug);
     if (!term) {
       return (
-        <div style={{ background: "#050610", minHeight: "100vh" }}>
+        <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
           <MarketingNav {...nav} current={null} />
           <div className="max-w-3xl mx-auto px-6 py-24 text-center">
-            <h1 className="text-2xl font-bold text-white font-display">Term not found</h1>
+            <h1 className="text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Term not found</h1>
             <button onClick={() => goGlossary("")} className="mt-6 brand-gradient text-white font-semibold px-5 py-2.5 rounded-xl">Back to the glossary</button>
           </div>
         </div>
@@ -4978,15 +6067,15 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
     }
     const related = (term.related || []).map((s) => GLOSSARY_TERMS.find((g) => g.slug === s)).filter(Boolean);
     return (
-      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
         <MarketingNav {...nav} current={null} />
-        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.26) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.2) 0%, transparent 60%)" }} />
+        <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
-            <button onClick={() => goGlossary("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> Recruiting glossary</button>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#C79BFF" }}>Definition</p>
-            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2rem, 4vw, 3rem)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>{term.term}</h1>
-            <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--navy-ink)" }}>{term.short}</p>
+            <button onClick={() => goGlossary("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> Recruiting glossary</button>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--brand)" }}>Definition</p>
+            <h1 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(2rem, 4vw, 3rem)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>{term.term}</h1>
+            <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--ink-2)" }}>{term.short}</p>
           </div>
         </section>
         <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
@@ -4997,13 +6086,13 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
           </div>
         </section>
         {related.length > 0 && (
-          <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+          <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
             <div className="max-w-6xl mx-auto px-4 sm:px-6">
-              <p className="text-sm font-semibold text-white mb-4">Related terms</p>
+              <p className="text-sm font-semibold mb-4" style={{ color: "var(--ink)" }}>Related terms</p>
               <div className="flex flex-wrap gap-2">
                 {related.map((r) => (
-                  <button key={r.slug} onClick={() => goGlossary(r.slug)} className="inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-full transition-colors hover:bg-white/[0.06]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)", color: "var(--navy-ink)" }}>
-                    {r.term} <Icon name="arrowUpRight" className="w-3.5 h-3.5" style={{ color: "#C79BFF" }} />
+                  <button key={r.slug} onClick={() => goGlossary(r.slug)} className="inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-full transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                    {r.term} <Icon name="arrowUpRight" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} />
                   </button>
                 ))}
               </div>
@@ -5019,19 +6108,19 @@ function GlossaryScreen({ slug = "", navigate, goProduct, goSolution, goBlog, go
   // ── Index (A–Z) ──
   const sorted = [...GLOSSARY_TERMS].sort((a, b) => a.term.localeCompare(b.term));
   return (
-    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+    <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
       <MarketingNav {...nav} current={null} />
       {/* Glossary header, a reference page, so no product CTA here */}
-      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+      <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
-          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}>
+          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}>
             <Icon name="doc" className="w-3.5 h-3.5" /> Recruiting glossary
           </span>
-          <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>
+          <h1 className="font-display font-bold mx-auto" style={{ color: "var(--ink)", fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>
             Every hiring term, <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>in plain English.</span>
           </h1>
-          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>
+          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>
             Clear definitions of the words recruiters and hiring managers use every day, from applicant tracking systems to quality of hire.
           </p>
         </div>
@@ -5090,25 +6179,409 @@ function CompareMatrix({ competitor }) {
   );
 }
 
+// ── Trust & security center ────────────────────────────────────────────────
+// /trust hub + three deep-dive pages (compliance, subprocessors, privacy).
+// Compliance is framed honestly as a roadmap (nothing claimed that isn't held).
+const TRUST = {
+  hub: {
+    eyebrow: "Trust & security",
+    title: "Security your team can",
+    accent: "hand to procurement",
+    subtitle: "Aster handles candidate data for a living, so security and privacy aren't a bolt-on. Here's how we protect it, where it lives, and who we work with.",
+    pillars: [
+      { icon: "shield", title: "Encrypted end to end", body: "Every resume and candidate record is encrypted in transit (TLS 1.2+) and at rest (AES-256), scoped to your workspace." },
+      { icon: "lock", title: "Least-privilege access", body: "Role-based access, audit trails, and short-lived credentials. No one touches your data without a reason and a record." },
+      { icon: "users", title: "Your data stays yours", body: "Candidate data is only used to run your hiring. Export it or delete it in a couple of clicks, no ticket required." },
+      { icon: "matching", title: "AI with guardrails", body: "Resumes are scored against the role you set. We don't train foundation models on your candidate data." },
+    ],
+    cards: [
+      { to: "trust", slug: "compliance", icon: "shield", title: "Compliance", body: "SOC 2, ISO 27001 and GDPR: where we are today and what's on the roadmap." },
+      { to: "legal", slug: "subprocessors", icon: "briefcase", title: "Subprocessors", body: "The vendors that help us run Aster, what they do, and where they process data." },
+      { to: "legal", slug: "privacy", icon: "doc", title: "Data privacy & DPA", body: "What we collect, why, how long we keep it, and how to request our DPA." },
+    ],
+  },
+  compliance: {
+    title: "Compliance",
+    intro: "We're building Aster to enterprise security standards from the start. Here's an honest snapshot of where each framework stands.",
+    standards: [
+      { name: "SOC 2 Type II", status: "In progress", tone: "amber", body: "Our controls are being implemented and monitored ahead of a Type II observation window, targeting 2026. We can share our current security posture on request." },
+      { name: "ISO 27001", status: "On the roadmap", tone: "neutral", body: "Planned once SOC 2 is complete. Our information security practices already follow ISO-aligned controls." },
+      { name: "GDPR", status: "Compliant", tone: "green", body: "We process personal data lawfully, support data subject requests (access, export, deletion), and offer a Data Processing Agreement. EU data can be processed in-region." },
+    ],
+    controls: [
+      "Encryption in transit (TLS 1.2+) and at rest (AES-256)",
+      "Role-based access control with audit logging",
+      "Least-privilege, short-lived credentials for internal access",
+      "Regular backups with tested restore",
+      "Security review of every vendor before it becomes a subprocessor",
+      "Documented incident response and breach notification",
+    ],
+    note: "If you need a specific attestation for procurement, get in touch and we'll tell you exactly where we are. We won't claim a certification we don't yet hold.",
+  },
+};
+
+// Cross-links from the compliance page to the canonical legal documents.
+function TrustSubLinks({ goLegal = () => {} }) {
+  const items = [
+    { slug: "subprocessors", label: "Subprocessors", icon: "briefcase" },
+    { slug: "privacy", label: "Privacy policy", icon: "doc" },
+    { slug: "dpa", label: "Data processing agreement", icon: "shield" },
+  ];
+  return (
+    <section className="py-12 sm:py-14" style={{ background: "var(--bg)", borderTop: "1px solid var(--line)" }}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <p className="text-[11px] font-semibold uppercase mb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Related legal documents</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {items.map((i) => (
+            <button key={i.slug} onClick={() => goLegal(i.slug)} className="group flex items-center gap-3 rounded-2xl p-4 act-shadow text-left transition-all hover:-translate-y-0.5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+              <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={i.icon} className="w-4 h-4" /></span>
+              <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{i.label}</span>
+              <Icon name="arrowUpRight" className="w-4 h-4 ml-auto opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} />
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Shared dark hero for the trust pages (hub + sub-pages). Module-level so it
+// isn't recreated on every TrustScreen render.
+function TrustHero({ eyebrow, title, accent, subtitle, back, wide = false, goTrust = () => {} }) {
+  return (
+    <section className="relative overflow-hidden" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
+      <div className={`relative ${wide ? "max-w-6xl" : "max-w-4xl"} mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10 sm:pb-12`}>
+        {back && <button onClick={() => goTrust("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> Trust &amp; security</button>}
+        <span className="inline-flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}><Icon name="shield" className="w-3.5 h-3.5" /> {eyebrow}</span>
+        <h1 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(2rem, 4.4vw, 3.1rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>{title}{accent ? <> <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{accent}</span></> : null}</h1>
+        {subtitle && <p className="mt-5 text-base sm:text-lg max-w-2xl leading-relaxed" style={{ color: "var(--ink-2)" }}>{subtitle}</p>}
+      </div>
+    </section>
+  );
+}
+
+function TrustScreen({ slug = "", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, goTrust = () => {}, goLegal = () => {}, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, goTrust, goLegal, logoUrl, light: true };
+
+  // ── Compliance ──
+  if (slug === "compliance") {
+    const d = TRUST.compliance;
+    const toneStyles = { green: { bg: "#DCFCE7", color: "#166534" }, amber: { bg: "#FEF3C7", color: "#92400E" }, neutral: { bg: "#EDEFF3", color: "var(--ink-2)" } };
+    return (
+      <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
+        <MarketingNav {...nav} current={null} />
+        <TrustHero eyebrow="Compliance" title={d.title} subtitle={d.intro} back wide goTrust={goTrust} />
+        <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-4">
+            {d.standards.map((s) => (
+              <div key={s.name} className="rounded-2xl p-6 act-shadow flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                <div className="sm:w-48 shrink-0">
+                  <p className="text-neutral-900 font-semibold font-display">{s.name}</p>
+                  <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: toneStyles[s.tone].bg, color: toneStyles[s.tone].color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: toneStyles[s.tone].color }} /> {s.status}</span>
+                </div>
+                <p className="text-sm leading-relaxed flex-1" style={{ color: "var(--ink-2)" }}>{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <h2 className="font-display font-semibold text-xl mb-6" style={{ color: "var(--ink)" }}>Controls in place today</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {d.controls.map((c, i) => (
+                <div key={i} className="flex items-start gap-3 rounded-2xl p-4 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="check" className="w-3.5 h-3.5" /></span>
+                  <span className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{c}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 text-sm leading-relaxed max-w-2xl" style={{ color: "var(--ink-2)" }}>{d.note}</p>
+          </div>
+        </section>
+        <TrustSubLinks goLegal={goLegal} />
+        <ProductCTA navigate={navigate} />
+        <MarketingFooter {...nav} />
+      </div>
+    );
+  }
+
+  // ── Hub ──
+  const h = TRUST.hub;
+  return (
+    <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
+      <MarketingNav {...nav} current={null} />
+      <TrustHero eyebrow={h.eyebrow} title={h.title} accent={h.accent} subtitle={h.subtitle} wide />
+      <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {h.pillars.map((p) => (
+              <div key={p.title} className="rounded-2xl p-6 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={p.icon} className="w-5 h-5" /></span>
+                <p className="text-neutral-900 font-semibold font-display">{p.title}</p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{p.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="font-display font-semibold mb-6" style={{ color: "var(--ink)", fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>Go deeper</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {h.cards.map((c) => (
+              <button key={c.slug} onClick={() => (c.to === "legal" ? goLegal(c.slug) : goTrust(c.slug))} className="group text-left rounded-2xl p-6 act-shadow transition-all hover:-translate-y-1 flex flex-col" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}><Icon name={c.icon} className="w-5 h-5" /></span>
+                <p className="font-semibold font-display text-lg" style={{ color: "var(--ink)" }}>{c.title}</p>
+                <p className="mt-2 text-sm leading-relaxed flex-1" style={{ color: "var(--ink-2)" }}>{c.body}</p>
+                <span className="mt-4 text-sm font-semibold inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>Read more <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+      <ProductCTA navigate={navigate} />
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
+
+// ── Legal center ───────────────────────────────────────────────────────────
+// Six formal documents. These are plain-English SCAFFOLDS: correct structure +
+// an honest summary, with a notice that the binding text is provided by counsel.
+// Nothing here should be relied on as the final legal agreement.
+const LEGAL_CONTACT = "legal@hireaster.com";
+const LEGAL = {
+  privacy: {
+    title: "Privacy policy",
+    summary: "What personal data Aster collects, why, how long we keep it, and the rights you and your candidates have.",
+    sections: [
+      { h: "What we collect", p: "Account and workspace data you provide, and candidate data: resumes and the skills, experience and contact details parsed from them." },
+      { h: "How we use it", p: "To run your hiring: parsing, scoring and ranking candidates, scheduling interviews, and operating your pipeline. We don't sell personal data or use candidate data to train foundation models." },
+      { h: "Legal bases (GDPR)", p: "We process personal data to perform our contract with you, to meet legitimate interests in operating the service, and with consent where it is required." },
+      { h: "Retention", p: "We keep data for as long as your workspace is active. Deleting a candidate or your workspace removes it, with backups ageing out on a fixed cycle." },
+      { h: "Your rights", p: "Access, export and deletion are available in-app. To exercise data subject rights or ask a privacy question, contact us." },
+      { h: "Sharing & subprocessors", p: "We share data only with the vendors that help us run Aster, listed on our Subprocessors page, each under a data processing agreement." },
+    ],
+    related: ["dpa", "cookies", "subprocessors"],
+  },
+  terms: {
+    title: "Terms of service",
+    summary: "The agreement between your organisation and Aster for using the platform.",
+    sections: [
+      { h: "The agreement", p: "By creating a workspace or using Aster you agree to these terms on behalf of your organisation." },
+      { h: "Your account", p: "You're responsible for your workspace, your users, and keeping credentials secure. You must have the right to upload the candidate data you add." },
+      { h: "Acceptable use", p: "Use Aster lawfully and as intended. Prohibited uses are described in our Acceptable Use Policy." },
+      { h: "Plans & billing", p: "Paid plans renew each cycle. Limits and features by plan are shown on the pricing page and in-app." },
+      { h: "Availability & changes", p: "We work to keep Aster available and may update the service. We'll give reasonable notice of material changes to these terms." },
+      { h: "Liability & termination", p: "Either party may end the agreement per these terms. Liability is limited to the extent permitted by law." },
+    ],
+    related: ["aup", "privacy", "dpa"],
+  },
+  dpa: {
+    title: "Data processing agreement",
+    summary: "How Aster processes personal data on your behalf as your processor, for customers who need a DPA for their own compliance.",
+    sections: [
+      { h: "Roles", p: "You are the data controller; Aster is the data processor acting on your documented instructions." },
+      { h: "Scope of processing", p: "We process candidate and workspace personal data solely to provide the service described in our agreement." },
+      { h: "Security", p: "We apply technical and organisational measures including encryption in transit and at rest, access controls, and audit logging." },
+      { h: "Subprocessors", p: "We use the subprocessors listed on our Subprocessors page and will give notice of changes." },
+      { h: "International transfers", p: "Where data moves across regions we rely on appropriate safeguards such as Standard Contractual Clauses." },
+      { h: "Assistance & deletion", p: "We help you meet data subject requests and delete or return personal data at the end of the agreement." },
+    ],
+    related: ["privacy", "subprocessors"],
+    cta: "Request a signed DPA",
+  },
+  cookies: {
+    title: "Cookie policy",
+    summary: "The cookies and similar technologies Aster uses, and how to control them.",
+    sections: [
+      { h: "Essential", p: "Required to sign you in and keep the app working. These can't be switched off." },
+      { h: "Analytics", p: "Help us understand how the marketing site and app are used so we can improve them, aggregated where possible." },
+      { h: "Preferences", p: "Remember choices like your workspace and settings." },
+      { h: "Managing cookies", p: "You can control cookies in your browser settings. Blocking essential cookies may break parts of the app." },
+    ],
+    related: ["privacy", "subprocessors"],
+  },
+  aup: {
+    title: "Acceptable use policy",
+    summary: "What you can and can't do with Aster, to keep the platform safe and lawful for everyone.",
+    sections: [
+      { h: "Use it lawfully", p: "Follow applicable employment, privacy and anti-discrimination law when using Aster to evaluate candidates." },
+      { h: "Only upload data you may", p: "Upload candidate data only where you have a lawful basis and the right to process it." },
+      { h: "No abuse", p: "Don't attempt to breach security, disrupt the service, scrape at scale, or reverse engineer the platform." },
+      { h: "No harmful content", p: "Don't use Aster to store or transmit unlawful, harmful, or infringing content." },
+      { h: "Fair AI use", p: "Aster scores candidates against the role you set. Use its output as decision support, with human judgement in every hiring decision." },
+    ],
+    related: ["terms", "privacy"],
+  },
+  subprocessors: {
+    title: "Subprocessors",
+    summary: "The vendors that help us run Aster, what each does, and where they process data. Each is bound by a data processing agreement and reviewed for security before we onboard them.",
+    table: [
+      { name: "Supabase", purpose: "Database, authentication, and encrypted resume file storage", region: "EU / US" },
+      { name: "Vercel", purpose: "Application hosting and content delivery", region: "Global edge" },
+      { name: "Anthropic", purpose: "AI resume parsing, candidate ranking, and experience insights (Claude)", region: "US" },
+      { name: "Google", purpose: "Google Meet and Calendar for interview scheduling, when you connect it", region: "Global" },
+      { name: "Microsoft", purpose: "Microsoft Teams for interview scheduling, when you connect it", region: "Global" },
+    ],
+    note: "We update this page when we add or remove a subprocessor. Want advance notice of changes? Email " + LEGAL_CONTACT + " and we'll add you to the list.",
+    related: ["privacy", "dpa"],
+  },
+};
+
+function LegalScreen({ slug = "privacy", navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, goTrust = () => {}, goLegal = () => {}, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, goTrust, goLegal, logoUrl, light: true };
+  const d = LEGAL[slug] || LEGAL.privacy;
+  return (
+    <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
+      <MarketingNav {...nav} current={null} />
+      {/* Header */}
+      <section className="relative overflow-hidden" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
+          <div className="flex items-center gap-2 text-xs mb-5" style={{ color: "var(--ink-3)" }}>
+            <button onClick={() => goTrust("")} className="hover:text-[color:var(--brand)] transition-colors">Trust &amp; security</button>
+            <span>/</span>
+            <span style={{ color: "var(--ink-2)" }}>Legal</span>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap mb-3">
+            <h1 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(1.9rem, 4vw, 2.8rem)", lineHeight: 1.1, letterSpacing: "-0.03em" }}>{d.title}</h1>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#92400E" }} /> Draft, pending legal review</span>
+          </div>
+          <p className="text-base sm:text-lg leading-relaxed max-w-2xl" style={{ color: "var(--ink-2)" }}>{d.summary}</p>
+        </div>
+      </section>
+
+      {/* Body */}
+      <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          {d.table ? (
+            <div className="rounded-2xl overflow-hidden act-shadow" style={{ border: "1px solid var(--line)", background: "#fff" }}>
+              <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-3 text-[11px] font-semibold uppercase" style={{ background: "#F5F7FA", color: "var(--ink-3)", letterSpacing: "0.06em", borderBottom: "1px solid var(--line)" }}>
+                <span className="col-span-3">Subprocessor</span><span className="col-span-7">What they do</span><span className="col-span-2">Region</span>
+              </div>
+              {d.table.map((v, i) => (
+                <div key={v.name} className="grid sm:grid-cols-12 gap-1 sm:gap-4 px-6 py-4" style={{ borderTop: i ? "1px solid var(--line)" : "none" }}>
+                  <p className="sm:col-span-3 font-semibold font-display text-sm" style={{ color: "var(--ink)" }}>{v.name}</p>
+                  <p className="sm:col-span-7 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{v.purpose}</p>
+                  <p className="sm:col-span-2 text-sm" style={{ color: "var(--ink-3)" }}>{v.region}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+              {d.sections.map((s, i) => (
+                <div key={s.h} className="flex gap-4 sm:gap-5">
+                  <span className="hidden sm:flex shrink-0 w-8 h-8 rounded-full items-center justify-center text-xs font-semibold font-display" style={{ background: "#fff", border: "1.5px solid var(--brand)", color: "var(--brand)" }}>{i + 1}</span>
+                  <div>
+                    <h2 className="font-display font-semibold text-lg mb-1.5" style={{ color: "var(--ink)" }}>{s.h}</h2>
+                    <p className="text-sm sm:text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{s.p}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {d.note && <p className="mt-8 text-sm leading-relaxed max-w-3xl" style={{ color: "var(--ink-2)" }}>{d.note}</p>}
+
+          {/* Honest scaffold notice + contact / DPA CTA */}
+          <div className="mt-10 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
+            <div className="max-w-xl">
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>This is a plain-English summary, not the full terms.</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>For the complete, current document{d.cta ? " or a signed copy" : ""}, contact our team.</p>
+            </div>
+            <a href={`mailto:${LEGAL_CONTACT}?subject=${encodeURIComponent(d.cta || d.title)}`} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl brand-gradient text-white transition-opacity hover:opacity-90">{d.cta || "Contact legal"} <Icon name="arrowUpRight" className="w-4 h-4" /></a>
+          </div>
+        </div>
+      </section>
+
+      {/* Related documents */}
+      <section className="py-12 sm:py-14" style={{ background: "#fff", borderTop: "1px solid var(--line)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <p className="text-[11px] font-semibold uppercase mb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.1em" }}>Related documents</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(d.related || []).map((r) => (
+              <button key={r} onClick={() => goLegal(r)} className="group flex items-center gap-3 rounded-2xl p-4 act-shadow text-left transition-all hover:-translate-y-0.5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{LEGAL[r]?.title}</span>
+                <Icon name="arrowUpRight" className="w-4 h-4 ml-auto opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} />
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
+
+// In-app onboarding walkthrough: the first-run path from empty workspace to hire.
+const GETTING_STARTED_STEPS = [
+  { icon: "jobs", title: "Post your first job", body: "Create a role and publish it. You get a public apply link to share anywhere, and a career page that hosts it." },
+  { icon: "upload", title: "Add candidates", body: "Upload resumes in bulk, or let applicants come in through the job link. Aster parses each CV into structured skills and experience." },
+  { icon: "target", title: "Run AI Rank", body: "Score every applicant against the role and start from a ranked shortlist instead of a pile. Paid plans show the reasoning behind each score." },
+  { icon: "interview", title: "Interview & hire", body: "Send one scheduling link, the candidate self-books, and a Meet or Teams invite is created. Move people through the pipeline as they progress." },
+];
+function GettingStartedScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, goTrust = () => {}, goLegal = () => {}, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, goTrust, goLegal, logoUrl, light: true };
+  return (
+    <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
+      <MarketingNav {...nav} current={null} />
+      <section className="relative overflow-hidden" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10 sm:pb-12">
+          <span className="inline-flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}><Icon name="hire" className="w-3.5 h-3.5" /> Getting started</span>
+          <h1 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(2rem, 4.4vw, 3.1rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>From empty workspace to first hire</h1>
+          <p className="mt-5 text-base sm:text-lg max-w-2xl leading-relaxed" style={{ color: "var(--ink-2)" }}>Four steps to a shortlist. Most teams post a role and see their first ranked candidates the same afternoon.</p>
+        </div>
+      </section>
+      <section className="py-14 sm:py-16" style={{ background: "var(--bg)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+          {GETTING_STARTED_STEPS.map((s, i) => (
+            <div key={s.title} className="rounded-2xl p-6 act-shadow flex items-start gap-4 sm:gap-5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+              <span className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold font-display" style={{ background: "#fff", border: "1.5px solid var(--brand)", color: "var(--brand)" }}>{i + 1}</span>
+              <div className="min-w-0">
+                <p className="font-display font-semibold flex items-center gap-2" style={{ color: "var(--ink)" }}><Icon name={s.icon} className="w-4 h-4" style={{ color: "var(--brand)" }} /> {s.title}</p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{s.body}</p>
+              </div>
+            </div>
+          ))}
+          <div className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-4 justify-between sm:col-span-2" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
+            <div className="max-w-xl">
+              <p className="font-display font-semibold text-lg" style={{ color: "var(--ink)" }}>Ready to try it?</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Create a workspace free, no credit card. Need a hand? Open a support ticket any time.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a href="https://help.hireaster.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors hover:bg-white" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>Support ticket <Icon name="arrowUpRight" className="w-4 h-4" /></a>
+              <button onClick={() => navigate("signup")} className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl brand-gradient text-white transition-opacity hover:opacity-90">Create workspace <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+            </div>
+          </div>
+          </div>
+        </div>
+      </section>
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
+
 function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
-  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl };
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl, light: true };
 
   // ── A single competitor comparison ──
   const competitor = slug && slug !== "alternatives" ? competitorBySlug(slug) : null;
   if (competitor) {
     const others = COMPARE_COMPETITORS.filter((c) => c.slug !== competitor.slug).slice(0, 4);
     return (
-      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
         <MarketingNav {...nav} current={null} />
-        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(90,120,248,0.28) 0%, transparent 60%), radial-gradient(50% 45% at 6% 94%, rgba(151,59,247,0.22) 0%, transparent 60%)" }} />
+        <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
-            <button onClick={() => goCompare("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
+            <button onClick={() => goCompare("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
             <span className="inline-flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: `${competitor.tint}1f`, color: competitor.tint, border: `1px solid ${competitor.tint}55` }}>
               <Icon name="target" className="w-3.5 h-3.5" /> {competitor.category}
             </span>
-            <h1 className="font-display font-bold text-white" style={{ fontSize: "clamp(2rem, 4.4vw, 3.2rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>Aster vs {competitor.name}</h1>
-            <p className="mt-5 text-base sm:text-lg max-w-2xl leading-relaxed" style={{ color: "var(--navy-ink)" }}>{competitor.intro}</p>
+            <h1 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(2rem, 4.4vw, 3.2rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance" }}>Aster vs {competitor.name}</h1>
+            <p className="mt-5 text-base sm:text-lg max-w-2xl leading-relaxed" style={{ color: "var(--ink-2)" }}>{competitor.intro}</p>
           </div>
         </section>
         {/* Matrix */}
@@ -5119,24 +6592,24 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>Positioning reflects each tool's typical strengths; verify current features before relying on any single row.</p>
           </div>
         </section>
-        {/* Aster edge + when them, dark band */}
-        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+        {/* Aster edge + when them, light band */}
+        <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 grid gap-5 lg:grid-cols-3">
-            <div className="lg:col-span-2 rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, rgba(151,59,247,0.14), rgba(90,120,248,0.10))", border: "1px solid var(--navy-line)" }}>
-              <h3 className="text-white font-display font-semibold text-xl mb-4">Where Aster is different</h3>
+            <div className="lg:col-span-2 rounded-2xl p-6 sm:p-8" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
+              <h3 className="font-display font-semibold text-xl mb-4" style={{ color: "var(--ink)" }}>Where Aster is different</h3>
               <ul className="space-y-3">
                 {competitor.edge.map((e, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="check" className="w-3.5 h-3.5" /></span>
-                    <span className="text-sm sm:text-[15px] text-white/90 leading-relaxed">{e}</span>
+                    <span className="text-sm sm:text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{e}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl p-6 sm:p-8 flex flex-col" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
+            <div className="rounded-2xl p-6 sm:p-8 flex flex-col act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
               <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: `${competitor.tint}1f`, color: competitor.tint, border: `1px solid ${competitor.tint}44` }}><Icon name="star" className="w-5 h-5" /></span>
-              <h3 className="text-white font-display font-semibold text-lg mb-2">When {competitor.name} is the better fit</h3>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--navy-ink)" }}>{competitor.whenThem}</p>
+              <h3 className="font-display font-semibold text-lg mb-2" style={{ color: "var(--ink)" }}>When {competitor.name} is the better fit</h3>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{competitor.whenThem}</p>
             </div>
           </div>
         </section>
@@ -5152,14 +6625,14 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        {/* Other comparisons, dark band */}
-        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+        {/* Other comparisons, light band */}
+        <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 className="text-white font-display font-semibold text-xl mb-6">Other comparisons</h2>
+            <h2 className="font-display font-semibold text-xl mb-6" style={{ color: "var(--ink)" }}>Other comparisons</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {others.map((c) => (
-                <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <p className="text-white font-semibold font-display flex items-center gap-1.5">vs {c.name} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "#C79BFF" }} /></p>
+                <button key={c.slug} onClick={() => goCompare(c.slug)} className="group text-left rounded-2xl p-5 transition-all hover:-translate-y-1 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <p className="font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>vs {c.name} <Icon name="arrowUpRight" className="w-4 h-4 opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--brand)" }} /></p>
                   <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{c.category}</p>
                 </button>
               ))}
@@ -5176,15 +6649,15 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
   if (slug === "alternatives") {
     const a = COMPARE_ALTERNATIVES;
     return (
-      <div className="overflow-x-clip" style={{ background: "#050610" }}>
+      <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
         <MarketingNav {...nav} current={null} />
-        <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+        <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+          <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
-            <button onClick={() => goCompare("")} className="inline-flex items-center gap-1.5 text-sm mb-5 transition-colors hover:text-white" style={{ color: "var(--navy-ink)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
-            <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}><Icon name="target" className="w-3.5 h-3.5" /> {a.eyebrow}</span>
-            <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>{a.title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{a.accent}</span></h1>
-            <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{a.subtitle}</p>
+            <button onClick={() => goCompare("")} className="inline-flex items-center gap-1.5 text-sm mb-5 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
+            <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}><Icon name="target" className="w-3.5 h-3.5" /> {a.eyebrow}</span>
+            <h1 className="font-display font-bold mx-auto" style={{ color: "var(--ink)", fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>{a.title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{a.accent}</span></h1>
+            <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>{a.subtitle}</p>
           </div>
         </section>
         {/* Why teams switch, light band */}
@@ -5202,16 +6675,16 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
             </div>
           </div>
         </section>
-        {/* How the move works, dark band */}
-        <section className="py-14 sm:py-16" style={{ background: "#050610" }}>
+        {/* How the move works, light band */}
+        <section className="py-14 sm:py-16" style={{ background: "#fff" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 className="text-white font-display font-semibold mb-6" style={{ fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>How the move works</h2>
+            <h2 className="font-display font-semibold mb-6" style={{ color: "var(--ink)", fontSize: "clamp(1.4rem, 2.6vw, 2rem)", letterSpacing: "-0.02em" }}>How the move works</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {a.steps.map((s) => (
-                <div key={s.n} className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--navy-line)" }}>
-                  <span className="w-9 h-9 rounded-full flex items-center justify-center mb-4 brand-gradient text-white font-bold font-display">{s.n}</span>
-                  <p className="text-white font-semibold font-display">{s.title}</p>
-                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>{s.body}</p>
+                <div key={s.n} className="rounded-2xl p-6 act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center mb-4 font-bold font-display" style={{ background: "#fff", border: "1.5px solid var(--brand)", color: "var(--brand)" }}>{s.n}</span>
+                  <p className="font-semibold font-display" style={{ color: "var(--ink)" }}>{s.title}</p>
+                  <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{s.body}</p>
                 </div>
               ))}
             </div>
@@ -5240,14 +6713,14 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
   // ── Hub ──
   const h = COMPARE_HUB;
   return (
-    <div className="overflow-x-clip" style={{ background: "#050610" }}>
+    <div className="overflow-x-clip" style={{ background: "var(--bg)" }}>
       <MarketingNav {...nav} current={null} />
-      <section className="relative overflow-hidden grain" style={{ background: "#070814" }}>
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(65% 55% at 80% 8%, rgba(90,120,248,0.32) 0%, transparent 60%), radial-gradient(55% 50% at 8% 92%, rgba(151,59,247,0.26) 0%, transparent 60%)" }} />
+      <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
-          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.06)", color: "#C79BFF", border: "1px solid rgba(178,116,255,0.25)" }}><Icon name="target" className="w-3.5 h-3.5" /> {h.eyebrow}</span>
-          <h1 className="font-display font-bold text-white mx-auto" style={{ fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>{h.title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{h.accent}</span></h1>
-          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--navy-ink)", lineHeight: 1.6 }}>{h.subtitle}</p>
+          <span className="inline-flex items-center gap-2 text-xs font-medium pl-2 pr-3 py-1 rounded-full mb-6" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #DCE4F7" }}><Icon name="target" className="w-3.5 h-3.5" /> {h.eyebrow}</span>
+          <h1 className="font-display font-bold mx-auto" style={{ color: "var(--ink)", fontSize: "clamp(2.1rem, 4.6vw, 3.4rem)", lineHeight: 1.08, letterSpacing: "-0.03em", textWrap: "balance", maxWidth: "18ch" }}>{h.title} <span className="brand-text lf-shimmer" style={{ paddingBottom: "0.08em", display: "inline-block" }}>{h.accent}</span></h1>
+          <p className="mt-5 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "var(--ink-2)", lineHeight: 1.6 }}>{h.subtitle}</p>
         </div>
       </section>
       <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
@@ -5324,8 +6797,8 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const ctaText = signupTrial ? "Start 14-day free trial" : isPaid ? "Continue to payment" : "Create account";
   const ctaIcon = isPaid ? "card" : "arrowUpRight";
 
-  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--navy-ink)]";
-  const fieldDarkStyle = { background: "var(--navy-2)", border: "1px solid var(--navy-line)", color: "#FFFFFF" };
+  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]";
+  const fieldDarkStyle = { background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink)" };
   const labelDark = "block text-[13px] font-medium mb-1.5";
   const reqStar = <span aria-hidden="true" style={{ color: "var(--brand-0)" }}> *</span>;
 
@@ -5419,10 +6892,10 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   ];
 
   return (
-    <div className="min-h-dvh flex" style={{ background: "#05060F" }}>
+    <div className="min-h-dvh flex" style={{ background: "#fff" }}>
       {/* ---------- Left: brand / value panel ---------- */}
       <aside className="hidden lg:flex lg:w-1/2 sticky top-0 h-dvh self-start overflow-hidden flex-col justify-center px-8">
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #241357 0%, #120e35 46%, #05060f 100%)" }} />
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(125% 120% at 12% 8%, #2540F0 0%, #0B2AE0 46%, #0A1FC2 100%)" }} />
         <div className="signup-panel-grid pointer-events-none absolute inset-0" />
         <div className="login-orb-a pointer-events-none absolute -top-32 -left-24 w-[540px] h-[540px] rounded-full blur-3xl opacity-[0.42]" style={{ background: "radial-gradient(circle, var(--brand-0) 0%, transparent 68%)" }} />
         <div className="login-orb-b pointer-events-none absolute top-1/3 -right-24 w-[560px] h-[560px] rounded-full blur-3xl opacity-[0.38]" style={{ background: "radial-gradient(circle, var(--brand-2) 0%, transparent 70%)" }} />
@@ -5439,16 +6912,16 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
           <ul className="mt-8 space-y-3.5">
             {benefits.map((b, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(214,91,255,0.16)", color: "#E5A6FF" }}>
+                <span className="signup-benefit-ic mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.16)", color: "#fff" }}>
                   <Icon name="check" className="w-3 h-3" />
                 </span>
-                <span className="text-[14px] leading-snug" style={{ color: "#E7E8F6" }}>{b}</span>
+                <span className="text-[14px] leading-snug" style={{ color: "rgba(255,255,255,0.9)" }}>{b}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="relative z-10 mt-10 rounded-2xl p-5 w-full max-w-md mx-auto" style={{ background: "rgba(20,22,52,0.6)", border: "1px solid var(--navy-line)", backdropFilter: "blur(6px)" }}>
+        <div className="relative z-10 mt-10 rounded-2xl p-5 w-full max-w-md mx-auto" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(6px)" }}>
           <div className="flex gap-0.5 mb-2.5" style={{ color: "#F5A623" }}>
             {[0, 1, 2, 3, 4].map((i) => (
               <svg key={i} viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
@@ -5460,18 +6933,18 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             “Aster shortlisted 200 CVs before lunch. It cut our time-to-interview from three weeks to two days.”
           </p>
           <div className="mt-4 flex items-center gap-3">
-            <FaceAvatar name="Farah Adya" gender="women" size={34} className="border-2" style={{ borderColor: "#070814" }} />
+            <FaceAvatar name="Farah Adya" gender="women" size={34} className="border-2" style={{ borderColor: "#0B2AE0" }} />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-white truncate">Farah Adya</p>
-              <p className="text-[12px] truncate" style={{ color: "var(--navy-ink)" }}>Head of Talent, Northwind</p>
+              <p className="text-[12px] truncate" style={{ color: "rgba(255,255,255,0.8)" }}>Head of Talent, Northwind</p>
             </div>
-            <div className="ml-auto flex items-center gap-2 pl-3" style={{ borderLeft: "1px solid var(--navy-line)" }}>
+            <div className="ml-auto flex items-center gap-2 pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.2)" }}>
               <div className="flex -space-x-2">
                 {["#D65BFF", "#5A78F8", "#973BF7", "#22C55E"].map((c, i) => (
-                  <FaceAvatar key={i} seed={`signup-${i}`} name={["A", "S", "D", "P"][i]} size={22} className="border-2" style={{ borderColor: "#0c0e26" }} />
+                  <FaceAvatar key={i} seed={`signup-${i}`} name={["A", "S", "D", "P"][i]} size={22} className="border-2" style={{ borderColor: "#0B2AE0" }} />
                 ))}
               </div>
-              <span className="text-[11px]" style={{ color: "var(--navy-ink)" }}>2,000+ teams</span>
+              <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>2,000+ teams</span>
             </div>
           </div>
         </div>
@@ -5479,32 +6952,32 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
 
       {/* ---------- Right: form panel ---------- */}
       <main className="flex-1 flex items-start justify-center px-5 py-12 sm:px-8 lg:py-16 relative overflow-hidden">
-        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 0%, #1a1148 0%, #08091b 60%, #05060f 100%)" }} />
-        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-40" style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }} />
+        <div className="lg:hidden pointer-events-none absolute inset-0" style={{ background: "#fff" }} />
+        <div className="lg:hidden login-orb-a pointer-events-none absolute -top-28 -right-16 w-[380px] h-[380px] rounded-full blur-3xl opacity-[0.18]" style={{ background: "radial-gradient(circle, var(--brand-soft) 0%, transparent 70%)" }} />
 
         <div className="w-full max-w-md min-w-0 relative z-10">
           <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="lg:hidden mb-8 inline-flex [&_img]:!h-11">
-            <BrandLogo onDark logoUrl={logoUrl} />
+            <BrandLogo logoUrl={logoUrl} />
           </button>
 
-          <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "#FFFFFF" }}>Create your workspace</h1>
-          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--navy-ink)" }}>{isPaid ? `Set up your workspace, then continue to payment for ${planLabel}.` : "Get started free. It takes less than a minute."}</p>
+          <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Create your workspace</h1>
+          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>{isPaid ? `Set up your workspace, then continue to payment for ${planLabel}.` : "Get started free. It takes less than a minute."}</p>
 
           {/* Selected plan */}
-          <div className="rounded-xl px-3.5 py-3 mb-6 flex items-center justify-between gap-2" style={{ background: "var(--navy-2)", border: "1px solid var(--navy-line)" }}>
+          <div className="rounded-xl px-3.5 py-3 mb-6 flex items-center justify-between gap-2" style={{ background: "var(--bg)", border: "1px solid var(--line-strong)" }}>
             <div className="min-w-0 flex items-center gap-3">
               <span className="w-9 h-9 rounded-lg brand-gradient flex items-center justify-center shrink-0 text-white">
                 <Icon name="star" className="w-4 h-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--navy-ink)" }}>Selected plan</p>
-                <p className="text-sm font-semibold text-white flex items-center gap-2">
+                <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ink-2)" }}>Selected plan</p>
+                <p className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--ink)" }}>
                   <span>{planLabel}</span>
                   {signupTrial && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "rgba(151,59,247,0.25)", color: "#C7CCFF" }}>14-day free trial</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>14-day free trial</span>
                   )}
                 </p>
-                <p className="text-[12px] mt-0.5 flex items-center gap-1.5 truncate" style={{ color: "var(--navy-ink)" }}>
+                <p className="text-[12px] mt-0.5 flex items-center gap-1.5 truncate" style={{ color: "var(--ink-2)" }}>
                   {signupTrial ? (
                     <>
                       <span style={{ textDecoration: "line-through", opacity: 0.65 }}>{shownPrice}</span>
@@ -5515,38 +6988,38 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                   ) : isFreePlan ? (
                     "$0 · free forever"
                   ) : (
-                    <span className="font-medium text-white">{shownPrice}</span>
+                    <span className="font-medium" style={{ color: "var(--ink)" }}>{shownPrice}</span>
                   )}
                 </p>
               </div>
             </div>
-            <button onClick={goToPricing} className="text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "#C7CCFF", border: "1px solid var(--navy-line)" }}>Change</button>
+            <button onClick={goToPricing} className="text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-neutral-50" style={{ color: "var(--ink)", border: "1px solid var(--line-strong)" }}>Change</button>
           </div>
 
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignUp(); }}>
             <div>
-              <label htmlFor="su-company" className={labelDark} style={{ color: "#D8DAF6" }}>Company name{reqStar}</label>
+              <label htmlFor="su-company" className={labelDark} style={{ color: "var(--ink)" }}>Company name{reqStar}</label>
               <input id="su-company" name="organization" autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="su-first" className={labelDark} style={{ color: "#D8DAF6" }}>First name{reqStar}</label>
+                <label htmlFor="su-first" className={labelDark} style={{ color: "var(--ink)" }}>First name{reqStar}</label>
                 <input id="su-first" name="given-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Shah" className={fieldDark} style={fieldDarkStyle} />
               </div>
               <div>
-                <label htmlFor="su-last" className={labelDark} style={{ color: "#D8DAF6" }}>Last name</label>
+                <label htmlFor="su-last" className={labelDark} style={{ color: "var(--ink)" }}>Last name</label>
                 <input id="su-last" name="family-name" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ramly" className={fieldDark} style={fieldDarkStyle} />
               </div>
             </div>
             <div>
-              <label htmlFor="su-email" className={labelDark} style={{ color: "#D8DAF6" }}>Work email{reqStar}</label>
+              <label htmlFor="su-email" className={labelDark} style={{ color: "var(--ink)" }}>Work email{reqStar}</label>
               <input id="su-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div>
-              <label htmlFor="su-password" className={labelDark} style={{ color: "#D8DAF6" }}>Password</label>
+              <label htmlFor="su-password" className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
               <div className="relative">
                 <input id="su-password" name="new-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Create a password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: "var(--navy-ink)" }}>
+                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -5554,28 +7027,28 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                 <div className="mt-2 flex items-center gap-2">
                   <div className="flex gap-1 flex-1">
                     {[1, 2, 3].map((seg) => (
-                      <span key={seg} className="pw-seg h-1 flex-1 rounded-full" style={{ background: seg <= pwScore ? pwColor : "var(--navy-line)" }} />
+                      <span key={seg} className="pw-seg h-1 flex-1 rounded-full" style={{ background: seg <= pwScore ? pwColor : "var(--line-strong)" }} />
                     ))}
                   </div>
                   <span className="text-[11px] font-medium w-11 text-right" style={{ color: pwColor }}>{pwLabel}</span>
                 </div>
               )}
-              <p className="text-[11px] mt-1.5" style={{ color: "var(--navy-ink)" }}>At least 8 characters, with a letter and a number.</p>
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-2)" }}>At least 8 characters, with a letter and a number.</p>
             </div>
 
             {err && (
-              <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#FCA5A5", background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)" }}>{err}</p>
+              <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>
             )}
             {sent ? (
               <div className="rounded-xl px-4 py-4 text-center" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.32)" }}>
-                <div className="mx-auto mb-2 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.18)", color: "#4ADE80" }}>
+                <div className="mx-auto mb-2 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)", color: "#16A34A" }}>
                   <Icon name="check" className="w-4 h-4" />
                 </div>
-                <p className="text-sm font-semibold text-white">Confirm your email</p>
-                <p className="text-[13px] mt-1" style={{ color: "var(--navy-ink)" }}>
-                  We sent a confirmation link to <span className="text-white">{email.trim()}</span>. Click it, then sign in to finish setting up your workspace.
+                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Confirm your email</p>
+                <p className="text-[13px] mt-1" style={{ color: "var(--ink-2)" }}>
+                  We sent a confirmation link to <span style={{ color: "var(--ink)" }}>{email.trim()}</span>. Click it, then sign in to finish setting up your workspace.
                 </p>
-                <button type="button" onClick={() => navigate("login")} className="mt-3 text-[13px] font-semibold hover:opacity-80" style={{ color: "#C7CCFF" }}>Go to sign in</button>
+                <button type="button" onClick={() => navigate("login")} className="mt-3 text-[13px] font-semibold hover:opacity-80" style={{ color: "var(--brand)" }}>Go to sign in</button>
               </div>
             ) : (
               <button
@@ -5589,10 +7062,21 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             )}
           </form>
 
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px flex-1" style={{ background: "var(--line)" }} />
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>or</span>
+            <div className="h-px flex-1" style={{ background: "var(--line)" }} />
+          </div>
+          <div className="space-y-2.5">
+            <SsoButton onClick={signInWithGoogle} label="Sign up with Google" mark={GoogleMark} />
+            <SsoButton onClick={signInWithMicrosoft} label="Sign up with Microsoft" mark={MicrosoftMark} />
+          </div>
+          <p className="text-[11px] mt-2 text-center" style={{ color: "var(--ink-3)" }}>Work email required. Personal Google or Microsoft accounts aren't accepted.</p>
+
           {(signupTrial || isFreePlan) && (
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
               {[["check", "No credit card"], ["clock", "2-minute setup"], ["lock", "Your data stays private"]].map(([ic, label]) => (
-                <span key={label} className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--navy-ink)" }}>
+                <span key={label} className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
                   <Icon name={ic} className="w-3.5 h-3.5" />
                   {label}
                 </span>
@@ -5600,23 +7084,23 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             </div>
           )}
           {isPaid && (
-            <p className="mt-4 inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--navy-ink)" }}>
+            <p className="mt-4 inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
               <Icon name="lock" className="w-3.5 h-3.5" />
               Secure checkout. You'll add a payment method next.
             </p>
           )}
 
-          <p className="text-[12px] mt-5 leading-relaxed" style={{ color: "var(--navy-ink)" }}>
+          <p className="text-[12px] mt-5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
             By creating an account you agree to Aster's{" "}
-            <button type="button" className="underline underline-offset-2 hover:text-white transition-colors" style={{ color: "#C7CCFF" }}>Terms</button> and{" "}
-            <button type="button" className="underline underline-offset-2 hover:text-white transition-colors" style={{ color: "#C7CCFF" }}>Privacy Policy</button>.
+            <button type="button" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Terms</button> and{" "}
+            <button type="button" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Privacy Policy</button>.
           </p>
 
-          <div className="hairline-dark my-5" />
+          <div className="my-5" style={{ borderTop: "1px solid var(--line)" }} />
 
-          <p className="text-sm text-center" style={{ color: "var(--navy-ink)" }}>
+          <p className="text-sm text-center" style={{ color: "var(--ink-2)" }}>
             Already have an account?{" "}
-            <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "#FFFFFF" }}>
+            <button onClick={() => navigate("login")} className="font-semibold hover:opacity-80" style={{ color: "var(--brand)" }}>
               Sign in
             </button>
           </p>
@@ -5761,22 +7245,29 @@ function Icon({ name, className = "w-5 h-5" }) {
 
 // ---------- Brand logo ----------
 
-const ACTIVYS_LOGO_WHITE = "data:image/png;base64,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";
 const LOGIN_BG = "data:image/jpeg;base64,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";
 
-function BrandLogo({ logoUrl, compact = false, onDark = false, large = false }) {
-  // Shows the full Aster logo artwork. A user-uploaded logo (Settings)
-  // always wins. Otherwise we pick the colour variant for light contexts
-  // and the dedicated white wordmark for the dark navy sidebar, both are
-  // transparent PNGs, so no white box and no filter tricks.
-  const src = logoUrl || (onDark ? ACTIVYS_LOGO_WHITE : ACTIVYS_LOGO);
-  const h = compact ? "h-7" : large ? "h-9 sm:h-11" : "h-9";
+function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mono = false, black = false, xl = false }) {
+  // Shows the full Aster wordmark lockup (star mark + "aster"). A user-uploaded
+  // logo (Settings) always wins and renders as an image. Otherwise we draw the
+  // lockup inline as a single-colour SVG so it stays crisp at any size and
+  // recolours cleanly per surface, no PNG filter tricks.
+  const h = compact ? "h-10" : xl ? "h-[45px]" : large ? "h-[45px]" : "h-12";
+  if (logoUrl) {
+    return <img src={logoUrl} alt="Aster: smarter hiring, stronger teams" className={`${h} w-auto object-contain block`} />;
+  }
+  // White on the royal-blue nav / navy sidebar, solid ink on the light-grey
+  // footer, brand blue on plain light contexts.
+  const color = onDark || mono ? "#FFFFFF" : black ? "#14181F" : "var(--brand)";
+  // viewBox is cropped to the artwork (the source has generous vertical padding)
+  // so the lockup fills its height box instead of floating small inside it.
   return (
-    <img
-      src={src}
-      alt="Aster: smarter hiring, stronger teams"
-      className={`${h} w-auto object-contain`}
-    />
+    <svg viewBox="22 18 318 84" className={`${h} w-auto block`} role="img" aria-label="Aster" fill={color}>
+      <g transform="translate(56 60) scale(0.72)">
+        <path d="M0 -48 Q3 -5.196 41.57 -24 Q6 0 41.57 24 Q3 5.196 0 48 Q-3 5.196 -41.57 24 Q-6 0 -41.57 -24 Q-3 -5.196 0 -48 Z" />
+      </g>
+      <text x="104" y="60" fontFamily="'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" fontWeight="700" fontSize="68" letterSpacing="-2.4" dominantBaseline="central">aster</text>
+    </svg>
   );
 }
 
@@ -5812,7 +7303,7 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
       </div>
       <div className="min-w-0 flex-1 text-left md:text-center md:mt-3">
         <p className="text-sm font-semibold text-white group-hover:text-white/90 truncate">{fullName}</p>
-        <p className="text-xs truncate" style={{ color: "var(--navy-ink)" }}>{profile?.role || "—"}</p>
+        <p className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{profile?.role || "—"}</p>
       </div>
     </button>
   );
@@ -5835,10 +7326,10 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         <button
           onClick={onSignOut}
           className="md:hidden shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ color: "var(--navy-ink)", border: "1px solid var(--navy-line)" }}
+          style={{ color: "var(--ink-2)", border: "1px solid var(--navy-line)" }}
           aria-label="Log out"
           onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--navy-ink)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
         >
           <Icon name="logout" className="w-5 h-5" />
         </button>
@@ -5855,10 +7346,10 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
               style={
                 on
                   ? { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" }
-                  : { color: "var(--navy-ink)" }
+                  : { color: "var(--ink-2)" }
               }
               onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#FFFFFF"; }}
-              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--navy-ink)"; }}
+              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
             >
               <Icon name={item.icon} className="w-5 h-5 shrink-0" />
               <span className="truncate flex-1 text-left">{item.label}</span>
@@ -5884,9 +7375,9 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
               key={item.key}
               onClick={() => go(item.key)}
               className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
-              style={on ? { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" } : { color: "var(--navy-ink)" }}
+              style={on ? { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" } : { color: "var(--ink-2)" }}
               onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#FFFFFF"; }}
-              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--navy-ink)"; }}
+              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
             >
               <Icon name={item.icon} className="w-5 h-5 shrink-0" />
               <span>{item.label}</span>
@@ -5896,9 +7387,9 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         <button
           onClick={onSignOut}
           className="hidden md:flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
-          style={{ color: "var(--navy-ink)" }}
+          style={{ color: "var(--ink-2)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--navy-ink)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
         >
           <Icon name="logout" className="w-5 h-5 shrink-0" />
           <span>Log out</span>
@@ -5920,9 +7411,9 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
         aria-label={item.label}
         aria-current={on ? "page" : undefined}
         className="relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
-        style={{ color: on ? "#fff" : "var(--navy-ink)" }}
+        style={{ color: on ? "#fff" : "var(--ink-2)" }}
         onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#fff"; }}
-        onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--navy-ink)"; }}
+        onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
       >
         {on && <span className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_20px_-8px_rgba(151,59,247,0.9)]" />}
         <Icon name={item.icon} className="relative w-5 h-5" />
@@ -5949,9 +7440,9 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
           title="Log out"
           aria-label="Log out"
           className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
-          style={{ color: "var(--navy-ink)" }}
+          style={{ color: "var(--ink-2)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--navy-ink)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
         >
           <Icon name="logout" className="w-5 h-5" />
         </button>
@@ -6809,7 +8300,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white leading-tight">{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--navy-ink)" }}>Full Premium access: unlimited AI matching &amp; jobs.</p>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Premium access: unlimited AI matching &amp; jobs.</p>
             </div>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -6843,7 +8334,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     <span aria-hidden="true" className="mt-0.5 opacity-60" style={{ color: k.dark ? "#fff" : "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></span>
                   </div>
                   <div className="mt-4 relative z-10">
-                    <p className="text-sm" style={{ color: k.dark ? "var(--navy-ink)" : "var(--ink-2)" }}>{k.label}</p>
+                    <p className="text-sm" style={{ color: k.dark ? "var(--ink-2)" : "var(--ink-2)" }}>{k.label}</p>
                     <div className="flex items-end gap-2 mt-0.5">
                       <p className="text-2xl font-bold font-display tnum" style={{ color: k.dark ? "#fff" : "var(--ink)" }}>{k.value}</p>
                       {typeof k.delta === "number" && k.delta !== 0 && <span className="text-[11px] font-semibold mb-1" style={{ color: k.delta > 0 ? "#22C55E" : "#EF4444" }}>{k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%</span>}
@@ -6942,7 +8433,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-white">Your plan</p>
-                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "Enterprise"}</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "Enterprise"}</p>
                 </div>
                 <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
               </div>
@@ -6967,10 +8458,10 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--navy-line)" }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-white">Recent candidates</p>
-                  <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>{stats.totalCandidates} total</button>
+                  <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>{stats.totalCandidates} total</button>
                 </div>
                 {candidates.filter((c) => c.parsed).length === 0 ? (
-                  <p className="text-xs" style={{ color: "var(--navy-ink)" }}>No candidates yet. Upload CVs or share an apply link.</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>No candidates yet. Upload CVs or share an apply link.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
@@ -7010,7 +8501,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                           <p className="text-sm font-semibold text-white">Plan usage</p>
                           <InfoHint dir="up" tone="light" hint="How much of this month's plan you have used for resume parsing, AI matching, and active jobs. Limits reset on the 1st." />
                         </div>
-                        <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--navy-ink)" }}>Manage</button>
+                        <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
                       </div>
                       <div className="space-y-3.5">
                         {items.map((it) => {
@@ -7020,7 +8511,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                           return (
                             <div key={it.label}>
                               <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-xs" style={{ color: "var(--navy-ink)" }}>{it.label}</span>
+                                <span className="text-xs" style={{ color: "var(--ink-2)" }}>{it.label}</span>
                                 <span className="text-xs font-medium tnum" style={{ color: reached ? "#FCA5A5" : "#fff" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
                               </div>
                               <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
@@ -12195,6 +13686,109 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
   );
 }
 
+// Opt-in TOTP two-factor for customer accounts, powered by Supabase Auth MFA.
+// Users enrol an authenticator app here; LoginScreen then asks for a code (AAL2).
+function MfaCard() {
+  const card = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+  const input = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const [factor, setFactor] = useState(null);   // verified TOTP factor, or null
+  const [enroll, setEnroll] = useState(null);    // { factorId, qr, secret } during setup
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+
+  const refresh = async () => {
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (!error) setFactor((data?.totp || []).find((f) => f.status === "verified") || null);
+    setLoaded(true);
+  };
+  useEffect(() => { if (hasSupabase) refresh(); else setLoaded(true); }, []);
+
+  const startEnroll = async () => {
+    setErr(null); setMsg(null); setBusy(true);
+    // clear any half-finished (unverified) factor so friendly names don't clash
+    const { data: list } = await supabase.auth.mfa.listFactors();
+    for (const f of (list?.totp || [])) if (f.status !== "verified") await supabase.auth.mfa.unenroll({ factorId: f.id });
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Authenticator" });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setEnroll({ factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
+    setCode("");
+  };
+
+  const confirmEnroll = async () => {
+    if (!enroll) return;
+    setErr(null); setBusy(true);
+    const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: enroll.factorId });
+    if (chErr) { setErr(chErr.message); setBusy(false); return; }
+    const { error } = await supabase.auth.mfa.verify({ factorId: enroll.factorId, challengeId: ch.id, code: code.trim() });
+    setBusy(false);
+    if (error) { setErr("That code didn't match. Check your app and try again."); return; }
+    setEnroll(null); setCode(""); setMsg("Two-factor authentication is on."); refresh();
+  };
+
+  const disable = async () => {
+    if (!factor) return;
+    setErr(null); setBusy(true);
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setMsg("Two-factor authentication turned off."); refresh();
+  };
+
+  return (
+    <div className={`${card} mt-4`}>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Two-factor authentication</h2>
+        {loaded && factor && !enroll && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> On</span>}
+      </div>
+
+      {!hasSupabase && <p className="text-sm text-neutral-500">Two-factor is available once your workspace is connected to the backend.</p>}
+
+      {hasSupabase && loaded && !factor && !enroll && (
+        <>
+          <p className="text-sm text-neutral-600 mb-3">Add a second step at sign-in with an authenticator app (Google Authenticator, Authy, 1Password).</p>
+          <button onClick={startEnroll} disabled={busy} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50">{busy ? "Setting up…" : "Enable two-factor"}</button>
+        </>
+      )}
+
+      {hasSupabase && enroll && (
+        <div className="space-y-3">
+          <p className="text-sm text-neutral-600">1. Scan this QR code with your authenticator app, or enter the key manually.</p>
+          <div className="flex items-start gap-4 flex-wrap">
+            {typeof enroll.qr === "string" && enroll.qr.trim().startsWith("<svg")
+              ? <div className="w-40 h-40 rounded-lg border p-1 bg-white shrink-0" style={{ borderColor: "var(--line)" }} dangerouslySetInnerHTML={{ __html: enroll.qr }} />
+              : <img src={enroll.qr} alt="Two-factor QR code" className="w-40 h-40 rounded-lg border shrink-0" style={{ borderColor: "var(--line)", background: "#fff" }} />}
+            <div className="min-w-0">
+              <p className="text-xs text-neutral-500 mb-1">Manual key</p>
+              <code className="text-xs break-all rounded-md px-2 py-1 inline-block" style={{ background: "#F1F1F4", color: "var(--ink)" }}>{enroll.secret}</code>
+            </div>
+          </div>
+          <p className="text-sm text-neutral-600">2. Enter the 6-digit code from the app.</p>
+          <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" className={`${input} tracking-[0.3em] font-mono max-w-[180px]`} />
+          {err && <p className="text-sm text-red-600">{err}</p>}
+          <div className="flex items-center gap-3">
+            <button onClick={confirmEnroll} disabled={busy || code.length < 6} className="rounded-xl brand-gradient text-white text-sm font-medium px-4 py-2 transition-opacity hover:opacity-90 disabled:opacity-50">{busy ? "Verifying…" : "Verify & turn on"}</button>
+            <button onClick={() => { setEnroll(null); setErr(null); }} className="text-sm text-neutral-500 hover:text-neutral-800">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {hasSupabase && loaded && factor && !enroll && (
+        <>
+          <p className="text-sm text-neutral-600 mb-3">You'll be asked for a code from your authenticator app each time you sign in.</p>
+          {err && <p className="text-sm text-red-600 mb-2">{err}</p>}
+          <button onClick={disable} disabled={busy} className="rounded-xl border text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-50" style={{ borderColor: "var(--line)", color: "#DC2626" }}>{busy ? "Turning off…" : "Turn off two-factor"}</button>
+        </>
+      )}
+
+      {msg && !enroll && <p className="text-sm mt-3" style={{ color: "#166534" }}>{msg}</p>}
+    </div>
+  );
+}
+
 function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
@@ -12367,6 +13961,8 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             </div>
           </div>
         </div>
+
+        <MfaCard />
 
         {/* Save / Cancel bar */}
         <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
@@ -14150,25 +15746,37 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
               const c = MOCK_CANDIDATES.find((cand) => cand.id === a.candidateId);
               if (!c || !c.parsed) return null;
               const role = c.parsed.experience?.[0]?.title ?? "Applicant";
+              const yrs = c.parsed.years_of_experience;
+              const descriptor = [seniorityFromYears(yrs), yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+              const chips = (c.parsed.skills || []).slice(0, 4);
               const match = matchResults?.[a.candidateId];
               const scoreVisible = idx < aiMatchLimit;
-              const isTop = !!matchResults && idx === 0 && !!match && scoreVisible;
+              const ranked = !!match && scoreVisible;
+              const isTop = !!matchResults && idx === 0 && ranked;
+              const act = activityFor(a);
               return (
                 <div
                   key={a.candidateId}
-                  className="rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]"
+                  className="rounded-2xl bg-white px-4 sm:px-5 py-4 border"
+                  style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}
                 >
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0">
-                      {match && scoreVisible
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
+                      {ranked
                         ? <ScoreRingLight value={Math.round(match.score * 100)} size={52} />
-                        : <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} />}
+                        : <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />}
                     </button>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="block text-left min-w-0 flex-1">
-                          <p className="text-neutral-900 font-medium truncate hover:underline">{c.parsed.name}</p>
+                        {ranked && <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={26} showPhotoDot={false} />}
+                        <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="min-w-0 flex-1 text-left">
+                          <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
                         </button>
+                        {act && (
+                          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
+                          </span>
+                        )}
                         {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
                         {match && !scoreVisible && (
                           <button onClick={() => navigate("billing")} className="shrink-0" aria-label="Upgrade to see match score">
@@ -14178,23 +15786,20 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
                           </button>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        {(() => {
-                          const act = activityFor(a);
-                          return act ? (
-                            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
-                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
-                            </span>
-                          ) : null;
-                        })()}
-                        <p className="text-xs text-neutral-500 truncate">{role} · applied {a.appliedAt}</p>
-                      </div>
+                      <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor} · applied {a.appliedAt}</p>
+                      {chips.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
+                      )}
                     </div>
+                    <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
                   </div>
 
-                  {match && scoreVisible && (
+                  {ranked && (
                     limits.showRationale ? (
-                      <p className="text-xs mt-2.5" style={{ color: "var(--ink-2)" }}>{match.rationale}</p>
+                      <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(151,59,247,0.05)", border: "1px solid rgba(151,59,247,0.13)" }}>
+                        <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
+                        <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>AI insight: </span>{match.rationale}</p>
+                      </div>
                     ) : (
                       <button onClick={() => navigate("billing")} className="text-xs mt-2.5 inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
                         <Icon name="lock" className="w-3 h-3" /> See why: upgrade for Aster's reasoning
@@ -14399,6 +16004,8 @@ const SCREEN_TO_PATH = {
   blog: "/blog",
   glossary: "/resources/glossary",
   compare: "/compare",
+  trust: "/trust",
+  gettingStarted: "/getting-started",
 };
 const PATH_TO_SCREEN = {
   "/": "landing",
@@ -14407,6 +16014,7 @@ const PATH_TO_SCREEN = {
   "/blog": "blog",
   "/resources/glossary": "glossary",
   "/compare": "compare",
+  "/getting-started": "gettingStarted",
   "/login": "login",
   "/forgot-password": "forgotPassword",
   "/signup": "signup",
@@ -14466,6 +16074,18 @@ function compareInfoFromPath(pathname) {
   const m = (pathname || "").match(/^\/compare\/([^/]+)$/);
   return m ? { kind: "page", slug: m[1] } : null;
 }
+// Trust center: /trust (hub) and /trust/<slug> (compliance | subprocessors | privacy).
+// Slug list is closed so unrelated /trust/* paths don't hijack the router.
+function trustInfoFromPath(pathname) {
+  if (pathname === "/trust") return { slug: "" };
+  const m = (pathname || "").match(/^\/trust\/(compliance)$/);
+  return m ? { slug: m[1] } : null;
+}
+// Legal center: /legal/<slug>. Closed slug list; no bare /legal index.
+function legalInfoFromPath(pathname) {
+  const m = (pathname || "").match(/^\/legal\/(privacy|terms|dpa|cookies|aup|subprocessors)$/);
+  return m ? { slug: m[1] } : null;
+}
 // Applicants: /applicants (first job) and /applicants/<jobId> so a specific
 // job's applicant list is refreshable and shareable.
 function applicantsJobFromPath(pathname) {
@@ -14486,6 +16106,8 @@ function screenFromPath(pathname) {
   if (blogInfoFromPath(pathname)) return "blog";
   if (glossaryInfoFromPath(pathname)) return "glossary";
   if (compareInfoFromPath(pathname)) return "compare";
+  if (trustInfoFromPath(pathname)) return "trust";
+  if (legalInfoFromPath(pathname)) return "legal";
   return PATH_TO_SCREEN[pathname] || "landing";
 }
 
@@ -14628,6 +16250,42 @@ const PAGE_META = {
     title: "ATS Alternatives & Migration to Aster",
     description: "Switching applicant tracking systems? See why teams move to Aster, and how the migration actually works, in four simple steps.",
   },
+  "/trust": {
+    title: "Trust & Security | Aster",
+    description: "How Aster protects candidate data: encryption, access controls, GDPR, our SOC 2 and ISO 27001 roadmap, subprocessors, and how to request a DPA.",
+  },
+  "/trust/compliance": {
+    title: "Compliance: SOC 2, ISO 27001, GDPR | Aster",
+    description: "Where Aster stands on SOC 2, ISO 27001 and GDPR, plus the security controls we run today. An honest look at our compliance roadmap.",
+  },
+  "/legal/privacy": {
+    title: "Privacy Policy | Aster",
+    description: "What personal data Aster collects, why, how long we keep it, and the rights you and your candidates have under GDPR.",
+  },
+  "/legal/terms": {
+    title: "Terms of Service | Aster",
+    description: "The agreement between your organisation and Aster: your account, acceptable use, plans and billing, availability, and termination.",
+  },
+  "/legal/dpa": {
+    title: "Data Processing Agreement | Aster",
+    description: "How Aster processes personal data as your processor: roles, security, subprocessors, international transfers, and deletion. Request a signed DPA.",
+  },
+  "/legal/cookies": {
+    title: "Cookie Policy | Aster",
+    description: "The cookies and similar technologies Aster uses, essential, analytics and preferences, and how to control them in your browser.",
+  },
+  "/legal/aup": {
+    title: "Acceptable Use Policy | Aster",
+    description: "What you can and can't do with Aster, so the platform stays safe, lawful and fair for everyone who uses it to hire.",
+  },
+  "/legal/subprocessors": {
+    title: "Subprocessors | Aster Legal",
+    description: "The vendors Aster uses to run the product, what each does, and where they process data: Supabase, Vercel, Anthropic, Google and Microsoft.",
+  },
+  "/getting-started": {
+    title: "Getting Started with Aster: From Zero to First Hire",
+    description: "Four steps to a shortlist: post a job, add candidates, run AI Rank, and interview. Most teams see ranked candidates the same afternoon.",
+  },
 };
 const clampDesc = (s, n = 160) => {
   const t = (s || "").replace(/\s+/g, " ").trim();
@@ -14636,7 +16294,7 @@ const clampDesc = (s, n = 160) => {
 // Returns { title, description, path } for the current route. Marketing routes
 // get their keyword-optimized metadata from PAGE_META; app (authenticated)
 // screens fall back to the default marketing title since they're noindex.
-function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug) {
+function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug, trustSlug, legalSlug) {
   // Blog: dynamic per post / category, static index.
   if (screen === "blog") {
     if (blogSlug) {
@@ -14665,6 +16323,16 @@ function routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossar
     if (compareSlug === "alternatives") return { ...PAGE_META["/compare/alternatives"], path: "/compare/alternatives" };
     return { ...PAGE_META["/compare"], path: "/compare" };
   }
+  // Trust: hub + compliance sub-page.
+  if (screen === "trust") {
+    const p = trustSlug ? `/trust/${trustSlug}` : "/trust";
+    return { ...(PAGE_META[p] || PAGE_META["/trust"]), path: p };
+  }
+  // Legal: six static documents.
+  if (screen === "legal") {
+    const p = `/legal/${legalSlug || "privacy"}`;
+    return { ...(PAGE_META[p] || DEFAULT_META), path: p };
+  }
   let path;
   if (screen === "product") path = "/product" + (productSlug ? `/${productSlug}` : "");
   else if (screen === "solutions") path = "/solutions" + (solutionSlug ? `/${solutionSlug}` : "");
@@ -14684,6 +16352,9 @@ function initialHistoryFromUrl() {
   if (screen === "blog") return ["landing", "blog"]; // public content page
   if (screen === "glossary") return ["landing", "glossary"]; // public content page
   if (screen === "compare") return ["landing", "compare"]; // public content page
+  if (screen === "trust") return ["landing", "trust"]; // public content page
+  if (screen === "legal") return ["landing", "legal"]; // public content page
+  if (screen === "gettingStarted") return ["landing", "gettingStarted"]; // public content page
   return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
 }
 
@@ -14698,6 +16369,10 @@ export default function ResumeAIPreview() {
   const [glossarySlug, setGlossarySlug] = useState(() => { const i = typeof window !== "undefined" && glossaryInfoFromPath(window.location.pathname); return i && i.kind === "term" ? i.slug : ""; });
   // Compare: the competitor/alternatives slug ("" = hub), seeded from the URL.
   const [compareSlug, setCompareSlug] = useState(() => { const i = typeof window !== "undefined" && compareInfoFromPath(window.location.pathname); return i && i.kind === "page" ? i.slug : ""; });
+  // Trust: the sub-page slug ("" = hub | compliance), seeded from the URL.
+  const [trustSlug, setTrustSlug] = useState(() => { const i = typeof window !== "undefined" && trustInfoFromPath(window.location.pathname); return i ? i.slug : ""; });
+  // Legal: the document slug, seeded from the URL (defaults to privacy).
+  const [legalSlug, setLegalSlug] = useState(() => { const i = typeof window !== "undefined" && legalInfoFromPath(window.location.pathname); return i ? i.slug : "privacy"; });
   const [jobs, setJobs] = useState(MOCK_JOBS);
   // Supabase identity + whether real workspace data has loaded. Writes only go
   // to the DB once a live workspace is loaded, so demo ids never hit the DB.
@@ -14871,7 +16546,7 @@ export default function ResumeAIPreview() {
   // page has its own title, description and canonical (crawlers render JS).
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const meta = routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug);
+    const meta = routeMeta(screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug, trustSlug, legalSlug);
     document.title = meta.title;
     const setMeta = (selector, attr, key, value) => {
       let el = document.head.querySelector(selector);
@@ -14928,7 +16603,7 @@ export default function ResumeAIPreview() {
     } else if (ldEl) {
       ldEl.remove();
     }
-  }, [screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug]);
+  }, [screen, productSlug, solutionSlug, blogSlug, blogCat, glossarySlug, compareSlug, trustSlug, legalSlug]);
 
   const navigate = (target, path) => {
     // Remember where we are before leaving, so Back can restore it.
@@ -15021,11 +16696,49 @@ export default function ResumeAIPreview() {
   useEffect(() => {
     if (!hasSupabase) return; // restoring stays false → mock/marketing renders as-is
     let cancelled = false;
-    (async () => {
+    let handled = null; // guard so the same user isn't restored twice
+
+    const applySession = async (session) => {
+      if (cancelled) return;
+      if (!session) { setRestoring(false); return; }
+      const email = session.user.email || "";
+      // Google / Microsoft (any non-password) sign-ins are restricted to work
+      // domains. hd/tenant hints don't hard-block personal accounts, so we
+      // enforce it here: reject the session and bounce to /login with an error.
+      const provider = session.user.app_metadata?.provider;
+      const isSSO = provider !== "email"; // google/azure/undefined all gate; only password is exempt
+      console.log("[sso-gate] applySession", { email, provider, isSSO, isBusiness: isBusinessEmail(email) });
+      if (isSSO && !isBusinessEmail(email)) {
+        console.log("[sso-gate] REJECT personal domain → signing out + redirecting");
+        await supabase.auth.signOut();
+        if (typeof window !== "undefined") window.location.assign("/login?sso_error=domain");
+        return;
+      }
+      // Two-factor gate: if this account has TOTP enrolled but the session is
+      // still aal1 (fresh password or SSO sign-in), hold the workspace and send
+      // them to the login screen, which auto-shows the 6-digit code prompt.
+      const { data: aalNow } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalNow && aalNow.nextLevel === "aal2" && aalNow.currentLevel === "aal1") {
+        if (cancelled) return;
+        setRestoring(false);
+        navigate("login");
+        return;
+      }
+      if (handled === session.user.id) return; // already restored this user
+      handled = session.user.id;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled || !session) return;
-        const sess = await loadCustomerSession(session.user.id, session.user.email);
+        let sess = await loadCustomerSession(session.user.id, email);
+        // First-time SSO user with no workspace yet: provision one from their work
+        // domain (matches the password-signup provisioning path), then reload.
+        if (!sess && isSSO && isBusinessEmail(email)) {
+          const { error: rpcErr } = await supabase.rpc("create_company_and_owner", {
+            p_company_name: companyFromEmail(email),
+            p_full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || null,
+          });
+          if (!rpcErr || /already exists/i.test(rpcErr.message)) {
+            sess = await loadCustomerSession(session.user.id, email);
+          }
+        }
         if (cancelled || !sess) return;
         setProfile(sess.profile);
         setCompany(sess.company);
@@ -15038,8 +16751,20 @@ export default function ResumeAIPreview() {
       } finally {
         if (!cancelled) setRestoring(false);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+
+    // Listen instead of one-shot getSession: after an OAuth redirect the session
+    // is parsed from the URL asynchronously, so getSession() can return null too
+    // early and skip the domain gate. INITIAL_SESSION fires on load with the
+    // stored session (or null); SIGNED_IN fires once the OAuth session lands.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[sso-gate] onAuthStateChange", event, session?.user?.email || null);
+      // Defer out of the callback: calling supabase.auth methods (signOut) inside
+      // the onAuthStateChange callback blocks on its internal lock and hangs, so
+      // the domain-gate sign-out never completes. setTimeout(…,0) breaks the lock.
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN") setTimeout(() => applySession(session), 0);
+    });
+    return () => { cancelled = true; subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -15047,7 +16772,7 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
-    const pathFor = (scr) => (scr === "apply" && typeof window !== "undefined" && applyJobFromPath(window.location.pathname) ? (window.location.pathname + window.location.search) : scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "applicants" && activeJobId ? `/applicants/${activeJobId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : scr === "compare" ? ("/compare" + (compareSlug ? `/${compareSlug}` : "")) : (SCREEN_TO_PATH[scr] || "/"));
+    const pathFor = (scr) => (scr === "apply" && typeof window !== "undefined" && applyJobFromPath(window.location.pathname) ? (window.location.pathname + window.location.search) : scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "applicants" && activeJobId ? `/applicants/${activeJobId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : scr === "compare" ? ("/compare" + (compareSlug ? `/${compareSlug}` : "")) : scr === "trust" ? ("/trust" + (trustSlug ? `/${trustSlug}` : "")) : scr === "legal" ? (`/legal/${legalSlug || "privacy"}`) : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
       window.history.replaceState({ aster: true }, "", pathFor(history[0]));
@@ -15068,8 +16793,10 @@ export default function ResumeAIPreview() {
       const binfo = blogInfoFromPath(path);
       const ginfo = glossaryInfoFromPath(path);
       const cinfo = compareInfoFromPath(path);
+      const tinfo = trustInfoFromPath(path);
+      const linfo = legalInfoFromPath(path);
       const ajob = applicantsJobFromPath(path);
-      const target = cid ? "candidateProfile" : (ajob ? "applicants" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (cinfo ? "compare" : (PATH_TO_SCREEN[path] || "landing")))))));
+      const target = cid ? "candidateProfile" : (ajob ? "applicants" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (cinfo ? "compare" : (tinfo ? "trust" : (linfo ? "legal" : (PATH_TO_SCREEN[path] || "landing")))))))));
       if (cid) setViewCandidateId(cid);
       if (ajob) setActiveJobId(ajob);
       if (pslug != null) setProductSlug(pslug);
@@ -15077,6 +16804,8 @@ export default function ResumeAIPreview() {
       if (binfo) { setBlogSlug(binfo.kind === "post" ? binfo.slug : ""); setBlogCat(binfo.kind === "category" ? binfo.slug : ""); }
       if (ginfo) setGlossarySlug(ginfo.kind === "term" ? ginfo.slug : "");
       if (cinfo) setCompareSlug(cinfo.kind === "page" ? cinfo.slug : "");
+      if (tinfo) setTrustSlug(tinfo.slug);
+      if (linfo) setLegalSlug(linfo.slug);
       setHistory((h) => {
         const idx = h.lastIndexOf(target);
         if (idx >= 0) return h.slice(0, idx + 1);      // walk back to it in-stack
@@ -15124,7 +16853,16 @@ export default function ResumeAIPreview() {
     setCompareSlug(slug);
     navigate("compare", slug ? `/compare/${slug}` : "/compare");
   };
-
+  // Open the trust center ("" = hub, or compliance).
+  const goTrust = (slug = "") => {
+    setTrustSlug(slug);
+    navigate("trust", slug ? `/trust/${slug}` : "/trust");
+  };
+  // Open a legal document (privacy | terms | dpa | cookies | aup | subprocessors).
+  const goLegal = (slug = "privacy") => {
+    setLegalSlug(slug);
+    navigate("legal", `/legal/${slug}`);
+  };
   const handlePreviewBooking = (request) => {
     setPreviewRequest(request);
     navigate("schedulePicker");
@@ -15261,6 +16999,30 @@ export default function ResumeAIPreview() {
     );
   }
 
+  if (screen === "trust") {
+    return (
+      <Shell>
+        <TrustScreen slug={trustSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} goTrust={goTrust} goLegal={goLegal} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "legal") {
+    return (
+      <Shell>
+        <LegalScreen slug={legalSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} goTrust={goTrust} goLegal={goLegal} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "gettingStarted") {
+    return (
+      <Shell>
+        <GettingStartedScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} goTrust={goTrust} goLegal={goLegal} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
   if (screen === "login") {
     return (
       <Shell>
@@ -15358,7 +17120,7 @@ export default function ResumeAIPreview() {
         <div className="min-h-dvh flex items-center justify-center" style={{ background: "#070814" }}>
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.18)", borderTopColor: "#FFFFFF" }} />
-            <p className="text-sm" style={{ color: "var(--navy-ink)" }}>Loading your workspace…</p>
+            <p className="text-sm" style={{ color: "var(--ink-2)" }}>Loading your workspace…</p>
           </div>
         </div>
       </Shell>

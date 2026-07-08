@@ -47,6 +47,12 @@ const ROUTES = [
   "/compare",
   "/compare/alternatives",
   ...COMPARE_COMPETITORS.map((c) => `/compare/${c.slug}`),
+  // Trust & security
+  "/trust", "/trust/compliance",
+  // Legal
+  "/legal/privacy", "/legal/terms", "/legal/dpa", "/legal/cookies", "/legal/aup", "/legal/subprocessors",
+  // Support / onboarding
+  "/getting-started",
 ];
 
 const MIME = {
