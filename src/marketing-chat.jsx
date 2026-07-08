@@ -9,7 +9,7 @@
 // If Supabase isn't configured (a fresh clone on mock data) or the function
 // isn't deployed yet, it degrades to a short canned reply pointing at the trial
 // and sales, so the widget never looks broken.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react";
 import { supabase, supabaseUrl, supabaseAnonKey, hasSupabase } from "./lib/supabase";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -333,14 +333,18 @@ export default function MarketingChat({ onStartTrial }) {
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap"
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "whitespace-pre-wrap" : ""}`}
                   style={
                     m.role === "user"
                       ? { background: "var(--brand)", color: "#fff", borderBottomRightRadius: 6 }
                       : { background: "#fff", color: "var(--ink)", border: "1px solid var(--line)", borderBottomLeftRadius: 6 }
                   }
                 >
-                  {m.content || (busy && i === messages.length - 1 ? <TypingDots /> : "")}
+                  {m.role === "user"
+                    ? m.content
+                    : m.content
+                      ? renderRich(m.content)
+                      : busy && i === messages.length - 1 ? <TypingDots /> : ""}
                 </div>
               </div>
             ))}
@@ -394,6 +398,58 @@ export default function MarketingChat({ onStartTrial }) {
       )}
     </>
   );
+}
+
+// Minimal, safe markdown for assistant replies: **bold**, `- `/`* ` and `1.`
+// lists, headings, and paragraph spacing. Renders to React nodes (no innerHTML,
+// so nothing the model returns can inject markup). Partial markdown that arrives
+// mid-stream (e.g. an unclosed "**") just shows as text until it completes.
+function inline(text, keyBase) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
+    const b = part.match(/^\*\*([^*]+)\*\*$/);
+    if (b) return <strong key={`${keyBase}-${i}`}>{b[1]}</strong>;
+    return <Fragment key={`${keyBase}-${i}`}>{part}</Fragment>;
+  });
+}
+
+function renderRich(text) {
+  const lines = String(text).split("\n");
+  const nodes = [];
+  let list = null; // { ordered, items: [] }
+  let key = 0;
+  const flush = () => {
+    if (!list) return;
+    const items = list.items.map((it, i) => <li key={i} className="leading-snug">{inline(it, `li-${key}-${i}`)}</li>);
+    nodes.push(
+      list.ordered
+        ? <ol key={key++} className="list-decimal pl-5 my-1.5 space-y-1">{items}</ol>
+        : <ul key={key++} className="list-disc pl-5 my-1.5 space-y-1">{items}</ul>
+    );
+    list = null;
+  };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, "");
+    const bullet = line.match(/^\s*[-*]\s+(.*)$/);
+    const numbered = line.match(/^\s*\d+\.\s+(.*)$/);
+    const heading = line.match(/^#{1,6}\s+(.*)$/);
+    if (bullet) {
+      if (!list || list.ordered) { flush(); list = { ordered: false, items: [] }; }
+      list.items.push(bullet[1]);
+    } else if (numbered) {
+      if (!list || !list.ordered) { flush(); list = { ordered: true, items: [] }; }
+      list.items.push(numbered[1]);
+    } else if (heading) {
+      flush();
+      nodes.push(<p key={key++} className="font-semibold mt-2 mb-1 first:mt-0">{inline(heading[1], `h-${key}`)}</p>);
+    } else if (line.trim() === "") {
+      flush();
+    } else {
+      flush();
+      nodes.push(<p key={key++} className="my-1 first:mt-0 last:mb-0">{inline(line, `p-${key}`)}</p>);
+    }
+  }
+  flush();
+  return nodes;
 }
 
 function TypingDots() {
