@@ -40,7 +40,7 @@ export default function MarketingChat({ onStartTrial }) {
   const [busy, setBusy] = useState(false);
   // Lead capture: null = chatting, "form" = collecting an email, "sent" = filed.
   const [leadMode, setLeadMode] = useState(null);
-  const [lead, setLead] = useState({ name: "", email: "", msg: "" });
+  const [lead, setLead] = useState({ name: "", email: "", phone: "", msg: "" });
   const [leadBusy, setLeadBusy] = useState(false);
   const [leadErr, setLeadErr] = useState("");
   const [leadRef, setLeadRef] = useState("");
@@ -166,8 +166,10 @@ export default function MarketingChat({ onStartTrial }) {
       .join("\n")
       .slice(0, 4000);
     const note = lead.msg.trim();
+    const phone = lead.phone.trim();
     const body =
       `Sales enquiry from the marketing chat.` +
+      (phone ? `\n\nPhone: ${phone}` : "") +
       (note ? `\n\nMessage:\n${note}` : "") +
       (transcript ? `\n\nChat so far:\n${transcript}` : "");
     try {
@@ -249,7 +251,7 @@ export default function MarketingChat({ onStartTrial }) {
                 {leadRef && leadRef !== "T-preview" ? <> Your reference is <span className="font-semibold" style={{ color: "var(--ink)" }}>{leadRef}</span>.</> : null}
               </p>
               <button
-                onClick={() => { setLeadMode(null); setLead({ name: "", email: "", msg: "" }); }}
+                onClick={() => { setLeadMode(null); setLead({ name: "", email: "", phone: "", msg: "" }); }}
                 className="mt-6 text-sm font-semibold" style={{ color: "var(--brand)" }}
               >
                 Back to chat
@@ -282,6 +284,15 @@ export default function MarketingChat({ onStartTrial }) {
                   onChange={(e) => setLead((l) => ({ ...l, email: e.target.value }))}
                   placeholder="Work email"
                   autoComplete="email"
+                  className={fieldCls}
+                  style={{ borderColor: "var(--line)", color: "var(--ink)" }}
+                />
+                <input
+                  type="tel"
+                  value={lead.phone}
+                  onChange={(e) => setLead((l) => ({ ...l, phone: e.target.value }))}
+                  placeholder="Contact number (optional)"
+                  autoComplete="tel"
                   className={fieldCls}
                   style={{ borderColor: "var(--line)", color: "var(--ink)" }}
                 />
