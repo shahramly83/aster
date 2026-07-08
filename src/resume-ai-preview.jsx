@@ -5,6 +5,7 @@ import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
 import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate } from "./lib/persist";
+import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
@@ -848,7 +849,7 @@ const applicantCountFor = (jobId) => (APPLICANTS_BY_JOB[jobId] || []).length;
 
 // Pipeline stage breakdown for a job (active stages; rejected are excluded).
 const JOB_STAGES = [
-  { key: "applied", label: "Applied", color: "#C7CCFF" },
+  { key: "applied", label: "Applied", color: "var(--brand)" },
   { key: "shortlisted", label: "Shortlisted", color: "#93C5FD" },
   { key: "interviewing", label: "Interview", color: "#973BF7" },
   { key: "offer", label: "Offer", color: "#F59E0B" },
@@ -969,7 +970,7 @@ const BRAND_STYLES = `
 .article-prose .pquote cite { display: block; margin-top: .7rem; font-style: normal; font-size: .9rem; color: var(--ink-3); }
 .article-prose .callout {
   margin: 2.1rem 0; padding: 1.15rem 1.3rem; border-radius: .95rem;
-  background: var(--brand-soft); border: 1px solid rgba(151,59,247,.16);
+  background: var(--brand-soft); border: 1px solid rgba(var(--brand-rgb),.16);
 }
 .article-prose .callout .callout-label {
   display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em;
@@ -1145,7 +1146,7 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .wa-typing-dot { animation: waTyping 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .wa-pop { animation: none; } .wa-typing-dot { animation: none; opacity: 1; } }
 /* Team interview: Meet chip glow once everyone is invited */
-@keyframes glowPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(151,59,247,0); } 50% { box-shadow: 0 0 0 3px rgba(151,59,247,.26); } }
+@keyframes glowPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--brand-rgb),0); } 50% { box-shadow: 0 0 0 3px rgba(var(--brand-rgb),.26); } }
 .meet-glow { animation: glowPulse 1.3s ease-in-out 2; }
 @media (prefers-reduced-motion: reduce) { .meet-glow { animation: none; } }
 /* Privacy checklist: green check ticks in with a little bounce */
@@ -7292,17 +7293,17 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
     >
       <div className="relative shrink-0">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="You" className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-white/10" />
+          <img src={avatarUrl} alt="You" className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-[#EAEEFE]" />
         ) : failed ? (
-          <div className="w-11 h-11 md:w-16 md:h-16 rounded-full brand-gradient flex items-center justify-center text-white text-sm md:text-lg font-semibold font-display ring-4 ring-white/10">
+          <div className="w-11 h-11 md:w-16 md:h-16 rounded-full brand-gradient flex items-center justify-center text-white text-sm md:text-lg font-semibold font-display ring-4 ring-[#EAEEFE]">
             {init}
           </div>
         ) : (
-          <img src={faceUrl(fullName, 160)} alt="You" onError={() => setFailed(true)} className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-white/10" />
+          <img src={faceUrl(fullName, 160)} alt="You" onError={() => setFailed(true)} className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-[#EAEEFE]" />
         )}
       </div>
       <div className="min-w-0 flex-1 text-left md:text-center md:mt-3">
-        <p className="text-sm font-semibold text-white group-hover:text-white/90 truncate">{fullName}</p>
+        <p className="text-sm font-semibold truncate group-hover:opacity-80" style={{ color: "var(--ink)" }}>{fullName}</p>
         <p className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{profile?.role || "—"}</p>
       </div>
     </button>
@@ -7315,7 +7316,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
     <div className="flex flex-col h-full overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full mt-1 mb-9 hidden md:flex items-center justify-center">
         <button onClick={() => go("dashboard")} aria-label="Go to dashboard" className="hover:opacity-90 transition-opacity">
-          <BrandLogo logoUrl={logoUrl} onDark />
+          <BrandLogo logoUrl={logoUrl} />
         </button>
       </div>
 
@@ -7326,9 +7327,9 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         <button
           onClick={onSignOut}
           className="md:hidden shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ color: "var(--ink-2)", border: "1px solid var(--navy-line)" }}
+          style={{ color: "var(--ink-2)", border: "1px solid var(--line)" }}
           aria-label="Log out"
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
         >
           <Icon name="logout" className="w-5 h-5" />
@@ -7345,15 +7346,15 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
               className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
               style={
                 on
-                  ? { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" }
+                  ? { background: "var(--brand-soft)", color: "var(--brand)" }
                   : { color: "var(--ink-2)" }
               }
-              onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#FFFFFF"; }}
-              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
+              onMouseEnter={(e) => { if (!on) { e.currentTarget.style.color = "var(--brand)"; e.currentTarget.style.background = "var(--brand-soft)"; } }}
+              onMouseLeave={(e) => { if (!on) { e.currentTarget.style.color = "var(--ink-2)"; e.currentTarget.style.background = "transparent"; } }}
             >
               <Icon name={item.icon} className="w-5 h-5 shrink-0" />
               <span className="truncate flex-1 text-left">{item.label}</span>
-              {on && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+              {on && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--brand)" }} />}
               {item.key === "dashboard" && !on && unreadCount > 0 && (
                 <span className="min-w-5 h-5 px-1.5 rounded-full brand-gradient text-white text-[10px] font-semibold flex items-center justify-center shrink-0">
                   {unreadCount > 9 ? "9+" : unreadCount}
@@ -7364,7 +7365,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         })}
       </nav>
 
-      <div className="pt-4 mt-4 space-y-1" style={{ borderTop: "1px solid var(--navy-line)" }}>
+      <div className="pt-4 mt-4 space-y-1" style={{ borderTop: "1px solid var(--line)" }}>
         {[
           { key: "settings", label: "Settings", icon: "settings" },
           { key: "billing", label: "Billing", icon: "card" },
@@ -7375,9 +7376,9 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
               key={item.key}
               onClick={() => go(item.key)}
               className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
-              style={on ? { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" } : { color: "var(--ink-2)" }}
-              onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#FFFFFF"; }}
-              onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
+              style={on ? { background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--ink-2)" }}
+              onMouseEnter={(e) => { if (!on) { e.currentTarget.style.color = "var(--brand)"; e.currentTarget.style.background = "var(--brand-soft)"; } }}
+              onMouseLeave={(e) => { if (!on) { e.currentTarget.style.color = "var(--ink-2)"; e.currentTarget.style.background = "transparent"; } }}
             >
               <Icon name={item.icon} className="w-5 h-5 shrink-0" />
               <span>{item.label}</span>
@@ -7388,8 +7389,8 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
           onClick={onSignOut}
           className="hidden md:flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
           style={{ color: "var(--ink-2)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--brand)"; e.currentTarget.style.background = "var(--brand-soft)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-2)"; e.currentTarget.style.background = "transparent"; }}
         >
           <Icon name="logout" className="w-5 h-5 shrink-0" />
           <span>Log out</span>
@@ -7412,10 +7413,10 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
         aria-current={on ? "page" : undefined}
         className="relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
         style={{ color: on ? "#fff" : "var(--ink-2)" }}
-        onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "#fff"; }}
+        onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--brand)"; }}
         onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
       >
-        {on && <span className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_20px_-8px_rgba(151,59,247,0.9)]" />}
+        {on && <span className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.9)]" />}
         <Icon name={item.icon} className="relative w-5 h-5" />
         {item.key === "dashboard" && !on && unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full brand-gradient text-white text-[9px] font-semibold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
@@ -7431,7 +7432,7 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
       <nav className="flex-1 flex flex-col items-center gap-1.5">
         {NAV_ITEMS.map(railBtn)}
       </nav>
-      <div className="flex flex-col items-center gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--navy-line)" }}>
+      <div className="flex flex-col items-center gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--line)" }}>
         {railBtn({ key: "profile", label: "Profile", icon: "user" })}
         {railBtn({ key: "billing", label: "Billing", icon: "card" })}
         {railBtn({ key: "settings", label: "Settings", icon: "settings" })}
@@ -7441,7 +7442,7 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
           aria-label="Log out"
           className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
           style={{ color: "var(--ink-2)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
         >
           <Icon name="logout" className="w-5 h-5" />
@@ -7455,10 +7456,10 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen md:p-4" style={{ background: "#0B0D14" }}>
+    <div className="min-h-screen md:p-4" style={{ background: "var(--bg)" }}>
       <div className="md:flex md:gap-4 md:items-start">
-        {/* Desktop icon rail, dark rounded, sticky */}
-        <aside className="hidden md:flex w-[76px] shrink-0 flex-col rounded-[26px] py-5 sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
+        {/* Desktop icon rail, light, sticky */}
+        <aside className="hidden md:flex w-[76px] shrink-0 flex-col rounded-[26px] py-5 sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)" }}>
           <IconSidebar navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
         </aside>
 
@@ -7466,7 +7467,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
         {mobileOpen && (
           <div className="md:hidden fixed inset-0 z-40">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-            <aside className="absolute left-0 top-0 bottom-0 w-72 px-4 py-6 flex flex-col" style={{ background: "var(--navy)" }}>
+            <aside className="absolute left-0 top-0 bottom-0 w-72 px-4 py-6 flex flex-col" style={{ background: "#fff", borderRight: "1px solid var(--line)" }}>
               <SidebarContent navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} onNavigate={() => setMobileOpen(false)} />
             </aside>
           </div>
@@ -7474,13 +7475,13 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
 
         {/* Content, rounded light panel inside the dark frame */}
         <div className="flex-1 min-w-0">
-          <div className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-30" style={{ background: "var(--navy)", borderBottom: "1px solid var(--navy-line)" }}>
+          <div className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-30" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
             <button onClick={() => setMobileOpen(true)} className="burger w-9 h-9 flex flex-col items-center justify-center gap-[5px] rounded-lg transition-transform active:scale-90" aria-label="Open menu">
-              <span className="burger-bar block h-[2px] w-[18px] rounded-full bg-white" />
-              <span className="burger-bar block h-[2px] w-[12px] rounded-full bg-white" />
+              <span className="burger-bar block h-[2px] w-[18px] rounded-full" style={{ background: "var(--ink-2)" }} />
+              <span className="burger-bar block h-[2px] w-[12px] rounded-full" style={{ background: "var(--ink-2)" }} />
             </button>
             <button onClick={() => navigate("dashboard")} aria-label="Go to dashboard" className="hover:opacity-90 transition-opacity">
-              <BrandLogo logoUrl={logoUrl} onDark />
+              <BrandLogo logoUrl={logoUrl} />
             </button>
             <div className="ml-auto">
               <NotificationBell activities={activities} onOpen={onOpenNotifications} compact />
@@ -8294,12 +8295,12 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
       <div className="mx-auto w-full max-w-[1400px]">
         {trialDaysLeft > 0 && (
-          <div className="mb-5 rounded-2xl px-4 py-3.5 flex items-center gap-3" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(151,59,247,0.22)", color: "#fff" }}>
+          <div className="mb-5 rounded-2xl px-4 py-3.5 flex items-center gap-3" style={{ background: "var(--brand-soft)", border: "1px solid #CBD8F5" }}>
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand)", color: "#fff" }}>
               <Icon name="target" className="w-4 h-4" />
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white leading-tight">{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
+              <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
               <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Premium access: unlimited AI matching &amp; jobs.</p>
             </div>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
@@ -8328,18 +8329,18 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           <div className="order-3 lg:order-1 lg:col-span-2 flex flex-col min-w-0">
             {(() => {
               const heroCard = (k) => (
-                <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "" : "border act-shadow"}`} style={k.dark ? { background: "var(--navy)", border: "1px solid var(--navy-line)" } : { background: "#fff", borderColor: "var(--line)" }}>
+                <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "act-shadow" : "border act-shadow"}`} style={k.dark ? { background: "var(--brand-soft)", border: "1px solid #CBD8F5" } : { background: "#fff", borderColor: "var(--line)" }}>
                   <div className="flex items-start justify-between">
-                    <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={k.dark ? { background: "rgba(151,59,247,0.25)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
-                    <span aria-hidden="true" className="mt-0.5 opacity-60" style={{ color: k.dark ? "#fff" : "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></span>
+                    <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={k.dark ? { background: "var(--brand)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
+                    <span aria-hidden="true" className="mt-0.5 opacity-60" style={{ color: "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></span>
                   </div>
                   <div className="mt-4 relative z-10">
-                    <p className="text-sm" style={{ color: k.dark ? "var(--ink-2)" : "var(--ink-2)" }}>{k.label}</p>
+                    <p className="text-sm" style={{ color: "var(--ink-2)" }}>{k.label}</p>
                     <div className="flex items-end gap-2 mt-0.5">
-                      <p className="text-2xl font-bold font-display tnum" style={{ color: k.dark ? "#fff" : "var(--ink)" }}>{k.value}</p>
+                      <p className="text-2xl font-bold font-display tnum" style={{ color: "var(--ink)" }}>{k.value}</p>
                       {typeof k.delta === "number" && k.delta !== 0 && <span className="text-[11px] font-semibold mb-1" style={{ color: k.delta > 0 ? "#22C55E" : "#EF4444" }}>{k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%</span>}
                     </div>
-                    {k.celebrate && k.value > 0 && <p className="text-sm font-medium mt-3 max-w-[70%]" style={{ color: k.dark ? "#fff" : "var(--ink)" }}>Great job! Keep up the momentum!</p>}
+                    {k.celebrate && k.value > 0 && <p className="text-sm font-medium mt-3 max-w-[70%]" style={{ color: "var(--ink)" }}>Great job! Keep up the momentum!</p>}
                   </div>
                   {k.celebrate && k.value > 0 && (
                     <span aria-hidden="true" className="firework pointer-events-none absolute" style={{ right: "3.25rem", top: "3.25rem" }}>
@@ -8382,7 +8383,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                             <div key={f.label} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
                               <div className="relative w-full flex-1 flex items-end">
                                 <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 -translate-y-full text-xs font-bold font-display tnum" style={{ color: "var(--ink)" }}>{f.value}</span>
-                                <div className="w-full rounded-lg bar-grow-y" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "linear-gradient(180deg, #B79BF5, #8DA2F0)" }} />
+                                <div className="w-full rounded-lg bar-grow-y" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "linear-gradient(180deg, #B9C7FF, #8DA2F0)" }} />
                               </div>
                               <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>{f.label}</span>
                             </div>
@@ -8428,17 +8429,17 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 
           {/* Right dark panel, plan card + quick actions + recent candidates */}
           <div className="order-1 lg:order-2 lg:col-span-1 min-w-0">
-            <div className="rounded-3xl p-5 relative overflow-hidden grain h-full flex flex-col" style={{ background: "var(--navy)", border: "1px solid var(--navy-line)" }}>
-              <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(151,59,247,0.35) 0%, transparent 60%)" }} />
+            <div className="rounded-3xl p-5 relative overflow-hidden grain h-full flex flex-col act-shadow" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+              <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "radial-gradient(60% 45% at 90% 0%, rgba(var(--brand-rgb),0.35) 0%, transparent 60%)" }} />
               <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-white">Your plan</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your plan</p>
                   <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "Enterprise"}</p>
                 </div>
                 <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
               </div>
               {/* stylised plan card */}
-              <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand-0), var(--brand) 55%, var(--brand-2))", boxShadow: "0 20px 40px -20px rgba(151,59,247,0.7)" }}>
+              <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand-0), var(--brand) 55%, var(--brand-2))", boxShadow: "0 20px 40px -20px rgba(var(--brand-rgb),0.7)" }}>
                 <div className="flex items-center justify-between">
                   <span className="text-white font-display font-bold tracking-tight">Aster</span>
                   <Icon name="target" className="w-5 h-5 text-white/90" />
@@ -8451,13 +8452,13 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               </div>
               {/* quick actions */}
               <div className="relative grid grid-cols-2 gap-3 mt-4">
-                <button onClick={() => navigate("newJob")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)" }}><Icon name="briefcase" className="w-4 h-4" /> Post job</button>
-                <button onClick={() => navigate("upload")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--navy-line)" }}><Icon name="upload" className="w-4 h-4" /> Upload CVs</button>
+                <button onClick={() => navigate("newJob")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium transition-colors hover:bg-neutral-100" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-2)" }}><Icon name="briefcase" className="w-4 h-4" /> Post job</button>
+                <button onClick={() => navigate("upload")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium transition-colors hover:bg-neutral-100" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-2)" }}><Icon name="upload" className="w-4 h-4" /> Upload CVs</button>
               </div>
               {/* recent candidates */}
-              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--navy-line)" }}>
+              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-white">Recent candidates</p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Recent candidates</p>
                   <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>{stats.totalCandidates} total</button>
                 </div>
                 {candidates.filter((c) => c.parsed).length === 0 ? (
@@ -8471,13 +8472,13 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     ))}
                     {/* mobile: max 5 + overflow */}
                     {candidates.filter((c) => c.parsed).length > 5 && (
-                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 5} more candidates`} className="sm:hidden shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid var(--navy-line)" }}>
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 5} more candidates`} className="sm:hidden shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
                         {candidates.filter((c) => c.parsed).length - 5 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 5}`}
                       </button>
                     )}
                     {/* sm+: max 7 + overflow */}
                     {candidates.filter((c) => c.parsed).length > 7 && (
-                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="hidden sm:flex shrink-0 rounded-full items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid var(--navy-line)" }}>
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="hidden sm:flex shrink-0 rounded-full items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
                         {candidates.filter((c) => c.parsed).length - 7 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 7}`}
                       </button>
                     )}
@@ -8485,7 +8486,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 )}
               </div>
               {/* Plan usage, how much of this month's limits you've used */}
-              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--navy-line)" }}>
+              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
                 {(() => {
                   const L = planLimits(plan);
                   const items = [
@@ -8498,8 +8499,8 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     <>
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-white">Plan usage</p>
-                          <InfoHint dir="up" tone="light" hint="How much of this month's plan you have used for resume parsing, AI matching, and active jobs. Limits reset on the 1st." />
+                          <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
+                          <InfoHint dir="up" hint="How much of this month's plan you have used for resume parsing, AI matching, and active jobs. Limits reset on the 1st." />
                         </div>
                         <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
                       </div>
@@ -8512,9 +8513,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                             <div key={it.label}>
                               <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-xs" style={{ color: "var(--ink-2)" }}>{it.label}</span>
-                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#FCA5A5" : "#fff" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
+                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#DC2626" : "var(--ink)" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
                               </div>
-                              <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                              <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
                                 <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
                               </div>
                             </div>
@@ -8523,8 +8524,8 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       </div>
                       {anyReached && (
                         <div className="mt-4">
-                          <p className="text-xs mb-2" style={{ color: "#FCA5A5" }}>You&rsquo;ve hit a plan limit. Upgrade to keep going.</p>
-                          <button onClick={() => navigate("billing")} className="w-full brand-gradient text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.9)]">
+                          <p className="text-xs mb-2" style={{ color: "#DC2626" }}>You&rsquo;ve hit a plan limit. Upgrade to keep going.</p>
+                          <button onClick={() => navigate("billing")} className="w-full brand-gradient text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.9)]">
                             <Icon name="arrowUpRight" className="w-4 h-4" /> Upgrade plan
                           </button>
                         </div>
@@ -8929,7 +8930,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     if (row.parseStatus === "parsed")
       return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Parsed ✓</span>;
     if (row.parseStatus === "duplicate")
-      return <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid #C7CCFF" }}>Duplicate</span>;
+      return <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--brand)" }}>Duplicate</span>;
     if (row.parseStatus === "review")
       return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">Possible match ?</span>;
     if (row.parseStatus === "flagged")
@@ -8943,7 +8944,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
       style={{
         background:
-          "radial-gradient(1100px 480px at 100% -8%, rgba(151,59,247,0.08), transparent 60%)," +
+          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
           "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
           "var(--bg)",
       }}
@@ -10000,7 +10001,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
       style={{
         background:
-          "radial-gradient(1100px 480px at 100% -8%, rgba(151,59,247,0.08), transparent 60%)," +
+          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
           "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
           "var(--bg)",
       }}
@@ -10129,7 +10130,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           <button
             onClick={() => navigate("newJob")}
             className="order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
-            style={{ boxShadow: "0 12px 26px -12px rgba(151,59,247,0.75)" }}
+            style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}
           >
             <Icon name="jobs" className="w-4 h-4" /> Post a job
           </button>
@@ -11346,7 +11347,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           : [seniority, yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
         const insight = (aiRank?.reasons?.[c.id]) || matchInsight(c, { pct, mode: rankedMeta?.mode, matched, industryLabel, yrs, role });
         return (
-          <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}>
+          <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(var(--brand-rgb),0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}>
             <div className="flex items-center gap-4">
               <button onClick={() => onViewCandidate(c.id)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
                 <ScoreRingLight value={pct} size={52} />
@@ -11364,7 +11365,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </div>
               <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
             </div>
-            <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(151,59,247,0.05)", border: "1px solid rgba(151,59,247,0.13)" }}>
+            <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
               <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
               <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>AI insight: </span>{insight}</p>
             </div>
@@ -11482,7 +11483,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
       style={{
         background:
-          "radial-gradient(1100px 480px at 100% -8%, rgba(151,59,247,0.08), transparent 60%)," +
+          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
           "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
           "var(--bg)",
       }}
@@ -11520,7 +11521,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             const active = tab === t.key;
             return (
               <button key={t.key} onClick={() => switchTab(t.key)}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(151,59,247,0.7)]" : "hover:bg-neutral-50"}`}
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${active ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
                 style={active ? undefined : { color: "var(--ink-2)" }}>
                 <Icon name={t.icon} className="w-4 h-4" />
                 <span className="sm:hidden">{t.short}</span>
@@ -11607,9 +11608,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         {/* ---------- Tab 2: Match by skills ---------- */}
         {tab === "skills" && (
           <>
-            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
               <div className="flex items-start gap-3">
-                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
+                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Match by skills or industry</p>
                   <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both. Matching candidates appear instantly.</p>
@@ -11673,9 +11674,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         {/* ---------- Tab 3: Match to a role ---------- */}
         {tab === "role" && (
           <>
-            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
               <div className="flex items-start gap-3">
-                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="briefcase" className="w-4 h-4" /></span>
+                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="briefcase" className="w-4 h-4" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
                     Match to an open role
@@ -11685,7 +11686,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
-                      className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+                      className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
                       <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
                       {matching ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
                     </button>
@@ -12284,7 +12285,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
         <button
           onClick={generate}
           disabled={generating || !activeJob}
-          className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
+          className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
         >
           {generating ? "Generating…" : "Generate interview questions"}
         </button>
@@ -12543,7 +12544,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
               <button
                 onClick={handleFindSlots}
                 disabled={finding || !calendarConnected}
-                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
+                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
               >
                 {finding ? "Finding slots…" : "Find available slots"}
               </button>
@@ -12593,7 +12594,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
               <button
                 onClick={handleSendInvite}
                 disabled={sending || selectedSlots.length === 0}
-                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(151,59,247,0.7)] px-4 py-2 transition-colors"
+                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
               >
                 {sending
                   ? "Sending…"
@@ -14307,7 +14308,7 @@ function InsightsDisplay({ insights }) {
           )}
         </div>
         {ea.career_progression && (
-          <div className="mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5" style={{ background: "rgba(151,59,247,0.05)", border: "1px solid rgba(151,59,247,0.13)" }}>
+          <div className="mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
             <span className="shrink-0 mt-0.5" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-4 h-4" /></span>
             <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{ea.career_progression}</p>
           </div>
@@ -14717,10 +14718,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
   // Reworked AI Experience Insights card, plan-metered (meter lives in sidebar).
   const aiInsightsCard = (
-    <div className="rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
+    <div className="rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
       <div className="flex items-start justify-between gap-3 mb-2.5">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
+          <span className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
           <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>AI Experience Insights</h2>
           <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." />
         </div>
@@ -14734,13 +14735,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <div className="min-w-0">
               <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
               <p className="text-xs mt-0.5 mb-2.5" style={{ color: "var(--ink-3)" }}>You've used all {insightsLimit} AI insight runs on your plan this month. Upgrade for more, or they reset on the 1st.</p>
-              <button onClick={() => navigate("billing")} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(151,59,247,0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Upgrade for more</button>
+              <button onClick={() => navigate("billing")} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Upgrade for more</button>
             </div>
           </div>
         ) : (
           <>
             <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>Run a deeper AI read of this resume: total and leadership experience, domain exposure, employer tenure, and any employment gaps.</p>
-            <button onClick={handleGenerate} disabled={generating} className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+            <button onClick={handleGenerate} disabled={generating} className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
               <Icon name="matching" className="w-4 h-4" /> {generating ? "Analyzing…" : "Generate AI insights"}
             </button>
           </>
@@ -14977,9 +14978,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             their profile and a way to invite them to apply, even if it's an old
             profile. Those tools appear once they actually apply to a role. */}
         {!contextJobId && (
-          <div className="mt-2 mb-6 rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(214,91,255,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
+          <div className="mt-2 mb-6 rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
             <div className="flex items-start gap-3">
-              <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(151,59,247,0.7)]">
+              <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]">
                 <Icon name="briefcase" className="w-4 h-4" />
               </span>
               <div className="min-w-0 flex-1">
@@ -15000,7 +15001,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                       <span>Emails {candidateEmail || "this candidate"} using the <span className="font-medium" style={{ color: "var(--ink-2)" }}>Sourcing invite</span> template, with the apply link added automatically. <button onClick={() => navigate("emailTemplates")} className="font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Edit template</button></span>
                     </p>
                     <button onClick={sendInviteEmail} disabled={!inviteJobId || !candidateEmail || inviteSent}
-                      className="mt-3 w-full sm:w-auto rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(151,59,247,0.8)]">
+                      className="mt-3 w-full sm:w-auto rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
                       <Icon name={inviteSent ? "check" : "chat"} className="w-4 h-4" /> {inviteSent ? "Invite sent" : "Send invite"}
                     </button>
                   </div>
@@ -15758,7 +15759,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
                 <div
                   key={a.candidateId}
                   className="rounded-2xl bg-white px-4 sm:px-5 py-4 border"
-                  style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(151,59,247,0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}
+                  style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(var(--brand-rgb),0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}
                 >
                   <div className="flex items-center gap-4">
                     <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
@@ -15796,7 +15797,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
 
                   {ranked && (
                     limits.showRationale ? (
-                      <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(151,59,247,0.05)", border: "1px solid rgba(151,59,247,0.13)" }}>
+                      <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
                         <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
                         <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>AI insight: </span>{match.rationale}</p>
                       </div>
@@ -16707,9 +16708,7 @@ export default function ResumeAIPreview() {
       // enforce it here: reject the session and bounce to /login with an error.
       const provider = session.user.app_metadata?.provider;
       const isSSO = provider !== "email"; // google/azure/undefined all gate; only password is exempt
-      console.log("[sso-gate] applySession", { email, provider, isSSO, isBusiness: isBusinessEmail(email) });
       if (isSSO && !isBusinessEmail(email)) {
-        console.log("[sso-gate] REJECT personal domain → signing out + redirecting");
         await supabase.auth.signOut();
         if (typeof window !== "undefined") window.location.assign("/login?sso_error=domain");
         return;
@@ -16758,7 +16757,6 @@ export default function ResumeAIPreview() {
     // early and skip the domain gate. INITIAL_SESSION fires on load with the
     // stored session (or null); SIGNED_IN fires once the OAuth session lands.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[sso-gate] onAuthStateChange", event, session?.user?.email || null);
       // Defer out of the callback: calling supabase.auth methods (signOut) inside
       // the onAuthStateChange callback blocks on its internal lock and hangs, so
       // the domain-gate sign-out never completes. setTimeout(…,0) breaks the lock.
@@ -16949,11 +16947,21 @@ export default function ResumeAIPreview() {
   });
   Object.entries(stageOverrides).forEach(([id, s]) => { if (s === "hired") hiredIds.add(id); });
 
+  // The public "Ask Aster" assistant, mounted on every marketing surface. Its
+  // CTAs reuse the same signup entry points as the hero/pricing buttons.
+  const marketingChat = (
+    <MarketingChat
+      onStartTrial={() => { setSignupPlan("free"); setSignupTrial(true); navigate("signup"); }}
+      onContactSales={() => { setSignupPlan("enterprise"); setSignupTrial(false); navigate("signup"); }}
+    />
+  );
+
   // Screens that render standalone (no sidebar): the marketing site, login,
   // sign-up, and the public candidate booking page.
   if (screen === "landing") {
     return (
       <Shell>
+        {marketingChat}
         <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
       </Shell>
     );
@@ -16962,6 +16970,7 @@ export default function ResumeAIPreview() {
   if (screen === "product") {
     return (
       <Shell>
+        {marketingChat}
         <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
@@ -16970,6 +16979,7 @@ export default function ResumeAIPreview() {
   if (screen === "solutions") {
     return (
       <Shell>
+        {marketingChat}
         <SolutionsScreen slug={solutionSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
@@ -16978,6 +16988,7 @@ export default function ResumeAIPreview() {
   if (screen === "blog") {
     return (
       <Shell>
+        {marketingChat}
         <BlogScreen slug={blogSlug} cat={blogCat} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
@@ -16986,6 +16997,7 @@ export default function ResumeAIPreview() {
   if (screen === "glossary") {
     return (
       <Shell>
+        {marketingChat}
         <GlossaryScreen slug={glossarySlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
@@ -16994,6 +17006,7 @@ export default function ResumeAIPreview() {
   if (screen === "compare") {
     return (
       <Shell>
+        {marketingChat}
         <CompareScreen slug={compareSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
@@ -17002,6 +17015,7 @@ export default function ResumeAIPreview() {
   if (screen === "trust") {
     return (
       <Shell>
+        {marketingChat}
         <TrustScreen slug={trustSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} goTrust={goTrust} goLegal={goLegal} logoUrl={logoUrl} />
       </Shell>
     );
@@ -17010,6 +17024,7 @@ export default function ResumeAIPreview() {
   if (screen === "legal") {
     return (
       <Shell>
+        {marketingChat}
         <LegalScreen slug={legalSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} goTrust={goTrust} goLegal={goLegal} logoUrl={logoUrl} />
       </Shell>
     );
@@ -17018,6 +17033,7 @@ export default function ResumeAIPreview() {
   if (screen === "gettingStarted") {
     return (
       <Shell>
+        {marketingChat}
         <GettingStartedScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} goTrust={goTrust} goLegal={goLegal} logoUrl={logoUrl} />
       </Shell>
     );
@@ -17117,9 +17133,9 @@ export default function ResumeAIPreview() {
   if (restoring) {
     return (
       <Shell>
-        <div className="min-h-dvh flex items-center justify-center" style={{ background: "#070814" }}>
+        <div className="min-h-dvh flex items-center justify-center" style={{ background: "var(--bg)" }}>
           <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.18)", borderTopColor: "#FFFFFF" }} />
+            <div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid var(--brand-soft)", borderTopColor: "var(--brand)" }} />
             <p className="text-sm" style={{ color: "var(--ink-2)" }}>Loading your workspace…</p>
           </div>
         </div>

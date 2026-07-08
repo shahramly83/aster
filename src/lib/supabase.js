@@ -13,6 +13,13 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const hasSupabase = Boolean(url && anonKey);
 
+// Exposed for the few callers that must talk to an edge function directly
+// instead of through `supabase.functions.invoke` — namely streaming (SSE)
+// responses, which `invoke` buffers into a single value. Safe in the browser:
+// the anon key is public and every function does its own auth/validation.
+export const supabaseUrl = url || "";
+export const supabaseAnonKey = anonKey || "";
+
 if (!hasSupabase && import.meta.env.DEV) {
   // eslint-disable-next-line no-console
   console.info("[supabase] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY not set — running on mock data.");

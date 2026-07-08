@@ -1,5 +1,5 @@
 // ============================================================================
-// Aster Admin Portal — internal-only console, fully separate from the customer
+// Aster Admin Portal: internal-only console, fully separate from the customer
 // app. Mounted at /admin/* (see App.jsx). Renders standalone, so it injects its
 // own design tokens rather than relying on the marketing app's styles.
 //
@@ -7,7 +7,7 @@
 //  - Admin accounts are separate from company (customer) users.
 //  - Candidate resumes are NEVER accessible here; candidate PII is masked.
 //  - Card/payment details are never stored or displayed (no digits anywhere).
-//  - Role-based access: Super Admin, Support Admin, Billing Admin — enforced in
+//  - Role-based access: Super Admin, Support Admin, Billing Admin, enforced in
 //    the nav AND in each screen (defense in depth), plus an audit trail.
 // All data below is mock data for the preview.
 // ============================================================================
@@ -19,19 +19,20 @@ const ADMIN_STYLES = `
 :root{
 --bg:#FAFAFB;--card:#FFFFFF;--line:#ECECEF;--line-strong:#DEDEE3;
 --ink:#12132A;--ink-2:#56566A;--ink-3:#6E6E7C;
---brand:#973BF7;--brand-2:#5A78F8;--brand-0:#D65BFF;--brand-soft:#F6EEFF;
---adm:#0B0D1A;--adm-2:#141733;--adm-line:#24274A;--adm-ink:#9EA1C4;--adm-ink-2:#6E7199;
+--brand:#0B2AE0;--brand-2:#3550EE;--brand-0:#5570F5;--brand-soft:#EAEEFE;
+--adm:#FFFFFF;--adm-2:#F7F9FC;--adm-line:#ECECEF;--adm-ink:#4A5568;--adm-ink-2:#6B7280;
 --ok:#16A34A;--ok-soft:#E7F6EC;--warn:#B45309;--warn-soft:#FBF0E4;--danger:#DC2626;--danger-soft:#FCEBEB;--info:#2563EB;--info-soft:#E8EFFD;
 }
 .adm{font-family:'Inter',ui-sans-serif,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .adm-display{font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;letter-spacing:-0.02em;}
-.adm .grad{background:linear-gradient(135deg,#D65BFF,#973BF7 45%,#5A78F8);}
-.adm .txt-grad{background:linear-gradient(120deg,#D65BFF,#973BF7 48%,#5A78F8);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.adm .grad{background:linear-gradient(135deg,#5570F5,#0B2AE0 55%,#3550EE);}
+.adm .txt-grad{background:linear-gradient(120deg,#5570F5,#0B2AE0 50%,#3550EE);-webkit-background-clip:text;background-clip:text;color:transparent;}
 .adm-shadow{box-shadow:0 1px 2px rgba(18,19,42,.04),0 10px 26px -16px rgba(18,19,42,.16);}
 .adm .tnum{font-variant-numeric:tabular-nums;}
-.adm-row:hover{background:#FBFAFE;}
+.adm-row:hover{background:#F7F9FC;}
+.adm-nav-item:hover{background:#F7F9FC;}
 .adm ::-webkit-scrollbar{width:10px;height:10px}.adm ::-webkit-scrollbar-thumb{background:#d9d9e3;border-radius:8px;border:2px solid transparent;background-clip:content-box}
-.adm-side ::-webkit-scrollbar-thumb{background:#2c2f52}
+.adm-side ::-webkit-scrollbar-thumb{background:#d9d9e3}
 `;
 
 // ---------------------------------------------------------------------------
@@ -80,7 +81,7 @@ function Icon({ name, className = "w-5 h-5" }) {
 // Roles & permissions (RBAC)
 // ---------------------------------------------------------------------------
 const ROLE_META = {
-  super:   { label: "Super Admin",   short: "Super",   tint: "#973BF7", blurb: "Full access to every area and action." },
+  super:   { label: "Super Admin",   short: "Super",   tint: "#0B2AE0", blurb: "Full access to every area and action." },
   support: { label: "Support Admin", short: "Support", tint: "#2563EB", blurb: "Accounts, users and support. No billing or flags." },
   billing: { label: "Billing Admin", short: "Billing", tint: "#16A34A", blurb: "Subscriptions, revenue and audit. No user or support tools." },
 };
@@ -111,7 +112,7 @@ const can = (role, action) => (PERMS[action] || []).includes(role);
 const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.roles || []).includes(role);
 
 // ---------------------------------------------------------------------------
-// Helpers — masking, formatting
+// Helpers: masking, formatting
 // ---------------------------------------------------------------------------
 // Candidate PII is masked wherever it could surface. Company (customer) users
 // are account holders and shown normally; candidates are applicants and are not.
@@ -264,7 +265,7 @@ function SectionHead({ title, desc, children }) {
 }
 function PrivacyNote({ children }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-xl px-4 py-3 mb-5 text-sm" style={{ background: "var(--brand-soft)", border: "1px solid #E7D7FB", color: "var(--ink-2)" }}>
+    <div className="flex items-start gap-2.5 rounded-xl px-4 py-3 mb-5 text-sm" style={{ background: "var(--brand-soft)", border: "1px solid #CBD8F5", color: "var(--ink-2)" }}>
       <span style={{ color: "var(--brand)" }} className="shrink-0 mt-0.5"><Icon name="shield" className="w-4 h-4" /></span>
       <span>{children}</span>
     </div>
@@ -626,7 +627,7 @@ function Audit({ audit }) {
   return (
     <div>
       <SectionHead title="Audit logs" desc="An immutable record of every administrative action." />
-      <PrivacyNote>The audit log is <strong>append-only</strong>. It records who did what, when, and from where — including blocked attempts.</PrivacyNote>
+      <PrivacyNote>The audit log is <strong>append-only</strong>. It records who did what, when, and from where, including blocked attempts.</PrivacyNote>
       <TableShell head={["Actor", "Role", "Action", "Target", "When", "IP"]}>
         {audit.map((a) => (
           <tr key={a.id} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
@@ -673,14 +674,14 @@ function AdminLogin({ onLogin }) {
   };
 
   return (
-    <div className="adm min-h-screen flex items-center justify-center px-4" style={{ background: "radial-gradient(60% 60% at 50% 0%, #17193A 0%, #0B0D1A 60%)" }}>
+    <div className="adm min-h-screen flex items-center justify-center px-4" style={{ background: "radial-gradient(60% 60% at 50% 0%, #EAEEFE 0%, #FAFAFB 60%)" }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-7">
           <div className="inline-flex items-center gap-2.5 mb-4">
             <span className="w-10 h-10 rounded-xl grad inline-flex items-center justify-center text-white font-extrabold adm-display">A</span>
-            <span className="text-white adm-display font-bold text-lg">Aster <span className="txt-grad">Admin</span></span>
+            <span className="adm-display font-bold text-lg text-neutral-900">Aster <span className="txt-grad">Admin</span></span>
           </div>
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(220,38,38,0.14)", color: "#FCA5A5", border: "1px solid rgba(220,38,38,0.3)" }}>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "var(--danger-soft)", color: "var(--danger)", border: "1px solid rgba(220,38,38,0.3)" }}>
             <Icon name="lock" className="w-3.5 h-3.5" /> Internal team access only
           </div>
         </div>
@@ -727,17 +728,17 @@ function AdminShell({ admin, section, go, onLogout, children }) {
       <aside className={`adm-side fixed lg:static z-40 top-0 bottom-0 left-0 w-64 shrink-0 flex flex-col transition-transform ${mobileNav ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`} style={{ background: "var(--adm)", borderRight: "1px solid var(--adm-line)" }}>
         <div className="h-16 flex items-center gap-2.5 px-5 shrink-0" style={{ borderBottom: "1px solid var(--adm-line)" }}>
           <span className="w-8 h-8 rounded-lg grad inline-flex items-center justify-center text-white font-extrabold adm-display text-sm">A</span>
-          <span className="text-white adm-display font-bold">Aster <span className="txt-grad">Admin</span></span>
+          <span className="adm-display font-bold text-neutral-900">Aster <span className="txt-grad">Admin</span></span>
         </div>
         <div className="px-3 py-2">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md tracking-wider" style={{ background: "rgba(220,38,38,0.16)", color: "#FCA5A5" }}><Icon name="shield" className="w-3 h-3" /> INTERNAL · PRODUCTION</span>
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md tracking-wider" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}><Icon name="shield" className="w-3 h-3" /> INTERNAL · PRODUCTION</span>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5">
           {nav.map((s) => {
             const on = s.key === section;
             return (
-              <button key={s.key} onClick={() => { go(s.key); setMobileNav(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors"
-                style={{ background: on ? "rgba(151,59,247,0.16)" : "transparent", color: on ? "#fff" : "var(--adm-ink)" }}>
+              <button key={s.key} onClick={() => { go(s.key); setMobileNav(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${on ? "" : "adm-nav-item"}`}
+                style={{ background: on ? "var(--brand-soft)" : "transparent", color: on ? "var(--brand)" : "var(--ink-2)" }}>
                 <Icon name={s.icon} className="w-[18px] h-[18px]" /> <span className="font-medium">{s.label}</span>
               </button>
             );
@@ -747,7 +748,7 @@ function AdminShell({ admin, section, go, onLogout, children }) {
           <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl" style={{ background: "var(--adm-2)" }}>
             <span className="w-8 h-8 rounded-lg grad text-white text-xs font-bold inline-flex items-center justify-center shrink-0">{admin.name.split(" ").map((x) => x[0]).join("")}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-white font-medium truncate">{admin.name}</p>
+              <p className="text-sm text-neutral-900 font-medium truncate">{admin.name}</p>
               <p className="text-[11px] truncate" style={{ color: rm.tint }}>{rm.label}</p>
             </div>
             <button onClick={onLogout} title="Sign out" className="p-1.5 rounded-lg" style={{ color: "var(--adm-ink)" }}><Icon name="logout" className="w-4 h-4" /></button>
@@ -825,7 +826,7 @@ export default function AdminPortal() {
     const el = document.createElement("style");
     el.textContent = ADMIN_STYLES;
     document.head.appendChild(el);
-    document.title = "Aster Admin — Internal Console";
+    document.title = "Aster Admin: Internal Console";
     return () => el.remove();
   }, []);
 
@@ -913,7 +914,7 @@ export default function AdminPortal() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  if (restoring) return <div className="adm min-h-screen flex items-center justify-center" style={{ background: "#0B0D1A" }}><span className="text-sm" style={{ color: "var(--adm-ink)" }}>Loading…</span></div>;
+  if (restoring) return <div className="adm min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}><span className="text-sm" style={{ color: "var(--adm-ink)" }}>Loading…</span></div>;
   if (!admin) return <AdminLogin onLogin={(a) => { setAdmin(a); go(section || "dashboard"); }} />;
 
   const role = admin.role;

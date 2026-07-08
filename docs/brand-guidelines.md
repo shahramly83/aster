@@ -52,25 +52,29 @@ Aster sounds like a sharp, experienced recruiter who respects your time, not a h
 ## 4. Visual identity
 
 ### Logo
-- The **Aster "A"** mark: a bold, rounded gradient "A" (magenta → violet → blue → cyan), in `public/aster-mark.svg`.
-- Full wordmark via `BrandLogo`; light + white-on-dark variants exist.
-- Clear space around the mark; never recolor, stretch, or add effects beyond the built-in glow.
+- The **Aster star** mark plus the **"aster"** wordmark, drawn inline as a single-colour lockup via `BrandLogo` (no gradient). It recolours per surface: royal blue (`--brand`) on light, white on brand-blue / dark surfaces, solid ink on the footer.
+- Clear space around the mark; never recolour outside the surface variants, stretch, or add effects.
 
 ### Color
+Royal-blue brand. The whole product (marketing, app, admin) reads from these tokens, so a rebrand is a single-place change.
+
 | Token | Hex | Use |
 |-------|-----|-----|
-| `--brand` | `#973BF7` | Primary purple: CTAs, accents, links |
-| `--brand-2` | `#5A78F8` | Secondary blue (gradient end) |
-| `--brand-0` | `#D65BFF` | Magenta (gradient start) |
-| `--brand-soft` | `#F6EEFF` | Tinted surfaces, chips, icon tiles |
-| `--navy` | `#16183A` | Dark panels / sidebar frame |
+| `--brand` | `#0B2AE0` | Primary royal blue: CTAs, accents, links |
+| `--brand-2` | `#3550EE` | Secondary blue (gradient mid/end) |
+| `--brand-0` | `#5570F5` | Lighter blue (gradient start) |
+| `--brand-soft` | `#EAEEFE` | Tinted surfaces, chips, icon tiles |
+| `--brand-deep` | `#0A1FC2` | Deepest blue: nav bar + hero top |
+| `--brand-rgb` | `11, 42, 224` | `--brand` as RGB, for brand-tinted shadows/glows |
 | `--ink` | `#12132A` | Primary text |
-| `--ink-2` | `#56566A` | Secondary text |
-| `--ink-3` | `#6E6E7C` | Tertiary / captions |
-| `--bg` | `#FAFAFB` | App background |
+| `--ink-2` | `#4A5568` | Secondary text |
+| `--ink-3` | `#6B7280` | Tertiary / captions |
+| `--bg` | `#FAFAFB` | App / page background |
 | `--line` / `--line-strong` | `#ECECEF` / `#DEDEE3` | Borders / dividers |
 
-- **Brand gradient:** `linear-gradient(135deg, #D65BFF → #973BF7 → #5A78F8)`.
+- **Brand gradient:** `linear-gradient(135deg, #5570F5 → #0B2AE0 55% → #3550EE)`.
+- **Hero gradient:** `linear-gradient(180deg, #0A1FC2 → #0F27D8 55% → #1B34E6)` (`--hero-grad`).
+- **Chrome:** the app sidebar and admin console are **light** (white / `--bg` with `--line` borders and blue accents), matching the marketing pages. `--navy` remains only for a few legacy dark surfaces being phased out.
 - **Semantic:** success `#16A34A`, warning `#B45309`, danger `#DC2626`. Never convey meaning by color alone; pair with an icon or label.
 - Target WCAG AA (4.5:1 body text). Body text uses `--ink`/`--ink-2` on light surfaces.
 

@@ -12,6 +12,7 @@ back to its built-in behaviour, so nothing breaks in a fresh clone.
 | `parse-application` | Parse resume + file application + **email applicant** | `ANTHROPIC_API_KEY`, `RESEND_API_KEY` | public |
 | `support-intake` | File help-center ticket + **email requester** | `RESEND_API_KEY` | public (`--no-verify-jwt`) |
 | `support-reply` | Admin replies to a ticket by **email** | `RESEND_API_KEY` | required |
+| `marketing-chat` | Public "Ask Aster" assistant on the marketing site (**streaming**) | `ANTHROPIC_API_KEY` | public (`--no-verify-jwt`) |
 
 `_shared/email.ts` is the one Resend wrapper every email function imports (from
 address, branded template, error handling). It is not a deployable function; it
@@ -63,6 +64,27 @@ insight allowance.
 ```bash
 supabase functions deploy analyze-experience
 ```
+
+## `marketing-chat`
+
+Powers the public **"Ask Aster"** chat bubble on the marketing site. It answers
+pre-sales questions (what Aster does, features, pricing, security) grounded only
+in a knowledge base baked into the function, and **streams** the reply token by
+token over Server-Sent Events. It is public and reads nothing from the database,
+so it is safe to expose without a signed-in user; a tight system prompt, small
+`max_tokens`, and clamped history keep it from being used as an open Claude
+proxy. Model: Claude Haiku (`claude-haiku-4-5-20251001`). If it isn't deployed,
+the widget degrades to a short canned reply pointing at the free trial and sales,
+so nothing looks broken.
+
+Deploy public (no JWT), since anyone browsing the site calls it:
+
+```bash
+supabase functions deploy marketing-chat --no-verify-jwt
+```
+
+When the pricing or product copy changes, update the `KNOWLEDGE` block at the top
+of `marketing-chat/index.ts` and redeploy so the bot stays accurate.
 
 ## `parse-application`
 

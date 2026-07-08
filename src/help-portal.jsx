@@ -10,12 +10,12 @@ import { useState, useEffect } from "react";
 import { supabase, hasSupabase } from "./lib/supabase";
 
 const HELP_STYLES = `
-  .help { --brand:#973BF7; --ink:#0F1222; --ink-2:#4A4E63; --ink-3:#8A8FA6; --line:#E7E8EF; --bg:#FBFBFE;
+  .help { --brand:#0B2AE0; --ink:#0F1222; --ink-2:#4A4E63; --ink-3:#8A8FA6; --line:#E7E8EF; --bg:#FBFBFE;
           font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           -webkit-font-smoothing: antialiased; }
-  .help-grad { background-image: linear-gradient(120deg, #D14BFF 0%, #8A4DFF 40%, #4A6BFF 72%, #2FA9F6 100%); }
+  .help-grad { background-image: linear-gradient(135deg,#5570F5,#0B2AE0 55%,#3550EE); }
   .help-field { transition: border-color .15s ease, box-shadow .15s ease; }
-  .help-field:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(151,59,247,.15); }
+  .help-field:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(11,42,224,.15); }
 `;
 
 const CATEGORIES = ["Account & billing", "Uploading resumes", "AI ranking", "Interviews & scheduling", "Something else"];
@@ -35,7 +35,7 @@ export default function HelpPortal() {
     const el = document.createElement("style");
     el.textContent = HELP_STYLES;
     document.head.appendChild(el);
-    document.title = "Aster Help — Contact support";
+    document.title = "Aster Help: Contact support";
     return () => el.remove();
   }, []);
 
@@ -156,7 +156,7 @@ export default function HelpPortal() {
               {err && <p className="mt-4 text-sm text-red-600">{err}</p>}
 
               <button type="submit" disabled={status === "submitting"}
-                className="help-grad mt-6 w-full rounded-xl text-white font-semibold text-[15px] py-3 transition-transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:translate-y-0 shadow-[0_14px_40px_-12px_rgba(151,59,247,0.6)]">
+                className="help-grad mt-6 w-full rounded-xl text-white font-semibold text-[15px] py-3 transition-transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:translate-y-0 shadow-[0_14px_40px_-12px_rgba(11,42,224,0.6)]">
                 {status === "submitting" ? "Sending…" : "Send request"}
               </button>
               <p className="mt-3 text-center text-xs" style={{ color: "var(--ink-3)" }}>
@@ -189,7 +189,7 @@ function Field({ label, hint, children }) {
 function Confirmation({ ticketId, email, onAnother }) {
   return (
     <div className="text-center py-6">
-      <div className="mx-auto w-14 h-14 rounded-2xl help-grad flex items-center justify-center shadow-[0_14px_40px_-12px_rgba(151,59,247,0.6)]">
+      <div className="mx-auto w-14 h-14 rounded-2xl help-grad flex items-center justify-center shadow-[0_14px_40px_-12px_rgba(11,42,224,0.6)]">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
       </div>
       <h1 className="mt-6 text-3xl font-semibold tracking-tight">Request received</h1>
