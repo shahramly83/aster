@@ -57,12 +57,23 @@ export default function HelpPortal() {
     try {
       let id;
       if (hasSupabase) {
-        const { data, error } = await supabase.rpc("submit_support_ticket", {
-          p_name: name.trim(), p_email: email.trim(), p_subject: fullSubject, p_body: message.trim() || null,
-          p_website: website,
+        // Prefer the support-intake edge function: it files the ticket via the
+        // same RPC AND emails the requester a confirmation. If it isn't deployed
+        // (or errors), fall back to the RPC directly so filing still works — the
+        // confirmation email is simply skipped in that case.
+        const fnRes = await supabase.functions.invoke("support-intake", {
+          body: { name: name.trim(), email: email.trim(), subject: fullSubject, body: message.trim() || null, website },
         });
-        if (error) throw error;
-        id = data;
+        if (!fnRes.error && fnRes.data?.id) {
+          id = fnRes.data.id;
+        } else {
+          const { data, error } = await supabase.rpc("submit_support_ticket", {
+            p_name: name.trim(), p_email: email.trim(), p_subject: fullSubject, p_body: message.trim() || null,
+            p_website: website,
+          });
+          if (error) throw error;
+          id = data;
+        }
       } else {
         id = "T-preview"; // mock fallback: no backend wired up
       }

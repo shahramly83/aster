@@ -5,9 +5,11 @@
 // bypasses RLS in one controlled place) stores the PDF in the private `resumes`
 // bucket and creates/updates the candidate + files an 'applied' application.
 //
-// Secrets required (set once):  ANTHROPIC_API_KEY
+// Secrets required (set once):  ANTHROPIC_API_KEY, RESEND_API_KEY (for the
+//   "application received" confirmation email — optional; skipped if unset)
 // Auto-provided by Supabase:     SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendEmail, emailShell, esc } from "../_shared/email.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -124,7 +126,7 @@ Deno.serve(async (req) => {
     // The job must exist and be open — this is the only thing that authorises
     // creating rows for its company.
     const { data: job, error: jobErr } = await admin
-      .from("jobs").select("company_id, status, title, details, expires_at").eq("id", job_id).maybeSingle();
+      .from("jobs").select("company_id, status, title, details, expires_at, companies(name)").eq("id", job_id).maybeSingle();
     if (jobErr || !job) return json({ error: "job not found" }, 404);
     if (job.status !== "open") return json({ error: "job not open" }, 409);
     // Past its closing date → intake stops even though status is still 'open'.
@@ -307,11 +309,38 @@ Deno.serve(async (req) => {
     // --- File the application (one per candidate per job) ---
     const { data: app } = await admin
       .from("applications").select("id").eq("company_id", companyId).eq("candidate_id", candidateId).eq("job_id", job_id).maybeSingle();
-    if (!app) {
+    const isNewApplication = !app;
+    if (isNewApplication) {
       await admin.from("applications").insert({
         company_id: companyId, candidate_id: candidateId, job_id,
         stage: "applied", source: (source || "Career Page"),
       });
+    }
+
+    // --- Confirm to the applicant that we received it (best-effort) ---
+    // Only on a first-time application, only when we have an email, and only if
+    // Resend is configured. A duplicate re-apply doesn't re-email.
+    if (isNewApplication && finalEmail) {
+      try {
+        const companyName = ((job as { companies?: { name?: string } }).companies?.name) || "the hiring team";
+        const roleTitle = job.title || "the role";
+        await sendEmail({
+          to: finalEmail,
+          subject: `We received your application — ${roleTitle}`,
+          html: emailShell({
+            heading: "Your application is in",
+            preview: `${companyName} received your application for ${roleTitle}.`,
+            bodyHtml: `
+              <p style="margin:0 0 14px;">Hi ${esc(fullName.split(" ")[0] || "there")},</p>
+              <p style="margin:0 0 14px;">Thanks for applying to <strong>${esc(roleTitle)}</strong> at <strong>${esc(companyName)}</strong>. Your resume came through and it's now with the team.</p>
+              <p style="margin:0 0 14px;">Aster reads every application, so a real person will review yours. If you're a match for what the role needs, you'll hear from ${esc(companyName)} about next steps. No action is needed from you right now.</p>
+              <p style="margin:0;">Good luck,<br>The team at ${esc(companyName)}</p>`,
+            footnote: `Sent because you applied to a role posted with Aster.`,
+          }),
+        });
+      } catch (e) {
+        console.error("application confirmation email failed", e); // non-fatal
+      }
     }
 
     return json({ ok: true, candidate_id: candidateId });

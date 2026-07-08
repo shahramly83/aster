@@ -51,6 +51,7 @@ const PATHS = {
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   shield: "M12 3l8 3v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z",
   check: "M4 12l5 5L20 6",
+  mail: "M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 .5 9 6 9-6",
   close: "M6 6l12 12M18 6L6 18",
   chevronDown: "M6 9l6 6 6-6",
   chevronRight: "M9 6l6 6-6 6",
@@ -505,10 +506,12 @@ function Usage({ role, companies, usage }) {
   );
 }
 
-function Support({ role, companies, tickets, onResolve }) {
+function Support({ role, companies, tickets, onResolve, onReply }) {
   // Real (DB) tickets carry the company name inline; mock rows reference a
   // mock company id, so fall back to a lookup.
   const cName = (t) => t.company || companies.find((c) => c.id === t.companyId)?.name || "—";
+  const [replyTo, setReplyTo] = useState(null); // ticket currently being replied to
+  const canReply = can(role, "support.resolve");
   return (
     <div>
       <SectionHead title="Support logs" desc="Customer support tickets and interactions." />
@@ -523,10 +526,67 @@ function Support({ role, companies, tickets, onResolve }) {
             <Td style={{ color: "var(--ink-2)" }}>{t.channel}</Td>
             <Td><Badge tone={STATUS_TONE[t.priority]}>{t.priority}</Badge></Td>
             <Td><StatusBadge value={t.status} /></Td>
-            <Td>{t.status !== "resolved" && <ActionBtn icon="check" disabled={!can(role, "support.resolve")} onClick={() => onResolve(t)}>Resolve</ActionBtn>}</Td>
+            <Td>
+              <div className="flex items-center gap-1.5">
+                {/* Reply emails the requester; only offered when we have their email. */}
+                {t.email && <ActionBtn icon="mail" disabled={!canReply} onClick={() => setReplyTo(t)}>Reply</ActionBtn>}
+                {t.status !== "resolved" && <ActionBtn icon="check" disabled={!canReply} onClick={() => onResolve(t)}>Resolve</ActionBtn>}
+              </div>
+            </Td>
           </tr>
         ))}
       </TableShell>
+      {replyTo && <ReplyComposer ticket={replyTo} cName={cName(replyTo)} onClose={() => setReplyTo(null)} onSend={onReply} />}
+    </div>
+  );
+}
+
+// A small modal for composing an email reply to a ticket's requester.
+function ReplyComposer({ ticket, cName, onClose, onSend }) {
+  const [message, setMessage] = useState("");
+  const [resolve, setResolve] = useState(ticket.status !== "resolved");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const send = async () => {
+    if (!message.trim()) { setErr("Write a reply before sending."); return; }
+    setBusy(true); setErr("");
+    const res = await onSend(ticket, message.trim(), resolve);
+    setBusy(false);
+    if (res?.ok) onClose();
+    else setErr(res?.error || "Could not send the reply. Try again in a moment.");
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{ background: "rgba(11,13,26,0.55)" }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-white" style={{ border: "1px solid var(--line)", boxShadow: "0 30px 80px -30px rgba(0,0,0,0.6)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 pt-5 pb-4" style={{ borderBottom: "1px solid var(--line)" }}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-neutral-900">Reply to {ticket.requester}</h2>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{ticket.id} · {cName} · <span className="tnum">{ticket.email}</span></p>
+            </div>
+            <button onClick={onClose} className="text-sm" style={{ color: "var(--ink-3)" }} aria-label="Close">✕</button>
+          </div>
+          <div className="mt-2 text-xs" style={{ color: "var(--ink-2)" }}>{ticket.subject}</div>
+        </div>
+        <div className="px-6 py-4">
+          <textarea
+            autoFocus value={message} onChange={(e) => setMessage(e.target.value)}
+            rows={6} placeholder="Write your reply. This is emailed to the requester from support@hireaster.com."
+            className="w-full rounded-xl px-3.5 py-3 text-sm text-neutral-900 focus:outline-none focus:ring-2"
+            style={{ border: "1px solid var(--line)", background: "#fff", "--tw-ring-color": "var(--brand)" }} />
+          <label className="mt-3 flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--ink-2)" }}>
+            <input type="checkbox" checked={resolve} onChange={(e) => setResolve(e.target.checked)} />
+            Mark this ticket resolved after sending
+          </label>
+          {err && <div className="mt-3 text-sm" style={{ color: "var(--danger)" }}>{err}</div>}
+        </div>
+        <div className="px-6 pb-5 pt-1 flex items-center justify-end gap-2.5">
+          <button onClick={onClose} disabled={busy} className="text-sm font-semibold px-3.5 py-2 rounded-lg" style={{ border: "1px solid var(--line)", color: "var(--ink-2)", background: "#fff" }}>Cancel</button>
+          <button onClick={send} disabled={busy} className="text-sm font-semibold px-4 py-2 rounded-lg text-white grad disabled:opacity-50">{busy ? "Sending…" : "Send reply"}</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -818,6 +878,29 @@ export default function AdminPortal() {
     logAudit("Resolved support ticket", `${t.id} (${name})`);
   };
 
+  // Email the requester a reply (via the support-reply edge function, which
+  // sends through Resend and, when `resolve` is set, marks the ticket resolved).
+  // Returns { ok } so the composer can show an error without a full reload.
+  const replyToTicket = async (t, message, resolve) => {
+    const name = t.company || companies.find((c) => c.id === t.companyId)?.name || t.companyId;
+    if (hasSupabase) {
+      const { data, error } = await supabase.functions.invoke("support-reply", {
+        body: { ticket_id: t.id, message, resolve },
+      });
+      if (error || data?.error) {
+        return { ok: false, error: data?.error || error?.message || "Could not send the reply." };
+      }
+      if (resolve && data?.resolved) {
+        setTickets((ts) => ts.map((x) => x.id === t.id ? { ...x, status: "resolved", updated: "just now" } : x));
+      }
+    } else if (resolve) {
+      // Mock preview: no backend, just reflect the resolve locally.
+      setTickets((ts) => ts.map((x) => x.id === t.id ? { ...x, status: "resolved", updated: "just now" } : x));
+    }
+    logAudit(resolve ? "Replied and resolved support ticket" : "Replied to support ticket", `${t.id} (${name})`);
+    return { ok: true };
+  };
+
   const go = (key) => {
     setSection(key);
     if (typeof window !== "undefined") window.history.pushState({ admin: true }, "", "/admin/" + key);
@@ -844,7 +927,7 @@ export default function AdminPortal() {
       case "users":         screen = <Users role={role} companies={companies} audit={logAudit} />; break;
       case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} />; break;
       case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
-      case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} />; break;
+      case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
       case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} />; break;
       case "audit":         screen = <Audit audit={audit} />; break;
       default:              screen = <Dashboard role={role} companies={companies} tickets={tickets} audit={audit} go={go} />;
