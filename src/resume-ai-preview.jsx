@@ -13828,6 +13828,43 @@ function MfaCard() {
   );
 }
 
+// Shown to a signed-in owner whose workspace is within the 30-day soft-delete
+// window: explains the countdown and offers a one-click restore.
+function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const purge = info?.purge_after ? new Date(info.purge_after) : null;
+  const daysLeft = purge ? Math.max(0, Math.ceil((purge.getTime() - Date.now()) / 86400000)) : null;
+  const dateStr = purge ? purge.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "";
+  const restore = async () => {
+    setBusy(true); setErr("");
+    const msg = await onRestore();
+    if (msg) { setErr(msg); setBusy(false); }
+  };
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-7 text-center border border-[color:var(--line)]">
+        {logoUrl
+          ? <img src={logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover mx-auto mb-4" style={{ border: "1px solid var(--line)" }} />
+          : <div className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center text-white font-bold font-display text-lg brand-gradient">A</div>}
+        <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>Workspace scheduled for deletion</h1>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+          {info?.company_name ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{info.company_name}</span> : "Your workspace"} is scheduled to be permanently deleted{dateStr ? <> on <span className="font-semibold" style={{ color: "var(--ink)" }}>{dateStr}</span></> : ""}.
+          {daysLeft != null && <> You have <span className="font-semibold" style={{ color: "var(--brand)" }}>{daysLeft} day{daysLeft === 1 ? "" : "s"}</span> left to restore it.</>}
+        </p>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+          Restoring brings everything back: candidates, jobs, interviewers, and your remaining credits.
+        </p>
+        {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
+        <button onClick={restore} disabled={busy} className="w-full mt-5 rounded-xl brand-gradient hover:opacity-90 text-white font-semibold py-3 transition-opacity disabled:opacity-60">
+          {busy ? "Restoring…" : "Restore workspace"}
+        </button>
+        <button onClick={onSignOut} disabled={busy} className="mt-3 text-sm font-medium hover:opacity-70 transition-opacity disabled:opacity-40" style={{ color: "var(--ink-2)" }}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
 // Branded on/off switch used by the Profile notification preferences.
 function Toggle({ on, onChange, label, desc }) {
   return (
@@ -13871,6 +13908,24 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [savedMsg, setSavedMsg] = useState(null);
   const [dangerConfirm, setDangerConfirm] = useState(false);
   const [dangerText, setDangerText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
+
+  // Schedule the 30-day soft delete via the edge function, then sign out.
+  const handleDeleteAccount = async () => {
+    setDeleteErr("");
+    if (!hasSupabase || !supabase) { setDeleteErr("Account deletion needs a connected backend."); return; }
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Deletion failed");
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined") window.location.assign("/");
+    } catch (e) {
+      setDeleteErr(e?.message || "Could not delete the workspace. Please try again.");
+      setDeleting(false);
+    }
+  };
 
   // Password / sign-in
   const [curPw, setCurPw] = useState("");
@@ -14149,16 +14204,18 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
                       className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                       style={{ borderColor: "#FCA5A5", color: "var(--ink)" }}
                     />
+                    {deleteErr && <p className="text-xs mt-2" style={{ color: "#B91C1C" }}>{deleteErr}</p>}
                     <div className="flex items-center gap-2 mt-3">
-                      <button onClick={() => { setDangerConfirm(false); setDangerText(""); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-white" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
+                      <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-white disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
                       <button
-                        disabled={dangerText.trim() !== dangerTarget}
-                        onClick={() => alert("Account deletion is disabled in this preview.")}
+                        disabled={deleting || dangerText.trim() !== dangerTarget}
+                        onClick={handleDeleteAccount}
                         className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        Permanently delete
+                        {deleting ? "Deleting…" : "Permanently delete"}
                       </button>
                     </div>
+                    <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>You'll be signed out. You have 30 days to restore before everything is permanently erased.</p>
                   </div>
                 )}
               </div>
@@ -16587,6 +16644,9 @@ export default function ResumeAIPreview() {
   // While true, hold the signed-in app behind a loader so a logged-in user never
   // sees a flash of demo data before their real workspace hydrates on refresh.
   const [restoring, setRestoring] = useState(hasSupabase);
+  // Set when the signed-in owner's workspace is soft-deleted (within the 30-day
+  // window). We show the restore screen instead of the app.
+  const [deletedInfo, setDeletedInfo] = useState(null);
   const [activeJobId, setActiveJobId] = useState(() => (typeof window !== "undefined" ? (applicantsJobFromPath(window.location.pathname) || "j1") : "j1"));
   // On the Free plan, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
@@ -16926,6 +16986,19 @@ export default function ResumeAIPreview() {
         navigate("login");
         return;
       }
+      // Soft-deleted workspace: within the 30-day window it stops resolving under
+      // RLS, so show the restore screen instead of an empty/broken app.
+      try {
+        const { data: delRows } = await supabase.rpc("my_deletion_status");
+        const del = Array.isArray(delRows) ? delRows[0] : delRows;
+        if (del && del.deleted_at) {
+          if (cancelled) return;
+          setDeletedInfo(del);
+          setRestoring(false);
+          return;
+        }
+      } catch { /* RPC missing / offline: fall through to normal load */ }
+
       if (handled === session.user.id) return; // already restored this user
       handled = session.user.id;
       try {
@@ -17342,6 +17415,24 @@ export default function ResumeAIPreview() {
             <p className="text-sm" style={{ color: "var(--ink-2)" }}>Loading your workspace…</p>
           </div>
         </div>
+      </Shell>
+    );
+  }
+
+  if (deletedInfo) {
+    return (
+      <Shell>
+        <DeletedWorkspaceScreen
+          info={deletedInfo}
+          logoUrl={logoUrl}
+          onRestore={async () => {
+            const { error } = await supabase.rpc("restore_workspace");
+            if (error) return error.message || "Could not restore. The window may have passed.";
+            if (typeof window !== "undefined") window.location.assign("/");
+            return null;
+          }}
+          onSignOut={async () => { await supabase.auth.signOut(); if (typeof window !== "undefined") window.location.assign("/"); }}
+        />
       </Shell>
     );
   }

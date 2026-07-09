@@ -13,6 +13,48 @@ back to its built-in behaviour, so nothing breaks in a fresh clone.
 | `support-intake` | File help-center ticket + **email requester** | `RESEND_API_KEY` | public (`--no-verify-jwt`) |
 | `support-reply` | Admin replies to a ticket by **email** | `RESEND_API_KEY` | required |
 | `marketing-chat` | Public "Ask Aster" assistant on the marketing site (**streaming**) | `ANTHROPIC_API_KEY` | public (`--no-verify-jwt`) |
+| `delete-account` | Schedule the owner's workspace for 30-day soft delete | `DELETE_HASH_SECRET` | required |
+| `purge-workspaces` | Cron: hard-delete workspaces past the 30-day window | `PURGE_KEY` | public (`--no-verify-jwt`, key-gated) |
+
+## Account deletion (30-day soft delete)
+
+Migration `0018_account_soft_delete.sql` adds the mechanism (see that file). Two
+functions wire it up:
+
+- **`delete-account`** (JWT required): the signed-in owner calls it from the
+  Profile danger zone. It records a one-way hash of their normalized email in
+  `free_grant_ledger` (so a re-signup can't reset the free trial) and calls
+  `request_workspace_deletion`, which stamps `deleted_at` + `purge_after`
+  (now + 30 days). `current_company_id()` then stops resolving the workspace, so
+  access is cut immediately while all data is retained. The client signs out.
+  If `DELETE_HASH_SECRET` is unset, deletion still works; only the ledger entry
+  is skipped.
+- **`purge-workspaces`** (key-gated): the scheduled teardown. Send header
+  `x-purge-key: $PURGE_KEY`; it finds workspaces past `purge_after` and removes
+  resume files, the members' `auth.users` rows, then the company row (cascades).
+
+Set the secrets and deploy:
+
+```bash
+supabase secrets set DELETE_HASH_SECRET=$(openssl rand -hex 32)
+supabase secrets set PURGE_KEY=$(openssl rand -hex 24)
+supabase functions deploy delete-account
+supabase functions deploy purge-workspaces --no-verify-jwt
+```
+
+Schedule the daily purge (Supabase dashboard → Database → Cron, or pg_cron):
+
+```sql
+select cron.schedule('purge-workspaces-daily', '0 3 * * *', $$
+  select net.http_post(
+    url    := 'https://<project-ref>.supabase.co/functions/v1/purge-workspaces',
+    headers:= jsonb_build_object('x-purge-key', '<PURGE_KEY value>')
+  );
+$$);
+```
+
+Restore (within 30 days) and status are handled in-app via the `restore_workspace`
+and `my_deletion_status` RPCs from the same migration.
 
 `_shared/email.ts` is the one Resend wrapper every email function imports (from
 address, branded template, error handling). It is not a deployable function; it
