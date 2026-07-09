@@ -7751,6 +7751,43 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
   );
 }
 
+// Shared full-width shell for the account screens (Interviewers, Profile, Billing,
+// Settings), so they match the Jobs / Candidate Search layout: a gradient canvas,
+// the TopBar header, and an optional right-hand usage/credit rail. Pass `rail` to
+// get the two-column grid; omit it for a single full-width column.
+function AccountShell({ title, subtitle, rail, children, navigate, profile, avatarUrl, activities, onOpenNotifications }) {
+  return (
+    <div
+      className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
+      style={{
+        background:
+          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
+          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
+          "var(--bg)",
+      }}
+    >
+      <div className="mx-auto w-full max-w-[1400px]">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <div className="mt-2">
+          <TopBar
+            title={title}
+            subtitle={subtitle}
+            activities={activities}
+            onOpenNotifications={onOpenNotifications}
+            avatarUrl={avatarUrl}
+            profile={profile}
+            navigate={navigate}
+          />
+        </div>
+        <div className={`grid grid-cols-1 ${rail ? "lg:grid-cols-3" : ""} gap-5 lg:gap-6 items-start`}>
+          <div className={`${rail ? "lg:col-span-2" : ""} min-w-0`}>{children}</div>
+          {rail && <div className="space-y-4 lg:sticky lg:top-6">{rail}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, series, delta = 0, sparkColor = "#973BF7", icon, onClick }) {
   return (
     <button
@@ -11855,7 +11892,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "free", profile }) {
+function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "free", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
   // Seats include the owner, so invitable teammates = seats − 1.
@@ -11913,47 +11950,46 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   };
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <div className="flex items-center justify-between mt-2 mb-1">
-          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Interviewers</h1>
+    <AccountShell
+      title="Interviewers"
+      subtitle="Your team. Each teammate gets their own login and sees only the interviews assigned to them."
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+      rail={limits.seats !== Infinity ? (
+        <UsageMeter
+          title="Seats"
+          used={interviewers.length + 1}
+          limit={limits.seats}
+          unit="in use"
+          danger={atSeatCap}
+          note={canAddInterviewers ? undefined : "Free plan includes 1 seat, just you."}
+          onUpgrade={() => navigate("billing")}
+          upgradeLabel={canAddInterviewers ? "Upgrade for more seats" : "Upgrade to add teammates"}
+        />
+      ) : null}
+    >
+        {/* Invite action */}
+        <div className="flex justify-end mb-4">
           {canAddInterviewers ? (
             <button
               onClick={() => (atSeatCap ? navigate("billing") : setShowForm((s) => !s))}
-              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white px-3 py-1.5 transition-colors"
+              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity"
             >
               {atSeatCap ? "Seats full, upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
             </button>
           ) : (
             <button
               onClick={() => navigate("billing")}
-              className="text-sm rounded-xl border px-3 py-1.5 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
+              className="text-sm rounded-xl border px-4 py-2 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
               style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
             >
               <Icon name="lock" className="w-3.5 h-3.5" /> Invite teammate <LockBadge />
             </button>
           )}
         </div>
-        {!canAddInterviewers && (
-          <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
-            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              The Free plan includes <span className="font-semibold">1 seat, just you</span>. Upgrade to invite teammates, each with their own login.
-            </p>
-            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
-          </div>
-        )}
-        {canAddInterviewers && limits.seats !== Infinity && (
-          <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: atSeatCap ? "var(--brand-soft)" : "#fff" }}>
-            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              Your plan includes <span className="font-semibold">{limits.seats} seat{limits.seats === 1 ? "" : "s"}</span>, {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Premium for unlimited seats." : "."}
-            </p>
-            {atSeatCap && <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>}
-          </div>
-        )}
-        <p className="text-sm text-neutral-500 mb-4">
-          Your team. Invite teammates to run interviews. Each gets their own login and sees only the interviews assigned to them. Availability and {meetLabel} links come from your workspace calendar, so there's no per-person setup.
-        </p>
 
         {/* Workspace calendar status, one connection covers everyone */}
         <div className="mb-6 rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: calendarConnected ? "#F0FDF4" : "#FFF7ED" }}>
@@ -12041,7 +12077,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
             );
           })}
         </div>
-      </div>
 
       {/* Remove confirmation */}
       {removing && (
@@ -12074,7 +12109,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
           </div>
         </div>
       )}
-    </div>
+    </AccountShell>
   );
 }
 
@@ -13095,7 +13130,7 @@ This is what a candidate sees. A public page, no login, reached only through the
 }
 
 
-function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial }) {
+function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(null);
   // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
   const [cycle, setCycle] = useState(planCycle);
@@ -13212,11 +13247,15 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   const activeTeammates = interviewers.length;
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Billing &amp; plan</h1>
-        <p className="text-sm text-neutral-500 mb-6">Manage the plan, payment method, and invoices for {company || "your workspace"}.</p>
+    <AccountShell
+      title="Billing & plan"
+      subtitle={`Manage the plan, payment method, and invoices for ${company || "your workspace"}.`}
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+    >
 
         {msg && (
           <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BFDBFE", background: "#EFF6FF", color: "#1E40AF" }}>
@@ -13436,7 +13475,6 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
             Amounts include applicable taxes. Tax invoices are issued to {company || "your workspace"} and can be downloaded above.
           </p>
         </div>
-      </div>
 
       {/* Downgrade confirmation, shows exactly what gets paused/locked */}
       {showDowngrade && (
@@ -13506,7 +13544,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
           </div>
         </div>
       )}
-    </div>
+    </AccountShell>
   );
 }
 
@@ -13790,7 +13828,7 @@ function MfaCard() {
   );
 }
 
-function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany }) {
+function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, activities = [], onOpenNotifications }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
   const [emailMsg, setEmailMsg] = useState(null);
@@ -13862,11 +13900,15 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const avatarInitial = (dFirst?.[0] || "S").toUpperCase();
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Profile</h1>
-        <p className="text-sm text-neutral-500 mb-6">Your company branding, personal details, and sign-in.</p>
+    <AccountShell
+      title="Profile"
+      subtitle="Your company branding, personal details, and sign-in."
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+    >
 
         {/* Company details */}
         <div className={`${cardClass} mb-4`}>
@@ -13977,12 +14019,11 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AccountShell>
   );
 }
 
-function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free" }) {
+function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free", profile, avatarUrl, activities = [], onOpenNotifications }) {
   // Staged (draft) edits for the calendar provider, Save/Cancel form.
   const [dProvider, setDProvider] = useState(provider);
   const [dCalConnected, setDCalConnected] = useState(calendarConnected);
@@ -14036,11 +14077,15 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
   };
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Settings</h1>
-        <p className="text-sm text-neutral-500 mb-6">Email templates, calendar, messaging, and usage for your workspace.</p>
+    <AccountShell
+      title="Settings"
+      subtitle="Email templates, calendar, messaging, and usage for your workspace."
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+    >
 
         {/* Email templates, the wording behind every automated email */}
         <button onClick={() => navigate("emailTemplates")} className={`${cardClass} mb-4 w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
@@ -14229,8 +14274,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AccountShell>
   );
 }
 
@@ -17198,6 +17242,8 @@ export default function ResumeAIPreview() {
             setProfile={setProfile}
             company={company}
             setCompany={setCompany}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
           />
         )}
         {screen === "settings" && (
@@ -17209,10 +17255,14 @@ export default function ResumeAIPreview() {
             setCalendarConnected={setCalendarConnected}
             bookings={bookings}
             plan={effectivePlan}
+            profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
           />
         )}
         {screen === "billing" && (
-          <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} />
+          <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} />}
@@ -17251,7 +17301,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "interviewers" && (
-          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} />
+          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "candidateProfile" && !activeCandidate && (
           // The candidate isn't in the workspace (just deleted, or a stale deep
