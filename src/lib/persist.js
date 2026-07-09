@@ -67,6 +67,35 @@ export async function dbDeleteCandidate(candidateId) {
   if (error) console.error("dbDeleteCandidate", error.message);
 }
 
+// Upload a company logo to the public `logos` bucket under the company's folder
+// (logos/{companyId}/logo) and return its public URL. Upserts a fixed path so a
+// replaced logo overwrites the old file instead of orphaning it. The ?v= query
+// busts the CDN/browser cache when the logo changes at the same URL.
+export async function uploadCompanyLogo(companyId, file) {
+  if (!hasSupabase || !companyId || !file) return null;
+  const path = `${companyId}/logo`;
+  const { error } = await supabase.storage
+    .from("logos")
+    .upload(path, file, { upsert: true, contentType: file.type || "image/png" });
+  if (error) { console.error("uploadCompanyLogo", error.message); return null; }
+  const { data } = supabase.storage.from("logos").getPublicUrl(path);
+  return data?.publicUrl ? `${data.publicUrl}?v=${Date.now()}` : null;
+}
+
+// Persist company branding + billing details via the owner/admin-only RPC.
+// Returns { ok, error? } so the settings form can surface a failure.
+export async function dbUpdateCompany(companyId, { name, address, registrationNo, logoUrl }) {
+  if (!hasSupabase || !companyId) return { ok: false };
+  const { error } = await supabase.rpc("update_company_details", {
+    p_name: name ?? null,
+    p_address: address ?? null,
+    p_registration_no: registrationNo ?? null,
+    p_logo_url: logoUrl ?? null,
+  });
+  if (error) { console.error("dbUpdateCompany", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 export async function dbAddScorecard(companyId, userId, { candidateId, jobId = null, ratings, notes }) {
   if (!hasSupabase || !companyId) return;
   const { error } = await supabase.from("scorecards").insert({
