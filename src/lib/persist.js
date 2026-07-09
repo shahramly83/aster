@@ -84,11 +84,18 @@ export async function uploadCompanyLogo(companyId, file) {
 
 // Persist company branding + billing details via the owner/admin-only RPC.
 // Returns { ok, error? } so the settings form can surface a failure.
-export async function dbUpdateCompany(companyId, { name, address, registrationNo, logoUrl }) {
+// Billing address is stored as five discrete columns (street/city/state/
+// postcode/country); the RPC also derives the display-ready `address` block
+// from them server-side, so callers pass the structured `address` object.
+export async function dbUpdateCompany(companyId, { name, address = {}, registrationNo, logoUrl }) {
   if (!hasSupabase || !companyId) return { ok: false };
   const { error } = await supabase.rpc("update_company_details", {
     p_name: name ?? null,
-    p_address: address ?? null,
+    p_street: address.street ?? null,
+    p_city: address.city ?? null,
+    p_state: address.state ?? null,
+    p_postcode: address.postcode ?? null,
+    p_country: address.country ?? null,
     p_registration_no: registrationNo ?? null,
     p_logo_url: logoUrl ?? null,
   });

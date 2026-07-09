@@ -19,11 +19,16 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, companies ( name, plan, logo_url, address, registration_no )")
+    .select("company_id, full_name, role, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
   const parts = (data.full_name || fallbackEmail || "").trim().split(/\s+/);
+  const co = data.companies || {};
+  // Prefer the discrete address columns; fall back to a best-effort parse of the
+  // legacy freeform `address` for rows saved before the structured migration.
+  const structured = { street: co.address_street || "", city: co.address_city || "", state: co.address_state || "", postcode: co.address_postcode || "", country: co.address_country || "" };
+  const addressParts = Object.values(structured).some(Boolean) ? structured : parseAddress(co.address || "");
   return {
     userId,
     companyId: data.company_id,
@@ -32,11 +37,12 @@ async function loadCustomerSession(userId, fallbackEmail) {
       lastName: parts.slice(1).join(" "),
       role: ROLE_LABELS[data.role] || "Hiring Manager",
     },
-    company: data.companies?.name || "Your workspace",
-    plan: data.companies?.plan || "free",
-    logoUrl: data.companies?.logo_url || null,
-    address: data.companies?.address || "",
-    registrationNo: data.companies?.registration_no || "",
+    company: co.name || "Your workspace",
+    plan: co.plan || "free",
+    logoUrl: co.logo_url || null,
+    address: co.address || "",
+    addressParts,
+    registrationNo: co.registration_no || "",
   };
 }
 
@@ -7518,6 +7524,7 @@ function Icon({ name, className = "w-5 h-5" }) {
     hire: <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
     eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></>,
+    eyeOff: <><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a17.6 17.6 0 0 1-2.16 3.19M6.61 6.61A17.8 17.8 0 0 0 2 12s3.5 8 10 8a9.1 9.1 0 0 0 5.39-1.61" /><path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" /><path d="M3 3l18 18" /></>,
     download: <><path d="M12 3v12" /><path d="M7 11l5 5 5-5" /><path d="M4 20h16" /></>,
     archive: <><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /><path d="M10 13h4" /></>,
     link: <><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-2 2a5 5 0 0 0 7.07 7.07l1.5-1.5" /></>,
@@ -14329,25 +14336,47 @@ function SectionHead({ icon, title, desc, tone }) {
   );
 }
 
-function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
+// Billing address is stored as one human-readable string (shown on invoices and
+// in email placeholders), but edited as standard structured fields. These two
+// helpers keep the round-trip: serialize joins the fields into a clean address
+// block; parse is best-effort (perfect for our own 3-line output, and it never
+// loses legacy freeform text — that lands back in the street field).
+const EMPTY_ADDRESS = { street: "", city: "", state: "", postcode: "", country: "" };
+function serializeAddress({ street, city, state, postcode, country }) {
+  const cityState = [city, state].map((s) => (s || "").trim()).filter(Boolean).join(", ");
+  const localityLine = [cityState, (postcode || "").trim()].filter(Boolean).join(" ");
+  return [(street || "").trim(), localityLine, (country || "").trim()].filter(Boolean).join("\n");
+}
+function parseAddress(str) {
+  const s = (str || "").trim();
+  if (!s) return { ...EMPTY_ADDRESS };
+  const lines = s.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 1) return { ...EMPTY_ADDRESS, street: lines[0] };
+  const street = lines[0] || "";
+  const country = lines.length >= 3 ? lines[lines.length - 1] : "";
+  const localityLine = lines[1] || "";
+  const [cityPart, region = ""] = localityLine.split(",").map((x) => x.trim());
+  const rm = region.match(/^(.*?)\s*(\S*\d\S*)?$/) || [];
+  return { street, city: cityPart || "", state: (rm[1] || "").trim(), postcode: (rm[2] || "").trim(), country };
+}
+
+function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, addressParts = EMPTY_ADDRESS, setAddressParts, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
   const [emailMsg, setEmailMsg] = useState(null);
+  const [emailErr, setEmailErr] = useState(null);
+  const [emailBusy, setEmailBusy] = useState(false);
 
   // Staged (draft) edits, nothing is committed until Save. Cancel reverts.
   const [dLogo, setDLogo] = useState(logoUrl);
   const [dLogoFile, setDLogoFile] = useState(null); // File picked this session, uploaded on Save
   const [dCompany, setDCompany] = useState(company || "");
-  const [dAddress, setDAddress] = useState(address || "");
+  const [dAddr, setDAddr] = useState({ ...EMPTY_ADDRESS, ...addressParts });
   const [dRegNo, setDRegNo] = useState(regNo || "");
   const [dAvatar, setDAvatar] = useState(avatarUrl);
   const [dFirst, setDFirst] = useState(profile?.firstName || "");
   const [dLast, setDLast] = useState(profile?.lastName || "");
-  const [dRole, setDRole] = useState(profile?.role || "");
   const [dPhone, setDPhone] = useState(profile?.phone || "");
-  const NOTIF_DEFAULTS = { applicants: true, interviews: true, digest: true, product: false };
-  const notifBase = { ...NOTIF_DEFAULTS, ...(profile?.notifications || {}) };
-  const [dNotif, setDNotif] = useState(notifBase);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
   const [saveErr, setSaveErr] = useState(null);
@@ -14376,7 +14405,8 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
-  const [showPw, setShowPw] = useState(false);
+  const [pwShown, setPwShown] = useState({ cur: false, new: false, conf: false });
+  const togglePw = (k) => setPwShown((s) => ({ ...s, [k]: !s[k] }));
   const [pwMsg, setPwMsg] = useState(null);
 
   const inputClass = "w-full rounded-xl bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
@@ -14386,26 +14416,30 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const uploadBtnClass = "text-sm rounded-xl border px-4 py-2 font-medium cursor-pointer inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--brand-soft)]";
   const uploadBtnStyle = { borderColor: "var(--line-strong)", color: "var(--brand)" };
 
+  // The account's system role is not self-editable here (the tenant/owner can't
+  // demote themselves); member roles are managed on the Interviewers screen.
+  const roleLabel = profile?.role || "Tenant";
+  const dAddressStr = serializeAddress(dAddr);
+  const setAddr = (patch) => { setDAddr((a) => ({ ...a, ...patch })); setSavedMsg(null); setSaveErr(null); };
+
   const dirty =
     dLogo !== logoUrl ||
     dCompany !== (company || "") ||
-    dAddress !== (address || "") ||
+    JSON.stringify(dAddr) !== JSON.stringify({ ...EMPTY_ADDRESS, ...addressParts }) ||
     dRegNo !== (regNo || "") ||
     dAvatar !== avatarUrl ||
     dFirst !== (profile?.firstName || "") ||
     dLast !== (profile?.lastName || "") ||
-    dRole !== (profile?.role || "") ||
-    dPhone !== (profile?.phone || "") ||
-    JSON.stringify(dNotif) !== JSON.stringify(notifBase);
+    dPhone !== (profile?.phone || "");
 
   // Profile completeness, drives the meter in the rail.
   const completionItems = [
     { key: "avatar", label: "Add a profile photo", done: !!dAvatar },
     { key: "name", label: "Add your full name", done: !!(dFirst && dLast) },
-    { key: "role", label: "Add your role or title", done: !!dRole },
     { key: "phone", label: "Add a contact number", done: !!dPhone },
     { key: "logo", label: "Upload a company logo", done: !!dLogo },
     { key: "company", label: "Set your company name", done: !!dCompany },
+    { key: "address", label: "Add a billing address", done: !!dAddr.street },
   ];
   const doneCount = completionItems.filter((i) => i.done).length;
   const completionPct = Math.round((doneCount / completionItems.length) * 100);
@@ -14427,7 +14461,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
       }
       const res = await dbUpdateCompany(companyId, {
         name: dCompany.trim(),
-        address: dAddress.trim() || null,
+        address: dAddr,
         registrationNo: dRegNo.trim() || null,
         logoUrl: nextLogo || null,
       });
@@ -14438,24 +14472,47 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
     }
     setLogoUrl(nextLogo); setDLogo(nextLogo); setDLogoFile(null);
     setCompany(dCompany.trim());
-    setAddress?.(dAddress.trim());
+    setAddressParts?.({ ...dAddr });
+    setAddress?.(dAddressStr);
     setRegNo?.(dRegNo.trim());
     setAvatarUrl(dAvatar);
-    setProfile({ ...(profile || {}), firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim(), phone: dPhone.trim(), notifications: dNotif });
+    setProfile({ ...(profile || {}), firstName: dFirst.trim(), lastName: dLast.trim(), phone: dPhone.trim() });
     setSaving(false);
     setSavedMsg("All changes saved.");
   };
   const handleCancel = () => {
-    setDLogo(logoUrl); setDLogoFile(null); setDCompany(company || ""); setDAddress(address || ""); setDRegNo(regNo || ""); setDAvatar(avatarUrl);
-    setDFirst(profile?.firstName || ""); setDLast(profile?.lastName || ""); setDRole(profile?.role || "");
-    setDPhone(profile?.phone || ""); setDNotif(notifBase);
+    setDLogo(logoUrl); setDLogoFile(null); setDCompany(company || ""); setDAddr({ ...EMPTY_ADDRESS, ...addressParts }); setDRegNo(regNo || ""); setDAvatar(avatarUrl);
+    setDFirst(profile?.firstName || ""); setDLast(profile?.lastName || "");
+    setDPhone(profile?.phone || "");
     setSavedMsg(null); setSaveErr(null);
   };
 
-  const handleEmailSubmit = () => {
-    if (!newEmail) return;
-    setEmailMsg(`Confirmation sent to ${newEmail}. Your email won't change until you click the link in that message.`);
-    setNewEmail("");
+  // Change the login email. Supabase sends a confirmation link to the NEW
+  // address and only switches once it's clicked; it also rejects an address
+  // that already belongs to another account, so there's no duplicate path.
+  const handleEmailSubmit = async () => {
+    setEmailMsg(null); setEmailErr(null);
+    const next = newEmail.trim();
+    if (!next) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { setEmailErr("Enter a valid email address."); return; }
+    if (next.toLowerCase() === email.toLowerCase()) { setEmailErr("That's already your current email."); return; }
+    if (!hasSupabase || !supabase) {
+      // Preview / no backend: keep the mock confirmation.
+      setEmailMsg(`Confirmation sent to ${next}. Your email won't change until you click the link in that message.`);
+      setNewEmail("");
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: next });
+      if (error) throw error;
+      setEmailMsg(`Confirmation sent to ${next}. Your login email won't change until you click the link in that message.`);
+      setNewEmail("");
+    } catch (e) {
+      setEmailErr(e?.message || "Couldn't start the email change. Please try again.");
+    } finally {
+      setEmailBusy(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -14487,7 +14544,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
               ? <img src={dAvatar} alt="You" className="w-20 h-20 rounded-full object-cover mx-auto mb-3" style={{ border: "1px solid var(--line)" }} />
               : <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold font-display text-white brand-gradient">{avatarInitial}</div>}
             <p className="font-display font-bold text-lg leading-tight" style={{ color: "var(--ink)" }}>{[dFirst, dLast].filter(Boolean).join(" ") || "Your name"}</p>
-            {dRole && <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{dRole}</p>}
+            {roleLabel && <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{roleLabel}</p>}
             <p className="text-xs mt-1 break-all" style={{ color: "var(--ink-3)" }}>{email}</p>
             {dCompany && (
               <div className="mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
@@ -14563,10 +14620,26 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company address</label>
-                <textarea value={dAddress} onChange={(e) => { setDAddress(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Street, city, postcode, country" rows={2} className={`${inputClass} resize-none`} />
+                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Street address</label>
+                <input value={dAddr.street} onChange={(e) => setAddr({ street: e.target.value })} placeholder="Unit / building, street" autoComplete="street-address" className={inputClass} />
               </div>
               <div>
+                <label className={labelClass} style={{ color: "var(--ink-2)" }}>City</label>
+                <input value={dAddr.city} onChange={(e) => setAddr({ city: e.target.value })} placeholder="Kuala Lumpur" autoComplete="address-level2" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: "var(--ink-2)" }}>State / Province</label>
+                <input value={dAddr.state} onChange={(e) => setAddr({ state: e.target.value })} placeholder="Selangor" autoComplete="address-level1" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Postcode</label>
+                <input value={dAddr.postcode} onChange={(e) => setAddr({ postcode: e.target.value })} placeholder="50450" autoComplete="postal-code" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Country</label>
+                <input value={dAddr.country} onChange={(e) => setAddr({ country: e.target.value })} placeholder="Malaysia" autoComplete="country-name" className={inputClass} />
+              </div>
+              <div className="sm:col-span-2">
                 <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company registration no.</label>
                 <input value={dRegNo} onChange={(e) => { setDRegNo(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="e.g. 202301012345 (1234567-A)" className={inputClass} />
               </div>
@@ -14605,8 +14678,14 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
               <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Role or title</label>
-              <input value={dRole} onChange={(e) => { setDRole(e.target.value); setSavedMsg(null); }} placeholder="Hiring Manager" className={inputClass} />
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Role</label>
+              <div className="flex items-center gap-2 rounded-xl border px-3.5 py-2.5" style={{ background: "var(--bg)", borderColor: "var(--line-strong)" }} title="Your role is set by your account and can't be changed here.">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                  <Icon name="shield" className="w-3.5 h-3.5" /> {roleLabel}
+                </span>
+                <span className="ml-auto inline-flex items-center gap-1 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> Fixed</span>
+              </div>
+              <p className="text-xs text-neutral-500 mt-1.5">This is your workspace account. Add teammates as hiring managers or interviewers on the <button type="button" onClick={() => navigate("interviewers")} className="font-medium hover:underline" style={{ color: "var(--brand)" }}>Interviewers</button> page.</p>
             </div>
             <div>
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
@@ -14614,17 +14693,6 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             </div>
           </div>
           <p className="text-xs text-neutral-500 mt-2.5">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
-        </div>
-
-        {/* Notification preferences */}
-        <div className={`${cardClass} mb-5`}>
-          <SectionHead icon="bell" title="Notifications" desc="Choose what Aster emails you about. Change these anytime." />
-          <div className="mt-4 divide-y" style={{ borderColor: "var(--line)" }}>
-            <Toggle on={dNotif.applicants} onChange={(v) => { setDNotif((n) => ({ ...n, applicants: v })); setSavedMsg(null); }} label="New applicants" desc="When someone applies to one of your roles." />
-            <Toggle on={dNotif.interviews} onChange={(v) => { setDNotif((n) => ({ ...n, interviews: v })); setSavedMsg(null); }} label="Interview reminders" desc="Before interviews you're scheduled to run." />
-            <Toggle on={dNotif.digest} onChange={(v) => { setDNotif((n) => ({ ...n, digest: v })); setSavedMsg(null); }} label="Weekly hiring digest" desc="A Monday summary of pipeline activity." />
-            <Toggle on={dNotif.product} onChange={(v) => { setDNotif((n) => ({ ...n, product: v })); setSavedMsg(null); }} label="Product updates" desc="Occasional news about new Aster features." />
-          </div>
         </div>
 
         {/* ===== Sign-in ===== */}
@@ -14641,9 +14709,10 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>New email</label>
               <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
             </div>
-            <p className="text-xs text-neutral-500">We'll email a confirmation link to the new address. Your login email stays the same until you click it.</p>
+            <p className="text-xs text-neutral-500">We'll email a confirmation link to the new address. Your login email stays the same until you click it. An address already in use by another account is rejected.</p>
             {emailMsg && <p className="text-sm flex items-start gap-1.5" style={{ color: "#166534" }}><Icon name="check" className="w-4 h-4 mt-0.5 shrink-0" /> {emailMsg}</p>}
-            <button onClick={handleEmailSubmit} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-opacity">Send confirmation</button>
+            {emailErr && <p className="text-sm flex items-start gap-1.5" style={{ color: "#DC2626" }}><Icon name="close" className="w-4 h-4 mt-0.5 shrink-0" /> {emailErr}</p>}
+            <button onClick={handleEmailSubmit} disabled={emailBusy || !newEmail.trim()} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">{emailBusy ? "Sending…" : "Send confirmation"}</button>
           </div>
         </div>
 
@@ -14651,12 +14720,20 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
         <div className={cardClass}>
           <SectionHead icon="lock" title="Password" desc="At least 8 characters, with a letter and a number." />
           <div className="mt-5 space-y-3">
-            <input type={showPw ? "text" : "password"} value={curPw} onChange={(e) => { setCurPw(e.target.value); setPwMsg(null); }} placeholder="Current password" autoComplete="current-password" className={inputClass} />
-            <input type={showPw ? "text" : "password"} value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwMsg(null); }} placeholder="New password" autoComplete="new-password" className={inputClass} />
-            <input type={showPw ? "text" : "password"} value={confPw} onChange={(e) => { setConfPw(e.target.value); setPwMsg(null); }} placeholder="Confirm new password" autoComplete="new-password" className={inputClass} />
-            <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--ink-2)" }}>
-              <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} /> Show passwords
-            </label>
+            {[
+              { k: "cur", val: curPw, set: setCurPw, ph: "Current password", ac: "current-password" },
+              { k: "new", val: newPw, set: setNewPw, ph: "New password", ac: "new-password" },
+              { k: "conf", val: confPw, set: setConfPw, ph: "Confirm new password", ac: "new-password" },
+            ].map((f) => (
+              <div key={f.k} className="relative">
+                <input type={pwShown[f.k] ? "text" : "password"} value={f.val} onChange={(e) => { f.set(e.target.value); setPwMsg(null); }} placeholder={f.ph} autoComplete={f.ac} className={`${inputClass} pr-11`} />
+                {f.val && (
+                  <button type="button" onClick={() => togglePw(f.k)} aria-label={pwShown[f.k] ? "Hide password" : "Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+                    <Icon name={pwShown[f.k] ? "eyeOff" : "eye"} className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
             {pwMsg && <p className="text-sm" style={{ color: pwMsg.type === "ok" ? "#166534" : "#DC2626" }}>{pwMsg.text}</p>}
             <div className="flex items-center gap-4 flex-wrap">
               <button onClick={handleChangePassword} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">Update password</button>
@@ -14672,54 +14749,68 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
           const dangerTarget = (company || "").trim() || "DELETE";
           return (
             <>
-              <p className="text-xs font-semibold uppercase mb-3 mt-6" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
-              <div className="rounded-2xl bg-white act-shadow p-5 border" style={{ borderColor: "#FECACA" }}>
-                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete workspace and account</p>
-                <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                  This permanently deletes {company ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{company}</span> : "your workspace"} and everything in it. It cannot be undone, and it removes:
-                </p>
-                <ul className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-xs" style={{ color: "var(--ink-2)" }}>
-                  {[
-                    "Every job posting and career page",
-                    "All candidates, resumes, and match scores",
-                    "All interviewers and their access",
-                    "Interviews, scorecards, and offers",
-                    "Message and email templates",
-                    "Billing history and invoices",
-                  ].map((t) => (
-                    <li key={t} className="flex items-start gap-2">
-                      <span className="mt-1.5 w-1 h-1 rounded-full shrink-0" style={{ background: "#DC2626" }} /> {t}
-                    </li>
-                  ))}
-                </ul>
+              <div className="flex items-center gap-3 mb-3 mt-7">
+                <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
+                <span className="h-px flex-1" style={{ background: "#FCA5A5" }} />
+              </div>
+              <div className="rounded-2xl overflow-hidden border act-shadow" style={{ borderColor: "#FCA5A5" }}>
+                {/* Header row: icon chip, title, and the trigger, all on one clean line. */}
+                <div className="flex items-center gap-3 p-5 bg-white">
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#FEF2F2", color: "#DC2626" }}>
+                    <Icon name="trash" className="w-5 h-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete workspace and account</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                      Permanently removes {company ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{company}</span> : "your workspace"} and everything in it. This can't be undone.
+                    </p>
+                  </div>
+                  {!dangerConfirm && (
+                    <button onClick={() => setDangerConfirm(true)} className="text-sm rounded-xl px-4 py-2 font-medium shrink-0 transition-colors" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5" }}>Delete…</button>
+                  )}
+                </div>
 
-                {!dangerConfirm ? (
-                  <button onClick={() => setDangerConfirm(true)} className="mt-4 text-sm rounded-xl border px-4 py-2 font-medium transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5", color: "#B91C1C" }}>Delete workspace</button>
-                ) : (
-                  <div className="mt-4 rounded-xl p-3.5" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
-                    <label className="block text-xs mb-1.5" style={{ color: "#B91C1C" }}>
-                      Type <span className="font-semibold">{dangerTarget}</span> to confirm.
+                {/* Expanded confirm panel, tinted footer so it reads as one unit. */}
+                {dangerConfirm && (
+                  <div className="p-5 border-t" style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }}>
+                    <p className="text-xs font-medium mb-2" style={{ color: "#991B1B" }}>Deleting also erases:</p>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-xs mb-4" style={{ color: "#7F1D1D" }}>
+                      {[
+                        "Every job posting and career page",
+                        "All candidates, resumes, and match scores",
+                        "All interviewers and their access",
+                        "Interviews, scorecards, and offers",
+                        "Message and email templates",
+                        "Billing history and invoices",
+                      ].map((t) => (
+                        <li key={t} className="flex items-start gap-2">
+                          <Icon name="close" className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#DC2626" }} /> {t}
+                        </li>
+                      ))}
+                    </ul>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "#991B1B" }}>
+                      Type <span className="font-bold">{dangerTarget}</span> to confirm
                     </label>
                     <input
                       value={dangerText}
                       onChange={(e) => setDangerText(e.target.value)}
                       placeholder={dangerTarget}
                       autoComplete="off"
-                      className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                      className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
                       style={{ borderColor: "#FCA5A5", color: "var(--ink)" }}
                     />
                     {deleteErr && <p className="text-xs mt-2" style={{ color: "#B91C1C" }}>{deleteErr}</p>}
-                    <div className="flex items-center gap-2 mt-3">
-                      <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-white disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
+                    <p className="text-xs mt-2.5" style={{ color: "#B91C1C" }}>You'll be signed out. You have 30 days to restore before everything is permanently erased.</p>
+                    <div className="flex items-center gap-2 mt-3.5">
                       <button
                         disabled={deleting || dangerText.trim() !== dangerTarget}
                         onClick={handleDeleteAccount}
-                        className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
                       >
-                        {deleting ? "Deleting…" : "Permanently delete"}
+                        <Icon name="trash" className="w-4 h-4" /> {deleting ? "Deleting…" : "Permanently delete"}
                       </button>
+                      <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="text-sm rounded-xl border px-4 py-2 bg-white transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "#FCA5A5", color: "var(--ink-2)" }}>Cancel</button>
                     </div>
-                    <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>You'll be signed out. You have 30 days to restore before everything is permanently erased.</p>
                   </div>
                 )}
               </div>
@@ -14743,13 +14834,19 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   );
 }
 
-function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free", profile, avatarUrl, activities = [], onOpenNotifications }) {
+function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
   // Staged (draft) edits for the calendar provider, Save/Cancel form.
   const [dProvider, setDProvider] = useState(provider);
   const [dCalConnected, setDCalConnected] = useState(calendarConnected);
   const [connectingCal, setConnectingCal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
+
+  // Email notification preferences (moved here from Profile so Profile stays
+  // identity + sign-in). Distinct from the top-bar activity bell.
+  const NOTIF_DEFAULTS = { applicants: true, interviews: true, digest: true, product: false };
+  const notifBase = { ...NOTIF_DEFAULTS, ...(profile?.notifications || {}) };
+  const [dNotif, setDNotif] = useState(notifBase);
 
   // WhatsApp Business, BSP-assisted connection. Included on Professional & up
   // (not Starter). Self-contained (connecting an integration is an immediate
@@ -14773,7 +14870,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
-  const dirty = dProvider !== provider || dCalConnected !== calendarConnected;
+  const dirty = dProvider !== provider || dCalConnected !== calendarConnected || JSON.stringify(dNotif) !== JSON.stringify(notifBase);
 
   const handleConnectCalendar = () => {
     setConnectingCal(true);
@@ -14785,6 +14882,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
     setTimeout(() => {
       setProvider(dProvider);
       setCalendarConnected(dCalConnected);
+      setProfile?.({ ...(profile || {}), notifications: dNotif });
       setSaving(false);
       setSavedMsg("All changes saved.");
     }, 800);
@@ -14793,6 +14891,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
   const handleCancel = () => {
     setDProvider(provider);
     setDCalConnected(calendarConnected);
+    setDNotif(notifBase);
     setSavedMsg(null);
   };
 
@@ -14966,6 +15065,19 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               <p className="text-xs text-neutral-400 mt-2">We set you up through our WhatsApp messaging partner. No Meta dashboard wrangling. Messages are billed to your own Meta account.</p>
             </div>
           )}
+        </div>
+
+        {/* Email notifications (moved from Profile). Named explicitly so it's not
+            confused with the top-bar activity bell. */}
+        <div className={`${cardClass} mt-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Email notifications</h2>
+          <p className="text-sm text-neutral-600 mb-1">Choose what Aster emails you about. This is separate from the in-app notification bell.</p>
+          <div className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
+            <Toggle on={dNotif.applicants} onChange={(v) => { setDNotif((n) => ({ ...n, applicants: v })); setSavedMsg(null); }} label="New applicants" desc="When someone applies to one of your roles." />
+            <Toggle on={dNotif.interviews} onChange={(v) => { setDNotif((n) => ({ ...n, interviews: v })); setSavedMsg(null); }} label="Interview reminders" desc="Before interviews you're scheduled to run." />
+            <Toggle on={dNotif.digest} onChange={(v) => { setDNotif((n) => ({ ...n, digest: v })); setSavedMsg(null); }} label="Weekly hiring digest" desc="A Monday summary of pipeline activity." />
+            <Toggle on={dNotif.product} onChange={(v) => { setDNotif((n) => ({ ...n, product: v })); setSavedMsg(null); }} label="Product updates" desc="Occasional news about new Aster features." />
+          </div>
         </div>
 
         {/* Save / Cancel bar, sticky within the content column, so it never
@@ -17262,6 +17374,9 @@ export default function ResumeAIPreview() {
   // Company billing details (address + registration number), edited on the
   // Profile screen and shown on invoices. Hydrated from the companies row.
   const [companyAddress, setCompanyAddress] = useState("");
+  // Structured billing address (source of truth for the Profile form); the
+  // joined `companyAddress` string above is derived from it for invoices.
+  const [companyAddressParts, setCompanyAddressParts] = useState({ ...EMPTY_ADDRESS });
   const [companyRegNo, setCompanyRegNo] = useState("");
   const [plan, setPlan] = useState("starter");
   const [planCycle, setPlanCycle] = useState("monthly");
@@ -17552,6 +17667,7 @@ export default function ResumeAIPreview() {
       setCompany(sess.company);
       setCompanyLogoUrl(sess.logoUrl || null);
       setCompanyAddress(sess.address || "");
+      setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
       setCompanyRegNo(sess.registrationNo || "");
       if (sess.plan) setPlan(sess.plan);
       if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId); }
@@ -17697,6 +17813,7 @@ export default function ResumeAIPreview() {
         setCompany(sess.company);
         setCompanyLogoUrl(sess.logoUrl || null);
         setCompanyAddress(sess.address || "");
+        setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
         setCompanyRegNo(sess.registrationNo || "");
         if (sess.plan) setPlan(sess.plan);
         if (sess.companyId) {
@@ -18267,6 +18384,8 @@ export default function ResumeAIPreview() {
             setCompany={setCompany}
             address={companyAddress}
             setAddress={setCompanyAddress}
+            addressParts={companyAddressParts}
+            setAddressParts={setCompanyAddressParts}
             regNo={companyRegNo}
             setRegNo={setCompanyRegNo}
             companyId={companyId}
@@ -18285,6 +18404,7 @@ export default function ResumeAIPreview() {
             bookings={bookings}
             plan={effectivePlan}
             profile={profile}
+            setProfile={setProfile}
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
