@@ -34,9 +34,9 @@ function loadStore() {
 
 const STARTERS = [
   "What does Aster do?",
-  "How much does it cost?",
+  "Which plan is right for me?",
+  "Try it: analyze a job description",
   "How does the AI match score work?",
-  "Is my candidate data secure?",
 ];
 
 const OFFLINE_REPLY =
@@ -146,6 +146,11 @@ export default function MarketingChat({ onStartTrial }) {
         },
         body: JSON.stringify({ messages: history }),
       });
+      if (res.status === 429) {
+        setAssistant("You're sending messages a little quickly. Please wait a few seconds and try again.");
+        setBusy(false);
+        return;
+      }
       if (!res.ok || !res.body) throw new Error(`bad response ${res.status}`);
 
       const reader = res.body.getReader();
