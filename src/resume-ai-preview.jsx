@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -7219,6 +7219,7 @@ function Icon({ name, className = "w-5 h-5" }) {
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>,
     logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></>,
     card: <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
     calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
     check: <><path d="M5 12l4.5 4.5L19 7" /></>,
@@ -13626,41 +13627,53 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
 
 // The fixed set of automated emails, with the placeholders each supports.
-// In production these live in an `email_templates` table (per org); here they're
-// editable in-memory so the UX (edit + insert placeholder + live preview) is real.
+// These are the editable OVERRIDES for the `email_templates` table (scope
+// 'company'): when a company saves one, the matching edge function sends its
+// wording instead of the code default. Keep each `key` in sync with the edge
+// functions (e.g. parse-application uses 'application_received' + 'new_application').
+//
+// Bodies are plain text with {{tokens}}; the company's logo is added to the
+// header and a "Best Regards, {{company_name}}" sign-off to the footer
+// automatically, so bodies deliberately carry no logo and no closing.
+// `toCompany` marks an internal alert to the company itself (no sign-off).
 const EMAIL_TEMPLATE_DEFS = [
+  { key: "new_application", name: "New application alert", desc: "Sent to your team when someone applies via your public link.", toCompany: true,
+    tokens: ["candidate_name", "job_title"],
+    subject: "New application: {{job_title}}",
+    body: "{{candidate_name}} just applied for the {{job_title}} role.\n\nOpen your Aster dashboard to review the application." },
+  { key: "application_received", name: "Application received", desc: "Auto-reply to the applicant when they apply via the public link.",
+    tokens: ["candidate_name", "job_title", "company_name"],
+    subject: "We've received your application: {{job_title}}",
+    body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company_name}}. Your application came through and it's now with the team. A real person will review it, and you'll hear from us about next steps if there's a fit. No action is needed right now." },
   { key: "sourcing_invite", name: "Sourcing invite: reconnect", desc: "Sent when you invite someone from your database to apply for an open role.",
     tokens: ["candidate_name", "job_title", "apply_link"],
     subject: "A {{job_title}} role you might like",
     body: "Hi {{candidate_name}},\n\nIt has been a while since we last connected, but your background stood out to us and we are now hiring a {{job_title}}. If you are interested, tap the link below to see the role and apply with your latest resume. It only takes a minute.\n\n{{apply_link}}\n\nWe would love to reconnect." },
-  { key: "offer", name: "Offer: you've been selected", desc: "Sent when you make an offer. Includes the accept / decline links.",
-    tokens: ["candidate_name", "job_title", "company_name", "hr_contact"],
-    subject: "You've been selected for the {{job_title}} role",
-    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Our HR team ({{hr_contact}}) will be in touch with the details.\n\nPlease confirm whether you'd like to accept using the buttons below.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
-  { key: "rejection", name: "Rejection: application update", desc: "Sent when you reject a candidate with an email.",
-    tokens: ["candidate_name", "job_title", "company_name"],
-    subject: "Update on your application: {{job_title}}",
-    body: "Hi {{candidate_name}},\n\nThank you for applying for the {{job_title}} role at {{company_name}} and for the time you invested.\n\nAfter careful consideration we've decided not to move forward at this time. We genuinely appreciate your interest and wish you all the best.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
   { key: "interview_invite", name: "Interview invite", desc: "Sent when you invite a candidate to pick an interview slot.",
     tokens: ["candidate_name", "job_title", "interviewer_name", "booking_link"],
     subject: "Interview invitation: {{job_title}}",
-    body: "Hi {{candidate_name}},\n\nWe'd love to interview you for the {{job_title}} role. Your interviewer will be {{interviewer_name}}.\n\nPlease pick a time that works for you here: {{booking_link}}\n\nSee you soon,\nThe Hiring Team" },
+    body: "Hi {{candidate_name}},\n\nWe'd love to interview you for the {{job_title}} role. Your interviewer will be {{interviewer_name}}.\n\nPlease pick a time that works for you here: {{booking_link}}" },
   { key: "interview_confirmation", name: "Interview confirmation", desc: "Sent once the candidate picks a slot.",
     tokens: ["candidate_name", "job_title", "date_time", "meeting_link"],
     subject: "Your interview is confirmed: {{date_time}}",
-    body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}.\n\nJoin here: {{meeting_link}}\n\nLooking forward to speaking,\nThe Hiring Team" },
-  { key: "application_received", name: "Application received", desc: "Auto-reply when someone applies via the public link.",
-    tokens: ["candidate_name", "job_title", "company_name"],
-    subject: "We've received your application: {{job_title}}",
-    body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company_name}}. We've received your application and will be in touch if there's a fit.\n\nWarm regards,\nThe {{company_name}} Hiring Team" },
+    body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}.\n\nJoin here: {{meeting_link}}" },
+  { key: "offer", name: "Offer: you've been selected", desc: "Sent when you make an offer. Includes the accept / decline links.",
+    tokens: ["candidate_name", "job_title", "company_name", "hr_contact"],
+    subject: "You've been selected for the {{job_title}} role",
+    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Our HR team ({{hr_contact}}) will be in touch with the details.\n\nPlease confirm whether you'd like to accept using the buttons below." },
   { key: "welcome_hired", name: "Welcome: offer accepted", desc: "Sent after a candidate accepts their offer.",
     tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Welcome to {{company_name}}, {{candidate_name}}!",
-    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.\n\nWelcome aboard,\nThe {{company_name}} Team" },
+    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date." },
+  { key: "rejection", name: "Rejection: application update", desc: "Sent when you reject a candidate with an email.",
+    tokens: ["candidate_name", "job_title", "company_name"],
+    subject: "Update on your application: {{job_title}}",
+    body: "Hi {{candidate_name}},\n\nThank you for applying for the {{job_title}} role at {{company_name}} and for the time you invested.\n\nAfter careful consideration we've decided not to move forward at this time. We genuinely appreciate your interest and wish you all the best." },
 ];
 
 // Placeholders offered in every template's editor, on top of its own tokens.
-const COMMON_TOKENS = ["company_name", "company_address", "interviewer_name", "logo"];
+// (No `logo` token: the logo is added to the header automatically.)
+const COMMON_TOKENS = ["company_name", "company_address", "interviewer_name"];
 // Sample values used to render the live preview.
 const TOKEN_SAMPLES = {
   candidate_name: "Amira Hassan", job_title: "Senior Frontend Engineer", company: "Oryx Studio",
@@ -13670,23 +13683,50 @@ const TOKEN_SAMPLES = {
 };
 const fillTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => TOKEN_SAMPLES[k] ?? `{{${k}}}`);
 
-function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
+function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company, companyId = null, canPersist = false }) {
   const [templates, setTemplates] = useState(() => Object.fromEntries(EMAIL_TEMPLATE_DEFS.map((t) => [t.key, { subject: t.subject, body: t.body }])));
   const [selected, setSelected] = useState(null); // template key or null (list view)
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [savedMsg, setSavedMsg] = useState(null);
+  const [saveErr, setSaveErr] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
   const def = EMAIL_TEMPLATE_DEFS.find((t) => t.key === selected);
 
+  // Layer any saved overrides for this company over the code defaults, so the
+  // editor shows exactly what will be sent.
+  useEffect(() => {
+    if (!canPersist || !companyId) return;
+    let alive = true;
+    dbListEmailTemplates(companyId).then((rows) => {
+      if (!alive || !rows.length) return;
+      setTemplates((prev) => {
+        const next = { ...prev };
+        for (const r of rows) if (next[r.key]) next[r.key] = { subject: r.subject, body: r.body };
+        return next;
+      });
+    });
+    return () => { alive = false; };
+  }, [companyId, canPersist]);
+
   const open = (key) => {
     const t = templates[key];
-    setSelected(key); setSubject(t.subject); setBody(t.body); setSavedMsg(null); setShowPreview(false);
+    setSelected(key); setSubject(t.subject); setBody(t.body); setSavedMsg(null); setSaveErr(null); setShowPreview(false);
   };
   const dirty = def && (subject !== templates[selected].subject || body !== templates[selected].body);
-  const save = () => {
+  const save = async () => {
+    setSaveErr(null);
+    // Persist to email_templates when the workspace is live; RLS allows only
+    // owners/admins, so a non-privileged user gets a clear error back.
+    if (canPersist && companyId) {
+      setSaving(true);
+      const res = await dbSaveEmailTemplate(companyId, selected, { subject, body });
+      setSaving(false);
+      if (!res.ok) { setSaveErr(res.error || "Couldn't save. Only owners and admins can edit templates."); return; }
+    }
     setTemplates((prev) => ({ ...prev, [selected]: { subject, body } }));
     setSavedMsg("Saved. Future emails of this type will use this wording.");
   };
@@ -13740,6 +13780,9 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
         {savedMsg && (
           <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BBF7D0", background: "#F0FDF4", color: "#166534" }}>{savedMsg}</div>
         )}
+        {saveErr && (
+          <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#FECACA", background: "#FEF2F2", color: "#B91C1C" }}>{saveErr}</div>
+        )}
 
         <div className={`${cardClass} mb-4`}>
           <label className="block text-xs text-neutral-500 mb-1">Subject</label>
@@ -13753,19 +13796,22 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
 
           {showPreview ? (
             <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
-              <p className="text-xs text-neutral-400 mb-2">Preview with sample data</p>
-              <p className="text-sm font-semibold text-neutral-900 mb-2">{fillTokens(subject)}</p>
-              <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{renderPreviewBody(body)}</div>
-              {/* Auto letterhead, added under every email automatically from the
-                  logo + company name set in Settings. Not part of the editable body. */}
-              <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+              <p className="text-xs text-neutral-400 mb-3">Preview with sample data</p>
+              {/* Header letterhead — the company logo (or name) sits at the top of
+                  every sent email, added automatically from Settings. */}
+              <div className="mb-3 pb-3" style={{ borderBottom: "1px solid var(--line)" }}>
                 {logoUrl ? (
                   <img src={logoUrl} alt={company || "Company"} style={{ height: 28, width: "auto", objectFit: "contain" }} />
                 ) : (
-                  <div className="w-24 h-7 rounded flex items-center justify-center text-[10px]" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>your logo</div>
+                  <span className="text-base font-bold" style={{ color: "var(--ink)" }}>{company || "Your company"}</span>
                 )}
-                {company && <p className="text-xs font-medium mt-1.5" style={{ color: "var(--ink-2)" }}>{company}</p>}
               </div>
+              <p className="text-sm font-semibold text-neutral-900 mb-2">{fillTokens(subject)}</p>
+              <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{renderPreviewBody(body)}</div>
+              {/* Auto sign-off, added to candidate-facing emails (not internal alerts). */}
+              {!def.toCompany && (
+                <p className="text-sm text-neutral-700 mt-4">Best Regards,<br />{company || "Your company"}</p>
+              )}
             </div>
           ) : (
             <>
@@ -13774,7 +13820,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
               <textarea value={body} onChange={(e) => { setBody(e.target.value); setSavedMsg(null); }} rows={12}
                 className="w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 resize-y font-mono leading-relaxed" />
               <p className="text-[11px] mt-2 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
-                <Icon name="check" className="w-3 h-3" /> Your logo{company ? ` and “${company}”` : ""} are added automatically under the signature. No need to include them here. Change them in Settings.
+                <Icon name="check" className="w-3 h-3" /> Your logo is shown at the top{def.toCompany ? "" : `, and a “Best Regards, ${company || "your company"}” sign-off at the bottom,`} automatically. No need to add them here. Change your logo in Settings.
               </p>
               <div className="mt-3">
                 <p className="text-[11px] text-neutral-500 mb-1.5">Insert a placeholder:</p>
@@ -13793,8 +13839,8 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={save} disabled={!dirty} className="text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-medium px-4 py-2 transition-opacity hover:opacity-90">Save template</button>
-          {dirty && <button onClick={() => open(selected)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Reset</button>}
+          <button onClick={save} disabled={!dirty || saving} className="text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-medium px-4 py-2 transition-opacity hover:opacity-90">{saving ? "Saving…" : "Save template"}</button>
+          {dirty && !saving && <button onClick={() => open(selected)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Reset</button>}
         </div>
       </div>
     </div>
@@ -13964,6 +14010,24 @@ function Toggle({ on, onChange, label, desc }) {
   );
 }
 
+// Icon-anchored header for a settings panel: a soft brand chip, a title, and an
+// optional one-line description. Gives each card a clear visual anchor so the
+// page reads as a set of purposeful sections, not a flat stack of form fields.
+function SectionHead({ icon, title, desc, tone }) {
+  const t = tone || { bg: "var(--brand-soft)", fg: "var(--brand)" };
+  return (
+    <div className="flex items-start gap-3">
+      <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.bg, color: t.fg }}>
+        <Icon name={icon} className="w-[18px] h-[18px]" />
+      </span>
+      <div className="min-w-0 pt-0.5">
+        <h2 className="text-[15px] font-semibold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h2>
+        {desc && <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{desc}</p>}
+      </div>
+    </div>
+  );
+}
+
 function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
@@ -14014,8 +14078,12 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [showPw, setShowPw] = useState(false);
   const [pwMsg, setPwMsg] = useState(null);
 
-  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
-  const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+  const inputClass = "w-full rounded-xl bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
+  const labelClass = "block text-xs font-medium mb-1.5";
+  const cardClass = "rounded-2xl bg-white act-shadow p-5 sm:p-6 border border-[color:var(--line)]";
+  // Lighter, secondary upload action so the sticky "Save changes" stays the one primary CTA.
+  const uploadBtnClass = "text-sm rounded-xl border px-4 py-2 font-medium cursor-pointer inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--brand-soft)]";
+  const uploadBtnStyle = { borderColor: "var(--line-strong)", color: "var(--brand)" };
 
   const dirty =
     dLogo !== logoUrl ||
@@ -14154,93 +14222,103 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
     >
 
         {/* Company details */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Company details</h2>
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-40 rounded-xl border flex items-center justify-center overflow-hidden bg-white shrink-0" style={{ borderColor: "var(--line)" }}>
+        <div className={`${cardClass} mb-5`}>
+          <SectionHead icon="briefcase" title="Company details" desc="Branding that appears across your workspace and on invoices." />
+
+          {/* Logo uploader */}
+          <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div
+              className="h-16 w-44 rounded-xl flex items-center justify-center overflow-hidden bg-white shrink-0 relative"
+              style={dLogo ? { border: "1px solid var(--line-strong)" } : { border: "1.5px dashed var(--line-strong)" }}
+            >
               {dLogo
                 ? <img src={dLogo} alt={dCompany || "Company logo"} className="h-11 w-auto object-contain" />
-                : <span className="text-sm font-medium" style={{ color: "var(--ink-3)" }}>{(dCompany || "").trim() ? dCompany.trim() : "No logo yet"}</span>}
+                : <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--ink-3)" }}><Icon name="upload" className="w-4 h-4" /> No logo yet</span>}
             </div>
             <div className="flex flex-wrap gap-2">
-              <label className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white px-4 py-2 cursor-pointer transition-colors inline-block">
+              <label className={uploadBtnClass} style={uploadBtnStyle}>
+                <Icon name="upload" className="w-4 h-4" />
                 {dLogo ? "Replace logo" : "Upload logo"}
                 <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
               </label>
               {dLogo && (
-                <button onClick={() => { setDLogo(null); setDLogoFile(null); setSavedMsg(null); setSaveErr(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Remove</button>
+                <button onClick={() => { setDLogo(null); setDLogoFile(null); setSavedMsg(null); setSaveErr(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Remove</button>
               )}
             </div>
           </div>
-          <p className="text-xs text-neutral-500 mt-2">Shows in the sidebar, on the login screen, and in the mobile header. Wide (landscape) logos work best.</p>
-          <div className="mt-4">
-            <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Company name</label>
+          <p className="text-xs text-neutral-500 mt-2.5">Shows in the sidebar, on the login screen, and in the mobile header. Wide (landscape) logos work best.</p>
+
+          <div className="mt-5">
+            <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
             <input value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Your company" className={inputClass} />
-            <p className="text-xs text-neutral-500 mt-1">Collected at sign-up and shown across your workspace.</p>
+            <p className="text-xs text-neutral-500 mt-1.5">Collected at sign-up and shown across your workspace.</p>
           </div>
 
           {/* Billing details */}
-          <div className="mt-5 pt-5 border-t" style={{ borderColor: "var(--line)" }}>
-            <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Billing details</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="mt-6 pt-5 border-t" style={{ borderColor: "var(--line)" }}>
+            <div className="flex items-center gap-2 mb-4" style={{ color: "var(--ink-3)" }}>
+              <Icon name="card" className="w-4 h-4" />
+              <h3 className="text-xs font-semibold uppercase" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Billing details</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Company address</label>
+                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company address</label>
                 <textarea value={dAddress} onChange={(e) => { setDAddress(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Street, city, postcode, country" rows={2} className={`${inputClass} resize-none`} />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Company registration no.</label>
+                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company registration no.</label>
                 <input value={dRegNo} onChange={(e) => { setDRegNo(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="e.g. 202301012345 (1234567-A)" className={inputClass} />
               </div>
             </div>
-            <p className="text-xs text-neutral-500 mt-2">Used on your invoices and receipts. Keep this up to date for accurate billing.</p>
+            <p className="text-xs text-neutral-500 mt-2.5">Used on your invoices and receipts. Keep this up to date for accurate billing.</p>
           </div>
         </div>
 
         {/* Personal details */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Personal details</h2>
-          <div className="flex items-center gap-4 mb-4">
+        <div className={`${cardClass} mb-5`}>
+          <SectionHead icon="user" title="Personal details" desc="How you appear in the dashboard greeting and sidebar." />
+          <div className="mt-5 flex items-center gap-4 mb-5">
             {dAvatar ? (
-              <img src={dAvatar} alt="Your photo" className="w-16 h-16 rounded-full object-cover border border-neutral-200" />
+              <img src={dAvatar} alt="Your photo" className="w-16 h-16 rounded-full object-cover" style={{ border: "1px solid var(--line-strong)" }} />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-violet-100 border border-neutral-200 flex items-center justify-center text-neutral-700 font-medium text-lg">{avatarInitial}</div>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold font-display text-xl brand-gradient shrink-0">{avatarInitial}</div>
             )}
             <div className="flex flex-wrap gap-2">
-              <label className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white px-4 py-2 cursor-pointer transition-colors">
-                Change photo
+              <label className={uploadBtnClass} style={uploadBtnStyle}>
+                <Icon name="upload" className="w-4 h-4" />
+                {dAvatar ? "Change photo" : "Add photo"}
                 <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </label>
               {dAvatar && (
-                <button onClick={() => { setDAvatar(null); setSavedMsg(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Remove</button>
+                <button onClick={() => { setDAvatar(null); setSavedMsg(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Remove</button>
               )}
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>First name</label>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>First name</label>
               <input value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Shah" className={inputClass} />
             </div>
             <div>
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Last name</label>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Last name</label>
               <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
             </div>
             <div>
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role or title</label>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Role or title</label>
               <input value={dRole} onChange={(e) => { setDRole(e.target.value); setSavedMsg(null); }} placeholder="Hiring Manager" className={inputClass} />
             </div>
             <div>
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Contact number</label>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
               <input type="tel" value={dPhone} onChange={(e) => { setDPhone(e.target.value); setSavedMsg(null); }} placeholder="+60 12 345 6789" autoComplete="tel" className={inputClass} />
             </div>
           </div>
-          <p className="text-xs text-neutral-500 mt-2">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
+          <p className="text-xs text-neutral-500 mt-2.5">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
         </div>
 
         {/* Notification preferences */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Notifications</h2>
-          <p className="text-xs text-neutral-500 mb-2">Choose what Aster emails you about. You can change these anytime.</p>
-          <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+        <div className={`${cardClass} mb-5`}>
+          <SectionHead icon="bell" title="Notifications" desc="Choose what Aster emails you about. Change these anytime." />
+          <div className="mt-4 divide-y" style={{ borderColor: "var(--line)" }}>
             <Toggle on={dNotif.applicants} onChange={(v) => { setDNotif((n) => ({ ...n, applicants: v })); setSavedMsg(null); }} label="New applicants" desc="When someone applies to one of your roles." />
             <Toggle on={dNotif.interviews} onChange={(v) => { setDNotif((n) => ({ ...n, interviews: v })); setSavedMsg(null); }} label="Interview reminders" desc="Before interviews you're scheduled to run." />
             <Toggle on={dNotif.digest} onChange={(v) => { setDNotif((n) => ({ ...n, digest: v })); setSavedMsg(null); }} label="Weekly hiring digest" desc="A Monday summary of pipeline activity." />
@@ -14249,31 +14327,35 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
         </div>
 
         {/* ===== Sign-in ===== */}
-        <p className="text-xs font-semibold uppercase mb-3 mt-6" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>Sign-in</p>
+        <div className="flex items-center gap-3 mb-3 mt-7">
+          <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>Sign-in</p>
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+        </div>
 
         {/* Email address */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Email address</h2>
-          <p className="text-sm text-neutral-600 mb-3">Current: <span className="text-neutral-900">{email}</span></p>
-          <div className="space-y-3">
-            <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
+        <div className={`${cardClass} mb-5`}>
+          <SectionHead icon="mail" title="Email address" desc={<>Current: <span style={{ color: "var(--ink)" }}>{email}</span></>} />
+          <div className="mt-5 space-y-3">
+            <div>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>New email</label>
+              <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
+            </div>
             <p className="text-xs text-neutral-500">We'll email a confirmation link to the new address. Your login email stays the same until you click it.</p>
-            {emailMsg && <p className="text-sm text-emerald-600">{emailMsg}</p>}
-            <button onClick={handleEmailSubmit} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">Send confirmation</button>
+            {emailMsg && <p className="text-sm flex items-start gap-1.5" style={{ color: "#166534" }}><Icon name="check" className="w-4 h-4 mt-0.5 shrink-0" /> {emailMsg}</p>}
+            <button onClick={handleEmailSubmit} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-opacity">Send confirmation</button>
           </div>
         </div>
 
         {/* Password */}
         <div className={cardClass}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Password</h2>
-          <div className="space-y-3">
+          <SectionHead icon="lock" title="Password" desc="At least 8 characters, with a letter and a number." />
+          <div className="mt-5 space-y-3">
             <input type={showPw ? "text" : "password"} value={curPw} onChange={(e) => { setCurPw(e.target.value); setPwMsg(null); }} placeholder="Current password" autoComplete="current-password" className={inputClass} />
             <input type={showPw ? "text" : "password"} value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwMsg(null); }} placeholder="New password" autoComplete="new-password" className={inputClass} />
             <input type={showPw ? "text" : "password"} value={confPw} onChange={(e) => { setConfPw(e.target.value); setPwMsg(null); }} placeholder="Confirm new password" autoComplete="new-password" className={inputClass} />
             <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--ink-2)" }}>
               <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} /> Show passwords
             </label>
-            <p className="text-xs text-neutral-500">At least 8 characters, with a letter and a number.</p>
             {pwMsg && <p className="text-sm" style={{ color: pwMsg.type === "ok" ? "#166534" : "#DC2626" }}>{pwMsg.text}</p>}
             <div className="flex items-center gap-4 flex-wrap">
               <button onClick={handleChangePassword} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">Update password</button>
@@ -17727,7 +17809,7 @@ export default function ResumeAIPreview() {
           <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
-        {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} />}
+        {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />}
         {screen === "jobs" && (
           <JobsScreen
             navigate={navigate}
