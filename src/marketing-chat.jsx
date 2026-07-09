@@ -473,9 +473,6 @@ export default function MarketingChat({ onStartTrial }) {
                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
-            <p className="text-[11px] text-center mt-2" style={{ color: "var(--ink-3)" }}>
-              AI-generated answers. For exact pricing and plan details, confirm with our team.
-            </p>
           </div>
           </>)}
           </>)}
