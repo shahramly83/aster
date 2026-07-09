@@ -2515,7 +2515,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     return () => clearTimeout(t);
   }, []);
 
-  // trial=true → 14-day Pro trial (generic CTAs); trial=false → the user
+  // trial=true → 14-day Growth trial (generic CTAs); trial=false → the user
   // explicitly picked this plan on the pricing table (pay, or Free forever).
   const goSignup = (planKey, trial = false) => {
     setSignupPlan && setSignupPlan(planKey);
@@ -2603,7 +2603,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
     { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away. There's no setup project to run first." },
-    { cat: "Billing", q: "Is there a free trial?", a: "Yes. Free includes a 14-day Pro trial with full access and no card required. When it ends, you move to the Free plan automatically." },
+    { cat: "Billing", q: "Is there a free trial?", a: "Yes. Free includes a 14-day Growth trial with full access and no card required. When it ends, you move to the Free plan automatically." },
     { cat: "Billing", q: "How does pricing work?", a: "Start free, then pick a plan billed monthly or yearly (save 20% yearly) based on the features and volume you need. You only upgrade when you're hiring at scale." },
     { cat: "Billing", q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
     { cat: "Billing", q: "Can I change or cancel anytime?", a: "Yes. Upgrade, downgrade, or cancel from Billing whenever you like. Changes take effect at the end of the current period, with no lock-in, and nothing is deleted if you downgrade." },
@@ -3351,7 +3351,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </div>
         </Reveal>
 
-        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Pro trial. Full access, no card required.</p>
+        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Growth trial. Full access, no card required.</p>
       </section>
       <section id="faq" className="relative overflow-hidden py-14 sm:py-24 scroll-mt-20" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)" }}>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_1fr] gap-6 lg:gap-14">
@@ -6776,7 +6776,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const pwColor = ["#2A2D57", "#F59E0B", "#5A78F8", "#22C55E"][pwScore];
 
   // Two entry paths into sign-up:
-  //  • Trial: from any generic landing CTA. A 14-day full-Pro trial; the
+  //  • Trial: from any generic landing CTA. A 14-day full-Growth trial; the
   //    plan price is shown struck-through with a "Free for 14 days" note.
   //  • Paid: the user clicked "Choose Growth/Pro" on the pricing table. The
   //    price is shown as-is and sign-up continues to payment (billing).
@@ -6785,15 +6785,16 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const isPaid = !signupTrial && (signupPlan === "starter" || signupPlan === "professional");
   const isFreePlan = !signupTrial && signupPlan === "free";
 
-  // A trial always grants Pro, so it's labelled + priced as Pro.
-  const planLabel = signupTrial || signupPlan === "professional" ? "Pro"
+  // A trial always grants Growth, so it's labelled + priced as Pro.
+  const planLabel = signupTrial ? "Growth"
+    : signupPlan === "professional" ? "Pro"
     : signupPlan === "starter" ? "Growth"
     : isEnterprise ? "Enterprise" : "Free";
   const priceOf = (key) =>
     key === "professional" ? (signupCycle === "yearly" ? "$159/mo · billed yearly" : "$199/month")
     : key === "starter" ? (signupCycle === "yearly" ? "$71/mo · billed yearly" : "$89/month")
     : null;
-  const shownPrice = signupTrial ? priceOf("professional") : priceOf(signupPlan);
+  const shownPrice = signupTrial ? priceOf("starter") : priceOf(signupPlan);
 
   const ctaText = signupTrial ? "Start 14-day free trial" : isPaid ? "Continue to payment" : "Create account";
   const ctaIcon = isPaid ? "card" : "arrowUpRight";
@@ -6814,7 +6815,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
       setProfile({ firstName: firstName.trim(), lastName: lastName.trim(), role: "Hiring Manager" });
       setPlanCycle && setPlanCycle(signupCycle);
       if (signupTrial) {
-        // App models a Pro trial as the Free plan + remaining trial days.
+        // App models a Growth trial as the Free plan + remaining trial days.
         setPlan && setPlan("free");
         setTrialDaysLeft && setTrialDaysLeft(14);
         navigate("dashboard");
@@ -6889,7 +6890,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     "AI reads and scores every applicant against the role",
     "Auto-shortlist top candidates and book interviews in one click",
     "Turn weeks of CV screening into a single afternoon",
-    "Full Pro free for 14 days, no credit card required",
+    "Full Growth free for 14 days, no credit card required",
   ];
 
   return (
@@ -8338,7 +8339,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Pro access: unlimited AI matching &amp; jobs.</p>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Growth access: AI matching, scorecards, and more.</p>
             </div>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -13278,7 +13279,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
               <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Free (trial)" : current.name}</p>
               <p className="text-sm text-neutral-500 mt-0.5">
                 {trialDaysLeft > 0
-                  ? `Full Pro access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
+                  ? `Full Growth access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
                   : paidSub && saved
                     ? `${saved.renewCopy} · renews 1 ${planCycle === "yearly" ? "Jan 2026" : "Jul 2025"} · plus tax`
                     : plan === "free"
@@ -13535,7 +13536,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowDowngrade(false)} className="text-sm rounded-xl border px-4 py-2 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                Keep Pro
+                Keep Growth
               </button>
               <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
                 Downgrade to Free
@@ -16677,7 +16678,7 @@ export default function ResumeAIPreview() {
   // Account is on the Starter plan (trial ended).
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const trialActive = plan === "free" && trialDaysLeft > 0;
-  const effectivePlan = trialActive ? "professional" : plan;
+  const effectivePlan = trialActive ? "starter" : plan; // trial grants Growth-level access
   // Shared monthly AI-match run counter (Free is limited; resets in production
   // each billing period, here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
@@ -16700,7 +16701,7 @@ export default function ResumeAIPreview() {
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("professional");
   const [signupCycle, setSignupCycle] = useState("monthly");
-  // true = arrived via a generic "start trial" CTA (14-day Pro trial);
+  // true = arrived via a generic "start trial" CTA (14-day Growth trial);
   // false = picked a specific plan on the pricing table (pay / free forever).
   const [signupTrial, setSignupTrial] = useState(true);
   // Shared activity feed. Both the header notification bell and the

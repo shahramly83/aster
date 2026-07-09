@@ -40,7 +40,7 @@ const STARTERS = [
 ];
 
 const OFFLINE_REPLY =
-  "Thanks for asking. I can tell you about Aster's features, pricing, and security, and I'm best experienced on the live site. In the meantime: Aster reads every resume, scores each applicant against the role, and runs your whole hiring pipeline in one place. You can start free (14 days of Pro, no card) or contact sales for anything custom.";
+  "Thanks for asking. I can tell you about Aster's features, pricing, and security, and I'm best experienced on the live site. In the meantime: Aster reads every resume, scores each applicant against the role, and runs your whole hiring pipeline in one place. You can start free (14 days of Growth, no card) or contact sales for anything custom.";
 
 function ChatIcon({ className }) {
   return (
