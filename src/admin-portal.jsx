@@ -199,7 +199,9 @@ const INIT_FLAGS = [
   { key: "career_site_builder", label: "Career site builder",      desc: "Hosted branded careers page and job board.",      enabled: true,  rollout: 100, env: "prod" },
   { key: "whatsapp_scheduling", label: "WhatsApp scheduling",      desc: "Candidate self-booking over WhatsApp.",           enabled: true,  rollout: 60,  env: "prod" },
   { key: "advanced_analytics",  label: "Advanced analytics",       desc: "Custom funnel reports and cohort breakdowns.",    enabled: false, rollout: 30,  env: "prod" },
-  { key: "sso_scim",            label: "SSO + SCIM provisioning",  desc: "Enterprise SSO and directory sync.",              enabled: true,  rollout: 100, env: "prod" },
+  { key: "sso_login",           label: "SSO (Google / Microsoft)", desc: "Customer sign-in via Google/Microsoft SSO. Off by default across all plans; enable per the pricing matrix (Enterprise).", enabled: false, rollout: 0,   env: "prod" },
+  { key: "white_label",         label: "White-label branding",     desc: "Custom branding / white-label for Enterprise workspaces. Off by default across all plans.", enabled: false, rollout: 0,   env: "prod" },
+  { key: "sso_scim",            label: "SSO + SCIM provisioning",  desc: "Enterprise SSO directory sync (SCIM). Off by default.", enabled: false, rollout: 0,   env: "prod" },
   { key: "new_billing_ui",      label: "New billing UI",           desc: "Redesigned in-app billing and invoices.",         enabled: false, rollout: 0,   env: "staging" },
   { key: "ranked_reasons_v3",   label: "Ranked reasons v3",        desc: "Richer explanations on every match score.",       enabled: false, rollout: 5,   env: "prod" },
 ];
@@ -592,8 +594,8 @@ function ReplyComposer({ ticket, cName, onClose, onSend }) {
   );
 }
 
-function Flags({ role, flags, setFlags, audit }) {
-  const toggle = (f) => { setFlags((fs) => fs.map((x) => x.key === f.key ? { ...x, enabled: !x.enabled } : x)); audit(f.enabled ? "Disabled feature flag" : "Enabled feature flag", `${f.key} (${f.env})`); };
+function Flags({ role, flags, setFlags, audit, onToggle }) {
+  const toggle = onToggle || ((f) => { setFlags((fs) => fs.map((x) => x.key === f.key ? { ...x, enabled: !x.enabled } : x)); audit(f.enabled ? "Disabled feature flag" : "Enabled feature flag", `${f.key} (${f.env})`); });
   return (
     <div>
       <SectionHead title="Feature flags" desc="Roll capabilities out or back across environments. Changes are audited." />
@@ -852,6 +854,20 @@ export default function AdminPortal() {
     setAudit((a) => [{ id: (a[0]?.id || 0) + 1, actor: admin.name, role: admin.role, action, target, at: "just now", ip: "10.2.4." + (admin.id === "a1" ? "11" : admin.id === "a2" ? "22" : "31") }, ...a]);
   };
 
+  // Toggle a feature flag: optimistic UI, persist to platform_flags when live
+  // (reverting on error), and record the change in the audit log. Flags backed
+  // by platform_flags (sso_login, white_label, ...) take effect in the customer
+  // app immediately, since it reads that table at load.
+  const toggleFlag = async (f) => {
+    const next = !f.enabled;
+    setFlags((fs) => fs.map((x) => x.key === f.key ? { ...x, enabled: next } : x));
+    logAudit(next ? "Enabled feature flag" : "Disabled feature flag", `${f.key} (${f.env})`);
+    if (hasSupabase) {
+      const { error } = await supabase.rpc("set_platform_flag", { p_key: f.key, p_enabled: next });
+      if (error) setFlags((fs) => fs.map((x) => x.key === f.key ? { ...x, enabled: f.enabled } : x));
+    }
+  };
+
   // Load real support tickets once an admin who can see them is signed in.
   // Company name + requester are embedded via foreign keys; RLS returns every
   // company's tickets for super/support (billing has no support policy).
@@ -865,6 +881,19 @@ export default function AdminPortal() {
         .order("updated_at", { ascending: false });
       if (active && !error && data) setTickets(data.map(mapTicketRow));
     })();
+    return () => { active = false; };
+  }, [admin]);
+
+  // Merge live platform flags over the mock list so the /admin toggles reflect
+  // and control the real, app-facing flag state (sso_login, white_label, ...).
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
+    let active = true;
+    supabase.from("platform_flags").select("key, enabled").then(({ data }) => {
+      if (active && Array.isArray(data) && data.length) {
+        setFlags((fs) => fs.map((f) => { const row = data.find((d) => d.key === f.key); return row ? { ...f, enabled: row.enabled } : f; }));
+      }
+    });
     return () => { active = false; };
   }, [admin]);
 
@@ -929,7 +958,7 @@ export default function AdminPortal() {
       case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} />; break;
       case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
-      case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} />; break;
+      case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />; break;
       case "audit":         screen = <Audit audit={audit} />; break;
       default:              screen = <Dashboard role={role} companies={companies} tickets={tickets} audit={audit} go={go} />;
     }
