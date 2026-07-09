@@ -13870,6 +13870,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
   const [dangerConfirm, setDangerConfirm] = useState(false);
+  const [dangerText, setDangerText] = useState("");
 
   // Password / sign-in
   const [curPw, setCurPw] = useState("");
@@ -14108,23 +14109,62 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
         <MfaCard />
 
         {/* ===== Danger zone ===== */}
-        <p className="text-xs font-semibold uppercase mb-3 mt-6" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
-        <div className="rounded-2xl bg-white act-shadow p-5 border" style={{ borderColor: "#FECACA" }}>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete your account</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Permanently remove your account and personal data. This cannot be undone.</p>
-            </div>
-            {dangerConfirm ? (
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => setDangerConfirm(false)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
-                <button onClick={() => { setDangerConfirm(false); alert("Account deletion is disabled in this preview."); }} className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">Yes, delete</button>
+        {(() => {
+          const dangerTarget = (company || "").trim() || "DELETE";
+          return (
+            <>
+              <p className="text-xs font-semibold uppercase mb-3 mt-6" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
+              <div className="rounded-2xl bg-white act-shadow p-5 border" style={{ borderColor: "#FECACA" }}>
+                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete workspace and account</p>
+                <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                  This permanently deletes {company ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{company}</span> : "your workspace"} and everything in it. It cannot be undone, and it removes:
+                </p>
+                <ul className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-xs" style={{ color: "var(--ink-2)" }}>
+                  {[
+                    "Every job posting and career page",
+                    "All candidates, resumes, and match scores",
+                    "All interviewers and their access",
+                    "Interviews, scorecards, and offers",
+                    "Message and email templates",
+                    "Billing history and invoices",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-2">
+                      <span className="mt-1.5 w-1 h-1 rounded-full shrink-0" style={{ background: "#DC2626" }} /> {t}
+                    </li>
+                  ))}
+                </ul>
+
+                {!dangerConfirm ? (
+                  <button onClick={() => setDangerConfirm(true)} className="mt-4 text-sm rounded-xl border px-4 py-2 font-medium transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5", color: "#B91C1C" }}>Delete workspace</button>
+                ) : (
+                  <div className="mt-4 rounded-xl p-3.5" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
+                    <label className="block text-xs mb-1.5" style={{ color: "#B91C1C" }}>
+                      Type <span className="font-semibold">{dangerTarget}</span> to confirm.
+                    </label>
+                    <input
+                      value={dangerText}
+                      onChange={(e) => setDangerText(e.target.value)}
+                      placeholder={dangerTarget}
+                      autoComplete="off"
+                      className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                      style={{ borderColor: "#FCA5A5", color: "var(--ink)" }}
+                    />
+                    <div className="flex items-center gap-2 mt-3">
+                      <button onClick={() => { setDangerConfirm(false); setDangerText(""); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-white" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
+                      <button
+                        disabled={dangerText.trim() !== dangerTarget}
+                        onClick={() => alert("Account deletion is disabled in this preview.")}
+                        className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Permanently delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <button onClick={() => setDangerConfirm(true)} className="shrink-0 text-sm rounded-xl border px-4 py-2 font-medium transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5", color: "#B91C1C" }}>Delete account</button>
-            )}
-          </div>
-        </div>
+            </>
+          );
+        })()}
 
         {/* Save / Cancel bar */}
         <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
