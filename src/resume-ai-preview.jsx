@@ -11875,7 +11875,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const calSystem = defaultProvider === "microsoft" ? "Microsoft 365" : "Google Workspace";
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
-  const labelClass = "block text-sm text-neutral-700 mb-1";
+  const labelClass = "block text-xs mb-1 text-[color:var(--ink-2)]";
 
   // How many confirmed interviews reference this interviewer (bookings link by name).
   const scheduledCountFor = (iv) =>
@@ -11914,14 +11914,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
 
   return (
     <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto pb-8">
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
         <div className="flex items-center justify-between mt-2 mb-1">
           <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Interviewers</h1>
           {canAddInterviewers ? (
             <button
               onClick={() => (atSeatCap ? navigate("billing") : setShowForm((s) => !s))}
-              className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors"
+              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white px-3 py-1.5 transition-colors"
             >
               {atSeatCap ? "Seats full, upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
             </button>
@@ -11929,7 +11929,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
             <button
               onClick={() => navigate("billing")}
               className="text-sm rounded-xl border px-3 py-1.5 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
-              style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+              style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
             >
               <Icon name="lock" className="w-3.5 h-3.5" /> Invite teammate <LockBadge />
             </button>
@@ -11951,7 +11951,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
             {atSeatCap && <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>}
           </div>
         )}
-        <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+        <p className="text-sm text-neutral-500 mb-4">
           Your team. Invite teammates to run interviews. Each gets their own login and sees only the interviews assigned to them. Availability and {meetLabel} links come from your workspace calendar, so there's no per-person setup.
         </p>
 
@@ -11989,7 +11989,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
               <label className={labelClass}>Work email</label>
               <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@company.com" className={inputClass} />
             </div>
-            <button onClick={handleAdd} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">
+            <button onClick={handleAdd} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">
               Send invite
             </button>
             <p className="text-xs text-neutral-400">They'll get an email to join your workspace. Teammates are included in your plan. They don't buy their own.</p>
@@ -13215,7 +13215,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
     <div className="px-4 sm:px-6 py-8 sm:py-10">
       <div className="max-w-2xl mx-auto pb-8">
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl font-bold text-neutral-900 font-display mt-3 mb-1">Billing &amp; plan</h1>
+        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Billing &amp; plan</h1>
         <p className="text-sm text-neutral-500 mb-6">Manage the plan, payment method, and invoices for {company || "your workspace"}.</p>
 
         {msg && (
@@ -13342,7 +13342,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                       isCurrent
                         ? "bg-neutral-100 text-neutral-400 cursor-default"
                         : p.key === "enterprise"
-                          ? "border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                          ? "border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50"
                           : "brand-gradient text-white hover:opacity-90"
                     }`}
                   >
@@ -13372,7 +13372,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
             </div>
             <button
               onClick={() => choosePlan(PLANS.find((p) => p.key === "enterprise"))}
-              className="shrink-0 rounded-xl text-xs font-semibold px-4 py-2 bg-white border border-neutral-300 text-neutral-800 hover:bg-neutral-50 transition-colors"
+              className="shrink-0 rounded-xl text-xs font-semibold px-4 py-2 bg-white border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50 transition-colors"
             >
               Contact sales
             </button>
@@ -13499,7 +13499,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
               <button onClick={() => setShowDowngrade(false)} className="text-sm rounded-xl border px-4 py-2 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
                 Keep Premium
               </button>
-              <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
+              <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
                 Downgrade to Free
               </button>
             </div>
@@ -13680,7 +13680,7 @@ function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company }) {
 
         <div className="flex items-center gap-2">
           <button onClick={save} disabled={!dirty} className="text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-medium px-4 py-2 transition-opacity hover:opacity-90">Save template</button>
-          {dirty && <button onClick={() => open(selected)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Reset</button>}
+          {dirty && <button onClick={() => open(selected)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Reset</button>}
         </div>
       </div>
     </div>
@@ -13751,7 +13751,7 @@ function MfaCard() {
       {hasSupabase && loaded && !factor && !enroll && (
         <>
           <p className="text-sm text-neutral-600 mb-3">Add a second step at sign-in with an authenticator app (Google Authenticator, Authy, 1Password).</p>
-          <button onClick={startEnroll} disabled={busy} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50">{busy ? "Setting up…" : "Enable two-factor"}</button>
+          <button onClick={startEnroll} disabled={busy} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50">{busy ? "Setting up…" : "Enable two-factor"}</button>
         </>
       )}
 
@@ -13876,7 +13876,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
               <img src={dLogo || ACTIVYS_LOGO} alt={dCompany || "Company logo"} className="h-11 w-auto object-contain" />
             </div>
             <div className="flex flex-wrap gap-2">
-              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors inline-block">
+              <label className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white px-4 py-2 cursor-pointer transition-colors inline-block">
                 {dLogo ? "Replace logo" : "Upload logo"}
                 <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
               </label>
@@ -13903,7 +13903,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
               <div className="w-16 h-16 rounded-full bg-violet-100 border border-neutral-200 flex items-center justify-center text-neutral-700 font-medium text-lg">{avatarInitial}</div>
             )}
             <div className="flex flex-wrap gap-2">
-              <label className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 cursor-pointer transition-colors">
+              <label className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white px-4 py-2 cursor-pointer transition-colors">
                 Change photo
                 <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </label>
@@ -13940,7 +13940,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
             <p className="text-xs text-neutral-500">We'll email a confirmation link to the new address. Your login email stays the same until you click it.</p>
             {emailMsg && <p className="text-sm text-emerald-600">{emailMsg}</p>}
-            <button onClick={handleEmailSubmit} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">Send confirmation</button>
+            <button onClick={handleEmailSubmit} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">Send confirmation</button>
           </div>
         </div>
 
@@ -13957,7 +13957,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             <p className="text-xs text-neutral-500">At least 8 characters, with a letter and a number.</p>
             {pwMsg && <p className="text-sm" style={{ color: pwMsg.type === "ok" ? "#166534" : "#DC2626" }}>{pwMsg.text}</p>}
             <div className="flex items-center gap-4 flex-wrap">
-              <button onClick={handleChangePassword} className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors">Update password</button>
+              <button onClick={handleChangePassword} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">Update password</button>
               <button onClick={() => navigate("forgotPassword")} className="text-sm font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Forgot your password?</button>
             </div>
           </div>
@@ -14072,7 +14072,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
                   }
                 }}
                 className={`rounded-xl border px-4 py-3 text-sm text-left transition-colors ${
-                  dProvider === p ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 bg-white hover:border-neutral-300"
+                  dProvider === p ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)]" : "border-[color:var(--line)] bg-white hover:border-[color:var(--line-strong)]"
                 }`}
               >
                 <p className="font-medium text-neutral-900">{p === "google" ? "Google Meet" : "Microsoft Teams"}</p>
@@ -14109,7 +14109,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               <button
                 onClick={handleConnectCalendar}
                 disabled={connectingCal}
-                className="text-xs rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white px-3 py-1.5 shrink-0 transition-colors"
+                className="text-xs rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white px-3 py-1.5 shrink-0 transition-colors"
               >
                 {connectingCal ? "Connecting…" : `Connect ${calSystem}`}
               </button>
@@ -14165,7 +14165,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               </div>
 
               <div className="flex items-center gap-3">
-                <button onClick={() => setWaTested(true)} className="text-xs rounded-xl border px-3 py-1.5 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                <button onClick={() => setWaTested(true)} className="text-xs rounded-xl border px-3 py-1.5 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
                   Send test message
                 </button>
                 {waTested && <span className="text-xs" style={{ color: "#166534" }}>Test message sent to your number ✓</span>}
@@ -14178,7 +14178,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               <p className="text-xs mb-3" style={{ color: "#92400E" }}>
                 Your number is registered with our messaging partner. Meta is verifying your business. This usually takes a few hours. We'll email you when it's live.
               </p>
-              <button onClick={() => setWaStatus("connected")} className="text-xs rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1.5 transition-colors">
+              <button onClick={() => setWaStatus("connected")} className="text-xs rounded-lg brand-gradient hover:opacity-90 text-white px-3 py-1.5 transition-colors">
                 Simulate approval (preview)
               </button>
             </div>
@@ -14194,7 +14194,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               <button
                 onClick={connectWhatsApp}
                 disabled={waStatus === "connecting"}
-                className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white px-4 py-2 transition-colors"
+                className="text-sm rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 transition-colors"
               >
                 {waStatus === "connecting" ? "Connecting…" : "Connect WhatsApp Business"}
               </button>
