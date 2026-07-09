@@ -96,6 +96,34 @@ export async function dbUpdateCompany(companyId, { name, address, registrationNo
   return { ok: true };
 }
 
+// Read this company's email-template overrides (Tier 2). Returns rows keyed by
+// template `key`; an empty list means the app falls back to the code defaults.
+export async function dbListEmailTemplates(companyId) {
+  if (!hasSupabase || !companyId) return [];
+  const { data, error } = await supabase
+    .from("email_templates")
+    .select("key, subject, body, enabled")
+    .eq("scope", "company")
+    .eq("company_id", companyId);
+  if (error) { console.error("dbListEmailTemplates", error.message); return []; }
+  return data || [];
+}
+
+// Upsert one company email-template override. RLS lets only owners/admins write,
+// so a non-privileged user gets { ok:false, error }. Returns { ok, error? } so
+// the editor can surface a failure banner.
+export async function dbSaveEmailTemplate(companyId, key, { subject, body }) {
+  if (!hasSupabase || !companyId) return { ok: false };
+  const { error } = await supabase
+    .from("email_templates")
+    .upsert(
+      { scope: "company", company_id: companyId, key, subject, body },
+      { onConflict: "company_id,key" },
+    );
+  if (error) { console.error("dbSaveEmailTemplate", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 export async function dbAddScorecard(companyId, userId, { candidateId, jobId = null, ratings, notes }) {
   if (!hasSupabase || !companyId) return;
   const { error } = await supabase.from("scorecards").insert({
