@@ -7751,6 +7751,43 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
   );
 }
 
+// Shared full-width shell for the account screens (Interviewers, Profile, Billing,
+// Settings), so they match the Jobs / Candidate Search layout: a gradient canvas,
+// the TopBar header, and an optional right-hand usage/credit rail. Pass `rail` to
+// get the two-column grid; omit it for a single full-width column.
+function AccountShell({ title, subtitle, rail, children, navigate, profile, avatarUrl, activities, onOpenNotifications }) {
+  return (
+    <div
+      className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
+      style={{
+        background:
+          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
+          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
+          "var(--bg)",
+      }}
+    >
+      <div className="mx-auto w-full max-w-[1400px]">
+        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
+        <div className="mt-2">
+          <TopBar
+            title={title}
+            subtitle={subtitle}
+            activities={activities}
+            onOpenNotifications={onOpenNotifications}
+            avatarUrl={avatarUrl}
+            profile={profile}
+            navigate={navigate}
+          />
+        </div>
+        <div className={`grid grid-cols-1 ${rail ? "lg:grid-cols-3" : ""} gap-5 lg:gap-6 items-start`}>
+          <div className={`${rail ? "lg:col-span-2" : ""} min-w-0`}>{children}</div>
+          {rail && <div className="space-y-4 lg:sticky lg:top-6">{rail}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, series, delta = 0, sparkColor = "#973BF7", icon, onClick }) {
   return (
     <button
@@ -11855,7 +11892,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "free", profile }) {
+function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "free", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
   // Seats include the owner, so invitable teammates = seats − 1.
@@ -11913,47 +11950,46 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   };
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <div className="flex items-center justify-between mt-2 mb-1">
-          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Interviewers</h1>
+    <AccountShell
+      title="Interviewers"
+      subtitle="Your team. Each teammate gets their own login and sees only the interviews assigned to them."
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+      rail={limits.seats !== Infinity ? (
+        <UsageMeter
+          title="Seats"
+          used={interviewers.length + 1}
+          limit={limits.seats}
+          unit="in use"
+          danger={atSeatCap}
+          note={canAddInterviewers ? undefined : "Free plan includes 1 seat, just you."}
+          onUpgrade={() => navigate("billing")}
+          upgradeLabel={canAddInterviewers ? "Upgrade for more seats" : "Upgrade to add teammates"}
+        />
+      ) : null}
+    >
+        {/* Invite action */}
+        <div className="flex justify-end mb-4">
           {canAddInterviewers ? (
             <button
               onClick={() => (atSeatCap ? navigate("billing") : setShowForm((s) => !s))}
-              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white px-3 py-1.5 transition-colors"
+              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity"
             >
               {atSeatCap ? "Seats full, upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
             </button>
           ) : (
             <button
               onClick={() => navigate("billing")}
-              className="text-sm rounded-xl border px-3 py-1.5 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
+              className="text-sm rounded-xl border px-4 py-2 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
               style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
             >
               <Icon name="lock" className="w-3.5 h-3.5" /> Invite teammate <LockBadge />
             </button>
           )}
         </div>
-        {!canAddInterviewers && (
-          <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
-            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              The Free plan includes <span className="font-semibold">1 seat, just you</span>. Upgrade to invite teammates, each with their own login.
-            </p>
-            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
-          </div>
-        )}
-        {canAddInterviewers && limits.seats !== Infinity && (
-          <div className="rounded-xl border p-3 mb-4 mt-2 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: atSeatCap ? "var(--brand-soft)" : "#fff" }}>
-            <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              Your plan includes <span className="font-semibold">{limits.seats} seat{limits.seats === 1 ? "" : "s"}</span>, {interviewers.length + 1} of {limits.seats} in use{atSeatCap ? ". Upgrade to Premium for unlimited seats." : "."}
-            </p>
-            {atSeatCap && <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>}
-          </div>
-        )}
-        <p className="text-sm text-neutral-500 mb-4">
-          Your team. Invite teammates to run interviews. Each gets their own login and sees only the interviews assigned to them. Availability and {meetLabel} links come from your workspace calendar, so there's no per-person setup.
-        </p>
 
         {/* Workspace calendar status, one connection covers everyone */}
         <div className="mb-6 rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: calendarConnected ? "#F0FDF4" : "#FFF7ED" }}>
@@ -12041,7 +12077,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
             );
           })}
         </div>
-      </div>
 
       {/* Remove confirmation */}
       {removing && (
@@ -12074,7 +12109,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
           </div>
         </div>
       )}
-    </div>
+    </AccountShell>
   );
 }
 
@@ -13095,7 +13130,7 @@ This is what a candidate sees. A public page, no login, reached only through the
 }
 
 
-function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial }) {
+function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(null);
   // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
   const [cycle, setCycle] = useState(planCycle);
@@ -13212,11 +13247,15 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   const activeTeammates = interviewers.length;
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Billing &amp; plan</h1>
-        <p className="text-sm text-neutral-500 mb-6">Manage the plan, payment method, and invoices for {company || "your workspace"}.</p>
+    <AccountShell
+      title="Billing & plan"
+      subtitle={`Manage the plan, payment method, and invoices for ${company || "your workspace"}.`}
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+    >
 
         {msg && (
           <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BFDBFE", background: "#EFF6FF", color: "#1E40AF" }}>
@@ -13436,7 +13475,6 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
             Amounts include applicable taxes. Tax invoices are issued to {company || "your workspace"} and can be downloaded above.
           </p>
         </div>
-      </div>
 
       {/* Downgrade confirmation, shows exactly what gets paused/locked */}
       {showDowngrade && (
@@ -13506,7 +13544,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
           </div>
         </div>
       )}
-    </div>
+    </AccountShell>
   );
 }
 
@@ -13790,7 +13828,67 @@ function MfaCard() {
   );
 }
 
-function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany }) {
+// Shown to a signed-in owner whose workspace is within the 30-day soft-delete
+// window: explains the countdown and offers a one-click restore.
+function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const purge = info?.purge_after ? new Date(info.purge_after) : null;
+  const daysLeft = purge ? Math.max(0, Math.ceil((purge.getTime() - Date.now()) / 86400000)) : null;
+  const dateStr = purge ? purge.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "";
+  const restore = async () => {
+    setBusy(true); setErr("");
+    const msg = await onRestore();
+    if (msg) { setErr(msg); setBusy(false); }
+  };
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-7 text-center border border-[color:var(--line)]">
+        {logoUrl
+          ? <img src={logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover mx-auto mb-4" style={{ border: "1px solid var(--line)" }} />
+          : <div className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center text-white font-bold font-display text-lg brand-gradient">A</div>}
+        <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>Workspace scheduled for deletion</h1>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+          {info?.company_name ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{info.company_name}</span> : "Your workspace"} is scheduled to be permanently deleted{dateStr ? <> on <span className="font-semibold" style={{ color: "var(--ink)" }}>{dateStr}</span></> : ""}.
+          {daysLeft != null && <> You have <span className="font-semibold" style={{ color: "var(--brand)" }}>{daysLeft} day{daysLeft === 1 ? "" : "s"}</span> left to restore it.</>}
+        </p>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+          Restoring brings everything back: candidates, jobs, interviewers, and your remaining credits.
+        </p>
+        {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
+        <button onClick={restore} disabled={busy} className="w-full mt-5 rounded-xl brand-gradient hover:opacity-90 text-white font-semibold py-3 transition-opacity disabled:opacity-60">
+          {busy ? "Restoring…" : "Restore workspace"}
+        </button>
+        <button onClick={onSignOut} disabled={busy} className="mt-3 text-sm font-medium hover:opacity-70 transition-opacity disabled:opacity-40" style={{ color: "var(--ink-2)" }}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
+// Branded on/off switch used by the Profile notification preferences.
+function Toggle({ on, onChange, label, desc }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{label}</p>
+        {desc && <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{desc}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        onClick={() => onChange(!on)}
+        className="shrink-0 w-11 h-6 rounded-full relative transition-colors"
+        style={{ background: on ? "var(--brand)" : "var(--line-strong)" }}
+      >
+        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform" style={{ transform: on ? "translateX(20px)" : "none", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
+      </button>
+    </div>
+  );
+}
+
+function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, activities = [], onOpenNotifications }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
   const [emailMsg, setEmailMsg] = useState(null);
@@ -13802,8 +13900,32 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [dFirst, setDFirst] = useState(profile?.firstName || "");
   const [dLast, setDLast] = useState(profile?.lastName || "");
   const [dRole, setDRole] = useState(profile?.role || "");
+  const [dPhone, setDPhone] = useState(profile?.phone || "");
+  const NOTIF_DEFAULTS = { applicants: true, interviews: true, digest: true, product: false };
+  const notifBase = { ...NOTIF_DEFAULTS, ...(profile?.notifications || {}) };
+  const [dNotif, setDNotif] = useState(notifBase);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
+  const [dangerConfirm, setDangerConfirm] = useState(false);
+  const [dangerText, setDangerText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
+
+  // Schedule the 30-day soft delete via the edge function, then sign out.
+  const handleDeleteAccount = async () => {
+    setDeleteErr("");
+    if (!hasSupabase || !supabase) { setDeleteErr("Account deletion needs a connected backend."); return; }
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Deletion failed");
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined") window.location.assign("/");
+    } catch (e) {
+      setDeleteErr(e?.message || "Could not delete the workspace. Please try again.");
+      setDeleting(false);
+    }
+  };
 
   // Password / sign-in
   const [curPw, setCurPw] = useState("");
@@ -13821,7 +13943,21 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
     dAvatar !== avatarUrl ||
     dFirst !== (profile?.firstName || "") ||
     dLast !== (profile?.lastName || "") ||
-    dRole !== (profile?.role || "");
+    dRole !== (profile?.role || "") ||
+    dPhone !== (profile?.phone || "") ||
+    JSON.stringify(dNotif) !== JSON.stringify(notifBase);
+
+  // Profile completeness, drives the meter in the rail.
+  const completionItems = [
+    { key: "avatar", label: "Add a profile photo", done: !!dAvatar },
+    { key: "name", label: "Add your full name", done: !!(dFirst && dLast) },
+    { key: "role", label: "Add your role or title", done: !!dRole },
+    { key: "phone", label: "Add a contact number", done: !!dPhone },
+    { key: "logo", label: "Upload a company logo", done: !!dLogo },
+    { key: "company", label: "Set your company name", done: !!dCompany },
+  ];
+  const doneCount = completionItems.filter((i) => i.done).length;
+  const completionPct = Math.round((doneCount / completionItems.length) * 100);
 
   const handleLogoChange = (e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setDLogo(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
   const handleAvatarChange = (e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setDAvatar(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
@@ -13832,7 +13968,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
       setLogoUrl(dLogo);
       setCompany(dCompany.trim());
       setAvatarUrl(dAvatar);
-      setProfile({ firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim() });
+      setProfile({ ...(profile || {}), firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim(), phone: dPhone.trim(), notifications: dNotif });
       setSaving(false);
       setSavedMsg("All changes saved.");
     }, 800);
@@ -13840,6 +13976,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const handleCancel = () => {
     setDLogo(logoUrl); setDCompany(company || ""); setDAvatar(avatarUrl);
     setDFirst(profile?.firstName || ""); setDLast(profile?.lastName || ""); setDRole(profile?.role || "");
+    setDPhone(profile?.phone || ""); setDNotif(notifBase);
     setSavedMsg(null);
   };
 
@@ -13862,11 +13999,56 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const avatarInitial = (dFirst?.[0] || "S").toUpperCase();
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Profile</h1>
-        <p className="text-sm text-neutral-500 mb-6">Your company branding, personal details, and sign-in.</p>
+    <AccountShell
+      title="Profile"
+      subtitle="Your company branding, personal details, and sign-in."
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+      rail={
+        <>
+          {/* Account summary */}
+          <div className="rounded-2xl bg-white act-shadow p-5 text-center border border-[color:var(--line)]">
+            {dAvatar
+              ? <img src={dAvatar} alt="You" className="w-20 h-20 rounded-full object-cover mx-auto mb-3" style={{ border: "1px solid var(--line)" }} />
+              : <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold font-display text-white brand-gradient">{avatarInitial}</div>}
+            <p className="font-display font-bold text-lg leading-tight" style={{ color: "var(--ink)" }}>{[dFirst, dLast].filter(Boolean).join(" ") || "Your name"}</p>
+            {dRole && <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{dRole}</p>}
+            <p className="text-xs mt-1 break-all" style={{ color: "var(--ink-3)" }}>{email}</p>
+            {dCompany && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <Icon name="dashboard" className="w-3.5 h-3.5" /> {dCompany}
+              </div>
+            )}
+          </div>
+
+          {/* Profile completeness */}
+          <div className="rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
+            <div className="flex items-center justify-between mb-2.5">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Profile completeness</h3>
+              <span className="text-sm font-bold font-display tnum" style={{ color: completionPct === 100 ? "#16A34A" : "var(--brand)" }}>{completionPct}%</span>
+            </div>
+            <div className="h-2.5 rounded-full overflow-hidden mb-4" style={{ background: "var(--line)" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(completionPct, 4)}%`, background: "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+            </div>
+            {completionPct === 100 ? (
+              <p className="text-sm flex items-center gap-2" style={{ color: "#16A34A" }}><Icon name="check" className="w-4 h-4" /> Your profile is complete.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {completionItems.filter((i) => !i.done).map((i) => (
+                  <li key={i.key} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--ink-2)" }}>
+                    <span className="w-4 h-4 rounded-full border shrink-0" style={{ borderColor: "var(--line-strong)" }} />
+                    {i.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      }
+    >
 
         {/* Company details */}
         <div className={`${cardClass} mb-4`}>
@@ -13921,12 +14103,28 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
               <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Last name</label>
               <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role</label>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role or title</label>
               <input value={dRole} onChange={(e) => { setDRole(e.target.value); setSavedMsg(null); }} placeholder="Hiring Manager" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Contact number</label>
+              <input type="tel" value={dPhone} onChange={(e) => { setDPhone(e.target.value); setSavedMsg(null); }} placeholder="+60 12 345 6789" autoComplete="tel" className={inputClass} />
             </div>
           </div>
           <p className="text-xs text-neutral-500 mt-2">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
+        </div>
+
+        {/* Notification preferences */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Notifications</h2>
+          <p className="text-xs text-neutral-500 mb-2">Choose what Aster emails you about. You can change these anytime.</p>
+          <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+            <Toggle on={dNotif.applicants} onChange={(v) => { setDNotif((n) => ({ ...n, applicants: v })); setSavedMsg(null); }} label="New applicants" desc="When someone applies to one of your roles." />
+            <Toggle on={dNotif.interviews} onChange={(v) => { setDNotif((n) => ({ ...n, interviews: v })); setSavedMsg(null); }} label="Interview reminders" desc="Before interviews you're scheduled to run." />
+            <Toggle on={dNotif.digest} onChange={(v) => { setDNotif((n) => ({ ...n, digest: v })); setSavedMsg(null); }} label="Weekly hiring digest" desc="A Monday summary of pipeline activity." />
+            <Toggle on={dNotif.product} onChange={(v) => { setDNotif((n) => ({ ...n, product: v })); setSavedMsg(null); }} label="Product updates" desc="Occasional news about new Aster features." />
+          </div>
         </div>
 
         {/* ===== Sign-in ===== */}
@@ -13965,6 +14163,66 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
 
         <MfaCard />
 
+        {/* ===== Danger zone ===== */}
+        {(() => {
+          const dangerTarget = (company || "").trim() || "DELETE";
+          return (
+            <>
+              <p className="text-xs font-semibold uppercase mb-3 mt-6" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
+              <div className="rounded-2xl bg-white act-shadow p-5 border" style={{ borderColor: "#FECACA" }}>
+                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete workspace and account</p>
+                <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                  This permanently deletes {company ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{company}</span> : "your workspace"} and everything in it. It cannot be undone, and it removes:
+                </p>
+                <ul className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-xs" style={{ color: "var(--ink-2)" }}>
+                  {[
+                    "Every job posting and career page",
+                    "All candidates, resumes, and match scores",
+                    "All interviewers and their access",
+                    "Interviews, scorecards, and offers",
+                    "Message and email templates",
+                    "Billing history and invoices",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-2">
+                      <span className="mt-1.5 w-1 h-1 rounded-full shrink-0" style={{ background: "#DC2626" }} /> {t}
+                    </li>
+                  ))}
+                </ul>
+
+                {!dangerConfirm ? (
+                  <button onClick={() => setDangerConfirm(true)} className="mt-4 text-sm rounded-xl border px-4 py-2 font-medium transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5", color: "#B91C1C" }}>Delete workspace</button>
+                ) : (
+                  <div className="mt-4 rounded-xl p-3.5" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
+                    <label className="block text-xs mb-1.5" style={{ color: "#B91C1C" }}>
+                      Type <span className="font-semibold">{dangerTarget}</span> to confirm.
+                    </label>
+                    <input
+                      value={dangerText}
+                      onChange={(e) => setDangerText(e.target.value)}
+                      placeholder={dangerTarget}
+                      autoComplete="off"
+                      className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                      style={{ borderColor: "#FCA5A5", color: "var(--ink)" }}
+                    />
+                    {deleteErr && <p className="text-xs mt-2" style={{ color: "#B91C1C" }}>{deleteErr}</p>}
+                    <div className="flex items-center gap-2 mt-3">
+                      <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-white disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
+                      <button
+                        disabled={deleting || dangerText.trim() !== dangerTarget}
+                        onClick={handleDeleteAccount}
+                        className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {deleting ? "Deleting…" : "Permanently delete"}
+                      </button>
+                    </div>
+                    <p className="text-xs mt-2" style={{ color: "var(--ink-3)" }}>You'll be signed out. You have 30 days to restore before everything is permanently erased.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
+
         {/* Save / Cancel bar */}
         <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center justify-between gap-3">
@@ -13977,12 +14235,11 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AccountShell>
   );
 }
 
-function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free" }) {
+function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free", profile, avatarUrl, activities = [], onOpenNotifications }) {
   // Staged (draft) edits for the calendar provider, Save/Cancel form.
   const [dProvider, setDProvider] = useState(provider);
   const [dCalConnected, setDCalConnected] = useState(calendarConnected);
@@ -14036,11 +14293,15 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
   };
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Settings</h1>
-        <p className="text-sm text-neutral-500 mb-6">Email templates, calendar, messaging, and usage for your workspace.</p>
+    <AccountShell
+      title="Settings"
+      subtitle="Email templates, calendar, messaging, and usage for your workspace."
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+    >
 
         {/* Email templates, the wording behind every automated email */}
         <button onClick={() => navigate("emailTemplates")} className={`${cardClass} mb-4 w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
@@ -14229,8 +14490,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AccountShell>
   );
 }
 
@@ -16384,6 +16644,9 @@ export default function ResumeAIPreview() {
   // While true, hold the signed-in app behind a loader so a logged-in user never
   // sees a flash of demo data before their real workspace hydrates on refresh.
   const [restoring, setRestoring] = useState(hasSupabase);
+  // Set when the signed-in owner's workspace is soft-deleted (within the 30-day
+  // window). We show the restore screen instead of the app.
+  const [deletedInfo, setDeletedInfo] = useState(null);
   const [activeJobId, setActiveJobId] = useState(() => (typeof window !== "undefined" ? (applicantsJobFromPath(window.location.pathname) || "j1") : "j1"));
   // On the Free plan, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
@@ -16723,6 +16986,19 @@ export default function ResumeAIPreview() {
         navigate("login");
         return;
       }
+      // Soft-deleted workspace: within the 30-day window it stops resolving under
+      // RLS, so show the restore screen instead of an empty/broken app.
+      try {
+        const { data: delRows } = await supabase.rpc("my_deletion_status");
+        const del = Array.isArray(delRows) ? delRows[0] : delRows;
+        if (del && del.deleted_at) {
+          if (cancelled) return;
+          setDeletedInfo(del);
+          setRestoring(false);
+          return;
+        }
+      } catch { /* RPC missing / offline: fall through to normal load */ }
+
       if (handled === session.user.id) return; // already restored this user
       handled = session.user.id;
       try {
@@ -17143,6 +17419,24 @@ export default function ResumeAIPreview() {
     );
   }
 
+  if (deletedInfo) {
+    return (
+      <Shell>
+        <DeletedWorkspaceScreen
+          info={deletedInfo}
+          logoUrl={logoUrl}
+          onRestore={async () => {
+            const { error } = await supabase.rpc("restore_workspace");
+            if (error) return error.message || "Could not restore. The window may have passed.";
+            if (typeof window !== "undefined") window.location.assign("/");
+            return null;
+          }}
+          onSignOut={async () => { await supabase.auth.signOut(); if (typeof window !== "undefined") window.location.assign("/"); }}
+        />
+      </Shell>
+    );
+  }
+
   // Map each screen to the sidebar nav item that should appear active.
   const activeNav =
     screen === "candidateProfile" || screen === "candidates"
@@ -17198,6 +17492,8 @@ export default function ResumeAIPreview() {
             setProfile={setProfile}
             company={company}
             setCompany={setCompany}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
           />
         )}
         {screen === "settings" && (
@@ -17209,10 +17505,14 @@ export default function ResumeAIPreview() {
             setCalendarConnected={setCalendarConnected}
             bookings={bookings}
             plan={effectivePlan}
+            profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
           />
         )}
         {screen === "billing" && (
-          <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} />
+          <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} />}
@@ -17251,7 +17551,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "interviewers" && (
-          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} />
+          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "candidateProfile" && !activeCandidate && (
           // The candidate isn't in the workspace (just deleted, or a stale deep
