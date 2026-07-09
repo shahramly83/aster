@@ -113,16 +113,25 @@ returns setof uuid language sql stable security definer set search_path = public
 $$;
 
 -- ---------------------------------------------------------------------------
--- 3. Data integrity — scorecards.job_id must exist (interviewer RLS keys on it)
+-- 3. Data hygiene — best-effort backfill of scorecards.job_id
 -- ---------------------------------------------------------------------------
--- Backfill any legacy null job_id from the candidate's application, then
--- enforce NOT NULL so a scorecard can never escape job-scoped visibility.
+-- Fill legacy null job_id from the candidate's application, then from any
+-- interview for that candidate. We deliberately DO NOT enforce NOT NULL:
+-- production has orphan scorecards (no application, no interview) and a null
+-- job_id is already safe. The interviewer read/write policies key on
+-- `job_id in (select assigned_job_ids())`, which never matches null, so such
+-- rows stay visible to admins only, and an interviewer can never create a
+-- null-job scorecard (their insert policy requires an assigned job_id).
 update public.scorecards s set job_id = (
   select a.job_id from public.applications a
   where a.candidate_id = s.candidate_id and a.company_id = s.company_id
   order by a.created_at limit 1
 ) where s.job_id is null;
-alter table public.scorecards alter column job_id set not null;
+update public.scorecards s set job_id = (
+  select i.job_id from public.interviews i
+  where i.candidate_id = s.candidate_id and i.company_id = s.company_id and i.job_id is not null
+  order by i.created_at limit 1
+) where s.job_id is null;
 
 -- ---------------------------------------------------------------------------
 -- 4. Policy rewrite — split blanket company access into admin-full + int-scoped
