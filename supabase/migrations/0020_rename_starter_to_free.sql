@@ -62,7 +62,7 @@ begin
 
   insert into public.companies (name, slug, plan, status, region)
   values (coalesce(nullif(trim(p_company_name), ''), 'My company'), v_slug, 'free',
-          case when v_grant then 'trial' else 'active' end, null)
+          (case when v_grant then 'trial' else 'active' end)::company_status, null)
   returning id into v_company_id;
 
   insert into public.profiles (id, company_id, full_name, email, role, status)
@@ -70,7 +70,7 @@ begin
 
   insert into public.subscriptions (company_id, plan, cycle, status, seats, current_period_end)
   values (v_company_id, 'free', 'monthly',
-          case when v_grant then 'trialing' else 'active' end, 1,
+          (case when v_grant then 'trialing' else 'active' end)::sub_status, 1,
           case when v_grant then (now() + interval '14 days')::date else current_date end);
 
   if v_grant and v_domain is not null and not public._is_public_email_domain(v_domain) then
