@@ -1,0 +1,113 @@
+// Supabase Edge Function: confirm-booking
+// ---------------------------------------------------------------------------
+// The public booking page (/book/<token>, no login) calls this when the
+// candidate picks a slot. Token-gated (the unguessable interview token is the
+// authorization): validates the chosen slot, persists scheduled_at + status,
+// advances the candidate's stage to interviewing, and emails the interviewer
+// ("interview scheduled") and the candidate ("interview confirmation").
+//
+// Secrets: RESEND_API_KEY (optional — skipped if unset)
+// Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+}
+
+// Human-readable slot label. Timezone is unknown for an anonymous candidate, so
+// render in UTC with the zone shown, rather than guessing.
+function fmt(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short", day: "numeric", month: "short", year: "numeric",
+      hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short",
+    }).format(new Date(iso));
+  } catch { return iso; }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+
+  try {
+    const { token, start } = await req.json();
+    if (!token || !start) return json({ error: "token and start are required" }, 400);
+
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const { data: iv } = await admin
+      .from("interviews")
+      .select("id, company_id, candidate_id, job_id, interviewer_name, interviewer_email, proposed_slots, status")
+      .eq("token", token).maybeSingle();
+    if (!iv) return json({ error: "not found" }, 404);
+
+    const slots = Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [];
+    const match = slots.find((s: { start?: string }) => s && s.start === start);
+    if (!match && iv.status !== "scheduled") return json({ error: "that time is no longer offered" }, 409);
+
+    // Persist the confirmed time (idempotent: a repeat confirm is a no-op update).
+    if (iv.status !== "scheduled") {
+      await admin.from("interviews").update({ scheduled_at: start, status: "scheduled" }).eq("id", iv.id);
+      // Advance the candidate's pipeline stage, unless already further along.
+      await admin.from("applications").update({ stage: "interviewing" })
+        .eq("company_id", iv.company_id).eq("candidate_id", iv.candidate_id)
+        .not("stage", "in", "(offer,hired,rejected)");
+    }
+
+    // Gather tokens for the two emails.
+    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", iv.company_id).maybeSingle();
+    const companyName = comp?.name || "the hiring team";
+    const logoUrl = comp?.logo_url || null;
+    let jobTitle = "the role";
+    if (iv.job_id) {
+      const { data: job } = await admin.from("jobs").select("title").eq("id", iv.job_id).maybeSingle();
+      jobTitle = job?.title || jobTitle;
+    }
+    const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
+    const dateTime = fmt(String(start));
+
+    // 1) Candidate confirmation.
+    if (cand?.email) {
+      try {
+        const tpl = await loadTemplate(admin, "interview_confirmation", iv.company_id, {
+          subject: "Your interview is confirmed: {{date_time}}",
+          body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}. Your interviewer will share the meeting link before the call. We look forward to speaking with you.",
+        });
+        const tokens = { candidate_name: cand.full_name || "there", job_title: jobTitle, company_name: companyName, date_time: dateTime, meeting_link: "" };
+        await sendEmail({
+          to: cand.email,
+          subject: renderTemplate(tpl.subject, tokens),
+          html: companyShell({ companyName, logoUrl, heading: "Your interview is confirmed", preview: `Confirmed for ${dateTime}.`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)) }),
+        });
+      } catch (e) { console.error("candidate confirmation email failed", e); }
+    }
+
+    // 2) Interviewer notice (internal, no candidate-style sign-off).
+    if (iv.interviewer_email) {
+      try {
+        const tpl = await loadTemplate(admin, "interview_scheduled", iv.company_id, {
+          subject: "Interview scheduled: {{candidate_name}} for {{job_title}}",
+          body: "{{candidate_name}} confirmed an interview for the {{job_title}} role on {{date_time}}. It's on your calendar.",
+        });
+        const tokens = { candidate_name: cand?.full_name || "The candidate", job_title: jobTitle, date_time: dateTime, meeting_link: "" };
+        await sendEmail({
+          to: iv.interviewer_email,
+          subject: renderTemplate(tpl.subject, tokens),
+          html: companyShell({ companyName, logoUrl, heading: "Interview scheduled", preview: `${cand?.full_name || "A candidate"} confirmed ${dateTime}.`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)), signoff: false }),
+        });
+      } catch (e) { console.error("interviewer email failed", e); }
+    }
+
+    return json({ ok: true, company_name: companyName, job_title: jobTitle, date_time: dateTime });
+  } catch (e) {
+    console.error(e);
+    return json({ error: "unexpected error" }, 500);
+  }
+});

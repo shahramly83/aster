@@ -1,0 +1,86 @@
+// Supabase Edge Function: send-offer
+// ---------------------------------------------------------------------------
+// After HR sends an offer (the app has inserted the offers row + token), this
+// emails the candidate the offer with a link to /offer/<token> to accept or
+// decline. Verifies the caller belongs to the offer's company. Best-effort send.
+//
+// Secrets: RESEND_API_KEY (optional — skipped if unset)
+// Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+
+const SITE = "https://hireaster.com";
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+}
+
+async function jobTitleFor(admin: { from: (t: string) => any }, companyId: string, candidateId: string): Promise<string> {
+  const { data } = await admin.from("applications").select("created_at, jobs(title)")
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false }).limit(1);
+  return (data?.[0] as { jobs?: { title?: string } })?.jobs?.title || "the role";
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+
+  try {
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!token) return json({ error: "unauthorized" }, 401);
+    const { token: offerToken } = await req.json();
+    if (!offerToken) return json({ error: "token is required" }, 400);
+
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const { data: { user } } = await admin.auth.getUser(token);
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const { data: profile } = await admin.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
+    const companyId = profile?.company_id;
+    if (!companyId) return json({ error: "no company for this session" }, 403);
+
+    const { data: offer } = await admin.from("offers").select("company_id, candidate_id").eq("token", offerToken).maybeSingle();
+    if (!offer || offer.company_id !== companyId) return json({ error: "not found" }, 404);
+
+    const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", offer.candidate_id).maybeSingle();
+    if (!cand?.email) return json({ ok: true, skipped: "no_candidate_email" });
+
+    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", companyId).maybeSingle();
+    const companyName = comp?.name || "the hiring team";
+    const logoUrl = comp?.logo_url || null;
+    const jobTitle = await jobTitleFor(admin, companyId, offer.candidate_id);
+
+    const tpl = await loadTemplate(admin, "offer", companyId, {
+      subject: "You've been selected for the {{job_title}} role",
+      body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Please review and respond to your offer here: {{offer_link}}",
+    });
+    const tokens = {
+      candidate_name: cand.full_name || "there",
+      job_title: jobTitle,
+      company_name: companyName,
+      hr_contact: `${companyName} HR`,
+      offer_link: `${SITE}/offer/${offerToken}`,
+    };
+    await sendEmail({
+      to: cand.email,
+      subject: renderTemplate(tpl.subject, tokens),
+      html: companyShell({
+        companyName, logoUrl,
+        heading: "You've received an offer",
+        preview: `${companyName} has offered you the ${jobTitle} role.`,
+        bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)),
+      }),
+    });
+
+    return json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return json({ error: "unexpected error" }, 500);
+  }
+});

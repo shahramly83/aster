@@ -1,0 +1,52 @@
+name: Scheduled emails
+
+# Fires the cron-driven Tier 1 emails by calling the scheduled-emails edge
+# function. Monday's run does the weekly applicant digest; the daily run checks
+# for trials ending in 3 days. Gated by the CRON_SECRET header.
+#
+# Requires repository secrets:
+#   SUPABASE_URL       e.g. https://<project-ref>.supabase.co
+#   SUPABASE_ANON_KEY  passed as the bearer so the function's JWT check passes
+#   CRON_SECRET        shared secret; must match the function's CRON_SECRET env
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"   # Mondays 13:00 UTC → weekly_digest
+    - cron: "30 13 * * *"  # every day 13:30 UTC → trial_ending
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Task to run (weekly_digest | trial_ending)"
+        default: "trial_ending"
+
+concurrency:
+  group: scheduled-emails
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pick task
+        id: pick
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 13 * * 1" ]; then
+            echo "task=weekly_digest" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.task }}" ]; then
+            echo "task=${{ github.event.inputs.task }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "task=trial_ending" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Invoke scheduled-emails
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -X POST "$SUPABASE_URL/functions/v1/scheduled-emails" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{\"task\":\"${{ steps.pick.outputs.task }}\"}" \
+            --fail-with-body

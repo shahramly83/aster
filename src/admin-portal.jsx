@@ -95,6 +95,7 @@ const SECTIONS = [
   { key: "usage",         label: "Usage monitoring", icon: "chart",     roles: ["super", "support", "billing"] },
   { key: "support",       label: "Support logs",     icon: "headset",   roles: ["super", "support"] },
   { key: "flags",         label: "Feature flags",    icon: "flag",      roles: ["super"] },
+  { key: "email_templates", label: "Email templates", icon: "mail",     roles: ["super", "support"] },
   { key: "audit",         label: "Audit logs",       icon: "audit",     roles: ["super", "billing"] },
 ];
 
@@ -107,6 +108,7 @@ const PERMS = {
   "subscription.change": ["super", "billing"],
   "flag.toggle":         ["super"],
   "support.resolve":     ["super", "support"],
+  "template.edit":       ["super", "support"],
 };
 const can = (role, action) => (PERMS[action] || []).includes(role);
 const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.roles || []).includes(role);
@@ -625,6 +627,160 @@ function Flags({ role, flags, setFlags, audit, onToggle }) {
   );
 }
 
+// Tier 1 platform email templates — Aster → Company system mail. Bodies are raw
+// HTML (an admin edits them here); at send time each is wrapped in Aster's
+// branded shell (logo header + footer). Companies never see or edit these.
+const PLATFORM_EMAIL_TEMPLATE_DEFS = [
+  { key: "company_welcome", name: "Welcome (new company)", desc: "Sent when a new company signs up for Aster.",
+    tokens: ["recipient_name", "company_name", "cta_link"],
+    subject: "Welcome to Aster, {{company_name}}",
+    body: "<p>Hi {{recipient_name}},</p>\n<p>Welcome to Aster. Your workspace for {{company_name}} is ready, post your first role and let Aster read every application for you.</p>\n<p><a href=\"{{cta_link}}\">Open your dashboard</a></p>" },
+  { key: "teammate_invite", name: "Teammate invite", desc: "Sent when an owner or admin invites someone to their workspace.",
+    tokens: ["recipient_name", "inviter_name", "company_name", "role", "cta_link"],
+    subject: "{{inviter_name}} invited you to {{company_name}} on Aster",
+    body: "<p>Hi {{recipient_name}},</p>\n<p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as a {{role}}.</p>\n<p><a href=\"{{cta_link}}\">Accept the invite</a></p>" },
+  { key: "trial_ending", name: "Trial ending soon", desc: "Sent a few days before a company's free trial ends.",
+    tokens: ["recipient_name", "company_name", "trial_end_date", "cta_link"],
+    subject: "Your Aster trial ends {{trial_end_date}}",
+    body: "<p>Hi {{recipient_name}},</p>\n<p>Your free trial for {{company_name}} ends on {{trial_end_date}}. Add a plan to keep your jobs live and your candidate pipeline intact.</p>\n<p><a href=\"{{cta_link}}\">Choose a plan</a></p>" },
+  { key: "payment_failed", name: "Payment failed", desc: "Sent when a subscription payment is declined.",
+    tokens: ["recipient_name", "company_name", "amount", "cta_link"],
+    subject: "Action needed: payment failed for {{company_name}}",
+    body: "<p>Hi {{recipient_name}},</p>\n<p>We couldn't process your {{amount}} payment for {{company_name}}. Please update your billing details to avoid any interruption.</p>\n<p><a href=\"{{cta_link}}\">Update billing</a></p>" },
+  { key: "weekly_digest", name: "Weekly applicant digest", desc: "Weekly roll-up of new applicants. Only sent to active accounts that had activity that week.",
+    tokens: ["recipient_name", "company_name", "applicant_count", "job_count", "cta_link"],
+    subject: "Your week on Aster: {{applicant_count}} new applicants",
+    body: "<p>Hi {{recipient_name}},</p>\n<p>This week {{company_name}} received <strong>{{applicant_count}}</strong> new applicants across {{job_count}} roles.</p>\n<p><a href=\"{{cta_link}}\">Review them in your dashboard</a></p>" },
+];
+const PLATFORM_TOKEN_SAMPLES = {
+  recipient_name: "Alex Tan", company_name: "Oryx Studio", inviter_name: "Shah Ramly",
+  role: "Admin", cta_link: "https://hireaster.com/app", trial_end_date: "15 Jul 2026",
+  amount: "$49", applicant_count: "12", job_count: "3",
+};
+const fillPlatformTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => PLATFORM_TOKEN_SAMPLES[k] ?? `{{${k}}}`);
+
+// Admin editor for the Tier 1 (platform) templates above. Reads any saved
+// overrides for the platform scope, writes via the admin-only RPC.
+function EmailTemplatesAdmin({ role, audit }) {
+  const editable = can(role, "template.edit");
+  const [templates, setTemplates] = useState(() => Object.fromEntries(PLATFORM_EMAIL_TEMPLATE_DEFS.map((t) => [t.key, { subject: t.subject, body: t.body }])));
+  const [selected, setSelected] = useState(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  const def = PLATFORM_EMAIL_TEMPLATE_DEFS.find((t) => t.key === selected);
+
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let active = true;
+    supabase.from("email_templates").select("key, subject, body").eq("scope", "platform").then(({ data }) => {
+      if (!active || !Array.isArray(data) || !data.length) return;
+      setTemplates((prev) => {
+        const next = { ...prev };
+        for (const r of data) if (next[r.key]) next[r.key] = { subject: r.subject, body: r.body };
+        return next;
+      });
+    });
+    return () => { active = false; };
+  }, []);
+
+  const openTpl = (key) => { const t = templates[key]; setSelected(key); setSubject(t.subject); setBody(t.body); setMsg(""); setErr(""); setShowPreview(false); };
+  const dirty = def && (subject !== templates[selected].subject || body !== templates[selected].body);
+
+  const save = async () => {
+    setErr(""); setMsg("");
+    if (hasSupabase) {
+      setSaving(true);
+      const { error } = await supabase.rpc("set_platform_email_template", { p_key: selected, p_subject: subject, p_body: body });
+      setSaving(false);
+      if (error) { setErr(error.message || "Could not save."); return; }
+    }
+    setTemplates((prev) => ({ ...prev, [selected]: { subject, body } }));
+    audit("Edited platform email template", selected);
+    setMsg("Saved. This wording is used the next time the email sends.");
+  };
+
+  const previewDoc = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,Helvetica,sans-serif;color:#2A2740;font-size:14px;line-height:1.6;padding:14px;margin:0}a{color:#973BF7}</style></head><body>${fillPlatformTokens(body)}</body></html>`;
+
+  if (!selected) {
+    return (
+      <div>
+        <SectionHead title="Email templates" desc="System emails Aster sends to companies. Edited here, invisible to customers." />
+        <PrivacyNote>These are <strong>platform</strong> emails (Aster → company). Companies cannot see or edit them. Aster's logo header and footer are added automatically, so edit only the HTML body.</PrivacyNote>
+        <div className="grid gap-3">
+          {PLATFORM_EMAIL_TEMPLATE_DEFS.map((t) => (
+            <Card key={t.key} pad="p-4 sm:p-5">
+              <button onClick={() => openTpl(t.key)} className="w-full text-left flex items-center gap-4">
+                <span className="flex-1 min-w-0">
+                  <p className="font-semibold text-neutral-900">{t.name}</p>
+                  <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{t.desc}</p>
+                  <code className="text-[11px] mt-1.5 inline-block px-1.5 py-0.5 rounded" style={{ background: "#F3F3F7", color: "var(--ink-3)" }}>{t.key}</code>
+                </span>
+                <Icon name="chevronRight" className="w-5 h-5 shrink-0" />
+              </button>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <button onClick={() => setSelected(null)} className="text-sm font-semibold mb-4 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>← All templates</button>
+      <SectionHead title={def.name} desc={def.desc} />
+      {msg && <div className="rounded-xl px-4 py-3 mb-4 text-sm" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}>{msg}</div>}
+      {err && <div className="rounded-xl px-4 py-3 mb-4 text-sm" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{err}</div>}
+      <Card>
+        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Subject</label>
+        <input value={subject} onChange={(e) => { setSubject(e.target.value); setMsg(""); }} disabled={!editable}
+          className="w-full rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 mb-4 disabled:opacity-60"
+          style={{ border: "1px solid var(--line)", background: "#fff", "--tw-ring-color": "var(--brand)" }} />
+
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-xs font-semibold" style={{ color: "var(--ink-3)" }}>Body (HTML)</label>
+          <button onClick={() => setShowPreview((s) => !s)} className="text-xs font-semibold" style={{ color: "var(--brand)" }}>{showPreview ? "Edit HTML" : "Preview"}</button>
+        </div>
+
+        {showPreview ? (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
+            <p className="text-xs px-3 py-2" style={{ background: "#F7F7FB", color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>Subject: <span className="font-semibold text-neutral-800">{fillPlatformTokens(subject)}</span></p>
+            <iframe title="Email preview" sandbox="" srcDoc={previewDoc} className="w-full" style={{ height: 240, border: 0, background: "#fff" }} />
+            <p className="text-[11px] px-3 py-2" style={{ color: "var(--ink-3)" }}>Aster's logo header and footer are added automatically around this body.</p>
+          </div>
+        ) : (
+          <>
+            <textarea value={body} onChange={(e) => { setBody(e.target.value); setMsg(""); }} rows={12} disabled={!editable}
+              className="w-full rounded-xl px-3.5 py-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 font-mono leading-relaxed resize-y disabled:opacity-60"
+              style={{ border: "1px solid var(--line)", background: "#fff", "--tw-ring-color": "var(--brand)" }} />
+            <div className="mt-3">
+              <p className="text-[11px] mb-1.5" style={{ color: "var(--ink-3)" }}>Placeholders (filled when the email sends):</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(def.tokens || []).map((tok) => (
+                  <button key={tok} onClick={() => { if (editable) setBody((b) => `${b}{{${tok}}}`); }} disabled={!editable}
+                    className="text-[11px] font-mono rounded-full px-2 py-0.5 disabled:opacity-50" style={{ border: "1px solid var(--line-strong)", color: "var(--brand)", background: "var(--brand-soft)" }}>
+                    {`{{${tok}}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="mt-5 flex items-center gap-2">
+          <button onClick={save} disabled={!editable || !dirty || saving} className="text-sm font-semibold px-4 py-2 rounded-lg text-white grad disabled:opacity-40">{saving ? "Saving…" : "Save template"}</button>
+          {dirty && !saving && <button onClick={() => openTpl(selected)} className="text-sm font-semibold px-3.5 py-2 rounded-lg" style={{ border: "1px solid var(--line)", color: "var(--ink-2)", background: "#fff" }}>Reset</button>}
+        </div>
+        {!editable && <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>Your role can view but not edit these templates.</p>}
+      </Card>
+    </div>
+  );
+}
+
 function Audit({ audit }) {
   return (
     <div>
@@ -959,6 +1115,7 @@ export default function AdminPortal() {
       case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
       case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />; break;
+      case "email_templates": screen = <EmailTemplatesAdmin role={role} audit={logAudit} />; break;
       case "audit":         screen = <Audit audit={audit} />; break;
       default:              screen = <Dashboard role={role} companies={companies} tickets={tickets} audit={audit} go={go} />;
     }

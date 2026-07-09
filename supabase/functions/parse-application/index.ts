@@ -9,7 +9,7 @@
 //   "application received" confirmation email — optional; skipped if unset)
 // Auto-provided by Supabase:     SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, emailShell, esc } from "../_shared/email.ts";
+import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     // The job must exist and be open — this is the only thing that authorises
     // creating rows for its company.
     const { data: job, error: jobErr } = await admin
-      .from("jobs").select("company_id, status, title, details, expires_at, companies(name)").eq("id", job_id).maybeSingle();
+      .from("jobs").select("company_id, status, title, details, expires_at, companies(name, logo_url)").eq("id", job_id).maybeSingle();
     if (jobErr || !job) return json({ error: "job not found" }, 404);
     if (job.status !== "open") return json({ error: "job not open" }, 409);
     // Past its closing date → intake stops even though status is still 'open'.
@@ -317,29 +317,72 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- Confirm to the applicant that we received it (best-effort) ---
-    // Only on a first-time application, only when we have an email, and only if
-    // Resend is configured. A duplicate re-apply doesn't re-email.
-    if (isNewApplication && finalEmail) {
+    // --- Lifecycle email on a first-time application (best-effort) ---
+    // Only on a first-time application and only if Resend is configured; both
+    // sends are Tier 2 (company-branded, company-editable) and use the company's
+    // template override when one exists, else the code default below. A duplicate
+    // re-apply doesn't re-email.
+    if (isNewApplication) {
+      const companyRel = (job as { companies?: { name?: string; logo_url?: string } }).companies;
+      const companyName = companyRel?.name || "the hiring team";
+      const logoUrl = companyRel?.logo_url || null;
+      const roleTitle = job.title || "the role";
+
+      // Template tokens shared by both sends. Keep these key names in sync with
+      // the editor catalog (EMAIL_TEMPLATE_DEFS in resume-ai-preview.jsx) so a
+      // company edits the same template that actually gets sent.
+      const tokens = { candidate_name: fullName, job_title: roleTitle, company_name: companyName };
+
+      // 1) Confirm to the applicant: "application_received" (company-branded,
+      //    signed off "Best Regards, {company}").
+      if (finalEmail) {
+        try {
+          const tpl = await loadTemplate(admin, "application_received", companyId, {
+            subject: "We've received your application: {{job_title}}",
+            body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company_name}}. Your application came through and it's now with the team. A real person will review it, and you'll hear from us about next steps if there's a fit. No action is needed right now.",
+          });
+          await sendEmail({
+            to: finalEmail,
+            subject: renderTemplate(tpl.subject, tokens),
+            html: companyShell({
+              companyName, logoUrl,
+              heading: "Your application is in",
+              preview: `${companyName} received your application for ${roleTitle}.`,
+              bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)),
+            }),
+          });
+        } catch (e) {
+          console.error("applicant confirmation email failed", e); // non-fatal
+        }
+      }
+
+      // 2) Notify the company's owners/admins: "new_application" (internal alert
+      //    to the company itself, so no candidate-style sign-off).
       try {
-        const companyName = ((job as { companies?: { name?: string } }).companies?.name) || "the hiring team";
-        const roleTitle = job.title || "the role";
-        await sendEmail({
-          to: finalEmail,
-          subject: `We received your application — ${roleTitle}`,
-          html: emailShell({
-            heading: "Your application is in",
-            preview: `${companyName} received your application for ${roleTitle}.`,
-            bodyHtml: `
-              <p style="margin:0 0 14px;">Hi ${esc(fullName.split(" ")[0] || "there")},</p>
-              <p style="margin:0 0 14px;">Thanks for applying to <strong>${esc(roleTitle)}</strong> at <strong>${esc(companyName)}</strong>. Your resume came through and it's now with the team.</p>
-              <p style="margin:0 0 14px;">Aster reads every application, so a real person will review yours. If you're a match for what the role needs, you'll hear from ${esc(companyName)} about next steps. No action is needed from you right now.</p>
-              <p style="margin:0;">Good luck,<br>The team at ${esc(companyName)}</p>`,
-            footnote: `Sent because you applied to a role posted with Aster.`,
-          }),
-        });
+        const { data: recips } = await admin
+          .from("profiles").select("email")
+          .eq("company_id", companyId).in("role", ["owner", "admin"]).eq("status", "active")
+          .not("email", "is", null);
+        const to = (recips || []).map((r: { email: string }) => r.email).filter(Boolean);
+        if (to.length) {
+          const tpl = await loadTemplate(admin, "new_application", companyId, {
+            subject: "New application: {{job_title}}",
+            body: "{{candidate_name}} just applied for the {{job_title}} role.\n\nOpen your Aster dashboard to review the application.",
+          });
+          await sendEmail({
+            to,
+            subject: renderTemplate(tpl.subject, tokens),
+            html: companyShell({
+              companyName, logoUrl,
+              heading: "New application received",
+              preview: `${fullName} applied for ${roleTitle}.`,
+              bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)),
+              signoff: false,
+            }),
+          });
+        }
       } catch (e) {
-        console.error("application confirmation email failed", e); // non-fatal
+        console.error("company new-application email failed", e); // non-fatal
       }
     }
 

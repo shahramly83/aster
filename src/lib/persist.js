@@ -124,6 +124,43 @@ export async function dbSaveEmailTemplate(companyId, key, { subject, body }) {
   return { ok: true };
 }
 
+// Persist a pending interview invite (HR proposed times, awaiting the candidate)
+// and return its public booking token. interviewer_id is left null: the
+// scheduling roster is client-side and not necessarily real profiles, so the
+// interviewer's name/email are denormalised for notifications instead.
+export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = null, interviewerName = null, interviewerEmail = null, proposedSlots = [], provider = "google" }) {
+  if (!hasSupabase || !companyId || !candidateId) return null;
+  const { data, error } = await supabase
+    .from("interviews")
+    .insert({
+      company_id: companyId,
+      candidate_id: candidateId,
+      job_id: jobId,
+      interviewer_name: interviewerName,
+      interviewer_email: interviewerEmail,
+      proposed_slots: proposedSlots,
+      provider,
+      status: "sent",
+    })
+    .select("token")
+    .single();
+  if (error) { console.error("dbCreateInterviewInvite", error.message); return null; }
+  return data?.token || null;
+}
+
+// Persist an offer sent to a candidate and return its public token, so the app
+// can email the candidate a link to /offer/<token> to accept or decline.
+export async function dbCreateOffer(companyId, { candidateId, jobId = null }) {
+  if (!hasSupabase || !companyId || !candidateId) return null;
+  const { data, error } = await supabase
+    .from("offers")
+    .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" })
+    .select("token")
+    .single();
+  if (error) { console.error("dbCreateOffer", error.message); return null; }
+  return data?.token || null;
+}
+
 export async function dbAddScorecard(companyId, userId, { candidateId, jobId = null, ratings, notes }) {
   if (!hasSupabase || !companyId) return;
   const { error } = await supabase.from("scorecards").insert({

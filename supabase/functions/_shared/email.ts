@@ -100,6 +100,96 @@ export function emailShell(opts: { heading: string; bodyHtml: string; preview?: 
 </html>`;
 }
 
+// A company-branded shell (Tier 2): a company's own hiring mail to applicants /
+// candidates. Uses the company's uploaded logo (falling back to its name) in the
+// header and signs off "Best Regards, {companyName}" in the body. It carries NO
+// Aster footer — Tier 2 mail is the company's brand, not Aster's.
+export function companyShell(opts: {
+  companyName: string;
+  logoUrl?: string | null;
+  heading: string;
+  bodyHtml: string;
+  preview?: string;
+  signoff?: boolean;    // append "Best Regards, {companyName}" (default true)
+}): string {
+  const { companyName, logoUrl, heading, bodyHtml, preview = "", signoff = true } = opts;
+  const brand = logoUrl
+    ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" height="34" style="max-height:34px;max-width:200px;display:inline-block;vertical-align:middle;border:0;">`
+    : `<span style="font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:18px;color:#171326;vertical-align:middle;">${esc(companyName)}</span>`;
+  const sign = signoff
+    ? `<p style="margin:20px 0 0;">Best Regards,<br>${esc(companyName)}</p>`
+    : "";
+  return `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:0;background:#F4F2FA;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(preview)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F2FA;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #ECE7F5;border-radius:16px;overflow:hidden;">
+        <tr><td style="padding:26px 32px 0;">${brand}</td></tr>
+        <tr><td style="padding:22px 32px 4px;">
+          <h1 style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:21px;line-height:1.3;color:#171326;font-weight:700;">${esc(heading)}</h1>
+        </td></tr>
+        <tr><td style="padding:8px 32px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#4A4560;">
+          ${bodyHtml}
+          ${sign}
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+// Replace {{token}} placeholders with escaped values. Unknown tokens render as
+// empty. The surrounding template is trusted (code default or the editor); only
+// the interpolated values are escaped, so applicant names can't break the layout.
+export function renderTemplate(tpl: string, tokens: Record<string, unknown>): string {
+  return tpl.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, k) => esc(tokens[k as string]));
+}
+
+// Turn an already-escaped plain-text body (blank-line separated) into HTML
+// paragraphs, single newlines becoming <br>. Used to render company templates,
+// which are authored as plain text in the editor.
+export function paragraphs(text: string): string {
+  return String(text || "")
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p style="margin:0 0 14px;">${p.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+export interface EmailTemplate { subject: string; body: string; }
+
+// Resolve a template for a send. A company override wins; then a platform
+// default row; then the hardcoded `defaults` the caller ships. `admin` is a
+// service-role Supabase client (bypasses RLS). Never throws — falls back to
+// `defaults` on any error so a send is never blocked by a template lookup.
+export async function loadTemplate(
+  admin: { from: (table: string) => any },
+  key: string,
+  companyId: string | null,
+  defaults: EmailTemplate,
+): Promise<EmailTemplate> {
+  try {
+    if (companyId) {
+      const { data } = await admin.from("email_templates")
+        .select("subject, body, enabled")
+        .eq("scope", "company").eq("company_id", companyId).eq("key", key).maybeSingle();
+      if (data && data.enabled) return { subject: data.subject, body: data.body };
+    }
+    const { data: plat } = await admin.from("email_templates")
+      .select("subject, body, enabled")
+      .eq("scope", "platform").eq("key", key).maybeSingle();
+    if (plat && plat.enabled) return { subject: plat.subject, body: plat.body };
+  } catch (e) {
+    console.error("[email] loadTemplate failed, using default for", key, e);
+  }
+  return defaults;
+}
+
 // A simple purple call-to-action button (bulletproof-ish for common clients).
 export function button(label: string, href: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 6px;"><tr>

@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -1227,6 +1227,17 @@ function PreviewBanner() {
 
 // ---------- Screens ----------
 
+// Provision a brand-new company + owner, then best-effort send the "welcome to
+// Aster" email. Returns the RPC error (or null; "already exists" counts as
+// success). The welcome is exactly-once server-side (companies.welcomed_at), so
+// calling this on an idempotent re-run is a safe no-op.
+async function createCompanyAndWelcome(companyName, fullName) {
+  const { error } = await supabase.rpc("create_company_and_owner", { p_company_name: companyName, p_full_name: fullName || null });
+  if (error && !/already exists/i.test(error.message)) return error;
+  supabase.functions.invoke("send-welcome", { body: {} }).catch(() => { /* best-effort */ });
+  return null;
+}
+
 function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1265,8 +1276,8 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
     if (!sess) {
       const cn = user.user_metadata?.company_name;
       if (cn) {
-        const { error: rpcErr } = await supabase.rpc("create_company_and_owner", { p_company_name: cn, p_full_name: user.user_metadata?.full_name || null });
-        if (!rpcErr || /already exists/i.test(rpcErr.message)) sess = await loadCustomerSession(user.id, user.email);
+        const rpcErr = await createCompanyAndWelcome(cn, user.user_metadata?.full_name || null);
+        if (!rpcErr) sess = await loadCustomerSession(user.id, user.email);
       }
     }
     if (!sess) { await supabase.auth.signOut(); setErr("This account isn't linked to a workspace yet."); setBusy(false); return; }
@@ -6764,6 +6775,272 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
   );
 }
 
+// Landing for an emailed teammate invite (/?invite=<token>). The token is
+// previewed server-side (invite_preview) so we can greet the invitee and lock
+// the email to the invited address; they then create an account (or sign in),
+// and accept_invite joins them to the existing workspace (never a new company).
+function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
+  const [mode, setMode] = useState("create"); // 'create' | 'signin'
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false); // email-confirmation pending
+
+  const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]";
+  const fieldDarkStyle = { background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink)" };
+  const labelDark = "block text-[13px] font-medium mb-1.5";
+  const roleLabel = invite?.role === "admin" ? "an admin" : "an interviewer";
+
+  const acceptErr = (m) => {
+    if (/different email/i.test(m)) return "This invite is for a different email address.";
+    if (/invalid or expired/i.test(m)) return "This invite is invalid or has expired. Ask for a new one.";
+    return m;
+  };
+
+  // Redeem the invite for a freshly-authenticated user, then enter the workspace.
+  const acceptAndEnter = async (user) => {
+    const { error } = await supabase.rpc("accept_invite", { p_token: invite.token });
+    // "profile already exists" = they were already a member; treat as success.
+    if (error && !/already exists/i.test(error.message)) { setErr(acceptErr(error.message)); setBusy(false); return; }
+    const sess = await loadCustomerSession(user.id, invite.email);
+    if (!sess) { setErr("We couldn't add you to the workspace. The invite may have expired."); setBusy(false); return; }
+    onAuthed(sess);
+  };
+
+  const createAccount = async () => {
+    if (busy) return;
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) { setErr(pwProblem); return; }
+    setBusy(true); setErr(null);
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    // No company_name in metadata: an invited user must not auto-provision a new
+    // company. The confirmation link keeps ?invite= so the accept survives it.
+    const { data, error } = await supabase.auth.signUp({
+      email: invite.email, password,
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/?invite=${invite.token}` : undefined,
+      },
+    });
+    if (error) {
+      if (/already registered/i.test(error.message)) { setMode("signin"); setErr("You already have an account. Sign in to accept the invite."); setBusy(false); return; }
+      setErr(error.message); setBusy(false); return;
+    }
+    if (!data.session) { setSent(true); setBusy(false); return; } // email confirmation on
+    await acceptAndEnter(data.user);
+  };
+
+  const signInAccept = async () => {
+    if (busy) return;
+    if (!password) { setErr("Enter your password."); return; }
+    setBusy(true); setErr(null);
+    const { data, error } = await supabase.auth.signInWithPassword({ email: invite.email, password });
+    if (error) { setErr(/invalid login credentials/i.test(error.message) ? "Email or password is incorrect." : error.message); setBusy(false); return; }
+    await acceptAndEnter(data.user);
+  };
+
+  const submit = () => (mode === "create" ? createAccount() : signInAccept());
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "#fff" }}>
+      <div className="w-full max-w-md">
+        <button onClick={() => navigate("landing")} aria-label="Back to Aster home" className="mb-8 inline-flex [&_img]:!h-11">
+          <BrandLogo logoUrl={logoUrl} />
+        </button>
+        {sent ? (
+          <div>
+            <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Check your email</h1>
+            <p className="text-sm mt-2" style={{ color: "var(--ink-2)" }}>We sent a confirmation link to <strong>{invite?.email}</strong>. Open it to finish joining <strong>{invite?.company}</strong>.</p>
+          </div>
+        ) : (<>
+          <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Join {invite?.company || "the workspace"}</h1>
+          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>You've been invited to join <strong>{invite?.company}</strong> as {roleLabel} on Aster. {mode === "create" ? "Create your account to accept." : "Sign in to accept."}</p>
+
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+            <div>
+              <label className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
+              <input type="email" value={invite?.email || ""} readOnly disabled className={fieldDark} style={{ ...fieldDarkStyle, opacity: 0.7 }} />
+            </div>
+            {mode === "create" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelDark} style={{ color: "var(--ink)" }}>First name</label>
+                  <input value={firstName} onChange={(e) => { setFirstName(e.target.value); setErr(null); }} placeholder="Jane" className={fieldDark} style={fieldDarkStyle} />
+                </div>
+                <div>
+                  <label className={labelDark} style={{ color: "var(--ink)" }}>Last name</label>
+                  <input value={lastName} onChange={(e) => { setLastName(e.target.value); setErr(null); }} placeholder="Tan" className={fieldDark} style={fieldDarkStyle} />
+                </div>
+              </div>
+            )}
+            <div>
+              <label className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
+              <div className="relative">
+                <input type={showPassword ? "text" : "password"} autoComplete={mode === "create" ? "new-password" : "current-password"} value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder={mode === "create" ? "Create a password" : "Enter your password"} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                  <Icon name="eye" className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {err && <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>}
+            <button type="submit" disabled={busy} className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all disabled:opacity-60">
+              {busy ? "Joining…" : mode === "create" ? "Create account & join" : "Sign in & join"}
+            </button>
+          </form>
+
+          <p className="text-sm text-center mt-5" style={{ color: "var(--ink-2)" }}>
+            {mode === "create" ? "Already have an account?" : "Need a new account?"}{" "}
+            <button onClick={() => { setMode(mode === "create" ? "signin" : "create"); setErr(null); }} className="font-semibold hover:opacity-80" style={{ color: "var(--brand)" }}>
+              {mode === "create" ? "Sign in" : "Create one"}
+            </button>
+          </p>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+// Public interview booking page (/book/<token>): a candidate opens the emailed
+// link, sees the times HR proposed, and picks one. No login. Confirming calls the
+// confirm-booking function (via onConfirm), which persists the slot + emails the
+// interviewer and candidate.
+function BookInterviewScreen({ data, done, onConfirm }) {
+  const [choosing, setChoosing] = useState(null); // slot start being confirmed
+  const [err, setErr] = useState(null);
+  const [confirmedStart, setConfirmedStart] = useState(data?.scheduled_at || null);
+  const company = data?.company_name || "The team";
+  const logoUrl = data?.logo_url || null;
+  const jobTitle = data?.job_title || "the role";
+  const slots = Array.isArray(data?.proposed_slots) ? data.proposed_slots : [];
+
+  const fmt = (iso) => {
+    try { return new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); }
+    catch { return iso; }
+  };
+
+  const pick = async (start) => {
+    setErr(null); setChoosing(start);
+    const res = await onConfirm(start);
+    setChoosing(null);
+    if (!res.ok) { setErr(res.error || "Could not confirm that time. Please try another."); return; }
+    setConfirmedStart(start);
+  };
+
+  const isDone = done || confirmedStart;
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
+        <div className="mb-5 flex items-center gap-3">
+          {logoUrl
+            ? <img src={logoUrl} alt={company} style={{ height: 32, maxWidth: 160, objectFit: "contain" }} />
+            : <span className="text-lg font-bold" style={{ color: "var(--ink)" }}>{company}</span>}
+        </div>
+        {isDone ? (
+          <>
+            <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name="check" className="w-5 h-5" />
+            </div>
+            <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
+            <p className="text-sm" style={{ color: "var(--ink-2)" }}>Your interview for the {jobTitle} role is booked for <strong>{fmt(confirmedStart || data.scheduled_at)}</strong>. {company} will email you the details and meeting link before the call.</p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Pick a time for your interview</h1>
+            <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{company} would like to interview you for the <strong>{jobTitle}</strong> role. Choose a time that works for you.</p>
+            {slots.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--ink-3)" }}>No times are available right now. Please reply to the invite email.</p>
+            ) : (
+              <div className="space-y-2">
+                {slots.map((s) => (
+                  <button key={s.start} onClick={() => pick(s.start)} disabled={!!choosing}
+                    className="w-full text-left rounded-xl border px-4 py-3 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:opacity-50 flex items-center justify-between"
+                    style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
+                    <span>{fmt(s.start)}</span>
+                    {choosing === s.start ? <span className="text-xs" style={{ color: "var(--ink-3)" }}>Confirming…</span> : <Icon name="chevronRight" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />}
+                  </button>
+                ))}
+              </div>
+            )}
+            {err && <p className="text-sm mt-4" style={{ color: "#B42318" }}>{err}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Public offer page (/offer/<token>): the candidate opens the emailed link and
+// accepts or declines. No login. Responding calls the respond-offer function
+// (via onRespond), which records it and — on accept — emails the company and
+// moves the candidate to Hired.
+function OfferScreen({ data, done, onRespond }) {
+  const [busy, setBusy] = useState(null); // 'accepted' | 'declined' while submitting
+  const [err, setErr] = useState(null);
+  const [result, setResult] = useState(data?.status && data.status !== "sent" ? data.status : null);
+  const company = data?.company_name || "The team";
+  const logoUrl = data?.logo_url || null;
+  const jobTitle = data?.job_title || "the role";
+
+  const respond = async (response) => {
+    setErr(null); setBusy(response);
+    const res = await onRespond(response);
+    setBusy(null);
+    if (!res.ok) { setErr(res.error || "Something went wrong. Please try again."); return; }
+    setResult(response);
+  };
+
+  const settled = done || result;
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
+        <div className="mb-5 flex items-center gap-3">
+          {logoUrl
+            ? <img src={logoUrl} alt={company} style={{ height: 32, maxWidth: 160, objectFit: "contain" }} />
+            : <span className="text-lg font-bold" style={{ color: "var(--ink)" }}>{company}</span>}
+        </div>
+        {settled ? (
+          (result || data.status) === "accepted" ? (
+            <>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <Icon name="check" className="w-5 h-5" />
+              </div>
+              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer accepted</h1>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>Congratulations, and welcome to {company}! They'll be in touch shortly with your onboarding details and start date.</p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Response recorded</h1>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>You've declined the offer for the {jobTitle} role. Thank you for letting {company} know.</p>
+            </>
+          )
+        ) : (
+          <>
+            <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>You've received an offer</h1>
+            <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{company} has offered you the <strong>{jobTitle}</strong> role. Let them know your decision below.</p>
+            <div className="flex gap-2">
+              <button onClick={() => respond("accepted")} disabled={!!busy}
+                className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-50">
+                {busy === "accepted" ? "Accepting…" : "Accept offer"}
+              </button>
+              <button onClick={() => respond("declined")} disabled={!!busy}
+                className="flex-1 rounded-xl border text-sm font-semibold py-3 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                {busy === "declined" ? "Declining…" : "Decline"}
+              </button>
+            </div>
+            {err && <p className="text-sm mt-4" style={{ color: "#B42318" }}>{err}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft, ssoEnabled = false }) {
   const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -6865,12 +7142,10 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     if (!data.session) { setSent(true); setBusy(false); return; }
 
     // Create the company + owner profile + 14-day trial (SECURITY DEFINER RPC,
-    // which is how a brand-new user gets past RLS to provision themselves).
-    const { error: rpcErr } = await supabase.rpc("create_company_and_owner", {
-      p_company_name: companyName.trim(),
-      p_full_name: fullName,
-    });
-    if (rpcErr && !/already exists/i.test(rpcErr.message)) {
+    // which is how a brand-new user gets past RLS to provision themselves), then
+    // send the welcome email.
+    const rpcErr = await createCompanyAndWelcome(companyName.trim(), fullName);
+    if (rpcErr) {
       setErr(rpcErr.message);
       setBusy(false);
       return;
@@ -11964,6 +12239,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [banner, setBanner] = useState(null);
+  const [sending, setSending] = useState(false);
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
 
   const ownerName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim();
@@ -11982,11 +12258,25 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
       (b) => b && b.status === "scheduled" && b.request?.interviewerName === iv.name
     ).length;
 
-  const handleAdd = () => {
-    if (!canAddInterviewers || !name || !email) return;
+  const handleAdd = async () => {
+    if (!canAddInterviewers || !name || !email || sending) return;
     if (atSeatCap) {
       setBanner(`Your plan includes ${limits.interviewers} interviewer${limits.interviewers === 1 ? "" : "s"}. Upgrade for more, or unlimited on Pro.`);
       return;
+    }
+    // When the workspace is live, create the real invitation and email it via
+    // the edge function; surface any server-side error (seat limit, already a
+    // member, permission). In the mock preview, just reflect it locally.
+    if (hasSupabase) {
+      setSending(true);
+      const { data, error } = await supabase.functions.invoke("send-teammate-invite", {
+        body: { email, name, role: "interviewer" },
+      });
+      setSending(false);
+      if (error || data?.error) {
+        setBanner(data?.error || error?.message || "Could not send the invite. Try again in a moment.");
+        return;
+      }
     }
     setInterviewers([
       ...interviewers,
@@ -11998,7 +12288,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
         status: "pending",
       },
     ]);
-    setBanner(`Invite sent to ${email}. They'll get a link to join your workspace and run interviews.`);
+    setBanner(`Invite sent to ${email}. They'll get an email with a link to join your workspace and run interviews.`);
     setName("");
     setEmail("");
     setShowForm(false);
@@ -12086,8 +12376,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
               <label className={labelClass}>Work email</label>
               <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@company.com" className={inputClass} />
             </div>
-            <button onClick={handleAdd} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">
-              Send invite
+            <button onClick={handleAdd} disabled={sending} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50">
+              {sending ? "Sending…" : "Send invite"}
             </button>
             <p className="text-xs text-neutral-400">They'll get an email to join your workspace. Teammates are included in your plan. They don't buy their own.</p>
           </div>
@@ -12493,7 +12783,9 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         slot_duration_minutes: 30,
         proposed_slots: slots,
         jobTitle: activeJobTitle,
+        jobId: fixedJob?.id ?? jobId,
         interviewerName: selectedInterviewer?.name,
+        interviewerEmail: selectedInterviewer?.email,
       });
       // Pre-select all AI-suggested slots; HR can deselect the ones they don't want.
       setSelectedSlots(slots.map((s) => s.start));
@@ -13653,18 +13945,26 @@ const EMAIL_TEMPLATE_DEFS = [
     tokens: ["candidate_name", "job_title", "interviewer_name", "booking_link"],
     subject: "Interview invitation: {{job_title}}",
     body: "Hi {{candidate_name}},\n\nWe'd love to interview you for the {{job_title}} role. Your interviewer will be {{interviewer_name}}.\n\nPlease pick a time that works for you here: {{booking_link}}" },
-  { key: "interview_confirmation", name: "Interview confirmation", desc: "Sent once the candidate picks a slot.",
+  { key: "interview_confirmation", name: "Interview confirmation", desc: "Sent to the candidate once they pick a slot.",
     tokens: ["candidate_name", "job_title", "date_time", "meeting_link"],
     subject: "Your interview is confirmed: {{date_time}}",
-    body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}.\n\nJoin here: {{meeting_link}}" },
-  { key: "offer", name: "Offer: you've been selected", desc: "Sent when you make an offer. Includes the accept / decline links.",
-    tokens: ["candidate_name", "job_title", "company_name", "hr_contact"],
+    body: "Hi {{candidate_name}},\n\nYour interview for the {{job_title}} role is confirmed for {{date_time}}. Your interviewer will share the meeting link before the call. We look forward to speaking with you." },
+  { key: "interview_scheduled", name: "Interview scheduled (to interviewer)", desc: "Sent to the interviewer once the candidate confirms a time.", toCompany: true,
+    tokens: ["candidate_name", "job_title", "date_time"],
+    subject: "Interview scheduled: {{candidate_name}} for {{job_title}}",
+    body: "{{candidate_name}} confirmed an interview for the {{job_title}} role on {{date_time}}. It's on your calendar." },
+  { key: "offer", name: "Offer: you've been selected", desc: "Sent to the candidate when you send an offer. Includes the accept / decline link.",
+    tokens: ["candidate_name", "job_title", "company_name", "hr_contact", "offer_link"],
     subject: "You've been selected for the {{job_title}} role",
-    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Our HR team ({{hr_contact}}) will be in touch with the details.\n\nPlease confirm whether you'd like to accept using the buttons below." },
-  { key: "welcome_hired", name: "Welcome: offer accepted", desc: "Sent after a candidate accepts their offer.",
+    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Please review and respond to your offer here: {{offer_link}}" },
+  { key: "welcome_hired", name: "Welcome: offer accepted", desc: "Sent to the candidate after they accept their offer.",
     tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Welcome to {{company_name}}, {{candidate_name}}!",
     body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date." },
+  { key: "offer_accepted", name: "Offer accepted (to your team)", desc: "Sent to your team when a candidate accepts their offer.", toCompany: true,
+    tokens: ["candidate_name", "job_title"],
+    subject: "{{candidate_name}} accepted your offer",
+    body: "{{candidate_name}} accepted your offer for the {{job_title}} role. They've been moved to Hired in your pipeline." },
   { key: "rejection", name: "Rejection: application update", desc: "Sent when you reject a candidate with an email.",
     tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Update on your application: {{job_title}}",
@@ -13680,6 +13980,7 @@ const TOKEN_SAMPLES = {
   company_name: "Oryx Studio", company_address: "Level 12, Menara Aster, Jalan Ampang, 50450 Kuala Lumpur",
   hr_contact: "Farah (HR)", interviewer_name: "Jane Tan", booking_link: "hireaster.com/book/xxxx",
   date_time: "Tue 8 Jul, 2:00 PM", meeting_link: "meet.google.com/xxx-xxxx", apply_link: "hireaster.com/apply/xxxx",
+  offer_link: "hireaster.com/offer/xxxx", booking_link: "hireaster.com/book/xxxx",
 };
 const fillTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => TOKEN_SAMPLES[k] ?? `{{${k}}}`);
 
@@ -16550,7 +16851,7 @@ const PATH_TO_SCREEN = {
   "/schedule": "dashboard", // needs a picked booking -> fall back on refresh
   "/apply": "dashboard",     // needs a picked job -> fall back on refresh
 };
-const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword"]);
+const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "acceptInvite", "bookInterview", "publicOffer"]);
 
 // Each candidate profile has its own deep-linkable URL, /candidates/<id>.
 function candidateIdFromPath(pathname) {
@@ -16614,8 +16915,20 @@ function applyJobFromPath(pathname) {
   const m = (pathname || "").match(/^\/apply\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
 }
+// Public interview booking page: /book/<token>, emailed to the candidate.
+function bookTokenFromPath(pathname) {
+  const m = (pathname || "").match(/^\/book\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+// Public offer accept/decline page: /offer/<token>, emailed to the candidate.
+function offerTokenFromPath(pathname) {
+  const m = (pathname || "").match(/^\/offer\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 function screenFromPath(pathname) {
   if (applyJobFromPath(pathname)) return "apply";
+  if (bookTokenFromPath(pathname)) return "bookInterview";
+  if (offerTokenFromPath(pathname)) return "publicOffer";
   if (candidateIdFromPath(pathname)) return "candidateProfile";
   if (applicantsJobFromPath(pathname)) return "applicants";
   if (productSlugFromPath(pathname) != null) return "product";
@@ -16863,6 +17176,8 @@ function initialHistoryFromUrl() {
   if (typeof window === "undefined") return ["landing"];
   const screen = screenFromPath(window.location.pathname);
   if (screen === "apply") return ["apply"]; // public apply link: standalone, no dashboard base
+  if (screen === "bookInterview") return ["bookInterview"]; // public booking link: standalone
+  if (screen === "publicOffer") return ["publicOffer"]; // public offer link: standalone
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
   if (screen === "product") return ["landing", "product"]; // public page; Back → landing
   if (screen === "solutions") return ["landing", "solutions"]; // public page; Back → landing
@@ -17063,6 +17378,59 @@ export default function ResumeAIPreview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, previewApplyJob]);
 
+  // Public interview booking page (candidate opened /book/<token> from an email,
+  // no login). Preview the invite so we can render the proposed times.
+  const [publicBooking, setPublicBooking] = useState(null); // { token, status: loading|notfound|ok|done, data? }
+  useEffect(() => {
+    if (screen !== "bookInterview" || typeof window === "undefined") return;
+    const token = bookTokenFromPath(window.location.pathname);
+    if (!token || publicBooking?.token === token) return;
+    setPublicBooking({ token, status: "loading" });
+    (async () => {
+      if (!hasSupabase) { setPublicBooking({ token, status: "notfound" }); return; }
+      const { data, error } = await supabase.rpc("book_interview_preview", { p_token: token });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (error || !row) { setPublicBooking({ token, status: "notfound" }); return; }
+      setPublicBooking({ token, status: row.status === "scheduled" ? "done" : "ok", data: row });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
+
+  // Candidate picked a slot: persist + notify via the confirm-booking function.
+  const confirmPublicBooking = async (start) => {
+    if (!publicBooking?.token) return { ok: false };
+    const { data, error } = await supabase.functions.invoke("confirm-booking", { body: { token: publicBooking.token, start } });
+    if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Could not confirm this time." };
+    setPublicBooking((p) => ({ ...p, status: "done", data: { ...p.data, status: "scheduled", scheduled_at: start } }));
+    return { ok: true };
+  };
+
+  // Public offer accept/decline page (candidate opened /offer/<token>, no login).
+  const [publicOffer, setPublicOffer] = useState(null); // { token, status: loading|notfound|ok|done, data? }
+  useEffect(() => {
+    if (screen !== "publicOffer" || typeof window === "undefined") return;
+    const token = offerTokenFromPath(window.location.pathname);
+    if (!token || publicOffer?.token === token) return;
+    setPublicOffer({ token, status: "loading" });
+    (async () => {
+      if (!hasSupabase) { setPublicOffer({ token, status: "notfound" }); return; }
+      const { data, error } = await supabase.rpc("offer_preview", { p_token: token });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (error || !row) { setPublicOffer({ token, status: "notfound" }); return; }
+      setPublicOffer({ token, status: row.status === "sent" ? "ok" : "done", data: row });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
+
+  // Candidate accepted or declined: record + notify via the respond-offer function.
+  const respondPublicOffer = async (response) => {
+    if (!publicOffer?.token) return { ok: false };
+    const { data, error } = await supabase.functions.invoke("respond-offer", { body: { token: publicOffer.token, response } });
+    if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Could not record your response." };
+    setPublicOffer((p) => ({ ...p, status: "done", data: { ...p.data, status: response } }));
+    return { ok: true };
+  };
+
   // Central scroll management: forward navigation starts the new screen at the
   // top; Back restores the scroll position of the screen you're returning to.
   // Positions are keyed by stack depth (one entry per screen in the history).
@@ -17238,6 +17606,27 @@ export default function ResumeAIPreview() {
     navigate("login");
   };
 
+  // A pending teammate invite from the emailed link (/?invite=<token>). Previewed
+  // server-side (invite_preview) so we can greet the invitee and lock the email
+  // before they create an account or sign in.
+  const [invite, setInvite] = useState(null);
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasSupabase) return;
+    const token = new URLSearchParams(window.location.search).get("invite");
+    if (!token) return;
+    let alive = true;
+    supabase.rpc("invite_preview", { p_token: token }).then(({ data }) => {
+      if (!alive) return;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row && row.email) {
+        setInvite({ token, email: String(row.email).toLowerCase(), company: row.company_name, role: row.role });
+        navigate("acceptInvite", `/?invite=${encodeURIComponent(token)}`);
+      }
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Restore a signed-in customer on load so the workspace greets them by their
   // real name / company / plan. Admins have no profile row, so they're ignored.
   useEffect(() => {
@@ -17286,16 +17675,22 @@ export default function ResumeAIPreview() {
       handled = session.user.id;
       try {
         let sess = await loadCustomerSession(session.user.id, email);
+        // Returning to accept a teammate invite (e.g. after email confirmation):
+        // if the URL still carries the token and this user has no workspace yet,
+        // redeem it before falling back to SSO provisioning.
+        const inviteTok = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") : null;
+        if (!sess && inviteTok) {
+          const { error: accErr } = await supabase.rpc("accept_invite", { p_token: inviteTok });
+          if (!accErr || /already exists/i.test(accErr.message)) sess = await loadCustomerSession(session.user.id, email);
+        }
         // First-time SSO user with no workspace yet: provision one from their work
         // domain (matches the password-signup provisioning path), then reload.
         if (!sess && isSSO && isBusinessEmail(email)) {
-          const { error: rpcErr } = await supabase.rpc("create_company_and_owner", {
-            p_company_name: companyFromEmail(email),
-            p_full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || null,
-          });
-          if (!rpcErr || /already exists/i.test(rpcErr.message)) {
-            sess = await loadCustomerSession(session.user.id, email);
-          }
+          const rpcErr = await createCompanyAndWelcome(
+            companyFromEmail(email),
+            session.user.user_metadata?.full_name || session.user.user_metadata?.name || null,
+          );
+          if (!rpcErr) sess = await loadCustomerSession(session.user.id, email);
         }
         if (cancelled || !sess) return;
         setProfile(sess.profile);
@@ -17456,18 +17851,43 @@ export default function ResumeAIPreview() {
     });
   };
 
-  // HR sent the invite (times proposed, awaiting candidate).
+  // HR sent the invite (times proposed, awaiting candidate). On a live workspace,
+  // persist the interview-invite row and email the candidate a link to /book/<token>.
   const markInviteSent = (candidateId, request) => {
     setBookings((prev) => ({
       ...prev,
       [candidateId]: { status: "sent", request, confirmedSlot: null, provider: defaultProvider },
     }));
+    if (canPersist) {
+      dbCreateInterviewInvite(companyId, {
+        candidateId,
+        jobId: request.jobId || null,
+        interviewerName: request.interviewerName || null,
+        interviewerEmail: request.interviewerEmail || null,
+        proposedSlots: request.proposed_slots || [],
+        provider: defaultProvider,
+      }).then((token) => {
+        if (token) supabase.functions.invoke("send-interview-invite", { body: { token } }).catch(() => {});
+      });
+    }
   };
 
-  // HR manually changed a candidate's pipeline stage from the applicants list.
-  const setCandidateStage = (candidateId, stage) => {
+  // HR changed a candidate's pipeline stage. Persists it, and on a real move into
+  // offer / hired / rejected also emails the candidate the matching Tier 2
+  // template. `notify` is false for the "simulate the candidate's reply" preview,
+  // which must never send a real email.
+  const setCandidateStage = (candidateId, stage, { notify = true } = {}) => {
+    const prevStage = stageOverrides[candidateId];
     setStageOverrides((prev) => ({ ...prev, [candidateId]: stage }));
-    if (canPersist) dbSetCandidateStage(companyId, candidateId, stage);
+    if (!canPersist || prevStage === stage) return;
+    dbSetCandidateStage(companyId, candidateId, stage);
+    // 'offer' is intentionally excluded: offers are sent via the dedicated
+    // sendOffer flow (which emails an accept/decline link), not here.
+    if (notify && (stage === "hired" || stage === "rejected")) {
+      supabase.functions
+        .invoke("send-stage-email", { body: { candidate_id: candidateId, stage } })
+        .catch(() => { /* best-effort: never block the stage change on email */ });
+    }
   };
 
   // Delete a candidate for good. Applications and scorecards cascade via FK; a DB
@@ -17488,12 +17908,21 @@ export default function ResumeAIPreview() {
   const [hiredDates, setHiredDates] = useState({ c8: "2026-06-18" });
   const sendOffer = (candidateId, emailSent) => {
     setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now" } }));
-    setCandidateStage(candidateId, "offer");
+    // Move to Offer without the generic stage email; the offer email (with the
+    // accept/decline link) is sent by send-offer below when HR chose to email.
+    setCandidateStage(candidateId, "offer", { notify: false });
+    if (canPersist && emailSent) {
+      dbCreateOffer(companyId, { candidateId }).then((token) => {
+        if (token) supabase.functions.invoke("send-offer", { body: { token } }).catch(() => {});
+      });
+    }
   };
   const respondOffer = (candidateId, accepted) => {
     setOffers((prev) => ({ ...prev, [candidateId]: { ...(prev[candidateId] || {}), status: accepted ? "accepted" : "declined" } }));
     if (accepted) {
-      setCandidateStage(candidateId, "hired");
+      // This is the preview "simulate the candidate's reply" action, so move the
+      // stage but don't email (notify:false) — a real hire is an HR-set stage.
+      setCandidateStage(candidateId, "hired", { notify: false });
       setHiredDates((prev) => ({ ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
     }
   };
@@ -17638,6 +18067,16 @@ export default function ResumeAIPreview() {
     );
   }
 
+  if (screen === "acceptInvite") {
+    return (
+      <Shell>
+        {invite
+          ? <AcceptInviteScreen invite={invite} onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} />
+          : <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />}
+      </Shell>
+    );
+  }
+
   if (screen === "schedulePicker") {
     return (
       <Shell>
@@ -17646,6 +18085,52 @@ export default function ResumeAIPreview() {
           request={previewRequest}
           onConfirm={(slot) => previewRequest && confirmBooking(previewRequest.candidateId, slot)}
         />
+      </Shell>
+    );
+  }
+
+  if (screen === "bookInterview") {
+    const b = publicBooking;
+    const centered = (node) => (
+      <Shell><div className="min-h-dvh flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>{node}</div></Shell>
+    );
+    if (!b || b.status === "loading") {
+      return centered(<div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid var(--line-strong)", borderTopColor: "var(--brand)" }} />);
+    }
+    if (b.status === "notfound" || !b.data) {
+      return centered(
+        <div className="text-center max-w-sm">
+          <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Booking link not found</h1>
+          <p className="text-sm" style={{ color: "var(--ink-2)" }}>This interview link isn't valid. It may be out of date, or the interview was already scheduled.</p>
+        </div>
+      );
+    }
+    return (
+      <Shell>
+        <BookInterviewScreen data={b.data} done={b.status === "done"} onConfirm={confirmPublicBooking} />
+      </Shell>
+    );
+  }
+
+  if (screen === "publicOffer") {
+    const o = publicOffer;
+    const centered = (node) => (
+      <Shell><div className="min-h-dvh flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>{node}</div></Shell>
+    );
+    if (!o || o.status === "loading") {
+      return centered(<div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid var(--line-strong)", borderTopColor: "var(--brand)" }} />);
+    }
+    if (o.status === "notfound" || !o.data) {
+      return centered(
+        <div className="text-center max-w-sm">
+          <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Offer not found</h1>
+          <p className="text-sm" style={{ color: "var(--ink-2)" }}>This offer link isn't valid. It may be out of date, or the offer was withdrawn.</p>
+        </div>
+      );
+    }
+    return (
+      <Shell>
+        <OfferScreen data={o.data} done={o.status === "done"} onRespond={respondPublicOffer} />
       </Shell>
     );
   }
