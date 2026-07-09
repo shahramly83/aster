@@ -33,7 +33,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
       role: ROLE_LABELS[data.role] || "Hiring Manager",
     },
     company: data.companies?.name || "Your workspace",
-    plan: data.companies?.plan || "starter",
+    plan: data.companies?.plan || "free",
   };
 }
 
