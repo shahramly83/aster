@@ -3,6 +3,119 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "the-intake-meeting-that-makes-the-rest-of-the-hire-easier",
+    "title": "The intake meeting that makes the rest of the hire easier",
+    "category": "recruiting-ops",
+    "excerpt": "Most hiring delays start before the first resume. A tight 45-minute intake meeting with the hiring manager prevents them.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-07-09",
+    "readMins": 5,
+    "tags": [
+      "intake",
+      "hiring-managers",
+      "process",
+      "alignment"
+    ],
+    "body": [
+      {
+        "p": "Most slow hires are not slow because of a hard candidate market. They are slow because the recruiter and the hiring manager never actually agreed on what they were hiring for. The role gets posted on a rough guess, resumes pile up, the shortlist gets rejected, the requirements shift, and everyone starts over a week later."
+      },
+      {
+        "p": "The fix is boring and it works: a real intake meeting before the job goes live. Forty-five minutes with the hiring manager, structured on purpose, and the whole search runs on rails after that. Here is how to run one that pays for itself."
+      },
+      {
+        "h": "Why the intake meeting is the highest-leverage 45 minutes you'll spend"
+      },
+      {
+        "p": "Every misalignment you catch in the intake is a misalignment you don't discover three weeks in, after you've screened forty people against the wrong bar. A vague brief compounds. A sharp one compounds too, in your favor: cleaner sourcing, faster screening, shorter debates over the shortlist, and interviewers who know exactly what they're checking."
+      },
+      {
+        "p": "The goal of the meeting is not to fill out a form. It's to leave with **one shared definition of a strong candidate** that you and the hiring manager would both defend. If you can't write that definition in two sentences at the end, the meeting isn't over."
+      },
+      {
+        "quote": "A vague brief doesn't save time at the start. It just moves the delay to the shortlist, where it costs more."
+      },
+      {
+        "h": "Come prepared, don't show up blank"
+      },
+      {
+        "p": "Send a short agenda in advance and do your homework. Pull the last version of this role if it existed, look at who's on the team today, and check what similar roles paid in your last two hires. Hiring managers respect a recruiter who arrives with a point of view, and the meeting moves faster when you're reacting to a draft instead of starting from nothing."
+      },
+      {
+        "h": "The questions that actually matter"
+      },
+      {
+        "p": "You can skip the generic template. These are the ones that change how the search runs:"
+      },
+      {
+        "ul": [
+          "What does this person do in their first 90 days? Concrete projects, not a mission statement. This is where the real requirements hide.",
+          "What are the three or four things they have to be good at, and what can they learn on the job? Separating these two is the whole game.",
+          "Show me one person, real or imagined, who would be perfect. What's on their resume? What are they doing now?",
+          "What's a resume that looks great but is actually wrong for this role? This surfaces the false positives before they clog your pipeline.",
+          "Who are the last two people you hired that worked out, and the last one that didn't? Patterns beat abstractions.",
+          "What's non-negotiable versus nice-to-have? Push on every 'required' until the manager admits which ones are real."
+        ]
+      },
+      {
+        "p": "That last question does the heavy lifting. Most job descriptions list ten requirements when three are real. Every fake requirement narrows your pool and invites a rejected shortlist later, so make the manager rank them out loud."
+      },
+      {
+        "h": "Nail down the parts people forget"
+      },
+      {
+        "p": "Alignment on the candidate isn't enough. Before you leave, get agreement on the mechanics, because these are what actually stall a search mid-flight:"
+      },
+      {
+        "ul": [
+          "Compensation range and how flexible it is. If the manager and finance disagree, you want to know today, not after a verbal offer.",
+          "Must-have logistics: location, work authorization, on-site days, travel. These are binary filters, so treat them that way.",
+          "The interview loop: who's on it, what each stage checks, and how fast you can get slots on their calendar.",
+          "Turnaround expectations: how quickly will the manager review a shortlist, and who has final say on the offer."
+        ]
+      },
+      {
+        "note": "The single biggest cause of a stalled search is a hiring manager who takes five days to review each shortlist. Agree on a review turnaround in the intake, in writing, and hold to it.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Turn the conversation into a scorecard"
+      },
+      {
+        "p": "The output of a good intake is a scorecard, not a memory. Take the must-haves and turn each into something an interviewer can actually assess, with a rough idea of what a strong answer looks like. Now the requirements, the resume screen, and the interview all point at the same target. When you tell an AI screener or a colleague what to look for, you're describing the same candidate the hiring manager pictured, not your interpretation of a vague post."
+      },
+      {
+        "p": "This is also where screening tools earn their keep. If you've defined the role sharply, a tool that reads and ranks resumes against that definition gives you a shortlist to react to on day one instead of a pile to wade through. But the tool can only rank against the bar you set. **A precise intake is what makes automated screening trustworthy;** a fuzzy one just gets you a confidently ranked list of the wrong things."
+      },
+      {
+        "h": "What the intake can and can't do"
+      },
+      {
+        "p": "Be honest about the limits. An intake meeting aligns you and the hiring manager on paper. It does not guarantee the manager's picture is correct, and it doesn't replace the feedback loop. Sometimes the first five candidates reveal that the 'perfect resume' the manager described doesn't exist at your budget, or that a requirement everyone called non-negotiable is actually flexible. That's fine. The intake gives you a clear baseline to renegotiate from, which is far better than drifting."
+      },
+      {
+        "p": "Plan a quick recalibration after the first real batch of candidates. Bring three or four resumes, walk through why you ranked them the way you did, and let the manager correct your read. Ten minutes here saves a week of screening against a bar that has quietly moved."
+      },
+      {
+        "h": "A simple cadence to steal"
+      },
+      {
+        "ul": [
+          "Before posting: 45-minute intake, leave with a two-sentence definition and a scorecard.",
+          "Day one of screening: share the first shortlist, confirm the bar looks right.",
+          "After the first loop: 10-minute recalibration on the scorecard.",
+          "Weekly: a short pipeline check so nothing sits waiting on a decision."
+        ]
+      },
+      {
+        "p": "None of this is complicated. It's just the difference between a search that runs on a shared definition and one that runs on hope. Spend the 45 minutes up front. Everything downstream, the sourcing, the screening, the interviews, the offer, gets faster and less contentious because everyone is finally hiring for the same person."
+      }
+    ]
+  },
+  {
     "slug": "how-to-screen-candidates-when-every-resume-is-ai-written",
     "title": "How to screen candidates when every resume is AI-written",
     "category": "ai-hiring",
