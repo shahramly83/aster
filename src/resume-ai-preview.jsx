@@ -2515,7 +2515,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     return () => clearTimeout(t);
   }, []);
 
-  // trial=true → 14-day Premium trial (generic CTAs); trial=false → the user
+  // trial=true → 14-day Pro trial (generic CTAs); trial=false → the user
   // explicitly picked this plan on the pricing table (pay, or Free forever).
   const goSignup = (planKey, trial = false) => {
     setSignupPlan && setSignupPlan(planKey);
@@ -2584,7 +2584,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const planHighlights = {
     free: { lead: "Includes", items: ["1 job posting", "10 resumes parsed / month", "3 AI Rank credits / month", "Interview scheduling + AI questions", "Community support"] },
     starter: { lead: "Everything in Free, plus", items: ["5 jobs · 3 team seats", "100 resumes · 30 match runs / month", "Top 10 candidates ranked", "Store & download CVs", "Collaborative scorecards", "Email support"] },
-    pro: { lead: "Everything in Pro, plus", items: ["Unlimited jobs, parsing & matches", "All applicants ranked", "Multiple team seats", "WhatsApp Business reminders", "Priority support"] },
+    pro: { lead: "Everything in Growth, plus", items: ["Unlimited jobs, parsing & matches", "All applicants ranked", "Multiple team seats", "WhatsApp Business reminders", "Priority support"] },
   };
 
   const testimonials = [
@@ -2603,12 +2603,12 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
     { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away. There's no setup project to run first." },
-    { cat: "Billing", q: "Is there a free trial?", a: "Yes. Free includes a 14-day Premium trial with full access and no card required. When it ends, you move to the Free plan automatically." },
+    { cat: "Billing", q: "Is there a free trial?", a: "Yes. Free includes a 14-day Pro trial with full access and no card required. When it ends, you move to the Free plan automatically." },
     { cat: "Billing", q: "How does pricing work?", a: "Start free, then pick a plan billed monthly or yearly (save 20% yearly) based on the features and volume you need. You only upgrade when you're hiring at scale." },
     { cat: "Billing", q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
     { cat: "Billing", q: "Can I change or cancel anytime?", a: "Yes. Upgrade, downgrade, or cancel from Billing whenever you like. Changes take effect at the end of the current period, with no lock-in, and nothing is deleted if you downgrade." },
     { cat: "Billing", q: "What happens when my trial ends?", a: "You move to the Free plan automatically, with no charge and no lost data. Upgrade whenever you're ready and everything picks up where you left off." },
-    { cat: "Billing", q: "Do you charge per team member?", a: "Pro and Premium include a set of seats, and you can add interviewers as your team grows. Enterprise offers white label. There are no hidden per-action fees." },
+    { cat: "Billing", q: "Do you charge per team member?", a: "Growth and Pro include a set of seats, and you can add interviewers as your team grows. Enterprise offers white label. There are no hidden per-action fees." },
     { cat: "Billing", q: "What payment methods do you accept?", a: "All major credit and debit cards, billed in USD through a secure hosted checkout, so raw card numbers never touch the app. An invoice is issued for every payment." },
     { cat: "Security", q: "Is my candidate data secure?", a: "Candidate data is encrypted in transit and at rest, with access limited to your workspace. You can export or delete it at any time." },
     { cat: "Security", q: "Where is my data stored, and can I delete it?", a: "Your data lives in your workspace, encrypted in transit and at rest. You can export everything or permanently delete it at any time. It stays yours." },
@@ -2622,7 +2622,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "Integrations", q: "Can candidates book their own interview slots?", a: "Yes. Share one link and candidates pick a time from your live availability. The calendar invite and video link are created automatically, with no back-and-forth email." },
     { cat: "Integrations", q: "Can I share roles on job boards?", a: "Yes. Every role gets an Apply page you can post on LinkedIn, JobStreet, or anywhere. Applicants land straight in your pipeline, tagged by source so you can see which channel performs best." },
     { cat: "Integrations", q: "Can I collect applications from my own website?", a: "Yes. Each role has a shareable Apply page you can link from your careers site or anywhere else, and applicants flow straight into your pipeline. Every apply link is source-tracked, so you always know which channel each applicant came from." },
-    { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Premium and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
+    { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Pro and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
     { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box: parsing, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
   ];
 
@@ -2630,12 +2630,12 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { key: "free", name: "Free", col: "free", cta: "Get started", ghost: true,
       price: "$0", sub: "forever", note: null,
       tagline: "For trying Aster on a first role." },
-    { key: "starter", name: "Pro", col: "starter", cta: "Choose Pro", popular: true,
+    { key: "starter", name: "Growth", col: "starter", cta: "Choose Growth", popular: true,
       price: cycle === "yearly" ? "$71" : "$89",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
       note: cycle === "yearly" ? "$852/yr · save 20%" : null,
       tagline: "For small teams hiring steadily." },
-    { key: "professional", name: "Premium", col: "pro", cta: "Choose Premium", ghost: true,
+    { key: "professional", name: "Pro", col: "pro", cta: "Choose Pro", ghost: true,
       price: cycle === "yearly" ? "$159" : "$199",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
       note: cycle === "yearly" ? "$1,908/yr · save 20%" : null,
@@ -3332,7 +3332,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}>Enterprise</span>
               </div>
               <h3 className="font-display font-bold mb-1.5" style={{ color: "var(--ink)", fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For organizations with security &amp; scale needs</h3>
-              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--ink-2)" }}>Everything in Premium, plus enterprise controls and hands-on support.</p>
+              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--ink-2)" }}>Everything in Pro, plus enterprise controls and hands-on support.</p>
               <div className="flex flex-wrap gap-2 mt-4">
                 {["SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding", "Unlimited everything"].map((c) => (
                   <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
@@ -3351,7 +3351,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </div>
         </Reveal>
 
-        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Premium trial. Full access, no card required.</p>
+        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Pro trial. Full access, no card required.</p>
       </section>
       <section id="faq" className="relative overflow-hidden py-14 sm:py-24 scroll-mt-20" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)" }}>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_1fr] gap-6 lg:gap-14">
@@ -6776,18 +6776,18 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const pwColor = ["#2A2D57", "#F59E0B", "#5A78F8", "#22C55E"][pwScore];
 
   // Two entry paths into sign-up:
-  //  • Trial: from any generic landing CTA. A 14-day full-Premium trial; the
+  //  • Trial: from any generic landing CTA. A 14-day full-Pro trial; the
   //    plan price is shown struck-through with a "Free for 14 days" note.
-  //  • Paid: the user clicked "Choose Pro/Premium" on the pricing table. The
+  //  • Paid: the user clicked "Choose Growth/Pro" on the pricing table. The
   //    price is shown as-is and sign-up continues to payment (billing).
   //  • Free: the genuine $0 Free plan ("Get started" on the pricing table).
   const isEnterprise = signupPlan === "enterprise";
   const isPaid = !signupTrial && (signupPlan === "starter" || signupPlan === "professional");
   const isFreePlan = !signupTrial && signupPlan === "free";
 
-  // A trial always grants Premium, so it's labelled + priced as Premium.
-  const planLabel = signupTrial || signupPlan === "professional" ? "Premium"
-    : signupPlan === "starter" ? "Pro"
+  // A trial always grants Pro, so it's labelled + priced as Pro.
+  const planLabel = signupTrial || signupPlan === "professional" ? "Pro"
+    : signupPlan === "starter" ? "Growth"
     : isEnterprise ? "Enterprise" : "Free";
   const priceOf = (key) =>
     key === "professional" ? (signupCycle === "yearly" ? "$159/mo · billed yearly" : "$199/month")
@@ -6814,7 +6814,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
       setProfile({ firstName: firstName.trim(), lastName: lastName.trim(), role: "Hiring Manager" });
       setPlanCycle && setPlanCycle(signupCycle);
       if (signupTrial) {
-        // App models a Premium trial as the Free plan + remaining trial days.
+        // App models a Pro trial as the Free plan + remaining trial days.
         setPlan && setPlan("free");
         setTrialDaysLeft && setTrialDaysLeft(14);
         navigate("dashboard");
@@ -6889,7 +6889,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     "AI reads and scores every applicant against the role",
     "Auto-shortlist top candidates and book interviews in one click",
     "Turn weeks of CV screening into a single afternoon",
-    "Full Premium free for 14 days, no credit card required",
+    "Full Pro free for 14 days, no credit card required",
   ];
 
   return (
@@ -8338,7 +8338,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Premium access: unlimited AI matching &amp; jobs.</p>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Pro access: unlimited AI matching &amp; jobs.</p>
             </div>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -8471,7 +8471,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your plan</p>
-                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "Enterprise"}</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : "Enterprise"}</p>
                 </div>
                 <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
               </div>
@@ -8696,7 +8696,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   const limits = planLimits(plan);
   const uploadLimit = limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
-  const planName = plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : plan === "enterprise" ? "Enterprise" : "Free";
+  const planName = plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : plan === "enterprise" ? "Enterprise" : "Free";
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [files, setFiles] = useState([]);
   const [rows, setRows] = useState([]);
@@ -10024,7 +10024,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // mirroring the Candidate Search sidebar for a consistent look across screens.
   const jobCreditFmt = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   const jobPostsLeft = jobPostUsage.limit != null ? Math.max(jobPostUsage.limit - jobPostUsage.used, 0) : null;
-  const jobPlanLabel = plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current";
+  const jobPlanLabel = plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : "current";
   const jobRenews = jobPostUsage.resetsAt ? ` · renews ${jobCreditFmt(jobPostUsage.resetsAt)}` : "";
   const JOBS_HELP = [
     { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Publishing spends one job credit." },
@@ -11485,7 +11485,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
         ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
-        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Pro" : plan === "professional" ? "Premium" : "current"} plan · resets ${resetLabel}.`}
+        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : "current"} plan · resets ${resetLabel}.`}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
     />
   ) : null;
@@ -11923,7 +11923,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const handleAdd = () => {
     if (!canAddInterviewers || !name || !email) return;
     if (atSeatCap) {
-      setBanner(`Your plan includes ${limits.seats} seat${limits.seats === 1 ? "" : "s"}. Upgrade to Premium for unlimited team members.`);
+      setBanner(`Your plan includes ${limits.seats} seat${limits.seats === 1 ? "" : "s"}. Upgrade to Pro for unlimited team members.`);
       return;
     }
     setInterviewers([
@@ -13145,8 +13145,8 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       yearly: { price: "$71", cadence: "per month, billed yearly", renewCopy: "$852/year", nextAmount: "$852.00", invAmount: "$852.00", invDesc: "Pro yearly" },
     },
     professional: {
-      monthly: { price: "$199", cadence: "per month", renewCopy: "$199/month", nextAmount: "$199.00", invAmount: "$199.00", invDesc: "Premium monthly" },
-      yearly: { price: "$159", cadence: "per month, billed yearly", renewCopy: "$1,908/year", nextAmount: "$1,908.00", invAmount: "$1,908.00", invDesc: "Premium yearly" },
+      monthly: { price: "$199", cadence: "per month", renewCopy: "$199/month", nextAmount: "$199.00", invAmount: "$199.00", invDesc: "Pro monthly" },
+      yearly: { price: "$159", cadence: "per month, billed yearly", renewCopy: "$1,908/year", nextAmount: "$1,908.00", invAmount: "$1,908.00", invDesc: "Pro yearly" },
     },
   };
   const rmHint = { starter: {}, professional: {} };
@@ -13165,7 +13165,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
     },
     {
       key: "starter",
-      name: "Pro",
+      name: "Growth",
       price: (PRICES.starter[cycle] || PRICES.starter.monthly).price,
       cadence: (PRICES.starter[cycle] || PRICES.starter.monthly).cadence,
       rm: null,
@@ -13175,7 +13175,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
     },
     {
       key: "professional",
-      name: "Premium",
+      name: "Pro",
       price: (PRICES.professional[cycle] || PRICES.professional.monthly).price,
       cadence: (PRICES.professional[cycle] || PRICES.professional.monthly).cadence,
       rm: null,
@@ -13188,7 +13188,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       price: "Let's talk",
       cadence: "",
       blurb: "For larger organizations with security & volume needs.",
-      features: ["Everything in Premium", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
+      features: ["Everything in Pro", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
     },
   ];
 
@@ -13278,7 +13278,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
               <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Free (trial)" : current.name}</p>
               <p className="text-sm text-neutral-500 mt-0.5">
                 {trialDaysLeft > 0
-                  ? `Full Premium access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
+                  ? `Full Pro access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
                   : paidSub && saved
                     ? `${saved.renewCopy} · renews 1 ${planCycle === "yearly" ? "Jan 2026" : "Jul 2025"} · plus tax`
                     : plan === "free"
@@ -13407,7 +13407,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                 <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="shield" className="w-4 h-4" /></span>
                 <p className="font-semibold text-neutral-900">Enterprise</p>
               </div>
-              <p className="text-xs text-neutral-600 leading-relaxed">Everything in Premium, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
+              <p className="text-xs text-neutral-600 leading-relaxed">Everything in Pro, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
             </div>
             <button
               onClick={() => choosePlan(PLANS.find((p) => p.key === "enterprise"))}
@@ -13535,7 +13535,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowDowngrade(false)} className="text-sm rounded-xl border px-4 py-2 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                Keep Premium
+                Keep Pro
               </button>
               <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
                 Downgrade to Free
@@ -14391,7 +14391,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
           {!hasWhatsApp ? (
             <div className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
               <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-                WhatsApp automations are on <span className="font-semibold">Premium</span> and up.
+                WhatsApp automations are on <span className="font-semibold">Pro</span> and up.
               </p>
               <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
             </div>
@@ -16700,7 +16700,7 @@ export default function ResumeAIPreview() {
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("professional");
   const [signupCycle, setSignupCycle] = useState("monthly");
-  // true = arrived via a generic "start trial" CTA (14-day Premium trial);
+  // true = arrived via a generic "start trial" CTA (14-day Pro trial);
   // false = picked a specific plan on the pricing table (pay / free forever).
   const [signupTrial, setSignupTrial] = useState(true);
   // Shared activity feed. Both the header notification bell and the
