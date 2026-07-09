@@ -474,7 +474,7 @@ export default function MarketingChat({ onStartTrial }) {
               </button>
             </div>
             <p className="text-[11px] text-center mt-2" style={{ color: "var(--ink-3)" }}>
-              Aster's AI can make mistakes. Check important details.
+              AI-generated answers. For exact pricing and plan details, confirm with our team.
             </p>
           </div>
           </>)}
