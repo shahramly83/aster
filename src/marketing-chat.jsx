@@ -34,9 +34,9 @@ function loadStore() {
 
 const STARTERS = [
   "What does Aster do?",
-  "How much does it cost?",
+  "Which plan is right for me?",
+  "Try it: analyze a job description",
   "How does the AI match score work?",
-  "Is my candidate data secure?",
 ];
 
 const OFFLINE_REPLY =
@@ -146,6 +146,11 @@ export default function MarketingChat({ onStartTrial }) {
         },
         body: JSON.stringify({ messages: history }),
       });
+      if (res.status === 429) {
+        setAssistant("You're sending messages a little quickly. Please wait a few seconds and try again.");
+        setBusy(false);
+        return;
+      }
       if (!res.ok || !res.body) throw new Error(`bad response ${res.status}`);
 
       const reader = res.body.getReader();
@@ -379,7 +384,7 @@ export default function MarketingChat({ onStartTrial }) {
             {messages.length === 0 && (
               <div>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                  Hi, I'm the Aster assistant. Ask me anything about what Aster does, pricing, or how it fits your hiring.
+                  Hi, I'm Aster. Ask me anything about what Aster does, pricing, or how it fits your hiring.
                 </p>
                 <div className="mt-3 flex flex-col gap-2">
                   {STARTERS.map((s) => (
@@ -473,9 +478,6 @@ export default function MarketingChat({ onStartTrial }) {
                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
-            <p className="text-[11px] text-center mt-2" style={{ color: "var(--ink-3)" }}>
-              Aster's AI can make mistakes. Check important details.
-            </p>
           </div>
           </>)}
           </>)}

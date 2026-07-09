@@ -86,6 +86,19 @@ supabase functions deploy marketing-chat --no-verify-jwt
 When the pricing or product copy changes, update the `KNOWLEDGE` block at the top
 of `marketing-chat/index.ts` and redeploy so the bot stays accurate.
 
+**Rate limiting.** The endpoint is public and every message costs an Anthropic
+call, so it throttles per IP (20 messages/minute) via the `chat_rate_hit` RPC in
+migration `0017_chat_rate_limit.sql`. The check **fails open**: until that
+migration is applied the chat still works, it just is not limited. Apply it to
+turn limiting on:
+
+```bash
+supabase db push          # applies 0017 (and any other pending migrations)
+```
+
+Or run `0017_chat_rate_limit.sql` in the Supabase SQL editor. Tune the limit via
+`RL_MAX` / `RL_WINDOW_SECONDS` in `marketing-chat/index.ts`.
+
 ## `parse-application`
 
 Reads an applicant's PDF resume with Claude, stores the file privately, and
