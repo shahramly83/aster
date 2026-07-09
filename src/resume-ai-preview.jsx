@@ -1227,7 +1227,7 @@ function PreviewBanner() {
 
 // ---------- Screens ----------
 
-function LoginScreen({ onAuthed, navigate, logoUrl }) {
+function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -1398,6 +1398,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
             </button>
           </form>
 
+          {ssoEnabled && (<>
           <div className="flex items-center gap-3 my-5">
             <div className="h-px flex-1" style={{ background: "var(--line)" }} />
             <span className="text-xs" style={{ color: "var(--ink-3)" }}>or</span>
@@ -1407,6 +1408,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl }) {
             <SsoButton onClick={signInWithGoogle} label="Sign in with Google" mark={GoogleMark} />
             <SsoButton onClick={signInWithMicrosoft} label="Sign in with Microsoft" mark={MicrosoftMark} />
           </div>
+          </>)}
           </>)}
 
           <div className="my-5" style={{ borderTop: "1px solid var(--line)" }} />
@@ -2562,32 +2564,38 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
 
   const compareGroups = [
     { group: "Jobs & team", rows: [
-      { label: "Active job postings", free: "1", starter: "5", pro: "Unlimited", ent: "Unlimited" },
-      { label: "Team seats", free: "1", starter: "3", pro: "Multiple", ent: "Unlimited" },
+      { label: "Active job postings", free: "1", starter: "5", pro: "10", ent: "Unlimited" },
+      { label: "Interviewers", free: "10", starter: "100", pro: "Unlimited", ent: "Unlimited" },
+      { label: "Team seats", free: "1", starter: "3", pro: "Unlimited", ent: "Unlimited" },
     ]},
     { group: "AI screening", rows: [
-      { label: "Resume parsing", free: "10 / month", starter: "100 / month", pro: "Unlimited", ent: "Unlimited" },
-      { label: "AI Rank credits", free: "3 / month", starter: "30 / month", pro: "Unlimited", ent: "Unlimited" },
-      { label: "Candidates ranked per run", free: "Top 3", starter: "Top 10", pro: "All applicants", ent: "All applicants" },
+      { label: "Applicant parsing", free: "100 / mo", starter: "500 / mo", pro: "1,000 / mo", ent: "Unlimited" },
+      { label: "Bulk upload parsing", free: "10 / mo", starter: "50 / mo", pro: "100 / mo", ent: "Unlimited" },
+      { label: "AI Rank credits", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
+      { label: "AI Insight credits", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
+      { label: "See Why (detailed rationale)", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
     ]},
     { group: "Interviews", rows: [
-      { label: "Interview scheduling", free: true, starter: true, pro: true, ent: true },
-      { label: "AI interview questions", free: true, starter: true, pro: true, ent: true },
-      { label: "Collaborative scorecards", free: false, starter: true, pro: true, ent: true },
+      { label: "Meeting & calendar sync", free: false, starter: true, pro: true, ent: true },
+      { label: "AI interview questions", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
+      { label: "Collaborative scorecards", free: true, starter: true, pro: true, ent: true },
       { label: "WhatsApp Business reminders", free: false, starter: false, pro: true, ent: true },
     ]},
-    { group: "Support", rows: [
-      { label: "Support", free: "Community", starter: "Email", pro: "Priority", ent: "Dedicated" },
+    { group: "Security & support", rows: [
+      { label: "Two-factor authentication", free: true, starter: true, pro: true, ent: true },
+      { label: "Data export & deletion", free: true, starter: true, pro: true, ent: true },
+      { label: "SSO (Google / Microsoft)", free: false, starter: false, pro: false, ent: true },
+      { label: "Support", free: "Support ticket", starter: "Support ticket", pro: "Priority", ent: "Dedicated" },
     ]},
   ];
 
   // Curated, scannable highlights for the mobile plan cards (keyed by plan.col).
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
-    free: { lead: "Includes", items: ["1 job posting", "10 resumes parsed / month", "3 AI Rank credits / month", "Interview scheduling + AI questions", "Community support"] },
-    starter: { lead: "Everything in Free, plus", items: ["5 jobs · 3 team seats", "100 resumes · 30 match runs / month", "Top 10 candidates ranked", "Store & download CVs", "Collaborative scorecards", "Email support"] },
-    pro: { lead: "Everything in Growth, plus", items: ["Unlimited jobs, parsing & matches", "All applicants ranked", "Multiple team seats", "WhatsApp Business reminders", "Priority support"] },
+    free: { lead: "Includes", items: ["1 job posting · 10 interviewers", "100 applicant parses / month", "5 AI Rank + 5 AI Insight / month", "Scorecards, 2FA & data export", "Support ticket"] },
+    starter: { lead: "Everything in Free, plus", items: ["5 jobs · 3 seats · 100 interviewers", "500 parses · 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
+    pro: { lead: "Everything in Growth, plus", items: ["10 jobs · unlimited seats & interviewers", "1,000 parses · 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
 
   const testimonials = [
@@ -2634,14 +2642,14 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       price: "$0", sub: "forever", note: null,
       tagline: "For trying Aster on a first role." },
     { key: "starter", name: "Growth", col: "starter", cta: "Choose Growth", popular: true,
-      price: cycle === "yearly" ? "$71" : "$89",
+      price: cycle === "yearly" ? "$103" : "$129",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-      note: cycle === "yearly" ? "$852/yr · save 20%" : null,
+      note: cycle === "yearly" ? "$1,236/yr · save 20%" : null,
       tagline: "For small teams hiring steadily." },
     { key: "professional", name: "Pro", col: "pro", cta: "Choose Pro", ghost: true,
-      price: cycle === "yearly" ? "$159" : "$199",
+      price: cycle === "yearly" ? "$199" : "$249",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-      note: cycle === "yearly" ? "$1,908/yr · save 20%" : null,
+      note: cycle === "yearly" ? "$2,388/yr · save 20%" : null,
       tagline: "For teams hiring at volume." },
     { key: "enterprise", name: "Enterprise", col: "ent", cta: "Contact sales", ghost: true,
       price: "Let's talk", sub: "", note: null,
@@ -6756,7 +6764,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
   );
 }
 
-function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft }) {
+function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft, ssoEnabled = false }) {
   const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -6794,8 +6802,8 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     : signupPlan === "starter" ? "Growth"
     : isEnterprise ? "Enterprise" : "Free";
   const priceOf = (key) =>
-    key === "professional" ? (signupCycle === "yearly" ? "$159/mo · billed yearly" : "$199/month")
-    : key === "starter" ? (signupCycle === "yearly" ? "$71/mo · billed yearly" : "$89/month")
+    key === "professional" ? (signupCycle === "yearly" ? "$199/mo · billed yearly" : "$249/month")
+    : key === "starter" ? (signupCycle === "yearly" ? "$103/mo · billed yearly" : "$129/month")
     : null;
   const shownPrice = signupTrial ? priceOf("starter") : priceOf(signupPlan);
 
@@ -7067,6 +7075,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             )}
           </form>
 
+          {ssoEnabled && (<>
           <div className="flex items-center gap-3 my-5">
             <div className="h-px flex-1" style={{ background: "var(--line)" }} />
             <span className="text-xs" style={{ color: "var(--ink-3)" }}>or</span>
@@ -7077,6 +7086,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             <SsoButton onClick={signInWithMicrosoft} label="Sign up with Microsoft" mark={MicrosoftMark} />
           </div>
           <p className="text-[11px] mt-2 text-center" style={{ color: "var(--ink-3)" }}>Work email required. Personal Google or Microsoft accounts aren't accepted.</p>
+          </>)}
 
           {(signupTrial || isFreePlan) && (
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -8176,15 +8186,60 @@ function FeatureCard({ onAction }) {
 }
 
 // ---------- Plan limits & upgrade gating ----------
-// Central definition of what each plan allows. Free manages its own pipeline
-// but is capped on AI depth/volume, jobs, and seats. Starter lifts those caps
-// and unlocks reasoning, scorecards & stored CVs. Professional is unlimited and
-// adds WhatsApp. Enterprise = Professional + SSO/SLA (handled in UI).
+// Central definition of what each plan allows, per the locked pricing matrix.
+// Display names: free = "Free", starter = "Growth", professional = "Pro",
+// enterprise = "Enterprise". Internal keys are kept for backward compatibility.
+//
+// Metered credits (reset on a rolling 30-day cycle): job posts, AI Parsing
+// (applicant + bulk are SEPARATE pools), AI Rank, AI Insight, AI Interview
+// Questions, and See Why. AI Rank / AI Insight / See Why are charged once per
+// candidate and cached; regenerating charges again (with a confirm prompt).
+// Match-to-role and Database (AI Rank) share the AI Rank pool.
+//
+// Enterprise inherits Pro's feature set with unlimited metered limits (it is
+// the "custom" top tier). SSO and white-label are globally off by default and
+// flipped on from /admin; audit logs ship later, then apply to all tiers.
 const PLAN_LIMITS = {
-  free:         { maxJobs: 1,        canAddInterviewers: false, seats: 1,        visibleCandidates: Infinity, aiMatches: 3,        aiRunsPerMonth: 3,        aiInsightsPerMonth: 2,        showRationale: false, storeOriginal: false, resumeUploads: 10,       whatsapp: false },
-  starter:      { maxJobs: 5,        canAddInterviewers: true,  seats: 3,        visibleCandidates: Infinity, aiMatches: 10,       aiRunsPerMonth: 30,       aiInsightsPerMonth: 20,       showRationale: true,  storeOriginal: true,  resumeUploads: 100,      whatsapp: false },
-  professional: { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
-  enterprise:   { maxJobs: Infinity, canAddInterviewers: true,  seats: Infinity, visibleCandidates: Infinity, aiMatches: Infinity, aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, showRationale: true,  storeOriginal: true,  resumeUploads: Infinity, whatsapp: true },
+  free: {
+    maxJobs: 1, seats: 1, interviewers: 10, canAddInterviewers: true,
+    parseApplicant: 100, resumeUploads: 10,               // resumeUploads = AI Parsing (Bulk upload)
+    aiRunsPerMonth: 5, aiInsightsPerMonth: 5, seeWhyPerMonth: 5, interviewQuestionsPerMonth: 5,
+    aiMatches: 3, visibleCandidates: Infinity,
+    applicantViewLimit: 10, browseLimit: 10, skillsIndustriesLimit: 10,
+    showRationale: true, storeOriginal: false, scorecards: true, matchToRole: true, databaseAiRank: true,
+    twoFactor: true, whatsapp: false, meetingCalendar: false, dataExport: true,
+    supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
+  },
+  starter: {
+    maxJobs: 5, seats: 3, interviewers: 100, canAddInterviewers: true,
+    parseApplicant: 500, resumeUploads: 50,
+    aiRunsPerMonth: 30, aiInsightsPerMonth: 100, seeWhyPerMonth: 30, interviewQuestionsPerMonth: 100,
+    aiMatches: 10, visibleCandidates: Infinity,
+    applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
+    showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
+    twoFactor: true, whatsapp: false, meetingCalendar: true, dataExport: true,
+    supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
+  },
+  professional: {
+    maxJobs: 10, seats: Infinity, interviewers: Infinity, canAddInterviewers: true,
+    parseApplicant: 1000, resumeUploads: 100,
+    aiRunsPerMonth: 100, aiInsightsPerMonth: 300, seeWhyPerMonth: 100, interviewQuestionsPerMonth: 300,
+    aiMatches: Infinity, visibleCandidates: Infinity,
+    applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
+    showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
+    twoFactor: true, whatsapp: true, meetingCalendar: true, dataExport: true,
+    supportTier: "priority", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
+  },
+  enterprise: {
+    maxJobs: Infinity, seats: Infinity, interviewers: Infinity, canAddInterviewers: true,
+    parseApplicant: Infinity, resumeUploads: Infinity,
+    aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, seeWhyPerMonth: Infinity, interviewQuestionsPerMonth: Infinity,
+    aiMatches: Infinity, visibleCandidates: Infinity,
+    applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
+    showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
+    twoFactor: true, whatsapp: true, meetingCalendar: true, dataExport: true,
+    supportTier: "dedicated", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
+  },
 };
 const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.professional;
 
@@ -8697,6 +8752,8 @@ function nameFromFile(fn) {
 
 function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
+  // Bulk upload is its own pool (resumeUploads), separate from applicant parsing
+  // (parseApplicant) which is metered server-side as inbound applicants arrive.
   const uploadLimit = limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
   const planName = plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : plan === "enterprise" ? "Enterprise" : "Free";
@@ -11898,8 +11955,9 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
 function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "free", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
-  // Seats include the owner, so invitable teammates = seats − 1.
-  const seatCap = limits.seats === Infinity ? Infinity : Math.max(0, limits.seats - 1);
+  // Interviewers are a plan-capped count (10 / 100 / unlimited), separate from
+  // owner/admin seats. The owner is not counted as an interviewer.
+  const seatCap = limits.interviewers;
   const atSeatCap = interviewers.length >= seatCap;
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -11926,7 +11984,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const handleAdd = () => {
     if (!canAddInterviewers || !name || !email) return;
     if (atSeatCap) {
-      setBanner(`Your plan includes ${limits.seats} seat${limits.seats === 1 ? "" : "s"}. Upgrade to Pro for unlimited team members.`);
+      setBanner(`Your plan includes ${limits.interviewers} interviewer${limits.interviewers === 1 ? "" : "s"}. Upgrade for more, or unlimited on Pro.`);
       return;
     }
     setInterviewers([
@@ -11961,16 +12019,15 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
       avatarUrl={avatarUrl}
       activities={activities}
       onOpenNotifications={onOpenNotifications}
-      rail={limits.seats !== Infinity ? (
+      rail={limits.interviewers !== Infinity ? (
         <UsageMeter
-          title="Seats"
-          used={interviewers.length + 1}
-          limit={limits.seats}
+          title="Interviewers"
+          used={interviewers.length}
+          limit={limits.interviewers}
           unit="in use"
           danger={atSeatCap}
-          note={canAddInterviewers ? undefined : "Free plan includes 1 seat, just you."}
           onUpgrade={() => navigate("billing")}
-          upgradeLabel={canAddInterviewers ? "Upgrade for more seats" : "Upgrade to add teammates"}
+          upgradeLabel="Upgrade for more interviewers"
         />
       ) : null}
     >
@@ -11981,7 +12038,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
               onClick={() => (atSeatCap ? navigate("billing") : setShowForm((s) => !s))}
               className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity"
             >
-              {atSeatCap ? "Seats full, upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
+              {atSeatCap ? "Interviewers full, upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
             </button>
           ) : (
             <button
@@ -13144,12 +13201,12 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   // charged in USD; applicable taxes are added at checkout by billing country.
   const PRICES = {
     starter: {
-      monthly: { price: "$89", cadence: "per month", renewCopy: "$89/month", nextAmount: "$89.00", invAmount: "$89.00", invDesc: "Pro monthly" },
-      yearly: { price: "$71", cadence: "per month, billed yearly", renewCopy: "$852/year", nextAmount: "$852.00", invAmount: "$852.00", invDesc: "Pro yearly" },
+      monthly: { price: "$129", cadence: "per month", renewCopy: "$129/month", nextAmount: "$129.00", invAmount: "$129.00", invDesc: "Growth monthly" },
+      yearly: { price: "$103", cadence: "per month, billed yearly", renewCopy: "$1,236/year", nextAmount: "$1,236.00", invAmount: "$1,236.00", invDesc: "Growth yearly" },
     },
     professional: {
-      monthly: { price: "$199", cadence: "per month", renewCopy: "$199/month", nextAmount: "$199.00", invAmount: "$199.00", invDesc: "Pro monthly" },
-      yearly: { price: "$159", cadence: "per month, billed yearly", renewCopy: "$1,908/year", nextAmount: "$1,908.00", invAmount: "$1,908.00", invDesc: "Pro yearly" },
+      monthly: { price: "$249", cadence: "per month", renewCopy: "$249/month", nextAmount: "$249.00", invAmount: "$249.00", invDesc: "Pro monthly" },
+      yearly: { price: "$199", cadence: "per month, billed yearly", renewCopy: "$2,388/year", nextAmount: "$2,388.00", invAmount: "$2,388.00", invDesc: "Pro yearly" },
     },
   };
   const rmHint = { starter: {}, professional: {} };
@@ -13164,7 +13221,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       price: "$0",
       cadence: "forever",
       blurb: "For trying things out on a single role.",
-      features: ["1 active job", "1 seat (just you)", "10 resumes/month", "3 AI Rank credits/month", "Community support"],
+      features: ["1 active job", "100 applicant parses/mo", "5 AI Rank + 5 AI Insight/mo", "Scorecards, 2FA & data export", "Support ticket"],
     },
     {
       key: "starter",
@@ -13173,7 +13230,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       cadence: (PRICES.starter[cycle] || PRICES.starter.monthly).cadence,
       rm: null,
       blurb: "For small teams making their first hires.",
-      features: ["5 active jobs", "3 team seats", "100 resumes/month", "30 AI runs + reasoning", "Scorecards & stored CVs", "Email support"],
+      features: ["5 active jobs", "500 applicant parses/mo", "30 AI Rank + 100 AI Insight/mo", "Stored CVs, meeting & calendar", "Support ticket"],
       popular: true,
     },
     {
@@ -13183,7 +13240,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       cadence: (PRICES.professional[cycle] || PRICES.professional.monthly).cadence,
       rm: null,
       blurb: "For growing teams hiring across several roles.",
-      features: ["Unlimited jobs", "Unlimited seats", "Unlimited resumes & AI", "WhatsApp reminders", "Interview scheduling", "Priority support"],
+      features: ["10 active jobs", "1,000 applicant parses/mo", "100 AI Rank + 300 AI Insight/mo", "WhatsApp reminders", "Priority support"],
     },
     {
       key: "enterprise",
@@ -14797,7 +14854,8 @@ function deriveInsights(candidate) {
 }
 
 function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, authorName }) {
-  const isPaid = plan !== "free";
+  // Collaborative scorecards are available on every plan (locked matrix).
+  const isPaid = planLimits(plan).scorecards;
   const [open, setOpen] = useState(false);
   const [ratings, setRatings] = useState({ technical: 0, communication: 0, cultureFit: 0, experience: 0 });
   const [rec, setRec] = useState("");
@@ -14944,6 +15002,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // shows the saved result without spending another credit.
   const insights = candidate ? (insightsCache[candidate.id] ?? null) : null;
   const [generating, setGenerating] = useState(false);
+  const [confirmRegenInsight, setConfirmRegenInsight] = useState(false); // Regenerate confirm
   const [showPdf, setShowPdf] = useState(false);
   // AI Experience Insights are metered per plan, like AI match runs.
   const insightsLimit = planLimits(plan).aiInsightsPerMonth;
@@ -15073,12 +15132,22 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       ) : (
         <div className="rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
           <InsightsDisplay insights={insights} />
-          <button onClick={handleGenerate} disabled={generating || outOfInsights} className="mt-3 text-xs font-medium disabled:opacity-50 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-            {generating ? "Re-analyzing…" : outOfInsights ? "No AI insight runs left this month" : "Regenerate"}
+          <button onClick={() => (outOfInsights ? navigate("billing") : setConfirmRegenInsight(true))} disabled={generating} className="mt-3 text-xs font-medium disabled:opacity-50 hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
+            <Icon name="refresh" className="w-3 h-3" /> {generating ? "Re-analyzing…" : outOfInsights ? "No AI insight runs left this month" : "Regenerate"}
           </button>
         </div>
       )}
 
+      <ConfirmDialog
+        open={confirmRegenInsight}
+        title="Regenerate AI Insight?"
+        body={insightsUnlimited
+          ? "This runs a fresh analysis, replacing the cached result."
+          : `This runs a fresh analysis and uses 1 AI Insight credit, replacing the cached result. You have ${insightsLeft} left this cycle.`}
+        confirmLabel={insightsUnlimited ? "Regenerate" : "Use 1 credit"}
+        onConfirm={() => { setConfirmRegenInsight(false); handleGenerate(); }}
+        onClose={() => setConfirmRegenInsight(false)}
+      />
     </div>
   );
 
@@ -15889,7 +15958,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   );
 }
 
-function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set() }) {
+function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set() }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
@@ -15904,6 +15973,22 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
   const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
   const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
+  // See Why (Option B): a metered per-candidate credit, separate from AI Rank.
+  // First reveal charges 1 credit and caches the rationale; re-viewing is free;
+  // Regenerate charges again behind a confirm prompt.
+  const seeWhyLimit = limits.seeWhyPerMonth;
+  const seeWhyUnlimited = seeWhyLimit === Infinity;
+  const seeWhyLeft = Math.max(0, seeWhyLimit - seeWhyUsed);
+  const [confirmRegen, setConfirmRegen] = useState(null); // { candidateId, rationale }
+  const chargeSeeWhy = (candidateId, rationale) => {
+    setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: rationale }));
+    if (seeWhyUnlimited || !setSeeWhyUsed) return;
+    if (hasSupabase) {
+      supabase.rpc("bump_see_why").then(({ data }) => { const used = Array.isArray(data) ? data?.[0]?.used : data?.used; if (typeof used === "number") setSeeWhyUsed(used); }).catch(() => setSeeWhyUsed((n) => n + 1));
+    } else {
+      setSeeWhyUsed((n) => n + 1);
+    }
+  };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
   // Shared source of truth (also drives the count on the Jobs card).
@@ -16119,18 +16204,35 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
                     <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
                   </div>
 
-                  {ranked && (
-                    limits.showRationale ? (
-                      <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
-                        <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
-                        <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>AI insight: </span>{match.rationale}</p>
-                      </div>
-                    ) : (
-                      <button onClick={() => navigate("billing")} className="text-xs mt-2.5 inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
-                        <Icon name="lock" className="w-3 h-3" /> See why: upgrade for Aster's reasoning
+                  {ranked && (() => {
+                    const revealed = seeWhyCache[a.candidateId];
+                    if (revealed) {
+                      return (
+                        <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
+                          <div className="flex items-start gap-2">
+                            <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
+                            <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>See Why: </span>{revealed}</p>
+                          </div>
+                          {!seeWhyUnlimited && (
+                            <button onClick={() => setConfirmRegen({ candidateId: a.candidateId, rationale: match.rationale })} className="mt-1.5 ml-5 text-[10px] font-medium inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
+                              <Icon name="refresh" className="w-3 h-3" /> Regenerate
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+                    const out = !seeWhyUnlimited && seeWhyLeft <= 0;
+                    return (
+                      <button
+                        onClick={() => (out ? navigate("billing") : chargeSeeWhy(a.candidateId, match.rationale))}
+                        className="text-xs mt-2.5 inline-flex items-center gap-1 hover:opacity-80"
+                        style={{ color: "var(--brand)" }}
+                      >
+                        <Icon name={out ? "lock" : "matching"} className="w-3 h-3" />
+                        {out ? "Out of See Why credits: upgrade" : seeWhyUnlimited ? "See why" : `See why · ${seeWhyLeft} left`}
                       </button>
-                    )
-                  )}
+                    );
+                  })()}
 
                   <div className="flex justify-end mt-3">
                     {hiredIds.has(a.candidateId) ? (
@@ -16163,6 +16265,14 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
         confirmLabel="Run AI Rank"
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
+      />
+      <ConfirmDialog
+        open={!!confirmRegen}
+        title="Regenerate See Why?"
+        body={`This runs a fresh rationale and uses 1 See Why credit, replacing the cached result. You have ${seeWhyLeft} left this cycle.`}
+        confirmLabel="Use 1 credit"
+        onConfirm={() => { const c = confirmRegen; setConfirmRegen(null); if (c) chargeSeeWhy(c.candidateId, c.rationale); }}
+        onClose={() => setConfirmRegen(null)}
       />
     </div>
   );
@@ -16727,7 +16837,23 @@ export default function ResumeAIPreview() {
     if (canPersist) dbAddScorecard(companyId, userId, { candidateId, ratings: card.ratings, notes: card.notes });
   };
   const [avatarUrl, setAvatarUrl] = useState(null);
-  const [logoUrl, setLogoUrl] = useState(null);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState(null);
+  // Global platform feature flags, set from /admin (public read). Default off so
+  // SSO and white-label stay disabled until an admin turns them on.
+  const [platformFlags, setPlatformFlags] = useState({ sso_login: false, white_label: false });
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let active = true;
+    supabase.from("platform_flags").select("key, enabled").then(({ data }) => {
+      if (active && Array.isArray(data) && data.length) {
+        setPlatformFlags((prev) => { const next = { ...prev }; data.forEach((f) => { next[f.key] = !!f.enabled; }); return next; });
+      }
+    });
+    return () => { active = false; };
+  }, []);
+  // White-label gate: the custom company logo only applies platform-wide when
+  // white-label is enabled; otherwise the default Aster brand shows everywhere.
+  const logoUrl = platformFlags.white_label ? companyLogoUrl : null;
   const [defaultProvider, setDefaultProvider] = useState("google");
   // Calendar is connected once at the workspace level (single Google Workspace /
   // Microsoft 365 tenant), rather than per interviewer. Powers availability +
@@ -16765,6 +16891,10 @@ export default function ResumeAIPreview() {
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
   const [insightsCache, setInsightsCache] = useState({});
+  // See Why (Option B): its own metered credit, charged once per candidate and
+  // cached (candidate id -> rationale). Regenerating charges again via a prompt.
+  const [seeWhyUsed, setSeeWhyUsed] = useState(0);
+  const [seeWhyCache, setSeeWhyCache] = useState({});
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("professional");
   const [signupCycle, setSignupCycle] = useState("monthly");
@@ -16970,7 +17100,7 @@ export default function ResumeAIPreview() {
     if (sess) {
       setProfile(sess.profile);
       setCompany(sess.company);
-      setLogoUrl(sess.logoUrl || null);
+      setCompanyLogoUrl(sess.logoUrl || null);
       setCompanyAddress(sess.address || "");
       setCompanyRegNo(sess.registrationNo || "");
       if (sess.plan) setPlan(sess.plan);
@@ -17088,7 +17218,7 @@ export default function ResumeAIPreview() {
         if (cancelled || !sess) return;
         setProfile(sess.profile);
         setCompany(sess.company);
-        setLogoUrl(sess.logoUrl || null);
+        setCompanyLogoUrl(sess.logoUrl || null);
         setCompanyAddress(sess.address || "");
         setCompanyRegNo(sess.registrationNo || "");
         if (sess.plan) setPlan(sess.plan);
@@ -17392,7 +17522,7 @@ export default function ResumeAIPreview() {
   if (screen === "login") {
     return (
       <Shell>
-        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} />
+        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />
       </Shell>
     );
   }
@@ -17420,6 +17550,7 @@ export default function ResumeAIPreview() {
           setPlan={setPlan}
           setPlanCycle={setPlanCycle}
           setTrialDaysLeft={setTrialDaysLeft}
+          ssoEnabled={platformFlags.sso_login}
         />
       </Shell>
     );
@@ -17560,8 +17691,9 @@ export default function ResumeAIPreview() {
             navigate={navigate}
             avatarUrl={avatarUrl}
             setAvatarUrl={setAvatarUrl}
-            logoUrl={logoUrl}
-            setLogoUrl={setLogoUrl}
+            logoUrl={companyLogoUrl}
+            setLogoUrl={setCompanyLogoUrl}
+            whiteLabelOn={platformFlags.white_label}
             profile={profile}
             setProfile={setProfile}
             company={company}
@@ -17698,6 +17830,10 @@ export default function ResumeAIPreview() {
             plan={effectivePlan}
             matchRunsUsed={matchRunsUsed}
             setMatchRunsUsed={setMatchRunsUsed}
+            seeWhyUsed={seeWhyUsed}
+            setSeeWhyUsed={setSeeWhyUsed}
+            seeWhyCache={seeWhyCache}
+            setSeeWhyCache={setSeeWhyCache}
             bookings={bookings}
             hiredIds={hiredIds}
           />
