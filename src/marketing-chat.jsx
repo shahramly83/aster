@@ -19,10 +19,17 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // on any page. sessionStorage clears when the tab closes, which suits a marketing
 // chat. The widget is mounted per page, so every instance reads the same store.
 const STORE_KEY = "asterChat.v1";
+const STORE_TTL_MS = 60 * 60 * 1000; // drop a conversation after 60 min idle, so it doesn't linger forever
 function loadStore() {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(window.sessionStorage.getItem(STORE_KEY) || "{}") || {}; }
-  catch { return {}; }
+  try {
+    const s = JSON.parse(window.sessionStorage.getItem(STORE_KEY) || "{}") || {};
+    if (s.savedAt && Date.now() - s.savedAt > STORE_TTL_MS) {
+      window.sessionStorage.removeItem(STORE_KEY);
+      return {};
+    }
+    return s;
+  } catch { return {}; }
 }
 
 const STARTERS = [
@@ -78,10 +85,20 @@ export default function MarketingChat({ onStartTrial }) {
     try {
       window.sessionStorage.setItem(
         STORE_KEY,
-        JSON.stringify({ open, messages: messages.filter((m) => m.content) })
+        JSON.stringify({ open, messages: messages.filter((m) => m.content), savedAt: Date.now() })
       );
     } catch { /* storage full or blocked: non-fatal */ }
   }, [open, messages, busy]);
+
+  // End the current conversation and clear what's saved, back to a fresh chat.
+  function resetChat() {
+    setMessages([]);
+    setInput("");
+    setLeadMode(null);
+    setLead({ name: "", email: "", phone: "", msg: "" });
+    setLeadErr("");
+    try { window.sessionStorage.removeItem(STORE_KEY); } catch { /* non-fatal */ }
+  }
 
   async function send(text) {
     const q = (text ?? input).trim();
@@ -259,9 +276,17 @@ export default function MarketingChat({ onStartTrial }) {
                 <p className="text-[11px] text-white/75">Answers about the product, instantly</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Close chat" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors">
-              <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-            </button>
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button onClick={resetChat} aria-label="Start a new chat" title="New chat" className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-[13px] font-medium text-white/90 hover:bg-white/15 transition-colors">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.3 5.6M4 12V7m0 5h5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  New
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} aria-label="Minimize chat" title="Minimize" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors">
+                <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+              </button>
+            </div>
           </div>
 
           {/* ---- Lead captured confirmation ---- */}
