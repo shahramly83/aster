@@ -379,7 +379,7 @@ export default function MarketingChat({ onStartTrial }) {
             {messages.length === 0 && (
               <div>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                  Hi, I'm the Aster assistant. Ask me anything about what Aster does, pricing, or how it fits your hiring.
+                  Hi, I'm Aster. Ask me anything about what Aster does, pricing, or how it fits your hiring.
                 </p>
                 <div className="mt-3 flex flex-col gap-2">
                   {STARTERS.map((s) => (
