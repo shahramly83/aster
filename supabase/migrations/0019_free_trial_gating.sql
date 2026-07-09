@@ -10,7 +10,7 @@
 -- A returning identity can still sign up freely; they just land on the plain
 -- Free plan and must buy a plan (enter a card) to get Premium.
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 -- Business domains that have already received their one free trial.
 create table if not exists public.domain_grants (
@@ -59,7 +59,7 @@ $$;
 -- users. Peppered to make casual reversal harder.
 create or replace function public._email_hash(p text)
 returns text language sql immutable as $$
-  select encode(digest('aster:free-grant:v1:' || public._normalize_email(p), 'sha256'), 'hex');
+  select encode(extensions.digest('aster:free-grant:v1:' || public._normalize_email(p), 'sha256'), 'hex');
 $$;
 
 -- Has this email (or its business domain) already used the free trial?
