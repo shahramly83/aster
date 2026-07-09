@@ -24,6 +24,32 @@ export async function dbCreateJob(companyId, userId, payload) {
   return data.id;
 }
 
+// Persist a finished bulk-import run so the "Recent imports" log survives reloads.
+// Stores the whole UI run object; returns it with the DB id (or null on failure).
+export async function dbSaveImportRun(companyId, userId, run) {
+  if (!hasSupabase || !companyId) return null;
+  const { data, error } = await supabase
+    .from("import_runs")
+    .insert({ company_id: companyId, created_by: userId || null, file_count: run.fileCount || 0, run })
+    .select("id, run")
+    .single();
+  if (error) { console.error("dbSaveImportRun", error.message); return null; }
+  return { ...(data.run || {}), id: data.id };
+}
+
+// Load recent import runs for the company (newest first), mapped to UI run shape.
+export async function dbListImportRuns(companyId, limit = 50) {
+  if (!hasSupabase || !companyId) return [];
+  const { data, error } = await supabase
+    .from("import_runs")
+    .select("id, run")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) { console.error("dbListImportRuns", error.message); return []; }
+  return (data || []).map((r) => ({ ...(r.run || {}), id: r.id }));
+}
+
 export async function dbUpdateJob(jobId, payload) {
   if (!hasSupabase) return;
   const { title, expires_at, status, details } = splitJob(payload);

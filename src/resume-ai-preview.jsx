@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -38,7 +38,10 @@ async function loadCustomerSession(userId, fallbackEmail) {
       role: ROLE_LABELS[data.role] || "Hiring Manager",
     },
     company: co.name || "Your workspace",
-    plan: co.plan || "free",
+    // DB plan_tier enum ('free','growth','pro','enterprise') → app plan keys
+    // ('free','starter','professional','enterprise'). Launch = free, Scale =
+    // growth, Elite = pro.
+    plan: ({ growth: "starter", pro: "professional" }[co.plan] || co.plan || "free"),
     logoUrl: co.logo_url || null,
     address: co.address || "",
     addressParts,
@@ -85,7 +88,10 @@ async function loadWorkspaceData(companyId) {
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
   ]);
   const jobRows = jobsRes.data || [];
-  if (jobsRes.error || !jobRows.length) return null; // empty workspace → keep demo
+  // A hard error → keep whatever's loaded. A workspace with zero jobs is still a
+  // real (empty) workspace: load its candidates so imports show even before any
+  // job is posted.
+  if (jobsRes.error) return null;
 
   // Apply-page view stats keyed by job id: { total, uniques, sources:{src:count} }.
   const viewsByJob = {};
@@ -113,9 +119,12 @@ async function loadWorkspaceData(companyId) {
     parsed: c.parsed || null,
   }));
 
-  // Interviewer display names, for booking + scorecard attribution.
-  const profRes = await supabase.from("profiles").select("id, full_name").eq("company_id", companyId);
+  // Company team members double as the interviewer pool (no separate
+  // interviewers table): used for booking, scorecard attribution and the
+  // Interviewers screen.
+  const profRes = await supabase.from("profiles").select("id, full_name, email").eq("company_id", companyId);
   const profName = Object.fromEntries((profRes.data || []).map((p) => [p.id, p.full_name || "Interviewer"]));
+  const interviewers = (profRes.data || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", timezone: "Asia/Kuala_Lumpur" }));
 
   const applicantsByJob = {};
   const matchesByJob = {};
@@ -136,6 +145,10 @@ async function loadWorkspaceData(companyId) {
     }
   }
 
+  // Candidate display name by id, so a booking carries the name at load time and
+  // doesn't depend on a live candidates-array lookup when it's rendered.
+  const candNameById = Object.fromEntries(candidates.map((c) => [c.id, c.parsed?.name || null]));
+
   const bookings = {};
   for (const iv of ivRes.data || []) {
     if (iv.status !== "scheduled" || !iv.scheduled_at) continue;
@@ -144,7 +157,7 @@ async function loadWorkspaceData(companyId) {
       status: "scheduled",
       confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
       provider: iv.provider || "google",
-      request: { candidateId: iv.candidate_id, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: profName[iv.interviewer_id] || "Interviewer" },
+      request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: profName[iv.interviewer_id] || "Interviewer" },
     };
   }
 
@@ -160,643 +173,28 @@ async function loadWorkspaceData(companyId) {
     });
   }
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards };
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
 
 // Reassignable so a signed-in workspace can swap this demo set for real
 // Supabase rows (see applyWorkspaceData). Left as the seed data in mock mode.
-let MOCK_CANDIDATES = [
-  {
-    id: "c1",
-    fileName: "amira_hassan_resume.pdf",
-    status: "parsed",
-    hasPhoto: true,
-    parsed: {
-      name: "Amira Hassan",
-      email: "amira.hassan@email.com",
-      phone: "+60 12-345 6789",
-      location: "Kuala Lumpur, Malaysia",
-      linkedin_url: "https://linkedin.com/in/example",
-      portfolio_url: "https://amirahassan.dev",
-      summary: "Senior frontend engineer focused on design systems and component architecture, with a track record of shipping performant, accessible UI at scale.",
-      years_of_experience: 6,
-      salary_expectation: "RM 9,500 - 11,000 / month",
-      skills: ["React", "TypeScript", "Tailwind", "GraphQL", "Node.js", "Figma"],
-      languages: ["English", "Malay"],
-      certifications: ["AWS Certified Cloud Practitioner"],
-      experience: [
-        { title: "Senior Frontend Engineer", company: "Grabtech", duration: "2021–Present", summary: "Led design system rebuild, cut bundle size 40%." },
-        { title: "Frontend Developer", company: "Fave", duration: "2018–2021", summary: "Built checkout flows serving 2M+ MAU." },
-      ],
-      education: [{ degree: "B.Sc. Computer Science", institution: "Universiti Malaya", year: "2018" }],
-    },
-  },
-  {
-    id: "c2",
-    fileName: "daniel_teoh_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Daniel Teoh",
-      email: "daniel.teoh@email.com",
-      phone: "+60 16-234 5678",
-      location: "Penang, Malaysia",
-      linkedin_url: null,
-      portfolio_url: null,
-      summary: null,
-      years_of_experience: 4,
-      salary_expectation: null,
-      skills: ["Vue", "JavaScript", "CSS", "WordPress", "PHP"],
-      languages: ["English", "Mandarin", "Malay"],
-      certifications: [],
-      experience: [
-        { title: "Web Developer", company: "Freelance", duration: "2020–Present", summary: "Built 30+ SME sites for local Malaysian businesses." },
-      ],
-      education: [{ degree: "Diploma in IT", institution: "TAR UC", year: "2019" }],
-    },
-  },
-  {
-    id: "c3",
-    fileName: "siti_rahman_resume.pdf",
-    status: "parsed",
-    hasPhoto: true,
-    parsed: {
-      name: "Siti Rahman",
-      email: "siti.rahman@email.com",
-      phone: "+60 19-876 5432",
-      location: "Cyberjaya, Malaysia",
-      linkedin_url: "https://linkedin.com/in/example2",
-      portfolio_url: "https://sitirahman.design",
-      summary: "Creative frontend engineer blending 3D web experiences with production-grade React.",
-      years_of_experience: 3,
-      salary_expectation: null,
-      skills: ["React", "Next.js", "TypeScript", "Three.js", "GSAP", "WebGL"],
-      languages: ["English", "Malay"],
-      certifications: ["Meta Front-End Developer Professional Certificate"],
-      experience: [
-        { title: "Creative Frontend Engineer", company: "Studio Kite", duration: "2022–Present", summary: "Built award-nominated 3D portfolio sites for agency clients." },
-        { title: "Frontend Intern", company: "MDEC", duration: "2021–2022", summary: "Internal dashboard tooling." },
-      ],
-      education: [{ degree: "B.Sc. Software Engineering", institution: "Multimedia University", year: "2022" }],
-    },
-  },
-  {
-    id: "c4",
-    fileName: "wei_ming_resume.pdf",
-    status: "pending",
-    parsed: null,
-  },
-  {
-    id: "c5",
-    fileName: "nurul_aina_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Nurul Aina",
-      email: "nurul.aina@email.com",
-      phone: "+60 13-222 3344",
-      location: "Shah Alam, Malaysia",
-      summary: "Frontend developer with a focus on accessible, responsive interfaces.",
-      years_of_experience: 4,
-      skills: ["React", "JavaScript", "CSS", "Accessibility"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Frontend Developer", company: "Piktochart", duration: "2020–Present", summary: "Owned the component library." }],
-      education: [{ degree: "B.IT", institution: "UiTM", year: "2019" }],
-    },
-  },
-  {
-    id: "c6",
-    fileName: "arjun_menon_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Arjun Menon",
-      email: "arjun.menon@email.com",
-      phone: "+60 17-555 8899",
-      location: "George Town, Malaysia",
-      summary: "Full-stack engineer comfortable across React and Node.",
-      years_of_experience: 5,
-      skills: ["React", "Node.js", "PostgreSQL", "AWS"],
-      languages: ["English", "Tamil"],
-      experience: [{ title: "Software Engineer", company: "MoneyLion", duration: "2019–Present", summary: "Built internal tooling and APIs." }],
-      education: [{ degree: "B.Sc. Computer Science", institution: "USM", year: "2018" }],
-    },
-  },
-  {
-    id: "c7",
-    fileName: "lim_wei_jie_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Lim Wei Jie",
-      email: "weijie.lim@email.com",
-      phone: "+60 12-808 1122",
-      location: "Johor Bahru, Malaysia",
-      summary: "UI-focused developer who enjoys design systems work.",
-      years_of_experience: 3,
-      skills: ["React", "Tailwind", "Figma", "TypeScript"],
-      languages: ["English", "Mandarin", "Malay"],
-      experience: [{ title: "UI Engineer", company: "Setel", duration: "2021–Present", summary: "Shipped the design system." }],
-      education: [{ degree: "B.Des", institution: "UTM", year: "2020" }],
-    },
-  },
-  {
-    id: "c8",
-    fileName: "farah_iman_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Farah Iman",
-      email: "farah.iman@email.com",
-      phone: "+60 11-303 4455",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Frontend engineer with strong testing and performance habits.",
-      years_of_experience: 6,
-      skills: ["React", "TypeScript", "Testing", "Performance"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Senior Frontend Engineer", company: "Carsome", duration: "2018–Present", summary: "Led performance initiatives." }],
-      education: [{ degree: "B.Eng", institution: "UM", year: "2017" }],
-    },
-  },
-  {
-    id: "c9",
-    fileName: "nadia_karim_resume.pdf",
-    status: "parsed",
-    hasPhoto: true,
-    parsed: {
-      name: "Nadia Karim",
-      email: "nadia.karim@email.com",
-      phone: "+60 14-555 6060",
-      location: "Petaling Jaya, Malaysia",
-      summary: "Full-stack engineer with a backend lean, comfortable across the stack.",
-      years_of_experience: 5,
-      skills: ["Node.js", "React", "PostgreSQL", "AWS", "Docker"],
-      languages: ["English", "Malay"],
-      certifications: ["AWS Solutions Architect Associate"],
-      experience: [{ title: "Software Engineer", company: "iPay88", duration: "2019–Present", summary: "Built payment integrations and internal tooling." }],
-      education: [{ degree: "B.Sc. Software Engineering", institution: "APU", year: "2019" }],
-    },
-  },
-  {
-    id: "c10",
-    fileName: "wei_sheng_ong_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Wei Sheng Ong",
-      email: "weisheng.ong@outlook.com",
-      phone: "+60 16-771 8080",
-      location: "Johor Bahru, Malaysia",
-      summary: "Frontend developer growing into product engineering.",
-      years_of_experience: 3,
-      skills: ["React", "JavaScript", "CSS", "Next.js"],
-      languages: ["English", "Mandarin"],
-      experience: [{ title: "Frontend Developer", company: "Setel", duration: "2021–Present", summary: "Shipped customer-facing features for a fuel app." }],
-      education: [{ degree: "B.IT", institution: "USM", year: "2021" }],
-    },
-  },
-  {
-    id: "c11",
-    fileName: "nurul_aisyah_resume.pdf",
-    status: "parsed",
-    hasPhoto: true,
-    parsed: {
-      name: "Nurul Aisyah",
-      email: "nurul.aisyah@email.com",
-      phone: "+60 13-221 1919",
-      location: "Shah Alam, Malaysia",
-      summary: "Product designer turned frontend, strong on UI polish and accessibility.",
-      years_of_experience: 4,
-      skills: ["React", "Figma", "Tailwind", "Accessibility"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "UI Engineer", company: "MoneyLion", duration: "2020–Present", summary: "Bridged design and engineering on the design system." }],
-      education: [{ degree: "B.Des Communication Design", institution: "The One Academy", year: "2019" }],
-    },
-  },
-  {
-    id: "c12",
-    fileName: "arjun_menon_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Arjun Menon",
-      email: "arjun.menon@email.com",
-      phone: "+60 17-882 2323",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Frontend engineer with a focus on data-heavy dashboards.",
-      years_of_experience: 7,
-      skills: ["React", "TypeScript", "D3", "Redux", "Testing"],
-      languages: ["English", "Malayalam"],
-      certifications: [],
-      experience: [{ title: "Lead Frontend Engineer", company: "StashAway", duration: "2017–Present", summary: "Owned the investor dashboard end to end." }],
-      education: [{ degree: "B.Eng Computer Engineering", institution: "UTM", year: "2016" }],
-    },
-  },
-  {
-    id: "c13",
-    fileName: "chloe_tan_resume.pdf",
-    status: "parsed",
-    hasPhoto: true,
-    parsed: {
-      name: "Chloe Tan",
-      email: "chloe.tan@email.com",
-      phone: "+60 12-905 4646",
-      location: "Penang, Malaysia",
-      summary: "Frontend developer with an eye for motion and micro-interactions.",
-      years_of_experience: 3,
-      skills: ["React", "Framer Motion", "CSS", "TypeScript"],
-      languages: ["English", "Mandarin", "Malay"],
-      experience: [{ title: "Frontend Developer", company: "Piktochart", duration: "2021–Present", summary: "Built editor UI and animation systems." }],
-      education: [{ degree: "B.Sc. Multimedia", institution: "MMU", year: "2021" }],
-    },
-  },
-  {
-    id: "c14",
-    fileName: "iskandar_zulkifli_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Iskandar Zulkifli",
-      email: "iskandar.z@email.com",
-      phone: "+60 19-404 5757",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Frontend engineer, ex-agency, strong CSS and delivery speed.",
-      years_of_experience: 5,
-      skills: ["React", "Vue", "SCSS", "JavaScript"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Frontend Engineer", company: "FashionValet", duration: "2019–Present", summary: "Delivered storefront features under tight timelines." }],
-      education: [{ degree: "B.IT", institution: "UKM", year: "2018" }],
-    },
-  },
-  {
-    id: "c15",
-    fileName: "nurdiana_rashid_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Nurdiana Rashid",
-      email: "nurdiana.rashid@email.com",
-      phone: "+60 12-334 7788",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Enterprise account executive with a steady record of beating quota.",
-      years_of_experience: 6,
-      skills: ["Salesforce", "B2B Sales", "Negotiation", "Cold Calling", "Pipeline Management", "Account Management"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Account Executive", company: "Grab", duration: "2019–Present", summary: "Grew mid-market pipeline and closed enterprise logos." }],
-      education: [{ degree: "B.B.A. Marketing", institution: "Taylor's University", year: "2017" }],
-    },
-  },
-  {
-    id: "c16",
-    fileName: "kevin_tan_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Kevin Tan",
-      email: "kevin.tan.mkt@email.com",
-      phone: "+60 16-221 9090",
-      location: "Petaling Jaya, Malaysia",
-      summary: "Growth marketer who runs full-funnel campaigns end to end.",
-      years_of_experience: 7,
-      skills: ["SEO", "Content Marketing", "Google Analytics", "HubSpot", "Campaign Management", "Social Media"],
-      languages: ["English", "Mandarin"],
-      experience: [{ title: "Marketing Manager", company: "Fave", duration: "2018–Present", summary: "Owned demand-gen and lifecycle marketing." }],
-      education: [{ degree: "B.A. Communications", institution: "Monash Malaysia", year: "2016" }],
-    },
-  },
-  {
-    id: "c17",
-    fileName: "aisyah_zainal_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Aisyah Zainal",
-      email: "aisyah.zainal@email.com",
-      phone: "+60 13-556 3311",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Financial analyst focused on FP&A, modelling and forecasting.",
-      years_of_experience: 5,
-      skills: ["Financial Modeling", "Excel", "Forecasting", "Budgeting", "SQL", "Power BI"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Financial Analyst", company: "Maybank", duration: "2019–Present", summary: "Built the annual budgeting model and board reporting." }],
-      education: [{ degree: "B.Acc. Finance", institution: "Universiti Malaya", year: "2018" }],
-    },
-  },
-  {
-    id: "c18",
-    fileName: "priya_kumar_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Priya Kumar",
-      email: "priya.kumar.hr@email.com",
-      phone: "+60 17-808 4422",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "HR business partner who scales hiring and people programs.",
-      years_of_experience: 8,
-      skills: ["Recruiting", "Employee Relations", "Onboarding", "HRIS", "Compensation", "Performance Management"],
-      languages: ["English", "Tamil", "Malay"],
-      experience: [{ title: "HR Business Partner", company: "Shopee", duration: "2017–Present", summary: "Partnered with engineering and commercial teams on headcount." }],
-      education: [{ degree: "B.Sc. Psychology", institution: "HELP University", year: "2014" }],
-    },
-  },
-  {
-    id: "c19",
-    fileName: "daniel_lee_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Daniel Lee",
-      email: "daniel.lee.cs@email.com",
-      phone: "+60 11-990 2233",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Customer success manager obsessed with retention and expansion.",
-      years_of_experience: 4,
-      skills: ["Account Management", "Customer Onboarding", "Retention", "Zendesk", "Upselling", "SaaS"],
-      languages: ["English", "Cantonese"],
-      experience: [{ title: "Customer Success Manager", company: "StoreHub", duration: "2020–Present", summary: "Owned a book of SMB accounts and drove net revenue retention." }],
-      education: [{ degree: "B.B.A.", institution: "Sunway University", year: "2019" }],
-    },
-  },
-  {
-    id: "c20",
-    fileName: "faridah_omar_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Faridah Omar",
-      email: "faridah.omar@email.com",
-      phone: "+60 12-101 7676",
-      location: "Shah Alam, Malaysia",
-      summary: "Operations manager who tightens processes and cuts cost-to-serve.",
-      years_of_experience: 9,
-      skills: ["Process Improvement", "Supply Chain", "Project Management", "Logistics", "Lean", "Vendor Management"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Operations Manager", company: "Pos Malaysia", duration: "2015–Present", summary: "Ran last-mile operations and vendor SLAs." }],
-      education: [{ degree: "B.Eng. Industrial", institution: "UiTM", year: "2013" }],
-    },
-  },
-  {
-    id: "c21",
-    fileName: "marcus_wong_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Marcus Wong",
-      email: "marcus.wong.pm@email.com",
-      phone: "+60 18-443 5511",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Product manager who ships outcomes, not just features.",
-      years_of_experience: 6,
-      skills: ["Product Strategy", "Roadmapping", "User Research", "Agile", "Analytics", "Project Management"],
-      languages: ["English", "Mandarin"],
-      experience: [{ title: "Product Manager", company: "iflix", duration: "2019–Present", summary: "Led discovery and monetisation squads." }],
-      education: [{ degree: "B.Sc. Business Analytics", institution: "APU", year: "2017" }],
-    },
-  },
-  {
-    id: "c22",
-    fileName: "hannah_lim_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Hannah Lim",
-      email: "hannah.lim.data@email.com",
-      phone: "+60 14-667 8080",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Data analyst turning messy data into decisions the business trusts.",
-      years_of_experience: 3,
-      skills: ["SQL", "Tableau", "Excel", "Data Visualization", "Statistics", "Python"],
-      languages: ["English", "Mandarin"],
-      experience: [{ title: "Data Analyst", company: "AirAsia", duration: "2021–Present", summary: "Built self-serve dashboards for commercial teams." }],
-      education: [{ degree: "B.Sc. Statistics", institution: "Universiti Malaya", year: "2020" }],
-    },
-  },
-  {
-    id: "c23",
-    fileName: "siti_aminah_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Siti Aminah",
-      email: "siti.aminah.rn@email.com",
-      phone: "+60 19-224 6633",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Registered nurse with ICU and general ward experience.",
-      years_of_experience: 7,
-      skills: ["Patient Care", "Clinical Assessment", "Medication Administration", "EMR", "Triage", "Wound Care"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Registered Nurse", company: "Gleneagles Hospital", duration: "2017–Present", summary: "Delivered acute care and mentored junior nurses." }],
-      education: [{ degree: "B.Nursing", institution: "IMU", year: "2016" }],
-    },
-  },
-  {
-    id: "c24",
-    fileName: "joel_dcruz_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Joel D'Cruz",
-      email: "joel.dcruz@email.com",
-      phone: "+60 16-880 1414",
-      location: "Petaling Jaya, Malaysia",
-      summary: "Graphic designer across brand, print and social.",
-      years_of_experience: 5,
-      skills: ["Adobe Photoshop", "Illustrator", "Branding", "Typography", "InDesign", "Print Design"],
-      languages: ["English"],
-      experience: [{ title: "Graphic Designer", company: "Naga DDB", duration: "2019–Present", summary: "Designed campaign key visuals for regional brands." }],
-      education: [{ degree: "Dip. Graphic Design", institution: "The One Academy", year: "2018" }],
-    },
-  },
-  {
-    id: "c25",
-    fileName: "meiling_wong_resume.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Wong Mei Ling",
-      email: "meiling.wong.acc@email.com",
-      phone: "+60 12-773 9001",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Senior accountant across reporting, audit and tax.",
-      years_of_experience: 10,
-      skills: ["Accounting", "Financial Reporting", "Audit", "Taxation", "SAP", "Reconciliation"],
-      languages: ["English", "Cantonese", "Mandarin"],
-      experience: [{ title: "Senior Accountant", company: "KPMG", duration: "2014–Present", summary: "Led statutory audits for mid-cap clients." }],
-      education: [{ degree: "B.Acc. (ACCA)", institution: "Sunway University", year: "2013" }],
-    },
-  },
-  {
-    id: "c26",
-    fileName: "amir_hakim_cv.pdf",
-    status: "parsed",
-    hasPhoto: false,
-    parsed: {
-      name: "Amir Hakim",
-      email: "amir.hakim.cw@email.com",
-      phone: "+60 17-556 2299",
-      location: "Kuala Lumpur, Malaysia",
-      summary: "Copywriter with a knack for brand voice and conversion.",
-      years_of_experience: 4,
-      skills: ["Copywriting", "Content Strategy", "Editing", "Brand Voice", "SEO Writing", "Storytelling"],
-      languages: ["English", "Malay"],
-      experience: [{ title: "Copywriter", company: "Leo Burnett", duration: "2020–Present", summary: "Wrote launch campaigns for FMCG and fintech brands." }],
-      education: [{ degree: "B.A. English", institution: "Universiti Malaya", year: "2019" }],
-    },
-  },
-];
+let MOCK_CANDIDATES = [];
 
 // Reassignable (see applyWorkspaceData): held in `jobs` state, but also read as
 // a module binding by buildActivities, so it's swapped to real data on hydrate.
-let MOCK_JOBS = [
-  {
-    id: "j1",
-    title: "Senior Frontend Engineer (React)",
-    department: "Engineering",
-    location: "Kuala Lumpur",
-    employment_type: "full_time",
-    remote_type: "hybrid",
-    seniority_level: "senior",
-    salary_min: 9000,
-    salary_max: 13000,
-    salary_currency: "MYR",
-    status: "open",
-    description:
-      "We're looking for a senior frontend engineer to lead our design system and component architecture, working closely with our design and product teams.",
-    responsibilities: [
-      "Own and evolve our design system and shared component library",
-      "Lead frontend architecture decisions across the product",
-      "Partner with designers on Figma-to-code handoff and design QA",
-      "Mentor mid-level engineers and review pull requests",
-      "Champion accessibility and performance across the codebase",
-    ],
-    requirements: [
-      "5+ years building production React with TypeScript",
-      "Hands-on experience owning or scaling a design system",
-      "Strong, accessible, responsive CSS skills",
-      "Comfortable turning Figma designs into pixel-accurate UI",
-      "Clear communicator with good code-review habits",
-    ],
-    benefits: [
-      "Comprehensive health insurance",
-      "Flexible working hours",
-      "Annual learning & conference budget",
-      "Hybrid work from our KL office",
-      "Latest MacBook Pro",
-    ],
-  },
-  {
-    id: "j2",
-    title: "WordPress Developer",
-    department: "Engineering",
-    location: "Petaling Jaya",
-    employment_type: "full_time",
-    remote_type: "onsite",
-    seniority_level: "mid",
-    salary_min: 4500,
-    salary_max: 7000,
-    salary_currency: "MYR",
-    status: "open",
-    description:
-      "Build and maintain client websites on WordPress. You'll work across PHP themes, plugins, and the occasional custom build for our SME clients.",
-    responsibilities: [
-      "Build and maintain WordPress sites for SME clients",
-      "Develop custom themes and plugins in PHP",
-      "Set up WooCommerce stores and page-builder layouts",
-      "Handle site performance, security and backups",
-      "Work with designers to deliver pixel-accurate pages",
-    ],
-    requirements: [
-      "3+ years of professional WordPress development",
-      "Solid PHP, HTML, CSS and JavaScript",
-      "Experience with WooCommerce and popular page builders",
-      "Understanding of hosting, DNS and basic site security",
-      "Able to manage multiple client projects at once",
-    ],
-    benefits: ["EPF & SOCSO", "Medical coverage", "Parking allowance", "Team lunches", "Clear career path"],
-  },
-  {
-    id: "j3",
-    title: "Product Designer (UI/UX)",
-    department: "Design",
-    location: "Kuala Lumpur",
-    employment_type: "full_time",
-    remote_type: "remote",
-    seniority_level: "mid",
-    salary_min: 6000,
-    salary_max: 9500,
-    salary_currency: "MYR",
-    status: "open",
-    description:
-      "Own the end-to-end design of our products, from research and wireframes to polished UI in Figma. Partner closely with engineering on handoff.",
-    responsibilities: [
-      "Run discovery: user research, flows and wireframes",
-      "Design polished, accessible UI in Figma",
-      "Contribute to and maintain our design system",
-      "Prototype and test ideas before handoff",
-      "Partner with engineering to ship pixel-accurate work",
-    ],
-    requirements: [
-      "Strong Figma and prototyping skills",
-      "A portfolio of shipped product work",
-      "Experience contributing to design systems",
-      "Comfortable with user research and testing",
-      "Good written communication for async, remote work",
-    ],
-    benefits: ["Fully remote", "Home-office budget", "Flexible hours", "Annual leave 18 days", "Learning stipend"],
-  },
-  {
-    id: "j4",
-    title: "Creative Frontend Developer (3D / Motion)",
-    department: "Engineering",
-    location: "Kuala Lumpur",
-    employment_type: "contract",
-    remote_type: "hybrid",
-    seniority_level: "senior",
-    salary_min: 8000,
-    salary_max: 12000,
-    salary_currency: "MYR",
-    status: "closed",
-    description:
-      "Craft immersive, animated web experiences using React, Three.js and GSAP for our flagship marketing sites and product launches.",
-    responsibilities: [
-      "Build immersive, animated marketing sites",
-      "Develop 3D and WebGL scenes with Three.js",
-      "Create smooth motion and interactions with GSAP",
-      "Optimise creative work for performance across devices",
-      "Collaborate with designers on art direction",
-    ],
-    requirements: [
-      "Strong React and TypeScript",
-      "Production experience with Three.js and WebGL",
-      "Advanced animation skills (GSAP or similar)",
-      "An eye for motion and interaction detail",
-      "Portfolio of interactive or creative web work",
-    ],
-    benefits: ["Project completion bonus", "Latest hardware", "Creative freedom", "Flexible schedule", "Potential to extend"],
-  },
-];
+let MOCK_JOBS = [];
 
-let MOCK_MATCHES = {
-  j1: [
-    { candidateId: "c1", score: 0.91, rationale: "Strong match: 5+ years of React/TypeScript with direct design system ownership at Grabtech, which maps closely to the role's core responsibility. Prior Figma experience is a clean fit for the design handoff workflow." },
-    { candidateId: "c3", score: 0.78, rationale: "Good technical overlap in React/TypeScript and strong creative engineering background, though experience skews toward 3D/animation work rather than design system architecture specifically." },
-    { candidateId: "c6", score: 0.74, rationale: "Solid full-stack React/Node background with production experience; slightly less design-system depth than the top candidates." },
-    { candidateId: "c8", score: 0.69, rationale: "Senior frontend with strong testing and performance habits, a dependable fit, though less design-system-specific evidence in the resume." },
-    { candidateId: "c5", score: 0.63, rationale: "Accessible, responsive UI focus is relevant, but fewer years and less TypeScript depth than the leading applicants." },
-    { candidateId: "c7", score: 0.57, rationale: "UI-focused with Tailwind and design-system exposure; earlier-career, so ramp-up on complex architecture is likely." },
-    { candidateId: "c2", score: 0.42, rationale: "Limited fit: primary stack is Vue/WordPress rather than React, and experience is freelance SME sites rather than large-scale design systems." },
-  ],
-};
+let MOCK_MATCHES = {};
 
-const INITIAL_INTERVIEWERS = [
-  { id: "iv1", name: "Jane Tan", email: "jane@company.com", timezone: "Asia/Kuala_Lumpur" },
-  { id: "iv2", name: "Ahmad Zulkifli", email: "ahmad@company.com", timezone: "Asia/Kuala_Lumpur" },
-];
+// Interviewer pool. Hydrated from the company's Supabase profiles in
+// loadWorkspaceData (there is no separate interviewers table, the team members
+// are the interviewers). Empty until real data loads; interviewers added in the
+// Interviewers screen are client-side for the session.
+const INITIAL_INTERVIEWERS = [];
 
-// Collaborative scorecards, structured interview feedback, one per interviewer.
+// Collaborative scorecards: structured interview feedback, one per interviewer.
 const SCORE_CRITERIA = [
   { key: "technical", label: "Technical skills" },
   { key: "communication", label: "Communication" },
@@ -809,50 +207,13 @@ const RECOMMENDATIONS = [
   { key: "no", label: "No", color: "#B91C1C", bg: "#FEF2F2" },
   { key: "strong_no", label: "Strong no", color: "#991B1B", bg: "#FEE2E2" },
 ];
-const SCORECARDS_BY_CANDIDATE = {
-  c1: [
-    { id: "sc1", interviewer: "Jane Tan", ratings: { technical: 4, communication: 4, cultureFit: 3, experience: 4 }, recommendation: "strong_yes", notes: "Excellent design-system depth, walked through real trade-offs clearly. I'd move fast to an offer.", submittedAt: "2d ago" },
-    { id: "sc2", interviewer: "Ahmad Zulkifli", ratings: { technical: 4, communication: 2, cultureFit: 3, experience: 3 }, recommendation: "yes", notes: "Strong technically but a little terse explaining decisions. Worth a second chat on collaboration style.", submittedAt: "1d ago" },
-  ],
-};
+// Real scorecards load via setScorecards from Supabase; empty by default (no mock).
+const SCORECARDS_BY_CANDIDATE = {};
 
 // Applicants keyed by job id, the single source of truth for both the
 // Jobs card count and the Applicants screen. Base stages here; a shared
 // override (e.g. from a confirmed booking) can win at render time.
-let APPLICANTS_BY_JOB = {
-  j1: [
-    { candidateId: "c1", appliedAt: "today", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c3", appliedAt: "2d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "LinkedIn" },
-    { candidateId: "c2", appliedAt: "5d ago", baseStage: "rejected", rejectionEmailSent: true, source: "Referral" },
-    { candidateId: "c6", appliedAt: "1d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "LinkedIn" },
-    { candidateId: "c8", appliedAt: "3d ago", baseStage: "hired", rejectionEmailSent: false, source: "Referral" },
-    { candidateId: "c5", appliedAt: "4d ago", baseStage: "applied", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c7", appliedAt: "6d ago", baseStage: "applied", rejectionEmailSent: false, source: "JobStreet" },
-    { candidateId: "c9", appliedAt: "1d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "LinkedIn" },
-    { candidateId: "c10", appliedAt: "2d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c11", appliedAt: "3d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "Referral" },
-    { candidateId: "c12", appliedAt: "2d ago", baseStage: "offer", rejectionEmailSent: false, source: "LinkedIn" },
-    { candidateId: "c13", appliedAt: "today", baseStage: "applied", rejectionEmailSent: false, source: "JobStreet" },
-    { candidateId: "c14", appliedAt: "5d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
-  ],
-  j2: [
-    { candidateId: "c2", appliedAt: "1d ago", baseStage: "applied", rejectionEmailSent: false, source: "Indeed" },
-    { candidateId: "c4", appliedAt: "3d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c10", appliedAt: "2d ago", baseStage: "applied", rejectionEmailSent: false, source: "LinkedIn" },
-    { candidateId: "c13", appliedAt: "today", baseStage: "applied", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c14", appliedAt: "5d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "Referral" },
-  ],
-  j3: [
-    { candidateId: "c1", appliedAt: "2d ago", baseStage: "interviewing", rejectionEmailSent: false, source: "LinkedIn" },
-    { candidateId: "c3", appliedAt: "1d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c6", appliedAt: "4d ago", baseStage: "applied", rejectionEmailSent: false, source: "Glassdoor" },
-    { candidateId: "c9", appliedAt: "today", baseStage: "applied", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c11", appliedAt: "3d ago", baseStage: "offer", rejectionEmailSent: false, source: "LinkedIn" },
-    { candidateId: "c12", appliedAt: "2d ago", baseStage: "applied", rejectionEmailSent: false, source: "JobStreet" },
-    { candidateId: "c5", appliedAt: "5d ago", baseStage: "shortlisted", rejectionEmailSent: false, source: "Career Page" },
-    { candidateId: "c7", appliedAt: "6d ago", baseStage: "applied", rejectionEmailSent: false, source: "LinkedIn" },
-  ],
-};
+let APPLICANTS_BY_JOB = {};
 
 const applicantCountFor = (jobId) => (APPLICANTS_BY_JOB[jobId] || []).length;
 
@@ -860,7 +221,7 @@ const applicantCountFor = (jobId) => (APPLICANTS_BY_JOB[jobId] || []).length;
 const JOB_STAGES = [
   { key: "applied", label: "Applied", color: "var(--brand)" },
   { key: "shortlisted", label: "Shortlisted", color: "#93C5FD" },
-  { key: "interviewing", label: "Interview", color: "#973BF7" },
+  { key: "interviewing", label: "Interview", color: "#6366F1" },
   { key: "offer", label: "Offer", color: "#F59E0B" },
   { key: "hired", label: "Hired", color: "#16A34A" },
 ];
@@ -1202,11 +563,12 @@ html { scroll-behavior: smooth; }
 /* Horizontal snap carousel (mobile pricing) */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
 `;
 
 function Shell({ children }) {
   return (
-    <div className="act-app min-h-dvh" style={{ background: "var(--bg)" }}>
+    <div className="act-app min-h-dvh" style={{ background: "#1B1C22" }}>
       <style dangerouslySetInnerHTML={{ __html: BRAND_STYLES }} />
       {children}
     </div>
@@ -2612,7 +1974,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const planHighlights = {
     free: { lead: "Includes", items: ["1 job posting · 10 interviewers", "100 applicant parses / month", "5 AI Rank + 5 AI Insight / month", "Scorecards, 2FA & data export", "Support ticket"] },
     starter: { lead: "Everything in Free, plus", items: ["5 jobs · 3 seats · 100 interviewers", "500 parses · 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
-    pro: { lead: "Everything in Growth, plus", items: ["10 jobs · unlimited seats & interviewers", "1,000 parses · 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
+    pro: { lead: "Everything in Scale, plus", items: ["10 jobs · unlimited seats & interviewers", "1,000 parses · 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
 
   const testimonials = [
@@ -2631,12 +1993,12 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
     { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away. There's no setup project to run first." },
-    { cat: "Billing", q: "Is there a free trial?", a: "Yes. Free includes a 14-day Growth trial with full access and no card required. When it ends, you move to the Free plan automatically." },
+    { cat: "Billing", q: "Is there a free trial?", a: "Yes. New accounts get a 14-day Scale trial with full access and no card required. Subscribe before it ends to keep your account (plans start at Launch, $19/month). If you don't, the account is suspended and deleted after 30 days." },
     { cat: "Billing", q: "How does pricing work?", a: "Start free, then pick a plan billed monthly or yearly (save 20% yearly) based on the features and volume you need. You only upgrade when you're hiring at scale." },
     { cat: "Billing", q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
     { cat: "Billing", q: "Can I change or cancel anytime?", a: "Yes. Upgrade, downgrade, or cancel from Billing whenever you like. Changes take effect at the end of the current period, with no lock-in, and nothing is deleted if you downgrade." },
     { cat: "Billing", q: "What happens when my trial ends?", a: "You move to the Free plan automatically, with no charge and no lost data. Upgrade whenever you're ready and everything picks up where you left off." },
-    { cat: "Billing", q: "Do you charge per team member?", a: "Growth and Pro include a set of seats, and you can add interviewers as your team grows. Enterprise offers white label. There are no hidden per-action fees." },
+    { cat: "Billing", q: "Do you charge per team member?", a: "Scale and Elite include a set of seats, and you can add interviewers as your team grows. Enterprise offers white label. There are no hidden per-action fees." },
     { cat: "Billing", q: "What payment methods do you accept?", a: "All major credit and debit cards, billed in USD through a secure hosted checkout, so raw card numbers never touch the app. An invoice is issued for every payment." },
     { cat: "Security", q: "Is my candidate data secure?", a: "Candidate data is encrypted in transit and at rest, with access limited to your workspace. You can export or delete it at any time." },
     { cat: "Security", q: "Where is my data stored, and can I delete it?", a: "Your data lives in your workspace, encrypted in transit and at rest. You can export everything or permanently delete it at any time. It stays yours." },
@@ -2650,20 +2012,20 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "Integrations", q: "Can candidates book their own interview slots?", a: "Yes. Share one link and candidates pick a time from your live availability. The calendar invite and video link are created automatically, with no back-and-forth email." },
     { cat: "Integrations", q: "Can I share roles on job boards?", a: "Yes. Every role gets an Apply page you can post on LinkedIn, JobStreet, or anywhere. Applicants land straight in your pipeline, tagged by source so you can see which channel performs best." },
     { cat: "Integrations", q: "Can I collect applications from my own website?", a: "Yes. Each role has a shareable Apply page you can link from your careers site or anywhere else, and applicants flow straight into your pipeline. Every apply link is source-tracked, so you always know which channel each applicant came from." },
-    { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Pro and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
+    { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Elite and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
     { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box: parsing, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
   ];
 
   const plans = [
-    { key: "free", name: "Free", col: "free", cta: "Get started", ghost: true,
-      price: "$0", sub: "forever", note: null,
-      tagline: "For trying Aster on a first role." },
-    { key: "starter", name: "Growth", col: "starter", cta: "Choose Growth", popular: true,
+    { key: "free", name: "Launch", col: "free", cta: "Get started", ghost: true,
+      price: "$19", sub: "/month", note: null,
+      tagline: "For getting started on your first roles." },
+    { key: "starter", name: "Scale", col: "starter", cta: "Choose Scale", popular: true,
       price: cycle === "yearly" ? "$103" : "$129",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
       note: cycle === "yearly" ? "$1,236/yr · save 20%" : null,
       tagline: "For small teams hiring steadily." },
-    { key: "professional", name: "Pro", col: "pro", cta: "Choose Pro", ghost: true,
+    { key: "professional", name: "Elite", col: "pro", cta: "Choose Elite", ghost: true,
       price: cycle === "yearly" ? "$199" : "$249",
       sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
       note: cycle === "yearly" ? "$2,388/yr · save 20%" : null,
@@ -3219,7 +2581,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         <Reveal className="text-center mb-8">
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
-          <p className="text-neutral-500 mt-2">Start free. Upgrade when you're hiring at volume. Prices in USD, before tax.</p>
+          <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Prices in USD, before tax.</p>
           <div className="inline-flex rounded-full border p-0.5 mt-6" style={{ borderColor: "var(--line)" }}>
             {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
               const on = cycle === c.key;
@@ -3379,7 +2741,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </div>
         </Reveal>
 
-        <p className="text-center text-sm text-neutral-500 mt-6">Free includes a 14-day Growth trial. Full access, no card required.</p>
+        <p className="text-center text-sm text-neutral-500 mt-6">New accounts get a 14-day Scale trial. Full access, no card required.</p>
       </section>
       <section id="faq" className="relative overflow-hidden py-14 sm:py-24 scroll-mt-20" style={{ background: "#F7F9FC", borderTop: "1px solid var(--line)" }}>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_1fr] gap-6 lg:gap-14">
@@ -7080,13 +6442,14 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const isFreePlan = !signupTrial && signupPlan === "free";
 
   // A trial always grants Growth, so it's labelled + priced as Pro.
-  const planLabel = signupTrial ? "Growth"
-    : signupPlan === "professional" ? "Pro"
-    : signupPlan === "starter" ? "Growth"
-    : isEnterprise ? "Enterprise" : "Free";
+  const planLabel = signupTrial ? "Scale"
+    : signupPlan === "professional" ? "Elite"
+    : signupPlan === "starter" ? "Scale"
+    : isEnterprise ? "Enterprise" : "Launch";
   const priceOf = (key) =>
     key === "professional" ? (signupCycle === "yearly" ? "$199/mo · billed yearly" : "$249/month")
     : key === "starter" ? (signupCycle === "yearly" ? "$103/mo · billed yearly" : "$129/month")
+    : key === "free" ? "$19/month"
     : null;
   const shownPrice = signupTrial ? priceOf("starter") : priceOf(signupPlan);
 
@@ -7182,7 +6545,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     "AI reads and scores every applicant against the role",
     "Auto-shortlist top candidates and book interviews in one click",
     "Turn weeks of CV screening into a single afternoon",
-    "Full Growth free for 14 days, no credit card required",
+    "Full Scale free for 14 days, no credit card required",
   ];
 
   return (
@@ -7280,7 +6643,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                   ) : isEnterprise ? (
                     "Custom pricing"
                   ) : isFreePlan ? (
-                    "$0 · free forever"
+                    "$19 · per month"
                   ) : (
                     <span className="font-medium" style={{ color: "var(--ink)" }}>{shownPrice}</span>
                   )}
@@ -7591,7 +6954,7 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
         {avatarUrl ? (
           <img src={avatarUrl} alt="You" className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-[#EAEEFE]" />
         ) : failed ? (
-          <div className="w-11 h-11 md:w-16 md:h-16 rounded-full brand-gradient flex items-center justify-center text-white text-sm md:text-lg font-semibold font-display ring-4 ring-[#EAEEFE]">
+          <div className="w-11 h-11 md:w-16 md:h-16 rounded-full flex items-center justify-center text-sm md:text-lg font-semibold font-display ring-4 ring-[#EAEEFE]" style={{ background: avatarColors(fullName).bg, color: avatarColors(fullName).color }}>
             {init}
           </div>
         ) : (
@@ -7723,7 +7086,10 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
   return (
     <div className="flex flex-col items-center h-full w-full">
       <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-11 h-11 flex items-center justify-center shrink-0">
-        <img src="/aster-mark.svg" alt="Aster" className="w-10 h-10" />
+        {/* Same star mark as the marketing BrandLogo lockup, mark only, black. */}
+        <svg viewBox="-50 -50 100 100" className="w-9 h-9 block" fill="#14181F" role="img" aria-label="Aster">
+          <path d="M0 -48 Q3 -5.196 41.57 -24 Q6 0 41.57 24 Q3 5.196 0 48 Q-3 5.196 -41.57 24 Q-6 0 -41.57 -24 Q-3 -5.196 0 -48 Z" />
+        </svg>
       </button>
       <nav className="flex-1 flex flex-col items-center gap-1.5">
         {NAV_ITEMS.map(railBtn)}
@@ -7752,7 +7118,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen md:p-4" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen md:p-4" style={{ background: "#1B1C22" }}>
       <div className="md:flex md:gap-4 md:items-start">
         {/* Desktop icon rail, light, sticky */}
         <aside className="hidden md:flex w-[76px] shrink-0 flex-col rounded-[26px] py-5 sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)" }}>
@@ -7783,7 +7149,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
               <NotificationBell activities={activities} onOpen={onOpenNotifications} compact />
             </div>
           </div>
-          <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px] overflow-x-clip" style={{ background: "var(--bg)" }}>
+          <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px] overflow-x-clip" style={{ background: "var(--card)" }}>
             {children}
           </div>
         </div>
@@ -8057,9 +7423,7 @@ function AccountShell({ title, subtitle, rail, children, navigate, profile, avat
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
       style={{
         background:
-          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
-          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
-          "var(--bg)",
+          "var(--card)",
       }}
     >
       <div className="mx-auto w-full max-w-[1400px]">
@@ -8084,7 +7448,7 @@ function AccountShell({ title, subtitle, rail, children, navigate, profile, avat
   );
 }
 
-function StatCard({ label, value, series, delta = 0, sparkColor = "#973BF7", icon, onClick }) {
+function StatCard({ label, value, series, delta = 0, sparkColor = "#0B2AE0", icon, onClick }) {
   return (
     <button
       onClick={onClick}
@@ -8162,19 +7526,44 @@ const FACE_OVERRIDES = {
   "Amir Hakim": { gender: "men" },
 };
 
+// Soft bg / strong ink pairs for initials avatars, so default photos aren't all
+// the same brand blue. Picked deterministically from the seed, so a given person
+// always keeps the same color.
+const AVATAR_COLORS = [
+  { bg: "#EAEFFB", color: "#6B84E0" }, // soft blue
+  { bg: "#F1EAFB", color: "#9E7BE0" }, // soft violet
+  { bg: "#E7F5EC", color: "#57B27E" }, // soft green
+  { bg: "#FBF1E1", color: "#D9A24E" }, // soft amber
+  { bg: "#FBE9F1", color: "#E07BA8" }, // soft pink
+  { bg: "#E6F4F9", color: "#4FA6C2" }, // soft cyan
+  { bg: "#FAEDE3", color: "#E0925F" }, // soft orange
+  { bg: "#E7F4F1", color: "#4FAEA2" }, // soft teal
+  { bg: "#FBEAEA", color: "#E07373" }, // soft rose
+  { bg: "#ECEFFB", color: "#7D8CE0" }, // soft indigo
+];
+function avatarColors(seed) {
+  const s = String(seed == null ? "" : seed);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
 // A person photo with graceful fallback to initials-in-a-circle if the
 // image can't load (offline / blocked). Seed is the name unless overridden.
-function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style = {}, fontScale = 0.36, fallbackBg = "var(--brand-soft)", fallbackColor = "var(--brand)" }) {
+// When no explicit fallback color is passed, the initials chip is tinted with a
+// per-name color from AVATAR_COLORS so default photos vary across people.
+function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style = {}, fontScale = 0.36, fallbackBg, fallbackColor }) {
   const [failed, setFailed] = useState(false);
   const ov = name ? FACE_OVERRIDES[name] : null;
   const photo = src || (ov && ov.src) || null;
   const g = gender || (ov && ov.gender) || undefined;
   const key = seed != null ? seed : name;
+  const pal = avatarColors((key != null && key !== "") ? key : name);
   if (failed || (!photo && (key == null || key === ""))) {
     return (
       <div
         className={`rounded-full flex items-center justify-center font-semibold font-display shrink-0 ${className}`}
-        style={{ width: size, height: size, background: fallbackBg, color: fallbackColor, fontSize: size * fontScale, ...style }}
+        style={{ width: size, height: size, background: fallbackBg || pal.bg, color: fallbackColor || pal.color, fontSize: size * fontScale, ...style }}
       >
         {initials(name)}
       </div>
@@ -8194,7 +7583,7 @@ function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style 
 
 // Candidate avatars use the real photo extracted from the resume when we have
 // one, and fall back to the person's initials, never a generated stock face.
-function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot = true }) {
+function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot = true, seed = null }) {
   const [failed, setFailed] = useState(false);
   if (src && !failed) {
     return (
@@ -8208,10 +7597,11 @@ function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot =
       />
     );
   }
+  const pal = avatarColors(seed != null && seed !== "" ? seed : name);
   return (
     <div
       className="rounded-full flex items-center justify-center font-semibold font-display shrink-0"
-      style={{ width: size, height: size, background: "var(--brand-soft)", color: "var(--brand)", fontSize: size * 0.36, border: "1px solid var(--line)" }}
+      style={{ width: size, height: size, background: pal.bg, color: pal.color, fontSize: size * 0.36, border: "1px solid var(--line)" }}
     >
       {initials(name)}
     </div>
@@ -8246,7 +7636,7 @@ function buildActivities() {
   const [matchJobId, matches] = Object.entries(MOCK_MATCHES)[0] || [];
   if (matches && matches[0]) {
     const n = cand(matches[0].candidateId);
-    list.push({ icon: "matching", accent: "#973BF7", title: "New match generated", desc: `${n} · ${jobTitle(matchJobId)} (${Math.round(matches[0].score * 100)}%)`, time: "3h ago", dotColor: "bg-neutral-800", target: { screen: "jobs", jobStatus: null } });
+    list.push({ icon: "matching", accent: "#0B2AE0", title: "New match generated", desc: `${n} · ${jobTitle(matchJobId)} (${Math.round(matches[0].score * 100)}%)`, time: "3h ago", dotColor: "bg-neutral-800", target: { screen: "jobs", jobStatus: null } });
   }
   // A recently published open role (pick one not already surfaced above)
   const openJobs = MOCK_JOBS.filter((j) => j.status === "open");
@@ -8258,7 +7648,7 @@ function buildActivities() {
   return list.map((it, i) => ({ id: `a${i + 1}`, read: i >= 2, ...it }));
 }
 
-function ActivityRow({ icon = "bell", accent = "#973BF7", title, desc, time, onClick }) {
+function ActivityRow({ icon = "bell", accent = "#0B2AE0", title, desc, time, onClick }) {
   return (
     <button onClick={onClick} className="group w-full flex items-start gap-3.5 text-left rounded-xl px-3 py-3 hover:bg-neutral-50 transition-colors">
       <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:-translate-y-0.5" style={{ background: `${accent}1A`, color: accent }}>
@@ -8352,8 +7742,8 @@ function ApplicationsChart({ applicants = [] }) {
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[960px] mx-auto block" style={{ aspectRatio: "760 / 300" }} preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id="appsFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#973BF7" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="#973BF7" stopOpacity="0" />
+          <stop offset="0%" stopColor="#0B2AE0" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#0B2AE0" stopOpacity="0" />
         </linearGradient>
       </defs>
 
@@ -8368,7 +7758,7 @@ function ApplicationsChart({ applicants = [] }) {
       })}
 
       <path d={area} fill="url(#appsFill)" />
-      <path d={line} fill="none" stroke="#973BF7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={line} fill="none" stroke="#0B2AE0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
       {/* Hover guide + tooltip */}
       {hover != null && (
@@ -8383,7 +7773,7 @@ function ApplicationsChart({ applicants = [] }) {
       )}
 
       {coords.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 3.5} fill="#973BF7" stroke="white" strokeWidth={hover === i ? 2 : 0} />
+        <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 3.5} fill="#0B2AE0" stroke="white" strokeWidth={hover === i ? 2 : 0} />
       ))}
 
       {/* Invisible hit areas for hover */}
@@ -8449,7 +7839,7 @@ function FeatureCard({ onAction }) {
       <svg viewBox="0 0 160 160" className="absolute right-3 bottom-0 w-40 h-40 opacity-90" aria-hidden="true">
         {[
           { r: 66, c: "#FBD38D", w: 12, from: 200, len: 90 },
-          { r: 52, c: "#973BF7", w: 12, from: 210, len: 110 },
+          { r: 52, c: "#0B2AE0", w: 12, from: 210, len: 110 },
           { r: 38, c: "#111827", w: 12, from: 220, len: 80 },
         ].map((a, i) => {
           const circ = 2 * Math.PI * a.r;
@@ -8470,7 +7860,7 @@ function FeatureCard({ onAction }) {
 
 // ---------- Plan limits & upgrade gating ----------
 // Central definition of what each plan allows, per the locked pricing matrix.
-// Display names: free = "Free", starter = "Growth", professional = "Pro",
+// Display names: free = "Launch", starter = "Scale", professional = "Elite",
 // enterprise = "Enterprise". Internal keys are kept for backward compatibility.
 //
 // Metered credits (reset on a rolling 30-day cycle): job posts, AI Parsing
@@ -8526,7 +7916,7 @@ const PLAN_LIMITS = {
 };
 const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.professional;
 
-function LockBadge({ label = "Pro" }) {
+function LockBadge({ label = "Elite" }) {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
       <Icon name="lock" className="w-3 h-3" /> {label}
@@ -8549,7 +7939,7 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "free", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "free", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null } }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   const [showAllSources, setShowAllSources] = useState(false);
@@ -8626,7 +8016,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     </div>
   );
 
-  const donutColors = ["#973BF7", "#3B82F6", "#93C5FD", "#D1D5DB"];
+  const donutColors = ["#0B2AE0", "#3B82F6", "#93C5FD", "#D1D5DB"];
 
   // Top Roles: applicants per role, derived from real applicant data.
   const roleCounts = jobs
@@ -8638,7 +8028,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
   // Application Source: distribution of where applicants came from.
-  const sourcePalette = { "Career Page": "#973BF7", LinkedIn: "#3B82F6", Referral: "#93C5FD", JobStreet: "#A5B4FC", Indeed: "#6366F1", Glassdoor: "#22C55E", Database: "#C7D2FE", Others: "#D1D5DB" };
+  const sourcePalette = { "Career Page": "#0B2AE0", LinkedIn: "#3B82F6", Referral: "#93C5FD", JobStreet: "#A5B4FC", Indeed: "#6366F1", Glassdoor: "#22C55E", Database: "#C7D2FE", Others: "#D1D5DB" };
   const sourceCounts = {};
   Object.values(APPLICANTS_BY_JOB).flat().forEach((a) => {
     const src = a.source || "Others";
@@ -8679,9 +8069,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Growth access: AI matching, scorecards, and more.</p>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Scale access. Subscribe before it ends, or the account is suspended.</p>
             </div>
-            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Subscribe</button>
           </div>
         )}
 
@@ -8783,7 +8173,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                         <div className="space-y-1 flex-1">
                           {interviews.slice(0, 3).map((iv) => (
                             <button key={iv.candidateId} onClick={() => navigate("interviews")} className="w-full flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-neutral-50 text-left transition-colors">
-                              <CandidateAvatar name={iv.candidateName} hasPhoto={false} size={36} />
+                              <CandidateAvatar name={iv.candidateName} seed={iv.candidateName === "Candidate" ? iv.candidateId : iv.candidateName} hasPhoto={false} size={36} />
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
                                 <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{iv.jobTitle}</p>
@@ -8812,20 +8202,20 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your plan</p>
-                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "free" ? "Free" : plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : "Enterprise"}</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "free" ? "Launch" : plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : "Enterprise"}</p>
                 </div>
                 <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
               </div>
               {/* stylised plan card */}
-              <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand-0), var(--brand) 55%, var(--brand-2))", boxShadow: "0 20px 40px -20px rgba(var(--brand-rgb),0.7)" }}>
+              <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 20px 40px -20px rgba(var(--brand-rgb),0.7)" }}>
                 <div className="flex items-center justify-between">
                   <span className="text-white font-display font-bold tracking-tight">Aster</span>
                   <Icon name="target" className="w-5 h-5 text-white/90" />
                 </div>
-                <p className="text-white font-display font-bold text-lg mt-6">{planLimits(plan).resumeUploads === Infinity ? "Unlimited resumes" : `${planLimits(plan).resumeUploads} resumes / mo`}</p>
+                <p className="text-white font-display font-bold text-lg mt-6">{planLimits(plan).resumeUploads === Infinity ? "Unlimited Parsing" : `${planLimits(plan).resumeUploads} Parsing / month`}</p>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-[11px] text-white/80">{trialDaysLeft > 0 ? `Trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left` : "Active"}</p>
-                  <p className="text-[11px] text-white/80">{stats.openJobs} open role{stats.openJobs === 1 ? "" : "s"}</p>
+                  <p className="text-[11px] text-white/80">{stats.openJobs} Active job{stats.openJobs === 1 ? "" : "s"}</p>
                 </div>
               </div>
               {/* quick actions */}
@@ -8868,9 +8258,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 {(() => {
                   const L = planLimits(plan);
                   const items = [
-                    { label: "Resume parsing", used: stats.totalCandidates, limit: L.resumeUploads },
+                    { label: "AI Parsing credits", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
                     { label: "AI Rank credits", used: stats.matches, limit: L.aiRunsPerMonth },
-                    { label: "Active jobs", used: stats.openJobs, limit: L.maxJobs },
+                    { label: "AI Insights credits", used: stats.inInterview, limit: L.aiInsightsPerMonth },
+                    { label: "AI Interview questions credits", used: stats.interviewsScheduled, limit: L.interviewQuestionsPerMonth },
+                    { label: "See-why explanations credits", used: stats.matches, limit: L.seeWhyPerMonth },
                   ];
                   const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
                   return (
@@ -8878,7 +8270,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
-                          <InfoHint dir="up" hint="How much of this month's plan you have used for resume parsing, AI matching, and active jobs. Limits reset on the 1st." />
+                          <InfoHint dir="up" hint="How much of this month's AI plan you have used across parsing, ranking, insights, interview questions and see-why. Limits reset on the 1st." />
                         </div>
                         <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
                       </div>
@@ -8955,36 +8347,6 @@ const UPLOAD_ACCEPT = [
   { icon: "check", title: "Automatic duplicate check", body: <>Each resume is matched against people already in your system, and others in the same batch. A matching <span className="font-medium" style={{ color: "var(--ink-2)" }}>email</span> (or the same <span className="font-medium" style={{ color: "var(--ink-2)" }}>name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for review. Anyone already hired is skipped automatically.</> },
 ];
 
-// Seeded past import runs so the history has something to show on first load.
-// Each run snapshots its rows + resolution state so it can be reopened read-only.
-const IMPORT_HISTORY_SEED = [
-  {
-    id: "imp-0702", label: "Jul 2, 2026 · 3:14 PM", fileCount: 6,
-    summary: { parsed: 4, duplicates: 1, review: 0, flagged: 0, rejected: 1 },
-    resolved: { "daniel_wong_(1).pdf": "skip" }, dupActions: { "daniel_wong_(1).pdf": "skip" },
-    rows: [
-      { fileName: "daniel_wong_cv.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.93, person: { name: "Daniel Wong", email: "daniel.wong@email.com", phone: "+60 12-900 1111" } },
-      { fileName: "mei_ling_resume.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.9, person: { name: "Mei Ling", email: "mei.ling@email.com", phone: "+60 13-800 2222" } },
-      { fileName: "arun_pillai.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.88, person: { name: "Arun Pillai", email: "arun.pillai@email.com", phone: "+60 14-700 3333" } },
-      { fileName: "grace_lim_updated.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.91, person: { name: "Grace Lim", email: "grace.lim@email.com", phone: "+60 16-600 4444" } },
-      { fileName: "daniel_wong_(1).pdf", uploadStatus: "done", parseStatus: "duplicate", confidence: 0.93, person: { name: "Daniel Wong", email: "daniel.wong@email.com", phone: "+60 12-900 1111" }, dup: { matchName: "Daniel Wong", on: "email", inBatch: true, hired: false, verdict: "duplicate" } },
-      { fileName: "office_map.pdf", uploadStatus: "done", parseStatus: "rejected", reason: "This doesn't read like a resume: no contact details or work history anywhere in it." },
-    ],
-  },
-  {
-    id: "imp-0628", label: "Jun 28, 2026 · 10:02 AM", fileCount: 5,
-    summary: { parsed: 3, duplicates: 0, review: 1, flagged: 1, rejected: 0 },
-    resolved: {}, dupActions: {},
-    rows: [
-      { fileName: "faizal_rahman_cv.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.92, person: { name: "Faizal Rahman", email: "faizal.r@email.com", phone: "+60 19-500 5555" } },
-      { fileName: "tan_sue_ann.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.87, person: { name: "Tan Sue Ann", email: "sueann.tan@email.com", phone: "+60 12-400 6666" } },
-      { fileName: "kavitha_nair.pdf", uploadStatus: "done", parseStatus: "parsed", confidence: 0.89, person: { name: "Kavitha Nair", email: "kavitha.nair@email.com", phone: "+60 17-300 7777" } },
-      { fileName: "j_lee_cv.pdf", uploadStatus: "done", parseStatus: "review", confidence: 0.6, person: { name: "Jonathan Lee", email: "", phone: "+60 16-200 8888" }, dup: { matchName: "Jonathan Lee", on: "name", inBatch: false, hired: false, verdict: "review" } },
-      { fileName: "scanned_resume.pdf", uploadStatus: "done", parseStatus: "flagged", confidence: 0.44, reason: "This looks like a scan: we only found bits and pieces. Worth a quick look before you trust it." },
-    ],
-  },
-];
-
 // Dependency-free ZIP reader, parses the central directory to list the files
 // inside an archive (names + sizes). No decompression needed just to enumerate,
 // so this works fully client-side for real .zip files the user picks.
@@ -9014,6 +8376,104 @@ function readZipEntries(buf) {
   return entries;
 }
 
+// Raw DEFLATE inflate via the browser's built-in DecompressionStream (no lib).
+async function inflateRaw(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+// Like readZipEntries, but also decompresses each PDF entry's bytes so they can
+// be parsed for real. Returns [{ name, size, bytes }] (bytes = null for non-PDF
+// entries or unsupported compression); null overall = not a valid zip.
+async function readZipFiles(buf) {
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder();
+  const out = [];
+  const max = Math.min(count, 2000);
+  for (let n = 0; n < max; n++) {
+    if (off + 46 > u8.length || dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const compSize = dv.getUint32(off + 20, true);
+    const uncompSize = dv.getUint32(off + 24, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const commentLen = dv.getUint16(off + 32, true);
+    const localOff = dv.getUint32(off + 42, true);
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen));
+    off += 46 + nameLen + extraLen + commentLen;
+
+    const base = name.split("/").pop() || name;
+    if (name.endsWith("/") || name.includes("__MACOSX") || base.startsWith(".")) continue;
+    // Only decompress resumes (PDF / Word); other entries become rejected rows.
+    if (!/\.(pdf|docx)$/i.test(base)) { out.push({ name: base, size: uncompSize, bytes: null }); continue; }
+
+    let bytes = null;
+    try {
+      if (dv.getUint32(localOff, true) === 0x04034b50) {
+        const lNameLen = dv.getUint16(localOff + 26, true);
+        const lExtraLen = dv.getUint16(localOff + 28, true);
+        const dataStart = localOff + 30 + lNameLen + lExtraLen;
+        const comp = u8.subarray(dataStart, dataStart + compSize);
+        if (method === 0) bytes = comp.slice();               // stored (no compression)
+        else if (method === 8) bytes = await inflateRaw(comp); // deflate
+      }
+    } catch { bytes = null; }
+    out.push({ name: base, size: uncompSize, bytes });
+  }
+  return out;
+}
+
+// Extract plain text from a .docx (a ZIP whose word/document.xml holds the body),
+// so Word resumes can be parsed as text (Claude can't read a .docx binary).
+async function extractDocxText(buf) {
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder();
+  const max = Math.min(count, 2000);
+  for (let n = 0; n < max; n++) {
+    if (off + 46 > u8.length || dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const compSize = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const commentLen = dv.getUint16(off + 32, true);
+    const localOff = dv.getUint32(off + 42, true);
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen));
+    off += 46 + nameLen + extraLen + commentLen;
+    if (name !== "word/document.xml") continue;
+    if (dv.getUint32(localOff, true) !== 0x04034b50) return null;
+    const lNameLen = dv.getUint16(localOff + 26, true);
+    const lExtraLen = dv.getUint16(localOff + 28, true);
+    const dataStart = localOff + 30 + lNameLen + lExtraLen;
+    const comp = u8.subarray(dataStart, dataStart + compSize);
+    const xmlBytes = method === 0 ? comp.slice() : method === 8 ? await inflateRaw(comp) : null;
+    if (!xmlBytes) return null;
+    let xml = new TextDecoder().decode(xmlBytes);
+    // paragraphs → newlines, tabs and breaks preserved, then strip all XML tags.
+    xml = xml.replace(/<w:tab\b[^>]*\/?>/g, "\t").replace(/<w:br\b[^>]*\/?>/g, "\n").replace(/<\/w:p>/g, "\n");
+    let text = xml.replace(/<[^>]+>/g, "");
+    text = text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)));
+    text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    return text || null;
+  }
+  return null;
+}
+
 // Strip any directory path (zip-slip safe: we only ever keep the basename),
 // remove control characters, and cap length before the name is displayed.
 function safeName(name) {
@@ -9033,13 +8493,15 @@ function nameFromFile(fn) {
   return s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications }) {
+function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun }) {
   const limits = planLimits(plan);
   // Bulk upload is its own pool (resumeUploads), separate from applicant parsing
   // (parseApplicant) which is metered server-side as inbound applicants arrive.
-  const uploadLimit = limits.resumeUploads;
+  // Server-metered (usage_counters.resume_parsing) via get_resume_parse_usage;
+  // falls back to the plan's static limit before that loads / offline.
+  const uploadLimit = parseUsage?.limit ?? limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
-  const planName = plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : plan === "enterprise" ? "Enterprise" : "Free";
+  const planName = plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [files, setFiles] = useState([]);
   const [rows, setRows] = useState([]);
@@ -9049,14 +8511,14 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   const [openInfo, setOpenInfo] = useState(null); // which "How it works" row is expanded
   const [resultFilter, setResultFilter] = useState("all"); // outcome filter on the results list
   const [previewRow, setPreviewRow] = useState(null); // parsed file open in the document preview
-  const [history, setHistory] = useState(IMPORT_HISTORY_SEED); // persistent import log
+  // "Recent imports" now comes from the parent (loaded from import_runs) and is
+  // saved via onSaveRun, so the log persists across reloads.
   const [viewingPast, setViewingPast] = useState(null); // label of a reopened past run (read-only)
   const [zipName, setZipName] = useState(null); // set when the batch was extracted from a ZIP
   const [zipError, setZipError] = useState(null);
-  const zipInputRef = useRef(null);
-  // Resumes already parsed this month (seeded from existing candidates in the demo);
-  // grows as batches complete, so the monthly allowance can actually run out.
-  const [usedThisMonth, setUsedThisMonth] = useState(MOCK_CANDIDATES.length);
+  // Real parses used this cycle, from the server meter. Refreshed after each
+  // import (onImported re-runs hydrateWorkspace, which refetches parse usage).
+  const usedThisMonth = parseUsage?.used ?? 0;
   const remaining = uploadLimit === Infinity ? Infinity : Math.max(0, uploadLimit - usedThisMonth);
   const outOfQuota = remaining === 0; // no parses left this month
 
@@ -9065,19 +8527,6 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   //   parsed: looks like a resume, structured fields extracted
   //   flagged: parsed but low confidence, needs a human to review
   //   rejected: failed a gate (wrong type / no readable text / not a resume)
-  const SAMPLE_BATCH = [
-    { fileName: "priya_nair_resume.pdf", verdict: "parsed", confidence: 0.94, person: { name: "Priya Nair", email: "priya.nair@email.com", phone: "+60 12-111 2222" } },
-    { fileName: "amira_hassan_updated_cv.pdf", verdict: "parsed", confidence: 0.92, person: { name: "Amira Hassan", email: "amira.hassan@email.com", phone: "+60 12-345 6789" } },
-    { fileName: "hafiz_ismail_cv.pdf", verdict: "parsed", confidence: 0.89, person: { name: "Hafiz Ismail", email: "hafiz.ismail@email.com", phone: "+60 13-222 3333" } },
-    { fileName: "siti_r_2026.pdf", verdict: "parsed", confidence: 0.90, person: { name: "Siti Rahman", email: "siti.r@gmail.com", phone: "+60 19-876 5432" } },
-    { fileName: "farah_iman_cv.pdf", verdict: "parsed", confidence: 0.90, person: { name: "Farah Iman", email: "farah.iman@email.com", phone: "+60 11-303 4455" } },
-    { fileName: "priya_nair_(1).pdf", verdict: "parsed", confidence: 0.94, person: { name: "Priya Nair", email: "priya.nair@email.com", phone: "+60 12-111 2222" } },
-    { fileName: "portfolio_scan.pdf", verdict: "flagged", confidence: 0.41, reason: "This looks like a scan: we only found bits and pieces. Worth a quick look before you trust it." },
-    { fileName: "company_brochure.pdf", verdict: "rejected", reason: "This doesn't read like a resume: no contact details, work history or education anywhere in it." },
-    { fileName: "budget_2026.xlsx", verdict: "rejected", reason: "We can't take spreadsheets. Send resumes as a PDF or Word file." },
-    { fileName: "ravi_kumar_cv.pdf", verdict: "parsed", confidence: 0.86, person: { name: "Ravi Kumar", email: "ravi.kumar@email.com", phone: "+60 14-555 6666" } },
-    { fileName: "lim_weijie_updated.pdf", verdict: "parsed", confidence: 0.88, person: { name: "Lim Wei Jie", email: "weijie.lim2@outlook.com", phone: "+60 16-777 8888" } },
-  ];
 
   // Identity match, the AI cross-checks each parsed resume against people already
   // in the system (and earlier files in the same batch) on email, phone and name.
@@ -9109,31 +8558,48 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     return null;
   };
 
-  const pickFiles = () => {
-    setFiles(SAMPLE_BATCH);
+  const resumeInputRef = useRef(null);
+  const pickFiles = () => resumeInputRef.current?.click();
+  const handleResumeInput = (e) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!picked.length) return;
+    setZipError(null);
+    // A picked ZIP is unpacked; otherwise the loose PDFs become the batch.
+    const zip = picked.find((f) => /\.zip$/i.test(f.name));
+    if (zip) { processZip(zip); return; }
+    setFiles(picked.map((f) => fileToRow(f.name, f.size, f)));
     setSkipped(0);
     setZipName(null);
-    setZipError(null);
   };
-  const RESUME_EXT = /\.(pdf|docx?)$/i;
-  const fileToRow = (rawName, sizeBytes) => {
+  // Read a File/Blob as base64 (no data: prefix), for the parse-resume function.
+  const fileToBase64 = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] || "");
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+  // Only real PDFs can be parsed (Claude reads the PDF). Keep the raw File on the
+  // row so runBatch can send its bytes; non-PDFs are rejected at the gate.
+  const fileToRow = (rawName, sizeBytes, blob = null) => {
     const name = safeName(rawName); // strip path/control chars before it's ever displayed
     const kb = Math.max(1, Math.round(sizeBytes / 1024));
-    return RESUME_EXT.test(name)
-      ? { fileName: name, sizeKb: kb, verdict: "parsed", confidence: undefined, person: { name: nameFromFile(name), email: "", phone: "" } }
-      : { fileName: name, sizeKb: kb, verdict: "rejected", reason: "Not a PDF or Word document. Skipped." };
+    return /\.(pdf|docx)$/i.test(name)
+      ? { fileName: name, sizeKb: kb, blob, verdict: "parsed", confidence: undefined, person: { name: nameFromFile(name), email: "", phone: "" } }
+      : { fileName: name, sizeKb: kb, blob, verdict: "rejected", reason: /\.doc$/i.test(name) ? "Old .doc format isn't supported. Save as .docx or PDF." : "Only PDF and Word (.docx) resumes are supported." };
   };
 
-  // Real ZIP import: reads the archive, lists the resumes inside, builds the batch.
+  const zipInputRef = useRef(null);
+  // Real ZIP import: unpack the archive, decompress the PDFs, build the batch.
   const processZip = async (file) => {
     setZipError(null);
     try {
-      const entries = readZipEntries(await file.arrayBuffer());
-      if (!entries) { setZipError("That doesn't look like a valid ZIP file."); return; }
-      const batch = entries
-        .filter((en) => !en.name.endsWith("/") && !en.name.includes("__MACOSX") && !en.name.split("/").pop().startsWith("."))
-        .map((en) => fileToRow(en.name.split("/").pop(), en.size));
-      if (batch.length === 0) { setZipError("No files found in that archive."); return; }
+      const entries = await readZipFiles(await file.arrayBuffer());
+      if (entries === null) { setZipError("That doesn't look like a valid ZIP file."); return; }
+      if (!entries.length) { setZipError("No files found in that archive."); return; }
+      const batch = entries.map((en) => en.bytes
+        ? fileToRow(en.name, en.bytes.length, new Blob([en.bytes]))
+        : fileToRow(en.name, en.size, null));
       setFiles(batch); setSkipped(0); setZipName(file.name);
     } catch {
       setZipError("Couldn't read that ZIP file. Try another one.");
@@ -9141,16 +8607,17 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   };
   const handleZipFile = (e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) processZip(file); };
 
-  // Real drag & drop: a dropped .zip is unpacked; loose files become the batch.
+  // Real drag & drop: loose PDFs become the batch; a dropped ZIP is unpacked.
   const [dragOver, setDragOver] = useState(false);
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer?.files;
     if (!dropped || !dropped.length) return;
-    if (dropped.length === 1 && /\.zip$/i.test(dropped[0].name)) { processZip(dropped[0]); return; }
+    const zip = Array.from(dropped).find((f) => /\.zip$/i.test(f.name));
+    if (zip) { processZip(zip); return; }
     setZipError(null);
-    setFiles(Array.from(dropped).map((f) => fileToRow(f.name, f.size)));
+    setFiles(Array.from(dropped).map((f) => fileToRow(f.name, f.size, f)));
     setSkipped(0);
     setZipName(null);
   };
@@ -9162,81 +8629,82 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   // (allowance minus what's already been parsed), not just the raw monthly cap.
   const overLimit = remaining !== Infinity && files.length > remaining;
 
-  const runBatch = () => {
+  const runBatch = async () => {
     if (overLimit) return; // guard: plan limit exceeded
-    setStage("uploading");
+    if (!hasSupabase) { setZipError("Sign in to a workspace to parse resumes."); return; }
+    setStage("parsing");
     setRows(files.map((f) => ({ ...f, uploadStatus: "pending", parseStatus: "pending" })));
 
-    // AI identity match, computed in file order so an earlier file in the same
-    // batch can be the thing a later duplicate points to.
-    const seen = [];
-    const dupMap = {};
-    files.forEach((f) => {
-      if (f.verdict !== "parsed" || !f.person) return;
-      const dup = findDuplicate(f.person, seen);
-      if (dup) {
-        const isExisting = dup.match.source === "existing";
-        dupMap[f.fileName] = {
-          on: dup.on,
-          confidence: dup.confidence,
-          matchName: dup.match.name,
-          inBatch: !isExisting,
-          hired: isExisting && hiredIds.has(dup.match.id),
-          verdict: dup.verdict, // "duplicate" (auto) | "review" (needs a human)
-        };
-        // A soft "review" hit isn't a confirmed dupe, still treat it as a
-        // possible new person so later identical files can flag against it too.
-        if (dup.verdict !== "duplicate") {
-          seen.push({ id: f.fileName, name: f.person.name, email: f.person.email, phone: f.person.phone, source: "batch" });
-        }
-      } else {
-        seen.push({ id: f.fileName, name: f.person.name, email: f.person.email, phone: f.person.phone, source: "batch" });
-      }
-    });
+    const seenEmails = new Set(); // in-batch de-dupe by the email the parser reads
+    let addedCount = 0;
+    let anyCreated = false;
 
-    let i = 0;
-    const uploadInterval = setInterval(() => {
-      const idx = i; // capture: the setRows updater runs after i++, so read a stable index
-      setRows((prev) => {
-        const next = [...prev];
-        if (next[idx]) {
-          // A file with an unsupported type never uploads, it's blocked at the gate.
-          const blockedAtUpload = next[idx].verdict === "rejected" && /\.(xlsx|xls|csv|png|jpg|jpeg|zip)$/i.test(next[idx].fileName);
-          next[idx] = { ...next[idx], uploadStatus: blockedAtUpload ? "blocked" : "done" };
+    // One request per file, in order. EVERY file goes to the server so it charges
+    // exactly one credit (1 file = 1 credit): readable PDF/Word gets parsed;
+    // a non-resume file or an unreadable .docx is sent as `unreadable` so it's
+    // still charged and rejected (no AI call). Only over-limit files are free.
+    for (let idx = 0; idx < files.length; idx++) {
+      const f = files[idx];
+      const update = (patch) => setRows((prev) => { const n = [...prev]; if (n[idx]) n[idx] = { ...n[idx], ...patch }; return n; });
+      update({ uploadStatus: "done" });
+
+      try {
+        let body;
+        let unreadReason = null;
+        if (f.verdict === "rejected" || !f.blob) {
+          body = { unreadable: true, filename: f.fileName };
+          unreadReason = f.reason || "Only PDF and Word (.docx) resumes are supported.";
+        } else if (/\.docx$/i.test(f.fileName)) {
+          const text = await extractDocxText(await f.blob.arrayBuffer());
+          if (text) { body = { resume_text: text, filename: f.fileName }; }
+          else { body = { unreadable: true, filename: f.fileName }; unreadReason = "Couldn't read this Word file. Export it to PDF and re-upload."; }
+        } else {
+          body = { resume_base64: await fileToBase64(f.blob), filename: f.fileName };
         }
-        return next;
-      });
-      i++;
-      if (i >= files.length) {
-        clearInterval(uploadInterval);
-        setStage("parsing");
-        let j = 0;
-        const parseInterval = setInterval(() => {
-          const jdx = j; // capture: the setRows updater runs after j++
-          setRows((prev) => {
-            const next = [...prev];
-            if (next[jdx]) {
-              const r = next[jdx];
-              // Blocked → skipped. Otherwise a duplicate identity → "duplicate",
-              // else the file's own verdict (parsed / flagged).
-              const dup = dupMap[r.fileName] || null;
-              const parseStatus = r.uploadStatus === "blocked" ? "skipped" : dup ? (dup.verdict === "review" ? "review" : "duplicate") : r.verdict;
-              next[jdx] = { ...r, parseStatus, dup };
-            }
-            return next;
-          });
-          j++;
-          if (j >= files.length) {
-            clearInterval(parseInterval);
-            setStage("done");
-            // Count against this month's allowance, only the "Parsed ✓" rows
-            // (new candidates), matching the results headline.
-            const added = files.filter((f) => f.verdict === "parsed" && !dupMap[f.fileName]).length;
-            if (added) setUsedThisMonth((n) => n + added);
-          }
-        }, 700);
+        const { data, error } = await supabase.functions.invoke("parse-resume", { body });
+        if (error || !data) { update({ parseStatus: "flagged", reason: "Couldn't parse this file. Try again." }); continue; }
+        if (data.ok === false) {
+          update(
+            data.error === "limit_reached"
+              ? { uploadStatus: "blocked", parseStatus: "skipped", reason: "Over your monthly limit, so this one was free." }
+              : data.error === "unreadable"
+                ? { parseStatus: "rejected", reason: unreadReason || "Couldn't read this file." }
+                : data.error === "not_a_resume"
+                  ? { parseStatus: "rejected", reason: "This doesn't read like a resume." }
+                  : data.error === "no_email"
+                    ? { parseStatus: "rejected", reason: "No email address on the resume, so it can't be added." }
+                    : { parseStatus: "flagged", reason: "Couldn't parse this file. Try again." });
+          continue;
+        }
+        const person = data.person || { name: nameFromFile(f.fileName), email: "", phone: "" };
+        const email = (person.email || "").toLowerCase();
+        const dupInBatch = !!email && seenEmails.has(email);
+        if (email) seenEmails.add(email);
+        // The server upserts by email, so was_existing means it matched a
+        // candidate already in the pool; dupInBatch means two files in this batch.
+        const isDuplicate = !!data.was_existing || dupInBatch;
+        anyCreated = true;
+        if (!isDuplicate) addedCount++;
+        update({
+          person,
+          confidence: undefined,
+          parseStatus: isDuplicate ? "duplicate" : "parsed",
+          dup: isDuplicate
+            ? { matchName: person.name, on: "email", inBatch: dupInBatch && !data.was_existing, hired: false, verdict: "duplicate" }
+            : null,
+        });
+      } catch {
+        update({ parseStatus: "flagged", reason: "Couldn't read this file." });
       }
-    }, 500);
+    }
+
+    setStage("done");
+    // Always refresh after a batch: new candidates show up in Candidate Search /
+    // dashboard, AND the parse-usage meter re-reads from the server, so credits
+    // spent on rejected / needs-review files (which create no candidate) are
+    // still reflected. anyCreated is kept only to decide the summary copy.
+    void anyCreated;
+    if (onImported) onImported();
   };
 
   const dupActionFor = (row) => (row.dup?.hired ? "skip" : dupActions[row.fileName] || "skip");
@@ -9272,20 +8740,9 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     setViewingPast(run.label);
     setStage("done");
   };
-  // Back to a fresh, empty upload screen, saving the just-finished live run to
-  // history first (reopening a past run must not re-save a duplicate).
+  // Back to a fresh, empty upload screen. The run was already saved when it
+  // finished (see the save-on-done effect), so navigating away never loses it.
   const resetUpload = () => {
-    if (!viewingPast && stage === "done" && rows.length) {
-      const s = summary();
-      const now = new Date();
-      const label = `${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
-      const run = {
-        id: `imp-${now.getTime()}`, label, fileCount: rows.length,
-        summary: { parsed: s.parsed, duplicates: s.duplicates, review: s.review, flagged: s.flagged, rejected: s.rejected },
-        resolved: { ...resolved }, dupActions: { ...dupActions }, rows,
-      };
-      setHistory((prev) => [run, ...prev]);
-    }
     setStage("idle");
     setFiles([]);
     setRows([]);
@@ -9304,6 +8761,25 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
     const updated = rows.filter((r) => r.parseStatus === "duplicate" && dupActionFor(r) === "update").length;
     return { parsed, flagged, rejected, duplicates, review, updated };
   };
+
+  // Save each finished batch to Recent imports the moment it completes, so it
+  // persists no matter how the user leaves the screen (back button or sidebar).
+  const savedRunRef = useRef(false);
+  useEffect(() => {
+    if (stage !== "done") { savedRunRef.current = false; return; }
+    if (viewingPast || !rows.length || savedRunRef.current) return;
+    savedRunRef.current = true;
+    const s = summary();
+    const now = new Date();
+    const label = `${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    const run = {
+      id: `imp-${now.getTime()}`, label, fileCount: rows.length,
+      summary: { parsed: s.parsed, duplicates: s.duplicates, review: s.review, flagged: s.flagged, rejected: s.rejected },
+      resolved: { ...resolved }, dupActions: { ...dupActions }, rows,
+    };
+    if (onSaveRun) onSaveRun(run);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
 
   const verdictBadge = (row) => {
     if (row.parseStatus === "pending") return <span className="text-xs text-neutral-400">…</span>;
@@ -9324,9 +8800,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
       style={{
         background:
-          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
-          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
-          "var(--bg)",
+          "var(--card)",
       }}
     >
       <div className="mx-auto w-full max-w-[1400px]">
@@ -9356,7 +8830,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 </span>
                 <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You've used all {uploadLimit} parses this month</p>
                 <p className="text-sm mt-1.5 max-w-md mx-auto" style={{ color: "var(--ink-3)" }}>
-                  The {planName} plan includes {uploadLimit} resume parses a month. Upgrade for unlimited parsing, or your allowance resets on the 1st.
+                  The {planName} plan includes {uploadLimit} resume parses a month. Upgrade for a higher limit, or your allowance resets each cycle.
                 </p>
                 <button onClick={() => navigate("billing")} className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="arrowUpRight" className="w-4 h-4" /> Upgrade plan
@@ -9378,19 +8852,20 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 </span>
                 <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{dragOver ? "Drop to add these files" : "Drag & drop resumes or a ZIP here"}</span>
                 <span className="block text-sm mt-1.5" style={{ color: "var(--ink-3)" }}>
-                  PDF, Word, or a ZIP of them{uploadLimit !== Infinity ? ` · up to ${uploadLimit} a month` : ""}
+                  PDF or Word (.docx), or a ZIP of them{uploadLimit !== Infinity ? ` · up to ${uploadLimit} a month` : ""}
                 </span>
-                <span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-neutral-900 group-hover:bg-neutral-800 text-white text-sm font-semibold px-5 py-2.5 transition-colors">
-                  <Icon name="doc" className="w-4 h-4" /> Load sample batch
+                <span className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient group-hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
+                  <Icon name="upload" className="w-4 h-4" /> Browse files
                 </span>
-                <span className="block text-xs mt-3" style={{ color: "var(--ink-3)" }}>Drag your own files above, or click for a sample batch to see how parsing works.</span>
+                <span className="block text-xs mt-3" style={{ color: "var(--ink-3)" }}>Drop files in or click to browse. Each resume is read by AI and added to your candidate pool.</span>
               </button>
             )}
             {files.length === 0 && !outOfQuota && (
               <div className="text-center mt-3">
+                <input ref={resumeInputRef} type="file" multiple accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.zip,application/zip,application/x-zip-compressed" onChange={handleResumeInput} className="hidden" />
                 <input ref={zipInputRef} type="file" accept=".zip,application/zip,application/x-zip-compressed" onChange={handleZipFile} className="hidden" />
                 <button onClick={() => zipInputRef.current?.click()} className="inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-                  <Icon name="archive" className="w-3.5 h-3.5" /> Have a whole batch? Import a ZIP archive
+                  <Icon name="archive" className="w-3.5 h-3.5" /> Have a whole batch? Import a ZIP
                 </button>
                 {zipError && <p className="text-xs mt-2" style={{ color: "#DC2626" }}>{zipError}</p>}
               </div>
@@ -9410,7 +8885,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                           ? `Only ${remaining} parse${remaining === 1 ? "" : "s"} left this month`
                           : zipName
                             ? <>Unpacked from <span className="font-medium" style={{ color: "var(--ink-2)" }}>{zipName}</span></>
-                            : "PDF & Word · sample batch"}
+                            : "PDF & Word resumes"}
                       </p>
                     </div>
                   </div>
@@ -9481,14 +8956,14 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
 
             {/* Import history, every past batch, reopenable as a read-only log.
                 Hidden once files are selected so it doesn't distract mid-import. */}
-            {files.length === 0 && history.length > 0 && (
+            {files.length === 0 && importHistory.length > 0 && (
               <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Recent imports</h2>
-                  <span className="text-xs" style={{ color: "var(--ink-3)" }}>{history.length} run{history.length === 1 ? "" : "s"}</span>
+                  <span className="text-xs" style={{ color: "var(--ink-3)" }}>{importHistory.length} run{importHistory.length === 1 ? "" : "s"}</span>
                 </div>
                 <div className="space-y-1">
-                  {history.map((run) => {
+                  {importHistory.map((run) => {
                     const stats = [
                       { label: "parsed", count: run.summary.parsed, color: "#16A34A" },
                       { label: run.summary.duplicates === 1 ? "duplicate" : "duplicates", count: run.summary.duplicates, color: "var(--brand)" },
@@ -9538,23 +9013,30 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
                 <button onClick={resetUpload} className="inline-flex items-center gap-1 text-xs font-semibold shrink-0 rounded-lg px-3 py-2 bg-white hover:bg-neutral-50 transition-colors" style={{ border: "1px solid var(--line-strong)", color: "var(--ink)" }}><Icon name="chevronLeft" className="w-3.5 h-3.5" /> Back</button>
               </div>
             )}
-            {/* While working, a real progress bar instead of a status line */}
-            {stage !== "done" && (() => {
-              const processed = stage === "uploading"
-                ? rows.filter((r) => r.uploadStatus !== "pending").length
-                : rows.filter((r) => r.parseStatus !== "pending").length;
+            {/* While parsing, a live progress panel: a continuously spinning
+                loader (so a slow per-file AI parse never looks frozen), the
+                running count, the % bar, and the file currently being read. */}
+            {stage === "parsing" && (() => {
+              const processed = rows.filter((r) => r.parseStatus !== "pending").length;
+              const current = rows.find((r) => r.parseStatus === "pending" && r.uploadStatus !== "blocked");
               const pct = rows.length ? (processed / rows.length) * 100 : 0;
               return (
                 <div className="rounded-2xl bg-white border border-[color:var(--line)] p-5">
                   <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
-                      {stage === "uploading" ? "Uploading files…" : "Reading through the files…"}
+                    <p className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: "var(--ink)" }}>
+                      <span className="w-4 h-4 rounded-full border-2 animate-spin shrink-0" style={{ borderColor: "var(--brand-soft)", borderTopColor: "var(--brand)" }} />
+                      Parsing resumes with AI…
                     </p>
                     <p className="text-xs tnum" style={{ color: "var(--ink-3)" }}>{processed} / {rows.length}</p>
                   </div>
                   <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
                     <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 4)}%`, background: "linear-gradient(90deg, var(--brand-0), var(--brand-2))", transition: "width .35s cubic-bezier(.22,1,.36,1)" }} />
                   </div>
+                  {current && (
+                    <p className="text-xs mt-2 truncate" style={{ color: "var(--ink-3)" }}>
+                      Reading <span className="font-medium" style={{ color: "var(--ink-2)" }}>{current.fileName}</span>…
+                    </p>
+                  )}
                 </div>
               );
             })()}
@@ -10168,7 +9650,7 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
 }
 
 // Soft brand tint for open roles; closed roles go grey to read as inactive.
-const JOB_CARD_BRAND = { bg: "#F9F4FF", tile: "var(--brand-soft)", ink: "var(--brand)", line: "#E9DAFB" };
+const JOB_CARD_BRAND = { bg: "#F5F8FF", tile: "var(--brand-soft)", ink: "var(--brand)", line: "#DCE4FB" };
 const JOB_CARD_GREY = { bg: "#F7F7F9", tile: "#ECECEF", ink: "#56566A", line: "var(--line-strong)" };
 const colorForJob = (job) => (job.status === "open" ? JOB_CARD_BRAND : JOB_CARD_GREY);
 
@@ -10367,7 +9849,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // mirroring the Candidate Search sidebar for a consistent look across screens.
   const jobCreditFmt = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   const jobPostsLeft = jobPostUsage.limit != null ? Math.max(jobPostUsage.limit - jobPostUsage.used, 0) : null;
-  const jobPlanLabel = plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : "current";
+  const jobPlanLabel = plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : "current";
   const jobRenews = jobPostUsage.resetsAt ? ` · renews ${jobCreditFmt(jobPostUsage.resetsAt)}` : "";
   const JOBS_HELP = [
     { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Publishing spends one job credit." },
@@ -10381,9 +9863,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
       style={{
         background:
-          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
-          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
-          "var(--bg)",
+          "var(--card)",
       }}
     >
       <div className="mx-auto w-full max-w-[1400px]">
@@ -11129,7 +10609,7 @@ function FieldLabel({ children, hint }) {
 
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
-function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for unlimited" }) {
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more" }) {
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
@@ -11828,7 +11308,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
         ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
-        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Growth" : plan === "professional" ? "Pro" : "current"} plan · resets ${resetLabel}.`}
+        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : "current"} plan · resets ${resetLabel}.`}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
     />
   ) : null;
@@ -11863,9 +11343,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
       style={{
         background:
-          "radial-gradient(1100px 480px at 100% -8%, rgba(var(--brand-rgb),0.08), transparent 60%)," +
-          "radial-gradient(900px 460px at -8% 4%, rgba(90,120,248,0.07), transparent 55%)," +
-          "var(--bg)",
+          "var(--card)",
       }}
     >
       <div className="mx-auto w-full max-w-[1400px]">
@@ -12045,7 +11523,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 </div>
               </div>
             )}
-            {!matchScores ? emptyState("Search by skills or industry", "Add a skill, industry, or experience level above and matching candidates appear here instantly.", "matching")
+            {!matchScores ? (candidates.length === 0
+                ? emptyState("Your database is empty", "Skills and industries are drawn from your candidates' profiles. Import resumes first, then filter by skill, industry or experience level.", "matching")
+                : emptyState("Search by skills or industry", "Add a skill, industry, or experience level above and matching candidates appear here instantly.", "matching"))
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
           </>
@@ -12518,7 +11998,7 @@ function scheduledInterviewsFrom(bookings, candidates) {
       const start = new Date(b.confirmedSlot.start);
       return {
         candidateId,
-        candidateName: cand?.parsed?.name || cand?.name || "Candidate",
+        candidateName: cand?.parsed?.name || b.request?.candidateName || cand?.name || "Candidate",
         jobTitle: b.request?.jobTitle || "Interview",
         interviewerName: b.request?.interviewerName || null,
         start,
@@ -13490,6 +12970,23 @@ This is what a candidate sees. A public page, no login, reached only through the
 }
 
 
+// Load Razorpay Checkout on demand (once), resolving the global constructor.
+let razorpayScriptPromise = null;
+function loadRazorpay() {
+  if (typeof window !== "undefined" && window.Razorpay) return Promise.resolve(window.Razorpay);
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve(window.Razorpay);
+      s.onerror = () => reject(new Error("Failed to load Razorpay"));
+      document.body.appendChild(s);
+    });
+  }
+  return razorpayScriptPromise;
+}
+const PLAN_DISPLAY = { free: "Launch", starter: "Scale", professional: "Elite", enterprise: "Enterprise" };
+
 function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, companyAddress = "", companyRegNo = "", jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(null);
   // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
@@ -13501,12 +12998,12 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   // charged in USD; applicable taxes are added at checkout by billing country.
   const PRICES = {
     starter: {
-      monthly: { price: "$129", cadence: "per month", renewCopy: "$129/month", nextAmount: "$129.00", invAmount: "$129.00", invDesc: "Growth monthly" },
-      yearly: { price: "$103", cadence: "per month, billed yearly", renewCopy: "$1,236/year", nextAmount: "$1,236.00", invAmount: "$1,236.00", invDesc: "Growth yearly" },
+      monthly: { price: "$129", cadence: "per month", renewCopy: "$129/month", nextAmount: "$129.00", invAmount: "$129.00", invDesc: "Scale monthly" },
+      yearly: { price: "$103", cadence: "per month, billed yearly", renewCopy: "$1,236/year", nextAmount: "$1,236.00", invAmount: "$1,236.00", invDesc: "Scale yearly" },
     },
     professional: {
-      monthly: { price: "$249", cadence: "per month", renewCopy: "$249/month", nextAmount: "$249.00", invAmount: "$249.00", invDesc: "Pro monthly" },
-      yearly: { price: "$199", cadence: "per month, billed yearly", renewCopy: "$2,388/year", nextAmount: "$2,388.00", invAmount: "$2,388.00", invDesc: "Pro yearly" },
+      monthly: { price: "$249", cadence: "per month", renewCopy: "$249/month", nextAmount: "$249.00", invAmount: "$249.00", invDesc: "Elite monthly" },
+      yearly: { price: "$199", cadence: "per month, billed yearly", renewCopy: "$2,388/year", nextAmount: "$2,388.00", invAmount: "$2,388.00", invDesc: "Elite yearly" },
     },
   };
   const rmHint = { starter: {}, professional: {} };
@@ -13517,15 +13014,15 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   const PLANS = [
     {
       key: "free",
-      name: "Free",
-      price: "$0",
-      cadence: "forever",
-      blurb: "For trying things out on a single role.",
+      name: "Launch",
+      price: "$19",
+      cadence: "per month",
+      blurb: "For getting started on your first roles.",
       features: ["1 active job", "100 applicant parses/mo", "5 AI Rank + 5 AI Insight/mo", "Scorecards, 2FA & data export", "Support ticket"],
     },
     {
       key: "starter",
-      name: "Growth",
+      name: "Scale",
       price: (PRICES.starter[cycle] || PRICES.starter.monthly).price,
       cadence: (PRICES.starter[cycle] || PRICES.starter.monthly).cadence,
       rm: null,
@@ -13535,7 +13032,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
     },
     {
       key: "professional",
-      name: "Pro",
+      name: "Elite",
       price: (PRICES.professional[cycle] || PRICES.professional.monthly).price,
       cadence: (PRICES.professional[cycle] || PRICES.professional.monthly).cadence,
       rm: null,
@@ -13548,7 +13045,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
       price: "Let's talk",
       cadence: "",
       blurb: "For larger organizations with security & volume needs.",
-      features: ["Everything in Pro", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
+      features: ["Everything in Elite", "SSO & audit logs", "Dedicated success manager", "Custom SLAs", "Onboarding & training"],
     },
   ];
 
@@ -13569,31 +13066,45 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
+  // Open Razorpay Checkout for the chosen plan + cycle. create-subscription mints
+  // a Razorpay subscription; the razorpay-webhook activates it on payment.
+  const startCheckout = async (planKey, chosenCycle) => {
+    if (!hasSupabase) { setMsg("Sign in to a live workspace to subscribe."); return; }
+    try {
+      setMsg("Opening secure checkout…");
+      const { data, error } = await supabase.functions.invoke("create-subscription", { body: { plan: planKey, cycle: chosenCycle } });
+      if (error || !data?.subscription_id) { setMsg(data?.detail || data?.error || "Couldn't start checkout. Try again."); return; }
+      const Razorpay = await loadRazorpay();
+      const rzp = new Razorpay({
+        key: data.key_id,
+        subscription_id: data.subscription_id,
+        name: "Aster",
+        description: `${PLAN_DISPLAY[planKey] || planKey} · ${chosenCycle}`,
+        prefill: data.prefill || {},
+        theme: { color: "#0B2AE0" },
+        handler: () => {
+          setPlan(planKey);
+          setPlanCycle && setPlanCycle(chosenCycle);
+          setMsg("Payment successful. Your subscription is activating, this can take a few seconds.");
+        },
+        modal: { ondismiss: () => setMsg("Checkout closed. No charge was made.") },
+      });
+      rzp.open();
+    } catch (e) {
+      console.error("checkout", e);
+      setMsg("Couldn't open checkout. Try again.");
+    }
+  };
+
   const choosePlan = (p) => {
     if (p.key === "enterprise") {
-      setMsg("Preview only. In the real app this opens a “Contact sales” form. No plan change made.");
+      setMsg("Contact sales for Enterprise. In the real app this opens a form.");
       return;
     }
     const cycleMatters = p.key === "starter" || p.key === "professional";
     if (p.key === plan && (!cycleMatters || cycle === planCycle)) return;
-    // Moving down to Free from a paid plan → confirm what gets paused/locked first.
-    if (p.key === "free" && paidSub) {
-      setKeepJob(keptJobId || (jobs[0] && jobs[0].id) || null);
-      setShowDowngrade(true);
-      return;
-    }
-    setPlan(p.key);
-    if (cycleMatters) {
-      setPlanCycle && setPlanCycle(cycle);
-      const isUp = rank[p.key] > rank[plan];
-      setMsg(
-        cycle === "yearly"
-          ? `Preview: switched to ${p.name} (yearly, 20% off). In production you'd be charged for the year today.`
-          : `Preview: switched to ${p.name} (monthly). In production you'd be charged a ${isUp ? "prorated" : "prorated"} amount today.`
-      );
-    } else {
-      setMsg("Preview: switched to Free.");
-    }
+    // Every plan is paid now (Launch from $19), so any selection opens checkout.
+    startCheckout(p.key, cycleMatters ? cycle : "monthly");
   };
 
   const confirmDowngrade = () => {
@@ -13635,14 +13146,14 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>Active</span>
                 )}
               </div>
-              <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Free (trial)" : current.name}</p>
+              <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Scale (trial)" : current.name}</p>
               <p className="text-sm text-neutral-500 mt-0.5">
                 {trialDaysLeft > 0
-                  ? `Full Growth access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left, then you'll move to Free.`
+                  ? `Full Scale access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. Subscribe before it ends, or your account is suspended.`
                   : paidSub && saved
                     ? `${saved.renewCopy} · renews 1 ${planCycle === "yearly" ? "Jan 2026" : "Jul 2025"} · plus tax`
                     : plan === "free"
-                      ? "No charge, you're on the free tier."
+                      ? "Launch plan · $19/month."
                       : "Custom pricing, billed by agreement."}
               </p>
             </div>
@@ -13911,7 +13422,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowDowngrade(false)} className="text-sm rounded-xl border px-4 py-2 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                Keep Growth
+                Keep Scale
               </button>
               <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
                 Downgrade to Free
@@ -14542,7 +14053,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
           <div className="rounded-2xl bg-white act-shadow p-5 text-center border border-[color:var(--line)]">
             {dAvatar
               ? <img src={dAvatar} alt="You" className="w-20 h-20 rounded-full object-cover mx-auto mb-3" style={{ border: "1px solid var(--line)" }} />
-              : <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold font-display text-white brand-gradient">{avatarInitial}</div>}
+              : <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold font-display" style={{ background: avatarColors([dFirst, dLast].filter(Boolean).join(" ")).bg, color: avatarColors([dFirst, dLast].filter(Boolean).join(" ")).color }}>{avatarInitial}</div>}
             <p className="font-display font-bold text-lg leading-tight" style={{ color: "var(--ink)" }}>{[dFirst, dLast].filter(Boolean).join(" ") || "Your name"}</p>
             {roleLabel && <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{roleLabel}</p>}
             <p className="text-xs mt-1 break-all" style={{ color: "var(--ink-3)" }}>{email}</p>
@@ -14655,7 +14166,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             {dAvatar ? (
               <img src={dAvatar} alt="Your photo" className="w-16 h-16 rounded-full object-cover" style={{ border: "1px solid var(--line-strong)" }} />
             ) : (
-              <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold font-display text-xl brand-gradient shrink-0">{avatarInitial}</div>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center font-bold font-display text-xl shrink-0" style={{ background: avatarColors([dFirst, dLast].filter(Boolean).join(" ")).bg, color: avatarColors([dFirst, dLast].filter(Boolean).join(" ")).color }}>{avatarInitial}</div>
             )}
             <div className="flex flex-wrap gap-2">
               <label className={uploadBtnClass} style={uploadBtnStyle}>
@@ -14985,7 +14496,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
         <div className={cardClass}>
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
-            {!hasWhatsApp && <LockBadge label="Pro" />}
+            {!hasWhatsApp && <LockBadge label="Elite" />}
           </div>
           <p className="text-sm text-neutral-600 mb-4">
             Send interview confirmations and reminders over WhatsApp using your own WhatsApp Business number. Messages are billed to your Meta account, not Aster.
@@ -15209,47 +14720,7 @@ function InsightsDisplay({ insights }) {
 }
 
 // Mock insights per candidate, stands in for the real Claude analysis
-const MOCK_INSIGHTS = {
-  c1: {
-    generated_at: new Date().toISOString(),
-    experience_insights: {
-      total_experience_years: 6.5,
-      leadership_experience_years: 2,
-      domain_experience: [
-        { domain: "Fintech", years: 3 },
-        { domain: "E-commerce", years: 2.5 },
-      ],
-      startup_experience: false,
-      enterprise_experience: true,
-      remote_work_mentioned: true,
-    },
-    employment_analysis: {
-      number_of_employers: 2,
-      average_tenure_months: 39,
-      longest_tenure: { company: "Grabtech", months: 48 },
-      career_progression: "Progressed from Frontend Developer to Senior Frontend Engineer with growing ownership of design system architecture over 6 years.",
-      employment_gaps: [],
-    },
-  },
-  c3: {
-    generated_at: new Date().toISOString(),
-    experience_insights: {
-      total_experience_years: 3.2,
-      leadership_experience_years: 0,
-      domain_experience: [{ domain: "Creative / Agency", years: 3.2 }],
-      startup_experience: true,
-      enterprise_experience: false,
-      remote_work_mentioned: false,
-    },
-    employment_analysis: {
-      number_of_employers: 2,
-      average_tenure_months: 19,
-      longest_tenure: { company: "Studio Kite", months: 24 },
-      career_progression: "Moved from an internship at MDEC into a full creative engineering role at Studio Kite within a year.",
-      employment_gaps: [{ start: "Jun 2022", end: "Sep 2022", duration_months: 3 }],
-    },
-  },
-};
+const MOCK_INSIGHTS = {};
 
 // --- Derived AI Experience Insights ---------------------------------------
 // When there's no curated MOCK_INSIGHTS for a candidate, compute solid, real
@@ -17383,13 +16854,24 @@ export default function ResumeAIPreview() {
   // Account is on the Starter plan (trial ended).
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const trialActive = plan === "free" && trialDaysLeft > 0;
-  const effectivePlan = trialActive ? "starter" : plan; // trial grants Growth-level access
+  const effectivePlan = trialActive ? "starter" : plan; // trial grants Scale-level access
   // Shared monthly AI-match run counter (Free is limited; resets in production
   // each billing period, here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
   const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
   // Job-posting credits for the current 30-day cycle (limit null = unlimited).
   const [jobPostUsage, setJobPostUsage] = useState({ used: 0, limit: null, resetsAt: null });
+  // AI Parsing (bulk upload) credits for the current 30-day cycle.
+  const [parseUsage, setParseUsage] = useState({ used: 0, limit: null, resetsAt: null });
+  // Persistent "Recent imports" log (loaded from import_runs on hydrate).
+  const [importHistory, setImportHistory] = useState([]);
+  // Save a finished bulk-import run: optimistic prepend, then persist + reconcile id.
+  const saveImportRun = async (run) => {
+    setImportHistory((h) => [run, ...h]);
+    if (!hasSupabase || !companyId) return;
+    const saved = await dbSaveImportRun(companyId, userId, run);
+    if (saved) setImportHistory((h) => h.map((r) => (r === run ? saved : r)));
+  };
   // Job-posting credits: blocked when this cycle's usage hits the plan limit.
   const jobPostBlocked = jobPostUsage.limit != null && jobPostUsage.used >= jobPostUsage.limit;
   const consumeJobPost = async () => {
@@ -17429,31 +16911,9 @@ export default function ResumeAIPreview() {
   // Booking state per candidate, shared across the profile and the public
   // booking preview: { [candidateId]: { status, confirmedSlot, request } }.
   // status: 'sent' (invite out) | 'scheduled' (candidate confirmed a time).
-  // Seeded with a couple of already-confirmed interviews so the dashboard
-  // reflects real scheduled data; new ones the user books appear alongside.
-  const [bookings, setBookings] = useState(() => {
-    const soon = (dayOffset, hour) => {
-      const d = new Date();
-      d.setDate(d.getDate() + dayOffset);
-      d.setHours(hour, 0, 0, 0);
-      const end = new Date(d.getTime() + 30 * 60000);
-      return { start: d.toISOString(), end: end.toISOString() };
-    };
-    return {
-      c1: {
-        status: "scheduled",
-        confirmedSlot: soon(-1, 14),
-        provider: "google",
-        request: { candidateId: "c1", jobTitle: "Senior Frontend Engineer (React)", interviewerName: "Jane Tan" },
-      },
-      c3: {
-        status: "scheduled",
-        confirmedSlot: soon(4, 14),
-        provider: "google",
-        request: { candidateId: "c3", jobTitle: "Product Designer (UI/UX)", interviewerName: "Ahmad Zulkifli" },
-      },
-    };
-  });
+  // Empty by default (no mock): real confirmed interviews hydrate from Supabase
+  // via setBookings on login, and new ones the user books appear alongside.
+  const [bookings, setBookings] = useState({});
   // Stage overrides applied after the initial mock stage, keyed by candidate id.
   // Lets actions elsewhere (like a confirmed booking) advance the pipeline stage.
   const [stageOverrides, setStageOverrides] = useState({});
@@ -17677,7 +17137,7 @@ export default function ResumeAIPreview() {
 
   // Replace the demo datasets with the signed-in company's real rows. A no-op
   // (keeps demo data) for an empty workspace or when Supabase isn't configured.
-  const hydrateWorkspace = async (companyId) => {
+  const hydrateWorkspace = async (companyId, opts = {}) => {
     // Load this month's AI Rank credit usage for the meter (per company).
     if (hasSupabase) {
       supabase.rpc("get_ai_rank_usage").then(({ data, error }) => {
@@ -17693,6 +17153,18 @@ export default function ResumeAIPreview() {
         const row = Array.isArray(data) ? data?.[0] : data;
         if (row) setJobPostUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
       }).catch((e) => console.error("get_job_post_usage threw:", e));
+      // AI Parsing (bulk upload) credits for this cycle.
+      supabase.rpc("get_resume_parse_usage").then(({ data, error }) => {
+        if (error) { console.error("get_resume_parse_usage failed:", error.message || error); return; }
+        const row = Array.isArray(data) ? data?.[0] : data;
+        if (row) setParseUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
+      }).catch((e) => console.error("get_resume_parse_usage threw:", e));
+      // Persistent "Recent imports" history for the Bulk Upload screen.
+      // Skip on a post-import refresh: the just-finished run was already added
+      // optimistically + persisted, so reloading here would race it and wipe it.
+      if (!opts.keepImportHistory) {
+        dbListImportRuns(companyId).then(setImportHistory).catch((e) => console.error("dbListImportRuns threw:", e));
+      }
     }
     const data = await loadWorkspaceData(companyId);
     if (!data) return;
@@ -17703,6 +17175,7 @@ export default function ResumeAIPreview() {
     setActiveJobId((cur) => (data.jobs.some((j) => j.id === cur) ? cur : (data.jobs[0]?.id || cur)));
     setBookings(data.bookings);
     setScorecards(data.scorecards);
+    if (data.interviewers?.length) setInterviewers(data.interviewers);
     setActivities(buildActivities());  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
@@ -18368,6 +17841,7 @@ export default function ResumeAIPreview() {
             onEndTrial={() => setTrialDaysLeft(0)}
             hiredIds={hiredIds}
             avatarUrl={avatarUrl}
+            parseUsage={parseUsage}
           />
         )}
         {screen === "profile" && (
@@ -18413,7 +17887,7 @@ export default function ResumeAIPreview() {
         {screen === "billing" && (
           <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
-        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
+        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />}
         {screen === "jobs" && (
           <JobsScreen

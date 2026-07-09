@@ -32,6 +32,16 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+  // First: suspend any 14-day trial that ended without an active subscription and
+  // start its 30-day soft-delete window (purge_after = now + 30d, so it is NOT
+  // purged in this same run). There is no free-tier fallback.
+  let suspended = 0;
+  try {
+    const { data: n, error: sErr } = await admin.rpc("suspend_expired_trials");
+    if (sErr) console.error("suspend_expired_trials", sErr);
+    else suspended = typeof n === "number" ? n : 0;
+  } catch (e) { console.error("suspend_expired_trials threw", e); }
+
   // Find workspaces past their purge window, with their members' auth ids.
   const { data: expired, error } = await admin
     .from("companies")
@@ -62,5 +72,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ purged: purged.length, ids: purged });
+  return json({ suspended, purged: purged.length, ids: purged });
 });

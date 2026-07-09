@@ -1,0 +1,38 @@
+name: Purge & suspend workspaces
+
+# Daily account lifecycle maintenance via the purge-workspaces edge function:
+#   1. Suspend + soft-delete any 14-day trial that ended without an active
+#      subscription (starts its 30-day window).
+#   2. Hard-delete workspaces whose 30-day soft-delete window has passed.
+# Gated by the x-purge-key header.
+#
+# Requires repository secrets:
+#   SUPABASE_URL       e.g. https://<project-ref>.supabase.co
+#   SUPABASE_ANON_KEY  bearer so the function gateway accepts the call
+#   PURGE_KEY          shared secret; must match the function's PURGE_KEY env secret
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # every day 04:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: purge-workspaces
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke purge-workspaces
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          PURGE_KEY: ${{ secrets.PURGE_KEY }}
+        run: |
+          curl -sS -X POST "$SUPABASE_URL/functions/v1/purge-workspaces" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "x-purge-key: $PURGE_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{}" \
+            --fail-with-body
