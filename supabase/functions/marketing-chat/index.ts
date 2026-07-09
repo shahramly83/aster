@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
               try {
                 const evt = JSON.parse(payload);
                 if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta" && evt.delta.text) {
-                  controller.enqueue(sseLine({ t: evt.delta.text }));
+                  controller.enqueue(sseLine({ t: evt.delta.text.replace(/[ 	]*[—–][ 	]*/g, ", ") }));
                 }
               } catch {
                 // ignore partial/keepalive lines
