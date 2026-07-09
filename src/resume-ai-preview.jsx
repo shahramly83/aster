@@ -13828,6 +13828,29 @@ function MfaCard() {
   );
 }
 
+// Branded on/off switch used by the Profile notification preferences.
+function Toggle({ on, onChange, label, desc }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{label}</p>
+        {desc && <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{desc}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        onClick={() => onChange(!on)}
+        className="shrink-0 w-11 h-6 rounded-full relative transition-colors"
+        style={{ background: on ? "var(--brand)" : "var(--line-strong)" }}
+      >
+        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform" style={{ transform: on ? "translateX(20px)" : "none", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
+      </button>
+    </div>
+  );
+}
+
 function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, activities = [], onOpenNotifications }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
@@ -13840,8 +13863,13 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [dFirst, setDFirst] = useState(profile?.firstName || "");
   const [dLast, setDLast] = useState(profile?.lastName || "");
   const [dRole, setDRole] = useState(profile?.role || "");
+  const [dPhone, setDPhone] = useState(profile?.phone || "");
+  const NOTIF_DEFAULTS = { applicants: true, interviews: true, digest: true, product: false };
+  const notifBase = { ...NOTIF_DEFAULTS, ...(profile?.notifications || {}) };
+  const [dNotif, setDNotif] = useState(notifBase);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
+  const [dangerConfirm, setDangerConfirm] = useState(false);
 
   // Password / sign-in
   const [curPw, setCurPw] = useState("");
@@ -13859,7 +13887,21 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
     dAvatar !== avatarUrl ||
     dFirst !== (profile?.firstName || "") ||
     dLast !== (profile?.lastName || "") ||
-    dRole !== (profile?.role || "");
+    dRole !== (profile?.role || "") ||
+    dPhone !== (profile?.phone || "") ||
+    JSON.stringify(dNotif) !== JSON.stringify(notifBase);
+
+  // Profile completeness, drives the meter in the rail.
+  const completionItems = [
+    { key: "avatar", label: "Add a profile photo", done: !!dAvatar },
+    { key: "name", label: "Add your full name", done: !!(dFirst && dLast) },
+    { key: "role", label: "Add your role or title", done: !!dRole },
+    { key: "phone", label: "Add a contact number", done: !!dPhone },
+    { key: "logo", label: "Upload a company logo", done: !!dLogo },
+    { key: "company", label: "Set your company name", done: !!dCompany },
+  ];
+  const doneCount = completionItems.filter((i) => i.done).length;
+  const completionPct = Math.round((doneCount / completionItems.length) * 100);
 
   const handleLogoChange = (e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setDLogo(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
   const handleAvatarChange = (e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setDAvatar(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
@@ -13870,7 +13912,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
       setLogoUrl(dLogo);
       setCompany(dCompany.trim());
       setAvatarUrl(dAvatar);
-      setProfile({ firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim() });
+      setProfile({ ...(profile || {}), firstName: dFirst.trim(), lastName: dLast.trim(), role: dRole.trim(), phone: dPhone.trim(), notifications: dNotif });
       setSaving(false);
       setSavedMsg("All changes saved.");
     }, 800);
@@ -13878,6 +13920,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const handleCancel = () => {
     setDLogo(logoUrl); setDCompany(company || ""); setDAvatar(avatarUrl);
     setDFirst(profile?.firstName || ""); setDLast(profile?.lastName || ""); setDRole(profile?.role || "");
+    setDPhone(profile?.phone || ""); setDNotif(notifBase);
     setSavedMsg(null);
   };
 
@@ -13908,6 +13951,47 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
       avatarUrl={avatarUrl}
       activities={activities}
       onOpenNotifications={onOpenNotifications}
+      rail={
+        <>
+          {/* Account summary */}
+          <div className="rounded-2xl bg-white act-shadow p-5 text-center border border-[color:var(--line)]">
+            {dAvatar
+              ? <img src={dAvatar} alt="You" className="w-20 h-20 rounded-full object-cover mx-auto mb-3" style={{ border: "1px solid var(--line)" }} />
+              : <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold font-display text-white brand-gradient">{avatarInitial}</div>}
+            <p className="font-display font-bold text-lg leading-tight" style={{ color: "var(--ink)" }}>{[dFirst, dLast].filter(Boolean).join(" ") || "Your name"}</p>
+            {dRole && <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{dRole}</p>}
+            <p className="text-xs mt-1 break-all" style={{ color: "var(--ink-3)" }}>{email}</p>
+            {dCompany && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <Icon name="dashboard" className="w-3.5 h-3.5" /> {dCompany}
+              </div>
+            )}
+          </div>
+
+          {/* Profile completeness */}
+          <div className="rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
+            <div className="flex items-center justify-between mb-2.5">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Profile completeness</h3>
+              <span className="text-sm font-bold font-display tnum" style={{ color: completionPct === 100 ? "#16A34A" : "var(--brand)" }}>{completionPct}%</span>
+            </div>
+            <div className="h-2.5 rounded-full overflow-hidden mb-4" style={{ background: "var(--line)" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(completionPct, 4)}%`, background: "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+            </div>
+            {completionPct === 100 ? (
+              <p className="text-sm flex items-center gap-2" style={{ color: "#16A34A" }}><Icon name="check" className="w-4 h-4" /> Your profile is complete.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {completionItems.filter((i) => !i.done).map((i) => (
+                  <li key={i.key} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--ink-2)" }}>
+                    <span className="w-4 h-4 rounded-full border shrink-0" style={{ borderColor: "var(--line-strong)" }} />
+                    {i.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      }
     >
 
         {/* Company details */}
@@ -13963,12 +14047,28 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
               <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Last name</label>
               <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role</label>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Role or title</label>
               <input value={dRole} onChange={(e) => { setDRole(e.target.value); setSavedMsg(null); }} placeholder="Hiring Manager" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Contact number</label>
+              <input type="tel" value={dPhone} onChange={(e) => { setDPhone(e.target.value); setSavedMsg(null); }} placeholder="+60 12 345 6789" autoComplete="tel" className={inputClass} />
             </div>
           </div>
           <p className="text-xs text-neutral-500 mt-2">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
+        </div>
+
+        {/* Notification preferences */}
+        <div className={`${cardClass} mb-4`}>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Notifications</h2>
+          <p className="text-xs text-neutral-500 mb-2">Choose what Aster emails you about. You can change these anytime.</p>
+          <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+            <Toggle on={dNotif.applicants} onChange={(v) => { setDNotif((n) => ({ ...n, applicants: v })); setSavedMsg(null); }} label="New applicants" desc="When someone applies to one of your roles." />
+            <Toggle on={dNotif.interviews} onChange={(v) => { setDNotif((n) => ({ ...n, interviews: v })); setSavedMsg(null); }} label="Interview reminders" desc="Before interviews you're scheduled to run." />
+            <Toggle on={dNotif.digest} onChange={(v) => { setDNotif((n) => ({ ...n, digest: v })); setSavedMsg(null); }} label="Weekly hiring digest" desc="A Monday summary of pipeline activity." />
+            <Toggle on={dNotif.product} onChange={(v) => { setDNotif((n) => ({ ...n, product: v })); setSavedMsg(null); }} label="Product updates" desc="Occasional news about new Aster features." />
+          </div>
         </div>
 
         {/* ===== Sign-in ===== */}
@@ -14006,6 +14106,25 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
         </div>
 
         <MfaCard />
+
+        {/* ===== Danger zone ===== */}
+        <p className="text-xs font-semibold uppercase mb-3 mt-6" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
+        <div className="rounded-2xl bg-white act-shadow p-5 border" style={{ borderColor: "#FECACA" }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete your account</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Permanently remove your account and personal data. This cannot be undone.</p>
+            </div>
+            {dangerConfirm ? (
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => setDangerConfirm(false)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
+                <button onClick={() => { setDangerConfirm(false); alert("Account deletion is disabled in this preview."); }} className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">Yes, delete</button>
+              </div>
+            ) : (
+              <button onClick={() => setDangerConfirm(true)} className="shrink-0 text-sm rounded-xl border px-4 py-2 font-medium transition-colors hover:bg-red-50" style={{ borderColor: "#FCA5A5", color: "#B91C1C" }}>Delete account</button>
+            )}
+          </div>
+        </div>
 
         {/* Save / Cancel bar */}
         <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
