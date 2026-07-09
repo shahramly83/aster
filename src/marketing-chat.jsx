@@ -56,6 +56,9 @@ export default function MarketingChat({ onStartTrial }) {
   const [messages, setMessages] = useState(() => loadStore().messages || []); // {role:'user'|'assistant', content}
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // The assistant signalled it has wrapped the conversation up (visitor not here
+  // about Aster). We swap the composer for a smart closing card instead.
+  const [ended, setEnded] = useState(false);
   // Lead capture: null = chatting, "form" = collecting an email, "sent" = filed.
   const [leadMode, setLeadMode] = useState(null);
   const [lead, setLead] = useState({ name: "", email: "", phone: "", msg: "" });
@@ -94,6 +97,7 @@ export default function MarketingChat({ onStartTrial }) {
   function resetChat() {
     setMessages([]);
     setInput("");
+    setEnded(false);
     setLeadMode(null);
     setLead({ name: "", email: "", phone: "", msg: "" });
     setLeadErr("");
@@ -104,6 +108,7 @@ export default function MarketingChat({ onStartTrial }) {
     const q = (text ?? input).trim();
     if (!q || busy) return;
     setInput("");
+    setEnded(false);
     // Append the user turn plus an empty assistant turn we stream into.
     const history = [...messages, { role: "user", content: q }];
     setMessages([...history, { role: "assistant", content: "" }]);
@@ -164,7 +169,7 @@ export default function MarketingChat({ onStartTrial }) {
               const evt = JSON.parse(payload);
               if (evt.t) { appendDelta(evt.t); got = true; }
               else if (evt.error) throw new Error(evt.error);
-              else if (evt.done) streaming = false;
+              else if (evt.done) { if (evt.end) setEnded(true); streaming = false; }
             } catch (err) {
               if (err.message === "stream_failed") throw err;
               // otherwise ignore a stray/partial line
@@ -411,6 +416,24 @@ export default function MarketingChat({ onStartTrial }) {
             ))}
           </div>
 
+          {ended ? (
+            /* Smart wrap-up: the bot ended the chat, so guide the visitor with
+               real choices instead of leaving an open input. */
+            <div className="px-4 py-4 shrink-0" style={{ background: "var(--bg)" }}>
+              <div className="rounded-2xl border p-4 text-center" style={{ borderColor: "var(--line)", background: "#fff" }}>
+                <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>Chat wrapped up for now</p>
+                <p className="text-[13px] mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>You're welcome back anytime. When you want to see Aster on your own hiring:</p>
+                <div className="mt-3.5 flex flex-col gap-2">
+                  <button onClick={() => onStartTrial?.()} className="w-full rounded-xl text-white text-[13px] font-semibold py-2.5 brand-gradient transition-transform hover:-translate-y-0.5 active:translate-y-0">Start free trial</button>
+                  <div className="flex gap-2">
+                    <button onClick={openLead} className="flex-1 rounded-xl text-[13px] font-semibold py-2.5 bg-white border transition-colors hover:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>Contact sales</button>
+                    <button onClick={() => { setEnded(false); setTimeout(() => inputRef.current?.focus(), 0); }} className="flex-1 rounded-xl text-[13px] font-semibold py-2.5 bg-white border transition-colors hover:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>Ask another</button>
+                  </div>
+                  <button onClick={resetChat} className="text-[12px] mt-1 hover:underline" style={{ color: "var(--ink-3)" }}>Start a new chat</button>
+                </div>
+              </div>
+            </div>
+          ) : (<>
           {/* CTAs */}
           <div className="px-4 pt-3 flex gap-2 shrink-0" style={{ background: "var(--bg)" }}>
             <button
@@ -454,6 +477,7 @@ export default function MarketingChat({ onStartTrial }) {
               Aster's AI can make mistakes. Check important details.
             </p>
           </div>
+          </>)}
           </>)}
         </div>
       )}
