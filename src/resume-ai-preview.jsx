@@ -4291,7 +4291,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
           </div>
         </div>
         <div className="py-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: "1px solid var(--line)" }}>
-          <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Aster · All rights reserved</p>
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>© {new Date().getFullYear()} Oryx Digital Sdn Bhd · All rights reserved</p>
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>Hire the right person, without reading every CV.</p>
         </div>
       </div>
