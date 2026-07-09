@@ -271,7 +271,7 @@ export default function MarketingChat({ onStartTrial }) {
       {open && (
         <div
           className="fixed z-[60] inset-0 sm:inset-auto sm:bottom-6 sm:right-6 w-full sm:w-[380px] h-full sm:h-[560px] sm:max-h-[calc(100vh-3rem)] flex flex-col overflow-hidden bg-white sm:rounded-2xl sm:border"
-          style={{ borderColor: "var(--line)", boxShadow: "0 30px 70px -24px rgba(18,19,42,0.4)" }}
+          style={{ borderColor: "rgba(18,19,42,0.06)", boxShadow: "0 30px 70px -24px rgba(18,19,42,0.4)" }}
           role="dialog"
           aria-label="Ask Aster chat"
         >
