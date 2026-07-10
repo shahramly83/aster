@@ -6,8 +6,7 @@
 // payment succeeds.
 //
 // Secrets: STRIPE_SECRET_KEY, and one price id per tier/cycle:
-//   STRIPE_PRICE_LAUNCH_MONTHLY, STRIPE_PRICE_SCALE_MONTHLY,
-//   STRIPE_PRICE_SCALE_YEARLY, STRIPE_PRICE_ELITE_MONTHLY, STRIPE_PRICE_ELITE_YEARLY
+//   STRIPE_PRICE_{LAUNCH,SCALE,ELITE}_{MONTHLY,YEARLY}
 // Auto-provided: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -20,11 +19,12 @@ const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
 const PRICE_ENV: Record<string, string> = {
-  "free|monthly": "STRIPE_PRICE_LAUNCH_MONTHLY",      // Launch (monthly only)
-  "starter|monthly": "STRIPE_PRICE_SCALE_MONTHLY",    // Scale
-  "starter|yearly": "STRIPE_PRICE_SCALE_YEARLY",
-  "professional|monthly": "STRIPE_PRICE_ELITE_MONTHLY", // Elite
-  "professional|yearly": "STRIPE_PRICE_ELITE_YEARLY",
+  "launch|monthly": "STRIPE_PRICE_LAUNCH_MONTHLY",
+  "launch|yearly": "STRIPE_PRICE_LAUNCH_YEARLY",
+  "scale|monthly": "STRIPE_PRICE_SCALE_MONTHLY",
+  "scale|yearly": "STRIPE_PRICE_SCALE_YEARLY",
+  "elite|monthly": "STRIPE_PRICE_ELITE_MONTHLY",
+  "elite|yearly": "STRIPE_PRICE_ELITE_YEARLY",
 };
 
 // Stripe expects application/x-www-form-urlencoded.

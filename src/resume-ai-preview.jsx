@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, Fragment, Component } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useId, Fragment, Component } from "react";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
@@ -19,12 +19,15 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no )")
+    .select("company_id, full_name, role, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
   const parts = (data.full_name || fallbackEmail || "").trim().split(/\s+/);
   const co = data.companies || {};
+  // subscriptions.company_id is unique, so PostgREST embeds a single row - but
+  // tolerate the array shape too.
+  const sub = (Array.isArray(co.subscriptions) ? co.subscriptions[0] : co.subscriptions) || {};
   // Prefer the discrete address columns; fall back to a best-effort parse of the
   // legacy freeform `address` for rows saved before the structured migration.
   const structured = { street: co.address_street || "", city: co.address_city || "", state: co.address_state || "", postcode: co.address_postcode || "", country: co.address_country || "" };
@@ -38,15 +41,128 @@ async function loadCustomerSession(userId, fallbackEmail) {
       role: ROLE_LABELS[data.role] || "Hiring Manager",
     },
     company: co.name || "Your workspace",
-    // DB plan_tier enum ('free','growth','pro','enterprise') → app plan keys
-    // ('free','starter','professional','enterprise'). Launch = free, Scale =
-    // growth, Elite = pro.
-    plan: ({ growth: "starter", pro: "professional" }[co.plan] || co.plan || "free"),
+    // plan_tier enum and app plan key are the same vocabulary since 0040:
+    // launch | scale | elite | enterprise.
+    plan: co.plan || "launch",
+    // Billing state, so a reload doesn't lose the trial countdown or show a
+    // placeholder renewal date.
+    subStatus: sub.status || null,
+    planCycle: sub.cycle === "yearly" ? "yearly" : "monthly",
+    renewsAt: sub.current_period_end || null,
+    trialDaysLeft: sub.status === "trialing" ? daysUntil(sub.current_period_end) : 0,
     logoUrl: co.logo_url || null,
     address: co.address || "",
     addressParts,
     registrationNo: co.registration_no || "",
   };
+}
+
+// Redirect to Stripe's hosted Checkout for a plan + cycle. create-checkout-session
+// mints the session; stripe-webhook activates the plan (and clears any soft-delete)
+// once payment lands. Resolves to an error string, or never returns on success.
+// Used by Billing and by the suspended-workspace paywall.
+async function stripeCheckout(planKey, cycle) {
+  try {
+    const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+      body: { plan: planKey, cycle, return_url: window.location.origin },
+    });
+    if (error) {
+      // Supabase wraps a non-2xx in a FunctionsHttpError; the real reason (e.g.
+      // a Stripe "No such price") is only in the response body.
+      let reason = "";
+      try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; } catch { /* non-JSON body */ }
+      return reason ? `Checkout error: ${reason}` : "Couldn't start checkout. Try again.";
+    }
+    if (!data?.url) return `Checkout error: ${data?.detail || data?.error || "no URL returned"}`;
+    window.location.href = data.url;
+    return null;
+  } catch (e) {
+    console.error("checkout", e);
+    return "Couldn't open checkout. Try again.";
+  }
+}
+
+// Redirect to Stripe's hosted Billing Portal: real invoices and their PDFs, the
+// saved card, and cancellation. Resolves to an error string, or never returns.
+async function stripePortal() {
+  try {
+    const { data, error } = await supabase.functions.invoke("create-portal-session", {
+      body: { return_url: window.location.origin },
+    });
+    if (error) {
+      let reason = "";
+      try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; } catch { /* non-JSON body */ }
+      return reason || "Couldn't open the billing portal. Try again.";
+    }
+    if (!data?.url) return data?.detail || data?.error || "Couldn't open the billing portal.";
+    window.location.href = data.url;
+    return null;
+  } catch (e) {
+    console.error("portal", e);
+    return "Couldn't open the billing portal. Try again.";
+  }
+}
+
+// Stripe reports amounts in the currency's minor unit (sen, cents). Zero-decimal
+// currencies (JPY, KRW…) don't, so don't divide those.
+// https://docs.stripe.com/currencies#zero-decimal
+const ZERO_DECIMAL = new Set(["bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf"]);
+
+// { amount: 52900, currency: "myr" } → "RM 529.00"
+function formatMoney(amount, currency, opts = {}) {
+  if (typeof amount !== "number" || !currency) return "";
+  const zero = ZERO_DECIMAL.has(currency.toLowerCase());
+  const value = zero ? amount : amount / 100;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: opts.whole ? 0 : (zero ? 0 : 2),
+      maximumFractionDigits: zero ? 0 : 2,
+    }).format(value);
+  } catch {
+    return `${currency.toUpperCase()} ${value.toFixed(zero ? 0 : 2)}`;
+  }
+}
+
+// Live Stripe amounts keyed "<plan>|<cycle>", fetched once per page load and
+// shared by every screen that quotes a price. A single source of truth: the app
+// can never advertise an amount different from the one the card is charged.
+let planPricesPromise = null;
+function fetchPlanPrices() {
+  if (!hasSupabase) return Promise.resolve({});
+  if (!planPricesPromise) {
+    planPricesPromise = supabase.functions
+      .invoke("get-plan-prices")
+      .then(({ data, error }) => {
+        if (error || !data?.prices) { console.error("get-plan-prices failed:", error); return {}; }
+        return data.prices;
+      })
+      .catch((e) => { console.error("get-plan-prices failed:", e); return {}; });
+  }
+  return planPricesPromise;
+}
+
+// null while loading, {} when unavailable, otherwise the price map.
+function usePlanPrices() {
+  const [prices, setPrices] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPlanPrices().then((p) => { if (!cancelled) setPrices(p); });
+    return () => { cancelled = true; };
+  }, []);
+  return prices;
+}
+
+// Whole days from today to a `date` column ('YYYY-MM-DD'), floored at 0. Parsed
+// as local midnight so a same-day expiry reads as 0, not -1 from a UTC shift.
+function daysUntil(dateStr) {
+  if (!dateStr) return 0;
+  const end = new Date(`${dateStr}T00:00:00`).getTime();
+  if (Number.isNaN(end)) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((end - today.getTime()) / 86400000));
 }
 
 // created_at → the relative string the UI's recency parser understands
@@ -258,6 +374,10 @@ function JobPipelineBar({ jobId }) {
 
 // ---------- Shared UI bits ----------
 
+// The eight-point Aster star, drawn on a -50..50 box centred on the origin.
+// Shared by the marketing lockup (BrandLogo) and the standalone mark (AsterMark).
+const ASTER_STAR_PATH = "M0 -48 Q3 -5.196 41.57 -24 Q6 0 41.57 24 Q3 5.196 0 48 Q-3 5.196 -41.57 24 Q-6 0 -41.57 -24 Q-3 -5.196 0 -48 Z";
+
 const BRAND_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 :root {
@@ -299,6 +419,19 @@ const BRAND_STYLES = `
 .card-hover { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
 .card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
 .act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 1px 3px rgba(18,19,42,.02); }
+
+/* Dialog entrance. The scrim fades; the panel rises and settles, so the eye
+   follows it to the decision. Transform/opacity only, so nothing reflows. */
+@keyframes act-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes act-panel-in {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.act-scrim-in { animation: act-scrim-in .16s ease-out both; }
+.act-panel-in { animation: act-panel-in .22s cubic-bezier(.16,1,.3,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .act-scrim-in, .act-panel-in { animation: none; }
+}
 
 /* Blog article prose — an editorial reading experience */
 .article-prose { color: var(--ink); font-size: 1.075rem; line-height: 1.78; }
@@ -1841,6 +1974,7 @@ function SchedulingPreview() {
 }
 
 function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
+  const prices = usePlanPrices();
   const [cycle, setCycle] = useState("monthly");
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
@@ -1899,15 +2033,15 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     return () => clearTimeout(t);
   }, []);
 
-  // trial=true → 14-day Growth trial (generic CTAs); trial=false → the user
-  // explicitly picked this plan on the pricing table (pay, or Free forever).
+  // trial=true → 14-day Scale trial (generic CTAs); trial=false → the user
+  // explicitly picked a paid plan on the pricing table and goes to checkout.
   const goSignup = (planKey, trial = false) => {
     setSignupPlan && setSignupPlan(planKey);
     setSignupCycle && setSignupCycle(cycle);
     setSignupTrial && setSignupTrial(trial);
     navigate("signup");
   };
-  const goTrial = () => goSignup("free", true);
+  const goTrial = () => goSignup("launch", true);
 
 
   const features = [
@@ -1973,7 +2107,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
     free: { lead: "Includes", items: ["1 job posting · 10 interviewers", "100 applicant parses / month", "5 AI Rank + 5 AI Insight / month", "Scorecards, 2FA & data export", "Support ticket"] },
-    starter: { lead: "Everything in Free, plus", items: ["5 jobs · 3 seats · 100 interviewers", "500 parses · 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
+    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 3 seats · 100 interviewers", "500 parses · 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
     pro: { lead: "Everything in Scale, plus", items: ["10 jobs · unlimited seats & interviewers", "1,000 parses · 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
 
@@ -1993,13 +2127,13 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
     { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away. There's no setup project to run first." },
-    { cat: "Billing", q: "Is there a free trial?", a: "Yes. New accounts get a 14-day Scale trial with full access and no card required. Subscribe before it ends to keep your account (plans start at Launch, $19/month). If you don't, the account is suspended and deleted after 30 days." },
-    { cat: "Billing", q: "How does pricing work?", a: "Start free, then pick a plan billed monthly or yearly (save 20% yearly) based on the features and volume you need. You only upgrade when you're hiring at scale." },
+    { cat: "Billing", q: "Is there a free trial?", a: "Yes. New accounts get a 14-day Scale trial with full access and no card required. Subscribe before it ends to keep your account. If you don't, the account is suspended and deleted after 30 days." },
+    { cat: "Billing", q: "How does pricing work?", a: "Every plan starts with a 14-day free trial of Scale, no card required. After that you pick a plan, billed monthly or yearly, based on the features and volume you need. Plans start at Launch, and you only move up when you're hiring at scale." },
     { cat: "Billing", q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
     { cat: "Billing", q: "Can I change or cancel anytime?", a: "Yes. Upgrade, downgrade, or cancel from Billing whenever you like. Changes take effect at the end of the current period, with no lock-in, and nothing is deleted if you downgrade." },
-    { cat: "Billing", q: "What happens when my trial ends?", a: "You move to the Free plan automatically, with no charge and no lost data. Upgrade whenever you're ready and everything picks up where you left off." },
+    { cat: "Billing", q: "What happens when my trial ends?", a: "Subscribe before day 14 and everything carries on uninterrupted. If you don't, the workspace is suspended, though nothing is deleted: your candidates, jobs, and remaining credits are kept for 30 days, and subscribing any time in that window brings it all back." },
     { cat: "Billing", q: "Do you charge per team member?", a: "Scale and Elite include a set of seats, and you can add interviewers as your team grows. Enterprise offers white label. There are no hidden per-action fees." },
-    { cat: "Billing", q: "What payment methods do you accept?", a: "All major credit and debit cards, billed in USD through a secure hosted checkout, so raw card numbers never touch the app. An invoice is issued for every payment." },
+    { cat: "Billing", q: "What payment methods do you accept?", a: "All major credit and debit cards, through a secure hosted checkout, so raw card numbers never touch the app. An invoice is issued for every payment, and you can download them any time from Billing." },
     { cat: "Security", q: "Is my candidate data secure?", a: "Candidate data is encrypted in transit and at rest, with access limited to your workspace. You can export or delete it at any time." },
     { cat: "Security", q: "Where is my data stored, and can I delete it?", a: "Your data lives in your workspace, encrypted in transit and at rest. You can export everything or permanently delete it at any time. It stays yours." },
     { cat: "Security", q: "Who on my team can see candidate data?", a: "You control access with seats and roles. Interviewers only see the candidates they're assessing, so sensitive information stays on a need-to-know basis." },
@@ -2016,19 +2150,46 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box: parsing, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
   ];
 
+  // Don't advertise a billing cycle Stripe can't sell: the yearly prices are
+  // optional, and the discount is measured rather than asserted.
+  const savingPct = (key) => {
+    const m = prices?.[`${key}|monthly`], y = prices?.[`${key}|yearly`];
+    if (!m || !y || m.currency !== y.currency || y.amount >= m.amount * 12) return null;
+    return Math.round((1 - y.amount / (m.amount * 12)) * 100);
+  };
+  const yearlyOffered = !!(prices?.["launch|yearly"] || prices?.["scale|yearly"] || prices?.["elite|yearly"]);
+  const yearlySaving = savingPct("launch") ?? savingPct("scale") ?? savingPct("elite");
+
+  // Quoted straight from Stripe, so the marketing price and the charged price can
+  // never disagree. The prerenderer waits for network idle, so these amounts land
+  // in the static HTML crawlers see.
+  const marketed = (key, forCycle) => {
+    // Fall back to monthly when a plan has no yearly price, rather than pretending
+    // the plan doesn't exist.
+    const p = prices?.[`${key}|${forCycle}`] || prices?.[`${key}|monthly`];
+    // Never say "Let's talk" here: these are self-serve plans, and a missing Stripe
+    // price is our misconfiguration, not a hint that pricing is bespoke.
+    if (!p) return { price: "—", sub: prices == null ? " " : "pricing unavailable", note: null };
+    if (p.interval !== "year") return { price: formatMoney(p.amount, p.currency, { whole: true }), sub: "/month", note: null };
+    const monthly = prices?.[`${key}|monthly`];
+    const saving = monthly && monthly.currency === p.currency && p.amount < monthly.amount * 12
+      ? Math.round((1 - p.amount / (monthly.amount * 12)) * 100) : null;
+    return {
+      price: formatMoney(Math.round(p.amount / 12), p.currency, { whole: true }),
+      sub: "/mo, billed yearly",
+      note: `${formatMoney(p.amount, p.currency, { whole: true })}/yr${saving ? ` · save ${saving}%` : ""}`,
+    };
+  };
+
   const plans = [
-    { key: "free", name: "Launch", col: "free", cta: "Get started", ghost: true,
-      price: "$19", sub: "/month", note: null,
+    { key: "launch", name: "Launch", col: "free", cta: "Choose Launch", ghost: true,
+      ...marketed("launch", cycle),
       tagline: "For getting started on your first roles." },
-    { key: "starter", name: "Scale", col: "starter", cta: "Choose Scale", popular: true,
-      price: cycle === "yearly" ? "$103" : "$129",
-      sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-      note: cycle === "yearly" ? "$1,236/yr · save 20%" : null,
+    { key: "scale", name: "Scale", col: "starter", cta: "Choose Scale", popular: true,
+      ...marketed("scale", cycle),
       tagline: "For small teams hiring steadily." },
-    { key: "professional", name: "Elite", col: "pro", cta: "Choose Elite", ghost: true,
-      price: cycle === "yearly" ? "$199" : "$249",
-      sub: cycle === "yearly" ? "/mo, billed yearly" : "/month",
-      note: cycle === "yearly" ? "$2,388/yr · save 20%" : null,
+    { key: "elite", name: "Elite", col: "pro", cta: "Choose Elite", ghost: true,
+      ...marketed("elite", cycle),
       tagline: "For teams hiring at volume." },
     { key: "enterprise", name: "Enterprise", col: "ent", cta: "Contact sales", ghost: true,
       price: "Let's talk", sub: "", note: null,
@@ -2581,8 +2742,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         <Reveal className="text-center mb-8">
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
-          <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Prices in USD, before tax.</p>
-          <div className="inline-flex rounded-full border p-0.5 mt-6" style={{ borderColor: "var(--line)" }}>
+          <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Any applicable taxes are shown at checkout.</p>
+          <div className={`inline-flex rounded-full border p-0.5 mt-6 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
             {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
               const on = cycle === c.key;
               return (
@@ -2590,7 +2751,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   className={`text-sm px-4 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
                   style={on ? { background: "var(--ink)" } : undefined}>
                   {c.label}
-                  {c.key === "yearly" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>Save 20%</span>}
+                  {c.key === "yearly" && yearlySaving != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>Save {yearlySaving}%</span>}
                 </button>
               );
             })}
@@ -3121,28 +3282,28 @@ const SOLUTIONS_PAGES = {
     eyebrow: "Solutions for founders", icon: "star",
     title: "Make your first hires,", accent: "without a recruiter.",
     subtitle: "You're hiring between everything else. Aster reads the CVs, ranks the fits and books the interviews, so a great first team doesn't cost you your week.",
-    chips: ["Start free", "Set up in minutes", "No recruiter needed"],
+    chips: ["14-day free trial", "Set up in minutes", "No recruiter needed"],
     features: [
       { icon: "doc", title: "No CV reading", body: "Drop in applicants and get a ranked, summarised shortlist in seconds." },
       { icon: "calendar", title: "Interviews book themselves", body: "Share a link; candidates pick a slot and the video invite is created for you." },
       { icon: "target", title: "Know who's actually a fit", body: "A match score with reasons helps you make confident calls, fast." },
       { icon: "hire", title: "One place, applied to hired", body: "Post a role, screen, interview and offer, without stitching five tools together." },
     ],
-    highlight: { title: "Hiring shouldn't eat your week", body: "Aster does the heavy lifting so you spend minutes, not days, getting to the right people.", points: ["Free to start, no card required", "Bring CVs you already have", "Upgrade only when you're hiring at scale"] },
+    highlight: { title: "Hiring shouldn't eat your week", body: "Aster does the heavy lifting so you spend minutes, not days, getting to the right people.", points: ["14-day free trial, no card required", "Bring CVs you already have", "Upgrade only when you're hiring at scale"] },
   },
   // ── By company stage ──
   startups: {
     eyebrow: "Solutions for startups", icon: "hire",
     title: "Hire fast,", accent: "on a founder's schedule.",
     subtitle: "Small team, high hiring bar, no time. Aster screens and schedules for you, so you move on great candidates before someone else does.",
-    chips: ["Free to start", "AI screening", "Self-scheduling"],
+    chips: ["14-day free trial", "AI screening", "Self-scheduling"],
     features: [
       { icon: "target", title: "Start from a shortlist", body: "Every applicant ranked against the role, so you talk to the best first." },
       { icon: "calendar", title: "Book interviews in a click", body: "One link, candidate self-books, invite created. No email tag." },
       { icon: "doc", title: "Zero data entry", body: "CVs parsed into structured profiles automatically." },
       { icon: "users", title: "Bring the team in", body: "Add teammates to interviews; everyone works from one board." },
     ],
-    highlight: { title: "Move faster than the bigger names", body: "Speed wins early hires. Aster compresses two weeks of screening into an afternoon.", points: ["Set up in minutes, no project needed", "The Free plan covers your first role", "Scale up only when you do"] },
+    highlight: { title: "Move faster than the bigger names", body: "Speed wins early hires. Aster compresses two weeks of screening into an afternoon.", points: ["Set up in minutes, no project needed", "Launch covers your first role", "Scale up only when you do"] },
   },
   scaleups: {
     eyebrow: "Solutions for scaleups & mid-market", icon: "matching",
@@ -4812,7 +4973,7 @@ function ProductCTA({ navigate }) {
           <div className="pointer-events-none absolute -left-20 -bottom-28 w-[380px] h-[380px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
           <div className="relative">
             <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Start from a shortlist, not a pile.</h2>
-            <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Create your workspace and let Aster read, score and schedule for you. Free to start, no card required.</p>
+            <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Create your workspace and let Aster read, score and schedule for you. Free for 14 days, no card required.</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button onClick={() => navigate("signup")} className="font-semibold px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>Start free trial</button>
               <button onClick={() => navigate("landing")} className="px-6 py-3 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>See pricing</button>
@@ -6409,7 +6570,8 @@ function OfferScreen({ data, done, onRespond }) {
   );
 }
 
-function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "professional", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft, ssoEnabled = false }) {
+function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "elite", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft, ssoEnabled = false }) {
+  const prices = usePlanPrices();
   const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -6434,24 +6596,29 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   // Two entry paths into sign-up:
   //  • Trial: from any generic landing CTA. A 14-day full-Growth trial; the
   //    plan price is shown struck-through with a "Free for 14 days" note.
-  //  • Paid: the user clicked "Choose Growth/Pro" on the pricing table. The
-  //    price is shown as-is and sign-up continues to payment (billing).
-  //  • Free: the genuine $0 Free plan ("Get started" on the pricing table).
+  //  • Paid: the user picked a plan on the pricing table. The price is shown
+  //    as-is and sign-up continues to payment (billing). Every tier is paid now,
+  //    Launch included, so only Enterprise (talk to sales) is exempt.
   const isEnterprise = signupPlan === "enterprise";
-  const isPaid = !signupTrial && (signupPlan === "starter" || signupPlan === "professional");
-  const isFreePlan = !signupTrial && signupPlan === "free";
+  // Every tier is paid now (Launch from $19), so anything that isn't a trial or
+  // an Enterprise enquiry has to go through checkout.
+  const isPaid = !signupTrial && !isEnterprise;
 
   // A trial always grants Growth, so it's labelled + priced as Pro.
   const planLabel = signupTrial ? "Scale"
-    : signupPlan === "professional" ? "Elite"
-    : signupPlan === "starter" ? "Scale"
+    : signupPlan === "elite" ? "Elite"
+    : signupPlan === "scale" ? "Scale"
     : isEnterprise ? "Enterprise" : "Launch";
-  const priceOf = (key) =>
-    key === "professional" ? (signupCycle === "yearly" ? "$199/mo · billed yearly" : "$249/month")
-    : key === "starter" ? (signupCycle === "yearly" ? "$103/mo · billed yearly" : "$129/month")
-    : key === "free" ? "$19/month"
-    : null;
-  const shownPrice = signupTrial ? priceOf("starter") : priceOf(signupPlan);
+  // Live Stripe amounts, so the figure shown at sign-up is the figure charged.
+  const priceOf = (key) => {
+    const forCycle = signupCycle;
+    const p = prices?.[`${key}|${forCycle}`];
+    if (!p) return prices == null ? "…" : null;
+    return p.interval === "year"
+      ? `${formatMoney(Math.round(p.amount / 12), p.currency)}/mo · billed yearly`
+      : `${formatMoney(p.amount, p.currency)}/month`;
+  };
+  const shownPrice = signupTrial ? priceOf("scale") : priceOf(signupPlan);
 
   const ctaText = signupTrial ? "Start 14-day free trial" : isPaid ? "Continue to payment" : "Create account";
   const ctaIcon = isPaid ? "card" : "arrowUpRight";
@@ -6472,18 +6639,17 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
       setProfile({ firstName: firstName.trim(), lastName: lastName.trim(), role: "Hiring Manager" });
       setPlanCycle && setPlanCycle(signupCycle);
       if (signupTrial) {
-        // App models a Growth trial as the Free plan + remaining trial days.
-        setPlan && setPlan("free");
+        // A trial holds the Launch tier plus remaining days; effectivePlan
+        // upgrades it to Scale-level access for the duration.
+        setPlan && setPlan("launch");
         setTrialDaysLeft && setTrialDaysLeft(14);
         navigate("dashboard");
-      } else if (isPaid) {
-        setPlan && setPlan(signupPlan);
-        setTrialDaysLeft && setTrialDaysLeft(0);
-        navigate("billing");
       } else {
+        // Paid plans and Enterprise both land on Billing: one to pay, one to see
+        // the Contact sales card.
         setPlan && setPlan(signupPlan);
         setTrialDaysLeft && setTrialDaysLeft(0);
-        navigate("dashboard");
+        navigate(isPaid || isEnterprise ? "billing" : "dashboard");
       }
       return;
     }
@@ -6642,8 +6808,6 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                     </>
                   ) : isEnterprise ? (
                     "Custom pricing"
-                  ) : isFreePlan ? (
-                    "$19 · per month"
                   ) : (
                     <span className="font-medium" style={{ color: "var(--ink)" }}>{shownPrice}</span>
                   )}
@@ -6732,7 +6896,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
           <p className="text-[11px] mt-2 text-center" style={{ color: "var(--ink-3)" }}>Work email required. Personal Google or Microsoft accounts aren't accepted.</p>
           </>)}
 
-          {(signupTrial || isFreePlan) && (
+          {signupTrial && (
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
               {[["check", "No credit card"], ["clock", "2-minute setup"], ["lock", "Your data stays private"]].map(([ic, label]) => (
                 <span key={label} className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
@@ -6924,9 +7088,19 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   return (
     <svg viewBox="22 18 318 84" className={`${h} w-auto block`} role="img" aria-label="Aster" fill={color}>
       <g transform="translate(56 60) scale(0.72)">
-        <path d="M0 -48 Q3 -5.196 41.57 -24 Q6 0 41.57 24 Q3 5.196 0 48 Q-3 5.196 -41.57 24 Q-6 0 -41.57 -24 Q-3 -5.196 0 -48 Z" />
+        <path d={ASTER_STAR_PATH} />
       </g>
       <text x="104" y="60" fontFamily="'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" fontWeight="700" fontSize="68" letterSpacing="-2.4" dominantBaseline="central">aster</text>
+    </svg>
+  );
+}
+
+// The star mark from the BrandLogo lockup, on its own. For square/compact slots
+// (the app rail, auth cards) where the wordmark would be too wide to read.
+function AsterMark({ className = "w-9 h-9", color = "#14181F" }) {
+  return (
+    <svg viewBox="-50 -50 100 100" className={`${className} block`} fill={color} role="img" aria-label="Aster">
+      <path d={ASTER_STAR_PATH} />
     </svg>
   );
 }
@@ -7086,10 +7260,7 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
   return (
     <div className="flex flex-col items-center h-full w-full">
       <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-11 h-11 flex items-center justify-center shrink-0">
-        {/* Same star mark as the marketing BrandLogo lockup, mark only, black. */}
-        <svg viewBox="-50 -50 100 100" className="w-9 h-9 block" fill="#14181F" role="img" aria-label="Aster">
-          <path d="M0 -48 Q3 -5.196 41.57 -24 Q6 0 41.57 24 Q3 5.196 0 48 Q-3 5.196 -41.57 24 Q-6 0 -41.57 -24 Q-3 -5.196 0 -48 Z" />
-        </svg>
+        <AsterMark />
       </button>
       <nav className="flex-1 flex flex-col items-center gap-1.5">
         {NAV_ITEMS.map(railBtn)}
@@ -7873,7 +8044,7 @@ function FeatureCard({ onAction }) {
 // the "custom" top tier). SSO and white-label are globally off by default and
 // flipped on from /admin; audit logs ship later, then apply to all tiers.
 const PLAN_LIMITS = {
-  free: {
+  launch: {
     maxJobs: 1, seats: 1, interviewers: 10, canAddInterviewers: true,
     parseApplicant: 100, resumeUploads: 10,               // resumeUploads = AI Parsing (Bulk upload)
     aiRunsPerMonth: 5, aiInsightsPerMonth: 5, seeWhyPerMonth: 5, interviewQuestionsPerMonth: 5,
@@ -7883,7 +8054,7 @@ const PLAN_LIMITS = {
     twoFactor: true, whatsapp: false, meetingCalendar: false, dataExport: true,
     supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
   },
-  starter: {
+  scale: {
     maxJobs: 5, seats: 3, interviewers: 100, canAddInterviewers: true,
     parseApplicant: 500, resumeUploads: 50,
     aiRunsPerMonth: 30, aiInsightsPerMonth: 100, seeWhyPerMonth: 30, interviewQuestionsPerMonth: 100,
@@ -7893,7 +8064,7 @@ const PLAN_LIMITS = {
     twoFactor: true, whatsapp: false, meetingCalendar: true, dataExport: true,
     supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
   },
-  professional: {
+  elite: {
     maxJobs: 10, seats: Infinity, interviewers: Infinity, canAddInterviewers: true,
     parseApplicant: 1000, resumeUploads: 100,
     aiRunsPerMonth: 100, aiInsightsPerMonth: 300, seeWhyPerMonth: 100, interviewQuestionsPerMonth: 300,
@@ -7939,7 +8110,7 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "free", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null } }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null } }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   const [showAllSources, setShowAllSources] = useState(false);
@@ -8202,7 +8373,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your plan</p>
-                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "free" ? "Launch" : plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : "Enterprise"}</p>
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "launch" ? "Launch" : plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "Enterprise"}</p>
                 </div>
                 <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
               </div>
@@ -8493,7 +8664,7 @@ function nameFromFile(fn) {
   return s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun }) {
+function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun }) {
   const limits = planLimits(plan);
   // Bulk upload is its own pool (resumeUploads), separate from applicant parsing
   // (parseApplicant) which is metered server-side as inbound applicants arrive.
@@ -8501,7 +8672,7 @@ function UploadScreen({ navigate, plan = "free", hiredIds = new Set(), profile, 
   // falls back to the plan's static limit before that loads / offline.
   const uploadLimit = parseUsage?.limit ?? limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
-  const planName = plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
+  const planName = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [files, setFiles] = useState([]);
   const [rows, setRows] = useState([]);
@@ -9404,7 +9575,7 @@ function formatSalary(job) {
 }
 
 // Shared job form body, used inside the modal for both creating and editing.
-function NewJobForm({ jobs, setJobs, plan = "free", navigate, onClose, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost }) {
+function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost }) {
   const editing = !!initialJob;
   const limits = planLimits(plan);
   // Publishing spends one job credit for the cycle, unless the role is already
@@ -9674,7 +9845,7 @@ const closingChip = (days) => {
   return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
 };
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "free", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -9849,7 +10020,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // mirroring the Candidate Search sidebar for a consistent look across screens.
   const jobCreditFmt = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   const jobPostsLeft = jobPostUsage.limit != null ? Math.max(jobPostUsage.limit - jobPostUsage.used, 0) : null;
-  const jobPlanLabel = plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : "current";
+  const jobPlanLabel = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current";
   const jobRenews = jobPostUsage.resetsAt ? ` · renews ${jobCreditFmt(jobPostUsage.resetsAt)}` : "";
   const JOBS_HELP = [
     { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Publishing spends one job credit." },
@@ -10797,37 +10968,87 @@ class ErrorBoundary extends Component {
   }
 }
 
-function ConfirmDialog({ open, title, body, confirmLabel = "Continue", onConfirm, onClose, tone = "brand", icon }) {
+// `busy` keeps the dialog open and inert while an async confirm is in flight, so
+// a slow round-trip can't be double-submitted or dismissed mid-write.
+function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLabel = "Cancel", onConfirm, onClose, tone = "brand", icon, busy = false, busyLabel }) {
+  const panelRef = useRef(null);
+  const titleId = useId();
+  const bodyId = useId();
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => {
+      if (e.key === "Escape" && !busy) onClose();
+      if (e.key !== "Tab") return;
+      // Trap focus: the dialog is modal, so Tab must not reach the page behind it.
+      const els = panelRef.current?.querySelectorAll("button:not([disabled])");
+      if (!els?.length) return;
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, busy]);
+
+  // Land focus on Cancel, not Confirm: a stray Enter should never fire a
+  // destructive action. Return it to the trigger on close.
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement;
+    panelRef.current?.querySelector("button")?.focus();
+    return () => { if (opener instanceof HTMLElement) opener.focus(); };
+  }, [open]);
+
   if (!open) return null;
   const danger = tone === "danger";
   const iconName = icon || (danger ? "trash" : "matching");
+  const accent = danger ? { background: "#DC2626" } : undefined;
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl" style={{ border: "1px solid var(--line)" }}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => !busy && onClose()} />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
+        className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl act-panel-in"
+        style={{ border: "1px solid var(--line)" }}
+      >
         <div className="flex items-start gap-3">
-          <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 ${danger ? "" : "brand-gradient"}`} style={danger ? { background: "#DC2626" } : undefined}><Icon name={iconName} className="w-4 h-4" /></span>
+          <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 ${danger ? "" : "brand-gradient"}`} style={accent}><Icon name={iconName} className="w-4 h-4" /></span>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
-            <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{body}</p>
+            <h3 id={titleId} className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
+            <div id={bodyId} className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{body}</div>
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} className="text-sm font-medium rounded-xl px-4 py-2 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-2)" }}>Cancel</button>
-          <button onClick={onConfirm} className={`text-sm font-semibold rounded-xl text-white px-4 py-2 hover:opacity-95 transition-opacity ${danger ? "" : "brand-gradient"}`} style={danger ? { background: "#DC2626" } : undefined}>{confirmLabel}</button>
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="text-sm font-medium rounded-xl px-4 py-2.5 transition-colors hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ color: "var(--ink-2)" }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={busy}
+            className={`text-sm font-semibold rounded-xl text-white px-4 py-2.5 hover:opacity-95 transition-opacity disabled:opacity-70 disabled:cursor-wait inline-flex items-center gap-2 ${danger ? "" : "brand-gradient"}`}
+            style={accent}
+          >
+            {busy && <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff" }} />}
+            {busy ? (busyLabel || `${confirmLabel}…`) : confirmLabel}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
+function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
   const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
   // Ask before spending a credit; out-of-credits goes straight to billing.
   const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
@@ -11308,7 +11529,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
         ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
-        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "starter" ? "Scale" : plan === "professional" ? "Elite" : "current"} plan · resets ${resetLabel}.`}
+        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current"} plan · resets ${resetLabel}.`}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
     />
   ) : null;
@@ -11715,7 +11936,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "free", profile, avatarUrl, activities = [], onOpenNotifications }) {
+function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
   // Interviewers are a plan-capped count (10 / 100 / unlimited), separate from
@@ -11748,7 +11969,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const handleAdd = async () => {
     if (!canAddInterviewers || !name || !email || sending) return;
     if (atSeatCap) {
-      setBanner(`Your plan includes ${limits.interviewers} interviewer${limits.interviewers === 1 ? "" : "s"}. Upgrade for more, or unlimited on Pro.`);
+      setBanner(`Your plan includes ${limits.interviewers} interviewer${limits.interviewers === 1 ? "" : "s"}. Upgrade for more, or unlimited on Elite.`);
       return;
     }
     // When the workspace is live, create the real invitation and email it via
@@ -12970,55 +13191,95 @@ This is what a candidate sees. A public page, no login, reached only through the
 }
 
 
-function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, companyAddress = "", companyRegNo = "", jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
+// The plan's real state, read from subscriptions.status rather than inferred from
+// the tier. A bounced card must not keep showing a green "Active" pill.
+function StatusBadge({ onTrial, subStatus }) {
+  const pill = (label, bg, color) => (
+    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: bg, color }}>{label}</span>
+  );
+  if (onTrial) return pill("Trial", "var(--brand-soft)", "var(--brand)");
+  if (subStatus === "past_due") return pill("Past due", "#FEF3F2", "#B42318");
+  if (subStatus === "canceled") return pill("Canceled", "#F1F5F9", "#475569");
+  if (subStatus === "active") return pill("Active", "#DCFCE7", "#166534");
+  return pill("Inactive", "#F1F5F9", "#475569");
+}
+
+function BillingScreen({ navigate, plan, planCycle = "monthly", company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(null);
+  const [confirmEndTrial, setConfirmEndTrial] = useState(false);
+  const [endingTrial, setEndingTrial] = useState(false);
+  // subscriptions.current_period_end, e.g. "8 Aug 2026". Blank when unknown.
+  const renewDate = renewsAt
+    ? new Date(`${renewsAt}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : "";
+
+  // On success the page reloads onto the suspended paywall, so we never clear
+  // `endingTrial` — the spinner stays put rather than flashing back to idle.
+  const runEndTrial = async () => {
+    setEndingTrial(true);
+    const err = await onEndTrial?.();
+    if (err) { setMsg(err); setEndingTrial(false); setConfirmEndTrial(false); }
+  };
   // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
   const [cycle, setCycle] = useState(planCycle);
-  const [showDowngrade, setShowDowngrade] = useState(false);
-  const [keepJob, setKeepJob] = useState(keptJobId || (jobs[0] && jobs[0].id) || null);
+  const [portalBusy, setPortalBusy] = useState(false);
 
-  // USD pricing. Yearly is 20% off the annualised monthly price. Prices are
-  // charged in USD; applicable taxes are added at checkout by billing country.
-  const PRICES = {
-    starter: {
-      monthly: { price: "$129", cadence: "per month", renewCopy: "$129/month", nextAmount: "$129.00", invAmount: "$129.00", invDesc: "Scale monthly" },
-      yearly: { price: "$103", cadence: "per month, billed yearly", renewCopy: "$1,236/year", nextAmount: "$1,236.00", invAmount: "$1,236.00", invDesc: "Scale yearly" },
-    },
-    professional: {
-      monthly: { price: "$249", cadence: "per month", renewCopy: "$249/month", nextAmount: "$249.00", invAmount: "$249.00", invDesc: "Elite monthly" },
-      yearly: { price: "$199", cadence: "per month, billed yearly", renewCopy: "$2,388/year", nextAmount: "$2,388.00", invAmount: "$2,388.00", invDesc: "Elite yearly" },
-    },
+  const prices = usePlanPrices();
+
+  // Stripe stores yearly plans as one yearly charge. The cards show a per-month
+  // equivalent so the two cycles compare like for like, with the real total below.
+  const priceFor = (planKey, forCycle) => prices?.[`${planKey}|${forCycle}`] || null;
+  const monthlyEquivalent = (p) => (p.interval === "year" ? Math.round(p.amount / 12) : p.amount);
+  const priceCopy = (planKey, forCycle) => {
+    if (!prices) return { price: "—", cadence: " " };            // loading, hold the space
+    const p = priceFor(planKey, forCycle) || priceFor(planKey, "monthly");
+    if (!p) return { price: "—", cadence: "pricing unavailable" };
+    return p.interval === "year"
+      ? { price: formatMoney(monthlyEquivalent(p), p.currency), cadence: `per month, ${formatMoney(p.amount, p.currency)} billed yearly` }
+      : { price: formatMoney(p.amount, p.currency), cadence: "per month" };
   };
-  const rmHint = { starter: {}, professional: {} };
-  // Saved plan's billing detail (undefined for free/enterprise).
-  const saved = (PRICES[plan] && PRICES[plan][planCycle]) || null;
 
-  // The four plans. Starter & Professional pricing is cycle-dependent.
+  // The real yearly discount, derived rather than asserted. Null when either
+  // cycle is unconfigured, the currencies differ, or yearly isn't actually cheaper.
+  const yearlySaving = (planKey) => {
+    const m = priceFor(planKey, "monthly"), y = priceFor(planKey, "yearly");
+    if (!m || !y || m.currency !== y.currency) return null;
+    const full = m.amount * 12;
+    if (y.amount >= full) return null;
+    return Math.round((1 - y.amount / full) * 100);
+  };
+
+  // Hide the yearly option entirely when no yearly Stripe price is configured.
+  const yearlyOffered = !!(priceFor("launch", "yearly") || priceFor("scale", "yearly") || priceFor("elite", "yearly"));
+  const billingYearlySaving = yearlySaving("launch") ?? yearlySaving("scale") ?? yearlySaving("elite");
+
+  // What the saved plan actually renews at. Absent for free/enterprise, and for
+  // a plan whose Stripe price id hasn't been configured yet.
+  const savedPrice = priceFor(plan, planCycle);
+  const renewCopy = savedPrice
+    ? `${formatMoney(savedPrice.amount, savedPrice.currency)}/${savedPrice.interval === "year" ? "year" : "month"}`
+    : "";
+
   const PLANS = [
     {
-      key: "free",
+      key: "launch",
       name: "Launch",
-      price: "$19",
-      cadence: "per month",
+      ...priceCopy("launch", cycle),
       blurb: "For getting started on your first roles.",
       features: ["1 active job", "100 applicant parses/mo", "5 AI Rank + 5 AI Insight/mo", "Scorecards, 2FA & data export", "Support ticket"],
     },
     {
-      key: "starter",
+      key: "scale",
       name: "Scale",
-      price: (PRICES.starter[cycle] || PRICES.starter.monthly).price,
-      cadence: (PRICES.starter[cycle] || PRICES.starter.monthly).cadence,
-      rm: null,
+      ...priceCopy("scale", cycle),
       blurb: "For small teams making their first hires.",
       features: ["5 active jobs", "500 applicant parses/mo", "30 AI Rank + 100 AI Insight/mo", "Stored CVs, meeting & calendar", "Support ticket"],
       popular: true,
     },
     {
-      key: "professional",
+      key: "elite",
       name: "Elite",
-      price: (PRICES.professional[cycle] || PRICES.professional.monthly).price,
-      cadence: (PRICES.professional[cycle] || PRICES.professional.monthly).cadence,
-      rm: null,
+      ...priceCopy("elite", cycle),
       blurb: "For growing teams hiring across several roles.",
       features: ["10 active jobs", "1,000 applicant parses/mo", "100 AI Rank + 300 AI Insight/mo", "WhatsApp reminders", "Priority support"],
     },
@@ -13033,66 +13294,46 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
   ];
 
   const current = PLANS.find((p) => p.key === plan) || PLANS[0];
-  const paidSub = plan === "starter" || plan === "professional"; // has a card + invoices
+  const onTrial = trialDaysLeft > 0;
+  const pastDue = !onTrial && subStatus === "past_due";
+  // Every tier is paid now (Launch included), so a live subscription is defined by
+  // subscriptions.status, not by the tier. A trial has the Scale tier but no card.
+  const paidSub = !onTrial && subStatus === "active" && plan !== "enterprise";
+  // Has ever checked out, so Stripe has a customer and the portal has something
+  // to show. A canceled subscriber still needs their invoice history.
+  const hasStripeCustomer = !onTrial && ["active", "past_due", "canceled"].includes(subStatus);
   const rank = { free: 0, starter: 1, professional: 2, enterprise: 3 };
-
-  // Mock invoice history, "what they've paid". Reflects the saved billing cycle.
-  const invoices = paidSub && saved
-    ? planCycle === "yearly"
-      ? [{ id: "INV-2025-01", date: "1 Jan 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" }]
-      : [
-          { id: "INV-2025-06", date: "1 Jun 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" },
-          { id: "INV-2025-05", date: "1 May 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" },
-          { id: "INV-2025-04", date: "1 Apr 2025", desc: saved.invDesc, amount: saved.invAmount, status: "Paid" },
-        ]
-    : [];
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
-  // Redirect to Stripe Checkout (hosted) for the chosen plan + cycle.
-  // create-checkout-session mints the session; stripe-webhook activates the plan
-  // on payment. The browser returns to /billing?checkout=success afterwards.
   const startCheckout = async (planKey, chosenCycle) => {
     if (!hasSupabase) { setMsg("Sign in to a live workspace to subscribe."); return; }
-    try {
-      setMsg("Opening secure checkout…");
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-        body: { plan: planKey, cycle: chosenCycle, return_url: window.location.origin },
-      });
-      if (error) {
-        let reason = "";
-        try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; } catch {}
-        setMsg(reason ? `Checkout error: ${reason}` : "Couldn't start checkout. Try again.");
-        return;
-      }
-      if (!data?.url) { setMsg(`Checkout error: ${data?.detail || data?.error || "no URL returned"}`); return; }
-      window.location.href = data.url;
-    } catch (e) {
-      console.error("checkout", e);
-      setMsg("Couldn't open checkout. Try again.");
-    }
+    setMsg("Opening secure checkout…");
+    const err = await stripeCheckout(planKey, chosenCycle);
+    if (err) setMsg(err);
+  };
+
+  // Invoices, the saved card and cancellation all live in Stripe's hosted portal,
+  // which is authoritative for what was charged, in which currency, with what tax.
+  const openPortal = async () => {
+    if (!hasSupabase) { setMsg("Sign in to a live workspace to manage billing."); return; }
+    setPortalBusy(true);
+    setMsg("Opening the billing portal…");
+    const err = await stripePortal();
+    if (err) { setMsg(err); setPortalBusy(false); }
   };
 
   const choosePlan = (p) => {
-    if (p.key === "enterprise") {
-      setMsg("Contact sales for Enterprise. In the real app this opens a form.");
+    if (p.key === "enterprise") return; // rendered as a mailto link, not a button
+    // A trialling account holds the Scale tier without paying, so let it buy that
+    // same tier; only a real subscriber is blocked from re-buying what they have.
+    if (!onTrial && p.key === plan && cycle === planCycle) return;
+    if (!priceFor(p.key, cycle)) {
+      setMsg(`${p.name} isn't available for purchase yet. Its Stripe price hasn't been configured.`);
       return;
     }
-    const cycleMatters = p.key === "starter" || p.key === "professional";
-    if (p.key === plan && (!cycleMatters || cycle === planCycle)) return;
-    // Every plan is paid now (Launch from $19), so any selection opens checkout.
-    startCheckout(p.key, cycleMatters ? cycle : "monthly");
+    startCheckout(p.key, cycle);
   };
-
-  const confirmDowngrade = () => {
-    setKeptJobId && setKeptJobId(keepJob);
-    setPlan("free");
-    setShowDowngrade(false);
-    setMsg("Preview: downgraded to Free. In production this takes effect at the end of your billing period. Nothing is deleted, and re-upgrading restores everything.");
-  };
-
-  const otherJobs = jobs.filter((j) => j.id !== keepJob).length;
-  const activeTeammates = interviewers.length;
 
   return (
     <AccountShell
@@ -13106,7 +13347,7 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
     >
 
         {msg && (
-          <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BFDBFE", background: "#EFF6FF", color: "#1E40AF" }}>
+          <div role="status" aria-live="polite" className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BFDBFE", background: "#EFF6FF", color: "#1E40AF" }}>
             {msg}
           </div>
         )}
@@ -13117,54 +13358,76 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Current plan</h2>
-                {trialDaysLeft > 0 ? (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Trial</span>
-                ) : (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>Active</span>
-                )}
+                <StatusBadge onTrial={onTrial} subStatus={subStatus} />
               </div>
-              <p className="text-2xl font-bold text-neutral-900 font-display">{trialDaysLeft > 0 ? "Scale (trial)" : current.name}</p>
+              <p className="text-2xl font-bold text-neutral-900 font-display">{onTrial ? "Scale (trial)" : current.name}</p>
               <p className="text-sm text-neutral-500 mt-0.5">
-                {trialDaysLeft > 0
+                {onTrial
                   ? `Full Scale access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. Subscribe before it ends, or your account is suspended.`
-                  : paidSub && saved
-                    ? `${saved.renewCopy} · renews 1 ${planCycle === "yearly" ? "Jan 2026" : "Jul 2025"} · plus tax`
-                    : plan === "free"
-                      ? "Launch plan · $19/month."
-                      : "Custom pricing, billed by agreement."}
+                  : paidSub && renewCopy
+                    ? `${renewCopy}${renewDate ? ` · renews ${renewDate}` : ""}`
+                    : plan === "enterprise"
+                      ? "Custom pricing, billed by agreement."
+                      : "No active subscription."}
               </p>
             </div>
-            {paidSub && saved && (
+            {paidSub && savedPrice && (
               <div className="text-right shrink-0">
                 <p className="text-xs text-neutral-500">Next payment</p>
-                <p className="text-sm font-semibold text-neutral-900">{saved.nextAmount}</p>
-                <p className="text-xs text-neutral-500">1 {planCycle === "yearly" ? "Jan 2026" : "Jul 2025"}</p>
+                <p className="text-sm font-semibold text-neutral-900 tnum">{formatMoney(savedPrice.amount, savedPrice.currency)}</p>
+                {renewDate && <p className="text-xs text-neutral-500">{renewDate}</p>}
               </div>
             )}
           </div>
-          {paidSub && (
-            <button
-              onClick={() => setMsg("Preview: in production this cancels at period end. Access continues until 1 Jul 2025.")}
-              className="mt-4 text-xs text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
-            >
-              Cancel subscription
-            </button>
+
+          {pastDue && (
+            <div role="alert" className="mt-4 rounded-xl border p-3 flex items-start gap-2.5" style={{ borderColor: "#FECDCA", background: "#FEF3F2" }}>
+              <Icon name="shield" className="w-4 h-4 mt-px shrink-0" style={{ color: "#B42318" }} />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold" style={{ color: "#B42318" }}>Your last payment failed</p>
+                <p className="text-xs mt-0.5" style={{ color: "#912018" }}>Update your card in the billing portal to keep your workspace active.</p>
+              </div>
+            </div>
           )}
           {trialDaysLeft > 0 && (
             <button
-              onClick={onEndTrial}
-              className="mt-4 text-xs text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
+              onClick={() => setConfirmEndTrial(true)}
+              className="mt-4 text-xs underline underline-offset-2 transition-colors hover:text-[#B91C1C]"
+              style={{ color: "var(--ink-3)" }}
             >
-              End trial now (preview)
+              End trial now
             </button>
           )}
         </div>
+
+        <ConfirmDialog
+          open={confirmEndTrial}
+          tone="danger"
+          icon="lock"
+          title="End your trial and suspend the workspace?"
+          body={
+            <>
+              <span className="block">
+                {company || "Your workspace"} loses access immediately. You&rsquo;ll need to subscribe to get back in, and the {trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} remaining on your trial are forfeited.
+              </span>
+              <span className="mt-2.5 flex items-start gap-2 rounded-lg px-2.5 py-2 text-xs" style={{ background: "#F8FAFC", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                <Icon name="shield" className="w-3.5 h-3.5 mt-px shrink-0" />
+                <span>Nothing is deleted. Candidates, jobs, and credits are kept for 30 days, and subscribing restores everything.</span>
+              </span>
+            </>
+          }
+          confirmLabel="End trial & suspend"
+          busyLabel="Suspending…"
+          busy={endingTrial}
+          onConfirm={runEndTrial}
+          onClose={() => setConfirmEndTrial(false)}
+        />
 
         {/* Plan picker */}
         <div className={`${cardClass} mb-4`}>
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Change plan</h2>
-            <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+            <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
               {[
                 { key: "monthly", label: "Monthly" },
                 { key: "yearly", label: "Yearly" },
@@ -13178,8 +13441,8 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                     style={on ? { background: "var(--ink)" } : undefined}
                   >
                     {c.label}
-                    {c.key === "yearly" && (
-                      <span className="text-[9px] px-1 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>−20%</span>
+                    {c.key === "yearly" && billingYearlySaving != null && (
+                      <span className="text-[9px] px-1 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>−{billingYearlySaving}%</span>
                     )}
                   </button>
                 );
@@ -13188,8 +13451,10 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {PLANS.filter((p) => p.key !== "enterprise").map((p) => {
-              const cycleMatters = p.key === "starter" || p.key === "professional";
-              const isCurrent = p.key === plan && (!cycleMatters || cycle === planCycle);
+              const cycleMatters = p.key !== "enterprise";
+              // On a trial nothing is "current" yet: every tier stays buyable,
+              // including the Scale tier the trial itself grants.
+              const isCurrent = !onTrial && p.key === plan && (!cycleMatters || cycle === planCycle);
               return (
                 <div
                   key={p.key}
@@ -13205,11 +13470,10 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold">Popular</span>
                     )}
                   </div>
-                  <p className="text-lg font-bold text-neutral-900 font-display leading-tight">{p.price}</p>
+                  <p className="text-lg font-bold text-neutral-900 font-display leading-tight tnum">{p.price}</p>
                   {p.cadence && <p className="text-xs text-neutral-500">{p.cadence}</p>}
-                  {p.rm && <p className="text-[11px] text-neutral-400 mb-2">{p.rm} · in USD</p>}
-                  {cycleMatters && cycle === "yearly" && (
-                    <p className="text-[11px] font-medium mb-2" style={{ color: "#166534" }}>save 20% billed yearly</p>
+                  {cycleMatters && cycle === "yearly" && yearlySaving(p.key) != null && (
+                    <p className="text-[11px] font-medium mb-2" style={{ color: "#166534" }}>save {yearlySaving(p.key)}% billed yearly</p>
                   )}
                   <p className="text-xs text-neutral-500 mb-3 mt-1">{p.blurb}</p>
                   <ul className="space-y-2 mb-4 flex-1">
@@ -13237,11 +13501,13 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
                       ? "Current plan"
                       : p.key === "enterprise"
                         ? "Contact sales"
-                        : p.key === plan && cycleMatters
-                          ? (cycle === "yearly" ? "Switch to yearly" : "Switch to monthly")
-                          : rank[p.key] < rank[plan]
-                            ? "Downgrade"
-                            : "Upgrade"}
+                        : onTrial
+                          ? "Subscribe"
+                          : p.key === plan && cycleMatters
+                            ? (cycle === "yearly" ? "Switch to yearly" : "Switch to monthly")
+                            : rank[p.key] < rank[plan]
+                              ? "Downgrade"
+                              : "Upgrade"}
                   </button>
                 </div>
               );
@@ -13257,37 +13523,41 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
               </div>
               <p className="text-xs text-neutral-600 leading-relaxed">Everything in Pro, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
             </div>
-            <button
-              onClick={() => choosePlan(PLANS.find((p) => p.key === "enterprise"))}
-              className="shrink-0 rounded-xl text-xs font-semibold px-4 py-2 bg-white border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50 transition-colors"
+            <a
+              href={`mailto:sales@hireaster.com?subject=${encodeURIComponent(`Enterprise enquiry — ${company || "Aster"}`)}`}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl text-xs font-semibold px-4 py-2 bg-white border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50 transition-colors"
             >
-              Contact sales
-            </button>
+              Contact sales <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
+            </a>
           </div>
         </div>
 
-        {/* Payment method */}
+        {/* Payment method, invoices and cancellation, all handled by Stripe */}
         <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Payment method</h2>
-          {paidSub ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-10 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: "#1A1F71" }}>VISA</span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-neutral-900">Visa •••• 4242</p>
-                  <p className="text-xs text-neutral-500">Expires 08 / 27 · shah@example.com</p>
-                </div>
+          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Payment &amp; invoices</h2>
+          {hasStripeCustomer ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-neutral-700 leading-relaxed">
+                  Your card, invoice history and cancellation are managed in Stripe&rsquo;s secure billing portal.
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">Card details never touch Aster.</p>
               </div>
               <button
-                onClick={() => setMsg("Preview: card details are never entered here. In production this opens a secure hosted form (e.g. Stripe), so raw card numbers never touch the app.")}
-                className="text-xs rounded-xl border px-3 py-1.5 shrink-0 hover:bg-neutral-50 transition-colors"
-                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
+                onClick={openPortal}
+                disabled={portalBusy}
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl text-xs font-semibold px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-wait"
               >
-                Update
+                {portalBusy && <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff" }} />}
+                {portalBusy ? "Opening…" : "Manage billing"}
               </button>
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">No payment method needed on your current plan.</p>
+            <p className="text-sm text-neutral-500">
+              {onTrial
+                ? "No payment method yet. You'll add a card when you subscribe."
+                : "No payment method on file."}
+            </p>
           )}
         </div>
 
@@ -13305,109 +13575,10 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
           {(!companyAddress || !companyRegNo) && (
             <p className="text-xs text-neutral-500 mt-2">Add your company address and registration number in Profile so they appear on every invoice.</p>
           )}
+          <p className="text-xs text-neutral-400 mt-3">Any applicable taxes are calculated at checkout and itemised on your Stripe invoice.</p>
         </div>
 
-        {/* Billing history */}
-        <div className={cardClass}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Billing history</h2>
-          {invoices.length === 0 ? (
-            <p className="text-sm text-neutral-500">No invoices yet.</p>
-          ) : (
-            <div className="divide-y" style={{ borderColor: "var(--line)" }}>
-              {invoices.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-neutral-900 truncate">{inv.desc}</p>
-                    <p className="text-xs text-neutral-500">{inv.date} · {inv.id}</p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-sm tnum text-neutral-900">{inv.amount}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}>{inv.status}</span>
-                    <button
-                      onClick={() => setMsg("Preview: this would download the tax invoice PDF for " + inv.id + ".")}
-                      className="text-xs underline underline-offset-2 hover:text-neutral-800"
-                      style={{ color: "var(--ink-2)" }}
-                    >
-                      Invoice
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-neutral-400 mt-3">
-            Amounts include applicable taxes. Tax invoices are issued to {company || "your workspace"} and can be downloaded above.
-          </p>
-        </div>
 
-      {/* Downgrade confirmation, shows exactly what gets paused/locked */}
-      {showDowngrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 overflow-y-auto" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setShowDowngrade(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow my-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Downgrade to Free?</h3>
-            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-              Nothing is deleted. Over-limit items are paused and come back if you upgrade again. Here's what changes on Free:
-            </p>
-
-            <div className="space-y-2.5 mb-4">
-              <div className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
-                <p className="text-sm font-medium text-neutral-900 mb-2">
-                  {jobs.length} job posting{jobs.length === 1 ? "" : "s"} → keep 1 active
-                </p>
-                {otherJobs > 0 && (
-                  <p className="text-xs mb-2" style={{ color: "var(--ink-3)" }}>
-                    {otherJobs} other{otherJobs === 1 ? "" : "s"} will be paused (Apply page links stop taking new applicants).
-                  </p>
-                )}
-                <div className="space-y-1">
-                  {jobs.map((j) => (
-                    <label key={j.id} className="flex items-center gap-2 text-sm cursor-pointer rounded-lg px-2 py-1.5" style={{ background: keepJob === j.id ? "var(--brand-soft)" : "transparent" }}>
-                      <input type="radio" name="keepJob" checked={keepJob === j.id} onChange={() => setKeepJob(j.id)} />
-                      <span className="truncate" style={{ color: "var(--ink)" }}>{j.title}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {activeTeammates > 0 && (
-                <div className="rounded-xl border p-3 flex gap-2.5" style={{ borderColor: "var(--line)" }}>
-                  <span className="shrink-0 mt-0.5" style={{ color: "var(--ink-3)" }}><Icon name="users" className="w-4 h-4" /></span>
-                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-                    <span className="font-medium text-neutral-900">{activeTeammates} teammate{activeTeammates === 1 ? "" : "s"}</span> will lose access until you upgrade. Their notes and past interviews stay in the workspace.
-                  </p>
-                </div>
-              )}
-
-              <div className="rounded-xl border p-3 flex gap-2.5" style={{ borderColor: "var(--line)" }}>
-                <span className="shrink-0 mt-0.5" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-4 h-4" /></span>
-                <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-                  You keep your full candidate list, but AI matching drops to 3 runs a month, shows only the top 3 fits, and hides the written reasoning.
-                </p>
-              </div>
-
-              <div className="rounded-xl border p-3 flex gap-2.5" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
-                <span className="shrink-0 mt-0.5" style={{ color: "#16A34A" }}><Icon name="calendar" className="w-4 h-4" /></span>
-                <p className="text-xs" style={{ color: "#166534" }}>
-                  Interviews already booked will still happen. Nothing on the calendar is cancelled.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
-              In production this takes effect at the end of your current billing period.
-            </p>
-
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowDowngrade(false)} className="text-sm rounded-xl border px-4 py-2 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                Keep Scale
-              </button>
-              <button onClick={confirmDowngrade} disabled={!keepJob} className="text-sm rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white font-medium px-4 py-2 transition-colors">
-                Downgrade to Free
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AccountShell>
   );
 }
@@ -13479,7 +13650,7 @@ const TOKEN_SAMPLES = {
 };
 const fillTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => TOKEN_SAMPLES[k] ?? `{{${k}}}`);
 
-function EmailTemplatesScreen({ navigate, plan = "free", logoUrl, company, companyId = null, canPersist = false }) {
+function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, companyId = null, canPersist = false }) {
   const [templates, setTemplates] = useState(() => Object.fromEntries(EMAIL_TEMPLATE_DEFS.map((t) => [t.key, { subject: t.subject, body: t.body }])));
   const [selected, setSelected] = useState(null); // template key or null (list view)
   const [subject, setSubject] = useState("");
@@ -13748,35 +13919,98 @@ function MfaCard() {
 
 // Shown to a signed-in owner whose workspace is within the 30-day soft-delete
 // window: explains the countdown and offers a one-click restore.
+// The 30-day soft-delete window, in two flavours. A workspace the owner deleted
+// is restorable with one click. A workspace suspended for a lapsed trial is not:
+// only a subscription brings it back, and stripe-webhook clears deleted_at when
+// the payment lands. Both share the purge deadline and the sign-out escape.
 function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const prices = usePlanPrices();
+  const suspended = info?.status === "suspended";
   const purge = info?.purge_after ? new Date(info.purge_after) : null;
   const daysLeft = purge ? Math.max(0, Math.ceil((purge.getTime() - Date.now()) / 86400000)) : null;
   const dateStr = purge ? purge.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "";
+  const name = info?.company_name
+    ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{info.company_name}</span>
+    : "Your workspace";
+
   const restore = async () => {
     setBusy(true); setErr("");
     const msg = await onRestore();
     if (msg) { setErr(msg); setBusy(false); }
   };
+  const subscribe = async (planKey) => {
+    setBusy(true); setErr("");
+    const msg = await stripeCheckout(planKey, "monthly");
+    if (msg) { setErr(msg); setBusy(false); }
+  };
+
   return (
     <div className="min-h-dvh flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
-      <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-7 text-center border border-[color:var(--line)]">
+      <div className={`w-full ${suspended ? "max-w-lg" : "max-w-md"} rounded-2xl bg-white act-shadow p-7 text-center border border-[color:var(--line)]`}>
         {logoUrl
           ? <img src={logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover mx-auto mb-4" style={{ border: "1px solid var(--line)" }} />
-          : <div className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center text-white font-bold font-display text-lg brand-gradient">A</div>}
-        <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>Workspace scheduled for deletion</h1>
-        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-          {info?.company_name ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{info.company_name}</span> : "Your workspace"} is scheduled to be permanently deleted{dateStr ? <> on <span className="font-semibold" style={{ color: "var(--ink)" }}>{dateStr}</span></> : ""}.
-          {daysLeft != null && <> You have <span className="font-semibold" style={{ color: "var(--brand)" }}>{daysLeft} day{daysLeft === 1 ? "" : "s"}</span> left to restore it.</>}
-        </p>
-        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-          Restoring brings everything back: candidates, jobs, interviewers, and your remaining credits.
-        </p>
-        {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
-        <button onClick={restore} disabled={busy} className="w-full mt-5 rounded-xl brand-gradient hover:opacity-90 text-white font-semibold py-3 transition-opacity disabled:opacity-60">
-          {busy ? "Restoring…" : "Restore workspace"}
-        </button>
+          : <AsterMark className="w-10 h-10 mx-auto mb-4" />}
+
+        <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>
+          {suspended ? "Your trial has ended" : "Workspace scheduled for deletion"}
+        </h1>
+
+        {suspended ? (
+          <>
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              {name} is suspended because the 14-day Scale trial ended without a subscription. Subscribe to unlock it again.
+            </p>
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+              Nothing has been lost. Your candidates, jobs, and remaining credits are kept{dateStr ? <> until <span className="font-semibold" style={{ color: "var(--ink)" }}>{dateStr}</span></> : ""}
+              {daysLeft != null && <> (<span className="font-semibold" style={{ color: "var(--brand)" }}>{daysLeft} day{daysLeft === 1 ? "" : "s"}</span> left)</>}, then permanently deleted.
+            </p>
+            {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
+            <div className="grid gap-2 sm:grid-cols-3 mt-5">
+              {[
+                { key: "launch", name: "Launch" },
+                { key: "scale", name: "Scale" },
+                { key: "elite", name: "Elite" },
+              ].map((p) => {
+                const price = prices?.[`${p.key}|monthly`];
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => subscribe(p.key)}
+                    disabled={busy || (prices != null && !price)}
+                    className={`rounded-xl py-3 px-2 text-sm font-semibold transition-opacity disabled:opacity-40 ${
+                      p.key === "scale"
+                        ? "brand-gradient text-white hover:opacity-90"
+                        : "border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50"
+                    }`}
+                  >
+                    <span className="block">{p.name}</span>
+                    <span className="block text-xs font-normal opacity-80">
+                      {price ? `${formatMoney(price.amount, price.currency)}/mo` : prices == null ? "…" : "unavailable"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>{busy ? "Opening secure checkout…" : "Billed monthly. Cancel anytime."}</p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              {name} is scheduled to be permanently deleted{dateStr ? <> on <span className="font-semibold" style={{ color: "var(--ink)" }}>{dateStr}</span></> : ""}.
+              {daysLeft != null && <> You have <span className="font-semibold" style={{ color: "var(--brand)" }}>{daysLeft} day{daysLeft === 1 ? "" : "s"}</span> left to restore it.</>}
+            </p>
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+              Restoring brings everything back: candidates, jobs, interviewers, and your remaining credits.
+            </p>
+            {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
+            <button onClick={restore} disabled={busy} className="w-full mt-5 rounded-xl brand-gradient hover:opacity-90 text-white font-semibold py-3 transition-opacity disabled:opacity-60">
+              {busy ? "Restoring…" : "Restore workspace"}
+            </button>
+          </>
+        )}
+
         <button onClick={onSignOut} disabled={busy} className="mt-3 text-sm font-medium hover:opacity-70 transition-opacity disabled:opacity-40" style={{ color: "var(--ink-2)" }}>Sign out</button>
       </div>
     </div>
@@ -14322,7 +14556,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   );
 }
 
-function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "free", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
+function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "launch", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
   // Staged (draft) edits for the calendar provider, Save/Cancel form.
   const [dProvider, setDProvider] = useState(provider);
   const [dCalConnected, setDCalConnected] = useState(calendarConnected);
@@ -14796,7 +15030,7 @@ function deriveInsights(candidate) {
   };
 }
 
-function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, authorName }) {
+function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName }) {
   // Collaborative scorecards are available on every plan (locked matrix).
   const isPaid = planLimits(plan).scorecards;
   const [open, setOpen] = useState(false);
@@ -14837,7 +15071,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, au
         <div>
           <div className="rounded-xl border p-3 mb-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
             <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-              Structured scorecards from every interviewer are a <span className="font-semibold">Pro</span> feature. On Free you can keep one private note.
+              Structured scorecards from every interviewer are an <span className="font-semibold">Elite</span> feature. On Launch you can keep one private note.
             </p>
             <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
           </div>
@@ -14938,7 +15172,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "free", navigate, au
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "free", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -15197,7 +15431,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <Icon name="doc" className="w-4 h-4" /> View original PDF
               </button>
             ) : (
-              <button onClick={() => navigate("billing")} className="rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title="On Free, the original file isn't stored">
+              <button onClick={() => navigate("billing")} className="rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title="On Launch, the original file isn't stored">
                 <Icon name="lock" className="w-3.5 h-3.5" /> Original not stored · Pro
               </button>
             )}
@@ -15901,7 +16135,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   );
 }
 
-function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "free", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set() }) {
+function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set() }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
@@ -16221,7 +16455,7 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
   );
 }
 
-function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, plan = "free", hiredIds = new Set(), hiredDates = {} }) {
+function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, plan = "launch", hiredIds = new Set(), hiredDates = {} }) {
   const [query, setQuery] = useState("");
   const [hiredMonth, setHiredMonth] = useState("all"); // "all" | "YYYY-MM"
   const limit = planLimits(plan).visibleCandidates;
@@ -16779,7 +17013,7 @@ export default function ResumeAIPreview() {
   // window). We show the restore screen instead of the app.
   const [deletedInfo, setDeletedInfo] = useState(null);
   const [activeJobId, setActiveJobId] = useState(() => (typeof window !== "undefined" ? (applicantsJobFromPath(window.location.pathname) || "j1") : "j1"));
-  // On the Free plan, only one job stays active; the rest are paused (kept, not
+  // On Launch, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
   const [keptJobId, setKeptJobId] = useState("j1");
   const [viewCandidateId, setViewCandidateId] = useState(() => (typeof window !== "undefined" ? candidateIdFromPath(window.location.pathname) : null));
@@ -16826,12 +17060,16 @@ export default function ResumeAIPreview() {
   // joined `companyAddress` string above is derived from it for invoices.
   const [companyAddressParts, setCompanyAddressParts] = useState({ ...EMPTY_ADDRESS });
   const [companyRegNo, setCompanyRegNo] = useState("");
-  const [plan, setPlan] = useState("starter");
+  const [plan, setPlan] = useState("scale");
   const [planCycle, setPlanCycle] = useState("monthly");
-  // Account is on the Starter plan (trial ended).
+  // Both hydrated from subscriptions on sign-in: days left when status is
+  // 'trialing' (0 otherwise), and the current_period_end the plan renews on.
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
-  const trialActive = plan === "free" && trialDaysLeft > 0;
-  const effectivePlan = trialActive ? "starter" : plan; // trial grants Scale-level access
+  const [renewsAt, setRenewsAt] = useState(null);
+  const [subStatus, setSubStatus] = useState(null); // subscriptions.status
+  const trialActive = trialDaysLeft > 0;
+  // A live trial grants Scale-level access whatever tier the row carries.
+  const effectivePlan = trialActive && plan === "launch" ? "scale" : plan;
   // Shared monthly AI-match run counter (Free is limited; resets in production
   // each billing period, here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
@@ -16867,7 +17105,7 @@ export default function ResumeAIPreview() {
   const [seeWhyUsed, setSeeWhyUsed] = useState(0);
   const [seeWhyCache, setSeeWhyCache] = useState({});
   // Plan a visitor picked on the marketing site, carried into sign-up.
-  const [signupPlan, setSignupPlan] = useState("professional");
+  const [signupPlan, setSignupPlan] = useState("elite");
   const [signupCycle, setSignupCycle] = useState("monthly");
   // true = arrived via a generic "start trial" CTA (14-day Growth trial);
   // false = picked a specific plan on the pricing table (pay / free forever).
@@ -17107,6 +17345,10 @@ export default function ResumeAIPreview() {
       setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
       setCompanyRegNo(sess.registrationNo || "");
       if (sess.plan) setPlan(sess.plan);
+      setPlanCycle(sess.planCycle || "monthly");
+      setTrialDaysLeft(sess.trialDaysLeft || 0);
+      setRenewsAt(sess.renewsAt || null);
+      setSubStatus(sess.subStatus || null);
       if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId); }
     }
     navigate(dest);
@@ -17168,8 +17410,28 @@ export default function ResumeAIPreview() {
     }
     setProfile({ firstName: "Shah", lastName: "Ramly", role: "Hiring Manager" });
     setCompany("Oryx Studio");
-    setPlan("starter");
+    setPlan("scale");
     navigate("login");
+  };
+
+  // Ending a trial is not a downgrade: there is no free tier to fall back to.
+  // end_trial_now() suspends the workspace and opens the same 30-day soft-delete
+  // window the nightly cron uses, so the reload lands on the subscribe paywall.
+  // The caller owns the confirmation step. Resolves to an error string to display,
+  // or null on success (in which case the reload takes over).
+  const endTrial = async () => {
+    if (!hasSupabase) { setTrialDaysLeft(0); return null; } // demo build, nothing to suspend
+    const { error } = await supabase.rpc("end_trial_now");
+    if (error) {
+      console.error("end_trial_now failed:", error);
+      // 42883 = function does not exist: migration 0039 hasn't been applied.
+      if (error.code === "42883" || /function .*end_trial_now.* does not exist|could not find the function/i.test(error.message || "")) {
+        return "Run migration 0039 first: the end_trial_now function doesn't exist in this database yet.";
+      }
+      return error.message || "Couldn't end the trial.";
+    }
+    if (typeof window !== "undefined") window.location.assign("/");
+    return null;
   };
 
   // A pending teammate invite from the emailed link (/?invite=<token>). Previewed
@@ -17266,6 +17528,10 @@ export default function ResumeAIPreview() {
         setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
         setCompanyRegNo(sess.registrationNo || "");
         if (sess.plan) setPlan(sess.plan);
+        setPlanCycle(sess.planCycle || "monthly");
+        setTrialDaysLeft(sess.trialDaysLeft || 0);
+        setRenewsAt(sess.renewsAt || null);
+        setSubStatus(sess.subStatus || null);
         if (sess.companyId) {
           setCompanyId(sess.companyId);
           setUserId(sess.userId);
@@ -17509,7 +17775,7 @@ export default function ResumeAIPreview() {
   // CTAs reuse the same signup entry points as the hero/pricing buttons.
   const marketingChat = (
     <MarketingChat
-      onStartTrial={() => { setSignupPlan("free"); setSignupTrial(true); navigate("signup"); }}
+      onStartTrial={() => { setSignupPlan("launch"); setSignupTrial(true); navigate("signup"); }}
       onContactSales={() => { setSignupPlan("enterprise"); setSignupTrial(false); navigate("signup"); }}
     />
   );
@@ -17815,7 +18081,7 @@ export default function ResumeAIPreview() {
             setRange={setDateRange}
             plan={effectivePlan}
             trialDaysLeft={trialActive ? trialDaysLeft : 0}
-            onEndTrial={() => setTrialDaysLeft(0)}
+            onEndTrial={endTrial}
             hiredIds={hiredIds}
             avatarUrl={avatarUrl}
             parseUsage={parseUsage}
@@ -17862,7 +18128,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "billing" && (
-          <BillingScreen navigate={navigate} plan={plan} setPlan={setPlan} planCycle={planCycle} setPlanCycle={setPlanCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} jobs={jobs} interviewers={interviewers} keptJobId={keptJobId} setKeptJobId={setKeptJobId} trialDaysLeft={trialActive ? trialDaysLeft : 0} onEndTrial={() => setTrialDaysLeft(0)} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />}

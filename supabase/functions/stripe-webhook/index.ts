@@ -2,7 +2,7 @@
 // ---------------------------------------------------------------------------
 // Receives Stripe events, verifies the signature, and syncs billing state:
 //   subscriptions.status : active | past_due | canceled
-//   subscriptions.plan   : DB plan_tier enum (free|growth|pro|enterprise)
+//   subscriptions.plan   : DB plan_tier enum (launch|scale|elite|enterprise)
 //   subscriptions.current_period_end, stripe ids
 //   companies.status     : active (paid, clears soft-delete) | churned (cancelled)
 //
@@ -13,10 +13,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 
-// App plan key (in metadata) → DB plan_tier enum.
-const PLAN_TO_ENUM: Record<string, string> = {
-  free: "free", starter: "growth", professional: "pro", enterprise: "enterprise",
-};
+// Since migration 0040 the app plan key and the plan_tier enum are the same
+// vocabulary, so metadata.plan is written straight through. Guard anyway: a
+// stale checkout session created before 0040 must not poison the enum.
+const PLAN_TIERS = new Set(["launch", "scale", "elite", "enterprise"]);
 
 async function hmacHex(secret: string, msg: string): Promise<string> {
   const key = await crypto.subtle.importKey(
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
   }
   if (!companyId) return json({ ok: true, ignored: "no company" });
 
-  const planEnum = planKey ? (PLAN_TO_ENUM[planKey] || null) : null;
+  const planEnum = planKey && PLAN_TIERS.has(planKey) ? planKey : null;
 
   const subUpdate: Record<string, unknown> = {};
   if (stripeSubId) subUpdate.stripe_subscription_id = stripeSubId;
