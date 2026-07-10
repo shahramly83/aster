@@ -9648,6 +9648,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   // live (re-saving an open job). Drafts never spend a credit.
   const willConsumeCredit = !editing || initialJob?.status !== "open";
   const publishBlocked = jobPostBlocked && willConsumeCredit;
+  const [createErr, setCreateErr] = useState(null);
   const [title, setTitle] = useState(initialJob?.title || "");
   const [department, setDepartment] = useState(initialJob?.department || "");
   const [location, setLocation] = useState(initialJob?.location || "");
@@ -9708,10 +9709,20 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       // Persist first so the card carries its real DB id (falls back to a local
       // id in mock mode / empty workspace).
       let id = `j${Date.now()}`;
-      if (onCreate) { const realId = await onCreate(payload); if (realId) id = realId; }
+      if (onCreate) {
+        const res = await onCreate(payload);
+        // trg_charge_job_post (0047) refuses to publish past the plan's cycle
+        // allowance. The client check can race it, so handle the rejection.
+        if (res && res.error === "limit_reached") {
+          setCreateErr("You've used all of this cycle's job posts. Upgrade, or wait for the reset.");
+          onConsumeJobPost && onConsumeJobPost();   // resync the meter to the server
+          return;
+        }
+        if (res) id = res;
+      }
       setJobs([{ id, ...payload }, ...jobs]);
     }
-    // Publishing (going live from a non-live state) spends a job credit.
+    // The database charged the credit on publish; this only refreshes the meter.
     if (status === "open" && willConsumeCredit && onConsumeJobPost) onConsumeJobPost();
     onClose();
   };
@@ -9831,6 +9842,9 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             : "Everyone who uploads a resume becomes an applicant. Aster still reads and ranks them, but it won't turn anyone away."}
         </p>
       </div>
+      {createErr && (
+        <p role="alert" className="text-xs rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{createErr}</p>
+      )}
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
           onClick={() => handleSubmit("open")}
@@ -9946,8 +9960,19 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     // job credit for the cycle, block when this cycle's credits are used up.
     if (next === "open" && jobPostBlocked) { setLimitPrompt(true); return; }
     setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: next } : j)));
-    if (canPersist) dbSetJobStatus(jobId, next);
-    if (next === "open" && onConsumeJobPost) onConsumeJobPost();
+    (async () => {
+      if (canPersist) {
+        const res = await dbSetJobStatus(jobId, next);
+        // The trigger can refuse a publish the client thought was allowed (a
+        // stale meter, a second tab). Roll the optimistic flip back rather than
+        // showing a role as live when the database says it is not.
+        if (res?.error === "limit_reached") {
+          setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: job.status } : j)));
+          setLimitPrompt(true);
+        }
+      }
+      if (next === "open" && onConsumeJobPost) onConsumeJobPost();
+    })();
   };
 
   // Only drafts can be deleted (published/closed roles keep their record).
@@ -17277,13 +17302,15 @@ export default function ResumeAIPreview() {
   };
   // Job-posting credits: blocked when this cycle's usage hits the plan limit.
   const jobPostBlocked = jobPostUsage.limit != null && jobPostUsage.used >= jobPostUsage.limit;
+  // The database charges the credit now (0047, trg_charge_job_post), so this only
+  // refreshes the meter. Bumping here too would spend two credits per job.
   const consumeJobPost = async () => {
     if (!hasSupabase) { setJobPostUsage((u) => ({ ...u, used: u.used + 1 })); return; }
     try {
-      const { data } = await supabase.rpc("bump_job_post");
+      const { data } = await supabase.rpc("get_job_post_usage");
       const row = Array.isArray(data) ? data[0] : data;
       if (row) setJobPostUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
-    } catch (e) { console.error("bump_job_post", e); }
+    } catch (e) { console.error("get_job_post_usage", e); }
   };
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).

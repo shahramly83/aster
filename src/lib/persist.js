@@ -20,7 +20,13 @@ export async function dbCreateJob(companyId, userId, payload) {
     .insert({ company_id: companyId, title, status: status || "open", created_by: userId || null, expires_at, details })
     .select("id")
     .single();
-  if (error) { console.error("dbCreateJob", error.message); return null; }
+  // P0001 from trg_charge_job_post: the plan's job-posting credits are spent.
+  // Surfaced rather than swallowed, or the form silently does nothing.
+  if (error) {
+    console.error("dbCreateJob", error.message);
+    if (error.code === "P0001") return { error: "limit_reached" };
+    return null;
+  }
   return data.id;
 }
 
@@ -62,7 +68,9 @@ export async function dbUpdateJob(jobId, payload) {
 export async function dbSetJobStatus(jobId, status) {
   if (!hasSupabase) return;
   const { error } = await supabase.from("jobs").update({ status }).eq("id", jobId);
-  if (error) console.error("dbSetJobStatus", error.message);
+  // P0001 = trg_charge_job_post refused: no job-post credits left this cycle.
+  if (error) { console.error("dbSetJobStatus", error.message); return { error: error.code === "P0001" ? "limit_reached" : error.message }; }
+  return { error: null };
 }
 
 // Delete a job outright. Callers restrict this to drafts (which have no
