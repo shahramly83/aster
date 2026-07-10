@@ -392,10 +392,17 @@ function Dashboard({ role, companies, tickets, audit, go }) {
   );
 }
 
-function Companies({ role, companies, setCompanies, audit }) {
+function Companies({ role, companies, setCompanies, audit, onAction }) {
   const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(null);
   const rows = companies.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
-  const setStatus = (c, status, action) => { setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status } : x)); audit(action, c.name); };
+  const setStatus = async (c, status, action) => {
+    setBusy(c.id);
+    setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status } : x));   // optimistic
+    const err = await onAction("admin_set_company_status", { p_company: c.id, p_suspend: status === "suspended" }, action, c.name);
+    if (err) setCompanies((cs) => cs.map((x) => x.id === c.id ? { ...x, status: c.status } : x));   // rollback
+    setBusy(null);
+  };
   return (
     <div>
       <SectionHead title="Companies" desc="Every customer workspace on the platform.">
@@ -427,10 +434,16 @@ function Companies({ role, companies, setCompanies, audit }) {
   );
 }
 
-function Users({ role, companies, audit }) {
-  const [users, setUsers] = useState(COMPANY_USERS);
+function Users({ role, companies, users, setUsers, audit, onAction }) {
   const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
-  const setStatus = (u, status, action) => { setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status } : x)); audit(action, u.email); };
+  const setStatus = async (u, status, action) => {
+    setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status } : x));       // optimistic
+    const err = await onAction("admin_set_user_status", { p_profile: u.id, p_active: status === "active" }, action, u.email);
+    if (err) setUsers((us) => us.map((x) => x.id === u.id ? { ...x, status: u.status } : x));   // rollback
+  };
+  const resetPassword = async (u) => {
+    await onAction("__reset_password__", { email: u.email }, "Reset user password", u.email);
+  };
   return (
     <div>
       <SectionHead title="User management" desc="Company user accounts (recruiters, admins, interviewers). These are customer team members, not candidates." />
@@ -445,7 +458,7 @@ function Users({ role, companies, audit }) {
             <Td style={{ color: "var(--ink-2)" }}>{u.lastActive}</Td>
             <Td>
               <div className="flex gap-2">
-                <ActionBtn icon="key" disabled={!can(role, "user.reset")} onClick={() => audit("Reset user password", u.email)}>Reset password</ActionBtn>
+                <ActionBtn icon="key" disabled={!can(role, "user.reset")} onClick={() => resetPassword(u)}>Reset password</ActionBtn>
                 {u.status === "suspended"
                   ? <ActionBtn icon="refresh" disabled={!can(role, "user.deactivate")} onClick={() => setStatus(u, "active", "Reactivated user")}>Reactivate</ActionBtn>
                   : <ActionBtn icon="ban" tone="danger" disabled={!can(role, "user.deactivate")} onClick={() => setStatus(u, "suspended", "Deactivated user")}>Deactivate</ActionBtn>}
@@ -458,10 +471,14 @@ function Users({ role, companies, audit }) {
   );
 }
 
-function Subscriptions({ role, companies, subs, setSubs, audit }) {
+function Subscriptions({ role, companies, subs, setSubs, audit, onAction }) {
   const cName = (id) => companies.find((c) => c.id === id)?.name || "—";
   const total = subs.filter((s) => s.status === "active").reduce((a, s) => a + s.mrr, 0);
-  const change = (s, plan, mrr) => { setSubs((ss) => ss.map((x) => x.companyId === s.companyId ? { ...x, plan, mrr } : x)); audit("Changed subscription plan", `${cName(s.companyId)} → ${plan}`); };
+  const change = async (sub, plan) => {
+    setSubs((ss) => ss.map((x) => x.companyId === sub.companyId ? { ...x, plan } : x));   // optimistic
+    const err = await onAction("admin_change_plan", { p_company: sub.companyId, p_plan: ADMIN_PLAN_KEY[plan] || plan.toLowerCase() }, "Changed subscription plan", plan);
+    if (err) setSubs((ss) => ss.map((x) => x.companyId === sub.companyId ? { ...x, plan: sub.plan } : x));   // rollback
+  };
   return (
     <div>
       <SectionHead title="Subscriptions" desc="Plans, billing status and revenue by workspace.">
@@ -480,8 +497,8 @@ function Subscriptions({ role, companies, subs, setSubs, audit }) {
             <Td><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> On file (processor)</span></Td>
             <Td>
               {s.plan !== "Enterprise"
-                ? <ActionBtn icon="arrowUpRight" disabled={!can(role, "subscription.change")} onClick={() => change(s, "Enterprise", s.mrr < 500 ? 900 : s.mrr)}>Upgrade</ActionBtn>
-                : <ActionBtn disabled={!can(role, "subscription.change")} icon="refresh" onClick={() => change(s, "Pro", 149)}>Change plan</ActionBtn>}
+                ? <ActionBtn icon="arrowUpRight" disabled={!can(role, "subscription.change")} onClick={() => change(s, "Enterprise")}>Upgrade</ActionBtn>
+                : <ActionBtn disabled={!can(role, "subscription.change")} icon="refresh" onClick={() => change(s, "Scale")}>Change plan</ActionBtn>}
             </Td>
           </tr>
         ))}
@@ -966,6 +983,10 @@ function mapTicketRow(r) {
   };
 }
 
+// DB plan_tier -> the label the admin tables render, and back.
+const ADMIN_PLAN_LABEL = { launch: "Launch", scale: "Scale", elite: "Elite", enterprise: "Enterprise" };
+const ADMIN_PLAN_KEY = { Launch: "launch", Scale: "scale", Elite: "elite", Enterprise: "enterprise" };
+
 export default function AdminPortal() {
   const [admin, setAdmin] = useState(null);
   const initial = typeof window !== "undefined" ? (window.location.pathname.replace(/^\/admin\/?/, "") || "dashboard") : "dashboard";
@@ -1004,6 +1025,58 @@ export default function AdminPortal() {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { if (!session) setAdmin(null); });
     return () => { active = false; sub?.subscription?.unsubscribe?.(); };
   }, []);
+
+  // Replace the seed rows with real data once an admin is authenticated. Each
+  // RPC is is_admin()-gated server-side, so a non-admin session simply gets
+  // nothing back rather than the mock set.
+  const [users, setUsers] = useState(COMPANY_USERS);
+  const reloadAdminData = async () => {
+    if (!hasSupabase) return;
+    const [{ data: co }, { data: us }] = await Promise.all([
+      supabase.rpc("admin_company_detail"),
+      supabase.rpc("admin_list_users"),
+    ]);
+    if (Array.isArray(co)) {
+      setCompanies(co.map((c) => ({
+        id: c.id, name: c.name, owner: "", region: c.region || "—",
+        plan: ADMIN_PLAN_LABEL[c.plan] || c.plan,
+        status: c.status, seats: Number(c.user_count) || 0,
+        activeJobs: Number(c.active_jobs) || 0, candidates: Number(c.candidate_count) || 0,
+      })));
+      setSubs(co.map((c) => ({
+        companyId: c.id, plan: ADMIN_PLAN_LABEL[c.plan] || c.plan,
+        cycle: c.cycle || "monthly", status: c.sub_status || "—", mrr: 0,
+        renews: c.current_period_end || "—", method: "Stripe",
+      })));
+    }
+    if (Array.isArray(us)) {
+      setUsers(us.map((u) => ({
+        id: u.id, name: u.full_name || "—", email: u.email || "",
+        companyId: u.company_id, role: (u.role || "").replace(/^./, (m) => m.toUpperCase()),
+        status: u.status, lastActive: u.last_active_at ? new Date(u.last_active_at).toLocaleDateString() : "—",
+      })));
+    }
+  };
+  useEffect(() => { if (admin) reloadAdminData(); /* eslint-disable-line */ }, [admin]);
+
+  // One place that runs an admin RPC (or the reset-password edge function),
+  // records the audit on success, and hands back an error string so the caller
+  // can undo its optimistic update. Every RPC re-checks the admin role
+  // server-side, so this is convenience, not the security boundary.
+  const runAdminAction = async (rpc, args, action, target) => {
+    if (!hasSupabase) { logAudit(action, target); return null; }   // demo
+    try {
+      const { error } = rpc === "__reset_password__"
+        ? await supabase.functions.invoke("admin-reset-password", { body: args })
+        : await supabase.rpc(rpc, args);
+      if (error) {
+        console.error(rpc, error.message || error);
+        return /forbidden|42501/i.test(error.message || "") ? "You don't have permission for that." : (error.message || "Action failed.");
+      }
+      logAudit(action, target);
+      return null;
+    } catch (e) { console.error(rpc, e); return "Action failed."; }
+  };
 
   const logAudit = (action, target) => {
     if (!admin) return;
@@ -1109,9 +1182,9 @@ export default function AdminPortal() {
     // record the blocked attempt once per mount of a disallowed section
   } else {
     switch (section) {
-      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} audit={logAudit} />; break;
-      case "users":         screen = <Users role={role} companies={companies} audit={logAudit} />; break;
-      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} />; break;
+      case "companies":     screen = <Companies role={role} companies={companies} setCompanies={setCompanies} audit={logAudit} onAction={runAdminAction} />; break;
+      case "users":         screen = <Users role={role} companies={companies} users={users} setUsers={setUsers} audit={logAudit} onAction={runAdminAction} />; break;
+      case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} onAction={runAdminAction} />; break;
       case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
       case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />; break;
