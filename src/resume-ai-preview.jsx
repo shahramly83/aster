@@ -16813,6 +16813,15 @@ const PATH_TO_SCREEN = {
 };
 const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "acceptInvite", "bookInterview", "publicOffer"]);
 
+// Screens that only exist behind a signed-in workspace. A signed-out visitor who
+// deep-links to one of these (W4) must be sent to /login, not shown the app shell
+// rendered over demo data. Public marketing/apply/booking screens are excluded.
+const WORKSPACE_SCREENS = new Set([
+  "dashboard", "candidates", "candidateProfile", "applicants", "interviews",
+  "interviewers", "jobs", "search", "upload", "emailTemplates", "billing",
+  "profile", "settings", "schedulePicker",
+]);
+
 // Each candidate profile has its own deep-linkable URL, /candidates/<id>.
 function candidateIdFromPath(pathname) {
   const m = (pathname || "").match(/^\/candidates\/([^/]+)$/);
@@ -17655,7 +17664,16 @@ export default function ResumeAIPreview() {
 
     const applySession = async (session) => {
       if (cancelled) return;
-      if (!session) { setRestoring(false); return; }
+      if (!session) {
+        setRestoring(false);
+        // W4: no session. If this load deep-linked into a workspace-only screen,
+        // send the visitor to /login rather than leaving the app shell to render
+        // over demo data. Public screens (marketing/apply/booking) are untouched.
+        if (typeof window !== "undefined" && WORKSPACE_SCREENS.has(screenFromPath(window.location.pathname))) {
+          navigate("login");
+        }
+        return;
+      }
       const email = session.user.email || "";
       // Google / Microsoft (any non-password) sign-ins are restricted to work
       // domains. hd/tenant hints don't hard-block personal accounts, so we
@@ -18214,6 +18232,19 @@ export default function ResumeAIPreview() {
             <p className="text-sm" style={{ color: "var(--ink-2)" }}>Loading your workspace…</p>
           </div>
         </div>
+      </Shell>
+    );
+  }
+
+  // W4: signed-out visitors must not reach workspace-only screens. In live mode
+  // (Supabase configured) `restoring` has finished above, so a null `userId`
+  // here means no session — deep-linking to /dashboard etc. now lands on the
+  // login screen instead of the app shell over demo data. Mock mode (no keys)
+  // has no auth and no `userId`, so it is excluded to keep the preview working.
+  if (hasSupabase && !userId && WORKSPACE_SCREENS.has(screen)) {
+    return (
+      <Shell>
+        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />
       </Shell>
     );
   }

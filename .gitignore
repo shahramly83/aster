@@ -33,3 +33,10 @@ dist-ssr
 
 # Supabase CLI update-check cache (regenerated on every CLI run)
 supabase/.temp/cli-latest
+
+# Playwright E2E artifacts + generated fixtures (regenerated on demand)
+/test-results/
+/playwright-report/
+/blob-report/
+/.playwright/
+tests/fixtures/resume.pdf

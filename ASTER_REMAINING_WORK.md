@@ -16,7 +16,16 @@ admin→owner self-escalation (0041) · draft-job leak (0041) · churn now revok
 access (0045) · dropped-Stripe-payment on failed write · AI Rank/Insight + resume
 + job-post limits all enforced server-side (0046/0047) · webhook replay window +
 dedupe + constant-time compare (0048) · admin portal's four actions made real,
-role-gated (0049) · first automated tests (18, signature + fail-closed limits).
+role-gated (0049) · first automated tests (18, signature + fail-closed limits) ·
+W4 unauthenticated-workspace redirect to /login · Playwright browser suite (45
+E2E: public/responsive audit on 3 viewports + auth-guard on 5 routes).
+
+## 🔴 NEW CRITICAL — auth email delivery (found in live testing)
+Email confirmation is required but no custom SMTP was configured, so Supabase used its
+built-in emailer (testing-only, ~2-4/hour, unreliable). That meant new customers could not
+complete signup, and the password reset fixed in code today would not deliver. Fix: point
+Supabase Auth SMTP at Resend (smtp.resend.com:465, user `resend`, pass = RESEND_API_KEY,
+verified sender). Status: user configuring.
 
 ## 🙋 Only you can do these (dashboards)
 1. **Stripe events** — add `customer.subscription.deleted`, `invoice.paid`,
@@ -29,10 +38,13 @@ role-gated (0049) · first automated tests (18, signature + fail-closed limits).
 4. **Verify the admin portal** — log in as super-admin, click each of the four
    actions once. They are cross-tenant writes I could not test.
 
-## 🖥️ Need a browser (Phases 6 & 7 — not startable from here)
-- Responsive/mobile audit at 320–1440px.
-- Empty-database regression from a brand-new account.
-- Every-button click-through of the fixes above.
+## 🖥️ Need a browser (Phases 6 & 7)
+- ✅ **Public/responsive audit at 320–1440px — done** via Playwright (`npm run e2e`,
+  `tests/e2e/public-audit.spec.js`). All public routes clean across three viewports.
+- ✅ **Auth-guard (W4) fixed and covered** (`tests/e2e/auth-guard.spec.js`).
+- ⏳ Workspace-screen responsive audit + empty-database regression + every-button
+  click-through: still blocked on a confirmed test login (email-confirmation / SMTP).
+  Harness is in place; add a seeded account and extend the specs.
 
 ## 🧪 Need a local Postgres (deeper tests)
 - Metering atomicity, RLS cross-company isolation, the trigger in 0047, the admin
@@ -77,7 +89,7 @@ role-gated (0049) · first automated tests (18, signature + fail-closed limits).
 | **W1** | High | **Plan limits are cosmetic.** `maxJobs` is enforced only by the client calling `bump_job_post`. RLS `jobs_admin` permits any insert by a company admin, and no trigger counts jobs. `supabase.from('jobs').insert(...)` creates unlimited open roles. |
 | **W2** | High | **AI credits are cosmetic.** `rank-candidates` and `analyze-experience` verify the JWT and then call Anthropic. Neither checks or bumps a counter — the browser does it. Call the function directly for unlimited AI ranking and uncapped Anthropic spend. Only `parse-resume` meters server-side. |
 | **W3** | Medium | **`parse-resume` metering is TOCTOU.** `resume_parse_usage_for()` then `bump_resume_parse_for()` are two round-trips in two transactions, and the bump re-checks nothing. N concurrent uploads at `limit-1` all pass and all bump. The other bumps are atomic; this one isn't. |
-| **W4** | Medium | Unauthenticated `/dashboard` renders the app shell instead of redirecting to `/login`. No data leaks (RLS denies), but it's broken. |
+| ~~W4~~ | Medium | ✅ **FIXED.** Unauthenticated deep-links to workspace-only screens (`/dashboard`, `/candidates`, `/jobs`, `/billing`, `/settings`, …) now redirect to `/login` instead of rendering the app shell over demo data. Guard lives in the session-restore no-session branch, backed by a render-time fallback (`WORKSPACE_SCREENS`). Reproduced and locked in by `tests/e2e/auth-guard.spec.js` (5 routes × 3 viewports). |
 | **W5** | Medium | **No role-based access control in the UI.** One `role ===` check exists in 18k lines, and it's a label. An interviewer sees Jobs, Billing, Settings, Candidate Search. RLS does scope interviewers to assigned jobs for candidates — but Billing and Settings are wide open. |
 
 ---
@@ -106,7 +118,18 @@ role-gated (0049) · first automated tests (18, signature + fail-closed limits).
 
 ## 📱 UI & mobile
 
-Not yet audited. Phase 6 pending. Requires a browser.
+**Phase 6 started — public surfaces pass.** A Playwright browser suite now audits
+every public route (`/`, `/product`, `/solutions`, `/blog`, `/compare`, `/trust`,
+`/getting-started`, `/login`, `/signup`, `/forgot-password`) across desktop
+(1440px), tablet (iPad Mini / WebKit) and mobile (iPhone SE / WebKit): all render
+real content, with **no horizontal overflow and no console errors** on any
+viewport. See `tests/e2e/public-audit.spec.js`. Run with `npm run e2e`.
+
+**Still needs a browser + a signed-in session:** the authenticated workspace
+screens (dashboard, candidates, jobs, billing, settings, interviews) at 320–1440px.
+Automating these is blocked by email-confirmation on signup (the NEW CRITICAL SMTP
+item) — there is no confirmed test account to log in with, and signing up writes to
+prod. Once a seeded test account exists, the same harness extends to cover them.
 
 ---
 

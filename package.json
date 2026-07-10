@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:report": "playwright show-report",
+    "fixtures": "node tests/fixtures/make-resume.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",
@@ -26,6 +29,7 @@
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
@@ -33,6 +37,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
+    "pdfkit": "^0.19.1",
     "vite": "^8.1.1",
     "vitest": "^4.1.10"
   }
