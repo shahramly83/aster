@@ -111,14 +111,25 @@ Deno.serve(async (req) => {
   if (planEnum) subUpdate.plan = planEnum;
   if (cycle) subUpdate.cycle = cycle;
   if (periodEnd) subUpdate.current_period_end = periodEnd;
-  if (Object.keys(subUpdate).length) await admin.from("subscriptions").update(subUpdate).eq("company_id", companyId);
+  // Every write below used to have its error discarded, and the function returned
+  // 200 regardless. Stripe treats 2xx as "handled" and never retries, so a failed
+  // write — an unknown plan_tier label, a transient outage — silently dropped a
+  // real payment: money taken, subscription never activated, no second chance.
+  // Return 5xx instead and let Stripe's retry schedule do its job. Every write
+  // here is an idempotent UPDATE to a fixed value, so replaying is safe.
+  if (Object.keys(subUpdate).length) {
+    const { error } = await admin.from("subscriptions").update(subUpdate).eq("company_id", companyId);
+    if (error) { console.error("subscriptions update", error.message, subUpdate); return json({ error: "subscription update failed", detail: error.message }, 500); }
+  }
 
   if (status === "active") {
     const companyUpdate: Record<string, unknown> = { status: "active", deleted_at: null, purge_after: null };
     if (planEnum) companyUpdate.plan = planEnum;
-    await admin.from("companies").update(companyUpdate).eq("id", companyId);
+    const { error } = await admin.from("companies").update(companyUpdate).eq("id", companyId);
+    if (error) { console.error("companies activate", error.message, companyUpdate); return json({ error: "company update failed", detail: error.message }, 500); }
   } else if (status === "canceled") {
-    await admin.from("companies").update({ status: "churned" }).eq("id", companyId);
+    const { error } = await admin.from("companies").update({ status: "churned" }).eq("id", companyId);
+    if (error) { console.error("companies churn", error.message); return json({ error: "company update failed", detail: error.message }, 500); }
   }
 
   return json({ ok: true, type, status });
