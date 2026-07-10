@@ -6,7 +6,7 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#FAFAFB",
-  "theme_color": "#973BF7",
+  "theme_color": "#0B2AE0",
   "icons": [
     { "src": "/aster-mark.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
   ]
