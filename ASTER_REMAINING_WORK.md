@@ -2,7 +2,7 @@
 
 **Only unresolved items.** Updated 2026-07-10. Full evidence in `ASTER_PRODUCTION_AUDIT.md`.
 
-**Current verdict: 🟠 payment path is now sound; access control after cancellation is not.**
+**Current verdict: 🟠 payment path and churn are sound. AI spend is still uncapped (W2).**
 
 **2026-07-10 — migrations 0033–0044 applied to production** via `supabase db push`, after
 `migration repair` on 0034/0035/0040 (they had been applied by hand in the SQL editor, so the
@@ -15,7 +15,7 @@ history table never recorded them). B1, S1, S2, S3, S7 are resolved. B2 remains 
 | # | Item | Why it blocks |
 |---|---|---|
 | ~~B1~~ | ~~Migrations unapplied; `stripe-webhook` not deployed~~ | ✅ **RESOLVED.** All migrations through `0044` applied and recorded; `stripe-webhook` deployed. Also fixed a worse latent bug found on the way: the webhook discarded both `update()` errors and returned 200 regardless, so Stripe never retried — a failed write silently dropped a real payment. It now returns 500 and Stripe retries for up to 3 days. |
-| **B2** | Cancelling a subscription revokes nothing | `stripe-webhook` sets `companies.status='churned'`. **No policy anywhere reads `companies.status`.** `current_company_id()` gates only on `deleted_at`. A cancelled customer keeps full access indefinitely. See `0041` §4 — **needs your decision**. |
+| ~~B2~~ | ~~Cancelling a subscription revokes nothing~~ | ✅ **RESOLVED (D1).** `0045` applied + webhook deployed. Churn now stamps `deleted_at` + `purge_after` (30-day window), landing the customer on the existing paywall with a way back. `restore_workspace()` refuses `churned` as well as `suspended` — without that, the fix would have handed a cancelled customer a one-click "Restore workspace" button. The cancel UPDATE is guarded with `.is("deleted_at", null)` so a replayed event can't slide the purge date. |
 | **B3** | Zero automated tests | No `test` script, no vitest/jest/playwright config, no `*.test.*` files. Every billing, credit and permission rule is unverified. On a codebase taking card payments. |
 | **B4** | Stripe Customer Portal not activated | `create-portal-session` is deployed but returns 502 until you activate the portal in Stripe → Settings → Billing → Customer portal. "Manage billing" is dead until then. |
 | **B5** | `stripe-webhook` has no replay window and no event dedupe | `t` is parsed from the signature and never compared to `now()`; the HMAC compare is not constant-time. A captured `(body, signature)` pair verifies forever, and can re-flip `status='active'` / clear `deleted_at`. See D3. |
