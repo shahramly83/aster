@@ -1,12 +1,42 @@
 # Aster — Remaining Work
 
-**Only unresolved items.** Updated 2026-07-10. Full evidence in `ASTER_PRODUCTION_AUDIT.md`.
+**Only unresolved items.** Updated 2026-07-10.
 
-**Current verdict: 🟠 payment path and churn are sound. AI spend is still uncapped (W2).**
+**Verdict: every Critical/High finding that could take money, lose data, or cross a
+tenant boundary is fixed and applied to production (migrations through 0049).**
+What remains needs a browser, a test database, or your Stripe/Supabase dashboards
+— none of it is code I can write and verify from here.
 
-**2026-07-10 — migrations 0033–0044 applied to production** via `supabase db push`, after
-`migration repair` on 0034/0035/0040 (they had been applied by hand in the SQL editor, so the
-history table never recorded them). B1, S1, S2, S3, S7 are resolved. B2 remains open pending D1.
+## ✅ Done this audit (all applied + deployed)
+Password reset & change (were no-ops) · rejection-email-on-"reject-without-email" ·
+notification badge (was hardcoded "2") · remove-teammate (revoked nothing) ·
+profile/settings persistence · fake Calendar/WhatsApp "Connect" buttons ·
+"Run AI matching" charging for a no-op · credit-zeroing IDOR (0041) ·
+admin→owner self-escalation (0041) · draft-job leak (0041) · churn now revokes
+access (0045) · dropped-Stripe-payment on failed write · AI Rank/Insight + resume
++ job-post limits all enforced server-side (0046/0047) · webhook replay window +
+dedupe + constant-time compare (0048) · admin portal's four actions made real,
+role-gated (0049) · first automated tests (18, signature + fail-closed limits).
+
+## 🙋 Only you can do these (dashboards)
+1. **Stripe events** — add `customer.subscription.deleted`, `invoice.paid`,
+   `invoice.payment_failed` to the webhook endpoint. Churn and past-due are inert
+   without them (your cancellation test proved it).
+2. **B4 — activate the Stripe Customer Portal** (Settings → Billing → Customer
+   portal). "Manage billing" 502s until you do.
+3. **Verify grants** — run the `0046`/`0041` proacl query; confirm `refund_*_for`
+   and `bump_resume_parse_for` show `service_role` only, no `authenticated`.
+4. **Verify the admin portal** — log in as super-admin, click each of the four
+   actions once. They are cross-tenant writes I could not test.
+
+## 🖥️ Need a browser (Phases 6 & 7 — not startable from here)
+- Responsive/mobile audit at 320–1440px.
+- Empty-database regression from a brand-new account.
+- Every-button click-through of the fixes above.
+
+## 🧪 Need a local Postgres (deeper tests)
+- Metering atomicity, RLS cross-company isolation, the trigger in 0047, the admin
+  role gates in 0049 — all need pgTAP or an integration DB, not Node/Vitest.
 
 ---
 
