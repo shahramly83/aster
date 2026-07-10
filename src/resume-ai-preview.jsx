@@ -3091,6 +3091,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
        </div>
       </section>
 
+      {/* App download callout, home page only, sits just above the footer */}
+      <AppDownloadBand />
+
       {/* Shared marketing footer, identical on landing + product pages */}
       <MarketingFooter navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} onLanding />
     </div>
@@ -3773,6 +3776,55 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
         </div>
       )}
     </>
+  );
+}
+
+// App-download callout, shown once above the footer on the home page. The apps
+// arrive in September, so the store badges are visual only (no links).
+function AppDownloadBand() {
+  return (
+    <section className="px-4 sm:px-6 py-12 sm:py-16" style={{ background: "var(--bg)" }}>
+      <div className="max-w-6xl mx-auto">
+        <div className="relative overflow-hidden rounded-3xl border p-6 sm:p-8" style={{ background: "linear-gradient(135deg, #ffffff 0%, var(--brand-soft) 155%)", borderColor: "var(--line)" }}>
+          <div className="pointer-events-none absolute -right-20 -top-24 w-72 h-72 rounded-full blur-3xl opacity-70" style={{ background: "radial-gradient(circle, var(--brand-soft) 0%, transparent 70%)" }} />
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center brand-gradient shadow-[0_12px_26px_-12px_rgba(var(--brand-rgb),0.75)]">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.6" /><path d="M11 18.5h2" /></svg>
+              </div>
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1.5 mb-2.5 text-[11px] font-semibold uppercase px-2.5 py-1 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", letterSpacing: "0.06em" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} /> Available September
+                </span>
+                <h3 className="text-lg sm:text-xl font-bold font-display" style={{ color: "var(--ink)" }}>Take Aster with you</h3>
+                <p className="text-sm mt-1 max-w-md" style={{ color: "var(--ink-2)" }}>The Aster app for iPhone and Android arrives in September. Review shortlists, interviews and offers on the go.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 shrink-0">
+              <span role="img" aria-label="Aster on the App Store, available September" title="Available September" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 select-none cursor-default" style={{ background: "#1B1C22", color: "#fff" }}>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+                <span className="leading-tight text-left">
+                  <span className="block text-[10px] opacity-80">Coming soon on the</span>
+                  <span className="block text-base font-semibold -mt-0.5">App Store</span>
+                </span>
+              </span>
+              <span role="img" aria-label="Aster on Google Play, available September" title="Available September" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 select-none cursor-default" style={{ background: "#1B1C22", color: "#fff" }}>
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                  <path fill="#00C3FF" d="M3.6 2.3c-.3.2-.5.5-.5 1v17.4c0 .5.2.8.5 1l9.3-9.7z"/>
+                  <path fill="#00E676" d="M16.3 8.6 4.7 1.9c-.3-.2-.7-.2-1-.1l9.2 9.7z"/>
+                  <path fill="#FFCE00" d="M20 11l-3.7-2.1-3.5 3 3.5 3L20 13c.6-.4.6-1.6 0-2z"/>
+                  <path fill="#FF3D00" d="M3.7 22.1c.3.1.7.1 1-.1l11.6-6.7-3.4-2.9z"/>
+                </svg>
+                <span className="leading-tight text-left">
+                  <span className="block text-[10px] opacity-80">Coming soon on</span>
+                  <span className="block text-base font-semibold -mt-0.5">Google Play</span>
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
