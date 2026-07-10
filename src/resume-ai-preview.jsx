@@ -25,7 +25,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
+    .select("company_id, full_name, role, activities_seen_at, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -52,6 +52,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
     plan: PLAN_TIER_ALIASES[co.plan] || co.plan || "launch",
     // Billing state, so a reload doesn't lose the trial countdown or show a
     // placeholder renewal date.
+    activitiesSeenAt: data.activities_seen_at || null,
     subStatus: sub.status || null,
     planCycle: sub.cycle === "yearly" ? "yearly" : "monthly",
     renewsAt: sub.current_period_end || null,
@@ -179,6 +180,19 @@ function relDaysAgo(iso) {
   return days <= 0 ? "today" : `${days}d ago`;
 }
 
+// "just now" | "12m ago" | "3h ago" | "5d ago". Used by the activity feed, which
+// used to carry hardcoded strings like "1h ago" whatever the row's real age.
+function relTime(iso) {
+  if (!iso) return "";
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 // Turn scorecard ratings into the hire recommendation the profile expects.
 function recommendationFromRatings(ratings) {
   const vals = Object.values(ratings || {}).filter((n) => typeof n === "number");
@@ -254,6 +268,7 @@ async function loadWorkspaceData(companyId) {
     (applicantsByJob[a.job_id] ||= []).push({
       candidateId: a.candidate_id,
       appliedAt: relDaysAgo(a.created_at),
+      appliedAtIso: a.created_at,
       baseStage: a.stage,
       rejectionEmailSent: false,
       source: a.source || "Career Page",
@@ -7812,39 +7827,54 @@ function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot =
 // Activity feed derived from the app's own data (applicants, matches, jobs),
 // so names and roles always match what's really in the workspace. The two
 // newest items start unread; opening the bell marks everything read.
-function buildActivities() {
+// The feed is derived from real rows rather than stored, so there is no table to
+// keep in sync. Every item carries the `ts` of the row it describes; unread is
+// decided against the caller's profiles.activities_seen_at watermark (0042).
+// Previously the times were string literals ("1h ago") and `read: i >= 2` pinned
+// the badge at 2 forever, even in an empty workspace.
+function buildActivities(seenAt = null) {
   const cand = (id) => MOCK_CANDIDATES.find((c) => c.id === id)?.parsed?.name || "A candidate";
   const jobTitle = (id) => MOCK_JOBS.find((j) => j.id === id)?.title || "a role";
-  const ini = (name) => name.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   const apps = Object.entries(APPLICANTS_BY_JOB).flatMap(([jobId, arr]) => arr.map((a) => ({ ...a, jobId })));
   const list = [];
 
-  // Newest application
-  if (apps[0]) {
-    const n = cand(apps[0].candidateId);
-    list.push({ icon: "doc", accent: "#5A78F8", title: "New application received", desc: `${n} applied for ${jobTitle(apps[0].jobId)}`, time: apps[0].appliedAt, dotColor: "bg-neutral-800", target: { screen: "candidates", filter: { source: "public_application" } } });
+  const newest = [...apps].sort((a, b) => new Date(b.appliedAtIso || 0) - new Date(a.appliedAtIso || 0))[0];
+  if (newest) {
+    const n = cand(newest.candidateId);
+    list.push({ ts: newest.appliedAtIso, icon: "doc", accent: "#5A78F8", title: "New application received", desc: `${n} applied for ${jobTitle(newest.jobId)}`, dotColor: "bg-neutral-800", target: { screen: "candidates", filter: { source: "public_application" } } });
   }
-  // An applicant currently in the interview stage
+
   const interviewing = apps.find((a) => a.baseStage === "interviewing");
   if (interviewing) {
     const n = cand(interviewing.candidateId);
-    list.push({ icon: "calendar", accent: "#16A34A", title: "Interview scheduled", desc: `${n} · ${jobTitle(interviewing.jobId)}`, time: "1h ago", dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { interview: true } } });
+    list.push({ ts: interviewing.appliedAtIso, icon: "calendar", accent: "#16A34A", title: "Interview scheduled", desc: `${n} · ${jobTitle(interviewing.jobId)}`, dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { interview: true } } });
   }
-  // Top AI match
+
   const [matchJobId, matches] = Object.entries(MOCK_MATCHES)[0] || [];
   if (matches && matches[0]) {
     const n = cand(matches[0].candidateId);
-    list.push({ icon: "matching", accent: "#0B2AE0", title: "New match generated", desc: `${n} · ${jobTitle(matchJobId)} (${Math.round(matches[0].score * 100)}%)`, time: "3h ago", dotColor: "bg-neutral-800", target: { screen: "jobs", jobStatus: null } });
-  }
-  // A recently published open role (pick one not already surfaced above)
-  const openJobs = MOCK_JOBS.filter((j) => j.status === "open");
-  const publishedJob = openJobs[openJobs.length - 1] || openJobs[0];
-  if (publishedJob) {
-    list.push({ icon: "briefcase", accent: "#F59E0B", title: "Position published", desc: publishedJob.title, time: "5h ago", dotColor: "bg-neutral-300", target: { screen: "jobs", jobStatus: "open" } });
+    const app = apps.find((a) => a.candidateId === matches[0].candidateId);
+    list.push({ ts: app?.appliedAtIso, icon: "matching", accent: "#0B2AE0", title: "New match generated", desc: `${n} · ${jobTitle(matchJobId)} (${Math.round(matches[0].score * 100)}%)`, dotColor: "bg-neutral-800", target: { screen: "jobs", jobStatus: null } });
   }
 
-  return list.map((it, i) => ({ id: `a${i + 1}`, read: i >= 2, ...it }));
+  const openJobs = MOCK_JOBS.filter((j) => j.status === "open");
+  const publishedJob = [...openJobs].sort((a, b) => new Date(b.posted_at || 0) - new Date(a.posted_at || 0))[0];
+  if (publishedJob) {
+    list.push({ ts: publishedJob.posted_at, icon: "briefcase", accent: "#F59E0B", title: "Position published", desc: publishedJob.title, dotColor: "bg-neutral-300", target: { screen: "jobs", jobStatus: "open" } });
+  }
+
+  const seen = seenAt ? new Date(seenAt).getTime() : null;
+  return list
+    .filter((it) => it.ts)                                    // an item with no real timestamp is not an event
+    .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+    .map((it, i) => ({
+      id: `${it.icon}-${it.ts}-${i}`,
+      // Never opened the bell? Everything is genuinely unread.
+      read: seen == null ? false : new Date(it.ts).getTime() <= seen,
+      time: relTime(it.ts),
+      ...it,
+    }));
 }
 
 function ActivityRow({ icon = "bell", accent = "#0B2AE0", title, desc, time, onClick }) {
@@ -17163,8 +17193,19 @@ export default function ResumeAIPreview() {
   // Shared activity feed. Both the header notification bell and the
   // dashboard "Recent Activity" card read from this list; `read` drives
   // the unread badge on the bell.
-  const [activities, setActivities] = useState(buildActivities);
-  const markActivitiesRead = () => setActivities((list) => list.map((a) => ({ ...a, read: true })));
+  // profiles.activities_seen_at — the watermark the unread badge is measured against.
+  const [activitiesSeenAt, setActivitiesSeenAt] = useState(null);
+  const [activities, setActivities] = useState(() => buildActivities(null));
+  // Persist the watermark so the badge does not come back on reload. Optimistic:
+  // the bell clears immediately, and a failed write is logged, not shown — a
+  // stale badge is a far smaller problem than a modal over a notification list.
+  const markActivitiesRead = async () => {
+    setActivities((list) => list.map((a) => ({ ...a, read: true })));
+    if (!hasSupabase) return;
+    const { data, error } = await supabase.rpc("mark_activities_seen");
+    if (error) { console.error("mark_activities_seen failed:", error.message || error); return; }
+    setActivitiesSeenAt(data || new Date().toISOString());
+  };
   // Dashboard date range, defaults to today (current date).
   const today0 = startOfDay(new Date());
   const [dateRange, setDateRange] = useState({ start: today0, end: today0 });
@@ -17399,7 +17440,8 @@ export default function ResumeAIPreview() {
       setTrialDaysLeft(sess.trialDaysLeft || 0);
       setRenewsAt(sess.renewsAt || null);
       setSubStatus(sess.subStatus || null);
-      if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId); }
+      setActivitiesSeenAt(sess.activitiesSeenAt || null);
+      if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); }
     }
     navigate(dest);
   };
@@ -17445,7 +17487,7 @@ export default function ResumeAIPreview() {
     setBookings(data.bookings);
     setScorecards(data.scorecards);
     if (data.interviewers?.length) setInterviewers(data.interviewers);
-    setActivities(buildActivities());  // rebuilt from the now-real datasets
+    setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
 
@@ -17582,10 +17624,11 @@ export default function ResumeAIPreview() {
         setTrialDaysLeft(sess.trialDaysLeft || 0);
         setRenewsAt(sess.renewsAt || null);
         setSubStatus(sess.subStatus || null);
+        setActivitiesSeenAt(sess.activitiesSeenAt || null);
         if (sess.companyId) {
           setCompanyId(sess.companyId);
           setUserId(sess.userId);
-          await hydrateWorkspace(sess.companyId); // finish before revealing the app
+          await hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); // finish before revealing the app
         }
       } finally {
         if (!cancelled) setRestoring(false);
