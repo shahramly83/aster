@@ -15,6 +15,12 @@ const ROLE_LABELS = { owner: "Owner", admin: "Admin", recruiter: "Recruiter", in
 // root state uses. Returns null when the user has no company profile (e.g. an
 // Aster admin, or a not-yet-provisioned signup) so callers can fall back or
 // bounce them out. RLS guarantees they can only read their own company's rows.
+// Tiers were renamed to launch/scale/elite in migration 0040. A database that
+// has not had it applied yet still answers with the old vocabulary, and an
+// unrecognised tier would fall through to the most restrictive plan. Safe to
+// delete once 0040 is applied everywhere.
+const PLAN_TIER_ALIASES = { free: "launch", growth: "scale", pro: "elite" };
+
 async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
@@ -43,7 +49,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
     company: co.name || "Your workspace",
     // plan_tier enum and app plan key are the same vocabulary since 0040:
     // launch | scale | elite | enterprise.
-    plan: co.plan || "launch",
+    plan: PLAN_TIER_ALIASES[co.plan] || co.plan || "launch",
     // Billing state, so a reload doesn't lose the trial countdown or show a
     // placeholder renewal date.
     subStatus: sub.status || null,
@@ -1049,24 +1055,51 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
     "Your data stays encrypted and private",
   ];
 
-  const sendLink = () => {
+  // Arriving from the emailed link: supabase-js parses the recovery token out of
+  // the URL hash, establishes a short-lived session and fires PASSWORD_RECOVERY.
+  // Only with that session can updateUser() set a new password.
+  useEffect(() => {
+    if (!hasSupabase || typeof window === "undefined") return;
+    if (/type=recovery/.test(window.location.hash)) setStep("reset");
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setStep("reset");
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const sendLink = async () => {
     if (!isValidEmail(email)) { setEmailErr("Enter a valid email address."); return; }
     setEmailErr(null);
     setBusy(true);
-    // Stand-in for POST /auth/forgot-password { email }. The server always
-    // returns 200 (it never reveals whether an account exists) and, if it does,
-    // emails a single-use, time-limited reset token.
-    setTimeout(() => { setBusy(false); setStep("sent"); }, 900);
+    if (hasSupabase) {
+      // The error is deliberately swallowed: surfacing it would reveal whether an
+      // account exists for this address. Supabase rate-limits the endpoint itself.
+      try {
+        await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/forgot-password`,
+        });
+      } catch { /* same reason */ }
+    }
+    setBusy(false);
+    setStep("sent");
   };
 
-  const submitNewPassword = () => {
+  const submitNewPassword = async () => {
     const problem = passwordProblem(newPw);
     if (problem) { setPwErr(problem); return; }
     if (newPw !== confPw) { setPwErr("Passwords don't match."); return; }
     setPwErr(null);
     setBusy(true);
-    // Stand-in for POST /auth/reset-password { token, password }.
-    setTimeout(() => { setBusy(false); setStep("done"); }, 900);
+    if (!hasSupabase) { setBusy(false); setStep("done"); return; }
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    setBusy(false);
+    if (error) {
+      setPwErr(/session|expired|invalid|missing/i.test(error.message)
+        ? "This reset link has expired or was already used. Request a new one."
+        : error.message);
+      return;
+    }
+    setStep("done");
   };
 
   return (
@@ -1146,11 +1179,6 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
                 If an account exists for <span className="font-semibold" style={{ color: "var(--ink)" }}>{email}</span>, we've sent a reset link. It expires in 30 minutes.
               </p>
               <div className="space-y-3">
-                {/* Simulates clicking the tokenised link in the email. */}
-                <button onClick={() => setStep("reset")} className={primaryBtn}>
-                  Open reset link
-                  <Icon name="arrowUpRight" className="w-4 h-4" />
-                </button>
                 <button onClick={sendLink} disabled={busy} className="w-full rounded-xl text-sm font-medium py-3 transition-colors disabled:opacity-60 hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink)" }}>
                   {busy ? "Sending…" : "Resend email"}
                 </button>
@@ -8085,7 +8113,9 @@ const PLAN_LIMITS = {
     supportTier: "dedicated", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
   },
 };
-const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.professional;
+// Fail closed. An unrecognised tier falls back to the most restrictive plan,
+// never the most generous one, or a stray plan string quietly grants Elite.
+const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.launch;
 
 function LockBadge({ label = "Elite" }) {
   return (
@@ -14237,12 +14267,27 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
     }
   };
 
-  const handleChangePassword = () => {
+  const [pwBusy, setPwBusy] = useState(false);
+  const handleChangePassword = async () => {
     setPwMsg(null);
     if (!curPw || !newPw || !confPw) { setPwMsg({ type: "err", text: "Fill in all three password fields." }); return; }
     const problem = passwordProblem(newPw);
     if (problem) { setPwMsg({ type: "err", text: problem }); return; }
     if (newPw !== confPw) { setPwMsg({ type: "err", text: "New passwords don't match." }); return; }
+    if (!hasSupabase) { setPwMsg({ type: "err", text: "Sign in to a live workspace to change your password." }); return; }
+
+    setPwBusy(true);
+    // updateUser() never checks the current password, so an unattended session
+    // could otherwise be taken over. Re-authenticate before changing it.
+    const { data: { user } } = await supabase.auth.getUser();
+    const email = user?.email;
+    if (!email) { setPwBusy(false); setPwMsg({ type: "err", text: "Your session has expired. Sign in again." }); return; }
+    const { error: reauthErr } = await supabase.auth.signInWithPassword({ email, password: curPw });
+    if (reauthErr) { setPwBusy(false); setPwMsg({ type: "err", text: "Current password is incorrect." }); return; }
+
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    setPwBusy(false);
+    if (error) { setPwMsg({ type: "err", text: error.message || "Couldn't update the password." }); return; }
     setPwMsg({ type: "ok", text: "Password updated." });
     setCurPw(""); setNewPw(""); setConfPw("");
   };
@@ -14458,7 +14503,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
             ))}
             {pwMsg && <p className="text-sm" style={{ color: pwMsg.type === "ok" ? "#166534" : "#DC2626" }}>{pwMsg.text}</p>}
             <div className="flex items-center gap-4 flex-wrap">
-              <button onClick={handleChangePassword} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors">Update password</button>
+              <button onClick={handleChangePassword} disabled={pwBusy} className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-60 disabled:cursor-wait text-white text-sm font-medium px-4 py-2 transition-colors">{pwBusy ? "Updating…" : "Update password"}</button>
               <button onClick={() => navigate("forgotPassword")} className="text-sm font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Forgot your password?</button>
             </div>
           </div>
@@ -16208,7 +16253,12 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
     if (stage === "rejected") {
       setLocalRejectEmail((prev) => ({ ...prev, [candidateId]: Boolean(emailSent) }));
     }
-    if (onStageChange) onStageChange(candidateId, stage);
+    // Forward the recruiter's explicit choice. Dropping it here made
+    // "Reject without email" send the rejection anyway (setCandidateStage
+    // defaults notify=true) while the badge claimed no email was sent.
+    // Note the third argument is an options object: passing a bare `false`
+    // destructures to `notify = true` and silently re-creates the bug.
+    if (onStageChange) onStageChange(candidateId, stage, { notify: emailSent !== false });
   };
 
   // Only applicants whose candidate exists and is parsed are shown
