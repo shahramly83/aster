@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -25,7 +25,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, activities_seen_at, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
+    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -45,7 +45,11 @@ async function loadCustomerSession(userId, fallbackEmail) {
       firstName: parts[0] || "there",
       lastName: parts.slice(1).join(" "),
       role: ROLE_LABELS[data.role] || "Hiring Manager",
+      phone: data.phone || "",
+      notifications: data.notify_prefs || {},
     },
+    avatarPath: data.avatar_path || null,
+    calendarProvider: data.calendar_provider || null,
     company: co.name || "Your workspace",
     // plan_tier enum and app plan key are the same vocabulary since 0040:
     // launch | scale | elite | enterprise.
@@ -14156,7 +14160,7 @@ function parseAddress(str) {
   return { street, city: cityPart || "", state: (rm[1] || "").trim(), postcode: (rm[2] || "").trim(), country };
 }
 
-function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, addressParts = EMPTY_ADDRESS, setAddressParts, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
+function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, addressParts = EMPTY_ADDRESS, setAddressParts, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
   const [email] = useState("shah@example.com");
   const [newEmail, setNewEmail] = useState("");
   const [emailMsg, setEmailMsg] = useState(null);
@@ -14170,6 +14174,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
   const [dAddr, setDAddr] = useState({ ...EMPTY_ADDRESS, ...addressParts });
   const [dRegNo, setDRegNo] = useState(regNo || "");
   const [dAvatar, setDAvatar] = useState(avatarUrl);
+  const [dAvatarFile, setDAvatarFile] = useState(null); // staged until Save, like the logo
   const [dFirst, setDFirst] = useState(profile?.firstName || "");
   const [dLast, setDLast] = useState(profile?.lastName || "");
   const [dPhone, setDPhone] = useState(profile?.phone || "");
@@ -14242,7 +14247,7 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
 
   // Stage the picked file for upload on Save, and show a data-URL preview now.
   const handleLogoChange = (e) => { const f = e.target.files?.[0]; if (!f) return; setDLogoFile(f); const r = new FileReader(); r.onload = () => { setDLogo(r.result); setSavedMsg(null); setSaveErr(null); }; r.readAsDataURL(f); };
-  const handleAvatarChange = (e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setDAvatar(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
+  const handleAvatarChange = (e) => { const f = e.target.files?.[0]; if (!f) return; setDAvatarFile(f); const r = new FileReader(); r.onload = () => { setDAvatar(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setSaveErr(null);
@@ -14271,7 +14276,28 @@ function ProfileScreen({ navigate, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl,
     setAddressParts?.({ ...dAddr });
     setAddress?.(dAddressStr);
     setRegNo?.(dRegNo.trim());
-    setAvatarUrl(dAvatar);
+
+    // The personal half of this form used to be React state only: name, phone and
+    // avatar all reverted on the next load. dbUpdateCompany above covers only the
+    // company fields.
+    let nextAvatar = dAvatar;
+    if (canPersist) {
+      let avatarPath = null;
+      if (dAvatarFile) {
+        avatarPath = await uploadAvatar(companyId, userId, dAvatarFile);
+        if (!avatarPath) { setSaving(false); setSaveErr("Couldn't upload your photo. Please try again."); return; }
+        nextAvatar = (await signedAvatarUrl(avatarPath)) || dAvatar;
+      }
+      const err = await dbUpdateMyProfile({
+        fullName: `${dFirst.trim()} ${dLast.trim()}`.trim(),
+        phone: dPhone.trim(),
+        avatarPath,
+      });
+      if (err) { setSaving(false); setSaveErr(err); return; }
+      setDAvatarFile(null);
+    }
+
+    setAvatarUrl(nextAvatar); setDAvatar(nextAvatar);
     setProfile({ ...(profile || {}), firstName: dFirst.trim(), lastName: dLast.trim(), phone: dPhone.trim() });
     setSaving(false);
     setSavedMsg("All changes saved.");
@@ -14649,7 +14675,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
   // Staged (draft) edits for the calendar provider, Save/Cancel form.
   const [dProvider, setDProvider] = useState(provider);
   const [dCalConnected, setDCalConnected] = useState(calendarConnected);
-  const [connectingCal, setConnectingCal] = useState(false);
+  const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
 
@@ -14666,7 +14692,9 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
   const [waStatus, setWaStatus] = useState("disconnected"); // disconnected | connecting | pending | connected
   const [waTemplates, setWaTemplates] = useState({ confirmed: true, received: true, reminder: false });
   const [waTested, setWaTested] = useState(false);
-  const connectWhatsApp = () => { setWaStatus("connecting"); setTimeout(() => setWaStatus("pending"), 1400); };
+  // No WhatsApp Business integration exists. Previously this reported "pending"
+  // forever, which read as "we're working on your request".
+  const connectWhatsApp = () => { setWaStatus("unavailable"); };
 
   const calSystem = dProvider === "microsoft" ? "Microsoft 365" : "Google Workspace";
   const meetName = dProvider === "microsoft" ? "Teams" : "Google Meet";
@@ -14683,20 +14711,24 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
 
   const dirty = dProvider !== provider || dCalConnected !== calendarConnected || JSON.stringify(dNotif) !== JSON.stringify(notifBase);
 
+  // Calendar OAuth is not built. This used to be a setTimeout that flipped
+  // `dCalConnected` to true, so the app believed it had a live calendar — which
+  // is what let "AI Auto Schedule" present invented slots as real free/busy.
   const handleConnectCalendar = () => {
-    setConnectingCal(true);
-    setTimeout(() => { setDCalConnected(true); setConnectingCal(false); }, 1500);
+    setSavedMsg(null);
+    setConnectErr(`Connecting ${calSystem} isn't available yet. Interview times are proposed manually until it ships.`);
   };
 
-  const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => {
-      setProvider(dProvider);
-      setCalendarConnected(dCalConnected);
-      setProfile?.({ ...(profile || {}), notifications: dNotif });
-      setSaving(false);
-      setSavedMsg("All changes saved.");
-    }, 800);
+  const handleSave = async () => {
+    setSaving(true); setSavedMsg(null); setConnectErr(null);
+    if (hasSupabase) {
+      const err = await dbUpdateMyProfile({ notifyPrefs: dNotif, calendarProvider: dProvider });
+      if (err) { setSaving(false); setConnectErr(err); return; }
+    }
+    setProvider(dProvider);
+    setProfile?.({ ...(profile || {}), notifications: dNotif });
+    setSaving(false);
+    setSavedMsg("All changes saved.");
   };
 
   const handleCancel = () => {
@@ -14783,13 +14815,16 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
             ) : (
               <button
                 onClick={handleConnectCalendar}
-                disabled={connectingCal}
-                className="text-xs rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white px-3 py-1.5 shrink-0 transition-colors"
+                className="text-xs rounded-xl border px-3 py-1.5 shrink-0 transition-colors hover:bg-neutral-50"
+                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
               >
-                {connectingCal ? "Connecting…" : `Connect ${calSystem}`}
+                Connect {calSystem}
               </button>
             )}
           </div>
+          {connectErr && (
+            <p role="status" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A" }}>{connectErr}</p>
+          )}
         </div>
 
         {/* 5: WhatsApp Business (Pro, BSP-assisted, bring-your-own-number) */}
@@ -14868,11 +14903,16 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
               </div>
               <button
                 onClick={connectWhatsApp}
-                disabled={waStatus === "connecting"}
-                className="text-sm rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 transition-colors"
+                className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50"
+                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
               >
-                {waStatus === "connecting" ? "Connecting…" : "Connect WhatsApp Business"}
+                Connect WhatsApp Business
               </button>
+              {waStatus === "unavailable" && (
+                <p role="status" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+                  WhatsApp reminders aren't available yet. We'll email you when they ship.
+                </p>
+              )}
               <p className="text-xs text-neutral-400 mt-2">We set you up through our WhatsApp messaging partner. No Meta dashboard wrangling. Messages are billed to your own Meta account.</p>
             </div>
           )}
@@ -17143,7 +17183,9 @@ export default function ResumeAIPreview() {
   // Calendar is connected once at the workspace level (single Google Workspace /
   // Microsoft 365 tenant), rather than per interviewer. Powers availability +
   // event creation for everyone.
-  const [calendarConnected, setCalendarConnected] = useState(true);
+  // No calendar OAuth exists yet, so nothing can be connected. Defaulting this to
+  // `true` made the app claim a live calendar and underpinned the fake slot finder.
+  const [calendarConnected, setCalendarConnected] = useState(false);
   // User profile, the greeting, sidebar and settings all read from this.
   const [profile, setProfile] = useState({ firstName: "Shah", lastName: "Ramly", role: "Hiring Manager" });
   const [company, setCompany] = useState("Oryx Studio");
@@ -17455,6 +17497,8 @@ export default function ResumeAIPreview() {
       setRenewsAt(sess.renewsAt || null);
       setSubStatus(sess.subStatus || null);
       setActivitiesSeenAt(sess.activitiesSeenAt || null);
+      if (sess.calendarProvider) setProvider(sess.calendarProvider);
+      if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
       if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); }
     }
     navigate(dest);
@@ -17639,6 +17683,8 @@ export default function ResumeAIPreview() {
         setRenewsAt(sess.renewsAt || null);
         setSubStatus(sess.subStatus || null);
         setActivitiesSeenAt(sess.activitiesSeenAt || null);
+        if (sess.calendarProvider) setProvider(sess.calendarProvider);
+        if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
         if (sess.companyId) {
           setCompanyId(sess.companyId);
           setUserId(sess.userId);
@@ -18197,6 +18243,7 @@ export default function ResumeAIPreview() {
         {screen === "profile" && (
           <ProfileScreen
             navigate={navigate}
+            userId={userId}
             avatarUrl={avatarUrl}
             setAvatarUrl={setAvatarUrl}
             logoUrl={companyLogoUrl}

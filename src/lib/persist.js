@@ -221,3 +221,41 @@ export async function dbRemoveTeammate(profileId) {
   if (error.code === "42883") return "Run migration 0043: remove_teammate doesn't exist yet.";
   return error.message || "Couldn't remove that teammate.";
 }
+
+// Upload the signed-in user's avatar into the private, company-scoped bucket.
+// Returns the storage path (not a URL) — reads go through a signed URL, because
+// a teammate's headshot should not be world-readable the way a company logo is.
+export async function uploadAvatar(companyId, userId, file) {
+  if (!hasSupabase || !companyId || !userId || !file) return null;
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const path = `${companyId}/${userId}.${ext || "jpg"}`;
+  const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) { console.error("uploadAvatar", error.message); return null; }
+  return path;
+}
+
+// A short-lived read URL for a private avatar path.
+export async function signedAvatarUrl(path) {
+  if (!hasSupabase || !path) return null;
+  const { data, error } = await supabase.storage.from("avatars").createSignedUrl(path, 3600);
+  if (error) { console.error("signedAvatarUrl", error.message); return null; }
+  return data?.signedUrl || null;
+}
+
+// Writes only the caller's own row, via a definer RPC with a fixed column list:
+// profiles has no self-UPDATE policy, and adding one would expose `role`.
+// Returns an error message, or null on success.
+export async function dbUpdateMyProfile({ fullName, phone, avatarPath, notifyPrefs, calendarProvider } = {}) {
+  if (!hasSupabase) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("update_my_profile", {
+    p_full_name: fullName ?? null,
+    p_phone: phone ?? null,
+    p_avatar_path: avatarPath ?? null,
+    p_notify_prefs: notifyPrefs ?? null,
+    p_calendar_provider: calendarProvider ?? null,
+  });
+  if (!error) return null;
+  console.error("dbUpdateMyProfile", error.message);
+  if (error.code === "42883") return "Run migration 0044: update_my_profile doesn't exist yet.";
+  return error.message || "Couldn't save your profile.";
+}
