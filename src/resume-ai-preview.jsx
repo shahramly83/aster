@@ -14005,7 +14005,11 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const prices = usePlanPrices();
-  const suspended = info?.status === "suspended";
+  // 'suspended' = trial lapsed. 'churned' = subscription cancelled. Both are
+  // paywalled: only a payment restores them. Anything else here is a self-service
+  // deletion, which the owner can undo with one click.
+  const suspended = info?.status === "suspended" || info?.status === "churned";
+  const churned = info?.status === "churned";
   const purge = info?.purge_after ? new Date(info.purge_after) : null;
   const daysLeft = purge ? Math.max(0, Math.ceil((purge.getTime() - Date.now()) / 86400000)) : null;
   const dateStr = purge ? purge.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "";
@@ -14032,13 +14036,15 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
           : <AsterMark className="w-10 h-10 mx-auto mb-4" />}
 
         <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>
-          {suspended ? "Your trial has ended" : "Workspace scheduled for deletion"}
+          {churned ? "Your subscription has ended" : suspended ? "Your trial has ended" : "Workspace scheduled for deletion"}
         </h1>
 
         {suspended ? (
           <>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              {name} is suspended because the 14-day Scale trial ended without a subscription. Subscribe to unlock it again.
+              {churned
+                ? <>{name} is locked because the subscription was cancelled. Subscribe to unlock it again.</>
+                : <>{name} is suspended because the 14-day Scale trial ended without a subscription. Subscribe to unlock it again.</>}
             </p>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
               Nothing has been lost. Your candidates, jobs, and remaining credits are kept{dateStr ? <> until <span className="font-semibold" style={{ color: "var(--ink)" }}>{dateStr}</span></> : ""}

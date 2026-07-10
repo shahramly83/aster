@@ -128,7 +128,16 @@ Deno.serve(async (req) => {
     const { error } = await admin.from("companies").update(companyUpdate).eq("id", companyId);
     if (error) { console.error("companies activate", error.message, companyUpdate); return json({ error: "company update failed", detail: error.message }, 500); }
   } else if (status === "canceled") {
-    const { error } = await admin.from("companies").update({ status: "churned" }).eq("id", companyId);
+    // Setting status alone revoked nothing: companies.status is read by no policy,
+    // and the tenancy layer keys off deleted_at. A cancelled customer kept full
+    // access forever, for free. Stamp the same 30-day soft-delete window a lapsed
+    // trial gets (0036), so they land on the existing paywall, can resubscribe
+    // (the activate branch above clears these), and are purged if they don't.
+    // 0045 stops restore_workspace() from letting them undo this with one click.
+    const purgeAfter = new Date(Date.now() + 30 * 86400_000).toISOString();
+    const { error } = await admin.from("companies")
+      .update({ status: "churned", deleted_at: new Date().toISOString(), purge_after: purgeAfter })
+      .eq("id", companyId).is("deleted_at", null);   // don't slide the purge date on a repeat event
     if (error) { console.error("companies churn", error.message); return json({ error: "company update failed", detail: error.message }, 500); }
   }
 
