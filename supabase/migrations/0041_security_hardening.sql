@@ -35,21 +35,33 @@ grant execute on function public.bump_resume_parse_for(uuid)  to service_role;
 revoke all on function public._free_trial_used(text) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- 2. MEDIUM — get_public_job leaks draft and closed jobs
+-- 2. MEDIUM — get_public_job serves unpublished drafts
 -- ---------------------------------------------------------------------------
--- 0012 returns a job's details (including salary) for ANY job id, whatever its
--- status. The public apply page should only ever resolve an open role. Anyone
--- holding a stale or guessed UUID can read an unpublished draft.
-create or replace function public.get_public_job(p_job uuid)
-returns table (id uuid, title text, location text, employment_type text, details jsonb, company_name text, company_logo text)
-language sql stable security definer set search_path = public as $$
-  select j.id, j.title, j.location, j.employment_type, j.details, c.name, c.logo_url
-  from public.jobs j
-  join public.companies c on c.id = j.company_id
-  where j.id = p_job
-    and j.status = 'open'          -- was: no status filter at all
-    and c.deleted_at is null;      -- and a soft-deleted workspace kept serving applications
-$$;
+-- 0012 returns a job for ANY id, whatever its status, and whatever the state of
+-- the owning workspace. A draft that was never published — salary and full
+-- description inside `details` — is readable by anyone holding or guessing its
+-- UUID. So is a job belonging to a soft-deleted (suspended / lapsed) workspace,
+-- which keeps happily accepting applications.
+--
+-- Closed and expired roles must still resolve: the apply page reads `status` and
+-- `expires_at` to render "this role has closed" rather than a 404. Only drafts
+-- are excluded, because a draft was never public in the first place.
+--
+-- The signature is preserved exactly (p_job_id, and the same six OUT columns);
+-- `create or replace` cannot change a function's return type, and the client
+-- calls it by the named parameter p_job_id.
+create or replace function public.get_public_job(p_job_id uuid)
+returns table (id uuid, title text, status text, details jsonb, expires_at date, company_name text)
+language plpgsql security definer set search_path = public as $$
+begin
+  return query
+    select j.id, j.title, j.status, j.details, j.expires_at, c.name
+    from public.jobs j
+    join public.companies c on c.id = j.company_id
+    where j.id = p_job_id
+      and j.status <> 'draft'      -- was: no status filter at all
+      and c.deleted_at is null;    -- was: a suspended workspace kept taking applications
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- 3. MEDIUM — a company admin can promote themselves to owner
