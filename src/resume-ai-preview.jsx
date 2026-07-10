@@ -15873,6 +15873,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         )}
 
         {!isClosed && (<>
+        {/* Scheduling + AI interview questions are owner / hiring-manager actions. */}
+        {!isInterviewer(profile?.role) && (<>
         <ScheduleInterviewPanel
           candidate={candidate}
           jobs={jobs}
@@ -15891,6 +15893,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           contextJobId={contextJobId}
           isScheduled={questionsUnlocked}
         />
+        </>)}
 
         {/* After the interview, unlocks once the scheduled slot is in the past.
             This closes the gap between "interview scheduled" and a hire/reject
@@ -15919,7 +15922,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
             />
 
-            {/* Decision / next step */}
+            {/* Decision / next step — owner / hiring-manager only. Interviewers
+                submit their own scorecard above but don't move the candidate. */}
+            {!isInterviewer(profile?.role) && (
             <div className="mt-4 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
               <h2 className="text-sm font-medium text-neutral-600 mb-1 uppercase tracking-wide">Decision</h2>
 
@@ -15984,11 +15989,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     </button>
                   </div>
                   <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
-                    Current stage: <span className="font-medium">{stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
+                    Current stage: <span className="font-medium">{stage === "interviewing" ? "Interview Scheduled" : stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
                   </p>
                 </>
               )}
             </div>
+            )}
           </div>
         )}
         </>)}
@@ -16149,13 +16155,14 @@ function ResumePdfModal({ candidate, onClose }) {
     </div>
   );
 }
-const STAGE_ORDER = ["applied", "shortlisted", "interviewing", "offer", "hired", "rejected"];
+const STAGE_ORDER = ["applied", "shortlisted", "interviewing", "offer", "hired", "declined", "rejected"];
 const STAGE_LABELS = {
   applied: "Applied",
   shortlisted: "Shortlisted",
-  interviewing: "Interviewing",
+  interviewing: "Interview Scheduled",
   offer: "Offer",
   hired: "Hired",
+  declined: "Declined",
   rejected: "Rejected",
 };
 const STAGE_STYLES = {
@@ -16164,6 +16171,7 @@ const STAGE_STYLES = {
   interviewing: "bg-blue-50 text-blue-600 border border-blue-200",
   offer: "bg-violet-50 text-violet-600 border border-violet-200",
   hired: "bg-emerald-50 text-emerald-600 border border-emerald-200",
+  declined: "bg-amber-50 text-amber-700 border border-amber-200",
   rejected: "bg-rose-50 text-rose-600 border border-rose-200",
 };
 
@@ -16302,16 +16310,15 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   const [open, setOpen] = useState(false);
   const [showReject, setShowReject] = useState(false);
 
-  // Offer & Hired are NOT manually selectable here, they only happen through
-  // the offer → accept flow on the candidate's profile, so HR can't skip the
-  // funnel or fake a hire the candidate never confirmed. Reject is always
-  // available (except on someone already hired). A hired candidate is final.
+  // Manual moves are limited to Shortlisted and Rejected. The rest of the funnel
+  // is set by the flow, not the dropdown: Applied is the entry state, Interview
+  // Scheduled is set automatically when a booking is confirmed, and Offer / Hired
+  // / Declined happen through the offer flow on the candidate's profile. A hired
+  // candidate is final.
   const isPickable = (s) => {
     if (s === stage) return false;
-    if (s === "offer" || s === "hired") return false;   // via profile offer flow only
-    if (stage === "hired") return false;                // hired is final
-    if (s === "rejected") return true;                  // can reject anytime otherwise
-    return true;                                        // applied / shortlisted / interviewing
+    if (stage === "hired") return false;                 // hired is final
+    return s === "shortlisted" || s === "rejected";      // the only manual moves
   };
 
   const choose = (next) => {
@@ -16347,14 +16354,14 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
             <p className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-wide text-neutral-400">Move to stage</p>
             {STAGE_ORDER.map((s) => {
               const current = s === stage;
-              const gated = s === "offer" || s === "hired";
+              const gated = s === "interviewing" || s === "offer" || s === "hired" || s === "declined";
               const disabled = !current && !isPickable(s);
               return (
                 <button
                   key={s}
                   onClick={() => choose(s)}
                   disabled={disabled}
-                  title={gated ? "Set from the candidate's profile via the offer flow" : undefined}
+                  title={gated ? (s === "interviewing" ? "Set automatically when a booking is confirmed" : "Set from the candidate's profile via the offer flow") : undefined}
                   className={`w-full flex items-center justify-between px-3 py-1.5 text-sm transition-colors ${
                     current
                       ? "text-neutral-900 bg-neutral-100 font-medium"
@@ -16374,7 +16381,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
               );
             })}
             <p className="px-3 pt-1.5 pb-1 text-[10px] text-neutral-400 border-t border-neutral-100 mt-1">
-              Offers &amp; hires happen on the candidate's profile, after the interview.
+              Locked stages are set by the hiring flow.
             </p>
           </div>
         </>

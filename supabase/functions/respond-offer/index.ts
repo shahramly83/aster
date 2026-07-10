@@ -48,13 +48,12 @@ Deno.serve(async (req) => {
     const firstResponse = offer.status === "sent";
     if (firstResponse) {
       await admin.from("offers").update({ status: accepted ? "accepted" : "declined", responded_at: new Date().toISOString() }).eq("id", offer.id);
-      if (accepted) {
-        await admin.from("applications").update({ stage: "hired" })
-          .eq("company_id", offer.company_id).eq("candidate_id", offer.candidate_id);
-      }
+      // Accept -> hired, decline -> declined. Both are terminal application stages.
+      await admin.from("applications").update({ stage: accepted ? "hired" : "declined" })
+        .eq("company_id", offer.company_id).eq("candidate_id", offer.candidate_id);
     }
 
-    // Emails only on the first accept (declines just record silently for now).
+    // Emails only on the first accept (a decline updates the stage, no email).
     if (firstResponse && accepted) {
       const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", offer.company_id).maybeSingle();
       const companyName = comp?.name || "the hiring team";
