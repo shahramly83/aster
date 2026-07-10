@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -258,9 +258,11 @@ async function loadWorkspaceData(companyId) {
   // Company team members double as the interviewer pool (no separate
   // interviewers table): used for booking, scorecard attribution and the
   // Interviewers screen.
-  const profRes = await supabase.from("profiles").select("id, full_name, email").eq("company_id", companyId);
+  // Removed teammates keep their row (it anchors their scorecards and interviews)
+  // but must not appear in the team list.
+  const profRes = await supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", companyId).neq("status", "suspended");
   const profName = Object.fromEntries((profRes.data || []).map((p) => [p.id, p.full_name || "Interviewer"]));
-  const interviewers = (profRes.data || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", timezone: "Asia/Kuala_Lumpur" }));
+  const interviewers = (profRes.data || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", role: p.role, pending: p.status === "invited", timezone: "Asia/Kuala_Lumpur" }));
 
   const applicantsByJob = {};
   const matchesByJob = {};
@@ -12062,10 +12064,22 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
     setShowForm(false);
   };
 
-  const confirmRemove = () => {
-    if (!removing) return;
-    setInterviewers((prev) => prev.filter((x) => x.id !== removing.id));
-    setBanner(`${removing.name} was removed.`);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const confirmRemove = async () => {
+    if (!removing || removeBusy) return;
+    const target = removing;
+    if (!hasSupabase) {  // demo build: nothing to revoke
+      setInterviewers((prev) => prev.filter((x) => x.id !== target.id));
+      setBanner(`${target.name} was removed.`);
+      setRemoving(null);
+      return;
+    }
+    setRemoveBusy(true);
+    const err = await dbRemoveTeammate(target.id);
+    setRemoveBusy(false);
+    if (err) { setBanner(err); setRemoving(null); return; }
+    setInterviewers((prev) => prev.filter((x) => x.id !== target.id));
+    setBanner(`${target.name} was removed and no longer has access to this workspace.`);
     setRemoving(null);
   };
 
@@ -12215,11 +12229,11 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
                     </div>
                   )}
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => setRemoving(null)} className="text-sm rounded-xl px-4 py-2 border transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                    <button onClick={() => setRemoving(null)} disabled={removeBusy} className="text-sm rounded-xl px-4 py-2 border transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
                       Cancel
                     </button>
-                    <button onClick={confirmRemove} className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors">
-                      Remove interviewer
+                    <button onClick={confirmRemove} disabled={removeBusy} className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 disabled:cursor-wait text-white font-medium transition-colors">
+                      {removeBusy ? "Removing…" : "Remove interviewer"}
                     </button>
                   </div>
                 </>

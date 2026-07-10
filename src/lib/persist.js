@@ -206,3 +206,18 @@ export async function dbAddScorecard(companyId, userId, { candidateId, jobId = n
   });
   if (error) console.error("dbAddScorecard", error.message);
 }
+
+// Suspend a teammate: revokes their access on the next request (every tenancy
+// helper re-checks profiles.status = 'active'), drops their job assignments, and
+// keeps the row so scorecards and interviews they authored stay attached.
+// Returns an error message, or null on success.
+export async function dbRemoveTeammate(profileId) {
+  if (!hasSupabase || !profileId) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("remove_teammate", { p_profile: profileId });
+  if (!error) return null;
+  console.error("dbRemoveTeammate", error.message);
+  if (error.code === "42501") return "Only an owner or admin can remove a teammate.";
+  if (error.code === "P0001") return error.message;   // self-removal, or sole owner
+  if (error.code === "42883") return "Run migration 0043: remove_teammate doesn't exist yet.";
+  return error.message || "Couldn't remove that teammate.";
+}
