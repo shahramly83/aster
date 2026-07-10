@@ -2,8 +2,11 @@
 
 **Only unresolved items.** Updated 2026-07-10. Full evidence in `ASTER_PRODUCTION_AUDIT.md`.
 
-**Current verdict: 🔴 do not take real payments yet.**
-Two findings mean a customer can pay and get nothing (B1), or cancel and keep everything (B2).
+**Current verdict: 🟠 payment path is now sound; access control after cancellation is not.**
+
+**2026-07-10 — migrations 0033–0044 applied to production** via `supabase db push`, after
+`migration repair` on 0034/0035/0040 (they had been applied by hand in the SQL editor, so the
+history table never recorded them). B1, S1, S2, S3, S7 are resolved. B2 remains open pending D1.
 
 ---
 
@@ -11,10 +14,11 @@ Two findings mean a customer can pay and get nothing (B1), or cancel and keep ev
 
 | # | Item | Why it blocks |
 |---|---|---|
-| **B1** | Migrations `0033`–`0037`, `0039`, `0040` unapplied; `stripe-webhook` not deployed | The live client sends `plan: "launch"`; the deployed webhook doesn't recognise it, so `companies.plan` is never updated. **Checkout takes money and never upgrades the plan.** Run the migrations, then deploy the webhook. |
+| ~~B1~~ | ~~Migrations unapplied; `stripe-webhook` not deployed~~ | ✅ **RESOLVED.** All migrations through `0044` applied and recorded; `stripe-webhook` deployed. Also fixed a worse latent bug found on the way: the webhook discarded both `update()` errors and returned 200 regardless, so Stripe never retried — a failed write silently dropped a real payment. It now returns 500 and Stripe retries for up to 3 days. |
 | **B2** | Cancelling a subscription revokes nothing | `stripe-webhook` sets `companies.status='churned'`. **No policy anywhere reads `companies.status`.** `current_company_id()` gates only on `deleted_at`. A cancelled customer keeps full access indefinitely. See `0041` §4 — **needs your decision**. |
 | **B3** | Zero automated tests | No `test` script, no vitest/jest/playwright config, no `*.test.*` files. Every billing, credit and permission rule is unverified. On a codebase taking card payments. |
 | **B4** | Stripe Customer Portal not activated | `create-portal-session` is deployed but returns 502 until you activate the portal in Stripe → Settings → Billing → Customer portal. "Manage billing" is dead until then. |
+| **B5** | `stripe-webhook` has no replay window and no event dedupe | `t` is parsed from the signature and never compared to `now()`; the HMAC compare is not constant-time. A captured `(body, signature)` pair verifies forever, and can re-flip `status='active'` / clear `deleted_at`. See D3. |
 
 ---
 
@@ -22,13 +26,13 @@ Two findings mean a customer can pay and get nothing (B1), or cancel and keep ev
 
 | # | Sev | Item | Fix |
 |---|---|---|---|
-| **S1** | High | `bump_resume_parse_for(uuid)` and `resume_parse_usage_for(uuid)` are `SECURITY DEFINER`, take an arbitrary company id, check no ownership, and `0034` never revoked the default `EXECUTE TO PUBLIC`. **Anyone can burn any company's parse credits to zero, or read their usage and plan.** | `0041` §1 — written, not applied |
-| **S2** | Medium | A company **admin can promote themselves to `owner`**. `profiles_company_manage`'s `WITH CHECK` re-verifies `company_id` but never constrains the new `role`. (Recruiters/interviewers *are* correctly blocked by `USING`.) | `0041` §3 — written, not applied |
-| **S3** | Medium | `get_public_job(uuid)` returns any job's details — **including drafts and closed roles** — with no status filter. | `0041` §2 — written, not applied |
+| ~~S1~~ | High | ~~`bump_resume_parse_for` / `resume_parse_usage_for` callable by anyone, on any company.~~ | ✅ **FIXED** — `0041` §1 applied. Verify: `proacl` should show `service_role` only. |
+| ~~S2~~ | Medium | ~~A company admin can promote themselves to `owner`.~~ | ✅ **FIXED** — `0041` §3 applied. |
+| ~~S3~~ | Medium | ~~`get_public_job` serves unpublished drafts, and jobs in soft-deleted workspaces.~~ | ✅ **FIXED** — `0041` §2 applied. Closed/expired roles still resolve, so the apply page can still say "this role has closed". |
 | **S4** | Medium | `stripe-webhook` verifies the HMAC but **never checks the timestamp**. `t` is parsed and discarded. A captured `(body, signature)` pair verifies forever. No event-id dedupe table either. Comparison is not constant-time. | Needs decision — see D3 |
 | **S5** | Medium | `parse-application` is public, **unmetered and unthrottled**. Anyone with a public apply-page UUID can submit unlimited resumes, each firing several paid Claude calls. Its own README says "add rate limiting before a public launch." | Reuse the `chat_rate_hit` throttle |
 | **S6** | Medium | `support-intake` is public with **no rate limit**, and sends email via Resend. Spam/quota-burn vector. | Rate limit + turnstile |
-| **S7** | Low | `_free_trial_used(text)` is PUBLIC-callable — lets anyone probe whether an email or domain has used its trial. | `0041` §1 |
+| ~~S7~~ | Low | ~~`_free_trial_used(text)` is PUBLIC-callable.~~ | ✅ **FIXED** — `0041` §1 applied. |
 | **S8** | Low | `marketing-chat`'s rate limiter **fails open**: if the DB is unreachable, throttling silently disables on a public Anthropic endpoint. | Fail closed |
 | **S9** | Low | Consumer-email trial farming: business domains are recorded in `domain_grants`, but gmail/outlook users are never domain-blocked. A fresh gmail = a fresh 14-day Scale trial, unlimited. Purged workspaces never record their email hash, so the same address can trial again after purge. | Accepted risk? |
 
