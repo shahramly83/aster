@@ -12008,7 +12008,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultProvider, bookings = {}, calendarConnected = false, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
+function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
   // Interviewers are a plan-capped count (10 / 100 / unlimited), separate from
@@ -12028,10 +12028,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
 
   const ownerName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim();
 
-  // The meeting-link type and calendar are a single workspace choice, connected
-  // once in Settings, not something each interviewer sets up individually.
-  const meetLabel = defaultProvider === "microsoft" ? "Microsoft Teams" : "Google Meet";
-  const calSystem = defaultProvider === "microsoft" ? "Microsoft 365" : "Google Workspace";
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs mb-1 text-[color:var(--ink-2)]";
@@ -12141,23 +12137,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
           )}
         </div>
 
-        {/* Workspace calendar status, one connection covers everyone */}
-        <div className="mb-6 rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: calendarConnected ? "#F0FDF4" : "#FFF7ED" }}>
-          <div className="flex items-center gap-2 min-w-0">
-            <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: calendarConnected ? "#16A34A" : "#B45309" }} />
-            <p className="text-sm min-w-0" style={{ color: calendarConnected ? "#166534" : "#92400E" }}>
-              {calendarConnected
-                ? `${calSystem} calendar connected. All interviewers are covered.`
-                : `Connect your ${calSystem} calendar to enable scheduling for everyone.`}
-            </p>
-          </div>
-          {!calendarConnected && (
-            <button onClick={() => navigate("settings")} className="text-xs font-medium shrink-0 hover:opacity-70" style={{ color: "var(--brand)" }}>
-              Connect in Settings →
-            </button>
-          )}
-        </div>
-
         {banner && (
           <div className="mb-4 rounded-xl bg-white act-shadow px-4 py-2 border border-[color:var(--line)]">
             <p className="text-sm text-neutral-700">{banner}</p>
@@ -12172,7 +12151,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
                 <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Owner · You</span>
               </div>
-              <p className="text-xs text-neutral-500 truncate">{profile?.role || "Hiring Manager"} · {meetLabel}</p>
+              <p className="text-xs text-neutral-500 truncate">{profile?.role || "Hiring Manager"}</p>
             </div>
           </div>
 
@@ -12189,7 +12168,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
                     </span>
                   </div>
                   <p className="text-xs text-neutral-500 truncate">
-                    {iv.email} · {iv.timezone} · {meetLabel}
+                    {iv.email} · {iv.timezone}
                   </p>
                   {upcoming > 0 && (
                     <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
@@ -12302,32 +12281,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
       )}
     </AccountShell>
   );
-}
-
-// Deterministic mock slots, five weekday afternoons/mornings spread across
-// the next two weeks, standing in for what find-available-slots computes
-// from real Google Calendar free/busy data + Claude's slot picks.
-function generateMockSlots() {
-  // Business-hours slots only: weekdays (Mon–Fri), start times between 9am
-  // and 4:30pm so a 30-min slot always ends by 5pm.
-  const slots = [];
-  const now = new Date();
-  const startHours = [9, 10, 11, 14, 15, 16]; // avoids lunch hour, all within 9–5
-  let dayOffset = 1;
-
-  while (slots.length < 5 && dayOffset < 21) {
-    const d = new Date(now);
-    d.setDate(d.getDate() + dayOffset);
-    const weekday = d.getDay(); // 0 = Sun, 6 = Sat
-    if (weekday !== 0 && weekday !== 6) {
-      const hour = startHours[slots.length % startHours.length];
-      d.setHours(hour, 0, 0, 0);
-      const end = new Date(d.getTime() + 30 * 60000);
-      slots.push({ start: d.toISOString(), end: end.toISOString() });
-    }
-    dayOffset++;
-  }
-  return slots;
 }
 
 function formatSlotDisplay(iso) {
@@ -12569,23 +12522,30 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
   );
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, provider = "google", calendarConnected = false }) {
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, interviewPast = false }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   // If opened from a specific job's applicant list, that job is fixed and
   // there's no need to pick one. Otherwise let HR choose the open role.
   const fixedJob = contextJobId ? jobs.find((j) => j.id === contextJobId) : null;
   const [jobId, setJobId] = useState(fixedJob?.id ?? openJobs[0]?.id ?? "");
-  const [interviewerId, setInterviewerId] = useState(interviewers[0]?.id ?? "");
-  const meetName = provider === "microsoft" ? "Teams" : "Google Meet";
-  const [attendeePick, setAttendeePick] = useState("");
+
+  // Step 1 always keeps the signed-in hiring manager as the primary interviewer:
+  // it can't be removed, and there's no dropdown for it. Additional interviewers
+  // are added from the team via a searchable field.
+  const hmName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim() || "You";
+  const hmEntry = interviewers.find((iv) => iv.name === hmName) || interviewers.find((iv) => iv.role === "owner");
+  const hmId = hmEntry?.id ?? "__hm__";
+  const hmEmail = hmEntry?.email || "";
+
+  const [attendeeQuery, setAttendeeQuery] = useState("");
+  const [attendeeOpen, setAttendeeOpen] = useState(false);
   const [additionalAttendees, setAdditionalAttendees] = useState([]); // array of interviewer ids
-  const [finding, setFinding] = useState(false);
+  const [step, setStep] = useState(1);
   const [sending, setSending] = useState(false);
-  const [request, setRequest] = useState(null);
-  const [selectedSlots, setSelectedSlots] = useState([]); // ISO start strings HR chose to send
+  const [slots, setSlots] = useState([]);      // ISO start strings the HM proposes
+  const [newSlot, setNewSlot] = useState("");  // the datetime-local input value
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
-  const selectedInterviewer = interviewers.find((iv) => iv.id === interviewerId);
   const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
 
   // Shared booking (from the root) is the source of truth once an invite has
@@ -12594,67 +12554,92 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const bookingStatus = booking?.status; // undefined | 'sent' | 'scheduled'
   const sentRequest = booking?.request;
 
-  // Attendees can only be interviewers already set up in the system, and not
-  // the primary interviewer already on the invite.
-  const attendeeOptions = interviewers.filter(
-    (iv) => iv.id !== interviewerId && !additionalAttendees.includes(iv.id)
-  );
+  // Additional interviewers come from the team (already set up in the system),
+  // excluding the primary hiring manager and anyone already added. The searchable
+  // field filters this list by name.
   const attendeeName = (id) => interviewers.find((iv) => iv.id === id)?.name ?? id;
+  const attendeeOptions = interviewers.filter(
+    (iv) => iv.id !== hmId && iv.name !== hmName && !additionalAttendees.includes(iv.id)
+  );
+  const attendeeMatches = attendeeOptions.filter(
+    (iv) => !attendeeQuery.trim() || iv.name.toLowerCase().includes(attendeeQuery.trim().toLowerCase())
+  );
 
-  const addAttendee = () => {
-    if (!attendeePick || additionalAttendees.includes(attendeePick)) return;
-    setAdditionalAttendees((prev) => [...prev, attendeePick]);
-    setAttendeePick("");
+  const addAttendee = (id) => {
+    if (!id || additionalAttendees.includes(id)) return;
+    setAdditionalAttendees((prev) => [...prev, id]);
+    setAttendeeQuery("");
   };
-
   const removeAttendee = (id) => setAdditionalAttendees((prev) => prev.filter((a) => a !== id));
 
-  const toggleSlot = (start) =>
-    setSelectedSlots((prev) => (prev.includes(start) ? prev.filter((s) => s !== start) : [...prev, start]));
-
-  const handleFindSlots = () => {
-    setFinding(true);
-    setTimeout(() => {
-      const slots = generateMockSlots();
-      setRequest({
-        id: `req-${candidate.id}`,
-        candidateId: candidate.id,
-        status: "draft",
-        slot_duration_minutes: 30,
-        proposed_slots: slots,
-        jobTitle: activeJobTitle,
-        jobId: fixedJob?.id ?? jobId,
-        interviewerName: selectedInterviewer?.name,
-        interviewerEmail: selectedInterviewer?.email,
-      });
-      // Pre-select all AI-suggested slots; HR can deselect the ones they don't want.
-      setSelectedSlots(slots.map((s) => s.start));
-      setFinding(false);
-    }, 1500);
+  // The hiring manager proposes interview times manually (one or more). No
+  // calendar connection: they pick each time and add it to the list.
+  const addSlot = () => {
+    if (!newSlot) return;
+    const d = new Date(newSlot);
+    if (Number.isNaN(d.getTime())) return;
+    const iso = d.toISOString();
+    setSlots((prev) => (prev.includes(iso) ? prev : [...prev, iso].sort()));
+    setNewSlot("");
   };
+  const removeSlot = (iso) => setSlots((prev) => prev.filter((s) => s !== iso));
 
   const handleSendInvite = () => {
+    if (slots.length === 0) return;
     setSending(true);
     setTimeout(() => {
-      // Only the slots HR kept selected are sent to the candidate.
-      const chosen = request.proposed_slots.filter((s) => selectedSlots.includes(s.start));
-      const sent = { ...request, status: "sent", proposed_slots: chosen };
-      setRequest(sent);
+      const proposed = slots.map((start) => ({ start, end: new Date(new Date(start).getTime() + 30 * 60000).toISOString() }));
+      const sent = {
+        id: `req-${candidate.id}`,
+        candidateId: candidate.id,
+        status: "sent",
+        slot_duration_minutes: 30,
+        proposed_slots: proposed,
+        jobTitle: activeJobTitle,
+        jobId: fixedJob?.id ?? jobId,
+        interviewerName: hmName,
+        interviewerEmail: hmEmail,
+      };
       // Lift to shared booking so the profile + booking page stay in sync.
       if (onInviteSent) onInviteSent(candidate.id, sent);
       setSending(false);
-    }, 1200);
+    }, 1000);
   };
 
   return (
     <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4">
-      <h2 className="text-sm font-medium text-indigo-700 mb-1">AI Auto Schedule</h2>
+      {/* Step tabs. Step 2 (Scorecard) stays locked until the interview is over. */}
+      <div className="flex items-center gap-1 mb-4 rounded-xl bg-white/70 p-1 border border-indigo-100">
+        {[
+          { n: 1, label: "Interviewers" },
+          { n: 2, label: "Scorecard", locked: !interviewPast },
+          { n: 3, label: "Decision" },
+        ].map((t) => {
+          const active = step === t.n;
+          return (
+            <button
+              key={t.n}
+              type="button"
+              onClick={() => { if (!t.locked) setStep(t.n); }}
+              disabled={t.locked}
+              title={t.locked ? "Unlocks once the interview time has passed" : undefined}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                active ? "bg-white text-indigo-700 shadow-sm" : t.locked ? "text-neutral-400 cursor-not-allowed" : "text-neutral-500 hover:text-indigo-600"
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${active ? "bg-indigo-600 text-white" : "bg-neutral-200 text-neutral-500"}`}>{t.n}</span>
+              <span className="truncate">{t.label}</span>
+              {t.locked && <Icon name="lock" className="w-3 h-3 shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {step === 1 && (<>
+      <h2 className="text-sm font-medium text-indigo-700 mb-1">Step 1 · Select interviewers</h2>
       <p className="text-sm text-neutral-600 mb-3">
-        {fixedJob
-          ? `Scheduling for the ${fixedJob.title} role. `
-          : ""}
-        Finds the interviewer's free calendar slots, sends the candidate a link to pick one, then
-        creates the calendar event and Meet link automatically, no back-and-forth.
+        {fixedJob ? `Scheduling for the ${fixedJob.title} role. ` : ""}
+        You run this interview as the hiring manager. Add teammates to join, then send the candidate a few times to pick from.
       </p>
 
       {bookingStatus === "scheduled" ? (
@@ -12704,133 +12689,116 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             </div>
           )}
 
+          {/* Primary interviewer is the signed-in hiring manager: always on the
+              invite, no dropdown, can't be removed. */}
           <div className="mb-3">
-            <label className="block text-xs text-neutral-500 mb-1">Interviewer</label>
-            <select value={interviewerId} onChange={(e) => setInterviewerId(e.target.value)} className={inputClass}>
-              {interviewers.map((iv) => (
-                <option key={iv.id} value={iv.id}>
-                  {iv.name}
-                </option>
+            <label className="block text-xs text-neutral-500 mb-1.5">Interviewers</label>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 text-sm rounded-full px-3 py-1.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <Icon name="shield" className="w-3.5 h-3.5" /> {hmName}
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand)", color: "#fff" }}>Hiring Manager</span>
+              </span>
+              {additionalAttendees.map((id) => (
+                <span key={id} className="inline-flex items-center gap-1.5 text-sm rounded-full bg-white border border-neutral-200 px-3 py-1.5 text-neutral-700">
+                  {attendeeName(id)}
+                  <button type="button" onClick={() => removeAttendee(id)} aria-label={`Remove ${attendeeName(id)}`} className="text-neutral-400 hover:text-neutral-700"><Icon name="close" className="w-3 h-3" /></button>
+                </span>
               ))}
-            </select>
+            </div>
           </div>
 
-          <div className="mb-3">
-            <label className="block text-xs text-neutral-500 mb-1">
-              Additional interviewers <span className="text-neutral-400">(optional)</span>
-            </label>
+          {/* Add teammates via a searchable field. */}
+          <div className="mb-3 relative">
+            <label className="block text-xs text-neutral-500 mb-1">Add interviewers <span className="text-neutral-400">(optional)</span></label>
             {attendeeOptions.length > 0 ? (
-              <div className="flex gap-2">
-                <select
-                  value={attendeePick}
-                  onChange={(e) => setAttendeePick(e.target.value)}
+              <>
+                <input
+                  value={attendeeQuery}
+                  onChange={(e) => setAttendeeQuery(e.target.value)}
+                  onFocus={() => setAttendeeOpen(true)}
+                  onBlur={() => setTimeout(() => setAttendeeOpen(false), 150)}
+                  placeholder="Search or pick from your team..."
                   className={inputClass}
-                >
-                  <option value="">Select an interviewer…</option>
-                  {attendeeOptions.map((iv) => (
-                    <option key={iv.id} value={iv.id}>
-                      {iv.name} · {meetName}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={addAttendee}
-                  disabled={!attendeePick}
-                  className="rounded-xl bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-700 text-sm px-3 py-2 shrink-0 transition-colors"
-                >
-                  Add
-                </button>
-              </div>
+                />
+                {attendeeOpen && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-neutral-200 bg-white shadow-lg py-1 max-h-52 overflow-y-auto">
+                    {attendeeMatches.length ? attendeeMatches.map((iv) => (
+                      <button key={iv.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addAttendee(iv.id)} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 text-left">
+                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
+                        <span className="truncate">{iv.name}</span>
+                      </button>
+                    )) : <p className="px-3 py-1.5 text-sm text-neutral-400">No match.</p>}
+                  </div>
+                )}
+              </>
             ) : (
-              <p className="text-xs text-neutral-400">
-                No other interviewers available. Add more in the Interviewers section.
-              </p>
+              <p className="text-xs text-neutral-400">No other teammates yet. Invite them on the Interviewers page.</p>
             )}
-            {additionalAttendees.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {additionalAttendees.map((id) => (
-                  <span key={id} className="inline-flex items-center gap-1 text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
-                    {attendeeName(id)}
-                    <button type="button" onClick={() => removeAttendee(id)} className="text-neutral-400 hover:text-neutral-700">✕</button>
+          </div>
+
+          {/* The hiring manager proposes interview times manually (one or more). */}
+          <div className="mb-3">
+            <label className="block text-xs text-neutral-500 mb-1">Propose interview times</label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="datetime-local"
+                value={newSlot}
+                onChange={(e) => setNewSlot(e.target.value)}
+                onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* picker not supported */ } }}
+                onFocus={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* picker not supported */ } }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSlot(); } }}
+                className={`${inputClass} cursor-pointer`}
+              />
+              <button type="button" onClick={addSlot} disabled={!newSlot} className="rounded-xl bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 text-sm font-medium px-4 py-2 shrink-0 transition-colors">
+                Add time
+              </button>
+            </div>
+            {slots.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2.5">
+                {slots.map((s) => (
+                  <span key={s} className="inline-flex items-center gap-1.5 text-xs rounded-full bg-indigo-600 text-white px-3 py-1.5">
+                    {formatSlotDisplay(s)}
+                    <button type="button" onClick={() => removeSlot(s)} aria-label="Remove time" className="text-white/70 hover:text-white"><Icon name="close" className="w-3 h-3" /></button>
                   </span>
                 ))}
               </div>
             )}
-            <p className="text-xs text-neutral-400 mt-1">
-              Only interviewers already in the system can be added. They'll join the calendar invite and {meetName} link once the candidate picks a time.
-            </p>
           </div>
 
-          {!request ? (
-            <div>
-              {!calendarConnected && (
-                <p className="text-xs mb-2" style={{ color: "#B45309" }}>
-                  Connect your workspace calendar in Settings to find available times.
-                </p>
-              )}
-              <button
-                onClick={handleFindSlots}
-                disabled={finding || !calendarConnected}
-                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
-              >
-                {finding ? "Finding slots…" : "Find available slots"}
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-neutral-500">
-                  Tap to choose which times to offer the candidate ({selectedSlots.length} selected)
-                </p>
-                <button
-                  onClick={() =>
-                    setSelectedSlots(
-                      selectedSlots.length === request.proposed_slots.length
-                        ? []
-                        : request.proposed_slots.map((s) => s.start)
-                    )
-                  }
-                  className="text-xs text-indigo-600 hover:text-indigo-700 shrink-0"
-                >
-                  {selectedSlots.length === request.proposed_slots.length ? "Clear all" : "Select all"}
-                </button>
-              </div>
-              {additionalAttendees.length > 0 && (
-                <p className="text-xs text-neutral-500 mb-2">Also inviting: {additionalAttendees.map(attendeeName).join(", ")}</p>
-              )}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {request.proposed_slots.map((slot) => {
-                  const on = selectedSlots.includes(slot.start);
-                  return (
-                    <button
-                      key={slot.start}
-                      onClick={() => toggleSlot(slot.start)}
-                      className={`inline-flex items-center gap-1.5 text-xs rounded-full px-3 py-1.5 border transition-colors ${
-                        on
-                          ? "bg-indigo-600 border-indigo-600 text-white"
-                          : "bg-white border-neutral-200 text-neutral-700 hover:border-neutral-300"
-                      }`}
-                    >
-                      {on && <span>✓</span>}
-                      {formatSlotDisplay(slot.start)}
-                    </button>
-                  );
-                })}
-              </div>
+          {additionalAttendees.length > 0 && (
+            <p className="text-xs text-neutral-500 mb-2">Also inviting: {additionalAttendees.map(attendeeName).join(", ")}</p>
+          )}
 
-              <button
-                onClick={handleSendInvite}
-                disabled={sending || selectedSlots.length === 0}
-                className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
-              >
-                {sending
-                  ? "Sending…"
-                  : `Send ${selectedSlots.length} time${selectedSlots.length === 1 ? "" : "s"} to candidate`}
-              </button>
+          <button
+            onClick={handleSendInvite}
+            disabled={sending || slots.length === 0}
+            className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
+          >
+            {sending ? "Sending…" : `Send ${slots.length} time${slots.length === 1 ? "" : "s"} to candidate`}
+          </button>
+        </>
+      )}
+      </>)}
+
+      {step === 2 && (
+        <div>
+          <h2 className="text-sm font-medium text-indigo-700 mb-1">Step 2 · Interview scorecard</h2>
+          {interviewPast ? (
+            <p className="text-sm text-neutral-600">The interview is done. Each interviewer completes their own scorecard on the candidate below; as the hiring manager you see everyone's.</p>
+          ) : (
+            <div className="flex items-start gap-2 rounded-xl border border-dashed p-3" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
+              <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0 text-neutral-400" />
+              <p className="text-sm text-neutral-500">The scorecard unlocks automatically once the interview time has passed.</p>
             </div>
           )}
-        </>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div>
+          <h2 className="text-sm font-medium text-indigo-700 mb-1">Step 3 · Decision</h2>
+          <p className="text-sm text-neutral-500">Once the scorecards are in, move the candidate to offer, hire or decline from the Decision panel below.</p>
+        </div>
       )}
     </div>
   );
@@ -14786,10 +14754,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
   );
 }
 
-function SettingsScreen({ navigate, provider, setProvider, calendarConnected, setCalendarConnected, bookings = {}, plan = "launch", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
-  // Staged (draft) edits for the calendar provider, Save/Cancel form.
-  const [dProvider, setDProvider] = useState(provider);
-  const [dCalConnected, setDCalConnected] = useState(calendarConnected);
+function SettingsScreen({ navigate, plan = "launch", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
   const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
@@ -14811,44 +14776,22 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
   // forever, which read as "we're working on your request".
   const connectWhatsApp = () => { setWaStatus("unavailable"); };
 
-  const calSystem = dProvider === "microsoft" ? "Microsoft 365" : "Google Workspace";
-  const meetName = dProvider === "microsoft" ? "Teams" : "Google Meet";
-  const savedMeetName = provider === "microsoft" ? "Teams" : "Google Meet";
-
-  // Upcoming interviews already booked on the CURRENTLY SAVED provider. These
-  // keep their existing links if the user switches, used to warn on switch.
-  const upcomingOnSaved = Object.values(bookings).filter(
-    (b) => b && b.status === "scheduled" && b.confirmedSlot?.start && (b.provider || "google") === provider
-  ).length;
-  const providerChanged = dProvider !== provider;
-
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
-  const dirty = dProvider !== provider || dCalConnected !== calendarConnected || JSON.stringify(dNotif) !== JSON.stringify(notifBase);
-
-  // Calendar OAuth is not built. This used to be a setTimeout that flipped
-  // `dCalConnected` to true, so the app believed it had a live calendar — which
-  // is what let "AI Auto Schedule" present invented slots as real free/busy.
-  const handleConnectCalendar = () => {
-    setSavedMsg(null);
-    setConnectErr(`Connecting ${calSystem} isn't available yet. Interview times are proposed manually until it ships.`);
-  };
+  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase);
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setConnectErr(null);
     if (hasSupabase) {
-      const err = await dbUpdateMyProfile({ notifyPrefs: dNotif, calendarProvider: dProvider });
+      const err = await dbUpdateMyProfile({ notifyPrefs: dNotif });
       if (err) { setSaving(false); setConnectErr(err); return; }
     }
-    setProvider(dProvider);
     setProfile?.({ ...(profile || {}), notifications: dNotif });
     setSaving(false);
     setSavedMsg("All changes saved.");
   };
 
   const handleCancel = () => {
-    setDProvider(provider);
-    setDCalConnected(calendarConnected);
     setDNotif(notifBase);
     setSavedMsg(null);
   };
@@ -14876,73 +14819,7 @@ function SettingsScreen({ navigate, provider, setProvider, calendarConnected, se
           <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
         </button>
 
-        {/* 4: Meeting & calendar */}
-        <div className={`${cardClass} mb-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Meeting &amp; calendar</h2>
-          <p className="text-sm text-neutral-600 mb-3">
-            Used for every interview across the workspace. Connect once here. All interviewers are covered, no per-person setup.
-          </p>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {["google", "microsoft"].map((p) => (
-              <button
-                key={p}
-                onClick={() => {
-                  if (p !== dProvider) {
-                    setDProvider(p);
-                    setDCalConnected(false); // switching platform drops the old connection
-                    setSavedMsg(null);
-                  }
-                }}
-                className={`rounded-xl border px-4 py-3 text-sm text-left transition-colors ${
-                  dProvider === p ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)]" : "border-[color:var(--line)] bg-white hover:border-[color:var(--line-strong)]"
-                }`}
-              >
-                <p className="font-medium text-neutral-900">{p === "google" ? "Google Meet" : "Microsoft Teams"}</p>
-                <p className="text-xs text-neutral-500">{p === "google" ? "Google Calendar" : "Outlook Calendar"}</p>
-              </button>
-            ))}
-          </div>
-
-          {providerChanged && upcomingOnSaved > 0 && (
-            <div className="rounded-xl border p-3 mb-4 flex gap-2.5" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
-              <span className="shrink-0 mt-0.5" style={{ color: "#B45309" }}>
-                <Icon name="bell" className="w-4 h-4" />
-              </span>
-              <p className="text-xs leading-relaxed" style={{ color: "#92400E" }}>
-                You have {upcomingOnSaved} upcoming interview{upcomingOnSaved === 1 ? "" : "s"} on {savedMeetName}. Switching won't change {upcomingOnSaved === 1 ? "it" : "them"}; {upcomingOnSaved === 1 ? "that interview keeps its" : "those interviews keep their"} existing {savedMeetName} link{upcomingOnSaved === 1 ? "" : "s"}. Only new interviews will use {meetName}.
-              </p>
-            </div>
-          )}
-
-          <div className="rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: dCalConnected ? "#F0FDF4" : "var(--bg)" }}>
-            <div className="min-w-0">
-              <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{calSystem} calendar</p>
-              <p className="text-xs" style={{ color: "var(--ink-2)" }}>
-                {dCalConnected
-                  ? `Connected. Interviews auto-create ${meetName} links and check everyone's availability.`
-                  : `Connect to check availability and auto-create ${meetName} links.`}
-              </p>
-            </div>
-            {dCalConnected ? (
-              <span className="text-xs px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1.5" style={{ background: "#DCFCE7", color: "#166534" }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Connected
-              </span>
-            ) : (
-              <button
-                onClick={handleConnectCalendar}
-                className="text-xs rounded-xl border px-3 py-1.5 shrink-0 transition-colors hover:bg-neutral-50"
-                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
-              >
-                Connect {calSystem}
-              </button>
-            )}
-          </div>
-          {connectErr && (
-            <p role="status" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A" }}>{connectErr}</p>
-          )}
-        </div>
-
-        {/* 5: WhatsApp Business (Pro, BSP-assisted, bring-your-own-number) */}
+        {/* WhatsApp Business (Pro, BSP-assisted, bring-your-own-number) */}
         <div className={cardClass}>
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
@@ -15416,7 +15293,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, provider = "google", calendarConnected = false, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -15883,8 +15760,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           contextJobId={contextJobId}
           booking={booking}
           onInviteSent={onInviteSent}
-          provider={provider}
-          calendarConnected={calendarConnected}
+          profile={profile}
+          interviewPast={interviewPast}
         />
 
         <InterviewQuestionsPanel
