@@ -26,14 +26,35 @@ async function hmacHex(secret: string, msg: string): Promise<string> {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Length-independent compare. `a === b` short-circuits on the first differing
+// byte, which leaks how much of a forged signature was correct.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 // Stripe-Signature: "t=<ts>,v1=<sig>[,v1=<sig>...]"
+// The signed payload is `${t}.${body}`, so `t` is authenticated — but it was
+// parsed and then discarded, which let a captured (body, signature) pair verify
+// forever. Stripe's own SDKs enforce a 300s tolerance for exactly this reason.
+const TOLERANCE_SECONDS = 300;
+
 async function verify(payload: string, header: string, secret: string): Promise<boolean> {
   const parts = header.split(",").map((p) => p.split("="));
   const t = parts.find((p) => p[0] === "t")?.[1];
   const sigs = parts.filter((p) => p[0] === "v1").map((p) => p[1]);
   if (!t || !sigs.length) return false;
+
+  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(t));
+  if (!Number.isFinite(age) || age > TOLERANCE_SECONDS) {
+    console.error("stripe signature outside tolerance", { t, age });
+    return false;
+  }
+
   const expected = await hmacHex(secret, `${t}.${payload}`);
-  return sigs.some((s) => s.length === expected.length && s === expected);
+  return sigs.some((s) => timingSafeEqual(s, expected));
 }
 
 Deno.serve(async (req) => {
@@ -51,6 +72,26 @@ Deno.serve(async (req) => {
   const type: string = evt.type || "";
   const obj = evt.data?.object || {};
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Claim the event id before doing any work. Every write below is an idempotent
+  // UPDATE to a fixed value, so a replay cannot double-credit — but it CAN
+  // re-flip companies.status to 'active' and clear deleted_at, resurrecting a
+  // workspace suspended for a lapsed trial or a cancelled subscription.
+  //
+  // The claim is released on every failure path (see `fail` below). Leaving it in
+  // place would make Stripe's retry look like a duplicate and skip it, which is
+  // precisely the dropped-payment bug we just fixed by returning 500.
+  const eventId: string = evt.id || "";
+  if (eventId) {
+    const { error: claimErr } = await admin.from("stripe_events").insert({ id: eventId, type });
+    if (claimErr) {
+      if (claimErr.code === "23505") return json({ ok: true, duplicate: true, type });  // already handled
+      console.error("stripe_events claim", claimErr.message);
+      return json({ error: "dedupe unavailable" }, 500);   // fail closed: let Stripe retry
+    }
+  }
+  const release = async () => { if (eventId) await admin.from("stripe_events").delete().eq("id", eventId); };
+  const fail = async (msg: string, detail?: string) => { await release(); return json({ error: msg, detail }, 500); };
 
   // Resolve which company + what changed, per event type.
   let companyId: string | null = null;
@@ -100,7 +141,13 @@ Deno.serve(async (req) => {
     const { data: row } = await q.maybeSingle();
     companyId = row?.company_id || null;
   }
-  if (!companyId) return json({ ok: true, ignored: "no company" });
+  // 200 here meant Stripe never retried. But invoice.paid can arrive BEFORE
+  // checkout.session.completed, so the subscriptions row has no stripe ids yet
+  // and the fallback lookup finds nothing — a real payment, silently ignored
+  // forever. Fail instead: the retry succeeds once the session event lands.
+  // A genuinely orphaned event just retries for 3 days and is then dropped by
+  // Stripe, which is the correct end state and is logged either way.
+  if (!companyId) { console.error("no company for event", { type, stripeSubId, stripeCustId }); return await fail("no company for event"); }
 
   const planEnum = planKey && PLAN_TIERS.has(planKey) ? planKey : null;
 
@@ -119,14 +166,14 @@ Deno.serve(async (req) => {
   // here is an idempotent UPDATE to a fixed value, so replaying is safe.
   if (Object.keys(subUpdate).length) {
     const { error } = await admin.from("subscriptions").update(subUpdate).eq("company_id", companyId);
-    if (error) { console.error("subscriptions update", error.message, subUpdate); return json({ error: "subscription update failed", detail: error.message }, 500); }
+    if (error) { console.error("subscriptions update", error.message, subUpdate); return await fail("subscription update failed", error.message); }
   }
 
   if (status === "active") {
     const companyUpdate: Record<string, unknown> = { status: "active", deleted_at: null, purge_after: null };
     if (planEnum) companyUpdate.plan = planEnum;
     const { error } = await admin.from("companies").update(companyUpdate).eq("id", companyId);
-    if (error) { console.error("companies activate", error.message, companyUpdate); return json({ error: "company update failed", detail: error.message }, 500); }
+    if (error) { console.error("companies activate", error.message, companyUpdate); return await fail("company update failed", error.message); }
   } else if (status === "canceled") {
     // Setting status alone revoked nothing: companies.status is read by no policy,
     // and the tenancy layer keys off deleted_at. A cancelled customer kept full
@@ -138,7 +185,7 @@ Deno.serve(async (req) => {
     const { error } = await admin.from("companies")
       .update({ status: "churned", deleted_at: new Date().toISOString(), purge_after: purgeAfter })
       .eq("id", companyId).is("deleted_at", null);   // don't slide the purge date on a repeat event
-    if (error) { console.error("companies churn", error.message); return json({ error: "company update failed", detail: error.message }, 500); }
+    if (error) { console.error("companies churn", error.message); return await fail("company update failed", error.message); }
   }
 
   return json({ ok: true, type, status });
