@@ -10,7 +10,7 @@ import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
-const ROLE_LABELS = { owner: "Owner", admin: "Admin", recruiter: "Recruiter", interviewer: "Interviewer" };
+const ROLE_LABELS = { owner: "Owner", admin: "Hiring Manager", recruiter: "Recruiter", interviewer: "Interviewer" };
 
 // Load the signed-in customer's profile + company into the shape the app's
 // root state uses. Returns null when the user has no company profile (e.g. an
@@ -29,7 +29,13 @@ async function loadCustomerSession(userId, fallbackEmail) {
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
-  const parts = (data.full_name || fallbackEmail || "").trim().split(/\s+/);
+  // Parse the name from full_name ONLY — never fall back to the email. Some invited
+  // accounts were provisioned with their email as full_name; treat a bare email as
+  // "no name set" so First/Last render empty (with placeholders) instead of the
+  // address. Saving a real name self-heals the row via update_my_profile.
+  const rawName = (data.full_name || "").trim();
+  const looksLikeEmail = /\S+@\S+\.\S+/.test(rawName) && !/\s/.test(rawName);
+  const parts = (looksLikeEmail ? "" : rawName).split(/\s+/).filter(Boolean);
   const co = data.companies || {};
   // subscriptions.company_id is unique, so PostgREST embeds a single row - but
   // tolerate the array shape too.
@@ -42,8 +48,9 @@ async function loadCustomerSession(userId, fallbackEmail) {
     userId,
     companyId: data.company_id,
     profile: {
-      firstName: parts[0] || "there",
+      firstName: parts[0] || "",
       lastName: parts.slice(1).join(" "),
+      email: fallbackEmail || "",
       role: ROLE_LABELS[data.role] || "Hiring Manager",
       phone: data.phone || "",
       notifications: data.notify_prefs || {},
@@ -6874,11 +6881,11 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="su-first" className={labelDark} style={{ color: "var(--ink)" }}>First name{reqStar}</label>
-                <input id="su-first" name="given-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Shah" className={fieldDark} style={fieldDarkStyle} />
+                <input id="su-first" name="given-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" className={fieldDark} style={fieldDarkStyle} />
               </div>
               <div>
                 <label htmlFor="su-last" className={labelDark} style={{ color: "var(--ink)" }}>Last name</label>
-                <input id="su-last" name="family-name" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ramly" className={fieldDark} style={fieldDarkStyle} />
+                <input id="su-last" name="family-name" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Tan" className={fieldDark} style={fieldDarkStyle} />
               </div>
             </div>
             <div>
@@ -7164,9 +7171,25 @@ const NAV_ITEMS = [
   { key: "interviewers", label: "Interviewers", icon: "interviewers" },
 ];
 
+// Role-based access (interviewer least-privilege). An interviewer only works with
+// their assigned interviews, the candidates on those interviews (to scorecard), and
+// their own profile. Owner/admin keep the full workspace. RLS already scopes an
+// interviewer's data server-side; this gates the UI to match so they never see
+// Billing, Settings, Candidate Search, Job management, Uploads, or the team page.
+// `profile.role` carries the display label ("Interviewer"), while the DB enum is
+// "interviewer" — normalise so either form matches.
+const isInterviewer = (role) => String(role || "").toLowerCase() === "interviewer";
+const INTERVIEWER_ALLOWED = new Set(["interviews", "candidateProfile", "profile"]);
+const INTERVIEWER_NAV = [{ key: "interviews", label: "Interviews", icon: "interviewers" }];
+const navItemsForRole = (role) => (isInterviewer(role) ? INTERVIEWER_NAV : NAV_ITEMS);
+const homeForRole = (role) => (isInterviewer(role) ? "interviews" : "dashboard");
+
 function SidebarProfile({ avatarUrl, navigate, profile }) {
-  const fullName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "Your profile";
-  const init = initials(fullName);
+  const realName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
+  const fullName = realName || "Your profile";
+  // Self avatar: uploaded photo, else the user's initials (never a generated
+  // stock face — that reads as fake data). "U" when no name is set yet.
+  const init = realName ? initials(realName) : "U";
   const [failed, setFailed] = useState(false);
   return (
     <button
@@ -7174,14 +7197,12 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
       className="w-full flex md:flex-col items-center md:text-center gap-3 md:gap-0 pt-0 md:pt-2 group"
     >
       <div className="relative shrink-0">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="You" className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-[#EAEEFE]" />
-        ) : failed ? (
-          <div className="w-11 h-11 md:w-16 md:h-16 rounded-full flex items-center justify-center text-sm md:text-lg font-semibold font-display ring-4 ring-[#EAEEFE]" style={{ background: avatarColors(fullName).bg, color: avatarColors(fullName).color }}>
+        {avatarUrl && !failed ? (
+          <img src={avatarUrl} alt="You" onError={() => setFailed(true)} className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-[#EAEEFE]" />
+        ) : (
+          <div className="w-11 h-11 md:w-16 md:h-16 rounded-full flex items-center justify-center text-sm md:text-lg font-semibold font-display ring-4 ring-[#EAEEFE]" style={{ background: avatarColors(realName || "you").bg, color: avatarColors(realName || "you").color }}>
             {init}
           </div>
-        ) : (
-          <img src={faceUrl(fullName, 160)} alt="You" onError={() => setFailed(true)} className="w-11 h-11 md:w-16 md:h-16 rounded-full object-cover ring-4 ring-[#EAEEFE]" />
         )}
       </div>
       <div className="min-w-0 flex-1 text-left md:text-center md:mt-3">
@@ -7197,7 +7218,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
   return (
     <div className="flex flex-col h-full overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full mt-1 mb-9 hidden md:flex items-center justify-center">
-        <button onClick={() => go("dashboard")} aria-label="Go to dashboard" className="hover:opacity-90 transition-opacity">
+        <button onClick={() => go(homeForRole(profile?.role))} aria-label="Go to home" className="hover:opacity-90 transition-opacity">
           <BrandLogo logoUrl={logoUrl} />
         </button>
       </div>
@@ -7219,7 +7240,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
       </div>
 
       <nav className="space-y-1 mt-2 pb-1">
-        {NAV_ITEMS.map((item, i) => {
+        {navItemsForRole(profile?.role).map((item, i) => {
           const on = active === item.key;
           return (
             <button
@@ -7248,10 +7269,10 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
       </nav>
 
       <div className="pt-4 mt-4 space-y-1" style={{ borderTop: "1px solid var(--line)" }}>
-        {[
+        {(isInterviewer(profile?.role) ? [] : [
           { key: "settings", label: "Settings", icon: "settings" },
           { key: "billing", label: "Billing", icon: "card" },
-        ].map((item) => {
+        ]).map((item) => {
           const on = active === item.key;
           return (
             <button
@@ -7283,7 +7304,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
 }
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
-function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
+function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) {
   const railBtn = (item) => {
     const on = active === item.key;
     return (
@@ -7308,16 +7329,16 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0 }) {
   };
   return (
     <div className="flex flex-col items-center h-full w-full">
-      <button onClick={() => navigate("dashboard")} aria-label="Aster home" className="mb-8 w-11 h-11 flex items-center justify-center shrink-0">
+      <button onClick={() => navigate(homeForRole(profile?.role))} aria-label="Aster home" className="mb-8 w-11 h-11 flex items-center justify-center shrink-0">
         <AsterMark />
       </button>
       <nav className="flex-1 flex flex-col items-center gap-1.5">
-        {NAV_ITEMS.map(railBtn)}
+        {navItemsForRole(profile?.role).map(railBtn)}
       </nav>
       <div className="flex flex-col items-center gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--line)" }}>
         {railBtn({ key: "profile", label: "Profile", icon: "user" })}
-        {railBtn({ key: "billing", label: "Billing", icon: "card" })}
-        {railBtn({ key: "settings", label: "Settings", icon: "settings" })}
+        {!isInterviewer(profile?.role) && railBtn({ key: "billing", label: "Billing", icon: "card" })}
+        {!isInterviewer(profile?.role) && railBtn({ key: "settings", label: "Settings", icon: "settings" })}
         <button
           onClick={onSignOut}
           title="Log out"
@@ -7625,7 +7646,7 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
           <button onClick={() => navigate("profile")} aria-label="Your profile" title={nm || "Profile"} className="shrink-0 hover:opacity-90 transition-opacity">
             {avatarUrl
               ? <img src={avatarUrl} alt="You" className="w-10 h-10 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
-              : <FaceAvatar name={nm || "You"} seed={nm || "you"} size={40} style={{ border: "1px solid var(--line)" }} />}
+              : <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold font-display" style={{ background: avatarColors(nm || "you").bg, color: avatarColors(nm || "you").color, border: "1px solid var(--line)" }}>{ini}</div>}
           </button>
         )}
       </div>
@@ -7637,7 +7658,7 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
 // Settings), so they match the Jobs / Candidate Search layout: a gradient canvas,
 // the TopBar header, and an optional right-hand usage/credit rail. Pass `rail` to
 // get the two-column grid; omit it for a single full-width column.
-function AccountShell({ title, subtitle, rail, children, navigate, profile, avatarUrl, activities, onOpenNotifications }) {
+function AccountShell({ title, subtitle, rail, children, navigate, profile, avatarUrl, activities, onOpenNotifications, hideBack = false, backTo = "dashboard", backLabel = "Dashboard" }) {
   return (
     <div
       className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 md:min-h-[calc(100vh-2rem)] md:rounded-[26px]"
@@ -7647,8 +7668,8 @@ function AccountShell({ title, subtitle, rail, children, navigate, profile, avat
       }}
     >
       <div className="mx-auto w-full max-w-[1400px]">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <div className="mt-2">
+        {!hideBack && <BackLink onClick={() => navigate(backTo)}>← {backLabel}</BackLink>}
+        <div className={hideBack ? "" : "mt-2"}>
           <TopBar
             title={title}
             subtitle={subtitle}
@@ -11885,40 +11906,52 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   );
 }
 
-function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate }) {
+function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const interviews = scheduledInterviewsFrom(bookings, candidates);
+  const forInterviewer = isInterviewer(role);
 
   const jobForTitle = (title) => jobs.find((j) => j.title === title);
 
+  const title = forInterviewer ? "Your Interviews" : "Scheduled Interviews";
+  const subtitle = interviews.length > 0
+    ? `${interviews.length} interview${interviews.length > 1 ? "s" : ""} confirmed and on the calendar.`
+    : forInterviewer
+      ? "Interviews assigned to you appear here once the candidate picks a time."
+      : "Interviews a candidate has confirmed appear here.";
+
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-3xl mx-auto">
-        <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <div className="flex items-center justify-between mt-2 mb-1">
-          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>Scheduled Interviews</h1>
-          <button
-            onClick={() => navigate("interviewers")}
-            className="text-sm font-medium hover:opacity-70 transition-opacity"
-            style={{ color: "var(--brand)" }}
-          >
-            Manage interviewers →
+    <AccountShell
+      title={title}
+      subtitle={subtitle}
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+      hideBack={forInterviewer}
+    >
+      {!forInterviewer && (
+        <div className="flex justify-end mb-4">
+          <button onClick={() => navigate("interviewers")} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>
+            <Icon name="users" className="w-4 h-4" /> Manage interviewers
           </button>
         </div>
-        <p className="text-sm mb-6" style={{ color: "var(--ink-2)" }}>
-          {interviews.length > 0
-            ? `${interviews.length} interview${interviews.length > 1 ? "s" : ""} confirmed and on the calendar.`
-            : "Interviews a candidate has confirmed will appear here."}
-        </p>
+      )}
 
-        {interviews.length === 0 ? (
-          <div className="rounded-2xl bg-white act-shadow border p-10 text-center" style={{ borderColor: "var(--line)" }}>
-            <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
-            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-              Send a candidate an interview invite. Once they pick a time, it shows up here with the position and their details.
-            </p>
+      {interviews.length === 0 ? (
+        <div className="rounded-2xl bg-white act-shadow border px-6 py-14 sm:py-20 text-center" style={{ borderColor: "var(--line)" }}>
+          <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+            <Icon name="calendar" className="w-7 h-7" />
           </div>
-        ) : (
-          <div className="space-y-3">
+          <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>No interviews scheduled yet</p>
+          <p className="text-sm mt-2 max-w-md mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
+            {forInterviewer
+              ? "When a hiring manager assigns you to an interview and the candidate confirms a time, it shows up here with the role and their details."
+              : "Send a candidate an interview invite. Once they pick a time, it shows up here with the position and their details."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
             {interviews.map((iv) => {
               const cand = candidates.find((c) => c.id === iv.candidateId);
               const job = jobForTitle(iv.jobTitle);
@@ -11969,10 +12002,9 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                 </button>
               );
             })}
-          </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </AccountShell>
   );
 }
 
@@ -11980,12 +12012,16 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
   // Interviewers are a plan-capped count (10 / 100 / unlimited), separate from
-  // owner/admin seats. The owner is not counted as an interviewer.
+  // owner/admin seats. The owner is not counted as an interviewer and is shown
+  // in their own card below, so exclude them from the team list + count to avoid
+  // listing the owner twice.
+  const team = interviewers.filter((iv) => iv.role !== "owner");
   const seatCap = limits.interviewers;
-  const atSeatCap = interviewers.length >= seatCap;
+  const atSeatCap = team.length >= seatCap;
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("interviewer"); // 'interviewer' | 'admin' (Hiring Manager)
   const [banner, setBanner] = useState(null);
   const [sending, setSending] = useState(false);
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
@@ -12018,7 +12054,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
     if (hasSupabase) {
       setSending(true);
       const { data, error } = await supabase.functions.invoke("send-teammate-invite", {
-        body: { email, name, role: "interviewer" },
+        body: { email, name, role: inviteRole },
       });
       setSending(false);
       if (error || data?.error) {
@@ -12032,13 +12068,16 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
         id: `iv${interviewers.length + 1}`,
         name,
         email,
+        role: inviteRole,
         timezone: "Asia/Kuala_Lumpur",
         status: "pending",
       },
     ]);
-    setBanner(`Invite sent to ${email}. They'll get an email with a link to join your workspace and run interviews.`);
+    const roleWord = inviteRole === "admin" ? "hiring manager" : "interviewer";
+    setBanner(`Invite sent to ${email}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
     setName("");
     setEmail("");
+    setInviteRole("interviewer");
     setShowForm(false);
   };
 
@@ -12073,7 +12112,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
       rail={limits.interviewers !== Infinity ? (
         <UsageMeter
           title="Interviewers"
-          used={interviewers.length}
+          used={team.length}
           limit={limits.interviewers}
           unit="in use"
           danger={atSeatCap}
@@ -12086,10 +12125,10 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
         <div className="flex justify-end mb-4">
           {canAddInterviewers ? (
             <button
-              onClick={() => (atSeatCap ? navigate("billing") : setShowForm((s) => !s))}
-              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity"
+              onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setShowForm(true); }}
+              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center gap-1.5"
             >
-              {atSeatCap ? "Interviewers full, upgrade" : showForm ? "Cancel" : "+ Invite teammate"}
+              {atSeatCap ? "Interviewers full, upgrade" : <><Icon name="plus" className="w-4 h-4" /> Invite teammate</>}
             </button>
           ) : (
             <button
@@ -12125,24 +12164,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
           </div>
         )}
 
-        {showForm && (
-          <div className="mb-6 rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)] space-y-3">
-            <p className="text-sm font-medium text-neutral-900">Invite a teammate</p>
-            <div>
-              <label className={labelClass}>Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Tan" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Work email</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@company.com" className={inputClass} />
-            </div>
-            <button onClick={handleAdd} disabled={sending} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50">
-              {sending ? "Sending…" : "Send invite"}
-            </button>
-            <p className="text-xs text-neutral-400">They'll get an email to join your workspace. Teammates are included in your plan. They don't buy their own.</p>
-          </div>
-        )}
-
         <div className="space-y-2">
           {/* Account owner, always a member, can't be removed */}
           <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
@@ -12155,7 +12176,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
             </div>
           </div>
 
-          {interviewers.map((iv) => {
+          {team.map((iv) => {
             const upcoming = scheduledCountFor(iv);
             const pending = iv.status === "pending";
             return (
@@ -12188,6 +12209,65 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, defaultPr
             );
           })}
         </div>
+
+      {/* Invite teammate modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => { setShowForm(false); setBanner(null); }}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Invite a teammate</h3>
+                <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>They get their own login and see only the interviews assigned to them.</p>
+              </div>
+              <button onClick={() => setShowForm(false)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+                <Icon name="close" className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="mt-5 space-y-3">
+              <div>
+                <label className={labelClass}>Name</label>
+                <input autoFocus value={name} onChange={(e) => { setName(e.target.value); setBanner(null); }} placeholder="Jane Tan" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Work email</label>
+                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Role</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "interviewer", label: "Interviewer", desc: "Runs only their assigned interviews" },
+                    { key: "admin", label: "Hiring Manager", desc: "Full access to hiring" },
+                  ].map((r) => {
+                    const on = inviteRole === r.key;
+                    return (
+                      <button
+                        key={r.key}
+                        type="button"
+                        onClick={() => { setInviteRole(r.key); setBanner(null); }}
+                        className="text-left rounded-xl border px-3 py-2.5 transition-colors"
+                        style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line-strong)", background: "#fff" }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold" style={{ color: on ? "var(--brand)" : "var(--ink)" }}>{r.label}</span>
+                          {on && <Icon name="check" className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />}
+                        </div>
+                        <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--ink-3)" }}>{r.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {banner && <p className="text-sm" style={{ color: /sent/i.test(banner) ? "#166534" : "#DC2626" }}>{banner}</p>}
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => { setShowForm(false); setBanner(null); }} disabled={sending} className="text-sm rounded-xl px-4 py-2 border transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
+              <button onClick={handleAdd} disabled={sending || !name.trim() || !email.trim()} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{sending ? "Sending…" : "Send invite"}</button>
+            </div>
+            <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>They'll get an email to join your workspace. Teammates are included in your plan, they don't buy their own.</p>
+          </div>
+        </div>
+      )}
 
       {/* Remove confirmation */}
       {removing && (
@@ -14141,7 +14221,8 @@ function parseAddress(str) {
 }
 
 function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, addressParts = EMPTY_ADDRESS, setAddressParts, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
-  const [email] = useState("shah@example.com");
+  // The real signed-in email (from the loaded session), not a placeholder.
+  const email = profile?.email || "";
   const [newEmail, setNewEmail] = useState("");
   const [emailMsg, setEmailMsg] = useState(null);
   const [emailErr, setEmailErr] = useState(null);
@@ -14231,8 +14312,11 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setSaveErr(null);
+    // Interviewers manage no company branding — the company card is hidden for
+    // them, and the company RPC would 403. Save only their personal details.
+    const canEditCompany = !isInterviewer(profile?.role);
     let nextLogo = dLogo;
-    if (canPersist) {
+    if (canPersist && canEditCompany) {
       // Live workspace: upload any newly-picked logo, then persist company
       // branding + billing details through the owner/admin-only RPC.
       if (dLogoFile) {
@@ -14247,15 +14331,17 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
         logoUrl: nextLogo || null,
       });
       if (!res.ok) { setSaving(false); setSaveErr(res.error ? `Couldn't save: ${res.error}` : "Couldn't save your changes. Please try again."); return; }
-    } else {
+    } else if (!canPersist) {
       // Mock mode (no backend): keep the data-URL preview as the logo.
       await new Promise((r) => setTimeout(r, 700));
     }
-    setLogoUrl(nextLogo); setDLogo(nextLogo); setDLogoFile(null);
-    setCompany(dCompany.trim());
-    setAddressParts?.({ ...dAddr });
-    setAddress?.(dAddressStr);
-    setRegNo?.(dRegNo.trim());
+    if (canEditCompany) {
+      setLogoUrl(nextLogo); setDLogo(nextLogo); setDLogoFile(null);
+      setCompany(dCompany.trim());
+      setAddressParts?.({ ...dAddr });
+      setAddress?.(dAddressStr);
+      setRegNo?.(dRegNo.trim());
+    }
 
     // The personal half of this form used to be React state only: name, phone and
     // avatar all reverted on the next load. dbUpdateCompany above covers only the
@@ -14342,6 +14428,25 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
     setCurPw(""); setNewPw(""); setConfPw("");
   };
 
+  // Interviewers don't get the full email/password panel, but they can still
+  // reset their own password: email themselves a secure reset link.
+  const [ivResetBusy, setIvResetBusy] = useState(false);
+  const [ivResetMsg, setIvResetMsg] = useState(null);
+  const handleInterviewerReset = async () => {
+    if (!hasSupabase) { setIvResetMsg({ type: "err", text: "Password reset is available on a live workspace." }); return; }
+    setIvResetBusy(true); setIvResetMsg(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    const addr = user?.email;
+    if (!addr) { setIvResetBusy(false); setIvResetMsg({ type: "err", text: "Your session has expired. Sign in again." }); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(addr, {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/forgot-password` : undefined,
+    });
+    setIvResetBusy(false);
+    setIvResetMsg(error
+      ? { type: "err", text: "Couldn't send the reset link. Try again in a moment." }
+      : { type: "ok", text: "Reset link sent. Check your email to set a new password." });
+  };
+
   const avatarInitial = (dFirst?.[0] || "S").toUpperCase();
 
   return (
@@ -14396,7 +14501,8 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
       }
     >
 
-        {/* Company details */}
+        {/* Company details — owner/admin only (interviewers manage no company info) */}
+        {!isInterviewer(profile?.role) && (
         <div className={`${cardClass} mb-5`}>
           <SectionHead icon="briefcase" title="Company details" desc="Branding that appears across your workspace and on invoices." />
 
@@ -14464,6 +14570,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
             <p className="text-xs text-neutral-500 mt-2.5">Used on your invoices and receipts. Keep this up to date for accurate billing.</p>
           </div>
         </div>
+        )}
 
         {/* Personal details */}
         <div className={`${cardClass} mb-5`}>
@@ -14488,11 +14595,11 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>First name</label>
-              <input value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Shah" className={inputClass} />
+              <input value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Jane" className={inputClass} />
             </div>
             <div>
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Last name</label>
-              <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Ramly" className={inputClass} />
+              <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Tan" className={inputClass} />
             </div>
             <div>
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Role</label>
@@ -14508,11 +14615,38 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
               <input type="tel" value={dPhone} onChange={(e) => { setDPhone(e.target.value); setSavedMsg(null); }} placeholder="+60 12 345 6789" autoComplete="tel" className={inputClass} />
             </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Email</label>
+              <div className="flex items-center gap-2 rounded-xl border px-3.5 py-2.5" style={{ background: "var(--bg)", borderColor: "var(--line-strong)" }} title="The email you sign in with.">
+                <Icon name="mail" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
+                <span className="text-sm truncate" style={{ color: "var(--ink)" }}>{email || "—"}</span>
+                <span className="ml-auto inline-flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> {isInterviewer(profile?.role) ? "Fixed" : "Change below"}</span>
+              </div>
+            </div>
           </div>
           <p className="text-xs text-neutral-500 mt-2.5">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
         </div>
 
-        {/* ===== Sign-in ===== */}
+        {/* Interviewer self-service: reset password by email (the full sign-in panel
+            below is owner/admin only). Same section styling for consistency. */}
+        {isInterviewer(profile?.role) && (
+          <>
+            <div className="flex items-center gap-3 mb-3 mt-7">
+              <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>Sign-in</p>
+              <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+            </div>
+            <div className={cardClass}>
+              <SectionHead icon="lock" title="Password" desc="Email yourself a secure link to set a new password." />
+              <div className="mt-5 space-y-3">
+                {ivResetMsg && <p className="text-sm" style={{ color: ivResetMsg.type === "ok" ? "#166534" : "#DC2626" }}>{ivResetMsg.text}</p>}
+                <button onClick={handleInterviewerReset} disabled={ivResetBusy} className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-60 disabled:cursor-wait text-white text-sm font-medium px-4 py-2 transition-opacity">{ivResetBusy ? "Sending…" : "Send reset link"}</button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ===== Sign-in ===== — owner/admin only (email, password, 2FA managed elsewhere for interviewers) */}
+        {!isInterviewer(profile?.role) && (<>
         <div className="flex items-center gap-3 mb-3 mt-7">
           <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>Sign-in</p>
           <span className="h-px flex-1" style={{ background: "var(--line)" }} />
@@ -14560,9 +14694,10 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
         </div>
 
         <MfaCard />
+        </>)}
 
-        {/* ===== Danger zone ===== */}
-        {(() => {
+        {/* ===== Danger zone ===== — owner/admin only */}
+        {!isInterviewer(profile?.role) && (() => {
           const dangerTarget = (company || "").trim() || "DELETE";
           return (
             <>
@@ -16258,7 +16393,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set() }) {
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
@@ -16404,15 +16539,32 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const shownApps = filtered;
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
-        <BackLink onClick={() => navigate("jobs")}>← Jobs</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>
-          Applicants{job ? `: ${job.title}` : ""}
-        </h1>
-        <p className="text-sm text-neutral-600 mb-4">
-          Candidates who applied directly through the public job link. Tap the stage pill to move them through the pipeline or reject with a reviewed email.
-        </p>
+    <AccountShell
+      title={`Applicants${job ? `: ${job.title}` : ""}`}
+      subtitle="Candidates who applied directly through the public job link. Tap the stage pill to move them through the pipeline or reject with a reviewed email."
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+      backTo="jobs"
+      backLabel="Jobs"
+      rail={limits.aiRunsPerMonth !== Infinity ? (
+        <UsageMeter
+          title="AI Rank"
+          hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
+          used={matchRunsUsed}
+          limit={limits.aiRunsPerMonth}
+          unit="credits used"
+          danger={outOfRuns}
+          note={outOfRuns
+            ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning."
+            : `${runsLeft} left this cycle. You'll see the top ${limits.aiMatches} fits with scores.`}
+          onUpgrade={() => navigate("billing")}
+          upgradeLabel="Upgrade for more"
+        />
+      ) : null}
+    >
 
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5 flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -16446,14 +16598,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                   : "AI Rank"}
           </button>
         </div>
-        {limits.aiRunsPerMonth !== Infinity && (
-          <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>
-            {outOfRuns
-              ? `You've used all ${limits.aiRunsPerMonth} match runs this month. Upgrade for unlimited runs, the full ranking, and Aster's reasoning.`
-              : `Your plan includes ${limits.aiRunsPerMonth} match runs a month (${runsLeft} left). You'll see the top ${limits.aiMatches} fits with scores. Upgrade for unlimited runs and the reasoning.`}
-          </p>
-        )}
-
         {/* Stage filter */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <p className="text-sm text-neutral-500">
@@ -16525,11 +16669,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="min-w-0 flex-1 text-left">
                           <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
                         </button>
-                        {act && (
-                          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
-                          </span>
-                        )}
                         {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
                         {match && !scoreVisible && (
                           <button onClick={() => navigate("billing")} className="shrink-0" aria-label="Upgrade to see match score">
@@ -16544,7 +16683,28 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
                       )}
                     </div>
-                    <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {act && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
+                        </span>
+                      )}
+                      <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+                      {hiredIds.has(a.candidateId) ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>
+                          <Icon name="check" className="w-3.5 h-3.5" /> Hired
+                        </span>
+                      ) : (
+                        <StageControl
+                          stage={a.stage}
+                          rejectionEmailSent={a.rejectionEmailSent}
+                          candidateName={c.parsed.name}
+                          jobTitle={jobTitle}
+                          hasEmail={Boolean(c.parsed.email)}
+                          onStageChange={(stage, emailSent) => setStage(a.candidateId, stage, emailSent)}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {ranked && (() => {
@@ -16577,28 +16737,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     );
                   })()}
 
-                  <div className="flex justify-end mt-3">
-                    {hiredIds.has(a.candidateId) ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>
-                        <Icon name="check" className="w-3.5 h-3.5" /> Hired
-                      </span>
-                    ) : (
-                      <StageControl
-                        stage={a.stage}
-                        rejectionEmailSent={a.rejectionEmailSent}
-                        candidateName={c.parsed.name}
-                        jobTitle={jobTitle}
-                        hasEmail={Boolean(c.parsed.email)}
-                        onStageChange={(stage, emailSent) => setStage(a.candidateId, stage, emailSent)}
-                      />
-                    )}
-                  </div>
                 </div>
               );
             })}
           </div>
         )}
-      </div>
       <ConfirmDialog
         open={!!confirmRun}
         title="Run AI Rank?"
@@ -16617,7 +16760,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         onConfirm={() => { const c = confirmRegen; setConfirmRegen(null); if (c) chargeSeeWhy(c.candidateId, c.rationale); }}
         onClose={() => setConfirmRegen(null)}
       />
-    </div>
+    </AccountShell>
   );
 }
 
@@ -17326,7 +17469,18 @@ export default function ResumeAIPreview() {
   // profile round-trip so Back returns to the same place, not a fresh list.
   const searchStateRef = useRef({});
 
-  const screen = history[history.length - 1];
+  const rawScreen = history[history.length - 1];
+  // Interviewer RBAC guard: interviewers may only open their assigned interviews,
+  // the candidate profiles they scorecard, and their own profile. Any other
+  // workspace screen (deep-link, stale history, the emailed link) resolves to
+  // their Interviews home instead of rendering. Owner/admin are unaffected, and
+  // the mock/demo role ("Hiring Manager") is not an interviewer, so the preview
+  // is untouched. This mirrors the server: RLS already scopes their data.
+  const screen =
+    canPersist && isInterviewer(profile?.role) &&
+    WORKSPACE_SCREENS.has(rawScreen) && !INTERVIEWER_ALLOWED.has(rawScreen)
+      ? "interviews"
+      : rawScreen;
   const [newJobOpen, setNewJobOpen] = useState(false);
 
   // Public apply link: fetch the job's public details and record a view. Only
@@ -17544,7 +17698,8 @@ export default function ResumeAIPreview() {
       if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
       if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); }
     }
-    navigate(dest);
+    // Interviewers have no dashboard/billing; land them on their Interviews home.
+    navigate(isInterviewer(sess?.profile?.role) ? "interviews" : dest);
   };
 
   // Replace the demo datasets with the signed-in company's real rows. A no-op
@@ -18201,7 +18356,9 @@ export default function ResumeAIPreview() {
       }
       return (
         <Shell>
-          <ApplyScreen navigate={navigate} job={p.job} isPublic company={p.company} logoUrl={null} onApplied={() => {}} />
+          <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
+            <ApplyScreen navigate={navigate} job={p.job} isPublic company={p.company} logoUrl={null} onApplied={() => {}} />
+          </div>
         </Shell>
       );
     }
@@ -18214,7 +18371,9 @@ export default function ResumeAIPreview() {
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
     return (
       <Shell>
-        <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} logoUrl={logoUrl} company={company} onApplied={() => { if (companyId) hydrateWorkspace(companyId); }} />
+        <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
+          <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} logoUrl={logoUrl} company={company} onApplied={() => { if (companyId) hydrateWorkspace(companyId); }} />
+        </div>
       </Shell>
     );
   }
@@ -18267,9 +18426,12 @@ export default function ResumeAIPreview() {
     );
   }
 
-  // Map each screen to the sidebar nav item that should appear active.
-  const activeNav =
-    screen === "candidateProfile" || screen === "candidates"
+  // Map each screen to the sidebar nav item that should appear active. For an
+  // interviewer the only primary item is "Interviews", so their candidate views
+  // and interviews all light it up.
+  const activeNav = isInterviewer(profile?.role)
+    ? "interviews"
+    : screen === "candidateProfile" || screen === "candidates"
       ? "dashboard"
       : screen === "applicants"
         ? "jobs"
@@ -18390,6 +18552,11 @@ export default function ResumeAIPreview() {
             candidates={MOCK_CANDIDATES}
             jobs={jobs}
             onViewCandidate={viewCandidate}
+            role={profile?.role}
+            profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
           />
         )}
         {screen === "interviewers" && (
@@ -18467,6 +18634,10 @@ export default function ResumeAIPreview() {
             setSeeWhyCache={setSeeWhyCache}
             bookings={bookings}
             hiredIds={hiredIds}
+            profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
           />
         )}
         </ErrorBoundary>
