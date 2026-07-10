@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 // for edge-function logic. Both are plain ESM and run in Node.
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.{js,ts}", "supabase/functions/**/*.test.ts"],
+    include: ["src/**/*.test.{js,ts}", "supabase/functions/**/*.test.ts", "tests/**/*.test.{js,ts}"],
     environment: "node",
   },
 });
