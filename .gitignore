@@ -40,3 +40,7 @@ supabase/.temp/cli-latest
 /blob-report/
 /.playwright/
 tests/fixtures/resume.pdf
+
+# Live E2E exploration scratch (not committed)
+_live/
+_*.mjs
