@@ -9,6 +9,9 @@
 // Secrets: STRIPE_WEBHOOK_SECRET (the signing secret from the Stripe webhook)
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Extracted so it can be unit-tested against forged signatures. See
+// _shared/stripe-sig.test.ts — this function guards "mark this workspace paid".
+import { verify } from "../_shared/stripe-sig.ts";
 
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
@@ -17,45 +20,6 @@ const json = (b: unknown, s = 200) =>
 // vocabulary, so metadata.plan is written straight through. Guard anyway: a
 // stale checkout session created before 0040 must not poison the enum.
 const PLAN_TIERS = new Set(["launch", "scale", "elite", "enterprise"]);
-
-async function hmacHex(secret: string, msg: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// Length-independent compare. `a === b` short-circuits on the first differing
-// byte, which leaks how much of a forged signature was correct.
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-// Stripe-Signature: "t=<ts>,v1=<sig>[,v1=<sig>...]"
-// The signed payload is `${t}.${body}`, so `t` is authenticated — but it was
-// parsed and then discarded, which let a captured (body, signature) pair verify
-// forever. Stripe's own SDKs enforce a 300s tolerance for exactly this reason.
-const TOLERANCE_SECONDS = 300;
-
-async function verify(payload: string, header: string, secret: string): Promise<boolean> {
-  const parts = header.split(",").map((p) => p.split("="));
-  const t = parts.find((p) => p[0] === "t")?.[1];
-  const sigs = parts.filter((p) => p[0] === "v1").map((p) => p[1]);
-  if (!t || !sigs.length) return false;
-
-  const age = Math.abs(Math.floor(Date.now() / 1000) - Number(t));
-  if (!Number.isFinite(age) || age > TOLERANCE_SECONDS) {
-    console.error("stripe signature outside tolerance", { t, age });
-    return false;
-  }
-
-  const expected = await hmacHex(secret, `${t}.${payload}`);
-  return sigs.some((s) => timingSafeEqual(s, expected));
-}
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);

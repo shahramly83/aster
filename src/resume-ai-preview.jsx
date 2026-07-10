@@ -4,6 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
+import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
@@ -19,7 +20,6 @@ const ROLE_LABELS = { owner: "Owner", admin: "Admin", recruiter: "Recruiter", in
 // has not had it applied yet still answers with the old vocabulary, and an
 // unrecognised tier would fall through to the most restrictive plan. Safe to
 // delete once 0040 is applied everywhere.
-const PLAN_TIER_ALIASES = { free: "launch", growth: "scale", pro: "elite" };
 
 async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
@@ -8107,51 +8107,6 @@ function FeatureCard({ onAction }) {
 // Enterprise inherits Pro's feature set with unlimited metered limits (it is
 // the "custom" top tier). SSO and white-label are globally off by default and
 // flipped on from /admin; audit logs ship later, then apply to all tiers.
-const PLAN_LIMITS = {
-  launch: {
-    maxJobs: 1, seats: 1, interviewers: 10, canAddInterviewers: true,
-    parseApplicant: 100, resumeUploads: 10,               // resumeUploads = AI Parsing (Bulk upload)
-    aiRunsPerMonth: 5, aiInsightsPerMonth: 5, seeWhyPerMonth: 5, interviewQuestionsPerMonth: 5,
-    aiMatches: 3, visibleCandidates: Infinity,
-    applicantViewLimit: 10, browseLimit: 10, skillsIndustriesLimit: 10,
-    showRationale: true, storeOriginal: false, scorecards: true, matchToRole: true, databaseAiRank: true,
-    twoFactor: true, whatsapp: false, meetingCalendar: false, dataExport: true,
-    supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
-  },
-  scale: {
-    maxJobs: 5, seats: 3, interviewers: 100, canAddInterviewers: true,
-    parseApplicant: 500, resumeUploads: 50,
-    aiRunsPerMonth: 30, aiInsightsPerMonth: 100, seeWhyPerMonth: 30, interviewQuestionsPerMonth: 100,
-    aiMatches: 10, visibleCandidates: Infinity,
-    applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
-    showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
-    twoFactor: true, whatsapp: false, meetingCalendar: true, dataExport: true,
-    supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
-  },
-  elite: {
-    maxJobs: 10, seats: Infinity, interviewers: Infinity, canAddInterviewers: true,
-    parseApplicant: 1000, resumeUploads: 100,
-    aiRunsPerMonth: 100, aiInsightsPerMonth: 300, seeWhyPerMonth: 100, interviewQuestionsPerMonth: 300,
-    aiMatches: Infinity, visibleCandidates: Infinity,
-    applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
-    showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
-    twoFactor: true, whatsapp: true, meetingCalendar: true, dataExport: true,
-    supportTier: "priority", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
-  },
-  enterprise: {
-    maxJobs: Infinity, seats: Infinity, interviewers: Infinity, canAddInterviewers: true,
-    parseApplicant: Infinity, resumeUploads: Infinity,
-    aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, seeWhyPerMonth: Infinity, interviewQuestionsPerMonth: Infinity,
-    aiMatches: Infinity, visibleCandidates: Infinity,
-    applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
-    showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
-    twoFactor: true, whatsapp: true, meetingCalendar: true, dataExport: true,
-    supportTier: "dedicated", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
-  },
-};
-// Fail closed. An unrecognised tier falls back to the most restrictive plan,
-// never the most generous one, or a stray plan string quietly grants Elite.
-const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.launch;
 
 function LockBadge({ label = "Elite" }) {
   return (
