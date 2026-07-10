@@ -34,7 +34,8 @@ Deno.serve(async (req) => {
 
   const raw = await req.text();
   const secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "";
-  const sig = req.headers.get("x-razorpay-signature") || "";
+  // Razorpay India sends x-razorpay-signature; Curlec (Malaysia) may use x-curlec-signature.
+  const sig = req.headers.get("x-razorpay-signature") || req.headers.get("x-curlec-signature") || "";
   if (!secret) return json({ error: "webhook not configured" }, 503);
   const expected = await hmacHex(secret, raw);
   // Constant-time-ish compare.

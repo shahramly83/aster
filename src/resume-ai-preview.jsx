@@ -12970,23 +12970,6 @@ This is what a candidate sees. A public page, no login, reached only through the
 }
 
 
-// Load Razorpay Checkout on demand (once), resolving the global constructor.
-let razorpayScriptPromise = null;
-function loadRazorpay() {
-  if (typeof window !== "undefined" && window.Razorpay) return Promise.resolve(window.Razorpay);
-  if (!razorpayScriptPromise) {
-    razorpayScriptPromise = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "https://checkout.razorpay.com/v1/checkout.js";
-      s.onload = () => resolve(window.Razorpay);
-      s.onerror = () => reject(new Error("Failed to load Razorpay"));
-      document.body.appendChild(s);
-    });
-  }
-  return razorpayScriptPromise;
-}
-const PLAN_DISPLAY = { free: "Launch", starter: "Scale", professional: "Elite", enterprise: "Enterprise" };
-
 function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlanCycle, company, companyAddress = "", companyRegNo = "", jobs = [], interviewers = [], keptJobId, setKeptJobId, trialDaysLeft = 0, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(null);
   // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
@@ -13066,30 +13049,24 @@ function BillingScreen({ navigate, plan, setPlan, planCycle = "monthly", setPlan
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
-  // Open Razorpay Checkout for the chosen plan + cycle. create-subscription mints
-  // a Razorpay subscription; the razorpay-webhook activates it on payment.
+  // Redirect to Stripe Checkout (hosted) for the chosen plan + cycle.
+  // create-checkout-session mints the session; stripe-webhook activates the plan
+  // on payment. The browser returns to /billing?checkout=success afterwards.
   const startCheckout = async (planKey, chosenCycle) => {
     if (!hasSupabase) { setMsg("Sign in to a live workspace to subscribe."); return; }
     try {
       setMsg("Opening secure checkout…");
-      const { data, error } = await supabase.functions.invoke("create-subscription", { body: { plan: planKey, cycle: chosenCycle } });
-      if (error || !data?.subscription_id) { setMsg(data?.detail || data?.error || "Couldn't start checkout. Try again."); return; }
-      const Razorpay = await loadRazorpay();
-      const rzp = new Razorpay({
-        key: data.key_id,
-        subscription_id: data.subscription_id,
-        name: "Aster",
-        description: `${PLAN_DISPLAY[planKey] || planKey} · ${chosenCycle}`,
-        prefill: data.prefill || {},
-        theme: { color: "#0B2AE0" },
-        handler: () => {
-          setPlan(planKey);
-          setPlanCycle && setPlanCycle(chosenCycle);
-          setMsg("Payment successful. Your subscription is activating, this can take a few seconds.");
-        },
-        modal: { ondismiss: () => setMsg("Checkout closed. No charge was made.") },
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: { plan: planKey, cycle: chosenCycle, return_url: window.location.origin },
       });
-      rzp.open();
+      if (error) {
+        let reason = "";
+        try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; } catch {}
+        setMsg(reason ? `Checkout error: ${reason}` : "Couldn't start checkout. Try again.");
+        return;
+      }
+      if (!data?.url) { setMsg(`Checkout error: ${data?.detail || data?.error || "no URL returned"}`); return; }
+      window.location.href = data.url;
     } catch (e) {
       console.error("checkout", e);
       setMsg("Couldn't open checkout. Try again.");

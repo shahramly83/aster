@@ -20,6 +20,10 @@ const CORS = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
+// Curlec by Razorpay (Malaysia, MYR) API base. Override with RZP_API_BASE if your
+// Curlec docs show a different host (e.g. Razorpay India: https://api.razorpay.com/v1).
+const API_BASE = Deno.env.get("RZP_API_BASE") || "https://api.curlec.com/v1";
+
 // App plan key + cycle → the env var holding that Razorpay plan id.
 const PLAN_ENV: Record<string, string> = {
   "free|monthly": "RZP_PLAN_LAUNCH_MONTHLY",       // Launch, monthly only
@@ -67,7 +71,7 @@ Deno.serve(async (req) => {
 
     // Create the Razorpay subscription. notes.company_id lets the webhook map the
     // event back to this workspace; plan/cycle let it record the tier.
-    const subRes = await fetch("https://api.razorpay.com/v1/subscriptions", {
+    const subRes = await fetch(`${API_BASE}/subscriptions`, {
       method: "POST",
       headers: { Authorization: rzpAuth, "Content-Type": "application/json" },
       body: JSON.stringify({
