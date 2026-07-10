@@ -8,6 +8,7 @@
 //
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { charge, refund } from "../_shared/meter.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +34,14 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
     if (!apiKey) return json({ error: "no_api_key" }, 500);
 
+    // Take the credit before spending money. The browser used to do this after
+    // the fact, so calling this function directly was free and unlimited.
+    const paid = await charge(token, "ai_rank");
+    if (!paid.ok) {
+      const status = paid.error === "limit_reached" ? 402 : 503;
+      return json({ error: paid.error, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt }, status);
+    }
+
     // Rank against a specific open role, or against loose skills/industry criteria.
     const criteria = (role && role.title)
       ? `the open role "${role.title}".
@@ -55,7 +64,8 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: MODEL, max_tokens: 2500, messages: [{ role: "user", content: prompt }] }),
     });
-    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); return json({ error: "rank_failed" }, 502); }
+    // Our failure, not theirs: hand the credit back.
+    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "ai_rank"); return json({ error: "rank_failed" }, 502); }
     const data = await resp.json();
     let text = (data.content || []).map((b: any) => (typeof b.text === "string" ? b.text : "")).join(" ").trim();
     text = text.replace(/```json/gi, "").replace(/```/g, "");
@@ -70,7 +80,7 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
       .filter((r) => r && allowed.has(r.id))
       .map((r) => ({ id: r.id, score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), reason: String(r.reason || "").slice(0, 240) }));
 
-    return json({ ranked });
+    return json({ ranked, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected" }, 500);

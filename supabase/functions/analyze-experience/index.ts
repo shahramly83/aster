@@ -9,6 +9,7 @@
 //
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { charge, refund } from "../_shared/meter.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +61,15 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
     if (!apiKey) return json({ error: "no_api_key" }, 500);
 
+    // AI Insight had no counter at all: _ai_insight_limit() existed and the UI
+    // drew a meter against it, but nothing ever incremented anything, and the
+    // client's tally reset to zero on every reload. 0046 added bump_ai_insight.
+    const paid = await charge(token, "ai_insight");
+    if (!paid.ok) {
+      const status = paid.error === "limit_reached" ? 402 : 503;
+      return json({ error: paid.error, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt }, status);
+    }
+
     // Send only the fields the analysis needs — keep the payload lean.
     const resume = {
       name: parsed.name ?? null,
@@ -78,14 +88,14 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: MODEL, max_tokens: 1200, messages: [{ role: "user", content: `${PROMPT}\n\nResume (JSON):\n${JSON.stringify(resume)}` }] }),
     });
-    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); return json({ error: "analyze_failed" }, 502); }
+    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "ai_insight"); return json({ error: "analyze_failed" }, 502); }
     const data = await resp.json();
     let text = (data.content || []).map((b: any) => (typeof b.text === "string" ? b.text : "")).join(" ").trim();
     text = text.replace(/```json/gi, "").replace(/```/g, "");
     const s = text.indexOf("{"), e = text.lastIndexOf("}");
     let raw: any = null;
     if (s >= 0 && e > s) { try { raw = JSON.parse(text.slice(s, e + 1)); } catch (err) { console.error("json parse", err); } }
-    if (!raw || typeof raw !== "object") return json({ error: "analyze_failed" }, 502);
+    if (!raw || typeof raw !== "object") { await refund(paid.companyId, "ai_insight"); return json({ error: "analyze_failed" }, 502); }
 
     // Normalise/clamp into the exact shape the UI renders, so a stray model
     // field or missing key can never break InsightsDisplay.
@@ -118,7 +128,7 @@ Deno.serve(async (req) => {
       },
     };
 
-    return json({ insights });
+    return json({ insights, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected" }, 500);

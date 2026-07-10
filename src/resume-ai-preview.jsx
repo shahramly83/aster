@@ -11224,20 +11224,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
   // Each tab is a clean, self-contained mode, switching clears any ranking.
   const switchTab = (t) => { if (t === tab) return; setTab(t); setMatchScores(null); setRankedMeta(null); setMatching(false); };
-  // Charge one AI Rank credit. Persists to the DB (per company, per month) via
-  // bump_ai_rank and syncs the meter to the server count; falls back to a local
-  // bump if Supabase isn't available.
-  const consumeRun = async () => {
+  // rank-candidates charges the credit itself now (0046), before it spends money.
+  // This only syncs the meter to the count the server reports back. It must not
+  // bump: doing so would take two credits per run.
+  const syncRuns = (used) => {
     if (limits.aiRunsPerMonth === Infinity) return;
-    if (hasSupabase) {
-      try {
-        const { data, error } = await supabase.rpc("bump_ai_rank");
-        if (error) console.error("bump_ai_rank failed:", error.message || error);
-        const used = Array.isArray(data) ? data?.[0]?.used : data?.used;
-        if (typeof used === "number" && setMatchRunsUsed) { setMatchRunsUsed(used); return; }
-      } catch (e) { console.error("bump_ai_rank threw:", e); }
-    }
-    if (setMatchRunsUsed) setMatchRunsUsed((n) => n + 1);
+    if (typeof used === "number") { setMatchRunsUsed?.(used); return; }
+    setMatchRunsUsed?.((n) => n + 1);   // demo build, no server to ask
   };
 
   // ---- Scoring ----
@@ -11274,18 +11267,18 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     setMatchScores(heur);
     setRankedMeta({ mode: "role", label: matchJob.title, jobId: matchJob.id });
     try {
-      if (!hasSupabase) { consumeRun(); return; } // demo: heuristic only
+      if (!hasSupabase) { syncRuns(); return; } // demo: heuristic only, bump locally
       const payload = pool.slice(0, 40).map((c) => ({
         id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
         years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
       }));
       const roleInfo = { title: matchJob.title, description: matchJob.description || "", requirements: matchJob.requirements || [] };
       const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload } });
-      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error("rank failed");
+      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
       const scores = {}, reasons = {};
       data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
       setAiRank({ scores, reasons });
-      consumeRun(); // charged only on a real AI rank
+      syncRuns(data.used); // the server already charged; just mirror its count
     } catch (_e) {
       /* keep the heuristic ranking; no credit charged on failure */
     } finally {
@@ -11307,7 +11300,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       });
       setMatchScores(map);
       setRankedMeta({ mode: "skills", skills: [...skillTags], industries: [...industryTags] });
-      setMatching(false); consumeRun();
+      // No AI call here, so no credit: this is a local skill/industry filter.
+      setMatching(false);
     }, 1000);
   };
 
@@ -11353,7 +11347,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const runAiRank = async () => {
     if (!list.length) return;
     if (outOfRuns) { navigate("billing"); return; } // out of this month's AI Rank credits
-    if (!hasSupabase) { consumeRun(); setRanked(true); return; } // demo: still count against the plan
+    if (!hasSupabase) { syncRuns(); setRanked(true); return; } // demo: still count against the plan
     setAiRanking(true);
     try {
       const payload = list.slice(0, 40).map((c) => ({
@@ -11363,11 +11357,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       const { data, error } = await supabase.functions.invoke("rank-candidates", {
         body: { skills: skillTags, industries: industryTags, candidates: payload },
       });
-      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error("rank failed");
+      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
       const scores = {}, reasons = {};
       data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
       setAiRank({ scores, reasons });
-      consumeRun(); // one credit per successful AI Rank
+      syncRuns(data.used); // the server already charged; mirror its count
       setRanked(true);
     } catch (_e) {
       setAiRank(null);     // fall back to the heuristic (no credit charged on failure)
@@ -15375,14 +15369,19 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     if (outOfInsights && !insights) { navigate("billing"); return; }
 
     const save = (result) => { if (setInsightsCache) setInsightsCache((prev) => ({ ...prev, [candidate.id]: result })); };
-    const charge = () => { if (!insightsUnlimited && setAiInsightsUsed) setAiInsightsUsed((n) => n + 1); };
+    // analyze-experience charges the credit itself now (0046). Only mirror.
+    const syncInsights = (used) => {
+      if (insightsUnlimited || !setAiInsightsUsed) return;
+      if (typeof used === "number") { setAiInsightsUsed(used); return; }
+      setAiInsightsUsed((n) => n + 1);   // demo build
+    };
 
     // Demo mode (no backend): keep the derived read, but still meter the plan.
     if (!hasSupabase) {
       setGenerating(true);
       setTimeout(() => {
         save(MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate));
-        charge();
+        syncInsights();
         setGenerating(false);
       }, 1600);
       return;
@@ -15391,11 +15390,20 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("analyze-experience", { body: { candidate } });
-      if (error || data?.error || !data?.insights) throw new Error("analyze failed");
-      save(data.insights);
-      charge(); // one credit per successful run
+      // 402 = out of credits. Surface it instead of quietly serving a derived
+      // read, which is what made the cap feel like it didn't exist.
+      let body = data;
+      if (error) { try { body = await error.context?.json?.(); } catch { /* non-JSON */ } }
+      if (body?.error === "limit_reached") {
+        if (typeof body.used === "number") setAiInsightsUsed?.(body.used);
+        navigate("billing");
+        return;
+      }
+      if (error || body?.error || !body?.insights) throw new Error(body?.error || "analyze failed");
+      save(body.insights);
+      syncInsights(body.used); // the server already charged; mirror its count
     } catch (_e) {
-      save(MOCK_INSIGHTS[candidate.id] ?? deriveInsights(candidate)); // still show a result; no credit charged on failure
+      save(deriveInsights(candidate)); // still show a result; the server refunded the credit
     } finally {
       setGenerating(false);
     }
@@ -16322,12 +16330,12 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
   // Charge an AI Rank credit against the shared per-company monthly pool. Called
   // ONLY after a real ranking lands, never on failure.
-  const consumeRun = () => {
+  // rank-candidates takes the credit before it calls Anthropic (0046). This only
+  // mirrors the count it reports back — bumping here too would double-charge.
+  const syncRuns = (used) => {
     if (limits.aiRunsPerMonth === Infinity || !setMatchRunsUsed) return;
-    if (!hasSupabase) { setMatchRunsUsed((n) => n + 1); return; }
-    supabase.rpc("bump_ai_rank")
-      .then(({ data }) => { const used = Array.isArray(data) ? data?.[0]?.used : data?.used; if (typeof used === "number") setMatchRunsUsed(used); })
-      .catch(() => setMatchRunsUsed((n) => n + 1));
+    if (typeof used === "number") { setMatchRunsUsed(used); return; }
+    setMatchRunsUsed((n) => n + 1);
   };
 
   // This used to be a 1.4s setTimeout that read MOCK_MATCHES[activeJobId] and then
@@ -16356,14 +16364,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       }));
       const roleInfo = { title: job.title, description: job.description || "", requirements: job.requirements || [] };
       const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload } });
-      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error("rank failed");
+      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
 
       const map = {};
       data.ranked.forEach((r) => { if (r && r.id) map[r.id] = { score: (Number(r.score) || 0) / 100, rationale: r.reason || "" }; });
       if (!Object.keys(map).length) throw new Error("no scores returned");
 
       setMatchResults(map);
-      consumeRun();  // charged only on a real AI rank
+      syncRuns(data.used);  // the server already charged; mirror its count
       // Persist, so the ranking survives a reload instead of vanishing.
       dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
     } catch (e) {
@@ -17560,6 +17568,13 @@ export default function ResumeAIPreview() {
         if (typeof row.used === "number") setMatchRunsUsed(row.used);
         if (row.resets_at) setAiRankResetsAt(row.resets_at);
       }).catch((e) => console.error("get_ai_rank_usage threw:", e));
+      // AI Insight credits. Never hydrated before 0046 added the counter, so the
+      // cap silently reset to zero on every page load.
+      supabase.rpc("get_ai_insight_usage").then(({ data, error }) => {
+        if (error) { console.error("get_ai_insight_usage failed:", error.message || error); return; }
+        const row = Array.isArray(data) ? data?.[0] : data;
+        if (row && typeof row.used === "number") setAiInsightsUsed(row.used);
+      }).catch((e) => console.error("get_ai_insight_usage threw:", e));
       // Job-posting credits for this cycle (same 30-day cycle as AI Rank).
       supabase.rpc("get_job_post_usage").then(({ data, error }) => {
         if (error) { console.error("get_job_post_usage failed:", error.message || error); return; }
