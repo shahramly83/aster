@@ -259,3 +259,18 @@ export async function dbUpdateMyProfile({ fullName, phone, avatarPath, notifyPre
   if (error.code === "42883") return "Run migration 0044: update_my_profile doesn't exist yet.";
   return error.message || "Couldn't save your profile.";
 }
+
+// Persist an AI Rank run so the scores survive a reload. Nothing else in the
+// codebase ever wrote applications.match_score — the loader read it, but no edge
+// function or client path populated it, so the Applicants board always ranked on
+// an empty set. `score` is 0..1 here and stored as 0..100, matching the column's
+// int type and the loader's `match_score > 1 ? /100 : score` normalisation.
+export async function dbSaveMatchScores(companyId, jobId, results = []) {
+  if (!hasSupabase || !companyId || !jobId || !results.length) return;
+  await Promise.all(results.map(({ candidateId, score, rationale }) =>
+    supabase.from("applications")
+      .update({ match_score: Math.round((Number(score) || 0) * 100), match_reasons: rationale || null })
+      .eq("company_id", companyId).eq("job_id", jobId).eq("candidate_id", candidateId)
+      .then(({ error }) => { if (error) console.error("dbSaveMatchScores", error.message); })
+  ));
+}

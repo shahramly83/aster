@@ -4,7 +4,7 @@ import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -16264,7 +16264,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   );
 }
 
-function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set() }) {
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set() }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
@@ -16311,26 +16311,61 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
   const [filterOpen, setFilterOpen] = useState(false);
   // Inline AI matching, ranks these applicants against the job.
   const [matching, setMatching] = useState(false);
+  const [matchErr, setMatchErr] = useState(null);
   const [matchResults, setMatchResults] = useState(null); // null until run: { [candidateId]: {score, rationale} }
 
-  const runMatching = () => {
+  // Charge an AI Rank credit against the shared per-company monthly pool. Called
+  // ONLY after a real ranking lands, never on failure.
+  const consumeRun = () => {
+    if (limits.aiRunsPerMonth === Infinity || !setMatchRunsUsed) return;
+    if (!hasSupabase) { setMatchRunsUsed((n) => n + 1); return; }
+    supabase.rpc("bump_ai_rank")
+      .then(({ data }) => { const used = Array.isArray(data) ? data?.[0]?.used : data?.used; if (typeof used === "number") setMatchRunsUsed(used); })
+      .catch(() => setMatchRunsUsed((n) => n + 1));
+  };
+
+  // This used to be a 1.4s setTimeout that read MOCK_MATCHES[activeJobId] and then
+  // charged a credit. No edge function has ever written applications.match_score,
+  // so in a real workspace that map was always empty: the user paid a metered
+  // credit, watched a spinner, and got nothing. Now it calls the same
+  // rank-candidates function SearchScreen uses, persists the scores, and charges
+  // only on success.
+  const runMatching = async () => {
     if (outOfRuns) { navigate("billing"); return; }
+    const job = jobs.find((j) => j.id === activeJobId);
+    if (!job) return;
+    const pool = applicants
+      .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
+      .filter((c) => c && c.parsed);
+    if (!pool.length) { setMatchErr("There are no parsed applicants to rank yet."); return; }
+
     setMatching(true);
-    setTimeout(() => {
-      const list = MOCK_MATCHES[activeJobId] || [];
+    setMatchErr(null);
+    try {
+      if (!hasSupabase) { setMatching(false); return; }  // demo build: nothing to rank against
+      const payload = pool.slice(0, 40).map((c) => ({
+        id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
+        years: c.parsed?.years_of_experience ?? null,
+        skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
+      }));
+      const roleInfo = { title: job.title, description: job.description || "", requirements: job.requirements || [] };
+      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload } });
+      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error("rank failed");
+
       const map = {};
-      list.forEach((m) => { map[m.candidateId] = { score: m.score, rationale: m.rationale }; });
+      data.ranked.forEach((r) => { if (r && r.id) map[r.id] = { score: (Number(r.score) || 0) / 100, rationale: r.reason || "" }; });
+      if (!Object.keys(map).length) throw new Error("no scores returned");
+
       setMatchResults(map);
+      consumeRun();  // charged only on a real AI rank
+      // Persist, so the ranking survives a reload instead of vanishing.
+      dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
+    } catch (e) {
+      console.error("runMatching", e);
+      setMatchErr("Couldn't rank these applicants. No credit was used.");
+    } finally {
       setMatching(false);
-      // Charge an AI Rank credit against the shared per-company monthly pool.
-      if (limits.aiRunsPerMonth !== Infinity && setMatchRunsUsed) {
-        if (hasSupabase) {
-          supabase.rpc("bump_ai_rank").then(({ data }) => { const used = Array.isArray(data) ? data?.[0]?.used : data?.used; if (typeof used === "number") setMatchRunsUsed(used); }).catch(() => setMatchRunsUsed((n) => n + 1));
-        } else {
-          setMatchRunsUsed((n) => n + 1);
-        }
-      }
-    }, 1400);
+    }
   };
 
   const setStage = (candidateId, stage, emailSent) => {
@@ -16398,6 +16433,9 @@ function ApplicantsScreen({ navigate, jobs, activeJobId, onViewCandidate, stageO
                   ? "Ranked by fit against this role. Best matches shown first."
                   : "Score every candidate against this role and see who fits best."}
             </p>
+            {matchErr && (
+              <p role="alert" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
+            )}
           </div>
           <button
             onClick={() => askAiRank(runMatching)}
@@ -18380,6 +18418,7 @@ export default function ResumeAIPreview() {
         {screen === "applicants" && (
           <ApplicantsScreen
             navigate={navigate}
+            companyId={companyId}
             jobs={jobs}
             activeJobId={activeJobId}
             onViewCandidate={viewCandidate}
