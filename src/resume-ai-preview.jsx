@@ -329,6 +329,7 @@ async function loadWorkspaceData(companyId) {
   for (const s of scRes.data || []) {
     (scorecards[s.candidate_id] ||= []).push({
       id: s.id,
+      interviewerId: s.interviewer_id,
       interviewer: profName[s.interviewer_id] || "Interviewer",
       ratings: s.ratings || {},
       recommendation: recommendationFromRatings(s.ratings),
@@ -15644,7 +15645,7 @@ function deriveInsights(candidate) {
   };
 }
 
-function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName }) {
+function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName, currentUserId = null, attendees = [], isManager = false }) {
   // Collaborative scorecards are available on every plan (locked matrix).
   const isPaid = planLimits(plan).scorecards;
   const [open, setOpen] = useState(false);
@@ -15658,6 +15659,17 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
   const avgOf = (r) => { const v = Object.values(r); return v.reduce((a, b) => a + b, 0) / v.length; };
   const teamAvg = scorecards.length ? scorecards.reduce((s, c) => s + avgOf(c.ratings), 0) / scorecards.length : 0;
   const canSubmit = rec && Object.values(ratings).every((v) => v > 0);
+
+  // Attendee-scoping + blind-until-submit. The panel applies to the interview's
+  // attendees (and to hiring managers, who run the process). Interviewers rate
+  // independently: they don't see the rest of the panel's cards until they submit
+  // their own. Managers always see the full panel (they make the call).
+  const attendeeGated = Array.isArray(attendees) && attendees.length > 0;
+  const isAttendee = !attendeeGated || attendees.some((a) => a.id === currentUserId);
+  const hasMine = scorecards.some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
+  const onPanel = isManager || isAttendee;   // whose scorecard this is
+  const canSeeAll = isManager || hasMine;    // full panel visible
+  const canScore = isAttendee && !hasMine;   // still owes a card
 
   const submit = () => {
     if (!canSubmit) return;
@@ -15676,7 +15688,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
           <InfoHint dir="down" hint="Each interviewer rates the candidate from 1 to 4 after the interview, and Aster averages them into one team score." />
           {!isPaid && <LockBadge />}
         </div>
-        {isPaid && scorecards.length > 0 && (
+        {isPaid && canSeeAll && scorecards.length > 0 && (
           <span className="text-xs text-neutral-500">Team avg <span className="font-semibold text-neutral-800 tnum">{teamAvg.toFixed(1)}</span>/4 · {scorecards.length} submitted</span>
         )}
       </div>
@@ -15701,13 +15713,21 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
             {savedNote && <span className="text-xs" style={{ color: "#166534" }}>Saved ✓</span>}
           </div>
         </div>
+      ) : !onPanel ? (
+        <p className="text-sm text-neutral-500">You weren't on this interview's panel, so there's no scorecard to complete here.</p>
       ) : (
         <div className="space-y-3">
-          {scorecards.length === 0 && !open && (
+          {!canSeeAll && (
+            <div className="flex items-start gap-2 rounded-xl border border-dashed p-3" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
+              <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0 text-neutral-400" />
+              <p className="text-sm text-neutral-500">Add your own scorecard first. You'll see the rest of the panel's ratings once you submit, so everyone scores independently.</p>
+            </div>
+          )}
+          {canSeeAll && scorecards.length === 0 && !open && (
             <p className="text-sm text-neutral-500">No scorecards yet. Add yours after the interview, and your teammates' will collect here.</p>
           )}
 
-          {scorecards.map((sc) => {
+          {canSeeAll && scorecards.map((sc) => {
             const r = recOf(sc.recommendation);
             return (
               <div key={sc.id} className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
@@ -15728,7 +15748,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
             );
           })}
 
-          {open ? (
+          {canScore ? (open ? (
             <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
               <p className="text-sm font-semibold text-neutral-900">Your scorecard</p>
               {SCORE_CRITERIA.map((c) => (
@@ -15779,7 +15799,9 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
             <button onClick={() => setOpen(true)} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">
               + Add your scorecard
             </button>
-          )}
+          )) : hasMine ? (
+            <p className="text-xs inline-flex items-center gap-1.5" style={{ color: "#16A34A" }}><Icon name="check" className="w-3.5 h-3.5" /> You submitted your scorecard.</p>
+          ) : null}
         </div>
       )}
     </div>
@@ -16362,6 +16384,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               plan={plan}
               navigate={navigate}
               authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
+              currentUserId={currentUserId}
+              attendees={booking?.attendees || []}
+              isManager={!isInterviewer(profile?.role)}
             />
 
             {/* Decision / next step — owner / hiring-manager only. Interviewers
@@ -17922,9 +17947,13 @@ export default function ResumeAIPreview() {
     return null;
   };
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
-  const addScorecard = (candidateId, card) => {
-    setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), card] }));
-    if (canPersist) dbAddScorecard(companyId, userId, { candidateId, ratings: card.ratings, notes: card.notes });
+  const addScorecard = (candidateId, card, jobId = null) => {
+    // Stamp the author's id so the panel can tell whose card is whose (and gate
+    // the blind-until-submit view). job_id is required for the interviewer RLS
+    // insert policy (job_id in assigned_job_ids()).
+    const stamped = { ...card, interviewerId: userId };
+    setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), stamped] }));
+    if (canPersist) dbAddScorecard(companyId, userId, { candidateId, jobId, ratings: card.ratings, notes: card.notes });
   };
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState(null);
@@ -19216,7 +19245,7 @@ export default function ResumeAIPreview() {
             calendarConnected={calendarConnected}
             plan={effectivePlan}
             scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
-            onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card)}
+            onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? "applied") : "applied"}
             onSetStage={(s) => activeCandidate && setCandidateStage(activeCandidate.id, s)}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
