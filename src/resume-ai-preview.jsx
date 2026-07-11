@@ -3043,10 +3043,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       <section className="relative py-16 sm:py-24">
        <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <Reveal className="relative rounded-3xl overflow-hidden px-6 sm:px-12 py-12 sm:py-16" style={{ background: "var(--brand)", boxShadow: "0 40px 80px -40px rgba(var(--brand-rgb),0.55)" }}>
-          {/* faint concentric rings for depth, drawn with solid borders (no gradients) */}
-          <div className="pointer-events-none absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.12)" }} />
-          <div className="pointer-events-none absolute -right-10 -top-10 w-[300px] h-[300px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
-          <div className="pointer-events-none absolute -left-20 -bottom-28 w-[380px] h-[380px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
+          {/* faint Aster marks for depth, bleeding off the corners (clipped by overflow-hidden) */}
+          <svg viewBox="0 0 267 273" aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 w-[420px] h-[420px] opacity-[0.07]" fill="#fff"><path d={ASTER_MARK_PATH} fillRule="evenodd" clipRule="evenodd" /></svg>
+          <svg viewBox="0 0 267 273" aria-hidden="true" className="pointer-events-none absolute -left-24 -bottom-32 w-[380px] h-[380px] opacity-[0.06]" fill="#fff"><path d={ASTER_MARK_PATH} fillRule="evenodd" clipRule="evenodd" /></svg>
 
           <div className="relative text-center">
             <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase px-3 py-1 rounded-full mb-6" style={{ background: "rgba(255,255,255,0.12)", color: "#fff", letterSpacing: "0.08em" }}>
@@ -5077,8 +5076,8 @@ function ProductCTA({ navigate }) {
     <section className="relative py-16 sm:py-24" style={{ background: "#fff", borderTop: "1px solid var(--line)" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="relative overflow-hidden rounded-3xl px-6 sm:px-12 py-14 sm:py-16 text-center" style={{ background: "var(--brand)", boxShadow: "0 40px 80px -40px rgba(var(--brand-rgb),0.55)" }}>
-          <div className="pointer-events-none absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.12)" }} />
-          <div className="pointer-events-none absolute -left-20 -bottom-28 w-[380px] h-[380px] rounded-full" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
+          <svg viewBox="0 0 267 273" aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 w-[420px] h-[420px] opacity-[0.07]" fill="#fff"><path d={ASTER_MARK_PATH} fillRule="evenodd" clipRule="evenodd" /></svg>
+          <svg viewBox="0 0 267 273" aria-hidden="true" className="pointer-events-none absolute -left-24 -bottom-32 w-[380px] h-[380px] opacity-[0.06]" fill="#fff"><path d={ASTER_MARK_PATH} fillRule="evenodd" clipRule="evenodd" /></svg>
           <div className="relative">
             <h2 className="font-display font-bold text-white" style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.5rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Start from a shortlist, not a pile.</h2>
             <p className="mt-4 text-base sm:text-lg max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.82)" }}>Create your workspace and let Aster read, score and schedule for you. Free for 14 days, no card required.</p>
