@@ -77,8 +77,7 @@ export function emailShell(opts: { heading: string; bodyHtml: string; preview?: 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #ECE7F5;border-radius:16px;overflow:hidden;">
         <tr><td style="padding:26px 32px 0;">
           <a href="${SITE}" style="text-decoration:none;">
-            <img src="${SITE}/aster-mark.png" width="34" height="34" alt="Aster" style="width:34px;height:34px;border-radius:9px;display:inline-block;vertical-align:middle;border:0;">
-            <span style="margin-left:9px;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:17px;color:${BRAND};vertical-align:middle;">Aster</span>
+            <img src="${SITE}/aster-logo.png" height="30" alt="Aster" style="height:30px;width:auto;display:inline-block;border:0;">
           </a>
         </td></tr>
         <tr><td style="padding:22px 32px 4px;">

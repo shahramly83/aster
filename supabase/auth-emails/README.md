@@ -37,9 +37,10 @@ The inbox showed **"From Aste"** and these auth emails don't come from
 ## Note on the logo
 
 Email clients strip inline SVG and block SVG `<img>`, so the header references a
-hosted **PNG** of the Aster mark at `https://hireaster.com/aster-mark.png`
-(generated from `public/aster-mark.svg`), the same approach as the Resend
-`emailShell`. The alt text falls back to "Aster" if a client blocks images.
+hosted **PNG** of the full Aster lockup (burst mark + ASTER wordmark, blue) at
+`https://hireaster.com/aster-logo.png` (generated from the artwork paths in
+`src/lib/logo.js`), the same approach as the Resend `emailShell`. The alt text
+falls back to "Aster" if a client blocks images.
 
-The PNG only resolves once the site has been deployed with `public/aster-mark.png`,
+The PNG only resolves once the site has been deployed with `public/aster-logo.png`,
 so deploy the marketing site before relying on the logo in these emails.
