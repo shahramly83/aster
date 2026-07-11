@@ -6426,6 +6426,15 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false); // email-confirmation pending
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const resendConfirmation = async () => {
+    if (resending || !invite?.email) return;
+    setResending(true);
+    try { await supabase.auth.resend({ type: "signup", email: invite.email }); } catch { /* best-effort */ }
+    setResending(false);
+    setResent(true);
+  };
 
   const fieldDark = "signup-field w-full rounded-xl px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]";
   const fieldDarkStyle = { background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink)" };
@@ -6489,9 +6498,25 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
           <BrandLogo logoUrl={logoUrl} />
         </button>
         {sent ? (
-          <div>
+          <div className="rounded-2xl border p-8 text-center" style={{ borderColor: "var(--line)", background: "#fff", boxShadow: "0 24px 60px -34px rgba(15,27,51,0.22)" }}>
+            <div className="mx-auto mb-5 w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name="mail" className="w-7 h-7" />
+            </div>
             <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Check your email</h1>
-            <p className="text-sm mt-2" style={{ color: "var(--ink-2)" }}>We sent a confirmation link to <strong>{invite?.email}</strong>. Open it to finish joining <strong>{invite?.company}</strong>.</p>
+            <p className="text-sm mt-2.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              We sent a confirmation link to
+              <br />
+              <span className="font-semibold" style={{ color: "var(--ink)" }}>{invite?.email}</span>
+            </p>
+            <p className="text-sm mt-3 leading-relaxed" style={{ color: "var(--ink-2)" }}>Open it to finish joining <span className="font-semibold" style={{ color: "var(--ink)" }}>{invite?.company}</span> as {roleLabel}. The link expires soon, so it's best to open it now.</p>
+            <div className="mt-6 pt-5 text-xs" style={{ borderTop: "1px solid var(--line)", color: "var(--ink-3)" }}>
+              {resent ? (
+                <span className="inline-flex items-center gap-1.5" style={{ color: "#16A34A" }}><Icon name="check" className="w-3.5 h-3.5" /> Sent again, check your inbox.</span>
+              ) : (
+                <>Didn't get it? Check your spam folder, or{" "}
+                <button type="button" onClick={resendConfirmation} disabled={resending} className="font-semibold disabled:opacity-50" style={{ color: "var(--brand)" }}>{resending ? "resending…" : "resend the email"}</button>.</>
+              )}
+            </div>
           </div>
         ) : (<>
           <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Join {invite?.company || "the workspace"}</h1>
