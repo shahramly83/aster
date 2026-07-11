@@ -7159,6 +7159,8 @@ function Icon({ name, className = "w-5 h-5" }) {
     offer: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h4a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.4z" /><circle cx="7.5" cy="7.5" r="1" /></>,
     hire: <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
+    userPlus: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M22 11h-6" /></>,
+    plus: <><path d="M12 5v14M5 12h14" /></>,
     eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></>,
     eyeOff: <><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a17.6 17.6 0 0 1-2.16 3.19M6.61 6.61A17.8 17.8 0 0 0 2 12s3.5 8 10 8a9.1 9.1 0 0 0 5.39-1.61" /><path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" /><path d="M3 3l18 18" /></>,
     download: <><path d="M12 3v12" /><path d="M7 11l5 5 5-5" /><path d="M4 20h16" /></>,
@@ -12259,7 +12261,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setShowForm(true); }}
               className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center gap-1.5"
             >
-              {atSeatCap ? "Interviewers full, upgrade" : <><Icon name="plus" className="w-4 h-4" /> Invite teammate</>}
+              {atSeatCap ? "Interviewers full, upgrade" : <><Icon name="userPlus" className="w-4 h-4" /> Invite teammate</>}
             </button>
           ) : (
             <button
