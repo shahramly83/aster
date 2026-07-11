@@ -275,6 +275,11 @@ async function loadWorkspaceData(companyId) {
   const profName = Object.fromEntries((profRes.data || []).map((p) => [p.id, p.full_name || "Interviewer"]));
   const interviewers = (profRes.data || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", role: p.role, pending: p.status === "invited", timezone: "Asia/Kuala_Lumpur" }));
 
+  // Pending teammate invitations (no profile yet). They still consume a seat on
+  // the server, so the team-seats meter must count them to match enforcement.
+  const invRes = await supabase.from("invitations").select("id, email, role").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString());
+  const pendingInvites = (invRes.data || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer" }));
+
   const applicantsByJob = {};
   const matchesByJob = {};
   for (const a of appRes.data || []) {
@@ -324,7 +329,7 @@ async function loadWorkspaceData(companyId) {
     });
   }
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers };
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -12063,16 +12068,18 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
+function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
-  // Interviewers are a plan-capped count (10 / 100 / unlimited), separate from
-  // owner/admin seats. The owner is not counted as an interviewer and is shown
-  // in their own card below, so exclude them from the team list + count to avoid
-  // listing the owner twice.
+  // The server meters teammates by subscription SEATS, not the plan's interviewer
+  // count: every active member (INCLUDING the tenant) plus any pending invite
+  // counts toward the cap. Mirror that exactly so this meter and the pre-flight
+  // match what invite_teammate enforces (otherwise the UI shows room that isn't).
   const team = interviewers.filter((iv) => iv.role !== "owner");
-  const seatCap = limits.interviewers;
-  const atSeatCap = team.length >= seatCap;
+  const seatCap = limits.seats;
+  const ownerCounted = interviewers.some((iv) => iv.role === "owner");
+  const seatsUsed = (ownerCounted ? interviewers.length : interviewers.length + 1) + pendingInvites.length;
+  const atSeatCap = seatsUsed >= seatCap;
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -12099,7 +12106,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
   const handleAdd = async () => {
     if (!canAddInterviewers || !name || !email || sending) return;
     if (atSeatCap) {
-      setBanner(`Your plan includes ${limits.interviewers} interviewer${limits.interviewers === 1 ? "" : "s"}. Upgrade for more, or unlimited on Elite.`);
+      setBanner(`You've used all ${seatCap} team seat${seatCap === 1 ? "" : "s"} on your plan (the tenant and pending invites count too). Remove one, or upgrade for more.`);
       return;
     }
     // With a tenant domain the field is just the name before @, and the domain is
@@ -12184,15 +12191,16 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
       avatarUrl={avatarUrl}
       activities={activities}
       onOpenNotifications={onOpenNotifications}
-      rail={limits.interviewers !== Infinity ? (
+      rail={seatCap !== Infinity ? (
         <UsageMeter
-          title="Interviewers"
-          used={team.length}
-          limit={limits.interviewers}
-          unit="in use"
+          title="Team seats"
+          hint="Every seat: the tenant, each teammate, and any pending invite. New teammates use your workspace's own login domain."
+          used={seatsUsed}
+          limit={seatCap}
+          unit="seats used"
           danger={atSeatCap}
           onUpgrade={() => navigate("billing")}
-          upgradeLabel="Upgrade for more interviewers"
+          upgradeLabel="Upgrade for more seats"
         />
       ) : null}
     >
@@ -12249,7 +12257,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
                     </span>
                   </div>
                   <p className="text-xs text-neutral-500 truncate">
-                    {iv.email} · {iv.timezone}
+                    {iv.email} · {formatTimezone(iv.timezone)}
                   </p>
                   {upcoming > 0 && (
                     <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
@@ -12268,6 +12276,20 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
               </div>
             );
           })}
+
+          {/* Pending invites (no account yet). They hold a seat until accepted. */}
+          {pendingInvites.map((inv) => (
+            <div key={inv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-neutral-900 font-medium truncate">{inv.email}</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+                </div>
+                <p className="text-xs text-neutral-500 truncate">Waiting for them to accept the email invite. Holds a seat until then.</p>
+              </div>
+            </div>
+          ))}
         </div>
 
       {/* Invite teammate modal */}
@@ -12389,6 +12411,18 @@ function formatSlotDisplay(iso) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+// Turn a raw IANA timezone id ("Asia/Kuala_Lumpur") into a readable label with
+// its current offset ("Kuala Lumpur (GMT+8)"). Falls back to just the city.
+function formatTimezone(tz) {
+  if (!tz) return "";
+  const city = String(tz).split("/").pop().replace(/_/g, " ");
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" }).formatToParts(new Date());
+    const off = parts.find((p) => p.type === "timeZoneName")?.value;
+    return off ? `${city} (${off})` : city;
+  } catch { return city; }
 }
 
 // A slot with a start and end: "Tue, Jul 14, 6:30 - 7:00 PM". Falls back to the
@@ -17560,6 +17594,7 @@ export default function ResumeAIPreview() {
   const [candidateFilter, setCandidateFilter] = useState(null);
   const [jobStatusFilter, setJobStatusFilter] = useState(null);
   const [interviewers, setInterviewers] = useState(INITIAL_INTERVIEWERS);
+  const [pendingInvites, setPendingInvites] = useState([]); // teammate invites with no profile yet (count toward seats)
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
   const addScorecard = (candidateId, card) => {
     setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), card] }));
@@ -17970,6 +18005,7 @@ export default function ResumeAIPreview() {
     setBookings(data.bookings);
     setScorecards(data.scorecards);
     if (data.interviewers?.length) setInterviewers(data.interviewers);
+    setPendingInvites(data.pendingInvites || []);
     setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
@@ -18785,7 +18821,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "interviewers" && (
-          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} pendingInvites={pendingInvites} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "candidateProfile" && !activeCandidate && (
           // The candidate isn't in the workspace (just deleted, or a stale deep
