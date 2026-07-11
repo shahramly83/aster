@@ -3592,9 +3592,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
   const mobDivide = blueNav ? "divide-y divide-[color:var(--line)]" : "divide-y divide-white/10";
   const mobPress = blueNav ? "active:bg-[color:var(--brand-soft)]" : "active:bg-white/5";
   const mobLabel = blueNav ? "text-[color:var(--ink)]" : "text-white";
-  const mobLabelSub = blueNav ? "text-[color:var(--ink-2)]" : "text-white/90";
   const mobChev = blueNav ? "text-[color:var(--ink-3)]" : "text-white/40";
-  const mobChevSm = blueNav ? "text-[color:var(--ink-3)]" : "text-white/30";
   return (
     <>
       <header className="sticky top-0 z-40" style={headerStyle}>
@@ -3754,10 +3752,10 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
                     <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5" style={{ color: blueNav ? "var(--brand)" : g.tint }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
                     <div className={`rounded-2xl overflow-hidden ${mobDivide}`} style={mobGroup}>
                       {g.items.map((s) => (
-                        <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className={`w-full text-left flex items-center gap-3.5 px-4 py-2.5 transition-colors ${mobPress}`}>
-                          <Icon name={s.icon} className="w-4 h-4 shrink-0" style={{ color: blueNav ? "var(--brand)" : "#AEBEFF" }} />
-                          <span className={`flex-1 text-[15px] ${mobLabelSub}`}>{s.label}</span>
-                          <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChevSm}`} />
+                        <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className={`w-full text-left flex items-center gap-3.5 px-4 py-3 transition-colors ${mobPress}`}>
+                          <Icon name={s.icon} className="w-[18px] h-[18px] shrink-0" style={{ color: blueNav ? "var(--brand)" : "#AEBEFF" }} />
+                          <span className={`flex-1 text-[15px] font-medium ${mobLabel}`}>{s.label}</span>
+                          <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChev}`} />
                         </button>
                       ))}
                     </div>
@@ -3770,8 +3768,9 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-2" style={{ color: "var(--ink-3)" }}>Explore</p>
               <div className={`rounded-2xl overflow-hidden ${mobDivide}`} style={mobGroup}>
-                {[["Pricing", () => goSection("pricing")], ["FAQ", () => goSection("faq")], ["Blog", () => { setMenuOpen(false); goBlog({}); }], ["Recruiting glossary", () => { setMenuOpen(false); goGlossary(""); }], ["Compare Aster", () => { setMenuOpen(false); goCompare(""); }]].map(([label, go]) => (
-                  <button key={label} onClick={go} className={`w-full text-left flex items-center gap-3 px-3.5 py-3 transition-colors ${mobPress}`}>
+                {[["Pricing", "card", () => goSection("pricing")], ["FAQ", "chat", () => goSection("faq")], ["Blog", "doc", () => { setMenuOpen(false); goBlog({}); }], ["Recruiting glossary", "search", () => { setMenuOpen(false); goGlossary(""); }], ["Compare Aster", "target", () => { setMenuOpen(false); goCompare(""); }]].map(([label, icon, go]) => (
+                  <button key={label} onClick={go} className={`w-full text-left flex items-center gap-3.5 px-4 py-3 transition-colors ${mobPress}`}>
+                    <Icon name={icon} className="w-[18px] h-[18px] shrink-0" style={{ color: blueNav ? "var(--brand)" : "#AEBEFF" }} />
                     <span className={`flex-1 text-[15px] font-medium ${mobLabel}`}>{label}</span>
                     <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChev}`} />
                   </button>
