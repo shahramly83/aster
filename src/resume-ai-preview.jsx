@@ -7282,7 +7282,7 @@ const NAV_ITEMS = [
 // `profile.role` carries the display label ("Interviewer"), while the DB enum is
 // "interviewer" — normalise so either form matches.
 const isInterviewer = (role) => String(role || "").toLowerCase() === "interviewer";
-const INTERVIEWER_ALLOWED = new Set(["interviews", "candidateProfile", "profile"]);
+const INTERVIEWER_ALLOWED = new Set(["interviews", "applicants", "candidateProfile", "profile"]);
 const INTERVIEWER_NAV = [{ key: "interviews", label: "Interviews", icon: "interviewers" }];
 const navItemsForRole = (role) => (isInterviewer(role) ? INTERVIEWER_NAV : NAV_ITEMS);
 const homeForRole = (role) => (isInterviewer(role) ? "interviews" : "dashboard");
@@ -12024,9 +12024,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   );
 }
 
-function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications }) {
+function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, jobAssignments = [], currentUserId = null, setActiveJobId }) {
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   const forInterviewer = isInterviewer(role);
+  // Roles this interviewer is on (their pool memberships). Jobs are already
+  // RLS-scoped to their assignments; cross-reference to be explicit.
+  const myJobIds = new Set(jobAssignments.filter((a) => a.profile_id === currentUserId).map((a) => a.job_id));
+  const myJobs = forInterviewer ? jobs.filter((j) => myJobIds.has(j.id)) : [];
 
   const jobForTitle = (title) => jobs.find((j) => j.title === title);
 
@@ -12053,6 +12057,33 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
           <button onClick={() => navigate("interviewers")} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>
             <Icon name="users" className="w-4 h-4" /> Manage interviewers
           </button>
+        </div>
+      )}
+
+      {forInterviewer && myJobs.length > 0 && (
+        <div className="mb-7">
+          <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Roles you're assigned to</h2>
+          <p className="text-xs mt-0.5 mb-3" style={{ color: "var(--ink-3)" }}>Open a role to review its applicants and request an interview.</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {myJobs.map((j) => {
+              const n = applicantCountFor(j.id);
+              return (
+                <button
+                  key={j.id}
+                  onClick={() => { setActiveJobId && setActiveJobId(j.id); navigate("applicants", `/applicants/${j.id}`); }}
+                  className="text-left rounded-2xl bg-white act-shadow border p-4 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-3"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{n} applicant{n === 1 ? "" : "s"}</p>
+                  </div>
+                  <span className="shrink-0 inline-flex" style={{ color: "var(--ink-3)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -15889,7 +15920,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   };
 
   // Reworked AI Experience Insights card, plan-metered (meter lives in sidebar).
-  const aiInsightsCard = (
+  // HR/hiring-manager only: interviewers reviewing a candidate don't run credits.
+  const aiInsightsCard = isInterviewer(profile?.role) ? null : (
     <div className="rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
       <div className="flex items-start justify-between gap-3 mb-2.5">
         <div className="flex items-center gap-2 min-w-0">
@@ -16064,7 +16096,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <Icon name="lock" className="w-3.5 h-3.5" /> Original not stored · Pro
               </button>
             )}
-            {onDelete && (
+            {onDelete && !isInterviewer(profile?.role) && (
               <button onClick={() => setConfirmDelete(true)} className="rounded-xl text-sm px-3 py-1.5 transition-colors inline-flex items-center gap-1.5 border hover:bg-rose-50" style={{ color: "#DC2626", borderColor: "#F3C7C7" }} title="Delete this candidate">
                 <Icon name="trash" className="w-4 h-4" /> Delete
               </button>
@@ -16400,7 +16432,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </>)}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {!insightsUnlimited && (
+            {!isInterviewer(profile?.role) && !insightsUnlimited && (
               <UsageMeter
                 title="AI insights this month"
                 hint="Each AI Experience Insights run uses one credit. Your plan includes a set number each month."
@@ -17029,15 +17061,17 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   return (
     <AccountShell
       title={`Applicants${job ? `: ${job.title}` : ""}`}
-      subtitle="Candidates who applied directly through the public job link. Tap the stage pill to move them through the pipeline or reject with a reviewed email."
+      subtitle={isInterviewer(profile?.role)
+        ? "Candidates who applied for this role. Open a profile to review them and request an interview."
+        : "Candidates who applied directly through the public job link. Tap the stage pill to move them through the pipeline or reject with a reviewed email."}
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
       activities={activities}
       onOpenNotifications={onOpenNotifications}
-      backTo="jobs"
-      backLabel="Jobs"
-      rail={limits.aiRunsPerMonth !== Infinity ? (
+      backTo={isInterviewer(profile?.role) ? "interviews" : "jobs"}
+      backLabel={isInterviewer(profile?.role) ? "Interviews" : "Jobs"}
+      rail={!isInterviewer(profile?.role) && limits.aiRunsPerMonth !== Infinity ? (
         <UsageMeter
           title="AI Rank"
           hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
@@ -17054,6 +17088,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       ) : null}
     >
 
+        {!isInterviewer(profile?.role) && (
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
@@ -17086,7 +17121,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                   : "AI Rank"}
           </button>
         </div>
-        {job && (
+        )}
+        {job && !isInterviewer(profile?.role) && (
           <JobInterviewersPanel
             jobId={activeJobId}
             team={interviewers}
@@ -17193,6 +17229,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>
                           <Icon name="check" className="w-3.5 h-3.5" /> Hired
                         </span>
+                      ) : isInterviewer(profile?.role) ? (
+                        <StageBadge stage={a.stage} />
                       ) : (
                         <StageControl
                           stage={a.stage}
@@ -19112,6 +19150,9 @@ export default function ResumeAIPreview() {
             onViewCandidate={viewCandidate}
             role={profile?.role}
             profile={profile}
+            jobAssignments={jobAssignments}
+            currentUserId={userId}
+            setActiveJobId={setActiveJobId}
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
