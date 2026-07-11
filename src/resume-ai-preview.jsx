@@ -12117,7 +12117,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], setPendingInvites = () => {}, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
+function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], setPendingInvites = () => {}, reloadTeam = async () => {}, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
   // The server meters teammates by subscription SEATS, not the plan's interviewer
@@ -12197,17 +12197,17 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
         return;
       }
     }
-    setInterviewers([
-      ...interviewers,
-      {
-        id: `iv${interviewers.length + 1}`,
-        name: inviteName,
-        email: inviteEmail,
-        role: inviteRole,
-        timezone: "Asia/Kuala_Lumpur",
-        status: reactivated ? "active" : "pending",
-      },
-    ]);
+    if (hasSupabase) {
+      // Pull the real rows (with real ids) so Remove/Revoke work and the new
+      // person lands in the right bucket (pending invite vs active member).
+      await reloadTeam();
+    } else {
+      // Demo build: no backend, reflect the invite locally.
+      setInterviewers([
+        ...interviewers,
+        { id: `iv${interviewers.length + 1}`, name: inviteName, email: inviteEmail, role: inviteRole, timezone: "Asia/Kuala_Lumpur", status: "pending" },
+      ]);
+    }
     const roleWord = inviteRole === "admin" ? "hiring manager" : "interviewer";
     setBanner(reactivated
       ? `${inviteEmail} was added back to your team. They keep their existing login and history.`
@@ -18033,6 +18033,19 @@ export default function ResumeAIPreview() {
 
   // Replace the demo datasets with the signed-in company's real rows. A no-op
   // (keeps demo data) for an empty workspace or when Supabase isn't configured.
+  // Re-fetch just the team (members + pending invites) with their real DB ids,
+  // so row actions (Remove, Revoke) target real rows instead of the optimistic
+  // placeholder ids an invite would otherwise add.
+  const reloadTeam = async () => {
+    if (!hasSupabase || !companyId) return;
+    const [{ data: profs }, { data: invs }] = await Promise.all([
+      supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", companyId).neq("status", "suspended"),
+      supabase.from("invitations").select("id, email, role").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString()),
+    ]);
+    setInterviewers((profs || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", role: p.role, pending: p.status === "invited", timezone: "Asia/Kuala_Lumpur" })));
+    setPendingInvites((invs || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer" })));
+  };
+
   const hydrateWorkspace = async (companyId, opts = {}) => {
     // Load this month's AI Rank credit usage for the meter (per company).
     if (hasSupabase) {
@@ -18910,7 +18923,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "interviewers" && (
-          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} pendingInvites={pendingInvites} setPendingInvites={setPendingInvites} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} pendingInvites={pendingInvites} setPendingInvites={setPendingInvites} reloadTeam={reloadTeam} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "candidateProfile" && !activeCandidate && (
           // The candidate isn't in the workspace (just deleted, or a stale deep
