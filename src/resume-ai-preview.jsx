@@ -8490,7 +8490,8 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               </div>
               {/* stylised plan card */}
               <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 20px 40px -20px rgba(var(--brand-rgb),0.7)" }}>
-                <div className="flex items-start justify-between gap-2">
+                <svg viewBox="0 0 267 273" aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 w-[220px] h-[220px] opacity-[0.07]" fill="#fff"><path d={ASTER_MARK_PATH} fillRule="evenodd" clipRule="evenodd" /></svg>
+                <div className="relative flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <span className="block text-white font-display font-bold tracking-tight truncate">{company}</span>
                     <span className="inline-flex items-center mt-1 text-[10px] font-semibold uppercase tracking-wide text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.18)", letterSpacing: "0.06em" }}>
