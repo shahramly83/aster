@@ -305,6 +305,7 @@ async function loadWorkspaceData(companyId) {
     const start = new Date(iv.scheduled_at);
     bookings[iv.candidate_id] = {
       status: "scheduled",
+      jobId: iv.job_id,
       confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
       provider: iv.provider || "google",
       request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: profName[iv.interviewer_id] || "Interviewer" },
@@ -12081,6 +12082,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
 
   const ownerName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim();
+  // The workspace's email domain, derived from the signed-in owner/admin. New
+  // teammates must use the same domain (enforced in handleAdd + shown as a hint).
+  const tenantDomain = (profile?.email || "").split("@")[1]?.toLowerCase() || "";
 
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
@@ -12098,17 +12102,42 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
       setBanner(`Your plan includes ${limits.interviewers} interviewer${limits.interviewers === 1 ? "" : "s"}. Upgrade for more, or unlimited on Elite.`);
       return;
     }
+    const inviteEmail = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(inviteEmail)) {
+      setBanner("Enter a valid work email address.");
+      return;
+    }
+    // Teammates must share the workspace's email domain (the tenant's own domain,
+    // taken from the owner/admin doing the inviting). Keeps invites to the company.
+    const inviteDomain = inviteEmail.split("@")[1] || "";
+    if (tenantDomain && inviteDomain !== tenantDomain) {
+      setBanner(`Teammates must use a @${tenantDomain} email, the same domain as your workspace.`);
+      return;
+    }
     // When the workspace is live, create the real invitation and email it via
     // the edge function; surface any server-side error (seat limit, already a
     // member, permission). In the mock preview, just reflect it locally.
     if (hasSupabase) {
       setSending(true);
       const { data, error } = await supabase.functions.invoke("send-teammate-invite", {
-        body: { email, name, role: inviteRole },
+        body: { email: inviteEmail, name, role: inviteRole },
       });
       setSending(false);
-      if (error || data?.error) {
-        setBanner(data?.error || error?.message || "Could not send the invite. Try again in a moment.");
+      // On a non-2xx status Supabase returns a generic FunctionsHttpError; the
+      // real reason sits in the JSON body on error.context, not in `data`.
+      let reason = data?.error || "";
+      if (!reason && error?.context?.json) {
+        try { const body = await error.context.json(); reason = body?.error || ""; } catch { /* ignore */ }
+      }
+      if (error || reason) {
+        const friendly = /already|duplicate|exists/i.test(reason)
+          ? "That person is already on your team or has a pending invite."
+          : /permission|denied|forbidden|not authorized/i.test(reason)
+            ? "Only the owner or a hiring manager can invite teammates."
+            : /seat|limit/i.test(reason)
+              ? "You've used all the teammate seats on your plan (this includes pending invites). Remove one, or upgrade for more."
+              : reason || "Could not send the invite. Try again in a moment.";
+        setBanner(friendly);
         return;
       }
     }
@@ -12117,14 +12146,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
       {
         id: `iv${interviewers.length + 1}`,
         name,
-        email,
+        email: inviteEmail,
         role: inviteRole,
         timezone: "Asia/Kuala_Lumpur",
         status: "pending",
       },
     ]);
     const roleWord = inviteRole === "admin" ? "hiring manager" : "interviewer";
-    setBanner(`Invite sent to ${email}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
+    setBanner(`Invite sent to ${inviteEmail}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
     setName("");
     setEmail("");
     setInviteRole("interviewer");
@@ -12263,7 +12292,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
               </div>
               <div>
                 <label className={labelClass}>Work email</label>
-                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
+                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder={tenantDomain ? `jane@${tenantDomain}` : "jane@company.com"} autoComplete="off" className={inputClass} />
+                {tenantDomain && <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Must be a <span className="font-medium">@{tenantDomain}</span> email, the same domain as your workspace.</p>}
               </div>
               <div>
                 <label className={labelClass}>Role</label>
@@ -12345,6 +12375,16 @@ function formatSlotDisplay(iso) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+// A slot with a start and end: "Tue, Jul 14, 6:30 - 7:00 PM". Falls back to the
+// single-time display when there's no end (older bookings).
+function formatSlotRange(startIso, endIso) {
+  if (!endIso) return formatSlotDisplay(startIso);
+  const s = new Date(startIso), e = new Date(endIso);
+  const day = s.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const t = (d) => d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${day}, ${t(s)} - ${t(e)}`;
 }
 
 // Derive the list of real scheduled interviews from the shared bookings map.
@@ -12576,18 +12616,20 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
   );
 }
 
-// A clean, on-brand date + time picker that replaces the native datetime-local
-// control (which renders as an inconsistent, cramped, dark browser popup). It
-// emits a local "YYYY-MM-DDTHH:mm" string via onAdd, exactly what the caller
-// stored before, so nothing downstream changes.
-function DateTimePicker({ onAdd }) {
+// A clean, on-brand date + time-range picker that replaces the native
+// datetime-local control. The hiring manager picks a day, then a From and a To
+// time, and it emits { start, end } as local "YYYY-MM-DDTHH:mm" strings.
+// `takenRanges` (ISO {start,end}, already-confirmed interviews for this position)
+// are disabled so the same slot can't be booked for two candidates.
+function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-11
   const [selDate, setSelDate] = useState(null); // midnight Date, or null
-  const [selMin, setSelMin] = useState(null);   // minutes from midnight, or null
+  const [fromMin, setFromMin] = useState(null);  // start, minutes from midnight
+  const [toMin, setToMin] = useState(null);      // end, minutes from midnight
   const ref = useRef(null);
 
   useEffect(() => {
@@ -12617,16 +12659,52 @@ function DateTimePicker({ onAdd }) {
     return `${h12}:${pad2(mm)} ${h >= 12 ? "PM" : "AM"}`;
   };
 
-  const canAdd = selDate && selMin != null;
-  const summary = canAdd
-    ? `${selDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${timeLabel(selMin)}`
-    : null;
+  // 30-minute marks on the selected day already taken: confirmed interviews for
+  // this position (takenRanges) PLUS the ranges already added in this proposal
+  // (slots), so a new range can't overlap either.
+  const takenSet = new Set();
+  if (selDate) {
+    for (const r of [...takenRanges, ...slots]) {
+      const s = new Date(r.start), e = new Date(r.end);
+      if (!sameDay(s, selDate)) continue;
+      const sMin = s.getHours() * 60 + s.getMinutes();
+      const eMin = e.getHours() * 60 + e.getMinutes();
+      for (let m = sMin; m < eMin; m += 30) takenSet.add(m);
+    }
+  }
+  const isToday = sameDay(selDate, today0);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const passedFrom = (m) => isToday && m < nowMin;
+  // The end at `m` means the slot occupies [fromMin, m); block if any mark inside is taken.
+  const rangeBlocked = (endM) => { for (let m = fromMin; m < endM; m += 30) if (takenSet.has(m)) return true; return false; };
 
+  const canAdd = selDate && fromMin != null && toMin != null && toMin > fromMin;
+  const dayLabel = selDate ? selDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+  const summary = canAdd ? `${dayLabel}, ${timeLabel(fromMin)} - ${timeLabel(toMin)}` : null;
+
+  const local = (m) => `${selDate.getFullYear()}-${pad2(selDate.getMonth() + 1)}-${pad2(selDate.getDate())}T${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
   const commit = () => {
     if (!canAdd) return;
-    const h = Math.floor(selMin / 60), mm = selMin % 60;
-    onAdd(`${selDate.getFullYear()}-${pad2(selDate.getMonth() + 1)}-${pad2(selDate.getDate())}T${pad2(h)}:${pad2(mm)}`);
-    setSelMin(null); // keep the day so the HM can quickly add another time
+    onAdd({ start: local(fromMin), end: local(toMin) });
+    setFromMin(null); setToMin(null); // keep the day so the HM can add another range
+  };
+
+  const timeCell = (m, kind) => {
+    const active = (kind === "from" ? fromMin : toMin) === m;
+    const disabled = !selDate
+      || (kind === "from" ? (takenSet.has(m) || passedFrom(m) || m >= times[times.length - 1]) : (fromMin == null || m <= fromMin || rangeBlocked(m)));
+    return (
+      <button
+        key={`${kind}-${m}`}
+        type="button"
+        disabled={disabled}
+        onClick={() => { if (kind === "from") { setFromMin(m); if (toMin != null && toMin <= m) setToMin(null); } else setToMin(m); }}
+        className={`rounded-lg border px-2 py-1.5 text-[13px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${active ? "" : "border-neutral-200 text-neutral-700 hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"}`}
+        style={active ? { background: "var(--brand)", borderColor: "var(--brand)", color: "#fff", fontWeight: 600 } : undefined}
+      >
+        {timeLabel(m)}
+      </button>
+    );
   };
 
   return (
@@ -12645,11 +12723,19 @@ function DateTimePicker({ onAdd }) {
       </button>
 
       {open && (
-        <div
-          role="dialog"
-          aria-label="Choose a date and time"
-          className="absolute z-30 mt-2 left-0 rounded-2xl border border-neutral-200 bg-white shadow-xl p-3 sm:p-4 w-[min(34rem,calc(100vw-2rem))] flex flex-col gap-3"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6" style={{ background: "rgba(10,11,30,0.45)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+          <div
+            role="dialog"
+            aria-label="Choose interview times"
+            className="w-[min(38rem,calc(100vw-2rem))] max-h-[88vh] overflow-y-auto rounded-2xl border border-neutral-200 bg-white shadow-2xl p-4 sm:p-5 flex flex-col gap-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Propose interview times</h3>
+                <p className="text-xs mt-0.5 text-neutral-500">Pick a day and a start/end time, then Add. You can add several.</p>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="shrink-0 -mr-1 -mt-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 text-neutral-400"><Icon name="close" className="w-4 h-4" /></button>
+            </div>
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Calendar */}
             <div className="sm:w-1/2">
@@ -12669,16 +12755,16 @@ function DateTimePicker({ onAdd }) {
                 {days.map((d, i) => {
                   const inMonth = d.getMonth() === viewMonth;
                   const isPast = d < today0;
-                  const isToday = sameDay(d, today0);
+                  const isTodayCell = sameDay(d, today0);
                   const isSel = sameDay(d, selDate);
                   return (
                     <button
                       key={i}
                       type="button"
                       disabled={isPast}
-                      onClick={() => setSelDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()))}
+                      onClick={() => { setSelDate(new Date(d.getFullYear(), d.getMonth(), d.getDate())); setFromMin(null); setToMin(null); }}
                       className={`h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors ${isPast ? "text-neutral-300 cursor-not-allowed" : inMonth ? "text-neutral-800 hover:bg-[color:var(--brand-soft)]" : "text-neutral-300 hover:bg-neutral-50"}`}
-                      style={isSel ? { background: "var(--brand)", color: "#fff", fontWeight: 600 } : isToday ? { boxShadow: "inset 0 0 0 1.5px var(--brand)", color: "var(--brand)", fontWeight: 600 } : undefined}
+                      style={isSel ? { background: "var(--brand)", color: "#fff", fontWeight: 600 } : isTodayCell ? { boxShadow: "inset 0 0 0 1.5px var(--brand)", color: "var(--brand)", fontWeight: 600 } : undefined}
                     >
                       {d.getDate()}
                     </button>
@@ -12687,42 +12773,50 @@ function DateTimePicker({ onAdd }) {
               </div>
             </div>
 
-            {/* Time */}
-            <div className="sm:w-1/2 flex flex-col">
+            {/* Time range: From / To */}
+            <div className="sm:w-1/2 flex flex-col min-h-0">
               <div className="flex items-center gap-1.5 mb-2">
                 <Icon name="clock" className="w-4 h-4 text-neutral-400" />
-                <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{selDate ? "Pick a time" : "Select a day first"}</span>
+                <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{selDate ? "Interview time" : "Select a day first"}</span>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-2 gap-1.5 overflow-y-auto pr-1 max-h-[13.5rem] content-start">
-                {times.map((m) => {
-                  const active = selMin === m;
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      disabled={!selDate}
-                      onClick={() => setSelMin(m)}
-                      className={`rounded-lg border px-2 py-2 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${active ? "" : "border-neutral-200 text-neutral-700 hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"}`}
-                      style={active ? { background: "var(--brand)", borderColor: "var(--brand)", color: "#fff", fontWeight: 600 } : undefined}
-                    >
-                      {timeLabel(m)}
-                    </button>
-                  );
-                })}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col min-h-0">
+                  <span className="text-[11px] font-medium text-neutral-500 mb-1">From</span>
+                  <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 max-h-44">
+                    {times.map((m) => timeCell(m, "from"))}
+                  </div>
+                </div>
+                <div className="flex flex-col min-h-0">
+                  <span className="text-[11px] font-medium text-neutral-500 mb-1">To</span>
+                  <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 max-h-44">
+                    {times.map((m) => timeCell(m, "to"))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
+          {slots.length > 0 && (
+            <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-2.5">
+              <p className="text-[11px] font-medium text-neutral-500 mb-1.5">Added times ({slots.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {slots.map((s) => (
+                  <span key={s.start} className="inline-flex items-center gap-1.5 text-xs rounded-full bg-white border border-neutral-200 px-2.5 py-1 text-neutral-700">
+                    {formatSlotRange(s.start, s.end)}
+                    {onRemove && <button type="button" onClick={() => onRemove(s.start)} aria-label="Remove time" className="text-neutral-400 hover:text-red-600"><Icon name="close" className="w-3 h-3" /></button>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-3 border-t border-neutral-100 pt-3">
-            <span className="text-xs text-neutral-500 min-w-0 truncate">{summary ? `Selected: ${summary}` : "Choose a day and a time"}</span>
-            <button
-              type="button"
-              onClick={commit}
-              disabled={!canAdd}
-              className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 shrink-0 transition-opacity shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)]"
-            >
-              Add time
-            </button>
+            <span className="text-xs text-neutral-500 min-w-0 truncate">{summary ? `New: ${summary}` : "Pick a day, then a start and end time"}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={commit} disabled={!canAdd} className="rounded-xl border border-[color:var(--brand)] text-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium px-4 py-2 transition-colors">Add time</button>
+              <button type="button" onClick={() => setOpen(false)} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-opacity shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)]">Done</button>
+            </div>
+          </div>
           </div>
         </div>
       )}
@@ -12730,7 +12824,7 @@ function DateTimePicker({ onAdd }) {
   );
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, interviewPast = false }) {
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, interviewPast = false, allBookings = {} }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   // If opened from a specific job's applicant list, that job is fixed and
   // there's no need to pick one. Otherwise let HR choose the open role.
@@ -12754,6 +12848,13 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
+
+  // Times already booked (confirmed) for OTHER candidates on this same position,
+  // so the picker can disable them and stop two candidates taking one slot.
+  const activeJobId = fixedJob?.id ?? jobId;
+  const takenRanges = Object.entries(allBookings)
+    .filter(([cid, b]) => cid !== candidate.id && b?.status === "scheduled" && b?.confirmedSlot?.start && (b.jobId ?? b.request?.jobId) === activeJobId)
+    .map(([, b]) => ({ start: b.confirmedSlot.start, end: b.confirmedSlot.end }));
 
   // Shared booking (from the root) is the source of truth once an invite has
   // gone out, it survives navigating to the candidate's booking page and back,
@@ -12781,25 +12882,26 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
 
   // The hiring manager proposes interview times manually (one or more). No
   // calendar connection: they pick each time and add it to the list.
-  const addSlot = (val) => {
-    if (!val) return;
-    const d = new Date(val);
-    if (Number.isNaN(d.getTime())) return;
-    const iso = d.toISOString();
-    setSlots((prev) => (prev.includes(iso) ? prev : [...prev, iso].sort()));
+  const addSlot = (range) => {
+    if (!range?.start || !range?.end) return;
+    const s = new Date(range.start), e = new Date(range.end);
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e <= s) return;
+    const startIso = s.toISOString(), endIso = e.toISOString();
+    setSlots((prev) => (prev.some((x) => x.start === startIso) ? prev : [...prev, { start: startIso, end: endIso }].sort((a, b) => a.start.localeCompare(b.start))));
   };
-  const removeSlot = (iso) => setSlots((prev) => prev.filter((s) => s !== iso));
+  const removeSlot = (startIso) => setSlots((prev) => prev.filter((s) => s.start !== startIso));
 
   const handleSendInvite = () => {
     if (slots.length === 0) return;
     setSending(true);
     setTimeout(() => {
-      const proposed = slots.map((start) => ({ start, end: new Date(new Date(start).getTime() + 30 * 60000).toISOString() }));
+      const proposed = slots.map((s) => ({ start: s.start, end: s.end }));
+      const durMin = slots.length ? Math.max(1, Math.round((new Date(slots[0].end) - new Date(slots[0].start)) / 60000)) : 30;
       const sent = {
         id: `req-${candidate.id}`,
         candidateId: candidate.id,
         status: "sent",
-        slot_duration_minutes: 30,
+        slot_duration_minutes: durMin,
         proposed_slots: proposed,
         jobTitle: activeJobTitle,
         jobId: fixedJob?.id ?? jobId,
@@ -12852,7 +12954,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         <div className="rounded-xl bg-white border border-emerald-200 px-4 py-3">
           <p className="text-sm text-emerald-600 font-medium">Interview scheduled ✓</p>
           <p className="text-sm text-neutral-700 mt-0.5">
-            {formatSlotDisplay(booking.confirmedSlot.start)}
+            {formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end)}
             {sentRequest?.interviewerName ? ` with ${sentRequest.interviewerName}` : ""}
             {sentRequest?.jobTitle ? ` · ${sentRequest.jobTitle}` : ""}
           </p>
@@ -12866,7 +12968,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           <div className="flex flex-wrap gap-2 mb-2">
             {sentRequest.proposed_slots.map((slot) => (
               <span key={slot.start} className="text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
-                {formatSlotDisplay(slot.start)}
+                {formatSlotRange(slot.start, slot.end)}
               </span>
             ))}
           </div>
@@ -12945,13 +13047,13 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           {/* The hiring manager proposes interview times manually (one or more). */}
           <div className="mb-3">
             <label className="block text-xs text-neutral-500 mb-1">Propose interview times</label>
-            <DateTimePicker onAdd={(val) => addSlot(val)} />
+            <DateTimePicker onAdd={(val) => addSlot(val)} slots={slots} onRemove={removeSlot} takenRanges={takenRanges} />
             {slots.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2.5">
                 {slots.map((s) => (
-                  <span key={s} className="inline-flex items-center gap-1.5 text-xs rounded-full bg-indigo-600 text-white px-3 py-1.5">
-                    {formatSlotDisplay(s)}
-                    <button type="button" onClick={() => removeSlot(s)} aria-label="Remove time" className="text-white/70 hover:text-white"><Icon name="close" className="w-3 h-3" /></button>
+                  <span key={s.start} className="inline-flex items-center gap-1.5 text-xs rounded-full bg-indigo-600 text-white px-3 py-1.5">
+                    {formatSlotRange(s.start, s.end)}
+                    <button type="button" onClick={() => removeSlot(s.start)} aria-label="Remove time" className="text-white/70 hover:text-white"><Icon name="close" className="w-3 h-3" /></button>
                   </span>
                 ))}
               </div>
@@ -13049,7 +13151,7 @@ function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, co
               <span className="text-emerald-600 text-xl">✓</span>
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
-            <p className="text-sm text-neutral-600 mb-3">{formatSlotDisplay(confirmedSlot.start)}</p>
+            <p className="text-sm text-neutral-600 mb-3">{formatSlotRange(confirmedSlot.start, confirmedSlot.end)}</p>
             <p className="text-sm text-neutral-600 mb-4">
               A calendar invite has been sent to your email with the video call link.
             </p>
@@ -13090,7 +13192,7 @@ function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, co
               disabled={stage === "confirming"}
               className="block w-full text-left rounded-2xl bg-white act-shadow card-hover disabled:opacity-50 px-5 py-4 border border-[color:var(--line)]"
             >
-              <p className="text-neutral-900 font-medium">{formatSlotDisplay(slot.start)}</p>
+              <p className="text-neutral-900 font-medium">{formatSlotRange(slot.start, slot.end)}</p>
             </button>
           ))}
         </div>
@@ -15501,7 +15603,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -15981,6 +16083,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onInviteSent={onInviteSent}
           profile={profile}
           interviewPast={interviewPast}
+          allBookings={allBookings}
         />
 
         <InterviewQuestionsPanel
@@ -18159,7 +18262,7 @@ export default function ResumeAIPreview() {
   const markInviteSent = (candidateId, request) => {
     setBookings((prev) => ({
       ...prev,
-      [candidateId]: { status: "sent", request, confirmedSlot: null, provider: defaultProvider },
+      [candidateId]: { status: "sent", jobId: request.jobId || null, request, confirmedSlot: null, provider: defaultProvider },
     }));
     if (canPersist) {
       dbCreateInterviewInvite(companyId, {
@@ -18690,6 +18793,7 @@ export default function ResumeAIPreview() {
             contextJobId={viewCandidateJobId}
             initialStage={viewCandidateStage}
             booking={activeCandidate ? bookings[activeCandidate.id] : null}
+            allBookings={bookings}
             onInviteSent={markInviteSent}
             provider={defaultProvider}
             calendarConnected={calendarConnected}
