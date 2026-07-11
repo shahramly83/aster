@@ -71,8 +71,10 @@ Deno.serve(async (req) => {
       const tpl = await loadTemplate(admin, "teammate_invite", companyId, {
         subject: "{{inviter_name}} invited you to {{company_name}} on Aster",
         body: `<p>Hi {{recipient_name}},</p>
-<p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as {{role}}.</p>
-<p><a href="{{cta_link}}">Accept the invite</a></p>`,
+<p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as {{role}}. Aster is where your team reviews applicants, runs interviews, and keeps every hire moving forward, all in one place.</p>
+<p>Accepting takes about a minute. Set your password and you're in.</p>
+<p style="margin:22px 0 6px;"><a href="{{cta_link}}" style="display:inline-block;padding:11px 22px;border-radius:10px;background:#0B2AE0;color:#ffffff;font-weight:700;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;">Accept the invite</a></p>
+<p style="font-size:13px;color:#8B8699;">This invite is just for you and expires in 7 days. If you weren't expecting it, you can safely ignore this email.</p>`,
       });
       const roleLabel = inviteRole === "admin" ? "a hiring manager" : "an interviewer";
       const tokens = {
