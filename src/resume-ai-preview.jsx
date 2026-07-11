@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useId, Fragment, Component } from "react";
+import { useState, useEffect, useMemo, useLayoutEffect, useRef, useId, Fragment, Component } from "react";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
@@ -6,7 +6,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -281,6 +281,10 @@ async function loadWorkspaceData(companyId) {
   const invRes = await supabase.from("invitations").select("id, email, role").eq("company_id", companyId).is("accepted_at", null).gt("expires_at", new Date().toISOString());
   const pendingInvites = (invRes.data || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer" }));
 
+  // Job interviewer pools: which teammates can see each job's applicants.
+  const jaRes = await supabase.from("job_assignments").select("job_id, profile_id").eq("company_id", companyId);
+  const jobAssignments = (jaRes.data || []).map((a) => ({ job_id: a.job_id, profile_id: a.profile_id }));
+
   const applicantsByJob = {};
   const matchesByJob = {};
   for (const a of appRes.data || []) {
@@ -330,7 +334,7 @@ async function loadWorkspaceData(companyId) {
     });
   }
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites };
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -16721,7 +16725,91 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications }) {
+// The interviewer pool for one job: who can see its applicants and be put on
+// interviews. Admins/hiring managers always have access, so this only adds
+// interviewers. Read-only for non-managers; add/remove is admin-gated server-side.
+function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign }) {
+  const [open, setOpen] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+  const [err, setErr] = useState(null);
+  const assigned = team.filter((m) => assignedIds.has(m.id));
+  const addable = team.filter((m) => !assignedIds.has(m.id) && !m.pending);
+
+  const add = async (m) => {
+    setErr(null); setBusyId(m.id); setOpen(false);
+    const e = await onAssign(jobId, m.id);
+    setBusyId(null);
+    if (e) setErr(e);
+  };
+  const remove = async (m) => {
+    setErr(null); setBusyId(m.id);
+    const e = await onUnassign(jobId, m.id);
+    setBusyId(null);
+    if (e) setErr(e);
+  };
+
+  return (
+    <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
+            <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name="users" className="w-4 h-4" /></span>
+            Interviewers on this job
+          </h3>
+          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>They can see these applicants and request interviews. You and other hiring managers always have access.</p>
+        </div>
+        {canManage && (
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setOpen((o) => !o)}
+              disabled={addable.length === 0}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40 inline-flex items-center gap-1.5"
+              style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}
+            >
+              <Icon name="userPlus" className="w-3.5 h-3.5" /> Add interviewer
+            </button>
+            {open && addable.length > 0 && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+                <div className="absolute right-0 mt-1.5 w-64 max-h-64 overflow-auto rounded-xl border bg-white z-20 py-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                  {addable.map((m) => (
+                    <button key={m.id} onClick={() => add(m)} className="w-full text-left px-3 py-2 hover:bg-neutral-50 transition-colors">
+                      <span className="text-sm block truncate" style={{ color: "var(--ink)" }}>{m.name}{m.id === currentUserId ? " (You)" : ""}</span>
+                      <span className="text-[11px] block truncate" style={{ color: "var(--ink-3)" }}>{m.email}{m.email ? " · " : ""}{ROLE_LABELS[m.role] || "Interviewer"}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {err && <p role="alert" className="text-[13px] mt-3 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>}
+
+      <div className="mt-3">
+        {assigned.length === 0 ? (
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>{canManage ? "No interviewers added yet. Add teammates so they can review these candidates." : "No interviewers added yet."}</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {assigned.map((m) => (
+              <span key={m.id} className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 text-xs" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <span className="font-medium">{m.name}{m.id === currentUserId ? " (You)" : ""}</span>
+                {canManage && (
+                  <button onClick={() => remove(m)} disabled={busyId === m.id} aria-label={`Remove ${m.name}`} className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10 disabled:opacity-40">
+                    <Icon name="close" className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
@@ -16754,6 +16842,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
+  // Interviewer pool for this job (who can see these applicants).
+  const assignedIds = useMemo(
+    () => new Set(jobAssignments.filter((a) => a.job_id === activeJobId).map((a) => a.profile_id)),
+    [jobAssignments, activeJobId],
+  );
+  // profile.role is a display label (ROLE_LABELS), not the enum. Managers = the
+  // tenant (owner) and hiring managers (admin); interviewers see it read-only.
+  const canManageInterviewers = profile?.role === ROLE_LABELS.owner || profile?.role === ROLE_LABELS.admin;
   // Shared source of truth (also drives the count on the Jobs card).
   const baseApplicants = APPLICANTS_BY_JOB[activeJobId] || [];
   const [localRejectEmail, setLocalRejectEmail] = useState({}); // candidateId -> emailSent
@@ -16926,6 +17022,17 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                   : "AI Rank"}
           </button>
         </div>
+        {job && (
+          <JobInterviewersPanel
+            jobId={activeJobId}
+            team={interviewers}
+            assignedIds={assignedIds}
+            canManage={canManageInterviewers}
+            currentUserId={profile?.id}
+            onAssign={onAssignInterviewer}
+            onUnassign={onUnassignInterviewer}
+          />
+        )}
         {/* Stage filter */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <p className="text-sm text-neutral-500">
@@ -17669,6 +17776,19 @@ export default function ResumeAIPreview() {
   const [jobStatusFilter, setJobStatusFilter] = useState(null);
   const [interviewers, setInterviewers] = useState(INITIAL_INTERVIEWERS);
   const [pendingInvites, setPendingInvites] = useState([]); // teammate invites with no profile yet (count toward seats)
+  const [jobAssignments, setJobAssignments] = useState([]); // [{ job_id, profile_id }] — job interviewer pools
+  // Add/remove a teammate on a job's interviewer pool (admin-only on the server).
+  // Optimistic + server; returns an error message or null.
+  const assignInterviewer = async (jobId, profileId) => {
+    if (hasSupabase) { const err = await dbAssignInterviewer(jobId, profileId); if (err) return err; }
+    setJobAssignments((prev) => (prev.some((a) => a.job_id === jobId && a.profile_id === profileId) ? prev : [...prev, { job_id: jobId, profile_id: profileId }]));
+    return null;
+  };
+  const unassignInterviewer = async (jobId, profileId) => {
+    if (hasSupabase) { const err = await dbUnassignInterviewer(jobId, profileId); if (err) return err; }
+    setJobAssignments((prev) => prev.filter((a) => !(a.job_id === jobId && a.profile_id === profileId)));
+    return null;
+  };
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
   const addScorecard = (candidateId, card) => {
     setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), card] }));
@@ -18093,6 +18213,7 @@ export default function ResumeAIPreview() {
     setScorecards(data.scorecards);
     if (data.interviewers?.length) setInterviewers(data.interviewers);
     setPendingInvites(data.pendingInvites || []);
+    setJobAssignments(data.jobAssignments || []);
     setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
@@ -19002,6 +19123,10 @@ export default function ResumeAIPreview() {
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
+            interviewers={interviewers}
+            jobAssignments={jobAssignments}
+            onAssignInterviewer={assignInterviewer}
+            onUnassignInterviewer={unassignInterviewer}
           />
         )}
         </ErrorBoundary>

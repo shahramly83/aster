@@ -230,6 +230,41 @@ export async function dbRemoveTeammate(profileId) {
   return error.message || "Couldn't remove that teammate.";
 }
 
+// Job interviewer pool. A job_assignments row links an interviewer to a job so
+// they can see its applicants (RLS-scoped) and request interviews. Admins see
+// every job regardless; assignment only matters for interviewers.
+export async function dbListJobAssignments(companyId) {
+  if (!hasSupabase || !companyId) return [];
+  const { data, error } = await supabase
+    .from("job_assignments")
+    .select("job_id, profile_id")
+    .eq("company_id", companyId);
+  if (error) { console.error("dbListJobAssignments", error.message); return []; }
+  return data || [];
+}
+
+// Add a teammate to a job's interviewer pool. Admin-gated (assign_interviewer).
+// Returns an error message, or null on success.
+export async function dbAssignInterviewer(jobId, profileId) {
+  if (!hasSupabase || !jobId || !profileId) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("assign_interviewer", { p_job_id: jobId, p_profile_id: profileId });
+  if (!error) return null;
+  console.error("dbAssignInterviewer", error.message);
+  if (error.code === "42501") return "Only an owner or admin can assign interviewers.";
+  if (error.code === "42883") return "Run migration 0021: assign_interviewer doesn't exist yet.";
+  return error.message || "Couldn't add that interviewer.";
+}
+
+// Remove a teammate from a job's interviewer pool. Admin-gated.
+export async function dbUnassignInterviewer(jobId, profileId) {
+  if (!hasSupabase || !jobId || !profileId) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("unassign_interviewer", { p_job_id: jobId, p_profile_id: profileId });
+  if (!error) return null;
+  console.error("dbUnassignInterviewer", error.message);
+  if (error.code === "42501") return "Only an owner or admin can change interviewers.";
+  return error.message || "Couldn't remove that interviewer.";
+}
+
 // Upload the signed-in user's avatar into the private, company-scoped bucket.
 // Returns the storage path (not a URL) — reads go through a signed URL, because
 // a teammate's headshot should not be world-readable the way a company logo is.
