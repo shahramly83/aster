@@ -7186,7 +7186,7 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   // lockup inline as a single-colour SVG so it stays crisp at any size and
   // recolours cleanly per surface, no PNG filter tricks.
   // Smaller on mobile (marketing lockup ~125px wide), full size from sm up.
-  const h = compact ? "h-9 sm:h-10" : xl ? "h-[34.2px] sm:h-[40px]" : large ? "h-[34.2px] sm:h-[40px]" : "h-10 sm:h-12";
+  const h = compact ? "h-9 sm:h-10" : xl ? "h-[32.1px] sm:h-[40px]" : large ? "h-[32.1px] sm:h-[40px]" : "h-10 sm:h-12";
   if (logoUrl) {
     return <img src={logoUrl} alt="Aster: smarter hiring, stronger teams" className={`${h} w-auto object-contain block`} />;
   }
