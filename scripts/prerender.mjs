@@ -151,7 +151,12 @@ async function run() {
   for (const route of ROUTES) {
     const page = await browser.newPage();
     try {
-      await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: "networkidle0", timeout: 30000 });
+      // domcontentloaded, not networkidle0: the real render signal is the
+      // waitForFunction below (React has mounted #root + an <h1>). Waiting for
+      // the network to go fully idle is redundant here and can drag each route
+      // toward its timeout when the app keeps a connection warm (Supabase, fonts),
+      // which is what made the whole prerender pass take 20+ minutes on Vercel.
+      await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: "domcontentloaded", timeout: 20000 });
       // Wait until React has rendered real content into #root.
       await page.waitForFunction(
         () => {
