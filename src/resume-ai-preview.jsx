@@ -7184,9 +7184,11 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   if (logoUrl) {
     return <img src={logoUrl} alt="Aster: smarter hiring, stronger teams" className={`${h} w-auto object-contain block`} />;
   }
-  // White on the royal-blue nav / navy sidebar, solid ink on the light-grey
-  // footer, brand blue on plain light contexts.
-  const color = onDark || mono ? "#FFFFFF" : black ? "#14181F" : "var(--brand)";
+  // Brand rule: white on any blue/dark surface, brand blue on any white/light
+  // surface. (`black`/`mono` are kept for call-site compatibility; a light
+  // surface always resolves to brand blue now, never ink black.)
+  void black;
+  const color = onDark || mono ? "#FFFFFF" : "var(--brand)";
   // viewBox is cropped to the artwork (the source has generous vertical padding)
   // so the lockup fills its height box instead of floating small inside it.
   return (
@@ -7201,7 +7203,7 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
 
 // The star mark from the BrandLogo lockup, on its own. For square/compact slots
 // (the app rail, auth cards) where the wordmark would be too wide to read.
-function AsterMark({ className = "w-9 h-9", color = "#14181F" }) {
+function AsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
   return (
     <svg viewBox="-50 -50 100 100" className={`${className} block`} fill={color} role="img" aria-label="Aster">
       <path d={ASTER_STAR_PATH} />

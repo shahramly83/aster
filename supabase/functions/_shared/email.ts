@@ -14,9 +14,9 @@
 // API rejects the message. sendEmail() never throws: it returns { ok, id?, error? }
 // so a failed email can be logged without breaking the flow that triggered it.
 
-const BRAND = "#973BF7";       // Aster primary purple
-const BRAND_2 = "#5A78F8";     // gradient end (blue)
-const BRAND_0 = "#D65BFF";     // gradient start (magenta)
+const BRAND = "#0B2AE0";       // Aster primary blue
+const BRAND_2 = "#3550EE";     // gradient end (lighter blue)
+const BRAND_0 = "#5570F5";     // gradient start (light blue)
 const SITE = "https://hireaster.com";
 
 const DEFAULT_FROM = "Aster <notifications@hireaster.com>";
@@ -78,7 +78,7 @@ export function emailShell(opts: { heading: string; bodyHtml: string; preview?: 
         <tr><td style="padding:26px 32px 0;">
           <a href="${SITE}" style="text-decoration:none;">
             <span style="display:inline-block;width:34px;height:34px;line-height:34px;text-align:center;border-radius:9px;background:linear-gradient(135deg,${BRAND_0},${BRAND} 45%,${BRAND_2});color:#fff;font-weight:800;font-family:Arial,Helvetica,sans-serif;font-size:18px;vertical-align:middle;">A</span>
-            <span style="margin-left:9px;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:17px;color:#171326;vertical-align:middle;">Aster</span>
+            <span style="margin-left:9px;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:17px;color:${BRAND};vertical-align:middle;">Aster</span>
           </a>
         </td></tr>
         <tr><td style="padding:22px 32px 4px;">
