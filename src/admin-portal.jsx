@@ -669,7 +669,7 @@ const PLATFORM_EMAIL_TEMPLATE_DEFS = [
   { key: "teammate_invite", name: "Teammate invite", desc: "Sent when an owner or admin invites someone to their workspace.",
     tokens: ["recipient_name", "inviter_name", "company_name", "role", "cta_link"],
     subject: "{{inviter_name}} invited you to {{company_name}} on Aster",
-    body: "<p>Hi {{recipient_name}},</p>\n<p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as a {{role}}.</p>\n<p><a href=\"{{cta_link}}\">Accept the invite</a></p>" },
+    body: "<p>Hi {{recipient_name}},</p>\n<p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as {{role}}. Aster is where your team reviews applicants, runs interviews, and keeps every hire moving forward, all in one place.</p>\n<p>Accepting takes about a minute. Set your password and you're in.</p>\n<p style=\"margin:22px 0 6px;\"><a href=\"{{cta_link}}\" style=\"display:inline-block;padding:11px 22px;border-radius:10px;background:#0B2AE0;color:#ffffff;font-weight:700;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;\">Accept the invite</a></p>\n<p style=\"font-size:13px;color:#8B8699;\">This invite is just for you and expires in 7 days. If you weren't expecting it, you can safely ignore this email.</p>" },
   { key: "trial_ending", name: "Trial ending soon", desc: "Sent a few days before a company's free trial ends.",
     tokens: ["recipient_name", "company_name", "trial_end_date", "cta_link"],
     subject: "Your Aster trial ends {{trial_end_date}}",
