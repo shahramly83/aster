@@ -3600,7 +3600,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
         {!blueNav && <div className="pointer-events-none absolute bottom-0 inset-x-0 hairline-dark" />}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between relative" onMouseLeave={closeMenus}>
           {/* logo, left */}
-          <button onClick={() => navigate("landing")} onMouseEnter={closeMenus} aria-label="Aster home"><BrandLogo onDark={!navLight} black={navLight} large xl={blueNav} wordScale={0.788} logoUrl={logoUrl} /></button>
+          <button onClick={() => navigate("landing")} onMouseEnter={closeMenus} aria-label="Aster home"><BrandLogo onDark={!navLight} black={navLight} large xl={blueNav} wordScale={0.734} logoUrl={logoUrl} /></button>
 
           {/* primary nav, centered */}
           <nav className="hidden md:flex items-center gap-0.5 sm:gap-1 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -3726,7 +3726,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[70] flex flex-col overflow-y-auto" style={{ background: mobBg, backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)" }}>
           <div className="flex items-center justify-between h-16 px-4 shrink-0">
-            <BrandLogo large black={blueNav} onDark={!blueNav} wordScale={0.788} logoUrl={logoUrl} />
+            <BrandLogo large black={blueNav} onDark={!blueNav} wordScale={0.734} logoUrl={logoUrl} />
             <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="w-11 h-11 flex items-center justify-center rounded-full" style={blueNav ? { color: "var(--ink)", border: "1px solid var(--line)", background: "#fff" } : { color: "#fff", border: "1px solid var(--navy-line)", background: "rgba(255,255,255,0.06)" }}><Icon name="close" className="w-5 h-5" /></button>
           </div>
           <nav className="flex-1 px-5 pt-3 pb-8 flex flex-col gap-2">
@@ -3852,7 +3852,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
         <div className="py-12 sm:py-16 grid gap-10 sm:gap-x-8 sm:gap-y-12 md:grid-cols-12">
           {/* brand + tagline */}
           <div className="md:col-span-4">
-            <BrandLogo logoUrl={logoUrl} black large />
+            <BrandLogo logoUrl={logoUrl} black large wordScale={0.734} />
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--ink-2)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
             <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
               <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> No credit card required
