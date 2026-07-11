@@ -6459,6 +6459,7 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
 
   const createAccount = async () => {
     if (busy) return;
+    if (!firstName.trim()) { setErr("Enter your first name."); return; }
     const pwProblem = passwordProblem(password);
     if (pwProblem) { setErr(pwProblem); return; }
     setBusy(true); setErr(null);
@@ -6520,18 +6521,22 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
           </div>
         ) : (<>
           <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Join {invite?.company || "the workspace"}</h1>
-          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>You've been invited to join <strong>{invite?.company}</strong> as {roleLabel} on Aster. {mode === "create" ? "Create your account to accept." : "Sign in to accept."}</p>
+          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>You've been invited as {roleLabel} on Aster. {mode === "create" ? "Create your account to accept, it only takes a minute." : "Sign in to accept."}</p>
 
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}>
             <div>
               <label className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
-              <input type="email" value={invite?.email || ""} readOnly disabled className={fieldDark} style={{ ...fieldDarkStyle, opacity: 0.7 }} />
+              <div className="relative">
+                <input type="email" value={invite?.email || ""} readOnly disabled className={`${fieldDark} pr-11`} style={{ ...fieldDarkStyle, background: "var(--bg)", color: "var(--ink-2)", cursor: "not-allowed" }} />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }} aria-hidden="true"><Icon name="lock" className="w-4 h-4" /></span>
+              </div>
+              <p className="text-[12px] mt-1.5" style={{ color: "var(--ink-3)" }}>Your invite was sent to this address.</p>
             </div>
             {mode === "create" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelDark} style={{ color: "var(--ink)" }}>First name</label>
-                  <input value={firstName} onChange={(e) => { setFirstName(e.target.value); setErr(null); }} placeholder="Jane" className={fieldDark} style={fieldDarkStyle} />
+                  <input autoFocus value={firstName} onChange={(e) => { setFirstName(e.target.value); setErr(null); }} placeholder="Jane" className={fieldDark} style={fieldDarkStyle} />
                 </div>
                 <div>
                   <label className={labelDark} style={{ color: "var(--ink)" }}>Last name</label>
@@ -6547,6 +6552,7 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
+              {mode === "create" && <p className="text-[12px] mt-1.5" style={{ color: "var(--ink-3)" }}>At least 8 characters, with a letter and a number.</p>}
             </div>
             {err && <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>}
             <button type="submit" disabled={busy} className="w-full rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-all disabled:opacity-60">
