@@ -7347,7 +7347,9 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
 function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) {
-  const railBtn = (item) => {
+  // Rows are full width so that when the rail expands on hover the icon stays put
+  // and the label fades in beside it (no icon jump). Collapsed, only the icon shows.
+  const railBtn = (item, i = 0) => {
     const on = active === item.key;
     return (
       <button
@@ -7356,28 +7358,32 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
         title={item.label}
         aria-label={item.label}
         aria-current={on ? "page" : undefined}
-        className="relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
+        className="relative w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-[gap,padding,justify-content,color] duration-300"
         style={{ color: on ? "#fff" : "var(--ink-2)" }}
         onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--brand)"; }}
         onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
       >
         {on && <span className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.9)]" />}
-        <Icon name={item.icon} className="relative w-5 h-5" />
-        {item.key === "dashboard" && !on && unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full brand-gradient text-white text-[9px] font-semibold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
-        )}
+        <span className="relative shrink-0 flex items-center justify-center">
+          <Icon name={item.icon} className="w-5 h-5" />
+          {item.key === "dashboard" && !on && unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full brand-gradient text-white text-[9px] font-semibold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
+          )}
+        </span>
+        <span className="relative text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100" style={{ transition: "opacity 300ms ease, max-width 360ms cubic-bezier(0.22, 1, 0.36, 1)", transitionDelay: `${60 + i * 26}ms` }}>{item.label}</span>
       </button>
     );
   };
   return (
-    <div className="flex flex-col items-center h-full w-full">
-      <button onClick={() => navigate(homeForRole(profile?.role))} aria-label="Aster home" className="mb-8 w-11 h-11 flex items-center justify-center shrink-0">
-        <AsterMark />
+    <div className="flex flex-col h-full w-full px-3">
+      <button onClick={() => navigate(homeForRole(profile?.role))} aria-label="Aster home" className="mb-8 h-11 flex items-center justify-center group-hover:justify-start group-hover:px-3 gap-0 group-hover:gap-2.5 shrink-0 transition-all duration-200">
+        <AsterMark className="w-8 h-8 shrink-0" />
+        <span className="text-lg font-bold font-display whitespace-nowrap max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ color: "var(--ink)" }}>Aster</span>
       </button>
-      <nav className="flex-1 flex flex-col items-center gap-1.5">
+      <nav className="flex-1 flex flex-col gap-1.5 w-full">
         {navItemsForRole(profile?.role).map(railBtn)}
       </nav>
-      <div className="flex flex-col items-center gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--line)" }}>
+      <div className="flex flex-col gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--line)" }}>
         {railBtn({ key: "profile", label: "Profile", icon: "user" })}
         {!isInterviewer(profile?.role) && railBtn({ key: "billing", label: "Billing", icon: "card" })}
         {!isInterviewer(profile?.role) && railBtn({ key: "settings", label: "Settings", icon: "settings" })}
@@ -7385,12 +7391,13 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
           onClick={onSignOut}
           title="Log out"
           aria-label="Log out"
-          className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
+          className="w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-all duration-200"
           style={{ color: "var(--ink-2)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
         >
-          <Icon name="logout" className="w-5 h-5" />
+          <Icon name="logout" className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200">Log out</span>
         </button>
       </div>
     </div>
@@ -7403,8 +7410,9 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
   return (
     <div className="min-h-screen md:p-4" style={{ background: "#1B1C22" }}>
       <div className="md:flex md:gap-4 md:items-start">
-        {/* Desktop icon rail, light, sticky */}
-        <aside className="hidden md:flex w-[76px] shrink-0 flex-col rounded-[26px] py-5 sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)" }}>
+        {/* Desktop icon rail: collapsed to 76px, expands to a labelled drawer on hover
+            and pushes the content across (in-flow, not an overlay). */}
+        <aside className="group hidden md:flex w-[76px] hover:w-[236px] shrink-0 flex-col py-5 rounded-[26px] overflow-hidden sticky top-4 self-start hover:shadow-[0_26px_64px_-30px_rgba(15,27,51,0.32)]" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)", transition: "width 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease" }}>
           <IconSidebar navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
         </aside>
 
@@ -8194,7 +8202,7 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null } }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   const [showAllSources, setShowAllSources] = useState(false);
@@ -8463,14 +8471,18 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               </div>
               {/* stylised plan card */}
               <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 20px 40px -20px rgba(var(--brand-rgb),0.7)" }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-white font-display font-bold tracking-tight">Aster</span>
-                  <Icon name="target" className="w-5 h-5 text-white/90" />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="block text-white font-display font-bold tracking-tight truncate">{company}</span>
+                    <span className="inline-flex items-center mt-1 text-[10px] font-semibold uppercase tracking-wide text-white px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.18)", letterSpacing: "0.06em" }}>
+                      {plan === "launch" ? "Launch" : plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "Enterprise"}{trialDaysLeft > 0 ? " · Trial" : ""}
+                    </span>
+                  </div>
+                  <Icon name="target" className="w-5 h-5 text-white/90 shrink-0" />
                 </div>
-                <p className="text-white font-display font-bold text-lg mt-6">{planLimits(plan).resumeUploads === Infinity ? "Unlimited Parsing" : `${planLimits(plan).resumeUploads} Parsing / month`}</p>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-[11px] text-white/80">{trialDaysLeft > 0 ? `Trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left` : "Active"}</p>
-                  <p className="text-[11px] text-white/80">{stats.openJobs} Active job{stats.openJobs === 1 ? "" : "s"}</p>
+                <div className="flex items-center justify-between mt-8">
+                  <p className="text-[11px] text-white/80">{trialDaysLeft > 0 ? `Trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left` : "Active plan"}</p>
+                  <p className="text-[11px] text-white/80">{stats.openJobs} active job{stats.openJobs === 1 ? "" : "s"}</p>
                 </div>
               </div>
               {/* quick actions */}
@@ -12564,6 +12576,160 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
   );
 }
 
+// A clean, on-brand date + time picker that replaces the native datetime-local
+// control (which renders as an inconsistent, cramped, dark browser popup). It
+// emits a local "YYYY-MM-DDTHH:mm" string via onAdd, exactly what the caller
+// stored before, so nothing downstream changes.
+function DateTimePicker({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const now = new Date();
+  const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-11
+  const [selDate, setSelDate] = useState(null); // midnight Date, or null
+  const [selMin, setSelMin] = useState(null);   // minutes from midnight, or null
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  const gridStart = new Date(viewYear, viewMonth, 1 - firstOfMonth.getDay());
+  const days = Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
+  const monthLabel = firstOfMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const stepMonth = (delta) => { const d = new Date(viewYear, viewMonth + delta, 1); setViewYear(d.getFullYear()); setViewMonth(d.getMonth()); };
+  const atStartMonth = viewYear === today0.getFullYear() && viewMonth === today0.getMonth();
+
+  const times = [];
+  for (let m = 7 * 60; m <= 21 * 60; m += 30) times.push(m);
+  const timeLabel = (m) => {
+    const h = Math.floor(m / 60), mm = m % 60;
+    const h12 = ((h + 11) % 12) + 1;
+    return `${h12}:${pad2(mm)} ${h >= 12 ? "PM" : "AM"}`;
+  };
+
+  const canAdd = selDate && selMin != null;
+  const summary = canAdd
+    ? `${selDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${timeLabel(selMin)}`
+    : null;
+
+  const commit = () => {
+    if (!canAdd) return;
+    const h = Math.floor(selMin / 60), mm = selMin % 60;
+    onAdd(`${selDate.getFullYear()}-${pad2(selDate.getMonth() + 1)}-${pad2(selDate.getDate())}T${pad2(h)}:${pad2(mm)}`);
+    setSelMin(null); // keep the day so the HM can quickly add another time
+  };
+
+  return (
+    <div ref={ref} className="relative flex-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="w-full flex items-center gap-2 rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-sm hover:bg-neutral-50 focus:outline-none focus:ring-2 transition-colors"
+        style={{ "--tw-ring-color": "var(--brand)" }}
+      >
+        <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />
+        <span className={summary ? "text-neutral-900" : "text-neutral-400"}>{summary || "Pick a date and time"}</span>
+        <Icon name="chevronDown" className={`w-4 h-4 ml-auto shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Choose a date and time"
+          className="absolute z-30 mt-2 left-0 rounded-2xl border border-neutral-200 bg-white shadow-xl p-3 sm:p-4 w-[min(34rem,calc(100vw-2rem))] flex flex-col gap-3"
+        >
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Calendar */}
+            <div className="sm:w-1/2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{monthLabel}</span>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => stepMonth(-1)} disabled={atStartMonth} aria-label="Previous month" className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-not-allowed"><Icon name="chevronLeft" className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => stepMonth(1)} aria-label="Next month" className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100"><Icon name="chevronRight" className="w-4 h-4" /></button>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 mb-1">
+                {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                  <span key={i} className="text-center text-[11px] font-medium text-neutral-400 py-1">{d}</span>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-0.5">
+                {days.map((d, i) => {
+                  const inMonth = d.getMonth() === viewMonth;
+                  const isPast = d < today0;
+                  const isToday = sameDay(d, today0);
+                  const isSel = sameDay(d, selDate);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={isPast}
+                      onClick={() => setSelDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()))}
+                      className={`h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors ${isPast ? "text-neutral-300 cursor-not-allowed" : inMonth ? "text-neutral-800 hover:bg-[color:var(--brand-soft)]" : "text-neutral-300 hover:bg-neutral-50"}`}
+                      style={isSel ? { background: "var(--brand)", color: "#fff", fontWeight: 600 } : isToday ? { boxShadow: "inset 0 0 0 1.5px var(--brand)", color: "var(--brand)", fontWeight: 600 } : undefined}
+                    >
+                      {d.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Time */}
+            <div className="sm:w-1/2 flex flex-col">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Icon name="clock" className="w-4 h-4 text-neutral-400" />
+                <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{selDate ? "Pick a time" : "Select a day first"}</span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-2 gap-1.5 overflow-y-auto pr-1 max-h-[13.5rem] content-start">
+                {times.map((m) => {
+                  const active = selMin === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={!selDate}
+                      onClick={() => setSelMin(m)}
+                      className={`rounded-lg border px-2 py-2 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${active ? "" : "border-neutral-200 text-neutral-700 hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"}`}
+                      style={active ? { background: "var(--brand)", borderColor: "var(--brand)", color: "#fff", fontWeight: 600 } : undefined}
+                    >
+                      {timeLabel(m)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 border-t border-neutral-100 pt-3">
+            <span className="text-xs text-neutral-500 min-w-0 truncate">{summary ? `Selected: ${summary}` : "Choose a day and a time"}</span>
+            <button
+              type="button"
+              onClick={commit}
+              disabled={!canAdd}
+              className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 shrink-0 transition-opacity shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)]"
+            >
+              Add time
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, interviewPast = false }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   // If opened from a specific job's applicant list, that job is fixed and
@@ -12585,7 +12751,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const [step, setStep] = useState(1);
   const [sending, setSending] = useState(false);
   const [slots, setSlots] = useState([]);      // ISO start strings the HM proposes
-  const [newSlot, setNewSlot] = useState("");  // the datetime-local input value
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
@@ -12616,13 +12781,12 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
 
   // The hiring manager proposes interview times manually (one or more). No
   // calendar connection: they pick each time and add it to the list.
-  const addSlot = () => {
-    if (!newSlot) return;
-    const d = new Date(newSlot);
+  const addSlot = (val) => {
+    if (!val) return;
+    const d = new Date(val);
     if (Number.isNaN(d.getTime())) return;
     const iso = d.toISOString();
     setSlots((prev) => (prev.includes(iso) ? prev : [...prev, iso].sort()));
-    setNewSlot("");
   };
   const removeSlot = (iso) => setSlots((prev) => prev.filter((s) => s !== iso));
 
@@ -12781,20 +12945,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           {/* The hiring manager proposes interview times manually (one or more). */}
           <div className="mb-3">
             <label className="block text-xs text-neutral-500 mb-1">Propose interview times</label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="datetime-local"
-                value={newSlot}
-                onChange={(e) => setNewSlot(e.target.value)}
-                onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* picker not supported */ } }}
-                onFocus={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* picker not supported */ } }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSlot(); } }}
-                className={`${inputClass} cursor-pointer`}
-              />
-              <button type="button" onClick={addSlot} disabled={!newSlot} className="rounded-xl bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 text-sm font-medium px-4 py-2 shrink-0 transition-colors">
-                Add time
-              </button>
-            </div>
+            <DateTimePicker onAdd={(val) => addSlot(val)} />
             {slots.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2.5">
                 {slots.map((s) => (
@@ -14545,39 +14696,38 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
             <p className="text-xs text-neutral-500 mt-1.5">Collected at sign-up and shown across your workspace.</p>
           </div>
 
-          {/* Billing details */}
-          <div className="mt-6 pt-5 border-t" style={{ borderColor: "var(--line)" }}>
-            <div className="flex items-center gap-2 mb-4" style={{ color: "var(--ink-3)" }}>
-              <Icon name="card" className="w-4 h-4" />
-              <h3 className="text-xs font-semibold uppercase" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Billing details</h3>
+        </div>
+        )}
+
+        {/* Billing details — its own card so it reads as a distinct section */}
+        {!isInterviewer(profile?.role) && (
+        <div className={`${cardClass} mb-5`}>
+          <SectionHead icon="card" title="Billing details" desc="Used on your invoices and receipts. Keep this up to date for accurate billing." />
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Street address</label>
+              <input value={dAddr.street} onChange={(e) => setAddr({ street: e.target.value })} placeholder="Unit / building, street" autoComplete="street-address" className={inputClass} />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Street address</label>
-                <input value={dAddr.street} onChange={(e) => setAddr({ street: e.target.value })} placeholder="Unit / building, street" autoComplete="street-address" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass} style={{ color: "var(--ink-2)" }}>City</label>
-                <input value={dAddr.city} onChange={(e) => setAddr({ city: e.target.value })} placeholder="Kuala Lumpur" autoComplete="address-level2" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass} style={{ color: "var(--ink-2)" }}>State / Province</label>
-                <input value={dAddr.state} onChange={(e) => setAddr({ state: e.target.value })} placeholder="Selangor" autoComplete="address-level1" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Postcode</label>
-                <input value={dAddr.postcode} onChange={(e) => setAddr({ postcode: e.target.value })} placeholder="50450" autoComplete="postal-code" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Country</label>
-                <input value={dAddr.country} onChange={(e) => setAddr({ country: e.target.value })} placeholder="Malaysia" autoComplete="country-name" className={inputClass} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company registration no.</label>
-                <input value={dRegNo} onChange={(e) => { setDRegNo(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="e.g. 202301012345 (1234567-A)" className={inputClass} />
-              </div>
+            <div>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>City</label>
+              <input value={dAddr.city} onChange={(e) => setAddr({ city: e.target.value })} placeholder="Kuala Lumpur" autoComplete="address-level2" className={inputClass} />
             </div>
-            <p className="text-xs text-neutral-500 mt-2.5">Used on your invoices and receipts. Keep this up to date for accurate billing.</p>
+            <div>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>State / Province</label>
+              <input value={dAddr.state} onChange={(e) => setAddr({ state: e.target.value })} placeholder="Selangor" autoComplete="address-level1" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Postcode</label>
+              <input value={dAddr.postcode} onChange={(e) => setAddr({ postcode: e.target.value })} placeholder="50450" autoComplete="postal-code" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Country</label>
+              <input value={dAddr.country} onChange={(e) => setAddr({ country: e.target.value })} placeholder="Malaysia" autoComplete="country-name" className={inputClass} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company registration no.</label>
+              <input value={dRegNo} onChange={(e) => { setDRegNo(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="e.g. 202301012345 (1234567-A)" className={inputClass} />
+            </div>
           </div>
         </div>
         )}
@@ -15507,6 +15657,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
   // Sidebar "at a glance" card, scannable summary that fills the second column.
   const topRole = parsed.experience?.[0];
+  // Where the candidate came from, shown only when they actually applied to THIS
+  // job (an application record exists in the job's pipeline). Hidden when the
+  // profile is opened from the database or with no job context.
+  const appliedApplication = contextJobId ? (APPLICANTS_BY_JOB[contextJobId] || []).find((a) => a.candidateId === candidate.id) : null;
+  const appliedSource = appliedApplication?.source || null;
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -15515,6 +15670,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs" style={{ color: "var(--ink-3)" }}>Pipeline stage</span>
             <StageBadge stage={stage} />
+          </div>
+        )}
+        {appliedSource && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>Applied from</span>
+            <span className="text-sm font-medium text-right" style={{ color: "var(--ink)" }}>{appliedSource}</span>
           </div>
         )}
         {parsed.years_of_experience != null && (
@@ -15930,7 +16091,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </>)}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {quickFacts}
             {!insightsUnlimited && (
               <UsageMeter
                 title="AI insights this month"
@@ -15942,6 +16102,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
               />
             )}
+            {quickFacts}
           </aside>
         </div>{/* two-column grid */}
       </div>
@@ -18398,6 +18559,7 @@ export default function ResumeAIPreview() {
             hiredIds={hiredIds}
             avatarUrl={avatarUrl}
             parseUsage={parseUsage}
+            company={company}
           />
         )}
         {screen === "profile" && (
