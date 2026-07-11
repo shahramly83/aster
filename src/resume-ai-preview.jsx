@@ -12371,8 +12371,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
 
       {/* Invite teammate modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => { setShowForm(false); setBanner(null); }}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Invite a teammate</h3>
