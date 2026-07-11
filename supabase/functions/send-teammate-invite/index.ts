@@ -57,6 +57,10 @@ Deno.serve(async (req) => {
       return json({ error: rpcErr.message || "could not create invite" }, status);
     }
 
+    // A null token means invite_teammate reactivated a previously-removed
+    // teammate in place (they already have an account). No invite email needed.
+    if (!inviteToken) return json({ ok: true, reactivated: true });
+
     // Resolve inviter name + company for the email tokens (service role).
     const { data: inviter } = await admin
       .from("profiles").select("full_name, company_id, companies(name)").eq("id", user.id).maybeSingle();

@@ -12203,12 +12203,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     // When the workspace is live, create the real invitation and email it via
     // the edge function; surface any server-side error (seat limit, already a
     // member, permission). In the mock preview, just reflect it locally.
+    let reactivated = false;
     if (hasSupabase) {
       setSending(true);
       const { data, error } = await supabase.functions.invoke("send-teammate-invite", {
         body: { email: inviteEmail, role: inviteRole },
       });
       setSending(false);
+      reactivated = !!data?.reactivated;
       // On a non-2xx status Supabase returns a generic FunctionsHttpError; the
       // real reason sits in the JSON body on error.context, not in `data`.
       let reason = data?.error || "";
@@ -12235,11 +12237,13 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
         email: inviteEmail,
         role: inviteRole,
         timezone: "Asia/Kuala_Lumpur",
-        status: "pending",
+        status: reactivated ? "active" : "pending",
       },
     ]);
     const roleWord = inviteRole === "admin" ? "hiring manager" : "interviewer";
-    setBanner(`Invite sent to ${inviteEmail}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
+    setBanner(reactivated
+      ? `${inviteEmail} was added back to your team. They keep their existing login and history.`
+      : `Invite sent to ${inviteEmail}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
     setEmail("");
     setInviteRole("interviewer");
     setShowForm(false);
