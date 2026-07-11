@@ -3586,8 +3586,6 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
   const arrowC = blueNav ? "text-[color:var(--brand)]" : "text-[#C79BFF]";
   // Mobile menu overlay theme
   const mobBg = blueNav ? "rgba(255,255,255,0.98)" : "rgba(6,7,18,0.92)";
-  const mobChip = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(85,112,245,0.20)", color: "#AEBEFF" };
-  const mobChipSm = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(85,112,245,0.16)", color: "#AEBEFF" };
   // Grouped-list styling: one card per section with hairline dividers, so items
   // read as a clean list instead of a stack of separate boxed cards.
   const mobGroup = blueNav ? { background: "#fff", border: "1px solid var(--line)" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" };
@@ -3738,8 +3736,8 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
               <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-2" style={{ color: "var(--ink-3)" }}>Product</p>
               <div className={`rounded-2xl overflow-hidden ${mobDivide}`} style={mobGroup}>
                 {PRODUCT_NAV.map((p) => (
-                  <button key={p.slug} onClick={() => { setMenuOpen(false); goProduct(p.slug); }} className={`w-full text-left flex items-center gap-3 px-3.5 py-3 transition-colors ${mobPress}`}>
-                    <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={mobChip}><Icon name={p.icon} className="w-[18px] h-[18px]" /></span>
+                  <button key={p.slug} onClick={() => { setMenuOpen(false); goProduct(p.slug); }} className={`w-full text-left flex items-center gap-3.5 px-4 py-3 transition-colors ${mobPress}`}>
+                    <Icon name={p.icon} className="w-[18px] h-[18px] shrink-0" style={{ color: blueNav ? "var(--brand)" : "#AEBEFF" }} />
                     <span className={`flex-1 text-[15px] font-medium ${mobLabel}`}>{p.label}</span>
                     <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChev}`} />
                   </button>
@@ -3756,8 +3754,8 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
                     <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5" style={{ color: blueNav ? "var(--brand)" : g.tint }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
                     <div className={`rounded-2xl overflow-hidden ${mobDivide}`} style={mobGroup}>
                       {g.items.map((s) => (
-                        <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 transition-colors ${mobPress}`}>
-                          <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={mobChipSm}><Icon name={s.icon} className="w-4 h-4" /></span>
+                        <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className={`w-full text-left flex items-center gap-3.5 px-4 py-2.5 transition-colors ${mobPress}`}>
+                          <Icon name={s.icon} className="w-4 h-4 shrink-0" style={{ color: blueNav ? "var(--brand)" : "#AEBEFF" }} />
                           <span className={`flex-1 text-[15px] ${mobLabelSub}`}>{s.label}</span>
                           <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChevSm}`} />
                         </button>
