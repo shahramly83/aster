@@ -12143,7 +12143,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
+function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], setPendingInvites = () => {}, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
   const canAddInterviewers = limits.canAddInterviewers;
   // The server meters teammates by subscription SEATS, not the plan's interviewer
@@ -12258,6 +12258,21 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     setRemoving(null);
   };
 
+  // Revoke a pending invite: deletes the invitation row (admins may delete their
+  // own company's invitations under RLS) and frees the held seat.
+  const [revokeBusyId, setRevokeBusyId] = useState(null);
+  const revokeInvite = async (inv) => {
+    if (revokeBusyId) return;
+    if (hasSupabase) {
+      setRevokeBusyId(inv.id);
+      const { error } = await supabase.from("invitations").delete().eq("id", inv.id);
+      setRevokeBusyId(null);
+      if (error) { setBanner("Could not revoke the invite. Try again in a moment."); return; }
+    }
+    setPendingInvites((prev) => prev.filter((x) => x.id !== inv.id));
+    setBanner(`Invite to ${inv.email} was revoked. The seat is free again.`);
+  };
+
   return (
     <AccountShell
       title="Interviewers"
@@ -12364,6 +12379,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 </div>
                 <p className="text-xs text-neutral-500 truncate">Waiting for them to accept the email invite. Holds a seat until then.</p>
               </div>
+              <button
+                onClick={() => revokeInvite(inv)}
+                disabled={revokeBusyId === inv.id}
+                className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40"
+                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
+              >
+                {revokeBusyId === inv.id ? "Revoking…" : "Revoke"}
+              </button>
             </div>
           ))}
         </div>
@@ -18894,7 +18917,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "interviewers" && (
-          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} pendingInvites={pendingInvites} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} pendingInvites={pendingInvites} setPendingInvites={setPendingInvites} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "candidateProfile" && !activeCandidate && (
           // The candidate isn't in the workspace (just deleted, or a stale deep
