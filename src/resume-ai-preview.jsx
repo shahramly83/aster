@@ -18367,11 +18367,13 @@ export default function ResumeAIPreview() {
   if (screen === "schedulePicker") {
     return (
       <Shell>
-        <SchedulePickerScreen
-          navigate={navigate}
-          request={previewRequest}
-          onConfirm={(slot) => previewRequest && confirmBooking(previewRequest.candidateId, slot)}
-        />
+        <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
+          <SchedulePickerScreen
+            navigate={navigate}
+            request={previewRequest}
+            onConfirm={(slot) => previewRequest && confirmBooking(previewRequest.candidateId, slot)}
+          />
+        </div>
       </Shell>
     );
   }
