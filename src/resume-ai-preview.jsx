@@ -10,7 +10,7 @@ import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
-const ROLE_LABELS = { owner: "Owner", admin: "Hiring Manager", recruiter: "Recruiter", interviewer: "Interviewer" };
+const ROLE_LABELS = { owner: "Tenant", admin: "Hiring Manager", recruiter: "Recruiter", interviewer: "Interviewer" };
 
 // Load the signed-in customer's profile + company into the shape the app's
 // root state uses. Returns null when the user has no company profile (e.g. an
@@ -12102,16 +12102,12 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
       setBanner(`Your plan includes ${limits.interviewers} interviewer${limits.interviewers === 1 ? "" : "s"}. Upgrade for more, or unlimited on Elite.`);
       return;
     }
-    const inviteEmail = email.trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(inviteEmail)) {
-      setBanner("Enter a valid work email address.");
-      return;
-    }
-    // Teammates must share the workspace's email domain (the tenant's own domain,
-    // taken from the owner/admin doing the inviting). Keeps invites to the company.
-    const inviteDomain = inviteEmail.split("@")[1] || "";
-    if (tenantDomain && inviteDomain !== tenantDomain) {
-      setBanner(`Teammates must use a @${tenantDomain} email, the same domain as your workspace.`);
+    // With a tenant domain the field is just the name before @, and the domain is
+    // fixed (so a wrong domain is impossible). Without one, expect a full email.
+    const typed = email.trim();
+    const inviteEmail = (tenantDomain ? `${typed}@${tenantDomain}` : typed).toLowerCase();
+    if (tenantDomain ? !/^[^\s@]+$/.test(typed) : !/^\S+@\S+\.\S+$/.test(inviteEmail)) {
+      setBanner(tenantDomain ? `Enter the name before @${tenantDomain}.` : "Enter a valid work email address.");
       return;
     }
     // When the workspace is live, create the real invitation and email it via
@@ -12133,7 +12129,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
         const friendly = /already|duplicate|exists/i.test(reason)
           ? "That person is already on your team or has a pending invite."
           : /permission|denied|forbidden|not authorized/i.test(reason)
-            ? "Only the owner or a hiring manager can invite teammates."
+            ? "Only the tenant or a hiring manager can invite teammates."
             : /seat|limit/i.test(reason)
               ? "You've used all the teammate seats on your plan (this includes pending invites). Remove one, or upgrade for more."
               : reason || "Could not send the invite. Try again in a moment.";
@@ -12230,11 +12226,12 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
           {/* Account owner, always a member, can't be removed */}
           <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Owner · You</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
               </div>
-              <p className="text-xs text-neutral-500 truncate">{profile?.role || "Hiring Manager"}</p>
+              <p className="text-xs text-neutral-500 truncate">Full access, including everything a hiring manager can do.</p>
             </div>
           </div>
 
@@ -12244,8 +12241,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
             return (
               <div key={iv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={pending ? { background: "#FEF3C7", color: "#92400E" } : !canAddInterviewers ? { background: "#F1F1F4", color: "var(--ink-3)" } : { background: "#DCFCE7", color: "#166534" }}>
                       {pending ? "Invite pending" : !canAddInterviewers ? "Access suspended" : "Active"}
                     </span>
@@ -12292,8 +12290,24 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, bookings 
               </div>
               <div>
                 <label className={labelClass}>Work email</label>
-                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder={tenantDomain ? `jane@${tenantDomain}` : "jane@company.com"} autoComplete="off" className={inputClass} />
-                {tenantDomain && <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Must be a <span className="font-medium">@{tenantDomain}</span> email, the same domain as your workspace.</p>}
+                {tenantDomain ? (
+                  <>
+                    <div className="flex items-stretch rounded-xl bg-neutral-100 border border-neutral-200 overflow-hidden focus-within:ring-2" style={{ "--tw-ring-color": "var(--brand)" }}>
+                      <input
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value.replace(/@.*$/, "").replace(/\s/g, "")); setBanner(null); }}
+                        placeholder="jane"
+                        autoComplete="off"
+                        aria-label="Work email name"
+                        className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-neutral-900 focus:outline-none"
+                      />
+                      <span className="flex items-center px-3 text-sm select-none whitespace-nowrap border-l border-neutral-200" style={{ background: "#EFEFF3", color: "var(--ink-3)" }}>@{tenantDomain}</span>
+                    </div>
+                    <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Only teammates on your <span className="font-medium">@{tenantDomain}</span> domain can be invited.</p>
+                  </>
+                ) : (
+                  <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
+                )}
               </div>
               <div>
                 <label className={labelClass}>Role</label>
