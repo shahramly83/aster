@@ -5,6 +5,7 @@ import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
+import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX } from "./lib/logo";
 import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
@@ -413,10 +414,6 @@ function JobPipelineBar({ jobId }) {
 }
 
 // ---------- Shared UI bits ----------
-
-// The eight-point Aster star, drawn on a -50..50 box centred on the origin.
-// Shared by the marketing lockup (BrandLogo) and the standalone mark (AsterMark).
-const ASTER_STAR_PATH = "M0 -48 Q3 -5.196 41.57 -24 Q6 0 41.57 24 Q3 5.196 0 48 Q-3 5.196 -41.57 24 Q-6 0 -41.57 -24 Q-3 -5.196 0 -48 Z";
 
 const BRAND_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -7189,14 +7186,19 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   // surface always resolves to brand blue now, never ink black.)
   void black;
   const color = onDark || mono ? "#FFFFFF" : "var(--brand)";
-  // viewBox is cropped to the artwork (the source has generous vertical padding)
-  // so the lockup fills its height box instead of floating small inside it.
+  // Render the mark at full size and the "aster" wordmark a touch smaller beside
+  // it (WORD_SCALE), vertically centred on the mark. The viewBox is cropped to
+  // the scaled wordmark's right edge so there's no trailing whitespace.
+  const WORD_SCALE = 0.84;
+  const tx = 299 - 293 * WORD_SCALE;      // wordmark sits just right of the mark (ends ~259)
+  const ty = 136.5 - 133.5 * WORD_SCALE;  // centre the wordmark on the mark's vertical centre
+  const vbW = Math.ceil(1414 * WORD_SCALE + tx + 12);
   return (
-    <svg viewBox="22 18 318 84" className={`${h} w-auto block`} role="img" aria-label="Aster" fill={color}>
-      <g transform="translate(56 60) scale(0.72)">
-        <path d={ASTER_STAR_PATH} />
+    <svg viewBox={`0 0 ${vbW} 274`} className={`${h} w-auto block`} role="img" aria-label="Aster" fill={color}>
+      <path d={ASTER_MARK_PATH} fillRule="evenodd" clipRule="evenodd" />
+      <g transform={`translate(${tx} ${ty}) scale(${WORD_SCALE})`}>
+        <path d={ASTER_WORDMARK_PATH} fillRule="evenodd" clipRule="evenodd" />
       </g>
-      <text x="104" y="60" fontFamily="'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" fontWeight="700" fontSize="68" letterSpacing="-2.4" dominantBaseline="central">aster</text>
     </svg>
   );
 }
@@ -7205,8 +7207,8 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
 // (the app rail, auth cards) where the wordmark would be too wide to read.
 function AsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
   return (
-    <svg viewBox="-50 -50 100 100" className={`${className} block`} fill={color} role="img" aria-label="Aster">
-      <path d={ASTER_STAR_PATH} />
+    <svg viewBox={ASTER_MARK_VIEWBOX} className={`${className} block`} fill={color} role="img" aria-label="Aster">
+      <path d={ASTER_MARK_PATH} fillRule="evenodd" clipRule="evenodd" />
     </svg>
   );
 }
