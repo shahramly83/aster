@@ -6,7 +6,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -227,13 +227,14 @@ function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob })
 // on failure or when there's nothing to show (so callers keep the demo data).
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
-  const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes] = await Promise.all([
+  const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
-    supabase.from("applications").select("candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
+    supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, scheduled_at, status, provider").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
+    supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
   ]);
   const jobRows = jobsRes.data || [];
   // A hard error → keep whatever's loaded. A workspace with zero jobs is still a
@@ -290,6 +291,7 @@ async function loadWorkspaceData(companyId) {
   for (const a of appRes.data || []) {
     (applicantsByJob[a.job_id] ||= []).push({
       candidateId: a.candidate_id,
+      applicationId: a.id,
       appliedAt: relDaysAgo(a.created_at),
       appliedAtIso: a.created_at,
       baseStage: a.stage,
@@ -334,7 +336,10 @@ async function loadWorkspaceData(companyId) {
     });
   }
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments };
+  // Open interview requests (interviewer flagged a candidate for HR to schedule).
+  const scheduleRequests = (srRes.data || []).map((r) => ({ application_id: r.application_id, requested_by: r.requested_by }));
+
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -15729,7 +15734,43 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
+// An interviewer's "Request interview" control on a candidate profile. Once any
+// interviewer on the job has requested, everyone sees the locked "requested by X"
+// state instead (the server enforces one open request per candidate).
+function RequestInterviewControl({ applicationId, openRequest, requesterName, onRequest }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  if (openRequest) {
+    return (
+      <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+        <h2 className="text-sm font-semibold mb-1 inline-flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
+          <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name="check" className="w-4 h-4" /></span>
+          Interview requested
+        </h2>
+        <p className="text-sm" style={{ color: "var(--ink-2)" }}>Requested by {requesterName}. The hiring manager will arrange the interview, and you'll be notified once it's scheduled.</p>
+      </div>
+    );
+  }
+  const submit = async () => {
+    if (busy || !applicationId) return;
+    setErr(null); setBusy(true);
+    const e = await onRequest(applicationId);
+    setBusy(false);
+    if (e) setErr(e);
+  };
+  return (
+    <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "#fff" }}>
+      <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--ink)" }}>Ready to interview?</h2>
+      <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>Ask the hiring manager to set up an interview with this candidate. They'll coordinate the time and add you to it.</p>
+      <button onClick={submit} disabled={busy || !applicationId} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 inline-flex items-center gap-1.5">
+        <Icon name="calendar" className="w-4 h-4" /> {busy ? "Requesting…" : "Request interview"}
+      </button>
+      {err && <p role="alert" className="text-[13px] mt-3" style={{ color: "#B42318" }}>{err}</p>}
+    </div>
+  );
+}
+
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -15906,6 +15947,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // profile is opened from the database or with no job context.
   const appliedApplication = contextJobId ? (APPLICANTS_BY_JOB[contextJobId] || []).find((a) => a.candidateId === candidate.id) : null;
   const appliedSource = appliedApplication?.source || null;
+  // Open interview request for this candidate (item 2). First requester wins.
+  const applicationId = appliedApplication?.applicationId || null;
+  const openRequest = applicationId ? scheduleRequests.find((r) => r.application_id === applicationId) : null;
+  const requesterName = openRequest
+    ? (openRequest.requested_by === currentUserId ? "you" : (interviewers.find((i) => i.id === openRequest.requested_by)?.name || "a teammate"))
+    : null;
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -16199,6 +16246,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {!isClosed && (<>
         {/* Scheduling + AI interview questions are owner / hiring-manager actions. */}
         {!isInterviewer(profile?.role) && (<>
+        {openRequest && !isBooked && (
+          <div className="mt-2 mb-4 rounded-xl border px-4 py-3 flex items-start gap-2" style={{ borderColor: "var(--brand-soft)", background: "var(--brand-soft)" }}>
+            <span className="inline-flex mt-0.5" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-4 h-4" /></span>
+            <p className="text-sm" style={{ color: "var(--ink)" }}><span className="font-semibold">{requesterName === "you" ? "You" : requesterName}</span> requested an interview with this candidate. Set it up below.</p>
+          </div>
+        )}
         <ScheduleInterviewPanel
           candidate={candidate}
           jobs={jobs}
@@ -16219,6 +16272,17 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           isScheduled={questionsUnlocked}
         />
         </>)}
+
+        {/* Interviewers can't schedule; they flag the candidate for the hiring
+            manager. Hidden once an interview is booked (the panel below takes over). */}
+        {isInterviewer(profile?.role) && !isBooked && (
+          <RequestInterviewControl
+            applicationId={applicationId}
+            openRequest={openRequest}
+            requesterName={requesterName}
+            onRequest={onRequestScheduling}
+          />
+        )}
 
         {/* After the interview, unlocks once the scheduled slot is in the past.
             This closes the gap between "interview scheduled" and a hire/reject
@@ -17789,6 +17853,15 @@ export default function ResumeAIPreview() {
     setJobAssignments((prev) => prev.filter((a) => !(a.job_id === jobId && a.profile_id === profileId)));
     return null;
   };
+  const [scheduleRequests, setScheduleRequests] = useState([]); // [{ application_id, requested_by }] — open interview requests
+  // Interviewer flags a candidate for the hiring manager to schedule. Idempotent:
+  // the first request per application wins (server-enforced). Returns error|null.
+  const requestScheduling = async (applicationId) => {
+    if (!applicationId) return "Missing application.";
+    if (hasSupabase) { const err = await dbRequestScheduling(applicationId); if (err) return err; }
+    setScheduleRequests((prev) => (prev.some((r) => r.application_id === applicationId) ? prev : [...prev, { application_id: applicationId, requested_by: userId }]));
+    return null;
+  };
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
   const addScorecard = (candidateId, card) => {
     setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), card] }));
@@ -18214,6 +18287,7 @@ export default function ResumeAIPreview() {
     if (data.interviewers?.length) setInterviewers(data.interviewers);
     setPendingInvites(data.pendingInvites || []);
     setJobAssignments(data.jobAssignments || []);
+    setScheduleRequests(data.scheduleRequests || []);
     setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
@@ -19081,6 +19155,9 @@ export default function ResumeAIPreview() {
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}
+            currentUserId={userId}
+            scheduleRequests={scheduleRequests}
+            onRequestScheduling={requestScheduling}
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}

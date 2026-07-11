@@ -265,6 +265,18 @@ export async function dbUnassignInterviewer(jobId, profileId) {
   return error.message || "Couldn't remove that interviewer.";
 }
 
+// Interviewer flags a candidate as ready for the hiring manager to schedule.
+// Idempotent server-side: the first request per application wins. Returns an
+// error message, or null on success.
+export async function dbRequestScheduling(applicationId) {
+  if (!hasSupabase || !applicationId) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("request_scheduling", { p_application_id: applicationId });
+  if (!error) return null;
+  console.error("dbRequestScheduling", error.message);
+  if (error.code === "42501") return "You can only request interviews for jobs you're assigned to.";
+  return error.message || "Couldn't send that request. Try again in a moment.";
+}
+
 // Upload the signed-in user's avatar into the private, company-scoped bucket.
 // Returns the storage path (not a URL) — reads go through a signed URL, because
 // a teammate's headshot should not be world-readable the way a company logo is.
