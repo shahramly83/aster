@@ -13007,6 +13007,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const [step, setStep] = useState(1);
   const [sending, setSending] = useState(false);
   const [slots, setSlots] = useState([]);      // ISO start strings the HM proposes
+  const [confirmedOffline, setConfirmedOffline] = useState(false); // panel confirmed the times
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
@@ -13226,9 +13227,18 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             <p className="text-xs text-neutral-500 mb-2">Also inviting: {additionalAttendees.map(attendeeName).join(", ")}</p>
           )}
 
+          {/* Offline-confirm guardrail: HR checks the times with the panel first,
+              so whatever the candidate picks is final (no back-and-forth). */}
+          {slots.length > 0 && (
+            <label className="flex items-start gap-2 mb-3 cursor-pointer select-none">
+              <input type="checkbox" checked={confirmedOffline} onChange={(e) => setConfirmedOffline(e.target.checked)} className="mt-0.5 accent-indigo-600 w-4 h-4 shrink-0" />
+              <span className="text-xs text-neutral-600 leading-relaxed">I've checked these times with the interviewers who'll attend. The candidate only sees times the panel can make, so whichever they pick is final.</span>
+            </label>
+          )}
+
           <button
             onClick={handleSendInvite}
-            disabled={sending || slots.length === 0}
+            disabled={sending || slots.length === 0 || !confirmedOffline}
             className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
           >
             {sending ? "Sending…" : `Send ${slots.length} time${slots.length === 1 ? "" : "s"} to candidate`}
@@ -18660,6 +18670,13 @@ export default function ResumeAIPreview() {
       }).then((token) => {
         if (token) supabase.functions.invoke("send-interview-invite", { body: { token } }).catch(() => {});
       });
+    }
+    // Scheduling this candidate resolves any open "request interview" so the
+    // interviewer's lock clears and it stops counting as an outstanding request.
+    const appId = (APPLICANTS_BY_JOB[request.jobId] || []).find((a) => a.candidateId === candidateId)?.applicationId;
+    if (appId) {
+      setScheduleRequests((prev) => prev.filter((r) => r.application_id !== appId));
+      if (canPersist) supabase.from("schedule_requests").update({ resolved_at: new Date().toISOString() }).eq("application_id", appId).is("resolved_at", null).then(() => {}, () => {});
     }
   };
 
