@@ -3586,10 +3586,13 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
   const arrowC = blueNav ? "text-[color:var(--brand)]" : "text-[#C79BFF]";
   // Mobile menu overlay theme
   const mobBg = blueNav ? "rgba(255,255,255,0.98)" : "rgba(6,7,18,0.92)";
-  const mobCard = blueNav ? { background: "#fff", border: "1px solid var(--line)" } : { background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" };
-  const mobCardSm = blueNav ? { background: "#fff", border: "1px solid var(--line)" } : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" };
-  const mobChip = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(151,59,247,0.18)", color: "#C79BFF" };
-  const mobChipSm = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(151,59,247,0.14)", color: "#C79BFF" };
+  const mobChip = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(85,112,245,0.20)", color: "#AEBEFF" };
+  const mobChipSm = blueNav ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "rgba(85,112,245,0.16)", color: "#AEBEFF" };
+  // Grouped-list styling: one card per section with hairline dividers, so items
+  // read as a clean list instead of a stack of separate boxed cards.
+  const mobGroup = blueNav ? { background: "#fff", border: "1px solid var(--line)" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" };
+  const mobDivide = blueNav ? "divide-y divide-[color:var(--line)]" : "divide-y divide-white/10";
+  const mobPress = blueNav ? "active:bg-[color:var(--brand-soft)]" : "active:bg-white/5";
   const mobLabel = blueNav ? "text-[color:var(--ink)]" : "text-white";
   const mobLabelSub = blueNav ? "text-[color:var(--ink-2)]" : "text-white/90";
   const mobChev = blueNav ? "text-[color:var(--ink-3)]" : "text-white/40";
@@ -3729,51 +3732,58 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             <BrandLogo large black={blueNav} onDark={!blueNav} logoUrl={logoUrl} />
             <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="w-11 h-11 flex items-center justify-center rounded-full" style={blueNav ? { color: "var(--ink)", border: "1px solid var(--line)", background: "#fff" } : { color: "#fff", border: "1px solid var(--navy-line)", background: "rgba(255,255,255,0.06)" }}><Icon name="close" className="w-5 h-5" /></button>
           </div>
-          <nav className="flex-1 px-5 pt-3 pb-8 flex flex-col gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--ink-3)" }}>Product</p>
-            {PRODUCT_NAV.map((p) => (
-              <button key={p.slug} onClick={() => { setMenuOpen(false); goProduct(p.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={mobCard}>
-                <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={mobChip}><Icon name={p.icon} className="w-5 h-5" /></span>
-                <span className={`flex-1 font-medium ${mobLabel}`}>{p.label}</span>
-                <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
-              </button>
-            ))}
-            <button onClick={() => { setMenuOpen(false); goSolution(""); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3 mt-4" style={mobCard}>
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={mobChip}><Icon name="target" className="w-5 h-5" /></span>
-              <span className={`flex-1 font-medium ${mobLabel}`}>Solutions</span>
-              <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
-            </button>
-            {SOLUTIONS_NAV.map((g) => (
-              <div key={g.group}>
-                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-1 mt-3 mb-1" style={{ color: blueNav ? "var(--brand)" : g.tint }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
-                <div className="flex flex-col gap-2">
-                  {g.items.map((s) => (
-                    <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-2.5" style={mobCardSm}>
-                      <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={mobChipSm}><Icon name={s.icon} className="w-4 h-4" /></span>
-                      <span className={`flex-1 text-[15px] ${mobLabelSub}`}>{s.label}</span>
-                      <Icon name="chevronRight" className={`w-4 h-4 ${mobChevSm}`} />
-                    </button>
-                  ))}
-                </div>
+          <nav className="flex-1 px-5 pt-3 pb-10 flex flex-col gap-6">
+            {/* Product */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-2" style={{ color: "var(--ink-3)" }}>Product</p>
+              <div className={`rounded-2xl overflow-hidden ${mobDivide}`} style={mobGroup}>
+                {PRODUCT_NAV.map((p) => (
+                  <button key={p.slug} onClick={() => { setMenuOpen(false); goProduct(p.slug); }} className={`w-full text-left flex items-center gap-3 px-3.5 py-3 transition-colors ${mobPress}`}>
+                    <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={mobChip}><Icon name={p.icon} className="w-[18px] h-[18px]" /></span>
+                    <span className={`flex-1 text-[15px] font-medium ${mobLabel}`}>{p.label}</span>
+                    <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChev}`} />
+                  </button>
+                ))}
               </div>
-            ))}
-            <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Explore</p>
-            {[["Pricing", "pricing"], ["FAQ", "faq"]].map(([label, id]) => (
-              <button key={id} onClick={() => goSection(id)} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={mobCard}>
-                <span className={`flex-1 font-medium ${mobLabel}`}>{label}</span>
-                <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
-              </button>
-            ))}
-            <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mt-4 mb-1" style={{ color: "var(--ink-3)" }}>Resources</p>
-            {[["Blog", () => goBlog({})], ["Recruiting glossary", () => goGlossary("")], ["Compare Aster", () => goCompare("")]].map(([label, go]) => (
-              <button key={label} onClick={() => { setMenuOpen(false); go(); }} className="text-left flex items-center gap-3 rounded-2xl px-3.5 py-3" style={mobCard}>
-                <span className={`flex-1 font-medium ${mobLabel}`}>{label}</span>
-                <Icon name="chevronRight" className={`w-5 h-5 ${mobChev}`} />
-              </button>
-            ))}
-            <div className="mt-4 space-y-2.5">
-              <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border" style={blueNav ? { borderColor: "var(--line-strong)", color: "var(--ink)", background: "#fff" } : { borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
-              <button onClick={() => { setMenuOpen(false); cta(); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white">Get started</button>
+            </div>
+
+            {/* Solutions */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-2" style={{ color: "var(--ink-3)" }}>Solutions</p>
+              <div className="flex flex-col gap-4">
+                {SOLUTIONS_NAV.map((g) => (
+                  <div key={g.group}>
+                    <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5" style={{ color: blueNav ? "var(--brand)" : g.tint }}><Icon name={g.icon} className="w-3.5 h-3.5" /> {g.group}</p>
+                    <div className={`rounded-2xl overflow-hidden ${mobDivide}`} style={mobGroup}>
+                      {g.items.map((s) => (
+                        <button key={s.slug} onClick={() => { setMenuOpen(false); goSolution(s.slug); }} className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 transition-colors ${mobPress}`}>
+                          <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={mobChipSm}><Icon name={s.icon} className="w-4 h-4" /></span>
+                          <span className={`flex-1 text-[15px] ${mobLabelSub}`}>{s.label}</span>
+                          <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChevSm}`} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Explore */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider px-1 mb-2" style={{ color: "var(--ink-3)" }}>Explore</p>
+              <div className={`rounded-2xl overflow-hidden ${mobDivide}`} style={mobGroup}>
+                {[["Pricing", () => goSection("pricing")], ["FAQ", () => goSection("faq")], ["Blog", () => { setMenuOpen(false); goBlog({}); }], ["Recruiting glossary", () => { setMenuOpen(false); goGlossary(""); }], ["Compare Aster", () => { setMenuOpen(false); goCompare(""); }]].map(([label, go]) => (
+                  <button key={label} onClick={go} className={`w-full text-left flex items-center gap-3 px-3.5 py-3 transition-colors ${mobPress}`}>
+                    <span className={`flex-1 text-[15px] font-medium ${mobLabel}`}>{label}</span>
+                    <Icon name="chevronRight" className={`w-4 h-4 shrink-0 ${mobChev}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-1 space-y-2.5">
+              <button onClick={() => { setMenuOpen(false); navigate("login"); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold border transition-colors" style={blueNav ? { borderColor: "var(--line-strong)", color: "var(--ink)", background: "#fff" } : { borderColor: "rgba(255,255,255,0.14)", color: "#fff", background: "rgba(255,255,255,0.04)" }}>Sign in</button>
+              <button onClick={() => { setMenuOpen(false); cta(); }} className="w-full px-4 py-3.5 rounded-2xl text-[15px] font-semibold brand-gradient text-white shadow-[0_12px_28px_-12px_rgba(var(--brand-rgb),0.7)]">Get started</button>
             </div>
           </nav>
         </div>
@@ -3786,25 +3796,25 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // arrive in September, so the store badges are visual only (no links).
 function AppDownloadBand() {
   return (
-    <section className="pt-8 pb-4 sm:pt-0 sm:pb-20">
+    <section className="pt-2 pb-10 sm:pt-0 sm:pb-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div className="min-w-0">
-          <span className="inline-flex items-center gap-1.5 mb-2 text-[11px] font-semibold uppercase px-2.5 py-1 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", letterSpacing: "0.06em" }}>
+          <span className="inline-flex items-center gap-1.5 mb-2.5 text-[11px] font-semibold uppercase px-2.5 py-1 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", letterSpacing: "0.06em" }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} /> Available September
           </span>
-          <h3 className="text-lg sm:text-xl font-bold font-display" style={{ color: "var(--ink)" }}>Take Aster with you</h3>
-          <p className="text-sm mt-1 max-w-md" style={{ color: "var(--ink-2)" }}>The Aster app for iPhone and Android arrives in September. Review shortlists, interviews and offers on the go.</p>
+          <h3 className="text-xl sm:text-xl font-bold font-display" style={{ color: "var(--ink)" }}>Take Aster with you</h3>
+          <p className="text-sm mt-1.5 max-w-md" style={{ color: "var(--ink-2)" }}>The Aster app for iPhone and Android arrives in September. Review shortlists, interviews and offers on the go.</p>
         </div>
-        <div className="flex flex-wrap gap-3 shrink-0">
-              <span role="img" aria-label="Aster on the App Store, available September" title="Available September" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 select-none cursor-default" style={{ background: "#1B1C22", color: "#fff" }}>
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+        <div className="grid grid-cols-2 gap-2.5 mt-1 md:mt-0 md:flex md:gap-3 shrink-0">
+              <span role="img" aria-label="Aster on the App Store, available September" title="Available September" className="flex w-full md:w-auto items-center justify-center md:justify-start gap-2.5 rounded-xl px-3.5 py-2.5 select-none cursor-default" style={{ background: "#1B1C22", color: "#fff" }}>
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" className="shrink-0"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
                 <span className="leading-tight text-left">
                   <span className="block text-[10px] opacity-80">Coming soon on the</span>
-                  <span className="block text-base font-semibold -mt-0.5">App Store</span>
+                  <span className="block text-[15px] font-semibold -mt-0.5">App Store</span>
                 </span>
               </span>
-              <span role="img" aria-label="Aster on Google Play, available September" title="Available September" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 select-none cursor-default" style={{ background: "#1B1C22", color: "#fff" }}>
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <span role="img" aria-label="Aster on Google Play, available September" title="Available September" className="flex w-full md:w-auto items-center justify-center md:justify-start gap-2.5 rounded-xl px-3.5 py-2.5 select-none cursor-default" style={{ background: "#1B1C22", color: "#fff" }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" className="shrink-0">
                   <path fill="#00C3FF" d="M3.6 2.3c-.3.2-.5.5-.5 1v17.4c0 .5.2.8.5 1l9.3-9.7z"/>
                   <path fill="#00E676" d="M16.3 8.6 4.7 1.9c-.3-.2-.7-.2-1-.1l9.2 9.7z"/>
                   <path fill="#FFCE00" d="M20 11l-3.7-2.1-3.5 3 3.5 3L20 13c.6-.4.6-1.6 0-2z"/>
@@ -3812,7 +3822,7 @@ function AppDownloadBand() {
                 </svg>
                 <span className="leading-tight text-left">
                   <span className="block text-[10px] opacity-80">Coming soon on</span>
-                  <span className="block text-base font-semibold -mt-0.5">Google Play</span>
+                  <span className="block text-[15px] font-semibold -mt-0.5">Google Play</span>
                 </span>
               </span>
             </div>
