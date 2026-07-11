@@ -3000,7 +3000,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             <div className="hidden lg:block mt-8 rounded-2xl p-5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
               <p className="font-display font-semibold" style={{ color: "var(--ink)" }}>Still have questions?</p>
               <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
-              <a href="mailto:hello@aster.co" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
+              <a href="mailto:support@hireaster.com" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
                 Support team <Icon name="arrowUpRight" className="w-4 h-4" />
               </a>
             </div>
@@ -3032,7 +3032,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           <div className="lg:hidden rounded-2xl p-5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
             <p className="font-display font-semibold" style={{ color: "var(--ink)" }}>Still have questions?</p>
             <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Our team is here to make things easy. Don&rsquo;t hesitate to reach out.</p>
-            <a href="mailto:hello@aster.co" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
+            <a href="mailto:support@hireaster.com" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold brand-text">
               Support team <Icon name="arrowUpRight" className="w-4 h-4" />
             </a>
           </div>

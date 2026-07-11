@@ -61,7 +61,7 @@ Admins are separate from company users and are not created by signup UI.
 
 ```sql
 insert into public.admin_users (id, full_name, email, role)
-values ('PASTE-AUTH-UID', 'Priya Nair', 'priya@aster.co', 'super');
+values ('PASTE-AUTH-UID', 'Priya Nair', 'priya@hireaster.com', 'super');
 ```
 
 Roles: `super`, `support`, `billing`.

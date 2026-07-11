@@ -145,9 +145,9 @@ const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 // Mock data
 // ---------------------------------------------------------------------------
 const ADMIN_ACCOUNTS = [
-  { id: "a1", name: "Priya Nair",   email: "priya@aster.co",  role: "super",   title: "Platform Lead" },
-  { id: "a2", name: "Marcus Lee",   email: "marcus@aster.co", role: "support", title: "Support Engineer" },
-  { id: "a3", name: "Dana Osei",    email: "dana@aster.co",   role: "billing", title: "Finance Ops" },
+  { id: "a1", name: "Priya Nair",   email: "priya@hireaster.com",  role: "super",   title: "Platform Lead" },
+  { id: "a2", name: "Marcus Lee",   email: "marcus@hireaster.com", role: "support", title: "Support Engineer" },
+  { id: "a3", name: "Dana Osei",    email: "dana@hireaster.com",   role: "billing", title: "Finance Ops" },
 ];
 
 const INIT_COMPANIES = [
