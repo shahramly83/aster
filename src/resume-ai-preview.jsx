@@ -7387,8 +7387,8 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
   return (
     <div className="flex flex-col h-full w-full px-3">
       <button onClick={() => navigate(homeForRole(profile?.role))} aria-label="Aster home" className="mb-8 h-11 flex items-center justify-center group-hover:justify-start group-hover:px-3 gap-0 group-hover:gap-2.5 shrink-0 transition-all duration-200">
-        <AsterMark className="w-8 h-8 shrink-0" />
-        <svg viewBox="293 40 1121 187" className="h-[22px] w-auto shrink-0 max-w-0 group-hover:max-w-[9rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200" role="img" aria-label="Aster" fill="var(--brand)">
+        <AsterMark className="w-11 h-11 shrink-0" />
+        <svg viewBox="293 40 1121 187" className="h-[18px] w-auto shrink-0 max-w-0 group-hover:max-w-[9rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200" role="img" aria-label="Aster" fill="var(--brand)">
           <path d={ASTER_WORDMARK_PATH} fillRule="evenodd" clipRule="evenodd" />
         </svg>
       </button>
