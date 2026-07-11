@@ -12156,7 +12156,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const seatsUsed = (ownerCounted ? interviewers.length : interviewers.length + 1) + pendingInvites.length;
   const atSeatCap = seatsUsed >= seatCap;
   const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("interviewer"); // 'interviewer' | 'admin' (Hiring Manager)
   const [banner, setBanner] = useState(null);
@@ -12179,7 +12178,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     ).length;
 
   const handleAdd = async () => {
-    if (!canAddInterviewers || !name || !email || sending) return;
+    if (!canAddInterviewers || !email || sending) return;
     if (atSeatCap) {
       setBanner(`You've used all ${seatCap} team seat${seatCap === 1 ? "" : "s"} on your plan (the tenant and pending invites count too). Remove one, or upgrade for more.`);
       return;
@@ -12188,6 +12187,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     // fixed (so a wrong domain is impossible). Without one, expect a full email.
     const typed = email.trim();
     const inviteEmail = (tenantDomain ? `${typed}@${tenantDomain}` : typed).toLowerCase();
+    // No name field: the person names themselves at sign-up. Until then, show the
+    // email local part as a placeholder label.
+    const inviteName = inviteEmail.split("@")[0];
     if (tenantDomain ? !/^[^\s@]+$/.test(typed) : !/^\S+@\S+\.\S+$/.test(inviteEmail)) {
       setBanner(tenantDomain ? `Enter the name before @${tenantDomain}.` : "Enter a valid work email address.");
       return;
@@ -12198,7 +12200,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     if (hasSupabase) {
       setSending(true);
       const { data, error } = await supabase.functions.invoke("send-teammate-invite", {
-        body: { email: inviteEmail, name, role: inviteRole },
+        body: { email: inviteEmail, role: inviteRole },
       });
       setSending(false);
       // On a non-2xx status Supabase returns a generic FunctionsHttpError; the
@@ -12223,7 +12225,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       ...interviewers,
       {
         id: `iv${interviewers.length + 1}`,
-        name,
+        name: inviteName,
         email: inviteEmail,
         role: inviteRole,
         timezone: "Asia/Kuala_Lumpur",
@@ -12232,7 +12234,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     ]);
     const roleWord = inviteRole === "admin" ? "hiring manager" : "interviewer";
     setBanner(`Invite sent to ${inviteEmail}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
-    setName("");
     setEmail("");
     setInviteRole("interviewer");
     setShowForm(false);
@@ -12382,15 +12383,12 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             </div>
             <div className="mt-5 space-y-3">
               <div>
-                <label className={labelClass}>Name</label>
-                <input autoFocus value={name} onChange={(e) => { setName(e.target.value); setBanner(null); }} placeholder="Jane Tan" className={inputClass} />
-              </div>
-              <div>
                 <label className={labelClass}>Work email</label>
                 {tenantDomain ? (
                   <>
                     <div className="flex items-stretch rounded-xl bg-neutral-100 border border-neutral-200 overflow-hidden focus-within:ring-2" style={{ "--tw-ring-color": "var(--brand)" }}>
                       <input
+                        autoFocus
                         value={email}
                         onChange={(e) => { setEmail(e.target.value.replace(/@.*$/, "").replace(/\s/g, "")); setBanner(null); }}
                         placeholder="jane"
@@ -12403,7 +12401,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                     <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Only teammates on your <span className="font-medium">@{tenantDomain}</span> domain can be invited.</p>
                   </>
                 ) : (
-                  <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
+                  <input autoFocus type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
                 )}
               </div>
               <div>
@@ -12436,7 +12434,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => { setShowForm(false); setBanner(null); }} disabled={sending} className="text-sm rounded-xl px-4 py-2 border transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
-              <button onClick={handleAdd} disabled={sending || !name.trim() || !email.trim()} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{sending ? "Sending…" : "Send invite"}</button>
+              <button onClick={handleAdd} disabled={sending || !email.trim()} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{sending ? "Sending…" : "Send invite"}</button>
             </div>
             <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>They'll get an email to join your workspace. Teammates are included in your plan, they don't buy their own.</p>
           </div>
