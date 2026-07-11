@@ -63,7 +63,9 @@ Deno.serve(async (req) => {
     const companyId = inviter?.company_id || null;
     const companyName = (inviter as { companies?: { name?: string } })?.companies?.name || "your workspace";
     const inviterName = inviter?.full_name || "A teammate";
-    const recipientName = String(name || "").trim() || inviteEmail.split("@")[0];
+    // No name is collected at invite time (the teammate names themselves at
+    // sign-up), so greet them warmly rather than with their email handle.
+    const recipientName = String(name || "").trim() || "there";
     const ctaLink = `${SITE}/?invite=${inviteToken}`;
 
     // Send the Tier 1 invite email (company override → platform default → code default).
