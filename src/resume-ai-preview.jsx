@@ -3621,7 +3621,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             <button onMouseEnter={closeMenus} onClick={() => navigate("login")} className={`hidden sm:block ${navHover} ${linkC}`} style={{ color: navActive }}>Sign in</button>
             {blueNav
               ? (scrolled
-                  ? <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0" style={{ background: "#14181F", color: "#fff", boxShadow: "0 10px 28px -16px rgba(20,24,31,0.6)" }}>Get started</button>
+                  ? <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 brand-gradient text-white shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>
                   : <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-14px_rgba(15,27,51,0.5)]" style={{ background: "#fff", color: "var(--brand)" }}>Get started</button>)
               : <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 shrink-0 whitespace-nowrap text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>}
             <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
@@ -7185,7 +7185,7 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   // lockup inline as a single-colour SVG so it stays crisp at any size and
   // recolours cleanly per surface, no PNG filter tricks.
   // Smaller on mobile (marketing lockup ~125px wide), full size from sm up.
-  const h = compact ? "h-9 sm:h-10" : xl ? "h-[31px] sm:h-[45px]" : large ? "h-[31px] sm:h-[45px]" : "h-10 sm:h-12";
+  const h = compact ? "h-9 sm:h-10" : xl ? "h-[32px] sm:h-[45px]" : large ? "h-[32px] sm:h-[45px]" : "h-10 sm:h-12";
   if (logoUrl) {
     return <img src={logoUrl} alt="Aster: smarter hiring, stronger teams" className={`${h} w-auto object-contain block`} />;
   }
