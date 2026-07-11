@@ -169,7 +169,7 @@ export async function dbSaveEmailTemplate(companyId, key, { subject, body }) {
 // and return its public booking token. interviewer_id is left null: the
 // scheduling roster is client-side and not necessarily real profiles, so the
 // interviewer's name/email are denormalised for notifications instead.
-export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = null, interviewerName = null, interviewerEmail = null, proposedSlots = [], provider = "google" }) {
+export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = null, interviewerName = null, interviewerEmail = null, proposedSlots = [], provider = "google", attendees = [] }) {
   if (!hasSupabase || !companyId || !candidateId) return null;
   const { data, error } = await supabase
     .from("interviews")
@@ -182,6 +182,7 @@ export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = 
       proposed_slots: proposedSlots,
       provider,
       status: "sent",
+      attendees,
     })
     .select("token")
     .single();

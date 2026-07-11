@@ -231,7 +231,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
-    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, scheduled_at, status, provider").eq("company_id", companyId),
+    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, scheduled_at, status, provider, attendees").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
@@ -320,7 +320,8 @@ async function loadWorkspaceData(companyId) {
       jobId: iv.job_id,
       confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
       provider: iv.provider || "google",
-      request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: profName[iv.interviewer_id] || "Interviewer" },
+      attendees: Array.isArray(iv.attendees) ? iv.attendees : [],
+      request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer" },
     };
   }
 
@@ -13060,6 +13061,15 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
     setTimeout(() => {
       const proposed = slots.map((s) => ({ start: s.start, end: s.end }));
       const durMin = slots.length ? Math.max(1, Math.round((new Date(slots[0].end) - new Date(slots[0].start)) / 60000)) : 30;
+      // The full panel: the hiring manager plus the chosen pool interviewers.
+      // Profile ids scope the scorecard; name/email drive notifications.
+      const attendees = [
+        { id: hmId, name: hmName, email: hmEmail },
+        ...additionalAttendees.map((id) => {
+          const iv = interviewers.find((x) => x.id === id);
+          return { id, name: iv?.name || "", email: iv?.email || "" };
+        }),
+      ];
       const sent = {
         id: `req-${candidate.id}`,
         candidateId: candidate.id,
@@ -13070,6 +13080,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         jobId: fixedJob?.id ?? jobId,
         interviewerName: hmName,
         interviewerEmail: hmEmail,
+        attendees,
       };
       // Lift to shared booking so the profile + booking page stay in sync.
       if (onInviteSent) onInviteSent(candidate.id, sent);
@@ -18667,6 +18678,7 @@ export default function ResumeAIPreview() {
         interviewerEmail: request.interviewerEmail || null,
         proposedSlots: request.proposed_slots || [],
         provider: defaultProvider,
+        attendees: request.attendees || [],
       }).then((token) => {
         if (token) supabase.functions.invoke("send-interview-invite", { body: { token } }).catch(() => {});
       });
