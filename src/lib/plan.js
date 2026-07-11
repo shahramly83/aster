@@ -16,7 +16,7 @@ export const PLAN_LIMITS = {
     supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
   },
   scale: {
-    maxJobs: 5, seats: 3, interviewers: 100, canAddInterviewers: true,
+    maxJobs: 5, seats: 30, interviewers: 100, canAddInterviewers: true,
     parseApplicant: 500, resumeUploads: 50,
     aiRunsPerMonth: 30, aiInsightsPerMonth: 100, seeWhyPerMonth: 30, interviewQuestionsPerMonth: 100,
     aiMatches: 10, visibleCandidates: Infinity,
@@ -26,7 +26,7 @@ export const PLAN_LIMITS = {
     supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
   },
   elite: {
-    maxJobs: 10, seats: Infinity, interviewers: Infinity, canAddInterviewers: true,
+    maxJobs: 10, seats: 100, interviewers: Infinity, canAddInterviewers: true,
     parseApplicant: 1000, resumeUploads: 100,
     aiRunsPerMonth: 100, aiInsightsPerMonth: 300, seeWhyPerMonth: 100, interviewQuestionsPerMonth: 300,
     aiMatches: Infinity, visibleCandidates: Infinity,

@@ -2140,7 +2140,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { group: "Jobs & team", rows: [
       { label: "Active job postings", free: "1", starter: "5", pro: "10", ent: "Unlimited" },
       { label: "Interviewers", free: "10", starter: "100", pro: "Unlimited", ent: "Unlimited" },
-      { label: "Team seats", free: "1", starter: "3", pro: "Unlimited", ent: "Unlimited" },
+      { label: "Team seats", free: "1", starter: "30", pro: "100", ent: "Unlimited" },
     ]},
     { group: "AI screening", rows: [
       { label: "Applicant parsing", free: "100 / mo", starter: "500 / mo", pro: "1,000 / mo", ent: "Unlimited" },
@@ -2168,8 +2168,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
     free: { lead: "Includes", items: ["1 job posting · 10 interviewers", "100 applicant parses / month", "5 AI Rank + 5 AI Insight / month", "Scorecards, 2FA & data export", "Support ticket"] },
-    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 3 seats · 100 interviewers", "500 parses · 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
-    pro: { lead: "Everything in Scale, plus", items: ["10 jobs · unlimited seats & interviewers", "1,000 parses · 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
+    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 30 seats · 100 interviewers", "500 parses · 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
+    pro: { lead: "Everything in Scale, plus", items: ["10 jobs · 100 seats · unlimited interviewers", "1,000 parses · 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
 
   const testimonials = [
