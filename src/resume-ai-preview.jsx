@@ -6,7 +6,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -227,7 +227,7 @@ function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob })
 // on failure or when there's nothing to show (so callers keep the demo data).
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
-  const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes] = await Promise.all([
+  const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
@@ -235,6 +235,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
+    supabase.from("interview_questions").select("candidate_id, job_id, questions").eq("company_id", companyId),
   ]);
   const jobRows = jobsRes.data || [];
   // A hard error → keep whatever's loaded. A workspace with zero jobs is still a
@@ -341,7 +342,11 @@ async function loadWorkspaceData(companyId) {
   // Open interview requests (interviewer flagged a candidate for HR to schedule).
   const scheduleRequests = (srRes.data || []).map((r) => ({ application_id: r.application_id, requested_by: r.requested_by }));
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests };
+  // Generated AI interview questions, keyed by "candidateId:jobId".
+  const interviewQuestions = {};
+  for (const q of iqRes.data || []) interviewQuestions[`${q.candidate_id}:${q.job_id}`] = Array.isArray(q.questions) ? q.questions : [];
+
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -12613,11 +12618,14 @@ function buildQuestionPool(p, roleTitle) {
   return pool;
 }
 
-function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled }) {
+function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, savedQuestions = null, onGenerate, canGenerate = false }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   const fixedJob = contextJobId ? jobs.find((j) => j.id === contextJobId) : null;
   const [jobId, setJobId] = useState(fixedJob?.id ?? openJobs[0]?.id ?? "");
-  const [pool, setPool] = useState(null);
+  // Once generated (persisted), the set is fixed and shared with the whole pool.
+  const persisted = Array.isArray(savedQuestions) && savedQuestions.length > 0;
+  const [localPool, setLocalPool] = useState(null);
+  const pool = persisted ? savedQuestions : localPool;
   const [visibleCount, setVisibleCount] = useState(5);
   const [generating, setGenerating] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -12629,11 +12637,14 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
   const p = candidate.parsed;
 
   const generate = () => {
+    if (persisted || !canGenerate) return; // generate once
     setGenerating(true);
     setTimeout(() => {
-      setPool(buildQuestionPool(p, activeJob?.title ?? "this role"));
+      const built = buildQuestionPool(p, activeJob?.title ?? "this role");
+      setLocalPool(built);
       setVisibleCount(5);
       setGenerating(false);
+      if (onGenerate) onGenerate(built);
     }, 1000);
   };
 
@@ -12693,14 +12704,9 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
           <InfoHint dir="down" hint="AI drafts these questions from this candidate's resume and the role, so you can tailor the interview before you meet." />
         </div>
         {pool && (
-          <div className="flex items-center gap-3">
-            <button onClick={copyAll} className="text-xs text-neutral-600 hover:text-neutral-900">
-              {copiedAll ? "Copied ✓" : "Copy all to notes"}
-            </button>
-            <button onClick={generate} disabled={generating} className="text-xs text-indigo-600 hover:text-indigo-700">
-              {generating ? "Regenerating…" : "Regenerate"}
-            </button>
-          </div>
+          <button onClick={copyAll} className="text-xs text-neutral-600 hover:text-neutral-900">
+            {copiedAll ? "Copied ✓" : "Copy all to notes"}
+          </button>
         )}
       </div>
       <p className="text-sm text-neutral-500 mb-3">
@@ -12719,13 +12725,17 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled })
       )}
 
       {!pool ? (
-        <button
-          onClick={generate}
-          disabled={generating || !activeJob}
-          className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
-        >
-          {generating ? "Generating…" : "Generate interview questions"}
-        </button>
+        canGenerate ? (
+          <button
+            onClick={generate}
+            disabled={generating || !activeJob}
+            className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
+          >
+            {generating ? "Generating…" : "Generate interview questions"}
+          </button>
+        ) : (
+          <p className="text-sm text-neutral-500">The hiring manager hasn't generated the interview questions yet. They'll appear here for the whole panel once ready.</p>
+        )
       ) : (
         <>
           <div className="space-y-4">
@@ -15844,7 +15854,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -16340,13 +16350,19 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           allBookings={allBookings}
         />
 
+        </>)}
+
+        {/* AI interview questions: the hiring manager generates them once, and the
+            whole interview panel reads the same set. Shown to everyone on the job. */}
         <InterviewQuestionsPanel
           candidate={candidate}
           jobs={jobs}
           contextJobId={contextJobId}
           isScheduled={questionsUnlocked}
+          savedQuestions={savedQuestions}
+          onGenerate={onGenerateQuestions}
+          canGenerate={!isInterviewer(profile?.role)}
         />
-        </>)}
 
         {/* Interviewers can't schedule; they flag the candidate for the hiring
             manager. Hidden once an interview is booked (the panel below takes over). */}
@@ -17937,6 +17953,14 @@ export default function ResumeAIPreview() {
     setJobAssignments((prev) => prev.filter((a) => !(a.job_id === jobId && a.profile_id === profileId)));
     return null;
   };
+  const [interviewQuestions, setInterviewQuestions] = useState({}); // { "candidateId:jobId": [questions] }
+  // HR generates the AI interview questions once; stored + shared with the pool.
+  const generateInterviewQuestions = async (candidateId, jobId, questions) => {
+    if (!candidateId || !jobId) return;
+    const key = `${candidateId}:${jobId}`;
+    setInterviewQuestions((prev) => (prev[key] ? prev : { ...prev, [key]: questions }));
+    if (canPersist) await dbSaveInterviewQuestions(companyId, userId, { candidateId, jobId, questions });
+  };
   const [scheduleRequests, setScheduleRequests] = useState([]); // [{ application_id, requested_by }] — open interview requests
   // Interviewer flags a candidate for the hiring manager to schedule. Idempotent:
   // the first request per application wins (server-enforced). Returns error|null.
@@ -18376,6 +18400,7 @@ export default function ResumeAIPreview() {
     setPendingInvites(data.pendingInvites || []);
     setJobAssignments(data.jobAssignments || []);
     setScheduleRequests(data.scheduleRequests || []);
+    setInterviewQuestions(data.interviewQuestions || {});
     setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
@@ -19257,6 +19282,8 @@ export default function ResumeAIPreview() {
             currentUserId={userId}
             scheduleRequests={scheduleRequests}
             onRequestScheduling={requestScheduling}
+            savedQuestions={activeCandidate && viewCandidateJobId ? (interviewQuestions[`${activeCandidate.id}:${viewCandidateJobId}`] || null) : null}
+            onGenerateQuestions={(qs) => activeCandidate && viewCandidateJobId && generateInterviewQuestions(activeCandidate.id, viewCandidateJobId, qs)}
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}

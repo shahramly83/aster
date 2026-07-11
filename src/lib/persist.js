@@ -266,6 +266,30 @@ export async function dbUnassignInterviewer(jobId, profileId) {
   return error.message || "Couldn't remove that interviewer.";
 }
 
+// AI interview questions per candidate+job. Generated once by HR, read by the
+// whole pool. Returns rows [{candidate_id, job_id, questions}].
+export async function dbListInterviewQuestions(companyId) {
+  if (!hasSupabase || !companyId) return [];
+  const { data, error } = await supabase
+    .from("interview_questions")
+    .select("candidate_id, job_id, questions")
+    .eq("company_id", companyId);
+  if (error) { console.error("dbListInterviewQuestions", error.message); return []; }
+  return data || [];
+}
+
+// Store the generated set. Generate-once: a duplicate (candidate, job) is
+// ignored server-side by the unique constraint. Returns an error message or null.
+export async function dbSaveInterviewQuestions(companyId, userId, { candidateId, jobId, questions }) {
+  if (!hasSupabase || !companyId || !candidateId || !jobId) return "Not connected to a live workspace.";
+  const { error } = await supabase
+    .from("interview_questions")
+    .upsert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, questions: questions || [], generated_by: userId || null },
+            { onConflict: "candidate_id,job_id", ignoreDuplicates: true });
+  if (error) { console.error("dbSaveInterviewQuestions", error.message); return error.message || "Couldn't save the questions."; }
+  return null;
+}
+
 // Interviewer flags a candidate as ready for the hiring manager to schedule.
 // Idempotent server-side: the first request per application wins. Returns an
 // error message, or null on success.
