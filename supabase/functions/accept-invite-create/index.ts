@@ -59,12 +59,32 @@ Deno.serve(async (req) => {
       user_metadata: { full_name: String(full_name || "").trim() },
     });
     if (cErr) {
-      // Already have an account (e.g. re-invited, or a prior partial signup):
-      // tell the client to switch to sign-in instead of erroring.
-      if (/already.*(registered|exists)|been registered|duplicate/i.test(cErr.message)) {
-        return json({ exists: true });
+      if (!/already.*(registered|exists)|been registered|duplicate/i.test(cErr.message)) {
+        return json({ error: cErr.message || "Could not create the account." }, 400);
       }
-      return json({ error: cErr.message || "Could not create the account." }, 400);
+      // An account already exists for this email. If it has NO workspace
+      // membership, it's an abandoned/incomplete signup (someone who started but
+      // never joined). The invite token already proves the person owns this
+      // email, so it's safe to reset that stale account and let them in — this
+      // self-heals the dead-end where a half-finished signup blocks the invite.
+      // If they ARE a member somewhere, we must not touch their account: send
+      // them to sign-in instead (never a password reset via an invite).
+      const { data: uid } = await admin.rpc("auth_uid_for_email", { p_email: email });
+      if (!uid) return json({ exists: true });
+      const { data: prof } = await admin.from("profiles").select("id").eq("id", uid).maybeSingle();
+      if (prof) return json({ exists: true });
+
+      // Profile-less account: delete the incomplete user and recreate it
+      // confirmed with the new password (orphans nothing — there's no profile).
+      await admin.auth.admin.deleteUser(uid as string);
+      const { error: reErr } = await admin.auth.admin.createUser({
+        email,
+        password: pw,
+        email_confirm: true,
+        user_metadata: { full_name: String(full_name || "").trim() },
+      });
+      if (reErr) return json({ error: reErr.message || "Could not create the account." }, 400);
+      return json({ ok: true });
     }
 
     return json({ ok: true });
