@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (!token) return json({ error: "unauthorized" }, 401);
 
-    const { email, role, name } = await req.json();
+    const { email, role } = await req.json();
     const inviteEmail = String(email || "").toLowerCase().trim();
     const inviteRole = role === "admin" ? "admin" : "interviewer";
     if (!inviteEmail) return json({ error: "email is required" }, 400);
@@ -63,16 +63,13 @@ Deno.serve(async (req) => {
     const companyId = inviter?.company_id || null;
     const companyName = (inviter as { companies?: { name?: string } })?.companies?.name || "your workspace";
     const inviterName = inviter?.full_name || "A teammate";
-    // No name is collected at invite time (the teammate names themselves at
-    // sign-up), so greet them warmly rather than with their email handle.
-    const recipientName = String(name || "").trim() || "there";
     const ctaLink = `${SITE}/?invite=${inviteToken}`;
 
     // Send the Tier 1 invite email (company override → platform default → code default).
     try {
       const tpl = await loadTemplate(admin, "teammate_invite", companyId, {
         subject: "{{inviter_name}} invited you to {{company_name}} on Aster",
-        body: `<p>Hi {{recipient_name}},</p>
+        body: `<p>Hi there,</p>
 <p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as {{role}}. Aster is where your team reviews applicants, runs interviews, and keeps every hire moving forward, all in one place.</p>
 <p>Accepting takes about a minute. Set your password and you're in.</p>
 <p style="margin:22px 0 6px;"><a href="{{cta_link}}" style="display:inline-block;padding:11px 22px;border-radius:10px;background:#0B2AE0;color:#ffffff;font-weight:700;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;">Accept the invite</a></p>
@@ -80,7 +77,7 @@ Deno.serve(async (req) => {
       });
       const roleLabel = inviteRole === "admin" ? "a hiring manager" : "an interviewer";
       const tokens = {
-        recipient_name: recipientName, inviter_name: inviterName,
+        inviter_name: inviterName,
         company_name: companyName, role: roleLabel, cta_link: ctaLink,
       };
       await sendEmail({
