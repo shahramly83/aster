@@ -620,7 +620,9 @@ const BRAND_STYLES = `
 /* Live pulse dot */
 @keyframes livePulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.55); } 70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
 .live-dot { animation: livePulse 2.4s ease-out infinite; }
-@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+@keyframes asterDotPulse { 0%, 100% { opacity: 0.25; } 45% { opacity: 1; } }
+.aster-dot { animation: asterDotPulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .live-dot, .aster-dot { animation: none; opacity: 1; } }
 
 /* Resume scan sweep (hero) */
 @keyframes scanSweep { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
@@ -7220,6 +7222,28 @@ function AsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
   );
 }
 
+// An animated take on the mark for the app rail: the same 16-ray burst drawn as
+// geometry (rays stay solid) with the end dots twinkling in sequence, so a bright
+// point appears to travel around the circle. Respects prefers-reduced-motion.
+function AnimatedAsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
+  const N = 16, cx = 50, cy = 50, R = 39, dotR = 3.5, coreR = 7.5, period = 1.8;
+  const dots = Array.from({ length: N }, (_, i) => {
+    const a = (i / N) * 2 * Math.PI - Math.PI / 2;
+    return { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, i };
+  });
+  return (
+    <svg viewBox="0 0 100 100" className={`${className} block`} fill={color} role="img" aria-label="Aster">
+      {dots.map((d) => (
+        <line key={`l${d.i}`} x1={cx} y1={cy} x2={d.x} y2={d.y} stroke={color} strokeWidth="1.6" strokeLinecap="round" opacity="0.9" />
+      ))}
+      {dots.map((d) => (
+        <circle key={`d${d.i}`} cx={d.x} cy={d.y} r={dotR} className="aster-dot" style={{ animationDelay: `${-(d.i / N) * period}s` }} />
+      ))}
+      <circle cx={cx} cy={cy} r={coreR} />
+    </svg>
+  );
+}
+
 // ---------- Sidebar layout ----------
 
 const NAV_ITEMS = [
@@ -7394,7 +7418,7 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
   return (
     <div className="flex flex-col h-full w-full px-3">
       <button onClick={() => navigate(homeForRole(profile?.role))} aria-label="Aster home" className="mb-8 h-11 flex items-center justify-center group-hover:justify-start group-hover:px-3 gap-0 group-hover:gap-2.5 shrink-0 transition-all duration-200">
-        <AsterMark className="w-11 h-11 shrink-0" />
+        <AnimatedAsterMark className="w-11 h-11 shrink-0" />
         <svg viewBox="293 40 1121 187" className="h-[18px] w-auto shrink-0 max-w-0 group-hover:max-w-[9rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200" role="img" aria-label="Aster" fill="var(--brand)">
           <path d={ASTER_WORDMARK_PATH} fillRule="evenodd" clipRule="evenodd" />
         </svg>
