@@ -7177,7 +7177,8 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   // logo (Settings) always wins and renders as an image. Otherwise we draw the
   // lockup inline as a single-colour SVG so it stays crisp at any size and
   // recolours cleanly per surface, no PNG filter tricks.
-  const h = compact ? "h-10" : xl ? "h-[45px]" : large ? "h-[45px]" : "h-12";
+  // A bit smaller on mobile, full size from sm up.
+  const h = compact ? "h-9 sm:h-10" : xl ? "h-9 sm:h-[45px]" : large ? "h-9 sm:h-[45px]" : "h-10 sm:h-12";
   if (logoUrl) {
     return <img src={logoUrl} alt="Aster: smarter hiring, stronger teams" className={`${h} w-auto object-contain block`} />;
   }
