@@ -18156,13 +18156,20 @@ export default function ResumeAIPreview() {
     const token = new URLSearchParams(window.location.search).get("invite");
     if (!token) return;
     let alive = true;
-    supabase.rpc("invite_preview", { p_token: token }).then(({ data }) => {
+    supabase.rpc("invite_preview", { p_token: token }).then(async ({ data }) => {
       if (!alive) return;
       const row = Array.isArray(data) ? data[0] : data;
-      if (row && row.email) {
-        setInvite({ token, email: String(row.email).toLowerCase(), company: row.company_name, role: row.role });
-        navigate("acceptInvite", `/?invite=${encodeURIComponent(token)}`);
-      }
+      if (!row || !row.email) return;
+      const inviteEmail = String(row.email).toLowerCase();
+      // If the invitee is already authenticated as this same address (they just
+      // clicked the email-confirmation link, which redirects back here with a
+      // session), don't show the create-account form again — the auth bootstrap
+      // redeems the invite and drops them into the workspace.
+      const { data: sdata } = await supabase.auth.getSession();
+      if (!alive) return;
+      if (sdata?.session?.user?.email?.toLowerCase() === inviteEmail) return;
+      setInvite({ token, email: inviteEmail, company: row.company_name, role: row.role });
+      navigate("acceptInvite", `/?invite=${encodeURIComponent(token)}`);
     });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -18229,9 +18236,10 @@ export default function ResumeAIPreview() {
         // if the URL still carries the token and this user has no workspace yet,
         // redeem it before falling back to SSO provisioning.
         const inviteTok = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") : null;
+        let joinedViaInvite = false;
         if (!sess && inviteTok) {
           const { error: accErr } = await supabase.rpc("accept_invite", { p_token: inviteTok });
-          if (!accErr || /already exists/i.test(accErr.message)) sess = await loadCustomerSession(session.user.id, email);
+          if (!accErr || /already exists/i.test(accErr.message)) { sess = await loadCustomerSession(session.user.id, email); joinedViaInvite = true; }
         }
         // First-time SSO user with no workspace yet: provision one from their work
         // domain (matches the password-signup provisioning path), then reload.
@@ -18261,6 +18269,13 @@ export default function ResumeAIPreview() {
           setCompanyId(sess.companyId);
           setUserId(sess.userId);
           await hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); // finish before revealing the app
+        }
+        // Just redeemed an invite on this load: clear the token from state + URL
+        // and drop them into the app, instead of leaving the accept form showing.
+        if (joinedViaInvite && !cancelled) {
+          setInvite(null);
+          if (typeof window !== "undefined") window.history.replaceState({ aster: true }, "", "/");
+          navigate(isInterviewer(sess.profile?.role) ? "interviews" : "dashboard");
         }
       } finally {
         if (!cancelled) setRestoring(false);
