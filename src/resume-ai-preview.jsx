@@ -12997,10 +12997,24 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   );
 }
 
-function SchedulePickerScreen({ navigate, request, onConfirm }) {
+function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, company = "" }) {
   const [stage, setStage] = useState("picking"); // picking | confirming | confirmed
   const [confirmedSlot, setConfirmedSlot] = useState(null);
   const meetingLink = "https://meet.google.com/abc-defg-hij";
+
+  // Company branding for this public page: the uploaded logo, else a mark + name.
+  const companyHeader = (
+    <div className="flex items-center gap-3 mb-6">
+      {logoUrl ? (
+        <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-10 object-contain" style={{ maxWidth: 200 }} />
+      ) : (
+        <>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-5 h-5" /></div>
+          {company && <span className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{company}</span>}
+        </>
+      )}
+    </div>
+  );
 
   if (!request) {
     return (
@@ -13029,6 +13043,7 @@ function SchedulePickerScreen({ navigate, request, onConfirm }) {
       <div className="px-4 sm:px-6 py-8 sm:py-10">
         <div className="max-w-2xl mx-auto">
           <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
+          <div className="mt-6">{companyHeader}</div>
           <div className="text-center max-w-sm mx-auto mt-10">
             <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-emerald-600 text-xl">✓</span>
@@ -13061,9 +13076,10 @@ function SchedulePickerScreen({ navigate, request, onConfirm }) {
             Below is what the candidate sees. A public page, no login, reached only through the job's link.
           </p>
         </div>
+        {companyHeader}
         <h1 className="text-xl sm:text-2xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Interview: {request.jobTitle}</h1>
         <p className="text-sm text-neutral-600 mb-6">
-          With {request.interviewerName} · {request.slot_duration_minutes} minutes. Choose whichever time works best for you.
+          With {company || request.interviewerName} · {request.slot_duration_minutes} minutes. Choose whichever time works best for you.
         </p>
 
         <div className="space-y-2">
@@ -18371,6 +18387,8 @@ export default function ResumeAIPreview() {
           <SchedulePickerScreen
             navigate={navigate}
             request={previewRequest}
+            logoUrl={logoUrl}
+            company={company}
             onConfirm={(slot) => previewRequest && confirmBooking(previewRequest.candidateId, slot)}
           />
         </div>
