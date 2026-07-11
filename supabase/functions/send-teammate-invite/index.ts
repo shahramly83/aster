@@ -71,12 +71,13 @@ Deno.serve(async (req) => {
       const tpl = await loadTemplate(admin, "teammate_invite", companyId, {
         subject: "{{inviter_name}} invited you to {{company_name}} on Aster",
         body: `<p>Hi {{recipient_name}},</p>
-<p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as a {{role}}.</p>
+<p>{{inviter_name}} has invited you to join <strong>{{company_name}}</strong> on Aster as {{role}}.</p>
 <p><a href="{{cta_link}}">Accept the invite</a></p>`,
       });
+      const roleLabel = inviteRole === "admin" ? "a hiring manager" : "an interviewer";
       const tokens = {
         recipient_name: recipientName, inviter_name: inviterName,
-        company_name: companyName, role: inviteRole, cta_link: ctaLink,
+        company_name: companyName, role: roleLabel, cta_link: ctaLink,
       };
       await sendEmail({
         to: inviteEmail,

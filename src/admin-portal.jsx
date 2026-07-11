@@ -13,6 +13,7 @@
 // ============================================================================
 import { useState, useEffect, useMemo } from "react";
 import { supabase, hasSupabase } from "./lib/supabase";
+import { ASTER_MARK_PATH } from "./lib/logo";
 
 const ADMIN_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -68,6 +69,19 @@ const PATHS = {
   spark: "M12 3l1.9 5.6L20 10l-6.1 1.4L12 17l-1.9-5.6L4 10l6.1-1.4L12 3Z",
   external: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
 };
+// The real Aster app-icon mark (blue rounded square + white burst), used in the
+// admin header/login in place of the old "A" letter badge. The SVG rounds its
+// own corners, so no extra background/radius is needed on the container.
+function AsterMark({ className = "w-10 h-10" }) {
+  return (
+    <svg viewBox="0 0 128 128" className={className} aria-hidden="true">
+      <rect width="128" height="128" rx="28" fill="#0B2AE0" />
+      <g transform="translate(64 64) scale(0.92) translate(-250.9 -296.1)" fill="#FFFFFF">
+        <path d={ASTER_MARK_PATH} />
+      </g>
+    </svg>
+  );
+}
 function Icon({ name, className = "w-5 h-5" }) {
   const filled = name === "dot";
   return (
@@ -853,7 +867,7 @@ function AdminLogin({ onLogin }) {
       <div className="w-full max-w-md">
         <div className="text-center mb-7">
           <div className="inline-flex items-center gap-2.5 mb-4">
-            <span className="w-10 h-10 rounded-xl grad inline-flex items-center justify-center text-white font-extrabold adm-display">A</span>
+            <AsterMark className="w-10 h-10" />
             <span className="adm-display font-bold text-lg text-neutral-900">Aster <span className="txt-grad">Admin</span></span>
           </div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "var(--danger-soft)", color: "var(--danger)", border: "1px solid rgba(220,38,38,0.3)" }}>
@@ -864,7 +878,7 @@ function AdminLogin({ onLogin }) {
           <h1 className="text-xl font-bold adm-display text-neutral-900">Sign in to the admin console</h1>
           <p className="text-sm mt-1 mb-5" style={{ color: "var(--ink-2)" }}>Admin accounts are separate from customer logins.</p>
           <form onSubmit={(e) => { e.preventDefault(); signIn(); }} className="space-y-3">
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="you@aster.co" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="you@hireaster.com" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
             <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="current-password" placeholder="Password" className="w-full px-3.5 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--line)" }} />
             {err && <p className="text-sm flex items-center gap-1.5" style={{ color: "var(--danger)" }}><Icon name="warning" className="w-4 h-4" /> {err}</p>}
             <button type="submit" disabled={busy} className="w-full grad text-white font-semibold py-2.5 rounded-xl disabled:opacity-60">{busy ? "Signing in…" : "Sign in"}</button>
@@ -902,7 +916,7 @@ function AdminShell({ admin, section, go, onLogout, children }) {
       {/* Sidebar */}
       <aside className={`adm-side fixed lg:static z-40 top-0 bottom-0 left-0 w-64 shrink-0 flex flex-col transition-transform ${mobileNav ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`} style={{ background: "var(--adm)", borderRight: "1px solid var(--adm-line)" }}>
         <div className="h-16 flex items-center gap-2.5 px-5 shrink-0" style={{ borderBottom: "1px solid var(--adm-line)" }}>
-          <span className="w-8 h-8 rounded-lg grad inline-flex items-center justify-center text-white font-extrabold adm-display text-sm">A</span>
+          <AsterMark className="w-8 h-8" />
           <span className="adm-display font-bold text-neutral-900">Aster <span className="txt-grad">Admin</span></span>
         </div>
         <div className="px-3 py-2">
