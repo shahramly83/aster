@@ -16445,6 +16445,31 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {/* Two columns: resume + workflow in main, insights + summary in the sidebar */}
         <div className="grid lg:grid-cols-3 gap-5 mt-5 items-start">
           <div className="lg:col-span-2 space-y-5">
+            {/* Interviewer's next step up top, so the page opens with what to do,
+                not a bare resume. Managers get the stepped card lower down. */}
+            {isInterviewer(profile?.role) && (
+              isBooked ? (
+                interviewPast ? (
+                  <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
+                    <span className="shrink-0 mt-0.5" style={{ color: "#059669" }}><Icon name="check" className="w-5 h-5" /></span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You've interviewed {firstName}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Add your scorecard below so the hiring manager can make the call.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl tool-card act-shadow p-4 flex items-start gap-3">
+                    <span className="shrink-0 mt-0.5" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-5 h-5" /></span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your interview with {firstName} is coming up</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{interviewWhen ? `Scheduled for ${interviewWhen}. ` : ""}Read their background below and prep with the tailored questions.</p>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <RequestInterviewControl applicationId={applicationId} openRequest={openRequest} requesterName={requesterName} onRequest={onRequestScheduling} />
+              )
+            )}
             {aiInsightsCard}
 
         {parsed.summary && (
@@ -16718,16 +16743,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         )}
 
-        {/* Interviewers can't schedule; they flag the candidate for the hiring
-            manager. Hidden once an interview is booked (the panel below takes over). */}
-        {isInterviewer(profile?.role) && !isBooked && (
-          <RequestInterviewControl
-            applicationId={applicationId}
-            openRequest={openRequest}
-            requesterName={requesterName}
-            onRequest={onRequestScheduling}
-          />
-        )}
+        {/* (Interviewer's request-to-schedule prompt now leads the profile up
+            top, so it isn't repeated here.) */}
 
         {/* Interviewer's heads-up between "booked" and "interview happened". The
             manager sees the same state through the locked step tabs instead. */}
