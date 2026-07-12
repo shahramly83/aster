@@ -8119,7 +8119,7 @@ function AccountShell({ title, subtitle, rail, children, navigate, profile, avat
         </div>
         <div className={`grid grid-cols-1 ${rail ? "lg:grid-cols-3" : ""} gap-5 lg:gap-6 items-start`}>
           <div className={`${rail ? "lg:col-span-2" : ""} min-w-0`}>{children}</div>
-          {rail && <div className="space-y-4 lg:sticky lg:top-6">{rail}</div>}
+          {rail && <div className="space-y-4 lg:sticky lg:top-6 relative z-30">{rail}</div>}
         </div>
       </div>
     </div>
