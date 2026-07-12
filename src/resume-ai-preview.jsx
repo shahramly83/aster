@@ -1026,6 +1026,10 @@ const isBusinessEmail = (email) => {
   const d = emailDomain(email);
   return !!d && d.includes(".") && !CONSUMER_EMAIL_DOMAINS.has(d);
 };
+// Workspace subdomain slug for the dashboard URL (<slug>.hireaster.com). Lowercase
+// letters/numbers/hyphens, no leading/trailing hyphen, 2-30 chars.
+const slugifyWorkspace = (s) => (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
+const isWorkspaceSlugValid = (s) => /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/.test(s || "") && (s || "").length >= 2;
 // jane@acme-corp.io → "Acme Corp"; used to seed a first-time SSO user's workspace.
 const companyFromEmail = (email) => {
   const d = emailDomain(email);
@@ -6706,6 +6710,8 @@ function OfferScreen({ data, done, onRespond }) {
 function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "elite", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft, ssoEnabled = false }) {
   const prices = usePlanPrices();
   const [companyName, setCompanyName] = useState("");
+  const [workspaceUrl, setWorkspaceUrl] = useState(""); // dashboard subdomain slug
+  const [urlEdited, setUrlEdited] = useState(false);     // true once the user types their own
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -6761,7 +6767,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const labelDark = "block text-[13px] font-medium mb-1.5";
   const reqStar = <span aria-hidden="true" style={{ color: "var(--brand-0)" }}> *</span>;
 
-  const canSubmit = companyName.trim() && firstName.trim() && email.trim();
+  const canSubmit = companyName.trim() && firstName.trim() && email.trim() && isWorkspaceSlugValid(workspaceUrl);
 
   const handleSignUp = async () => {
     if (!canSubmit || busy) return;
@@ -6790,6 +6796,9 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     // Real signup against Supabase Auth.
     const em = email.trim();
     if (!isValidEmail(em)) { setErr("Enter a valid work email."); return; }
+    // Work email only: reject Gmail / Outlook / iCloud and other personal domains.
+    if (!isBusinessEmail(em)) { setErr("Please use your work email. Personal accounts (Gmail, Outlook, iCloud and the like) aren't accepted."); return; }
+    if (!isWorkspaceSlugValid(workspaceUrl)) { setErr("Choose a dashboard URL: 2-30 lowercase letters, numbers or hyphens."); return; }
     const pwProblem = passwordProblem(password);
     if (pwProblem) { setErr(pwProblem); return; }
     setBusy(true); setErr(null);
@@ -6798,7 +6807,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     const { data, error } = await supabase.auth.signUp({
       email: em,
       password,
-      options: { data: { full_name: fullName, company_name: companyName.trim() } },
+      options: { data: { full_name: fullName, company_name: companyName.trim(), workspace_slug: workspaceUrl } },
     });
     if (error) {
       setErr(/already registered/i.test(error.message) ? "An account with this email already exists. Try signing in." : error.message);
@@ -6953,7 +6962,28 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignUp(); }}>
             <div>
               <label htmlFor="su-company" className={labelDark} style={{ color: "var(--ink)" }}>Company name{reqStar}</label>
-              <input id="su-company" name="organization" autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
+              <input id="su-company" name="organization" autoComplete="organization" value={companyName} onChange={(e) => { setCompanyName(e.target.value); if (!urlEdited) setWorkspaceUrl(slugifyWorkspace(e.target.value)); }} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
+            </div>
+            <div>
+              <label htmlFor="su-url" className={labelDark} style={{ color: "var(--ink)" }}>Dashboard URL{reqStar}</label>
+              <div className="flex items-stretch rounded-xl overflow-hidden" style={{ border: "1px solid var(--line-strong)", background: "#fff" }}>
+                <input
+                  id="su-url"
+                  name="workspace-url"
+                  value={workspaceUrl}
+                  onChange={(e) => { setUrlEdited(true); setWorkspaceUrl(slugifyWorkspace(e.target.value)); setErr(null); }}
+                  placeholder="oryx"
+                  aria-label="Dashboard URL subdomain"
+                  className="flex-1 min-w-0 px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]"
+                  style={{ background: "#fff", color: "var(--ink)", border: "none" }}
+                />
+                <span className="flex items-center px-3 text-sm shrink-0" style={{ color: "var(--ink-3)", background: "var(--bg)", borderLeft: "1px solid var(--line-strong)" }}>.hireaster.com</span>
+              </div>
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
+                {workspaceUrl && isWorkspaceSlugValid(workspaceUrl)
+                  ? <>Your team will sign in at <span className="font-medium" style={{ color: "var(--ink-2)" }}>{workspaceUrl}.hireaster.com</span></>
+                  : "Pick a subdomain: lowercase letters, numbers and hyphens."}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
