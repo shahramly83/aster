@@ -18383,10 +18383,14 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
       title = filter.status === "pending" ? "Parsing pending" : "Parse failed";
       base = [];
     } else if (filter.source === "public_application") {
-      title = "New applications";
-      // Real applicants across every job (not a hardcoded demo id list).
-      const applicantIds = new Set(Object.values(APPLICANTS_BY_JOB).flat().map((a) => a.candidateId));
-      base = base.filter((c) => applicantIds.has(c.id));
+      title = "New applicants";
+      // Match the dashboard "New Applicants" card exactly: candidates still in the
+      // "applied" stage. Once someone is hired (or moved to interview/offer) they
+      // are no longer a new applicant, so they drop out of this list.
+      const applicantIds = new Set(
+        Object.values(APPLICANTS_BY_JOB).flat().filter((a) => a.baseStage === "applied").map((a) => a.candidateId)
+      );
+      base = base.filter((c) => applicantIds.has(c.id) && !hiredIds.has(c.id));
     } else if (filter.interview) {
       title = "Candidates in interview";
       const interviewIds = new Set(
