@@ -17982,19 +17982,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
             <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
               <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Close {job?.title}?</h3>
-              <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>
+              <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 {inProgressApplicants.length > 0
-                  ? `This role is filled. ${inProgressApplicants.length} candidate${inProgressApplicants.length === 1 ? " is" : "s are"} still in progress. What should happen to them?`
-                  : "This role is filled and no one is still in progress. It'll move to Closed."}
+                  ? <>Closing this role will <strong style={{ color: "var(--ink)" }}>reject the {inProgressApplicants.length} remaining applicant{inProgressApplicants.length === 1 ? "" : "s"} and email each of them a rejection</strong>. Hired candidates aren&apos;t affected. This can&apos;t be undone.</>
+                  : "No one is still in progress. This role will move to Closed."}
               </p>
               <div className="flex flex-col gap-2 mt-5">
-                {inProgressApplicants.length > 0 && (
-                  <button onClick={() => doCloseJob(true)} disabled={closing} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2.5 hover:opacity-90 disabled:opacity-50 transition-opacity">
-                    {closing ? "Closing…" : "Close and let them know the position is filled"}
-                  </button>
-                )}
-                <button onClick={() => doCloseJob(false)} disabled={closing} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-neutral-50 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                  {inProgressApplicants.length > 0 ? "Close, keep them in the pipeline" : (closing ? "Closing…" : "Close role")}
+                <button onClick={() => doCloseJob(inProgressApplicants.length > 0)} disabled={closing} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2.5 hover:opacity-90 disabled:opacity-50 transition-opacity">
+                  {closing ? "Closing…" : inProgressApplicants.length > 0 ? `Reject ${inProgressApplicants.length} & close role` : "Close role"}
                 </button>
                 <button onClick={() => setClosePrompt(false)} disabled={closing} className="text-sm rounded-xl px-4 py-2 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-2)" }}>Cancel</button>
               </div>
@@ -19351,6 +19346,14 @@ export default function ResumeAIPreview() {
         const row = Array.isArray(data) ? data?.[0] : data;
         if (row && typeof row.used === "number") setAiInsightsUsed(row.used);
       }).catch((e) => console.error("get_ai_insight_usage threw:", e));
+      // "Why this fit" (See Why) credits. This was never hydrated, so the meter
+      // reset to zero on every reload even though the DB had counted the usage,
+      // making it look like the credit was never charged.
+      supabase.rpc("get_see_why_usage").then(({ data, error }) => {
+        if (error) { console.error("get_see_why_usage failed:", error.message || error); return; }
+        const row = Array.isArray(data) ? data?.[0] : data;
+        if (row && typeof row.used === "number") setSeeWhyUsed(row.used);
+      }).catch((e) => console.error("get_see_why_usage threw:", e));
       // Job-posting credits for this cycle (same 30-day cycle as AI Rank).
       supabase.rpc("get_job_post_usage").then(({ data, error }) => {
         if (error) { console.error("get_job_post_usage failed:", error.message || error); return; }
