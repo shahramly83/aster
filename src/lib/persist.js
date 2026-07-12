@@ -398,3 +398,15 @@ export async function dbSaveMatchScores(companyId, jobId, results = []) {
       .then(({ error }) => { if (error) console.error("dbSaveMatchScores", error.message); })
   ));
 }
+
+// Persist a "Why this fit" (See Why) explanation on the application, so it
+// survives reloads and AI Rank re-runs and doesn't cost another credit to
+// re-view. Needs the applications.see_why column (migration 0066); a missing
+// column just logs and no-ops.
+export async function dbSaveSeeWhy(companyId, jobId, candidateId, text) {
+  if (!hasSupabase || !companyId || !jobId || !candidateId) return;
+  const { error } = await supabase.from("applications")
+    .update({ see_why: text || null })
+    .eq("company_id", companyId).eq("job_id", jobId).eq("candidate_id", candidateId);
+  if (error) console.error("dbSaveSeeWhy", error.message);
+}

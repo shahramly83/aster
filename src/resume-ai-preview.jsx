@@ -6,7 +6,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbSaveSeeWhy } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -17685,13 +17685,12 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
   const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
   const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
-  // See Why (Option B): a metered per-candidate credit, separate from AI Rank.
-  // First reveal charges 1 credit and caches the rationale; re-viewing is free;
-  // Regenerate charges again behind a confirm prompt.
+  // "Why this fit": a metered per-candidate credit, separate from AI Rank. First
+  // reveal charges 1 credit and saves the rationale to the DB; re-viewing (even
+  // after a reload or an AI Rank re-run) is free and reads the saved copy.
   const seeWhyLimit = limits.seeWhyPerMonth;
   const seeWhyUnlimited = seeWhyLimit === Infinity;
   const seeWhyLeft = Math.max(0, seeWhyLimit - seeWhyUsed);
-  const [confirmRegen, setConfirmRegen] = useState(null); // { candidateId, candidate, fallback, role }
   const [seeWhyLoading, setSeeWhyLoading] = useState(null); // candidateId being explained
   // Dedicated See-why AI: a fresh, candidate-specific fit explanation from the
   // see-why edge function (metered there). Falls back to the AI-Rank rationale
@@ -17713,6 +17712,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       }
       setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: data.explanation }));
       if (typeof data.used === "number" && setSeeWhyUsed) setSeeWhyUsed(data.used);
+      // Persist so it survives a reload / AI Rank re-run and never re-charges.
+      dbSaveSeeWhy(companyId, activeJobId, candidateId, data.explanation);
     } catch {
       setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: fallback }));
       if (!seeWhyUnlimited && setSeeWhyUsed) setSeeWhyUsed((n) => n + 1);
@@ -18128,11 +18129,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                             <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
                             <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>Why this fit: </span>{revealed}</p>
                           </div>
-                          {!seeWhyUnlimited && (
-                            <button onClick={() => setConfirmRegen({ candidateId: a.candidateId, candidate: c, fallback: match.rationale, role: roleObj })} className="mt-1.5 ml-5 text-[10px] font-medium inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
-                              <Icon name="refresh" className="w-3 h-3" /> Regenerate
-                            </button>
-                          )}
                         </div>
                       );
                     }
@@ -18163,14 +18159,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         confirmLabel="Run AI Rank"
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
-      />
-      <ConfirmDialog
-        open={!!confirmRegen}
-        title="Explain again?"
-        body={`This runs a fresh rationale and uses 1 Why-this-fit credit, replacing the saved result. You have ${seeWhyLeft} left this cycle.`}
-        confirmLabel="Use 1 credit"
-        onConfirm={() => { const r = confirmRegen; setConfirmRegen(null); if (r) revealSeeWhy(r.candidateId, r.candidate, r.fallback, r.role, { force: true }); }}
-        onClose={() => setConfirmRegen(null)}
       />
     </AccountShell>
   );
@@ -19354,6 +19342,15 @@ export default function ResumeAIPreview() {
         const row = Array.isArray(data) ? data?.[0] : data;
         if (row && typeof row.used === "number") setSeeWhyUsed(row.used);
       }).catch((e) => console.error("get_see_why_usage threw:", e));
+      // Load saved "Why this fit" explanations into the cache so they show for
+      // free after a reload (best-effort; the see_why column may not exist until
+      // 0066 is applied, so any error here is simply ignored).
+      supabase.from("applications").select("candidate_id, see_why").not("see_why", "is", null).then(({ data, error }) => {
+        if (error || !Array.isArray(data)) return;
+        const m = {};
+        data.forEach((r) => { if (r.candidate_id && r.see_why) m[r.candidate_id] = r.see_why; });
+        if (Object.keys(m).length) setSeeWhyCache((prev) => ({ ...m, ...prev }));
+      }).catch(() => { /* column missing / offline: ignore */ });
       // Job-posting credits for this cycle (same 30-day cycle as AI Rank).
       supabase.rpc("get_job_post_usage").then(({ data, error }) => {
         if (error) { console.error("get_job_post_usage failed:", error.message || error); return; }
