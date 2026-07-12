@@ -8,7 +8,7 @@
 // Secrets: RESEND_API_KEY (optional — skipped if unset)
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs, button } from "../_shared/email.ts";
 
 const SITE = "https://hireaster.com";
 const CORS = {
@@ -55,17 +55,23 @@ Deno.serve(async (req) => {
       jobTitle = job?.title || jobTitle;
     }
 
+    const bookingLink = `${SITE}/book/${inviteToken}`;
     const tpl = await loadTemplate(admin, "interview_invite", companyId, {
-      subject: "Interview invitation: {{job_title}}",
-      body: "Hi {{candidate_name}},\n\nWe'd love to interview you for the {{job_title}} role at {{company_name}}. Your interviewer will be {{interviewer_name}}.\n\nPlease pick a time that works for you here: {{booking_link}}",
+      subject: "Pick a time for your {{job_title}} interview",
+      body: "Hi {{candidate_name}},\n\nWe'd like to interview you for the {{job_title}} role at {{company_name}}, and you'll be meeting {{interviewer_name}}.\n\nPick whichever time suits you best. Once you choose, we'll send the calendar invite and joining details to your inbox.",
     });
     const tokens = {
       candidate_name: cand.full_name || "there",
       job_title: jobTitle,
       company_name: companyName,
       interviewer_name: iv.interviewer_name || "the hiring team",
-      booking_link: `${SITE}/book/${inviteToken}`,
+      booking_link: bookingLink,
     };
+    // The booking link is a proper CTA button (not a raw URL pasted into the
+    // prose), with a small text fallback for clients that strip buttons.
+    const bodyHtml = paragraphs(renderTemplate(tpl.body, tokens))
+      + button("Pick a time", bookingLink)
+      + `<p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#8B8699;">If the button doesn't work, <a href="${bookingLink}" style="color:#0B2AE0;text-decoration:underline;">open your booking page here</a>.</p>`;
     await sendEmail({
       to: cand.email,
       subject: renderTemplate(tpl.subject, tokens),
@@ -73,7 +79,7 @@ Deno.serve(async (req) => {
         companyName, logoUrl,
         heading: "Pick a time for your interview",
         preview: `Choose a time for your ${jobTitle} interview with ${companyName}.`,
-        bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)),
+        bodyHtml,
       }),
     });
 

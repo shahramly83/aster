@@ -12789,8 +12789,8 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
           <InfoHint dir="down" hint="AI drafts these questions from this candidate's resume and the role, so you can tailor the interview before you meet." />
         </div>
         {pool && (
-          <button onClick={copyAll} className="text-xs text-neutral-600 hover:text-neutral-900">
-            {copiedAll ? "Copied ✓" : "Copy all to notes"}
+          <button onClick={copyAll} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-2.5 py-1.5 transition-colors hover:bg-neutral-50" style={{ color: copiedAll ? "#16A34A" : "var(--ink-2)", border: "1px solid var(--line)" }}>
+            <Icon name={copiedAll ? "check" : "doc"} className="w-3.5 h-3.5" /> {copiedAll ? "Copied" : "Copy all"}
           </button>
         )}
       </div>
@@ -12823,7 +12823,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
         )
       ) : (
         <>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {(() => {
               // Build contiguous category groups from the visible (category-sorted) slice.
               const groups = [];
@@ -12835,20 +12835,24 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
               });
               return groups.map((g, gi) => (
                 <div key={gi}>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--brand)" }}>{g.category}</p>
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>{g.category}</span>
+                    <span className="flex-1 h-px" style={{ background: "var(--line)" }} />
+                    <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>{g.items.length} question{g.items.length === 1 ? "" : "s"}</span>
+                  </div>
                   <div className="space-y-2">
                     {g.items.map((q) => (
-                      <div key={q.flatIndex} className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="text-sm text-neutral-800 min-w-0">{q.question}</p>
-                          <button
-                            onClick={() => copyOne(q, q.flatIndex)}
-                            className="text-xs text-neutral-400 hover:text-neutral-700 shrink-0 mt-0.5"
-                            title="Copy question"
-                          >
-                            {copiedIdx === q.flatIndex ? "Copied ✓" : "Copy"}
-                          </button>
-                        </div>
+                      <div key={q.flatIndex} className="rounded-xl border px-3.5 py-3 flex items-start gap-3 transition-colors hover:border-[color:var(--line-strong)]" style={{ borderColor: "var(--line)", background: "#fff" }}>
+                        <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold mt-px tnum" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{q.flatIndex + 1}</span>
+                        <p className="text-sm min-w-0 flex-1 leading-relaxed" style={{ color: "var(--ink)" }}>{q.question}</p>
+                        <button
+                          onClick={() => copyOne(q, q.flatIndex)}
+                          className="shrink-0 inline-flex items-center gap-1 text-xs font-medium rounded-lg px-2 py-1 transition-colors hover:bg-neutral-50"
+                          style={copiedIdx === q.flatIndex ? { color: "#16A34A" } : { color: "var(--ink-3)" }}
+                          title="Copy question"
+                        >
+                          {copiedIdx === q.flatIndex ? <><Icon name="check" className="w-3.5 h-3.5" /> Copied</> : "Copy"}
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -12857,17 +12861,18 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
             })()}
           </div>
 
-          <div className="flex items-center gap-3 mt-4">
+          <div className="flex items-center gap-3 mt-5">
             {hasMore && (
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="text-sm rounded-xl border border-neutral-200 px-4 py-2 text-neutral-700 hover:border-neutral-300 disabled:opacity-50 transition-colors"
+                className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
               >
                 {loadingMore ? "Loading…" : "Load more questions"}
               </button>
             )}
-            <span className="text-xs text-neutral-400">{visible.length} of {pool.length}</span>
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>{visible.length} of {pool.length} shown</span>
           </div>
         </>
       )}
@@ -14237,10 +14242,10 @@ const EMAIL_TEMPLATE_DEFS = [
     tokens: ["candidate_name", "job_title", "apply_link"],
     subject: "A {{job_title}} role you might like",
     body: "Hi {{candidate_name}},\n\nIt has been a while since we last connected, but your background stood out to us and we are now hiring a {{job_title}}. If you are interested, tap the link below to see the role and apply with your latest resume. It only takes a minute.\n\n{{apply_link}}\n\nWe would love to reconnect." },
-  { key: "interview_invite", name: "Interview invite", desc: "Sent when you invite a candidate to pick an interview slot.",
-    tokens: ["candidate_name", "job_title", "interviewer_name", "booking_link"],
-    subject: "Interview invitation: {{job_title}}",
-    body: "Hi {{candidate_name}},\n\nWe'd love to interview you for the {{job_title}} role. Your interviewer will be {{interviewer_name}}.\n\nPlease pick a time that works for you here: {{booking_link}}" },
+  { key: "interview_invite", name: "Interview invite", desc: "Sent when you invite a candidate to pick an interview slot. A 'Pick a time' button with their booking link is added automatically below your message.",
+    tokens: ["candidate_name", "job_title", "interviewer_name", "company_name"],
+    subject: "Pick a time for your {{job_title}} interview",
+    body: "Hi {{candidate_name}},\n\nWe'd like to interview you for the {{job_title}} role at {{company_name}}, and you'll be meeting {{interviewer_name}}.\n\nPick whichever time suits you best. Once you choose, we'll send the calendar invite and joining details to your inbox." },
   { key: "interview_confirmation", name: "Interview confirmation", desc: "Sent to the candidate once they pick a slot.",
     tokens: ["candidate_name", "job_title", "date_time", "meeting_link"],
     subject: "Your interview is confirmed: {{date_time}}",
