@@ -6972,7 +6972,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                   name="workspace-url"
                   value={workspaceUrl}
                   onChange={(e) => { setUrlEdited(true); setWorkspaceUrl(slugifyWorkspace(e.target.value)); setErr(null); }}
-                  placeholder="oryx"
+                  placeholder="your-company"
                   aria-label="Dashboard URL subdomain"
                   className="flex-1 min-w-0 px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]"
                   style={{ background: "#fff", color: "var(--ink)", border: "none" }}
