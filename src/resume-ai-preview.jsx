@@ -18035,9 +18035,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               return (
                 <div
                   key={a.candidateId}
-                  className="rounded-2xl bg-white px-4 sm:px-5 py-4 border"
+                  className="relative rounded-2xl bg-white px-4 sm:px-5 py-4 border"
                   style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(var(--brand-rgb),0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}
                 >
+                  {isTop && <span className="absolute top-3 right-4 sm:right-5 z-10 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold shadow-[0_6px_16px_-6px_rgba(var(--brand-rgb),0.7)]">Top match</span>}
                   <div className="flex items-center gap-4">
                     <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
                       {ranked
@@ -18050,7 +18051,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="min-w-0 flex-1 text-left">
                           <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
                         </button>
-                        {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
                         {match && !scoreVisible && (
                           <button onClick={() => navigate("billing")} className="shrink-0" aria-label="Upgrade to see match score">
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
