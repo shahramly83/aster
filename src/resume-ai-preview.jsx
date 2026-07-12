@@ -17569,7 +17569,20 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
 // The interviewer pool for one job: who can see its applicants and be put on
 // interviews. Admins/hiring managers always have access, so this only adds
 // interviewers. Read-only for non-managers; add/remove is admin-gated server-side.
-function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign }) {
+// Tiny dismissible onboarding tooltip: a STEP label, a short hint, and a close ×.
+function GuideBubble({ step, children, onClose }) {
+  return (
+    <div className="relative rounded-lg bg-white px-2.5 py-2 text-[11px] act-shadow" style={{ border: "1px solid var(--line)" }}>
+      <button onClick={onClose} aria-label="Dismiss" className="absolute top-1.5 right-1.5 w-4 h-4 rounded flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+        <Icon name="close" className="w-3 h-3" />
+      </button>
+      <p className="font-bold uppercase pr-4" style={{ color: "var(--brand)", letterSpacing: "0.07em", fontSize: "9px" }}>{step}</p>
+      <p className="mt-0.5 pr-4 leading-snug" style={{ color: "var(--ink-2)" }}>{children}</p>
+    </div>
+  );
+}
+
+function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign, locked = false, stepLabel = null }) {
   const [open, setOpen] = useState(false);
   const [addMenuRef, addUp] = useDropUp(open, 280);
   const [busyId, setBusyId] = useState(null);
@@ -17591,20 +17604,21 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   };
 
   return (
-    <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5">
+    <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5" style={{ opacity: locked ? 0.72 : 1 }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
+          {stepLabel && <p className="text-[11px] font-bold uppercase mb-1" style={{ color: "var(--brand)", letterSpacing: "0.08em" }}>{stepLabel}</p>}
           <h3 className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
-            <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name="users" className="w-4 h-4" /></span>
+            <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name={locked ? "lock" : "users"} className="w-4 h-4" /></span>
             Interviewers on this job
           </h3>
-          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>They can see these applicants and request interviews. You and other hiring managers always have access.</p>
+          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{locked ? "Complete Step 1 (AI Rank) first, so interviewers get a prepared, ranked list. This unlocks automatically once ranking is done." : "They can see these applicants and request interviews. You and other hiring managers always have access."}</p>
         </div>
         {canManage && (
           <div className="relative shrink-0" ref={addMenuRef}>
             <button
               onClick={() => setOpen((o) => !o)}
-              disabled={addable.length === 0}
+              disabled={locked || addable.length === 0}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40 inline-flex items-center gap-1.5"
               style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}
             >
@@ -17747,6 +17761,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
   // Strong Matches vs Other Applicants tabs (fit classification from apply time).
   const [applicantTab, setApplicantTab] = useState("strong");
+  // Guided HM workflow: three small onboarding bubbles (Wait for candidates ->
+  // Run AI Rank -> Invite interviewer). Dismissal persists per browser.
+  const readGuide = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return false; } };
+  const [guideS1Off, setGuideS1Off] = useState(() => readGuide("aster.guide.s1"));
+  const [guideS2Off, setGuideS2Off] = useState(() => readGuide("aster.guide.s2"));
+  const [guideS3Off, setGuideS3Off] = useState(() => readGuide("aster.guide.s3"));
+  const dismissGuide = (k, setter) => { setter(true); try { localStorage.setItem(k, "1"); } catch { /* private mode */ } };
+  const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
   const [stageFilter, setStageFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -17793,6 +17815,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
     setMatching(true);
     setMatchErr(null);
+    setMatchOk(false);
     try {
       if (!hasSupabase) { setMatching(false); return; }  // demo build: nothing to rank against
       // Re-rank EVERY active candidate on each run (including ones ranked before),
@@ -17812,9 +17835,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       if (!Object.keys(map).length) throw new Error("no scores returned");
 
       setMatchResults(map);
+      setMatchOk(true);
       syncRuns(data.used);  // the server already charged; mirror its count
-      // Persist the full set so the ranking survives a reload and future runs can
-      // skip these candidates.
+      // Persist the full set so the ranking survives a reload; interviewers pick
+      // up the updated scores on load. Only match_score / match_reasons change —
+      // never a candidate's stage — so status changes are preserved.
       dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
     } catch (e) {
       console.error("runMatching", e);
@@ -17829,6 +17854,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // all of them and spends 1 credit (re-run is intentional).
   const rankableActive = applicants.filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other");
   const canRank = rankableActive.length >= 2;
+  // Step 2 (assign interviewers) unlocks once AI Rank has been run for this role
+  // (matchResults is seeded from saved scores, so it stays unlocked after reload).
+  const step2Enabled = !!matchResults;
 
   const setStage = (candidateId, stage, emailSent) => {
     if (stage === "rejected") {
@@ -17895,8 +17923,18 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       onOpenNotifications={onOpenNotifications}
       backTo={isInterviewer(profile?.role) ? "interviews" : "jobs"}
       backLabel={isInterviewer(profile?.role) ? "Interviews" : "Jobs"}
-      rail={!isInterviewer(profile?.role) && (limits.aiRunsPerMonth !== Infinity || !seeWhyUnlimited) ? (
+      rail={!isInterviewer(profile?.role) ? (
         <div className="space-y-4">
+          {!guideS2Off && (
+            <GuideBubble step="Step 2" onClose={() => dismissGuide("aster.guide.s2", setGuideS2Off)}>
+              Run AI Rank once the candidates are ready. You can rerun it whenever new candidates apply.
+            </GuideBubble>
+          )}
+          {!guideS3Off && (
+            <GuideBubble step="Step 3" onClose={() => dismissGuide("aster.guide.s3", setGuideS3Off)}>
+              Invite an interviewer to review the ranked candidates. This unlocks after AI Rank.
+            </GuideBubble>
+          )}
           {limits.aiRunsPerMonth !== Infinity && (
             <UsageMeter
               title="AI Rank"
@@ -17929,6 +17967,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       ) : null}
     >
 
+        {!isInterviewer(profile?.role) && visible.length === 0 && !guideS1Off && (
+          <div className="mb-4 max-w-sm">
+            <GuideBubble step="Step 1" onClose={() => dismissGuide("aster.guide.s1", setGuideS1Off)}>
+              Waiting for candidates to apply. Share the public job link to start collecting applicants.
+            </GuideBubble>
+          </div>
+        )}
         {!isInterviewer(profile?.role) && !onOtherTab && (
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5 flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -17945,6 +17990,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     ? "Ranked by fit against this role. Re-run to re-score everyone (uses 1 credit)."
                     : "Score every candidate against this role and see who fits best."}
             </p>
+            {matchOk && !matchErr && (
+              <p className="text-xs mt-2 rounded-lg px-3 py-2 inline-flex items-center gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5" /> Rankings updated and synced. Interviewers now see the latest list, and you can invite one.</p>
+            )}
             {matchErr && (
               <p role="alert" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
             )}
@@ -17975,6 +18023,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             currentUserId={profile?.id}
             onAssign={onAssignInterviewer}
             onUnassign={onUnassignInterviewer}
+            locked={!step2Enabled}
           />
         )}
         {/* Openings / headcount status (HR). A role can hire more than one person;
