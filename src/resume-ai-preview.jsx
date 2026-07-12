@@ -12167,13 +12167,9 @@ const INTERVIEW_STAGE_META = {
 // Priority orders the list so the cards that need action sit at the top.
 const INTERVIEW_STAGE_ORDER = { awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4 };
 
-function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, jobAssignments = [], currentUserId = null, setActiveJobId, scorecards = {} }) {
+function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, currentUserId = null, scorecards = {} }) {
   const forInterviewer = isInterviewer(role);
   const interviews = interviewPipelineFrom(bookings, candidates, scorecards, currentUserId, forInterviewer);
-  // Roles this interviewer is on (their pool memberships), open ones only. Jobs
-  // are already RLS-scoped to their assignments; cross-reference to be explicit.
-  const myJobIds = new Set(jobAssignments.filter((a) => a.profile_id === currentUserId).map((a) => a.job_id));
-  const myJobs = forInterviewer ? jobs.filter((j) => myJobIds.has(j.id) && j.status === "open") : [];
 
   const jobForTitle = (title) => jobs.find((j) => j.title === title);
   // How many still need this interviewer's scorecard — surfaced in the subtitle.
@@ -12209,36 +12205,9 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
         </div>
       )}
 
-      {forInterviewer && myJobs.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Open roles</h2>
-          <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Roles assigned to you. Open one to review its applicants and request an interview.</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {myJobs.map((j) => {
-              const n = applicantCountFor(j.id);
-              return (
-                <button
-                  key={j.id}
-                  onClick={() => { setActiveJobId && setActiveJobId(j.id); navigate("applicants", `/applicants/${j.id}`); }}
-                  className="text-left rounded-2xl bg-white act-shadow border p-4 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-3"
-                  style={{ borderColor: "var(--line)" }}
-                >
-                  <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{n} applicant{n === 1 ? "" : "s"}</p>
-                  </div>
-                  <span className="shrink-0 inline-flex" style={{ color: "var(--ink-3)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {forInterviewer && (
         <div className="mb-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Interviews</h2>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Your interviews</h2>
           <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Candidates you're interviewing, and where each one is in the process.</p>
         </div>
       )}
