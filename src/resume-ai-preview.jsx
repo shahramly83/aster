@@ -12711,6 +12711,9 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
   const persisted = Array.isArray(savedQuestions) && savedQuestions.length > 0;
   const [localPool, setLocalPool] = useState(null);
   const pool = persisted ? savedQuestions : localPool;
+  // Collapsed by default when revisiting an already-generated set (keeps the
+  // profile light), expanded right after generating so you see the result.
+  const [collapsed, setCollapsed] = useState(() => persisted);
   const [visibleCount, setVisibleCount] = useState(5);
   const [generating, setGenerating] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -12789,9 +12792,14 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
           <InfoHint dir="down" hint="AI drafts these questions from this candidate's resume and the role, so you can tailor the interview before you meet." />
         </div>
         {pool && (
-          <button onClick={copyAll} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-2.5 py-1.5 transition-colors hover:bg-neutral-50" style={{ color: copiedAll ? "#16A34A" : "var(--ink-2)", border: "1px solid var(--line)" }}>
-            <Icon name={copiedAll ? "check" : "doc"} className="w-3.5 h-3.5" /> {copiedAll ? "Copied" : "Copy all"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={copyAll} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-2.5 py-1.5 transition-colors hover:bg-neutral-50" style={{ color: copiedAll ? "#16A34A" : "var(--ink-2)", border: "1px solid var(--line)" }}>
+              <Icon name={copiedAll ? "check" : "doc"} className="w-3.5 h-3.5" /> {copiedAll ? "Copied" : "Copy all"}
+            </button>
+            <button onClick={() => setCollapsed((c) => !c)} aria-expanded={!collapsed} aria-label={collapsed ? "Show questions" : "Hide questions"} title={collapsed ? "Show questions" : "Hide questions"} className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-3)", border: "1px solid var(--line)" }}>
+              <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${collapsed ? "" : "rotate-180"}`} />
+            </button>
+          </div>
         )}
       </div>
       <p className="text-sm text-neutral-500 mb-3">
@@ -12821,6 +12829,13 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
         ) : (
           <p className="text-sm text-neutral-500">The hiring manager hasn't generated the interview questions yet. They'll appear here for the whole panel once ready.</p>
         )
+      ) : collapsed ? (
+        <button onClick={() => setCollapsed(false)} className="w-full flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors hover:border-[color:var(--line-strong)]" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+          <span className="text-sm" style={{ color: "var(--ink-2)" }}>
+            <span className="font-semibold" style={{ color: "var(--ink)" }}>{pool.length} tailored questions</span> ready across {new Set(pool.map((q) => q.category)).size} areas.
+          </span>
+          <span className="text-xs font-medium inline-flex items-center gap-1 shrink-0" style={{ color: "var(--brand)" }}>Show <Icon name="chevronDown" className="w-3.5 h-3.5" /></span>
+        </button>
       ) : (
         <>
           <div className="space-y-5">
@@ -14254,10 +14269,10 @@ const EMAIL_TEMPLATE_DEFS = [
     tokens: ["candidate_name", "job_title", "date_time"],
     subject: "Interview scheduled: {{candidate_name}} for {{job_title}}",
     body: "{{candidate_name}} confirmed an interview for the {{job_title}} role on {{date_time}}. It's on your calendar." },
-  { key: "offer", name: "Offer: you've been selected", desc: "Sent to the candidate when you send an offer. Includes the accept / decline link.",
-    tokens: ["candidate_name", "job_title", "company_name", "hr_contact", "offer_link"],
+  { key: "offer", name: "Offer: you've been selected", desc: "Sent to the candidate when you send an offer. A 'Review your offer' button with the accept / decline link is added automatically below your message.",
+    tokens: ["candidate_name", "job_title", "company_name", "hr_contact"],
     subject: "You've been selected for the {{job_title}} role",
-    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Please review and respond to your offer here: {{offer_link}}" },
+    body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Open your offer to review the details and let us know your answer." },
   { key: "welcome_hired", name: "Welcome: offer accepted", desc: "Sent to the candidate after they accept their offer.",
     tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Welcome to {{company_name}}, {{candidate_name}}!",
@@ -16503,11 +16518,20 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
         {/* Interviewer's heads-up between "booked" and "interview happened". The
             manager sees the same state through the locked step tabs instead. */}
+        {/* Interviewer sees the same "Interview scheduled" summary the hiring
+            manager gets, so they know the time, panel and role at a glance. */}
         {!isManagerView && isBooked && !interviewPast && (
-          <div className="mt-6 rounded-2xl border border-dashed p-4 flex items-start gap-3" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
-            <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--ink-3)" }} />
-            <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              Interview set for <span className="font-semibold">{interviewWhen}</span>. Your scorecard opens here once it's done.
+          <div className="mt-6 rounded-2xl border px-4 py-3.5" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
+            <p className="text-sm font-medium inline-flex items-center gap-1.5" style={{ color: "#059669" }}>
+              <Icon name="check" className="w-4 h-4" /> Interview scheduled
+            </p>
+            <p className="text-sm mt-1" style={{ color: "var(--ink)" }}>
+              {booking?.confirmedSlot?.start ? formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end) : interviewWhen}
+              {booking?.request?.interviewerName ? ` with ${booking.request.interviewerName}` : ""}
+              {booking?.request?.jobTitle ? ` · ${booking.request.jobTitle}` : ""}
+            </p>
+            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+              The candidate confirmed this time. Your scorecard opens here once the interview is done.
             </p>
           </div>
         )}

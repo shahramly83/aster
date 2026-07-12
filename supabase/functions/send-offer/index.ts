@@ -7,7 +7,7 @@
 // Secrets: RESEND_API_KEY (optional — skipped if unset)
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs, button } from "../_shared/email.ts";
 
 const SITE = "https://hireaster.com";
 const CORS = {
@@ -56,17 +56,22 @@ Deno.serve(async (req) => {
     const logoUrl = comp?.logo_url || null;
     const jobTitle = await jobTitleFor(admin, companyId, offer.candidate_id);
 
+    const offerLink = `${SITE}/offer/${offerToken}`;
     const tpl = await loadTemplate(admin, "offer", companyId, {
       subject: "You've been selected for the {{job_title}} role",
-      body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Please review and respond to your offer here: {{offer_link}}",
+      body: "Hi {{candidate_name}},\n\nCongratulations! Following your interview, we're delighted to offer you the {{job_title}} role at {{company_name}}. Open your offer to review the details and let us know your answer.",
     });
     const tokens = {
       candidate_name: cand.full_name || "there",
       job_title: jobTitle,
       company_name: companyName,
       hr_contact: `${companyName} HR`,
-      offer_link: `${SITE}/offer/${offerToken}`,
+      offer_link: offerLink,
     };
+    // The accept/decline link is a proper CTA button, not a raw URL in the prose.
+    const bodyHtml = paragraphs(renderTemplate(tpl.body, tokens))
+      + button("Review your offer", offerLink)
+      + `<p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#8B8699;">If the button doesn't work, <a href="${offerLink}" style="color:#0B2AE0;text-decoration:underline;">open your offer here</a>.</p>`;
     await sendEmail({
       to: cand.email,
       subject: renderTemplate(tpl.subject, tokens),
@@ -74,7 +79,7 @@ Deno.serve(async (req) => {
         companyName, logoUrl,
         heading: "You've received an offer",
         preview: `${companyName} has offered you the ${jobTitle} role.`,
-        bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)),
+        bodyHtml,
       }),
     });
 
