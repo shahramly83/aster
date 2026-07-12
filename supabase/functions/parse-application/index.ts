@@ -10,6 +10,7 @@
 // Auto-provided by Supabase:     SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { rateLimit, clientIp } from "../_shared/ratelimit.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -113,6 +114,13 @@ async function pickFaceIndex(apiKey: string, imgs: Uint8Array[]): Promise<number
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+
+  // Public + unauthenticated + each call fans out to several paid Claude requests
+  // (extraction with web search, plus a vision pass), so throttle per IP BEFORE
+  // any model work. A genuine applicant submits a handful of times; this caps the
+  // "loop a public apply-page UUID for unlimited resume parses" abuse vector.
+  const ip = clientIp(req);
+  if (!(await rateLimit(`apply:${ip}`, 12, 300, 5))) return json({ error: "rate_limited" }, 429);
 
   try {
     const { job_id, name, email, resume_base64, filename, source } = await req.json();

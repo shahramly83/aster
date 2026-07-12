@@ -11,6 +11,7 @@
 // database and has no access to any workspace's candidate data.
 //
 // Secrets: ANTHROPIC_API_KEY (or "aster")
+import { rateLimit } from "../_shared/ratelimit.ts";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -22,27 +23,11 @@ const json = (b: unknown, s = 200) =>
 
 // Per-IP rate limit, backed by Postgres so it is atomic and shared across all
 // edge isolates (an in-memory map is per-isolate and does not hold on Supabase).
-// Calls the chat_rate_hit RPC (migration 0017); FAILS OPEN if the RPC is missing
-// or errors, so the chat never breaks, it just is not limited until the migration
-// is applied.
+// FAILS CLOSED to a per-isolate cap on a DB outage (see _shared/ratelimit.ts) so
+// a public Anthropic-backed endpoint is never left unthrottled.
 const RL_MAX = 20;              // messages per IP per minute
 const RL_WINDOW_SECONDS = 60;
-async function allowRequest(key: string): Promise<boolean> {
-  const surl = Deno.env.get("SUPABASE_URL");
-  const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!surl || !srk) return true; // no DB creds: fail open
-  try {
-    const r = await fetch(`${surl}/rest/v1/rpc/chat_rate_hit`, {
-      method: "POST",
-      headers: { apikey: srk, Authorization: `Bearer ${srk}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_key: key, p_max: RL_MAX, p_window_seconds: RL_WINDOW_SECONDS }),
-    });
-    if (!r.ok) return true;      // RPC not deployed yet or errored: fail open
-    return (await r.json()) !== false;
-  } catch {
-    return true;                 // network/db hiccup: fail open
-  }
-}
+const allowRequest = (key: string) => rateLimit(`chat:${key}`, RL_MAX, RL_WINDOW_SECONDS, 10);
 
 // The assistant's entire world. Kept concise on purpose: everything here is
 // sent on every request, and the model must never answer beyond it.

@@ -13,6 +13,7 @@
 // Auto-provided by Supabase:  SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, emailShell, esc } from "../_shared/email.ts";
+import { rateLimit, clientIp } from "../_shared/ratelimit.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,12 @@ function json(body: unknown, status = 200) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+
+  // Public endpoint that files a ticket AND sends email via Resend — throttle per
+  // IP so it can't be used to burn the email quota or spam the queue. The RPC's
+  // honeypot still catches naive bots; this caps volume from a single source.
+  const ip = clientIp(req);
+  if (!(await rateLimit(`support:${ip}`, 6, 300, 3))) return json({ error: "rate_limited" }, 429);
 
   try {
     const { name, email, subject, body, website } = await req.json();
