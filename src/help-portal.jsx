@@ -10,9 +10,11 @@ import { useState, useEffect } from "react";
 import { supabase, hasSupabase } from "./lib/supabase";
 
 const HELP_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
   .help { --brand:#0B2AE0; --ink:#0F1222; --ink-2:#4A4E63; --ink-3:#8A8FA6; --line:#E7E8EF; --bg:#FBFBFE;
-          font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           -webkit-font-smoothing: antialiased; }
+  .help-display { font-family: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
   .help-grad { background-image: linear-gradient(135deg,#5570F5,#0B2AE0 55%,#3550EE); }
   .help-field { transition: border-color .15s ease, box-shadow .15s ease; }
   .help-field:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(11,42,224,.15); }
@@ -108,7 +110,7 @@ export default function HelpPortal() {
         ) : (
           <>
             <div className="text-center mb-9">
-              <h1 className="text-3xl sm:text-[38px] font-semibold tracking-tight leading-[1.1]">How can we help?</h1>
+              <h1 className="help-display text-3xl sm:text-[38px] font-bold tracking-tight leading-[1.1]">How can we help?</h1>
               <p className="mt-3 text-[15px] sm:text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 Tell us what is going on and we will get back to you by email, usually within one business day.
               </p>
@@ -192,7 +194,7 @@ function Confirmation({ ticketId, email, onAnother }) {
       <div className="mx-auto w-14 h-14 rounded-2xl help-grad flex items-center justify-center shadow-[0_14px_40px_-12px_rgba(11,42,224,0.6)]">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
       </div>
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight">Request received</h1>
+      <h1 className="help-display mt-6 text-3xl font-bold tracking-tight">Request received</h1>
       <p className="mt-3 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
         Thanks. We have logged your request{ticketId ? <> as <span className="font-semibold" style={{ color: "var(--ink)" }}>{ticketId}</span></> : null} and sent a copy to{" "}
         <span className="font-medium" style={{ color: "var(--ink)" }}>{email}</span>. Our team usually replies within one business day.

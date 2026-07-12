@@ -9813,7 +9813,7 @@ function formatSalary(job) {
 }
 
 // Shared job form body, used inside the modal for both creating and editing.
-function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost }) {
+function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost, requestMode = false, requesterId = null, requesterName = "" }) {
   const editing = !!initialJob;
   const limits = planLimits(plan);
   // Publishing spends one job credit for the cycle, unless the role is already
@@ -9876,6 +9876,14 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       requirements: toLines(requirements),
       benefits: toLines(benefits),
     };
+    if (requestMode) {
+      // Interviewer-initiated: save as a pending draft for the hiring manager to
+      // approve. Approval state rides in the details jsonb (no schema change).
+      payload.status = "draft";
+      payload.approvalStatus = "pending";
+      payload.requestedBy = requesterId;
+      payload.requestedByName = requesterName;
+    }
     if (editing) {
       setJobs(jobs.map((j) => (j.id === initialJob.id ? { ...j, ...payload } : j)));
       onUpdate && onUpdate(initialJob.id, payload);
@@ -10458,7 +10466,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         ) : (
           <>
           {/* Cards, always on mobile; on desktop only when grid view is picked */}
-          <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5 ${view === "list" ? "md:hidden" : ""}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5 ${view === "list" ? "md:hidden" : ""}`}>
             {pageJobs.map((job) => {
               const salary = formatSalary(job);
               const chips = [job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level].filter(Boolean);
