@@ -6,7 +6,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -13083,7 +13083,7 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
   );
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, interviewPast = false, allBookings = {} }) {
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {} }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   // If opened from a specific job's applicant list, that job is fixed and
   // there's no need to pick one. Otherwise let HR choose the open role.
@@ -13101,7 +13101,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const [attendeeQuery, setAttendeeQuery] = useState("");
   const [attendeeOpen, setAttendeeOpen] = useState(false);
   const [additionalAttendees, setAdditionalAttendees] = useState([]); // array of interviewer ids
-  const [step, setStep] = useState(1);
   const [sending, setSending] = useState(false);
   const [slots, setSlots] = useState([]);      // ISO start strings the HM proposes
   const [confirmedOffline, setConfirmedOffline] = useState(false); // panel confirmed the times
@@ -13185,37 +13184,8 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   };
 
   return (
-    <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4">
-      {/* Step tabs. Step 2 (Scorecard) stays locked until the interview is over. */}
-      <div className="flex items-center gap-1 mb-4 rounded-xl bg-white/70 p-1 border border-indigo-100">
-        {[
-          { n: 1, label: "Interviewers" },
-          { n: 2, label: "Scorecard", locked: !interviewPast },
-          { n: 3, label: "Decision" },
-        ].map((t) => {
-          const active = step === t.n;
-          return (
-            <button
-              key={t.n}
-              type="button"
-              onClick={() => { if (!t.locked) setStep(t.n); }}
-              disabled={t.locked}
-              title={t.locked ? "Unlocks once the interview time has passed" : undefined}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                active ? "bg-white text-indigo-700 shadow-sm" : t.locked ? "text-neutral-400 cursor-not-allowed" : "text-neutral-500 hover:text-indigo-600"
-              }`}
-            >
-              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${active ? "bg-indigo-600 text-white" : "bg-neutral-200 text-neutral-500"}`}>{t.n}</span>
-              <span className="truncate">{t.label}</span>
-              {t.locked && <Icon name="lock" className="w-3 h-3 shrink-0" />}
-            </button>
-          );
-        })}
-      </div>
-
-      {step === 1 && (<>
-      <h2 className="text-sm font-medium text-indigo-700 mb-1">Step 1 · Select interviewers</h2>
-      <p className="text-sm text-neutral-600 mb-3">
+    <div className="rounded-2xl border px-5 py-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+      <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
         {fixedJob ? `Scheduling for the ${fixedJob.title} role. ` : ""}
         You run this interview as the hiring manager. Add teammates to join, then send the candidate a few times to pick from.
       </p>
@@ -13351,28 +13321,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             {sending ? "Sending…" : `Send ${slots.length} time${slots.length === 1 ? "" : "s"} to candidate`}
           </button>
         </>
-      )}
-      </>)}
-
-      {step === 2 && (
-        <div>
-          <h2 className="text-sm font-medium text-indigo-700 mb-1">Step 2 · Interview scorecard</h2>
-          {interviewPast ? (
-            <p className="text-sm text-neutral-600">The interview is done. Each interviewer completes their own scorecard on the candidate below; as the hiring manager you see everyone's.</p>
-          ) : (
-            <div className="flex items-start gap-2 rounded-xl border border-dashed p-3" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
-              <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0 text-neutral-400" />
-              <p className="text-sm text-neutral-500">The scorecard unlocks automatically once the interview time has passed.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === 3 && (
-        <div>
-          <h2 className="text-sm font-medium text-indigo-700 mb-1">Step 3 · Decision</h2>
-          <p className="text-sm text-neutral-500">Once the scorecards are in, move the candidate to offer, hire or decline from the Decision panel below.</p>
-        </div>
       )}
     </div>
   );
@@ -15941,7 +15889,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -15985,6 +15933,27 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const offerStatus = offer?.status || (isHired ? "accepted" : stage === "offer" ? "sent" : null);
   const hasEmail = !!candidate?.parsed?.email;
   const firstName = candidate?.parsed?.name ? candidate.parsed.name.split(" ")[0] : "the candidate";
+
+  // ---- Interview flow: one stepped card, locked one step at a time ----------
+  const isManagerView = !isInterviewer(profile?.role);
+  // The interview panel (attendees stored on the booking). Interviewers on the
+  // panel are the ones who score; the hiring manager runs the process.
+  const panelAttendees = Array.isArray(booking?.attendees) ? booking.attendees : [];
+  const roleOfAttendee = (id) => interviewers.find((iv) => iv.id === id)?.role;
+  const interviewerAttendees = panelAttendees.filter((a) => isInterviewer(roleOfAttendee(a.id)));
+  // "Attended" defaults to true until the hiring manager unchecks a no-show.
+  const attendedInterviewers = interviewerAttendees.filter((a) => a.attended !== false);
+  const scoredIds = new Set((scorecards || []).map((sc) => sc.interviewerId).filter(Boolean));
+  const scoredCount = attendedInterviewers.filter((a) => scoredIds.has(a.id)).length;
+  // Decision unlocks once every attended interviewer has submitted a scorecard
+  // (or there are no interviewer attendees to wait on, e.g. a solo interview).
+  const allScored = attendedInterviewers.length === 0 || scoredCount >= attendedInterviewers.length;
+  const scorecardsUnlocked = interviewPast;
+  const decisionUnlocked = interviewPast && allScored;
+  // Which step is active. Opens on the furthest-unlocked step; the hiring manager
+  // can then click any unlocked step. (A step that unlocks later just becomes
+  // clickable, no auto-jump, so we don't fight the user's navigation.)
+  const [ivStep, setIvStep] = useState(() => (decisionUnlocked ? 3 : scorecardsUnlocked ? 2 : 1));
 
   if (!candidate) {
     return (
@@ -16416,8 +16385,37 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         )}
 
         {!isClosed && (<>
+        {/* Hiring manager runs the interview as one stepped card, locked a step at
+            a time: schedule, collect the interviewers' scorecards, then decide. */}
+        {isManagerView && (
+          <div className="flex items-center gap-1 mt-2 mb-4 rounded-xl p-1 border" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
+            {[
+              { n: 1, label: "Interview", locked: false },
+              { n: 2, label: "Scorecards", locked: !scorecardsUnlocked },
+              { n: 3, label: "Decision", locked: !decisionUnlocked },
+            ].map((t) => {
+              const active = ivStep === t.n;
+              return (
+                <button
+                  key={t.n}
+                  type="button"
+                  onClick={() => { if (!t.locked) setIvStep(t.n); }}
+                  disabled={t.locked}
+                  title={t.locked ? (t.n === 2 ? "Unlocks once the interview time has passed" : "Unlocks once the panel has scored") : undefined}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                  style={active ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: t.locked ? "var(--ink-3)" : "var(--ink-2)", cursor: t.locked ? "not-allowed" : "pointer" }}
+                >
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]" style={active ? { background: "var(--brand)", color: "#fff" } : { background: "var(--line)", color: "var(--ink-2)" }}>{t.n}</span>
+                  <span className="truncate">{t.label}</span>
+                  {t.locked && <Icon name="lock" className="w-3 h-3 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Scheduling + AI interview questions are owner / hiring-manager actions. */}
-        {!isInterviewer(profile?.role) && (<>
+        {isManagerView && ivStep === 1 && (<>
         {openRequest && !isBooked && (
           <div className="mt-2 mb-4 rounded-xl border px-4 py-3 flex items-start gap-2" style={{ borderColor: "var(--brand-soft)", background: "var(--brand-soft)" }}>
             <span className="inline-flex mt-0.5" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-4 h-4" /></span>
@@ -16433,23 +16431,60 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           booking={booking}
           onInviteSent={onInviteSent}
           profile={profile}
-          interviewPast={interviewPast}
           allBookings={allBookings}
         />
-
         </>)}
 
         {/* AI interview questions: the hiring manager generates them once, and the
-            whole interview panel reads the same set. Shown to everyone on the job. */}
-        <InterviewQuestionsPanel
-          candidate={candidate}
-          jobs={jobs}
-          contextJobId={contextJobId}
-          isScheduled={questionsUnlocked}
-          savedQuestions={savedQuestions}
-          onGenerate={onGenerateQuestions}
-          canGenerate={!isInterviewer(profile?.role)}
-        />
+            whole interview panel reads the same set. In the manager's stepped card
+            they live in step 1; interviewers always see them. */}
+        {(!isManagerView || ivStep === 1) && (
+          <div className="mt-4">
+            <InterviewQuestionsPanel
+              candidate={candidate}
+              jobs={jobs}
+              contextJobId={contextJobId}
+              isScheduled={questionsUnlocked}
+              savedQuestions={savedQuestions}
+              onGenerate={onGenerateQuestions}
+              canGenerate={!isInterviewer(profile?.role)}
+            />
+          </div>
+        )}
+
+        {/* Step 1, after the interview: the hiring manager ticks who actually
+            attended. Only those interviewers need to score before Decision unlocks. */}
+        {isManagerView && ivStep === 1 && interviewPast && interviewerAttendees.length > 0 && (
+          <div className="mt-4 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Who attended</h2>
+              <InfoHint dir="down" hint="Tick the interviewers who actually joined. Only they need to submit a scorecard before you can move to a decision." />
+            </div>
+            <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>Untick anyone who missed it, so a no-show doesn't hold up your decision.</p>
+            <div>
+              {interviewerAttendees.map((a) => {
+                const attended = a.attended !== false;
+                return (
+                  <label key={a.id} className="flex items-center gap-2.5 py-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={attended}
+                      onChange={(e) => {
+                        const next = new Set(attendedInterviewers.map((x) => x.id));
+                        if (e.target.checked) next.add(a.id); else next.delete(a.id);
+                        onSetAttendance && onSetAttendance([...next]);
+                      }}
+                      className="accent-[color:var(--brand)] w-4 h-4 shrink-0"
+                    />
+                    <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
+                    <span className="text-sm min-w-0 flex-1 truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
+                    {scoredIds.has(a.id) && <span className="text-[11px] inline-flex items-center gap-1 shrink-0" style={{ color: "#16A34A" }}><Icon name="check" className="w-3.5 h-3.5" /> Scored</span>}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Interviewers can't schedule; they flag the candidate for the hiring
             manager. Hidden once an interview is booked (the panel below takes over). */}
@@ -16462,25 +16497,31 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           />
         )}
 
-        {/* After the interview, unlocks once the scheduled slot is in the past.
-            This closes the gap between "interview scheduled" and a hire/reject
-            decision: collect team scorecards, then move the candidate forward. */}
-        {isBooked && !interviewPast && (
+        {/* Interviewer's heads-up between "booked" and "interview happened". The
+            manager sees the same state through the locked step tabs instead. */}
+        {!isManagerView && isBooked && !interviewPast && (
           <div className="mt-6 rounded-2xl border border-dashed p-4 flex items-start gap-3" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
             <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--ink-3)" }} />
             <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              Interview set for <span className="font-semibold">{interviewWhen}</span>. Once it's done, team scorecards and the hire / reject decision will unlock here.
+              Interview set for <span className="font-semibold">{interviewWhen}</span>. Your scorecard opens here once it's done.
             </p>
           </div>
         )}
 
-        {interviewPast && (
-          <div className="mt-6">
+        {/* Step 2 · Scorecards (manager): the panel's ratings, read-only, with a
+            progress line showing who still owes a scorecard. */}
+        {isManagerView && ivStep === 2 && interviewPast && (
+          <div className="mt-2">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>After the interview</span>
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Team scorecards</span>
               <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview done · {interviewWhen}</span>
             </div>
-
+            {interviewerAttendees.length > 0 && (
+              <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--ink-2)" }}>
+                <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
+                <span>{scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " The decision unlocks once everyone has scored."}</span>
+              </div>
+            )}
             <ScorecardPanel
               scorecards={scorecards}
               onSubmit={onSubmitScorecard}
@@ -16489,13 +16530,34 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
               currentUserId={currentUserId}
               attendees={booking?.attendees || []}
-              isManager={!isInterviewer(profile?.role)}
+              isManager={true}
             />
+          </div>
+        )}
 
-            {/* Decision / next step — owner / hiring-manager only. Interviewers
-                submit their own scorecard above but don't move the candidate. */}
-            {!isInterviewer(profile?.role) && (
-            <div className="mt-4 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+        {/* Interviewer: their own scorecard, shown once the interview has happened. */}
+        {!isManagerView && interviewPast && (
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>After the interview</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview done · {interviewWhen}</span>
+            </div>
+            <ScorecardPanel
+              scorecards={scorecards}
+              onSubmit={onSubmitScorecard}
+              plan={plan}
+              navigate={navigate}
+              authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
+              currentUserId={currentUserId}
+              attendees={booking?.attendees || []}
+              isManager={false}
+            />
+          </div>
+        )}
+
+        {/* Step 3 · Decision (manager): unlocked once the attended panel has scored. */}
+        {isManagerView && ivStep === 3 && (decisionUnlocked ? (
+            <div className="mt-2 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
               <h2 className="text-sm font-medium text-neutral-600 mb-1 uppercase tracking-wide">Decision</h2>
 
               {stage === "hired" ? (
@@ -16574,9 +16636,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </>
               )}
             </div>
-            )}
-          </div>
-        )}
+          ) : (
+            <div className="mt-2 rounded-2xl border border-dashed p-4 flex items-start gap-3" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
+              <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--ink-3)" }} />
+              <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                The decision unlocks once the panel has scored ({scoredCount} of {attendedInterviewers.length} in). Collect the scorecards in step 2, then decide here.
+              </p>
+            </div>
+          ))}
         </>)}
 
         {showOffer && (
@@ -18131,6 +18198,20 @@ export default function ResumeAIPreview() {
     setScheduleRequests((prev) => (prev.some((r) => r.application_id === applicationId) ? prev : [...prev, { application_id: applicationId, requested_by: userId }]));
     return null;
   };
+  // Hiring manager marks who actually attended the interview. Persisted onto the
+  // interview's attendees jsonb; drives which interviewers must score before a
+  // decision unlocks. Optimistic: update local bookings, then write.
+  const setAttendance = (candidateId, attendedIds = []) => {
+    if (!candidateId) return;
+    const set = new Set(attendedIds);
+    setBookings((prev) => {
+      const b = prev[candidateId];
+      if (!b) return prev;
+      const attendees = (b.attendees || []).map((a) => ({ ...a, attended: set.has(a.id) }));
+      return { ...prev, [candidateId]: { ...b, attendees } };
+    });
+    if (canPersist) dbSetAttendance(companyId, candidateId, attendedIds);
+  };
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
   const addScorecard = (candidateId, card, jobId = null) => {
     // Stamp the author's id so the panel can tell whose card is whose (and gate
@@ -19430,6 +19511,7 @@ export default function ResumeAIPreview() {
             plan={effectivePlan}
             scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
+            onSetAttendance={(ids) => activeCandidate && setAttendance(activeCandidate.id, ids)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? "applied") : "applied"}
             onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}

@@ -190,6 +190,24 @@ export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = 
   return data?.token || null;
 }
 
+// Record which panel members actually attended the interview, by marking each
+// attendee in the scheduled interview's attendees jsonb with an `attended` flag.
+// The hiring manager sets this; it drives who owes a scorecard before a decision
+// can be made. Best-effort: RLS (interviews_admin) allows owner/admin to update.
+export async function dbSetAttendance(companyId, candidateId, attendedIds = []) {
+  if (!hasSupabase || !companyId || !candidateId) return;
+  const { data } = await supabase
+    .from("interviews")
+    .select("id, attendees")
+    .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
+    .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data) return;
+  const set = new Set(attendedIds);
+  const attendees = (Array.isArray(data.attendees) ? data.attendees : []).map((a) => ({ ...a, attended: set.has(a.id) }));
+  const { error } = await supabase.from("interviews").update({ attendees }).eq("id", data.id);
+  if (error) console.error("dbSetAttendance", error.message);
+}
+
 // Persist an offer sent to a candidate and return its public token, so the app
 // can email the candidate a link to /offer/<token> to accept or decline.
 export async function dbCreateOffer(companyId, { candidateId, jobId = null }) {
