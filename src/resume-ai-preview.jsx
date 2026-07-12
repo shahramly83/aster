@@ -17798,15 +17798,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Shared source of truth (also drives the count on the Jobs card).
   const baseApplicants = APPLICANTS_BY_JOB[activeJobId] || [];
   const [localRejectEmail, setLocalRejectEmail] = useState({}); // candidateId -> emailSent
-  const [linkCopied, setLinkCopied] = useState(false);
-  const copyApplyLink = async () => {
-    const url = `${window.location.origin}/apply/${activeJobId}`;
-    try {
-      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(url);
-    } catch { /* clipboard blocked; ignore */ }
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
-  };
 
   const applicants = baseApplicants.map((a) => ({
     ...a,
@@ -18220,15 +18211,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                 <Icon name="users" className="w-6 h-6" style={{ color: "var(--brand)" }} />
               </div>
               <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No applicants yet</p>
-              <p className="text-xs mt-1 mb-5 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Share your job link and candidates will show up here the moment they apply. Aster reads each resume and ranks the strong matches for you.</p>
-              <button
-                onClick={copyApplyLink}
-                className="inline-flex items-center gap-2 text-sm font-medium rounded-xl px-4 py-2 transition-colors"
-                style={linkCopied ? { background: "#EAF7EF", color: "#166534", border: "1px solid #BBE5C9" } : { background: "var(--brand)", color: "#fff" }}
-              >
-                <Icon name={linkCopied ? "check" : "link"} className="w-4 h-4" />
-                {linkCopied ? "Link copied" : "Copy job link"}
-              </button>
+              <p className="text-xs mt-1 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Once candidates apply to this role, they&apos;ll show up here. Aster reads each resume and ranks the strong matches for you.</p>
             </div>
           )
         ) : (
