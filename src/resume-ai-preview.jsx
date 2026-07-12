@@ -3029,7 +3029,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 <p className="font-display font-bold leading-none" style={{ color: "var(--ink)", fontSize: "1.6rem" }}>Custom</p>
                 <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Tailored to your team</p>
               </div>
-              <button onClick={() => goSignup("enterprise")} className="brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Contact sales</button>
+              <button onClick={() => navigate("contactSales")} className="brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Contact sales</button>
             </div>
           </div>
         </Reveal>
@@ -3913,6 +3913,156 @@ const LEGAL_NAV = [
   { slug: "aup", label: "Acceptable use policy" },
   { slug: "subprocessors", label: "Subprocessors" },
 ];
+// Public "book a 1:1 with our team" page. Reached from every "Contact sales"
+// CTA. The visitor picks a date + time and leaves a name / work email / contact
+// number; on submit it files a support ticket (category "Sales enquiry") via the
+// same support-intake path the help portal uses, so the request lands in the
+// admin support queue and the requester gets a confirmation email.
+const CONTACT_SLOTS = ["9:00 AM", "10:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"];
+function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
+  const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl, light: true };
+  const today = startOfDay(new Date());
+  const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [date, setDate] = useState(null);
+  const [slot, setSlot] = useState(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [company, setCompany] = useState("");
+  const [message, setMessage] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot
+  const [status, setStatus] = useState("idle"); // idle | submitting | done
+  const [err, setErr] = useState(null);
+  const [ref, setRef] = useState(null);
+
+  const dateLabel = date ? date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : null;
+  const inputCls = "w-full rounded-xl bg-white border px-3.5 py-2.5 text-[15px] outline-none transition-colors focus:border-[color:var(--brand)]";
+  const inputStyle = { borderColor: "var(--line)", color: "var(--ink)" };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    if (!name.trim() || !email.trim() || !phone.trim()) { setErr("Please add your name, work email and contact number."); return; }
+    if (!email.includes("@")) { setErr("That email address does not look right."); return; }
+    if (!date || !slot) { setErr("Please choose a date and a time that suit you."); return; }
+    if (website.trim()) { setRef("T-0"); setStatus("done"); return; } // honeypot
+
+    setStatus("submitting");
+    const subject = "[Sales enquiry] 1:1 slot request";
+    const body = [
+      "New 1:1 slot request from the website.",
+      "",
+      `Preferred date: ${dateLabel}`,
+      `Preferred time: ${slot}`,
+      `Name: ${name.trim()}`,
+      `Work email: ${email.trim()}`,
+      `Contact number: ${phone.trim()}`,
+      company.trim() ? `Company: ${company.trim()}` : null,
+      message.trim() ? `\nMessage:\n${message.trim()}` : null,
+    ].filter(Boolean).join("\n");
+    try {
+      let id = "T-preview";
+      if (hasSupabase) {
+        const fnRes = await supabase.functions.invoke("support-intake", {
+          body: { name: name.trim(), email: email.trim(), subject, body, website },
+        });
+        if (!fnRes.error && fnRes.data?.id) id = fnRes.data.id;
+        else {
+          const { data, error } = await supabase.rpc("submit_support_ticket", {
+            p_name: name.trim(), p_email: email.trim(), p_subject: subject, p_body: body, p_website: website,
+          });
+          if (error) throw error;
+          id = data;
+        }
+      }
+      setRef(id);
+      setStatus("done");
+    } catch (e2) {
+      setErr(e2?.message || "Something went wrong. Please try again in a moment.");
+      setStatus("idle");
+    }
+  };
+
+  return (
+    <div className="min-h-dvh" style={{ background: "var(--bg)", color: "var(--ink)" }}>
+      <MarketingNav {...nav} current={null} />
+      <main className="max-w-6xl mx-auto px-5 sm:px-8 py-12 sm:py-16">
+        {status === "done" ? (
+          <div className="max-w-xl mx-auto text-center rounded-3xl bg-white border p-8 sm:p-10" style={{ borderColor: "var(--line)" }}>
+            <span className="inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="check" className="w-7 h-7" /></span>
+            <h1 className="font-display font-bold text-2xl mb-2" style={{ color: "var(--ink)" }}>Your slot request is in</h1>
+            <p className="text-[15px] leading-relaxed mb-5" style={{ color: "var(--ink-2)" }}>
+              Thanks{name.trim() ? `, ${name.trim().split(" ")[0]}` : ""}. We&apos;ll confirm {dateLabel ? <strong style={{ color: "var(--ink)" }}>{dateLabel} at {slot}</strong> : "your time"} by email shortly. If we need a different time we&apos;ll suggest one.
+            </p>
+            {ref && ref !== "T-0" && <p className="text-xs mb-6" style={{ color: "var(--ink-3)" }}>Reference: {ref}</p>}
+            <button onClick={() => navigate("landing")} className="brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5">Back to home</button>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+            {/* Left: pitch */}
+            <div className="lg:pt-6">
+              <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}>Talk to sales</span>
+              <h1 className="font-display font-bold mt-2 mb-3" style={{ color: "var(--ink)", fontSize: "2rem", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Book a 1:1 with our team</h1>
+              <p className="text-[15px] leading-relaxed max-w-md" style={{ color: "var(--ink-2)" }}>Pick a time that suits you. We&apos;ll walk through your hiring workflow, answer questions on security and pricing, and show how Aster fits your team, no slides required.</p>
+              <ul className="mt-6 space-y-3">
+                {["A 30-minute call, tailored to your roles", "Live answers on SSO, white label and SLAs", "No obligation, no hard sell"].map((t) => (
+                  <li key={t} className="flex items-start gap-2.5 text-sm" style={{ color: "var(--ink-2)" }}>
+                    <span className="mt-0.5 shrink-0" style={{ color: "var(--brand)" }}><Icon name="check" className="w-4 h-4" /></span>{t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Right: booking card */}
+            <form onSubmit={submit} className="rounded-3xl bg-white border p-6 sm:p-7" style={{ borderColor: "var(--line)", boxShadow: "0 24px 56px -32px rgba(18,19,42,0.28)" }}>
+              <label className="block text-xs font-semibold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Pick a date</label>
+              <div className="rounded-2xl border p-3 mb-5" style={{ borderColor: "var(--line)" }}>
+                <MiniCalendar
+                  month={viewMonth}
+                  onPrevMonth={() => setViewMonth((mo) => new Date(mo.getFullYear(), mo.getMonth() - 1, 1))}
+                  onNextMonth={() => setViewMonth((mo) => new Date(mo.getFullYear(), mo.getMonth() + 1, 1))}
+                  start={date} end={date}
+                  onPick={(d) => { if (startOfDay(d) >= today) setDate(d); }}
+                />
+              </div>
+
+              <label className="block text-xs font-semibold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Pick a time</label>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {CONTACT_SLOTS.map((s) => {
+                  const on = slot === s;
+                  return (
+                    <button key={s} type="button" onClick={() => setSlot(s)} className="text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors" style={on ? { background: "var(--brand)", borderColor: "var(--brand)", color: "#fff" } : { background: "#fff", borderColor: "var(--line)", color: "var(--ink-2)" }}>{s}</button>
+                  );
+                })}
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div><label className="block text-[13px] font-medium mb-1" style={{ color: "var(--ink-2)" }}>Your name</label><input className={inputCls} style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Lee" autoComplete="name" /></div>
+                <div><label className="block text-[13px] font-medium mb-1" style={{ color: "var(--ink-2)" }}>Work email</label><input type="email" className={inputCls} style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" /></div>
+                <div><label className="block text-[13px] font-medium mb-1" style={{ color: "var(--ink-2)" }}>Contact number</label><input type="tel" className={inputCls} style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+60 12 345 6789" autoComplete="tel" /></div>
+                <div><label className="block text-[13px] font-medium mb-1" style={{ color: "var(--ink-2)" }}>Company <span style={{ color: "var(--ink-3)" }}>(optional)</span></label><input className={inputCls} style={inputStyle} value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Inc." autoComplete="organization" /></div>
+              </div>
+              <div className="mt-3">
+                <label className="block text-[13px] font-medium mb-1" style={{ color: "var(--ink-2)" }}>Anything we should know? <span style={{ color: "var(--ink-3)" }}>(optional)</span></label>
+                <textarea rows={3} className={inputCls + " resize-none"} style={inputStyle} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Team size, roles you're hiring for, timelines." />
+              </div>
+              {/* Honeypot: hidden from humans, catches bots. */}
+              <input tabIndex={-1} autoComplete="off" aria-hidden="true" value={website} onChange={(e) => setWebsite(e.target.value)} style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }} />
+
+              {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
+              <button type="submit" disabled={status === "submitting"} className="mt-5 w-full brand-gradient text-white font-semibold text-sm px-6 py-3 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:hover:translate-y-0">
+                {status === "submitting" ? "Sending…" : "Request my slot"}
+              </button>
+              <p className="text-xs text-center mt-3" style={{ color: "var(--ink-3)" }}>We&apos;ll confirm by email. Times shown are your local time.</p>
+            </form>
+          </div>
+        )}
+      </main>
+      <MarketingFooter {...nav} />
+    </div>
+  );
+}
+
 function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, goTrust, goLegal, goGettingStarted, logoUrl, onLanding = false }) {
   const goSection = (id) => {
     if (!onLanding) navigate("landing");
@@ -3931,7 +4081,7 @@ function MarketingFooter({ navigate, goProduct, goSolution = () => {}, goBlog = 
         <div className="py-12 sm:py-16 grid gap-10 sm:gap-x-8 sm:gap-y-12 md:grid-cols-12">
           {/* brand + tagline */}
           <div className="md:col-span-4">
-            <BrandLogo logoUrl={logoUrl} black large />
+            <BrandLogo logoUrl={logoUrl} black large animated />
             <p className="mt-4 text-sm leading-relaxed max-w-xs" style={{ color: "var(--ink-2)" }}>The AI recruitment platform for growing teams. Start from a shortlist, not a pile.</p>
             <div className="mt-5 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
               <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> No credit card required
@@ -18144,6 +18294,7 @@ const SCREEN_TO_PATH = {
   compare: "/compare",
   trust: "/trust",
   gettingStarted: "/getting-started",
+  contactSales: "/contact-sales",
 };
 const PATH_TO_SCREEN = {
   "/": "landing",
@@ -18153,6 +18304,7 @@ const PATH_TO_SCREEN = {
   "/resources/glossary": "glossary",
   "/compare": "compare",
   "/getting-started": "gettingStarted",
+  "/contact-sales": "contactSales",
   "/login": "login",
   "/forgot-password": "forgotPassword",
   "/signup": "signup",
@@ -18517,6 +18669,7 @@ function initialHistoryFromUrl() {
   if (screen === "trust") return ["landing", "trust"]; // public content page
   if (screen === "legal") return ["landing", "legal"]; // public content page
   if (screen === "gettingStarted") return ["landing", "gettingStarted"]; // public content page
+  if (screen === "contactSales") return ["landing", "contactSales"]; // public sales page; Back → landing
   return ["dashboard", screen]; // seed dashboard so Back has somewhere to go
 }
 
@@ -19566,6 +19719,15 @@ export default function ResumeAIPreview() {
       <Shell>
         {marketingChat}
         <ProductScreen slug={productSlug} navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
+      </Shell>
+    );
+  }
+
+  if (screen === "contactSales") {
+    return (
+      <Shell>
+        {marketingChat}
+        <ContactSalesScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} />
       </Shell>
     );
   }
