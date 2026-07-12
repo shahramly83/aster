@@ -12977,8 +12977,8 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
         style={{ "--tw-ring-color": "var(--brand)" }}
       >
         <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />
-        <span className={summary ? "text-neutral-900" : "text-neutral-400"}>{summary || "Pick a date and time"}</span>
-        <Icon name="chevronDown" className={`w-4 h-4 ml-auto shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className={summary ? "text-neutral-900" : "text-neutral-400"}>{summary || "Add an interview time…"}</span>
+        <span className="ml-auto shrink-0 inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--brand)" }}><Icon name="plus" className="w-3.5 h-3.5" /> Add</span>
       </button>
 
       {open && (
@@ -12990,8 +12990,8 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Propose interview times</h3>
-                <p className="text-xs mt-0.5 text-neutral-500">Pick a day and a start/end time, then Add. You can add several.</p>
+                <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Offer interview times</h3>
+                <p className="text-xs mt-0.5 text-neutral-500">Pick a day and a start and end time, then Add time. Offer two or three, the candidate books whichever one suits them.</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="shrink-0 -mr-1 -mt-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 text-neutral-400"><Icon name="close" className="w-4 h-4" /></button>
             </div>
@@ -13070,10 +13070,10 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
           )}
 
           <div className="flex items-center justify-between gap-3 border-t border-neutral-100 pt-3">
-            <span className="text-xs text-neutral-500 min-w-0 truncate">{summary ? `New: ${summary}` : "Pick a day, then a start and end time"}</span>
+            <span className="text-xs text-neutral-500 min-w-0 truncate">{summary ? `Ready to add: ${summary}` : slots.length ? `${slots.length} time${slots.length === 1 ? "" : "s"} added` : "Pick a day, then a start and end time"}</span>
             <div className="flex items-center gap-2 shrink-0">
-              <button type="button" onClick={commit} disabled={!canAdd} className="rounded-xl border border-[color:var(--brand)] text-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium px-4 py-2 transition-colors">Add time</button>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-opacity shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)]">Done</button>
+              <button type="button" onClick={() => setOpen(false)} className="rounded-xl border text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Close window</button>
+              <button type="button" onClick={commit} disabled={!canAdd} className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-opacity shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)]">Add time</button>
             </div>
           </div>
           </div>
@@ -13083,7 +13083,7 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
   );
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {} }) {
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [] }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   // If opened from a specific job's applicant list, that job is fixed and
   // there's no need to pick one. Otherwise let HR choose the open role.
@@ -13098,12 +13098,15 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const hmId = hmEntry?.id ?? "__hm__";
   const hmEmail = hmEntry?.email || "";
 
-  const [attendeeQuery, setAttendeeQuery] = useState("");
-  const [attendeeOpen, setAttendeeOpen] = useState(false);
-  const [additionalAttendees, setAdditionalAttendees] = useState([]); // array of interviewer ids
   const [sending, setSending] = useState(false);
   const [slots, setSlots] = useState([]);      // ISO start strings the HM proposes
   const [confirmedOffline, setConfirmedOffline] = useState(false); // panel confirmed the times
+  // Scheduling normally starts from an interviewer's request. The hiring manager
+  // can also start it themselves via "Schedule on my own".
+  const [selfSchedule, setSelfSchedule] = useState(false);
+  const [confirmOne, setConfirmOne] = useState(false); // one-time-only send guard
+  const canSchedule = !!openRequest || selfSchedule;
+  const candFirst = candidate?.parsed?.name?.split(" ")[0] || "this candidate";
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
@@ -13121,24 +13124,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const bookingStatus = booking?.status; // undefined | 'sent' | 'scheduled'
   const sentRequest = booking?.request;
 
-  // Additional interviewers come from the team (already set up in the system),
-  // excluding the primary hiring manager and anyone already added. The searchable
-  // field filters this list by name.
-  const attendeeName = (id) => interviewers.find((iv) => iv.id === id)?.name ?? id;
-  const attendeeOptions = interviewers.filter(
-    (iv) => iv.id !== hmId && iv.name !== hmName && !additionalAttendees.includes(iv.id)
-  );
-  const attendeeMatches = attendeeOptions.filter(
-    (iv) => !attendeeQuery.trim() || iv.name.toLowerCase().includes(attendeeQuery.trim().toLowerCase())
-  );
-
-  const addAttendee = (id) => {
-    if (!id || additionalAttendees.includes(id)) return;
-    setAdditionalAttendees((prev) => [...prev, id]);
-    setAttendeeQuery("");
-  };
-  const removeAttendee = (id) => setAdditionalAttendees((prev) => prev.filter((a) => a !== id));
-
   // The hiring manager proposes interview times manually (one or more). No
   // calendar connection: they pick each time and add it to the list.
   const addSlot = (range) => {
@@ -13150,20 +13135,18 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   };
   const removeSlot = (startIso) => setSlots((prev) => prev.filter((s) => s.start !== startIso));
 
-  const handleSendInvite = () => {
+  const doSend = () => {
+    setConfirmOne(false);
     if (slots.length === 0) return;
     setSending(true);
     setTimeout(() => {
       const proposed = slots.map((s) => ({ start: s.start, end: s.end }));
       const durMin = slots.length ? Math.max(1, Math.round((new Date(slots[0].end) - new Date(slots[0].start)) / 60000)) : 30;
-      // The full panel: the hiring manager plus the chosen pool interviewers.
-      // Profile ids scope the scorecard; name/email drive notifications.
+      // The full panel: the hiring manager plus the interviewers already assigned
+      // to this role. Profile ids scope the scorecard; name/email drive emails.
       const attendees = [
         { id: hmId, name: hmName, email: hmEmail },
-        ...additionalAttendees.map((id) => {
-          const iv = interviewers.find((x) => x.id === id);
-          return { id, name: iv?.name || "", email: iv?.email || "" };
-        }),
+        ...assignedInterviewers.map((iv) => ({ id: iv.id, name: iv.name || "", email: iv.email || "" })),
       ];
       const sent = {
         id: `req-${candidate.id}`,
@@ -13182,12 +13165,18 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
       setSending(false);
     }, 1000);
   };
+  // Offering a single time gives the candidate no choice, so confirm first.
+  const attemptSend = () => {
+    if (slots.length === 0) return;
+    if (slots.length === 1) { setConfirmOne(true); return; }
+    doSend();
+  };
 
   return (
     <div className="rounded-2xl border px-5 py-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
       <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
         {fixedJob ? `Scheduling for the ${fixedJob.title} role. ` : ""}
-        You run this interview as the hiring manager. Add teammates to join, then send the candidate a few times to pick from.
+        You run this interview as the hiring manager. Offer the candidate a few times and they pick one.
       </p>
 
       {bookingStatus === "scheduled" ? (
@@ -13224,6 +13213,23 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         <p className="text-sm text-neutral-500">No open jobs to schedule against.</p>
       ) : interviewers.length === 0 ? (
         <p className="text-sm text-neutral-500">No interviewers set up yet.</p>
+      ) : !canSchedule ? (
+        /* R1: scheduling waits on an interviewer's request, but the hiring
+           manager can start it themselves. */
+        <div className="rounded-xl border border-dashed p-4" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
+          <div className="flex items-start gap-2.5">
+            <span className="shrink-0 mt-0.5" style={{ color: "var(--ink-3)" }}><Icon name="clock" className="w-4 h-4" /></span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No interview requested yet</p>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                An interviewer assigned to this role reviews {candFirst} and requests an interview, and it shows up here for you to schedule. You can also set one up now without waiting.
+              </p>
+              <button type="button" onClick={() => setSelfSchedule(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}>
+                <Icon name="calendar" className="w-4 h-4" /> Schedule on my own
+              </button>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {!fixedJob && (
@@ -13237,89 +13243,75 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             </div>
           )}
 
-          {/* Primary interviewer is the signed-in hiring manager: always on the
-              invite, no dropdown, can't be removed. */}
+          {/* R2: the panel is the hiring manager plus the interviewers already
+              assigned to this role. Assign them from the applicant list. */}
           <div className="mb-3">
-            <label className="block text-xs text-neutral-500 mb-1.5">Interviewers</label>
+            <label className="block text-xs text-neutral-500 mb-1.5">Interview panel</label>
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 text-sm rounded-full px-3 py-1.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                 <Icon name="shield" className="w-3.5 h-3.5" /> {hmName}
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand)", color: "#fff" }}>Hiring Manager</span>
               </span>
-              {additionalAttendees.map((id) => (
-                <span key={id} className="inline-flex items-center gap-1.5 text-sm rounded-full bg-white border border-neutral-200 px-3 py-1.5 text-neutral-700">
-                  {attendeeName(id)}
-                  <button type="button" onClick={() => removeAttendee(id)} aria-label={`Remove ${attendeeName(id)}`} className="text-neutral-400 hover:text-neutral-700"><Icon name="close" className="w-3 h-3" /></button>
+              {assignedInterviewers.map((iv) => (
+                <span key={iv.id} className="inline-flex items-center gap-1.5 text-sm rounded-full bg-white border border-neutral-200 px-3 py-1.5 text-neutral-700">
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
+                  {iv.name}
                 </span>
               ))}
             </div>
-          </div>
-
-          {/* Add teammates via a searchable field. */}
-          <div className="mb-3 relative">
-            <label className="block text-xs text-neutral-500 mb-1">Add interviewers <span className="text-neutral-400">(optional)</span></label>
-            {attendeeOptions.length > 0 ? (
-              <>
-                <input
-                  value={attendeeQuery}
-                  onChange={(e) => setAttendeeQuery(e.target.value)}
-                  onFocus={() => setAttendeeOpen(true)}
-                  onBlur={() => setTimeout(() => setAttendeeOpen(false), 150)}
-                  placeholder="Search or pick from your team..."
-                  className={inputClass}
-                />
-                {attendeeOpen && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-neutral-200 bg-white shadow-lg py-1 max-h-52 overflow-y-auto">
-                    {attendeeMatches.length ? attendeeMatches.map((iv) => (
-                      <button key={iv.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addAttendee(iv.id)} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 text-left">
-                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
-                        <span className="truncate">{iv.name}</span>
-                      </button>
-                    )) : <p className="px-3 py-1.5 text-sm text-neutral-400">No match.</p>}
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-xs text-neutral-400">No other teammates yet. Invite them on the Interviewers page.</p>
+            {assignedInterviewers.length === 0 && (
+              <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>No interviewers assigned to this role yet. Assign them from the applicant list so they can score the interview.</p>
             )}
           </div>
 
-          {/* The hiring manager proposes interview times manually (one or more). */}
+          {/* R3: the hiring manager offers a few times; the candidate picks one. */}
           <div className="mb-3">
-            <label className="block text-xs text-neutral-500 mb-1">Propose interview times</label>
+            <label className="block text-xs text-neutral-500 mb-1">Offer interview times <span className="text-neutral-400">(the candidate picks one)</span></label>
             <DateTimePicker onAdd={(val) => addSlot(val)} slots={slots} onRemove={removeSlot} takenRanges={takenRanges} />
             {slots.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2.5">
-                {slots.map((s) => (
-                  <span key={s.start} className="inline-flex items-center gap-1.5 text-xs rounded-full bg-indigo-600 text-white px-3 py-1.5">
-                    {formatSlotRange(s.start, s.end)}
-                    <button type="button" onClick={() => removeSlot(s.start)} aria-label="Remove time" className="text-white/70 hover:text-white"><Icon name="close" className="w-3 h-3" /></button>
-                  </span>
-                ))}
-              </div>
+              <>
+                <div className="flex flex-wrap gap-2 mt-2.5">
+                  {slots.map((s) => (
+                    <span key={s.start} className="inline-flex items-center gap-1.5 text-xs rounded-full text-white px-3 py-1.5" style={{ background: "var(--brand)" }}>
+                      {formatSlotRange(s.start, s.end)}
+                      <button type="button" onClick={() => removeSlot(s.start)} aria-label="Remove time" className="text-white/70 hover:text-white"><Icon name="close" className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
+                  {slots.length === 1 ? "Just one time so far. Add another so the candidate has a choice." : `The candidate will pick one of these ${slots.length} times.`}
+                </p>
+              </>
             )}
           </div>
-
-          {additionalAttendees.length > 0 && (
-            <p className="text-xs text-neutral-500 mb-2">Also inviting: {additionalAttendees.map(attendeeName).join(", ")}</p>
-          )}
 
           {/* Offline-confirm guardrail: HR checks the times with the panel first,
               so whatever the candidate picks is final (no back-and-forth). */}
           {slots.length > 0 && (
             <label className="flex items-start gap-2 mb-3 cursor-pointer select-none">
-              <input type="checkbox" checked={confirmedOffline} onChange={(e) => setConfirmedOffline(e.target.checked)} className="mt-0.5 accent-indigo-600 w-4 h-4 shrink-0" />
+              <input type="checkbox" checked={confirmedOffline} onChange={(e) => setConfirmedOffline(e.target.checked)} className="mt-0.5 accent-[color:var(--brand)] w-4 h-4 shrink-0" />
               <span className="text-xs text-neutral-600 leading-relaxed">I've checked these times with the interviewers who'll attend. The candidate only sees times the panel can make, so whichever they pick is final.</span>
             </label>
           )}
 
           <button
-            onClick={handleSendInvite}
+            onClick={attemptSend}
             disabled={sending || slots.length === 0 || !confirmedOffline}
             className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
           >
             {sending ? "Sending…" : `Send ${slots.length} time${slots.length === 1 ? "" : "s"} to candidate`}
           </button>
+
+          <ConfirmDialog
+            open={confirmOne}
+            tone="brand"
+            title="Offer just one time?"
+            body={`You're only offering ${candFirst} one time. If it doesn't suit them there's no alternative to pick, and you'll be back to rescheduling. Add another time, or send this one anyway.`}
+            confirmLabel="Send one time"
+            cancelLabel="Add another time"
+            onConfirm={doSend}
+            onClose={() => setConfirmOne(false)}
+          />
         </>
       )}
     </div>
@@ -15889,7 +15881,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {} }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [] }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -16094,6 +16086,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const requesterName = openRequest
     ? (openRequest.requested_by === currentUserId ? "you" : (interviewers.find((i) => i.id === openRequest.requested_by)?.name || "a teammate"))
     : null;
+  // Interviewers assigned to this role (their pool). They form the interview
+  // panel; there's no separate "add interviewers" step on the schedule card.
+  const assignedInterviewers = contextJobId
+    ? interviewers.filter((iv) => isInterviewer(iv.role) && jobAssignments.some((a) => a.job_id === contextJobId && a.profile_id === iv.id))
+    : [];
   const quickFacts = (
     <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
       <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>At a glance</h2>
@@ -16432,6 +16429,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onInviteSent={onInviteSent}
           profile={profile}
           allBookings={allBookings}
+          openRequest={openRequest}
+          assignedInterviewers={assignedInterviewers}
         />
         </>)}
 
@@ -19528,6 +19527,7 @@ export default function ResumeAIPreview() {
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
+            jobAssignments={jobAssignments}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
             insightsCache={insightsCache}
