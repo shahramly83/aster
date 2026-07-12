@@ -2214,7 +2214,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       { label: "Bulk upload parsing", free: "10 / mo", starter: "50 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "AI Rank credits", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "AI Insight credits", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
-      { label: "See Why (detailed rationale)", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
+      { label: "Why this fit (per-candidate rationale)", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
     ]},
     { group: "Interviews", rows: [
@@ -8902,7 +8902,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     { label: "AI Parsing credits", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
                     { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
                     { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
-                    { label: "See-why explanations credits", used: seeWhyUsed, limit: L.seeWhyPerMonth },
+                    { label: "Why this fit credits", used: seeWhyUsed, limit: L.seeWhyPerMonth },
                   ];
                   const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
                   return (
@@ -17763,7 +17763,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Inline AI matching, ranks these applicants against the job.
   const [matching, setMatching] = useState(false);
   const [matchErr, setMatchErr] = useState(null);
-  const [matchResults, setMatchResults] = useState(null); // null until run: { [candidateId]: {score, rationale} }
+  // Seed from any AI Rank scores already saved for this job (persisted last run),
+  // so a candidate that was ranked before never gets re-ranked (or re-charged).
+  const [matchResults, setMatchResults] = useState(() => {
+    const rows = MOCK_MATCHES[activeJobId] || [];
+    const m = {};
+    rows.forEach((r) => { if (r && r.candidateId) m[r.candidateId] = { score: r.score, rationale: r.rationale || "" }; });
+    return Object.keys(m).length ? m : null;
+  }); // { [candidateId]: {score, rationale} }
 
   // Charge an AI Rank credit against the shared per-company monthly pool. Called
   // ONLY after a real ranking lands, never on failure.
@@ -17785,16 +17792,23 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     if (outOfRuns) { navigate("billing"); return; }
     const job = jobs.find((j) => j.id === activeJobId);
     if (!job) return;
-    const pool = applicants
+    // Only rank ACTIVE applicants: hired candidates are out of the running (but
+    // stay visible in the list). AI Rank needs at least 2 of them to compare.
+    const activePool = applicants
+      .filter((a) => !hiredIds.has(a.candidateId))
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
       .filter((c) => c && c.parsed);
-    if (!pool.length) { setMatchErr("There are no parsed applicants to rank yet."); return; }
+    if (activePool.length < 2) { setMatchErr("AI Rank needs at least 2 candidates who aren't hired yet."); return; }
+    // Skip anyone already ranked — only score new arrivals, so we never re-run
+    // (or re-charge) for a candidate that already has a result.
+    const toRank = activePool.filter((c) => !(matchResults && matchResults[c.id]));
+    if (!toRank.length) { setMatchErr("Everyone here is already ranked. New applicants can be ranked when they arrive."); return; }
 
     setMatching(true);
     setMatchErr(null);
     try {
       if (!hasSupabase) { setMatching(false); return; }  // demo build: nothing to rank against
-      const payload = pool.slice(0, 40).map((c) => ({
+      const payload = toRank.slice(0, 40).map((c) => ({
         id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
         years: c.parsed?.years_of_experience ?? null,
         skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
@@ -17803,13 +17817,15 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload } });
       if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
 
-      const map = {};
+      // Merge new scores onto the existing ones so prior results are preserved.
+      const map = { ...(matchResults || {}) };
       data.ranked.forEach((r) => { if (r && r.id) map[r.id] = { score: (Number(r.score) || 0) / 100, rationale: r.reason || "" }; });
       if (!Object.keys(map).length) throw new Error("no scores returned");
 
       setMatchResults(map);
       syncRuns(data.used);  // the server already charged; mirror its count
-      // Persist, so the ranking survives a reload instead of vanishing.
+      // Persist the full set so the ranking survives a reload and future runs can
+      // skip these candidates.
       dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
     } catch (e) {
       console.error("runMatching", e);
@@ -17818,6 +17834,12 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       setMatching(false);
     }
   };
+
+  // AI Rank gating: hired candidates don't count, need at least 2 active ones,
+  // and there must be at least one not-yet-ranked among them to bother running.
+  const rankableActive = applicants.filter((a) => !hiredIds.has(a.candidateId));
+  const unrankedCount = rankableActive.filter((a) => !(matchResults && matchResults[a.candidateId])).length;
+  const canRank = rankableActive.length >= 2 && unrankedCount > 0;
 
   const setStage = (candidateId, stage, emailSent) => {
     if (stage === "rejected") {
@@ -17900,9 +17922,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
               {visible.length === 0
                 ? "No applicants yet. Matching becomes available once someone applies."
-                : matchResults
-                  ? "Ranked by fit against this role. Best matches shown first."
-                  : "Score every candidate against this role and see who fits best."}
+                : rankableActive.length < 2
+                  ? "AI Rank needs at least 2 candidates who aren't hired yet."
+                  : matchResults
+                    ? (unrankedCount > 0 ? `Ranked by fit. ${unrankedCount} new applicant${unrankedCount === 1 ? "" : "s"} can be ranked.` : "Ranked by fit against this role. Best matches shown first.")
+                    : "Score every candidate against this role and see who fits best."}
             </p>
             {matchErr && (
               <p role="alert" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
@@ -17910,7 +17934,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           </div>
           <button
             onClick={() => askAiRank(runMatching)}
-            disabled={matching || visible.length === 0}
+            disabled={matching || (!outOfRuns && !canRank)}
             className="shrink-0 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 flex items-center gap-2 transition-opacity"
           >
             <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
@@ -17919,7 +17943,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               : outOfRuns
                 ? "Out of credits"
                 : matchResults
-                  ? "Re-run AI Rank"
+                  ? (unrankedCount > 0 ? "Rank new candidates" : "All ranked")
                   : "AI Rank"}
           </button>
         </div>
@@ -18107,7 +18131,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
                           <div className="flex items-start gap-2">
                             <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
-                            <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>See Why: </span>{revealed}</p>
+                            <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>Why this fit: </span>{revealed}</p>
                           </div>
                           {!seeWhyUnlimited && (
                             <button onClick={() => setConfirmRegen({ candidateId: a.candidateId, candidate: c, fallback: match.rationale, role: roleObj })} className="mt-1.5 ml-5 text-[10px] font-medium inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
@@ -18125,7 +18149,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         style={{ color: "var(--brand)" }}
                       >
                         <Icon name={out ? "lock" : "matching"} className="w-3 h-3" />
-                        {out ? "Out of See Why credits: upgrade" : seeWhyUnlimited ? "See why" : `See why · ${seeWhyLeft} left`}
+                        {out ? "Out of credits: upgrade" : seeWhyUnlimited ? "Why this fit" : `Why this fit · ${seeWhyLeft} left`}
                       </button>
                     );
                   })()}
@@ -18147,8 +18171,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       />
       <ConfirmDialog
         open={!!confirmRegen}
-        title="Regenerate See Why?"
-        body={`This runs a fresh rationale and uses 1 See Why credit, replacing the cached result. You have ${seeWhyLeft} left this cycle.`}
+        title="Explain again?"
+        body={`This runs a fresh rationale and uses 1 Why-this-fit credit, replacing the saved result. You have ${seeWhyLeft} left this cycle.`}
         confirmLabel="Use 1 credit"
         onConfirm={() => { const r = confirmRegen; setConfirmRegen(null); if (r) revealSeeWhy(r.candidateId, r.candidate, r.fallback, r.role, { force: true }); }}
         onClose={() => setConfirmRegen(null)}
@@ -20310,6 +20334,7 @@ export default function ResumeAIPreview() {
         )}
         {screen === "applicants" && (
           <ApplicantsScreen
+            key={activeJobId}
             navigate={navigate}
             companyId={companyId}
             jobs={jobs}
