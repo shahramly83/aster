@@ -12779,16 +12779,28 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
   const activeJob = fixedJob ?? openJobs.find((j) => j.id === jobId);
   const p = candidate.parsed;
 
-  const generate = () => {
+  const generate = async () => {
     if (persisted || !canGenerate) return; // generate once
     setGenerating(true);
-    setTimeout(() => {
-      const built = buildQuestionPool(p, activeJob?.title ?? "this role");
-      setLocalPool(built);
-      setVisibleCount(5);
-      setGenerating(false);
-      if (onGenerate) onGenerate(built);
-    }, 1000);
+    const roleTitle = activeJob?.title ?? "this role";
+    // Real AI generation, tailored to this candidate + role. Falls back to the
+    // local template if there's no backend, the call fails, or credits are out
+    // (the template is free, so a degraded set beats no questions at all).
+    let built = null;
+    if (hasSupabase) {
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-interview-questions", { body: { candidate, jobTitle: roleTitle } });
+        if (!error && Array.isArray(data?.questions) && data.questions.length) {
+          const order = ["Technical", "Experience", "Role fit", "Behavioral", "Depth check", "Collaboration", "Motivation"];
+          built = data.questions.slice().sort((a, b) => (order.indexOf(a.category) + 1 || 99) - (order.indexOf(b.category) + 1 || 99));
+        }
+      } catch { /* fall back below */ }
+    }
+    if (!built) built = buildQuestionPool(p, roleTitle);
+    setLocalPool(built);
+    setVisibleCount(5);
+    setGenerating(false);
+    if (onGenerate) onGenerate(built);
   };
 
   const loadMore = () => {
