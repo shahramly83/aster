@@ -6,7 +6,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -7348,7 +7348,10 @@ const NAV_ITEMS = [
 // "interviewer" — normalise so either form matches.
 const isInterviewer = (role) => String(role || "").toLowerCase() === "interviewer";
 const INTERVIEWER_ALLOWED = new Set(["interviews", "applicants", "candidateProfile", "profile"]);
-const INTERVIEWER_NAV = [{ key: "interviews", label: "Interviews", icon: "interviewers" }];
+const INTERVIEWER_NAV = [
+  { key: "interviews", label: "Interviews", icon: "interviewers" },
+  { key: "openRoles", label: "Open Roles", icon: "briefcase" },
+];
 const navItemsForRole = (role) => (isInterviewer(role) ? INTERVIEWER_NAV : NAV_ITEMS);
 const homeForRole = (role) => (isInterviewer(role) ? "interviews" : "dashboard");
 
@@ -9900,6 +9903,12 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           onConsumeJobPost && onConsumeJobPost();   // resync the meter to the server
           return;
         }
+        // A role request must persist server-side (request_job RPC). If it can't,
+        // surface it rather than showing a phantom pending card that vanishes.
+        if (requestMode && !res) {
+          setCreateErr("Couldn't send the request just now. Please try again in a moment.");
+          return;
+        }
         if (res) id = res;
       }
       setJobs([{ id, ...payload }, ...jobs]);
@@ -10032,20 +10041,32 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
         <p role="alert" className="text-xs rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{createErr}</p>
       )}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <button
-          onClick={() => handleSubmit("open")}
-          disabled={!canPublish || publishBlocked}
-          title={publishBlocked ? `You've used all ${jobPostUsage.limit} job posts this cycle. Save as draft, or upgrade.` : undefined}
-          className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
-          Publish
-        </button>
-        <button
-          onClick={() => handleSubmit("draft")}
-          disabled={!canDraft}
-          className="rounded-xl border disabled:opacity-40 text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50"
-          style={{ color: "var(--ink-2)", borderColor: "var(--line-strong)" }}>
-          {editing && initialJob?.status === "draft" ? "Keep as draft" : "Save as draft"}
-        </button>
+        {requestMode ? (
+          <button
+            onClick={() => handleSubmit("draft")}
+            disabled={!canPublish}
+            title={!canPublish ? "Add a title and a short description first" : undefined}
+            className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
+            Send request to hiring manager
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={() => handleSubmit("open")}
+              disabled={!canPublish || publishBlocked}
+              title={publishBlocked ? `You've used all ${jobPostUsage.limit} job posts this cycle. Save as draft, or upgrade.` : undefined}
+              className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
+              Publish
+            </button>
+            <button
+              onClick={() => handleSubmit("draft")}
+              disabled={!canDraft}
+              className="rounded-xl border disabled:opacity-40 text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50"
+              style={{ color: "var(--ink-2)", borderColor: "var(--line-strong)" }}>
+              {editing && initialJob?.status === "draft" ? "Keep as draft" : "Save as draft"}
+            </button>
+          </>
+        )}
         <button onClick={onClose} className="text-sm rounded-xl px-4 py-2 transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-3)" }}>
           Cancel
         </button>
@@ -10061,25 +10082,29 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
 }
 
 // New/Edit Job as a centered modal sheet (opens over whatever screen you're on).
-function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost }) {
+function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost, requestMode = false, requesterId = null, requesterName = "" }) {
   if (!open) return null;
   const editing = !!initialJob;
+  const heading = requestMode ? "Request a new role" : editing ? "Edit job" : "New job posting";
+  const sub = requestMode
+    ? "Fill in the role you'd like to hire for. It goes to your hiring manager as a draft to review and publish."
+    : editing ? "Update the details. Changes go live on the posting right away." : "Add the details, then share the link and rank applicants as they apply.";
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={editing ? "Edit job" : "New job posting"}>
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={heading}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
         <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b" style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center gap-3 min-w-0">
             <span className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="jobs" className="w-5 h-5" /></span>
             <div className="min-w-0">
-              <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{editing ? "Edit job" : "New job posting"}</h2>
-              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{editing ? "Update the details. Changes go live on the posting right away." : "Add the details, then share the link and rank applicants as they apply."}</p>
+              <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{heading}</h2>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
         <div className="px-5 sm:px-6 py-5 max-h-[75vh] overflow-y-auto">
-          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} onCreate={onCreate} onUpdate={onUpdate} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={onConsumeJobPost} />
+          <NewJobForm jobs={jobs} setJobs={setJobs} plan={plan} navigate={navigate} onClose={onClose} initialJob={initialJob} onCreate={onCreate} onUpdate={onUpdate} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={onConsumeJobPost} requestMode={requestMode} requesterId={requesterId} requesterName={requesterName} />
         </div>
       </div>
     </div>
@@ -10111,7 +10136,7 @@ const closingChip = (days) => {
   return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
 };
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {} }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -10472,7 +10497,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               const chips = [job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level].filter(Boolean);
               const paused = pausedIds.has(job.id);
               const n = applicantCountFor(job.id);
-              const badge = paused
+              const badge = job.approvalStatus === "pending"
+                ? { bg: "#EEF2FF", color: "#3730A3", dot: "#6366F1", label: "requested" }
+                : paused
                 ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "paused" }
                 : job.status === "open"
                   ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
@@ -10490,6 +10517,18 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <Icon name="lock" className="w-3 h-3" /> Paused, over your plan's job limit
                       </span>
                       <button onClick={() => navigate("billing")} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
+                    </div>
+                  )}
+                  {job.approvalStatus === "pending" && (
+                    <div className="mb-3 rounded-lg px-3 py-2.5" style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
+                      <p className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: "#3730A3" }}>
+                        <Icon name="clock" className="w-3 h-3" /> Role requested{job.requestedByName ? ` by ${job.requestedByName}` : ""}
+                      </p>
+                      <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#4338CA" }}>Approve to add it to your drafts, then publish when you're ready.</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <button onClick={() => onDecideRequest(job.id, true)} className="text-[11px] font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">Approve</button>
+                        <button onClick={() => onDecideRequest(job.id, false)} className="text-[11px] font-semibold rounded-lg px-3 py-1.5 bg-white transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>Reject</button>
+                      </div>
                     </div>
                   )}
 
@@ -12276,6 +12315,83 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                 </button>
               );
             })}
+        </div>
+      )}
+    </AccountShell>
+  );
+}
+
+// Interviewer's "Open Roles" menu: the roles assigned to them, a button to
+// request a brand-new role (which goes to a hiring manager to approve), and the
+// status of the roles they've already requested.
+const REQUEST_STATUS = {
+  pending: { label: "Pending approval", bg: "#FEF3C7", color: "#92400E" },
+  approved: { label: "Approved", bg: "#ECFDF3", color: "#067647" },
+  rejected: { label: "Not approved", bg: "#FEF2F2", color: "#B42318" },
+};
+function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = null, profile, avatarUrl, activities = [], onOpenNotifications, setActiveJobId, onRequestRole }) {
+  const myJobIds = new Set(jobAssignments.filter((a) => a.profile_id === currentUserId).map((a) => a.job_id));
+  // Live roles assigned to me (approved + open). approvalStatus is undefined for
+  // normal jobs, which counts as approved.
+  const assigned = jobs.filter((j) => myJobIds.has(j.id) && j.status === "open" && (j.approvalStatus ?? "approved") === "approved");
+  // Roles I've requested, any status.
+  const myRequests = jobs.filter((j) => j.requestedBy && j.requestedBy === currentUserId);
+
+  return (
+    <AccountShell title="Open Roles" subtitle="Roles you're interviewing for, plus any you've asked to open." navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
+      <div className="mb-7 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ borderColor: "#CBD6F7", background: "var(--brand-soft)" }}>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Need to hire for something?</h2>
+          <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Draft the role and send it to your hiring manager to review and publish.</p>
+        </div>
+        <button onClick={onRequestRole} className="shrink-0 inline-flex items-center gap-1.5 rounded-xl brand-gradient text-white text-sm font-semibold px-4 py-2.5 hover:opacity-90 transition-opacity shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">
+          <Icon name="plus" className="w-4 h-4" /> Request a new role
+        </button>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Assigned to you</h2>
+        <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Open a role to review its applicants and request an interview.</p>
+        {assigned.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--ink-3)" }}>No open roles assigned to you yet. Your hiring manager assigns interviewers per role.</p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {assigned.map((j) => {
+              const n = applicantCountFor(j.id);
+              return (
+                <button key={j.id} onClick={() => { setActiveJobId && setActiveJobId(j.id); navigate("applicants", `/applicants/${j.id}`); }} className="text-left rounded-2xl bg-white act-shadow border p-4 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
+                  <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{n} applicant{n === 1 ? "" : "s"}</p>
+                  </div>
+                  <span className="shrink-0 inline-flex" style={{ color: "var(--ink-3)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {myRequests.length > 0 && (
+        <div>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Your requests</h2>
+          <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Roles you've asked to open, and where each one stands.</p>
+          <div className="space-y-2">
+            {myRequests.map((j) => {
+              const st = REQUEST_STATUS[j.approvalStatus] || REQUEST_STATUS.pending;
+              return (
+                <div key={j.id} className="rounded-2xl bg-white act-shadow border p-4 flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
+                  <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
+                    <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>{j.department || j.location || "Role request"}{j.approvalStatus === "approved" ? " · your hiring manager will publish it" : ""}</p>
+                  </div>
+                  <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </AccountShell>
@@ -18492,6 +18608,20 @@ export default function ResumeAIPreview() {
       ? "interviews"
       : rawScreen;
   const [newJobOpen, setNewJobOpen] = useState(false);
+  const [requestRoleOpen, setRequestRoleOpen] = useState(false); // interviewer's "Request a role" modal
+  // Hiring manager approves / rejects an interviewer's role request. The job
+  // stays a draft; approval just clears the request so the HM can publish it.
+  const decideJobRequest = (jobId, approve) => {
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, approvalStatus: approve ? "approved" : "rejected" } : j)));
+    if (canPersist) {
+      const j = jobs.find((x) => x.id === jobId);
+      if (j) {
+        const clean = { ...j, approvalStatus: approve ? "approved" : "rejected" };
+        delete clean.posted_at; delete clean.viewStats; // derived on load, not stored in details
+        dbUpdateJob(jobId, clean);
+      }
+    }
+  };
 
   // Public apply link: fetch the job's public details and record a view. Only
   // runs on a real /apply/<id> visit (not the in-app admin preview, which sets
@@ -19595,6 +19725,7 @@ export default function ResumeAIPreview() {
             jobPostUsage={jobPostUsage}
             jobPostBlocked={jobPostBlocked}
             onConsumeJobPost={consumeJobPost}
+            onDecideRequest={decideJobRequest}
           />
         )}
         {screen === "search" && (
@@ -19616,6 +19747,20 @@ export default function ResumeAIPreview() {
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
+          />
+        )}
+        {screen === "openRoles" && (
+          <OpenRolesScreen
+            navigate={navigate}
+            jobs={jobs}
+            jobAssignments={jobAssignments}
+            currentUserId={userId}
+            profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
+            setActiveJobId={setActiveJobId}
+            onRequestRole={() => setRequestRoleOpen(true)}
           />
         )}
         {screen === "interviewers" && (
@@ -19715,6 +19860,7 @@ export default function ResumeAIPreview() {
         </ErrorBoundary>
       </SidebarLayout>
       <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbCreateJob(companyId, userId, p) : null} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={consumeJobPost} />
+      <NewJobModal open={requestRoleOpen} onClose={() => setRequestRoleOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbRequestJob(p) : null} requestMode requesterId={userId} requesterName={`${profile?.firstName || ""} ${profile?.lastName || ""}`.trim()} />
     </Shell>
   );
 }

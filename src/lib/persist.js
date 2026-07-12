@@ -56,6 +56,19 @@ export async function dbListImportRuns(companyId, limit = 50) {
   return (data || []).map((r) => ({ ...(r.run || {}), id: r.id }));
 }
 
+// Interviewer requests a new role. jobs RLS blocks their direct insert, so this
+// goes through the request_job SECURITY DEFINER RPC, which saves it as a pending
+// draft tagged with the requester. approvalStatus/requestedBy are set on the
+// server (trusted), so strip them + status/expires from the details we send.
+export async function dbRequestJob(payload) {
+  if (!hasSupabase) return null;
+  const { title, ...rest } = payload;
+  delete rest.status; delete rest.expires_at; delete rest.approvalStatus; delete rest.requestedBy; delete rest.requestedByName;
+  const { data, error } = await supabase.rpc("request_job", { p_title: title, p_details: rest });
+  if (error) { console.error("dbRequestJob", error.message); return null; }
+  return data || null;
+}
+
 export async function dbUpdateJob(jobId, payload) {
   if (!hasSupabase) return;
   const { title, expires_at, status, details } = splitJob(payload);
