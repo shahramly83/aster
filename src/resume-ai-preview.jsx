@@ -9760,6 +9760,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [location, setLocation] = useState(initialJob?.location || "");
   const [employmentType, setEmploymentType] = useState(initialJob?.employment_type || "full_time");
   const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "hybrid");
+  const [openings, setOpenings] = useState(initialJob?.openings ?? 1); // how many people to hire
   const SENIORITY_OPTIONS = ["junior", "mid", "senior", "lead", "principal"];
   const [seniorityLevels, setSeniorityLevels] = useState(initialJob?.seniority_levels || (initialJob?.seniority_level ? [initialJob.seniority_level] : ["mid"]));
   const [skills, setSkills] = useState(initialJob?.skills || []);
@@ -9795,6 +9796,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       location: location || null,
       employment_type: employmentType,
       remote_type: remoteType,
+      openings: Math.max(1, Number(openings) || 1),
       seniority_levels: seniorityLevels,
       seniority_level: seniorityLevels[0] || null, // first, for compact display
       skills: skills,
@@ -9866,6 +9868,10 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             <option value="hybrid">Hybrid</option>
             <option value="remote">Remote</option>
           </select>
+        </div>
+        <div>
+          <label className={labelClass}>Openings <span className="text-neutral-400 font-normal">(how many to hire)</span></label>
+          <input type="number" min={1} value={openings} onChange={(e) => setOpenings(e.target.value)} className={inputClass} />
         </div>
       </div>
       <div>
@@ -16982,7 +16988,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer }) {
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
@@ -17032,6 +17038,23 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     stage: stageOverrides[a.candidateId] ?? a.baseStage,
     rejectionEmailSent: localRejectEmail[a.candidateId] ?? a.rejectionEmailSent,
   }));
+
+  // Job openings lifecycle: a role can hire more than one person. Hires count
+  // toward the headcount; when it's reached the role is filled and HR closes it.
+  const openings = Math.max(1, Number(job?.openings) || 1);
+  const hiredCount = applicants.filter((a) => a.stage === "hired").length;
+  const openingsFilled = hiredCount >= openings;
+  const inProgressApplicants = applicants.filter((a) => !["hired", "rejected", "declined"].includes(a.stage));
+  const [closePrompt, setClosePrompt] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const doCloseJob = async (rejectRemaining) => {
+    if (closing) return;
+    setClosing(true);
+    if (rejectRemaining) inProgressApplicants.forEach((a) => onStageChange && onStageChange(a.candidateId, "rejected", { notify: true }));
+    if (onCloseJob) await onCloseJob(activeJobId);
+    setClosing(false);
+    setClosePrompt(false);
+  };
 
   const [stageFilter, setStageFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -17209,6 +17232,48 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             onAssign={onAssignInterviewer}
             onUnassign={onUnassignInterviewer}
           />
+        )}
+        {/* Openings / headcount status (HR). A role can hire more than one person;
+            when the headcount is reached it's filled and HR closes it. */}
+        {canManageInterviewers && job && job.status === "open" && (openings > 1 || openingsFilled) && (
+          <div className="rounded-2xl border p-4 mb-5 flex items-center justify-between gap-3" style={{ borderColor: openingsFilled ? "#BBF7D0" : "var(--line)", background: openingsFilled ? "#F0FDF4" : "#fff" }}>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: openingsFilled ? "#166534" : "var(--ink)" }}>
+                {openingsFilled ? `All ${openings} opening${openings === 1 ? "" : "s"} filled` : `${hiredCount} of ${openings} openings filled`}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: openingsFilled ? "#166534" : "var(--ink-3)" }}>
+                {openingsFilled
+                  ? `${inProgressApplicants.length} candidate${inProgressApplicants.length === 1 ? "" : "s"} still in progress. Close the role to wrap up.`
+                  : `${openings - hiredCount} more to hire. The role stays open until then.`}
+              </p>
+            </div>
+            {openingsFilled && (
+              <button onClick={() => setClosePrompt(true)} className="shrink-0 text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">Close this role</button>
+            )}
+          </div>
+        )}
+        {closePrompt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
+              <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Close {job?.title}?</h3>
+              <p className="text-sm mt-1.5" style={{ color: "var(--ink-2)" }}>
+                {inProgressApplicants.length > 0
+                  ? `This role is filled. ${inProgressApplicants.length} candidate${inProgressApplicants.length === 1 ? " is" : "s are"} still in progress. What should happen to them?`
+                  : "This role is filled and no one is still in progress. It'll move to Closed."}
+              </p>
+              <div className="flex flex-col gap-2 mt-5">
+                {inProgressApplicants.length > 0 && (
+                  <button onClick={() => doCloseJob(true)} disabled={closing} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2.5 hover:opacity-90 disabled:opacity-50 transition-opacity">
+                    {closing ? "Closing…" : "Close and let them know the position is filled"}
+                  </button>
+                )}
+                <button onClick={() => doCloseJob(false)} disabled={closing} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-neutral-50 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                  {inProgressApplicants.length > 0 ? "Close, keep them in the pipeline" : (closing ? "Closing…" : "Close role")}
+                </button>
+                <button onClick={() => setClosePrompt(false)} disabled={closing} className="text-sm rounded-xl px-4 py-2 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-2)" }}>Cancel</button>
+              </div>
+            </div>
+          </div>
         )}
         {/* Stage filter */}
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -19345,6 +19410,7 @@ export default function ResumeAIPreview() {
             jobAssignments={jobAssignments}
             onAssignInterviewer={assignInterviewer}
             onUnassignInterviewer={unassignInterviewer}
+            onCloseJob={(jobId) => { setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: "closed" } : j))); if (canPersist) dbSetJobStatus(jobId, "closed"); }}
           />
         )}
         </ErrorBoundary>
