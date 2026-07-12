@@ -8284,6 +8284,9 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
 function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
+  // "Upcoming" excludes interviews whose slot has already passed: once the time
+  // is in the past the interview has happened, so it's no longer upcoming.
+  const upcomingInterviews = interviews.filter((iv) => iv.start && iv.start.getTime() > Date.now());
   const [showAllSources, setShowAllSources] = useState(false);
 
   const allApplicants = Object.values(APPLICANTS_BY_JOB).flat();
@@ -8316,7 +8319,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 
   // The six headline KPIs shown as the main stat cards.
   const kpis = [
-    { label: "Total Candidates", value: stats.totalCandidates, delta: pctChange(stats.totalCandidates, prevPeriod.totalCandidates), series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => goToCandidates(null) },
+    { label: "Total Candidates", value: stats.totalCandidates, delta: pctChange(stats.totalCandidates, prevPeriod.totalCandidates), series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => navigate("search") },
     { label: "Open Positions", value: stats.openJobs, delta: pctChange(stats.openJobs, prevPeriod.openJobs), series: flatSeries(stats.openJobs), icon: "briefcase", onClick: () => goToJobs("open") },
     { label: "New Applications", value: stats.applications, delta: pctChange(stats.applications, prevPeriod.applications), series: appsSeries, icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) },
     { label: "Interviews Scheduled", value: stats.interviewsScheduled, delta: pctChange(stats.interviewsScheduled, prevPeriod.interviewsScheduled), series: flatSeries(stats.interviewsScheduled), icon: "calendar", onClick: () => goToCandidates({ interview: true }) },
@@ -8504,16 +8507,16 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead(
                         "Upcoming Interviews",
-                        interviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
+                        upcomingInterviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
                       )}
-                      {interviews.length === 0 ? (
+                      {upcomingInterviews.length === 0 ? (
                         <div className="py-10 text-center flex-1 flex flex-col justify-center">
                           <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
                           <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Once a candidate confirms a time, it shows up here.</p>
                         </div>
                       ) : (
                         <div className="space-y-1 flex-1">
-                          {interviews.slice(0, 3).map((iv) => (
+                          {upcomingInterviews.slice(0, 3).map((iv) => (
                             <button key={iv.candidateId} onClick={() => navigate("interviews")} className="w-full flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-neutral-50 text-left transition-colors">
                               <CandidateAvatar name={iv.candidateName} seed={iv.candidateName === "Candidate" ? iv.candidateId : iv.candidateName} hasPhoto={false} size={36} />
                               <div className="min-w-0 flex-1">
