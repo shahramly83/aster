@@ -796,8 +796,13 @@ function PreviewBanner() {
 // Aster" email. Returns the RPC error (or null; "already exists" counts as
 // success). The welcome is exactly-once server-side (companies.welcomed_at), so
 // calling this on an idempotent re-run is a safe no-op.
-async function createCompanyAndWelcome(companyName, fullName) {
-  const { error } = await supabase.rpc("create_company_and_owner", { p_company_name: companyName, p_full_name: fullName || null });
+async function createCompanyAndWelcome(companyName, fullName, slug = null) {
+  let { error } = await supabase.rpc("create_company_and_owner", { p_company_name: companyName, p_full_name: fullName || null, p_slug: slug || null });
+  // Fall back to the pre-0061 signature (no p_slug) if the DB migration hasn't
+  // been applied yet, so signup never breaks between the client and DB deploys.
+  if (error && /p_slug|could not find|function|schema cache|does not exist/i.test(error.message || "")) {
+    ({ error } = await supabase.rpc("create_company_and_owner", { p_company_name: companyName, p_full_name: fullName || null }));
+  }
   if (error && !/already exists/i.test(error.message)) return error;
   supabase.functions.invoke("send-welcome", { body: {} }).catch(() => { /* best-effort */ });
   return null;
@@ -1026,10 +1031,10 @@ const isBusinessEmail = (email) => {
   const d = emailDomain(email);
   return !!d && d.includes(".") && !CONSUMER_EMAIL_DOMAINS.has(d);
 };
-// Workspace subdomain slug for the dashboard URL (<slug>.hireaster.com). Lowercase
-// letters/numbers/hyphens, no leading/trailing hyphen, 2-30 chars.
-const slugifyWorkspace = (s) => (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
-const isWorkspaceSlugValid = (s) => /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/.test(s || "") && (s || "").length >= 2;
+// Workspace subdomain slug for the dashboard URL (<slug>.hireaster.com).
+// Lowercase letters and numbers only, no dashes, 2-30 chars.
+const slugifyWorkspace = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 30);
+const isWorkspaceSlugValid = (s) => /^[a-z0-9]{2,30}$/.test(s || "");
 // jane@acme-corp.io → "Acme Corp"; used to seed a first-time SSO user's workspace.
 const companyFromEmail = (email) => {
   const d = emailDomain(email);
@@ -6712,6 +6717,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const [companyName, setCompanyName] = useState("");
   const [workspaceUrl, setWorkspaceUrl] = useState(""); // dashboard subdomain slug
   const [urlEdited, setUrlEdited] = useState(false);     // true once the user types their own
+  const [slugAvail, setSlugAvail] = useState(null);      // null unknown | true free | false taken
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -6767,7 +6773,23 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const labelDark = "block text-[13px] font-medium mb-1.5";
   const reqStar = <span aria-hidden="true" style={{ color: "var(--brand-0)" }}> *</span>;
 
-  const canSubmit = companyName.trim() && firstName.trim() && email.trim() && isWorkspaceSlugValid(workspaceUrl);
+  const slugValid = isWorkspaceSlugValid(workspaceUrl);
+  const canSubmit = companyName.trim() && firstName.trim() && email.trim() && slugValid && slugAvail !== false;
+
+  // Debounced availability check against the DB (workspace_slug_available RPC).
+  // Only sets state inside the async callback, so it never fires a synchronous
+  // effect setState. slugAvail is reset to null in the field onChange handlers.
+  useEffect(() => {
+    if (!hasSupabase || !slugValid) return;
+    let active = true;
+    const t = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.rpc("workspace_slug_available", { p_slug: workspaceUrl });
+        if (active) setSlugAvail(error ? null : !!data);
+      } catch { if (active) setSlugAvail(null); }
+    }, 450);
+    return () => { active = false; clearTimeout(t); };
+  }, [workspaceUrl, slugValid]);
 
   const handleSignUp = async () => {
     if (!canSubmit || busy) return;
@@ -6821,7 +6843,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     // Create the company + owner profile + 14-day trial (SECURITY DEFINER RPC,
     // which is how a brand-new user gets past RLS to provision themselves), then
     // send the welcome email.
-    const rpcErr = await createCompanyAndWelcome(companyName.trim(), fullName);
+    const rpcErr = await createCompanyAndWelcome(companyName.trim(), fullName, workspaceUrl);
     if (rpcErr) {
       setErr(rpcErr.message);
       setBusy(false);
@@ -6962,7 +6984,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignUp(); }}>
             <div>
               <label htmlFor="su-company" className={labelDark} style={{ color: "var(--ink)" }}>Company name{reqStar}</label>
-              <input id="su-company" name="organization" autoComplete="organization" value={companyName} onChange={(e) => { setCompanyName(e.target.value); if (!urlEdited) setWorkspaceUrl(slugifyWorkspace(e.target.value)); }} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
+              <input id="su-company" name="organization" autoComplete="organization" value={companyName} onChange={(e) => { setCompanyName(e.target.value); if (!urlEdited) { setWorkspaceUrl(slugifyWorkspace(e.target.value)); setSlugAvail(null); } }} placeholder="Oryx Studio" className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div>
               <label htmlFor="su-url" className={labelDark} style={{ color: "var(--ink)" }}>Dashboard URL{reqStar}</label>
@@ -6971,7 +6993,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                   id="su-url"
                   name="workspace-url"
                   value={workspaceUrl}
-                  onChange={(e) => { setUrlEdited(true); setWorkspaceUrl(slugifyWorkspace(e.target.value)); setErr(null); }}
+                  onChange={(e) => { setUrlEdited(true); setWorkspaceUrl(slugifyWorkspace(e.target.value)); setSlugAvail(null); setErr(null); }}
                   placeholder="your-company"
                   aria-label="Dashboard URL subdomain"
                   className="flex-1 min-w-0 px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]"
@@ -6979,10 +7001,12 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                 />
                 <span className="flex items-center px-3 text-sm shrink-0" style={{ color: "var(--ink-3)", background: "var(--bg)", borderLeft: "1px solid var(--line-strong)" }}>.hireaster.com</span>
               </div>
-              <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
-                {workspaceUrl && isWorkspaceSlugValid(workspaceUrl)
-                  ? <>Your team will sign in at <span className="font-medium" style={{ color: "var(--ink-2)" }}>{workspaceUrl}.hireaster.com</span></>
-                  : "Pick a subdomain: lowercase letters, numbers and hyphens."}
+              <p className="text-[11px] mt-1.5" style={{ color: slugValid && slugAvail === false ? "#DC2626" : slugValid && slugAvail === true ? "#16A34A" : "var(--ink-3)" }}>
+                {!workspaceUrl ? "Pick a subdomain: lowercase letters and numbers, no dashes."
+                  : !slugValid ? "2 to 30 lowercase letters or numbers, no dashes."
+                  : slugAvail === false ? "That URL is taken. Try another."
+                  : slugAvail === true ? <>Available. Your team signs in at <span className="font-medium">{workspaceUrl}.hireaster.com</span></>
+                  : <>Your team will sign in at <span className="font-medium" style={{ color: "var(--ink-2)" }}>{workspaceUrl}.hireaster.com</span></>}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
