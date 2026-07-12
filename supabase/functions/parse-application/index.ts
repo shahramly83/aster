@@ -149,11 +149,10 @@ Deno.serve(async (req) => {
     const roleSkills: string[] = Array.isArray(d.skills) ? d.skills : [];
     const roleSeniority: string[] = Array.isArray(d.seniority_levels) ? d.seniority_levels : (d.seniority_level ? [d.seniority_level] : []);
     const roleReqs: string[] = Array.isArray(d.requirements) ? d.requirements : [];
-    // The company can choose to screen applicants ("strict", the default) or let
-    // everyone through ("open"). Screening only rejects when the job also has
-    // criteria to screen against.
-    const screenApplicants = d.applicant_screening !== "open";
-    const hasRoleCriteria = screenApplicants && (roleSkills.length > 0 || roleSeniority.length > 0 || roleReqs.length > 0);
+    // Public apply accepts EVERYONE now. We still judge fit against the role's
+    // criteria (when it has any) to sort applicants into Strong vs Other tabs on
+    // the Applicants page, but a poor fit is never rejected.
+    const hasRoleCriteria = (roleSkills.length > 0 || roleSeniority.length > 0 || roleReqs.length > 0);
     const roleContext = hasRoleCriteria
       ? `\n\nTARGET ROLE: "${job.title || "this role"}"\nRequired skills: ${roleSkills.length ? roleSkills.join(", ") : "(not specified)"}\nSeniority wanted: ${roleSeniority.length ? roleSeniority.join(", ") : "(any)"}\nRequirements: ${roleReqs.length ? roleReqs.join("; ") : "(not specified)"}`
       : `\n\nNo target role criteria were given, so set is_fit to true.`;
@@ -208,11 +207,11 @@ Deno.serve(async (req) => {
       return json({ error: "not_a_resume" }, 422);
     }
 
-    // Reject applicants the AI judged clearly not a fit for the role's skills /
-    // seniority (only when the job actually defines criteria). Nothing is created.
-    if (apiKey && hasRoleCriteria && parsed && parsed.is_fit === false) {
-      return json({ error: "not_fit", reason: String((parsed.fit_reason as string) || "").slice(0, 240) }, 422);
-    }
+    // Classify (never reject). Only judge fit when the job defines criteria;
+    // otherwise everyone is a Strong match. "other" = doesn't match this role but
+    // is kept in the talent pool.
+    const fit = (apiKey && hasRoleCriteria && parsed && parsed.is_fit === false) ? "other" : "strong";
+    const fitReason = typeof parsed.fit_reason === "string" ? (parsed.fit_reason as string).slice(0, 240) : "";
 
     const fullName = (parsed.name as string) || name || "New applicant";
     const finalEmail = ((parsed.email as string) || email || "").toLowerCase().trim() || null;
@@ -322,8 +321,19 @@ Deno.serve(async (req) => {
       await admin.from("applications").insert({
         company_id: companyId, candidate_id: candidateId, job_id,
         stage: "applied", source: (source || "Career Page"),
+        // Strong / Other classification for the two applicant tabs. For "other"
+        // we stash the reason in match_reasons so the tab can explain the gap.
+        fit,
+        match_reasons: fit === "other" ? (fitReason || null) : null,
       });
+    } else {
+      // A re-submission: refresh the classification (in case the role changed).
+      await admin.from("applications").update({ fit }).eq("id", app.id);
     }
+
+    // Every processed application spends one parse credit — including Other
+    // Applicants — because the resume was read and stored for the talent pool.
+    try { await admin.rpc("bump_resume_parse_for", { p_company: companyId }); } catch (e) { console.error("parse charge failed", e); }
 
     // --- Lifecycle email on a first-time application (best-effort) ---
     // Only on a first-time application and only if Resend is configured; both
@@ -394,7 +404,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, candidate_id: candidateId });
+    return json({ ok: true, candidate_id: candidateId, fit });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);

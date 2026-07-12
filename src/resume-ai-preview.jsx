@@ -327,6 +327,19 @@ async function loadWorkspaceData(companyId) {
     }
   }
 
+  // Best-effort Strong / Other classification (migration 0067). Loaded separately
+  // so a missing `fit` column (before the migration lands) can't break the whole
+  // applicants load — rows just stay unclassified (rendered as Strong).
+  try {
+    const { data: fitRows } = await supabase.from("applications").select("candidate_id, job_id, fit").eq("company_id", companyId);
+    if (Array.isArray(fitRows)) {
+      const fitBy = new Map(fitRows.map((f) => [`${f.job_id}:${f.candidate_id}`, f.fit]));
+      for (const [jobId, list] of Object.entries(applicantsByJob)) {
+        for (const row of list) { const v = fitBy.get(`${jobId}:${row.candidateId}`); if (v) row.fit = v; }
+      }
+    }
+  } catch { /* column missing / offline: leave unclassified */ }
+
   // Candidate display name by id, so a booking carries the name at load time and
   // doesn't depend on a live candidates-array lookup when it's rendered.
   const candNameById = Object.fromEntries(candidates.map((c) => [c.id, c.parsed?.name || null]));
@@ -13916,9 +13929,8 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState(null);
   const [confirmed, setConfirmed] = useState(false); // gates the upload
-  const [stage, setStage] = useState("form"); // form | processing | done | notFit
+  const [stage, setStage] = useState("form"); // form | processing | done
   const [submitErr, setSubmitErr] = useState(null);
-  const [fitReason, setFitReason] = useState("");
   const [procStep, setProcStep] = useState(0);
 
   // Advance the status line while processing (holds on the last one).
@@ -14098,14 +14110,13 @@ This is what a candidate sees if they open the link after the role has closed.
       });
       // On a non-2xx status, invoke returns `error` and the JSON body (with our
       // reason code) sits on error.context, not in `data`. Read both.
-      let code = data?.error || "", reason = data?.reason || "";
+      let code = data?.error || "";
       if (!code && error?.context?.json) {
-        try { const body = await error.context.json(); code = body?.error || ""; reason = body?.reason || reason; } catch { /* ignore */ }
+        try { const body = await error.context.json(); code = body?.error || ""; } catch { /* ignore */ }
       }
       if (error || code) {
         if (code === "not_a_resume") { setSubmitErr("That file doesn't look like a resume. Upload your CV as a PDF and try again."); setStage("form"); return; }
         if (code === "no_email") { setSubmitErr("We couldn't find an email on your resume. Add your email to the CV and upload again so the team can reach you."); setStage("form"); return; }
-        if (code === "not_fit") { setFitReason(reason || ""); setStage("notFit"); return; }
         if (/job expired/i.test(code)) { setSubmitErr("Applications for this role have closed. Take a look at our other open positions."); setStage("form"); return; }
         if (/job not open/i.test(code)) { setSubmitErr("This role isn't taking applications anymore."); setStage("form"); return; }
         throw new Error(code || error?.message || "failed");
@@ -14156,18 +14167,6 @@ This is what a candidate sees. A public page, no login, reached only through the
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               The team reviews every applicant and will be in touch if there's a fit. Look out for a confirmation in your inbox.
             </p>
-          </div>
-        ) : stage === "notFit" ? (
-          <div className="text-center max-w-sm mx-auto mt-8">
-            <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
-              <Icon name="briefcase" className="w-5 h-5" style={{ color: "var(--ink-3)" }} />
-            </div>
-            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Not the right match this time</h1>
-            <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              Thanks for your interest in <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>. Based on what this role needs, your background isn't a close match right now, so we haven't added your application.
-            </p>
-            {fitReason && <p className="text-sm mt-2" style={{ color: "var(--ink-3)" }}>{fitReason}</p>}
-            <p className="text-sm mt-2" style={{ color: "var(--ink-3)" }}>Please keep an eye on our other openings that fit your experience.</p>
           </div>
         ) : (
           <>
@@ -17746,6 +17745,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     setClosePrompt(false);
   };
 
+  // Strong Matches vs Other Applicants tabs (fit classification from apply time).
+  const [applicantTab, setApplicantTab] = useState("strong");
+
   const [stageFilter, setStageFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterMenuRef, filterUp] = useDropUp(filterOpen, 260);
@@ -17784,7 +17786,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     // Only rank ACTIVE applicants: hired candidates are out of the running (but
     // stay visible in the list). AI Rank needs at least 2 of them to compare.
     const activePool = applicants
-      .filter((a) => !hiredIds.has(a.candidateId))
+      .filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other")
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
       .filter((c) => c && c.parsed);
     if (activePool.length < 2) { setMatchErr("AI Rank needs at least 2 candidates who aren't hired yet."); return; }
@@ -17822,9 +17824,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     }
   };
 
-  // AI Rank gating: hired candidates don't count; need at least 2 active ones.
-  // Every run re-ranks all of them and spends 1 credit (re-run is intentional).
-  const rankableActive = applicants.filter((a) => !hiredIds.has(a.candidateId));
+  // AI Rank gating: only Strong-match, non-hired candidates count (Other
+  // Applicants aren't ranked for this role); need at least 2. Every run re-ranks
+  // all of them and spends 1 credit (re-run is intentional).
+  const rankableActive = applicants.filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other");
   const canRank = rankableActive.length >= 2;
 
   const setStage = (candidateId, stage, emailSent) => {
@@ -17850,8 +17853,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // shows the active pipeline; pick a specific stage to see hired/rejected.
   const TERMINAL_STAGES = ["hired", "rejected", "declined"];
   const activeVisible = visible.filter((a) => !TERMINAL_STAGES.includes(a.stage));
-  const countFor = (key) => (key === "all" ? activeVisible.length : visible.filter((a) => a.stage === key).length);
-  let filtered = stageFilter === "all" ? activeVisible : visible.filter((a) => a.stage === stageFilter);
+  // Split into Strong Matches (fit the role, fully ranked) and Other Applicants
+  // (kept in the talent pool, not ranked for this role). Unclassified = Strong.
+  const strongApplicants = activeVisible.filter((a) => a.fit !== "other");
+  const otherApplicants = activeVisible.filter((a) => a.fit === "other");
+  const onOtherTab = applicantTab === "other";
+  const tabBase = onOtherTab ? otherApplicants : strongApplicants;
+  const countFor = (key) => (key === "all" ? tabBase.length : tabBase.filter((a) => a.stage === key).length);
+  let filtered = stageFilter === "all" ? tabBase : tabBase.filter((a) => a.stage === stageFilter);
   // Recency rank: lower = newer ("today" newest, "6d ago" older).
   const recencyRank = (a) => {
     const t = (a.appliedAt || "").toLowerCase();
@@ -17920,7 +17929,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       ) : null}
     >
 
-        {!isInterviewer(profile?.role) && (
+        {!isInterviewer(profile?.role) && !onOtherTab && (
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
@@ -18005,6 +18014,25 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             </div>
           </div>
         )}
+        {/* Strong Matches / Other Applicants tabs */}
+        <div className="flex items-center gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Other Applicants", otherApplicants.length]].map(([key, label, n]) => {
+            const on = applicantTab === key;
+            return (
+              <button key={key} onClick={() => { setApplicantTab(key); setStageFilter("all"); }}
+                className="text-sm font-medium px-3.5 py-1.5 rounded-lg transition-colors"
+                style={on ? { background: "#fff", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.08)" } : { color: "var(--ink-3)" }}>
+                {label} <span className="tnum" style={{ color: on ? "var(--brand)" : "var(--ink-3)" }}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        {onOtherTab && (
+          <div className="mb-4 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm" style={{ background: "#FFF8EC", border: "1px solid #F5E3BE", color: "#8A6D1F" }}>
+            <Icon name="info" className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>These applicants don&apos;t match this role&apos;s requirements, so they aren&apos;t ranked here. Their resume was still read and saved (using a parse credit), so they stay in your talent pool for future roles.</span>
+          </div>
+        )}
         {/* Stage filter */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <p className="text-sm text-neutral-500">
@@ -18079,6 +18107,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="min-w-0 flex-1 text-left">
                           <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
                         </button>
+                        {a.fit === "other" && (
+                          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title="Doesn't match this role's requirements; kept in your talent pool.">Not a match for this role</span>
+                        )}
                         {match && !scoreVisible && (
                           <button onClick={() => navigate("billing")} className="shrink-0" aria-label="Upgrade to see match score">
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
