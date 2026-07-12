@@ -3012,9 +3012,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}>Enterprise</span>
               </div>
               <h3 className="font-display font-bold mb-1.5" style={{ color: "var(--ink)", fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For organizations with security &amp; scale needs</h3>
-              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--ink-2)" }}>Everything in Pro, plus enterprise controls and hands-on support.</p>
+              <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--ink-2)" }}>Everything in Elite, plus enterprise controls and hands-on support.</p>
               <div className="flex flex-wrap gap-2 mt-4">
-                {["White label", "SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding", "Unlimited everything"].map((c) => {
+                {["White label", "SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding"].map((c) => {
                   const hl = c === "White label"; // the headline enterprise capability
                   return (
                     <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium" style={hl ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
@@ -3029,7 +3029,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 <p className="font-display font-bold leading-none" style={{ color: "var(--ink)", fontSize: "1.6rem" }}>Custom</p>
                 <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Tailored to your team</p>
               </div>
-              <button onClick={() => navigate("contactSales")} className="brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Contact sales</button>
+              <button onClick={() => navigate("contactSales")} className="inline-flex items-center gap-1.5 brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Book a 1:1 demo <Icon name="arrowUpRight" className="w-4 h-4" /></button>
             </div>
           </div>
         </Reveal>
@@ -3922,7 +3922,8 @@ const CONTACT_SLOTS = ["9:00 AM", "10:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"];
 function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl }) {
   const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, logoUrl, light: true };
   const today = startOfDay(new Date());
-  const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const minBookable = addDays(today, 3); // slots must be at least 3 days out
+  const [viewMonth, setViewMonth] = useState(new Date(minBookable.getFullYear(), minBookable.getMonth(), 1));
   const [date, setDate] = useState(null);
   const [slot, setSlot] = useState(null);
   const [name, setName] = useState("");
@@ -4015,15 +4016,24 @@ function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossar
 
             {/* Right: booking card */}
             <form onSubmit={submit} className="rounded-3xl bg-white border p-6 sm:p-7" style={{ borderColor: "var(--line)", boxShadow: "0 24px 56px -32px rgba(18,19,42,0.28)" }}>
-              <label className="block text-xs font-semibold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Pick a date</label>
-              <div className="rounded-2xl border p-3 mb-5" style={{ borderColor: "var(--line)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Pick a date</label>
+                <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Weekdays, 3+ days out</span>
+              </div>
+              <div className="rounded-2xl border p-3 mb-2" style={{ borderColor: "var(--line)" }}>
                 <MiniCalendar
                   month={viewMonth}
                   onPrevMonth={() => setViewMonth((mo) => new Date(mo.getFullYear(), mo.getMonth() - 1, 1))}
                   onNextMonth={() => setViewMonth((mo) => new Date(mo.getFullYear(), mo.getMonth() + 1, 1))}
                   start={date} end={date}
-                  onPick={(d) => { if (startOfDay(d) >= today) setDate(d); }}
+                  minDate={minBookable}
+                  disableWeekends
+                  onPick={(d) => setDate(d)}
                 />
+              </div>
+              <div className="flex items-center gap-3 mb-5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+                <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-[4px] inline-block" style={{ background: "#FBF1F1", border: "1px solid #F0D9D9" }} /> Weekend</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-[4px] inline-block" style={{ background: "var(--bg)", border: "1px solid var(--line)", opacity: 0.6 }} /> Unavailable</span>
               </div>
 
               <label className="block text-xs font-semibold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Pick a time</label>
@@ -7791,7 +7801,10 @@ function formatRange(start, end) {
   return `${s} – ${e}`;
 }
 
-function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick }) {
+// minDate: days before it are unavailable (greyed). disableWeekends: Sat/Sun are
+// unavailable and shown in a distinct tint. Both default off so existing callers
+// (the analytics range picker) are unchanged.
+function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick, minDate = null, disableWeekends = false }) {
   const days = ["S", "M", "T", "W", "T", "F", "S"];
   const year = month.getFullYear();
   const m = month.getMonth();
@@ -7809,6 +7822,11 @@ function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick }) {
     const d = new Date(year, m, day);
     return sameDay(d, start) || sameDay(d, end);
   };
+  const isWeekend = (day) => { const wd = new Date(year, m, day).getDay(); return wd === 0 || wd === 6; };
+  // Too-soon / past (before minDate). Weekend disabling is handled separately so
+  // the two get different colours.
+  const beforeMin = (day) => minDate && startOfDay(new Date(year, m, day)) < startOfDay(minDate);
+  const disabled = (day) => beforeMin(day) || (disableWeekends && isWeekend(day));
 
   return (
     <div className="px-1">
@@ -7823,26 +7841,36 @@ function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick }) {
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center">
         {days.map((d, i) => (
-          <span key={i} className="text-[10px] text-neutral-400 py-1">{d}</span>
+          <span key={i} className="text-[10px] py-1" style={{ color: disableWeekends && (i === 0 || i === 6) ? "#C77E7E" : "var(--ink-3)" }}>{d}</span>
         ))}
         {cells.map((day, i) => {
           if (day == null) return <div key={i} />;
           const endpoint = isEndpoint(day);
           const between = inRange(day) && !endpoint;
+          const weekend = disableWeekends && isWeekend(day);
+          const off = disabled(day);
+          // Weekend gets a rose tint; other unavailable (past/too-soon) days grey out.
+          const offStyle = weekend
+            ? { color: "#C77E7E", background: "#FBF1F1", cursor: "not-allowed" }
+            : { color: "var(--ink-3)", opacity: 0.4, cursor: "not-allowed" };
           return (
             <button
               key={i}
-              onClick={() => onPick(new Date(year, m, day))}
+              disabled={off}
+              aria-disabled={off}
+              onClick={() => { if (!off) onPick(new Date(year, m, day)); }}
               className="text-xs py-1 rounded-md transition-colors"
               style={
-                endpoint
+                off
+                  ? offStyle
+                  : endpoint
                   ? { background: "var(--brand)", color: "#FFFFFF", fontWeight: 600 }
                   : between
                   ? { background: "var(--brand-soft)", color: "var(--brand)" }
                   : { color: "var(--ink-2)" }
               }
-              onMouseEnter={(e) => { if (!endpoint && !between) e.currentTarget.style.background = "var(--line)"; }}
-              onMouseLeave={(e) => { if (!endpoint && !between) e.currentTarget.style.background = "transparent"; }}
+              onMouseEnter={(e) => { if (!off && !endpoint && !between) e.currentTarget.style.background = "var(--line)"; }}
+              onMouseLeave={(e) => { if (!off && !endpoint && !between) e.currentTarget.style.background = "transparent"; }}
             >
               {day}
             </button>
@@ -14591,7 +14619,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                 <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 brand-gradient text-white"><Icon name="shield" className="w-4 h-4" /></span>
                 <p className="font-semibold text-neutral-900">Enterprise</p>
               </div>
-              <p className="text-xs text-neutral-600 leading-relaxed">Everything in Pro, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
+              <p className="text-xs text-neutral-600 leading-relaxed">Everything in Elite, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
             </div>
             <a
               href={`mailto:sales@hireaster.com?subject=${encodeURIComponent(`Enterprise enquiry — ${company || "Aster"}`)}`}
