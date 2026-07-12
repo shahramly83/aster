@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
     const { data: iv } = await admin
       .from("interviews")
-      .select("id, company_id, candidate_id, job_id, interviewer_name, interviewer_email, proposed_slots, status")
+      .select("id, company_id, candidate_id, job_id, interviewer_name, interviewer_email, proposed_slots, status, attendees")
       .eq("token", token).maybeSingle();
     if (!iv) return json({ error: "not found" }, 404);
 
@@ -89,20 +89,27 @@ Deno.serve(async (req) => {
       } catch (e) { console.error("candidate confirmation email failed", e); }
     }
 
-    // 2) Interviewer notice (internal, no candidate-style sign-off).
-    if (iv.interviewer_email) {
+    // 2) Interviewer notice — to EVERY attendee on the panel (the hiring manager
+    // plus the interviewers they picked), not just the primary contact.
+    const recipients = new Set<string>();
+    const attendees = Array.isArray(iv.attendees) ? iv.attendees : [];
+    for (const a of attendees) {
+      const e = (a && typeof a.email === "string") ? a.email.trim().toLowerCase() : "";
+      if (e) recipients.add(e);
+    }
+    if (iv.interviewer_email) recipients.add(String(iv.interviewer_email).trim().toLowerCase());
+    if (recipients.size) {
       try {
         const tpl = await loadTemplate(admin, "interview_scheduled", iv.company_id, {
           subject: "Interview scheduled: {{candidate_name}} for {{job_title}}",
           body: "{{candidate_name}} confirmed an interview for the {{job_title}} role on {{date_time}}. It's on your calendar.",
         });
         const tokens = { candidate_name: cand?.full_name || "The candidate", job_title: jobTitle, date_time: dateTime, meeting_link: "" };
-        await sendEmail({
-          to: iv.interviewer_email,
-          subject: renderTemplate(tpl.subject, tokens),
-          html: companyShell({ companyName, logoUrl, heading: "Interview scheduled", preview: `${cand?.full_name || "A candidate"} confirmed ${dateTime}.`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)), signoff: false }),
-        });
-      } catch (e) { console.error("interviewer email failed", e); }
+        const subject = renderTemplate(tpl.subject, tokens);
+        const html = companyShell({ companyName, logoUrl, heading: "Interview scheduled", preview: `${cand?.full_name || "A candidate"} confirmed ${dateTime}.`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)), signoff: false });
+        // Best-effort per recipient: one failure must not drop the rest.
+        await Promise.all([...recipients].map((to) => sendEmail({ to, subject, html }).catch((e) => console.error("interviewer email failed", to, e))));
+      } catch (e) { console.error("interviewer emails failed", e); }
     }
 
     return json({ ok: true, company_name: companyName, job_title: jobTitle, date_time: dateTime });
