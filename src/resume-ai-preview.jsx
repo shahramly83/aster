@@ -5182,12 +5182,13 @@ function UseCaseTabs({ items }) {
   const cur = items[active] || items[0];
   return (
     <div className="mt-8">
-      <div className="flex flex-wrap gap-2 mb-5">
+      {/* Single scrollable row on mobile (no uneven wrap); wraps on sm+. */}
+      <div className="flex sm:flex-wrap gap-2 mb-5 overflow-x-auto sm:overflow-visible -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
         {items.map((u, i) => {
           const on = i === active;
           return (
             <button key={i} onClick={() => setActive(i)}
-              className="relative text-sm font-medium px-4 py-2 rounded-full transition-colors"
+              className="relative shrink-0 whitespace-nowrap text-sm font-medium px-4 py-2 rounded-full transition-colors"
               style={{ color: on ? "#fff" : "var(--ink-2)", border: on ? "1px solid transparent" : "1px solid var(--line-strong)" }}>
               {on && <motion.span layoutId="uc-pill" className="absolute inset-0 rounded-full" style={{ background: "var(--brand)", boxShadow: "0 8px 20px -10px rgba(var(--brand-rgb),0.6)" }} transition={{ type: "spring", stiffness: 360, damping: 30 }} />}
               <span className="relative z-10">Scenario {i + 1}</span>
