@@ -17747,7 +17747,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               const scoreVisible = idx < aiMatchLimit;
               const ranked = !!match && scoreVisible;
               const isTop = !!matchResults && idx === 0 && ranked;
-              const act = activityFor(a);
+              // Once a candidate is closed out (rejected / hired / declined), the
+              // stage badge tells the whole story, so drop the activity badge
+              // (an old "Interview scheduled" next to "Rejected" just confuses).
+              const act = ["rejected", "hired", "declined"].includes(a.stage) ? null : activityFor(a);
               return (
                 <div
                   key={a.candidateId}
