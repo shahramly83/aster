@@ -17845,8 +17845,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     return c && c.parsed;
   });
 
-  const countFor = (key) => (key === "all" ? visible.length : visible.filter((a) => a.stage === key).length);
-  let filtered = stageFilter === "all" ? visible : visible.filter((a) => a.stage === stageFilter);
+  // Terminal candidates leave the active pipeline: hired go to Total Hires,
+  // rejected/declined drop out (so a reopened role starts empty). "All stages"
+  // shows the active pipeline; pick a specific stage to see hired/rejected.
+  const TERMINAL_STAGES = ["hired", "rejected", "declined"];
+  const activeVisible = visible.filter((a) => !TERMINAL_STAGES.includes(a.stage));
+  const countFor = (key) => (key === "all" ? activeVisible.length : visible.filter((a) => a.stage === key).length);
+  let filtered = stageFilter === "all" ? activeVisible : visible.filter((a) => a.stage === stageFilter);
   // Recency rank: lower = newer ("today" newest, "6d ago" older).
   const recencyRank = (a) => {
     const t = (a.appliedAt || "").toLowerCase();
@@ -17881,20 +17886,37 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       onOpenNotifications={onOpenNotifications}
       backTo={isInterviewer(profile?.role) ? "interviews" : "jobs"}
       backLabel={isInterviewer(profile?.role) ? "Interviews" : "Jobs"}
-      rail={!isInterviewer(profile?.role) && limits.aiRunsPerMonth !== Infinity ? (
-        <UsageMeter
-          title="AI Rank"
-          hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
-          used={matchRunsUsed}
-          limit={limits.aiRunsPerMonth}
-          unit="credits used"
-          danger={outOfRuns}
-          note={outOfRuns
-            ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning."
-            : `${runsLeft} left this cycle. You'll see the top ${limits.aiMatches} fits with scores.`}
-          onUpgrade={() => navigate("billing")}
-          upgradeLabel="Upgrade for more"
-        />
+      rail={!isInterviewer(profile?.role) && (limits.aiRunsPerMonth !== Infinity || !seeWhyUnlimited) ? (
+        <div className="space-y-4">
+          {limits.aiRunsPerMonth !== Infinity && (
+            <UsageMeter
+              title="AI Rank"
+              hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
+              used={matchRunsUsed}
+              limit={limits.aiRunsPerMonth}
+              unit="credits used"
+              danger={outOfRuns}
+              note={outOfRuns
+                ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning."
+                : `${runsLeft} left this cycle. You'll see the top ${limits.aiMatches} fits with scores.`}
+              onUpgrade={() => navigate("billing")}
+              upgradeLabel="Upgrade for more"
+            />
+          )}
+          {!seeWhyUnlimited && (
+            <UsageMeter
+              title="Why this fit"
+              hint="A per-candidate AI explanation of why they do or don't fit this role. 1 credit each, saved so re-viewing is free."
+              used={seeWhyUsed}
+              limit={seeWhyLimit}
+              unit="credits used"
+              danger={seeWhyLeft <= 0}
+              note={seeWhyLeft <= 0 ? "Out of Why this fit credits this cycle. Upgrade for more." : `${seeWhyLeft} left this cycle.`}
+              onUpgrade={() => navigate("billing")}
+              upgradeLabel="Upgrade for more"
+            />
+          )}
+        </div>
       ) : null}
     >
 
@@ -18021,7 +18043,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         </div>
 
         {filtered.length === 0 ? (
-          <p className="text-sm text-neutral-500">No candidates in this stage.</p>
+          <p className="text-sm text-neutral-500">{stageFilter === "all" ? "No active candidates for this role yet. Hired and rejected candidates are in their own filters." : "No candidates in this stage."}</p>
         ) : (
           <div className="space-y-2">
             {shownApps.map((a, idx) => {
