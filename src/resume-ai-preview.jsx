@@ -477,6 +477,10 @@ const BRAND_STYLES = `
 .card-hover { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
 .card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
 .act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 1px 3px rgba(18,19,42,.02); }
+/* Hiring-tool surface: a subtle brand tint that sets the interview workflow
+   (questions, scheduling, scorecards, decision) apart from the candidate's own
+   resume cards, which stay plain white. Matches the AI Insights card. */
+.tool-card { background: linear-gradient(135deg, rgba(11,42,224,0.05), rgba(53,80,238,0.04)); border: 1px solid #DCE3FB; }
 
 /* Dialog entrance. The scrim fades; the panel rises and settles, so the eye
    follows it to the decision. Transform/opacity only, so nothing reflows. */
@@ -7283,7 +7287,7 @@ const NAV_ITEMS = [
   { key: "upload", label: "Resume Upload", icon: "upload" },
   { key: "jobs", label: "Job Postings", icon: "jobs" },
   { key: "search", label: "Candidate Search", icon: "search" },
-  { key: "interviewers", label: "Interviewers", icon: "interviewers" },
+  { key: "interviewers", label: "Team", icon: "interviewers" },
 ];
 
 // Role-based access (interviewer least-privilege). An interviewer only works with
@@ -12091,7 +12095,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
       {!forInterviewer && (
         <div className="flex justify-end mb-4">
           <button onClick={() => navigate("interviewers")} className="inline-flex items-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>
-            <Icon name="users" className="w-4 h-4" /> Manage interviewers
+            <Icon name="users" className="w-4 h-4" /> Manage team
           </button>
         </div>
       )}
@@ -12344,8 +12348,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
 
   return (
     <AccountShell
-      title="Interviewers"
-      subtitle="Your team. Each teammate gets their own login and sees only the interviews assigned to them."
+      title="Team"
+      subtitle="Invite hiring managers and interviewers. Each teammate gets their own login; interviewers see only the interviews assigned to them."
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
@@ -12467,7 +12471,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Invite a teammate</h3>
-                <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>They get their own login and see only the interviews assigned to them.</p>
+                <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>They get their own login to your workspace. Pick the role that fits.</p>
               </div>
               <button onClick={() => setShowForm(false)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
                 <Icon name="close" className="w-4 h-4" />
@@ -12500,8 +12504,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 <label className={labelClass}>Role</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { key: "interviewer", label: "Interviewer", desc: "Runs only their assigned interviews" },
                     { key: "admin", label: "Hiring Manager", desc: "Full access to hiring" },
+                    { key: "interviewer", label: "Interviewer", desc: "Runs only their assigned interviews" },
                   ].map((r) => {
                     const on = inviteRole === r.key;
                     return (
@@ -12769,7 +12773,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
   // Questions only become available once the interview is actually scheduled.
   if (!isScheduled) {
     return (
-      <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+      <div className="mb-6 rounded-2xl tool-card act-shadow px-5 py-4">
         <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Interview Questions</h2>
         <div className="flex items-start gap-2 mt-2">
           <Icon name="clock" className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
@@ -12785,7 +12789,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
   const hasMore = pool && visibleCount < pool.length;
 
   return (
-    <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+    <div className="mb-6 rounded-2xl tool-card act-shadow px-5 py-4">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1.5">
           <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Interview Questions</h2>
@@ -13193,7 +13197,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   };
 
   return (
-    <div className="rounded-2xl border px-5 py-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+    <div className="rounded-2xl tool-card px-5 py-4">
       <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
         {fixedJob ? `Scheduling for the ${fixedJob.title} role. ` : ""}
         You run this interview as the hiring manager. Offer the candidate a few times and they pick one.
@@ -15126,7 +15130,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
                 </span>
                 <span className="ml-auto inline-flex items-center gap-1 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> Fixed</span>
               </div>
-              <p className="text-xs text-neutral-500 mt-1.5">This is your workspace account. Add teammates as hiring managers or interviewers on the <button type="button" onClick={() => navigate("interviewers")} className="font-medium hover:underline" style={{ color: "var(--brand)" }}>Interviewers</button> page.</p>
+              <p className="text-xs text-neutral-500 mt-1.5">This is your workspace account. Add teammates as hiring managers or interviewers on the <button type="button" onClick={() => navigate("interviewers")} className="font-medium hover:underline" style={{ color: "var(--brand)" }}>Team</button> page.</p>
             </div>
             <div>
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
@@ -15738,7 +15742,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
   };
 
   return (
-    <div className="mb-6 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+    <div className="mb-6 rounded-2xl tool-card act-shadow px-5 py-4">
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Team scorecards</h2>
@@ -16474,7 +16478,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {/* Step 1, after the interview: the hiring manager ticks who actually
             attended. Only those interviewers need to score before Decision unlocks. */}
         {isManagerView && ivStep === 1 && interviewPast && interviewerAttendees.length > 0 && (
-          <div className="mt-4 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+          <div className="mt-4 rounded-2xl tool-card act-shadow px-5 py-4">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Who attended</h2>
               <InfoHint dir="down" hint="Tick the interviewers who actually joined. Only they need to submit a scorecard before you can move to a decision." />
@@ -16518,23 +16522,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
         {/* Interviewer's heads-up between "booked" and "interview happened". The
             manager sees the same state through the locked step tabs instead. */}
-        {/* Interviewer sees the same "Interview scheduled" summary the hiring
-            manager gets, so they know the time, panel and role at a glance. */}
-        {!isManagerView && isBooked && !interviewPast && (
-          <div className="mt-6 rounded-2xl border px-4 py-3.5" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
-            <p className="text-sm font-medium inline-flex items-center gap-1.5" style={{ color: "#059669" }}>
-              <Icon name="check" className="w-4 h-4" /> Interview scheduled
-            </p>
-            <p className="text-sm mt-1" style={{ color: "var(--ink)" }}>
-              {booking?.confirmedSlot?.start ? formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end) : interviewWhen}
-              {booking?.request?.interviewerName ? ` with ${booking.request.interviewerName}` : ""}
-              {booking?.request?.jobTitle ? ` · ${booking.request.jobTitle}` : ""}
-            </p>
-            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-              The candidate confirmed this time. Your scorecard opens here once the interview is done.
-            </p>
-          </div>
-        )}
 
         {/* Step 2 · Scorecards (manager): the panel's ratings, read-only, with a
             progress line showing who still owes a scorecard. */}
@@ -16585,7 +16572,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
         {/* Step 3 · Decision (manager): unlocked once the attended panel has scored. */}
         {isManagerView && ivStep === 3 && (decisionUnlocked ? (
-            <div className="mt-2 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
+            <div className="mt-2 rounded-2xl tool-card act-shadow px-5 py-4">
               <h2 className="text-sm font-medium text-neutral-600 mb-1 uppercase tracking-wide">Decision</h2>
 
               {stage === "hired" ? (
@@ -16686,6 +16673,23 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </>)}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+            {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
+                time, panel and role at a glance while they read the profile. */}
+            {!isManagerView && isBooked && !interviewPast && (
+              <div className="rounded-2xl border px-4 py-3.5" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
+                <p className="text-sm font-medium inline-flex items-center gap-1.5" style={{ color: "#059669" }}>
+                  <Icon name="check" className="w-4 h-4" /> Interview scheduled
+                </p>
+                <p className="text-sm mt-1" style={{ color: "var(--ink)" }}>
+                  {booking?.confirmedSlot?.start ? formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end) : interviewWhen}
+                  {booking?.request?.interviewerName ? ` with ${booking.request.interviewerName}` : ""}
+                  {booking?.request?.jobTitle ? ` · ${booking.request.jobTitle}` : ""}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+                  The candidate confirmed this time. Your scorecard opens here once the interview is done.
+                </p>
+              </div>
+            )}
             {!isInterviewer(profile?.role) && !insightsUnlimited && (
               <UsageMeter
                 title="AI insights this month"
