@@ -207,6 +207,19 @@ export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = 
 // attendee in the scheduled interview's attendees jsonb with an `attended` flag.
 // The hiring manager sets this; it drives who owes a scorecard before a decision
 // can be made. Best-effort: RLS (interviews_admin) allows owner/admin to update.
+// Replace the whole interview panel (used when the hiring manager substitutes an
+// interviewer who's dropped out). Writes the attendees jsonb of the candidate's
+// scheduled interview. RLS (interviews_admin) allows owner/admin to update.
+export async function dbSetInterviewAttendees(companyId, candidateId, attendees = []) {
+  if (!hasSupabase || !companyId || !candidateId) return;
+  const { data } = await supabase
+    .from("interviews").select("id").eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
+    .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data) return;
+  const { error } = await supabase.from("interviews").update({ attendees }).eq("id", data.id);
+  if (error) console.error("dbSetInterviewAttendees", error.message);
+}
+
 export async function dbSetAttendance(companyId, candidateId, attendedIds = []) {
   if (!hasSupabase || !companyId || !candidateId) return;
   const { data } = await supabase

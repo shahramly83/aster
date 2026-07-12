@@ -6,7 +6,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
@@ -13274,7 +13274,8 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
   );
 }
 
-function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [] }) {
+function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute }) {
+  const [replacing, setReplacing] = useState(null); // attendee id being swapped out
   const openJobs = jobs.filter((j) => j.status === "open");
   // If opened from a specific job's applicant list, that job is fixed and
   // there's no need to pick one. Otherwise let HR choose the open role.
@@ -13371,6 +13372,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
       </p>
 
       {bookingStatus === "scheduled" ? (
+        <>
         <div className="rounded-xl bg-white border border-emerald-200 px-4 py-3">
           <p className="text-sm text-emerald-600 font-medium">Interview scheduled ✓</p>
           <p className="text-sm text-neutral-700 mt-0.5">
@@ -13382,6 +13384,41 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             The candidate confirmed this time. Calendar invite and video link have been sent to everyone.
           </p>
         </div>
+        {/* Panel + drop-out substitution: swap an interviewer who can't attend. */}
+        {onSubstitute && Array.isArray(booking.attendees) && booking.attendees.some((a) => a.id !== hmId) && (
+          <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
+            <p className="text-xs font-medium mb-2 uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Interview panel</p>
+            <div className="space-y-1.5">
+              {booking.attendees.map((a) => {
+                const isHM = a.id === hmId;
+                const options = interviewers.filter((iv) => isInterviewer(iv.role) && !booking.attendees.some((x) => x.id === iv.id));
+                return (
+                  <div key={a.id} className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
+                    <span className="text-sm min-w-0 flex-1 truncate" style={{ color: "var(--ink)" }}>{a.name}{isHM ? " (you)" : ""}</span>
+                    {!isHM && (replacing === a.id ? (
+                      <select
+                        autoFocus
+                        defaultValue=""
+                        onChange={(e) => { const iv = interviewers.find((x) => x.id === e.target.value); if (iv) onSubstitute(a.id, { id: iv.id, name: iv.name, email: iv.email }); setReplacing(null); }}
+                        onBlur={() => setReplacing(null)}
+                        className="text-xs rounded-lg border px-2 py-1 shrink-0 bg-white"
+                        style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+                      >
+                        <option value="" disabled>Replace with…</option>
+                        {options.length ? options.map((iv) => (<option key={iv.id} value={iv.id}>{iv.name}</option>)) : <option value="" disabled>No other interviewers</option>}
+                      </select>
+                    ) : (
+                      <button type="button" onClick={() => setReplacing(a.id)} className="text-[11px] font-medium shrink-0 hover:opacity-70" style={{ color: "var(--brand)" }}>Replace</button>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>Someone can't make it? Swap them out. The new interviewer picks up the scorecard.</p>
+          </div>
+        )}
+        </>
       ) : bookingStatus === "sent" ? (
         <div className="rounded-xl bg-white border border-neutral-200 px-4 py-3">
           <p className="text-xs text-neutral-500 mb-1">Sent these times ({sentRequest.proposed_slots.length}):</p>
@@ -14471,7 +14508,7 @@ const TOKEN_SAMPLES = {
   company_name: "Oryx Studio", company_address: "Level 12, Menara Aster, Jalan Ampang, 50450 Kuala Lumpur",
   hr_contact: "Farah (HR)", interviewer_name: "Jane Tan", booking_link: "hireaster.com/book/xxxx",
   date_time: "Tue 8 Jul, 2:00 PM", meeting_link: "meet.google.com/xxx-xxxx", apply_link: "hireaster.com/apply/xxxx",
-  offer_link: "hireaster.com/offer/xxxx", booking_link: "hireaster.com/book/xxxx",
+  offer_link: "hireaster.com/offer/xxxx",
 };
 const fillTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => TOKEN_SAMPLES[k] ?? `{{${k}}}`);
 
@@ -16076,7 +16113,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [] }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [] }) {
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -16626,6 +16663,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           allBookings={allBookings}
           openRequest={openRequest}
           assignedInterviewers={assignedInterviewers}
+          onSubstitute={onSubstitute}
         />
         </>)}
 
@@ -18464,6 +18502,21 @@ export default function ResumeAIPreview() {
     });
     if (canPersist) dbSetAttendance(companyId, candidateId, attendedIds);
   };
+  // Swap one interviewer on a scheduled interview for another (drop-out cover).
+  // Replaces the attendee in the booking's panel, keeping any attended flag off
+  // for the newcomer, and persists the whole panel.
+  const substituteAttendee = (candidateId, oldId, replacement) => {
+    if (!candidateId || !oldId || !replacement?.id) return;
+    let nextAttendees = null;
+    setBookings((prev) => {
+      const b = prev[candidateId];
+      if (!b) return prev;
+      const attendees = (b.attendees || []).map((a) => (a.id === oldId ? { id: replacement.id, name: replacement.name, email: replacement.email } : a));
+      nextAttendees = attendees;
+      return { ...prev, [candidateId]: { ...b, attendees } };
+    });
+    if (canPersist && nextAttendees) dbSetInterviewAttendees(companyId, candidateId, nextAttendees);
+  };
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
   const addScorecard = (candidateId, card, jobId = null) => {
     // Stamp the author's id so the panel can tell whose card is whose (and gate
@@ -19796,6 +19849,7 @@ export default function ResumeAIPreview() {
             scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
             onSetAttendance={(ids) => activeCandidate && setAttendance(activeCandidate.id, ids)}
+            onSubstitute={(oldId, replacement) => activeCandidate && substituteAttendee(activeCandidate.id, oldId, replacement)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? "applied") : "applied"}
             onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
