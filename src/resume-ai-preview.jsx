@@ -18014,7 +18014,7 @@ export default function ResumeAIPreview() {
   // deleted). This tracks which one the user chose to keep on downgrade.
   const [keptJobId, setKeptJobId] = useState("j1");
   const [viewCandidateId, setViewCandidateId] = useState(() => (typeof window !== "undefined" ? candidateIdFromPath(window.location.pathname) : null));
-  const [viewCandidateJobId, setViewCandidateJobId] = useState(null);
+  const [viewCandidateJobId, setViewCandidateJobId] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("job") : null));
   const [viewCandidateStage, setViewCandidateStage] = useState(null);
   const [candidateFilter, setCandidateFilter] = useState(null);
   const [jobStatusFilter, setJobStatusFilter] = useState(null);
@@ -18679,7 +18679,7 @@ export default function ResumeAIPreview() {
   // history entry with its path, so Back pops the in-app stack (never leaves
   // the site) and every screen has a dedicated, refreshable URL.
   useEffect(() => {
-    const pathFor = (scr) => (scr === "apply" && typeof window !== "undefined" && applyJobFromPath(window.location.pathname) ? (window.location.pathname + window.location.search) : scr === "candidateProfile" && viewCandidateId ? `/candidates/${viewCandidateId}` : scr === "applicants" && activeJobId ? `/applicants/${activeJobId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : scr === "compare" ? ("/compare" + (compareSlug ? `/${compareSlug}` : "")) : scr === "trust" ? ("/trust" + (trustSlug ? `/${trustSlug}` : "")) : scr === "legal" ? (`/legal/${legalSlug || "privacy"}`) : (SCREEN_TO_PATH[scr] || "/"));
+    const pathFor = (scr) => (scr === "apply" && typeof window !== "undefined" && applyJobFromPath(window.location.pathname) ? (window.location.pathname + window.location.search) : scr === "candidateProfile" && viewCandidateId ? (viewCandidateJobId ? `/candidates/${viewCandidateId}?job=${encodeURIComponent(viewCandidateJobId)}` : `/candidates/${viewCandidateId}`) : scr === "applicants" && activeJobId ? `/applicants/${activeJobId}` : scr === "product" ? ("/product" + (productSlug ? `/${productSlug}` : "")) : scr === "solutions" ? ("/solutions" + (solutionSlug ? `/${solutionSlug}` : "")) : scr === "blog" ? ("/blog" + (blogSlug ? `/${blogSlug}` : blogCat ? `/category/${blogCat}` : "")) : scr === "glossary" ? ("/resources/glossary" + (glossarySlug ? `/${glossarySlug}` : "")) : scr === "compare" ? ("/compare" + (compareSlug ? `/${compareSlug}` : "")) : scr === "trust" ? ("/trust" + (trustSlug ? `/${trustSlug}` : "")) : scr === "legal" ? (`/legal/${legalSlug || "privacy"}`) : (SCREEN_TO_PATH[scr] || "/"));
     if (typeof window !== "undefined") {
       // Seed browser history to match the initial (possibly deep-linked) stack.
       window.history.replaceState({ aster: true }, "", pathFor(history[0]));
@@ -18704,7 +18704,7 @@ export default function ResumeAIPreview() {
       const linfo = legalInfoFromPath(path);
       const ajob = applicantsJobFromPath(path);
       const target = cid ? "candidateProfile" : (ajob ? "applicants" : (pslug != null ? "product" : (sslug != null ? "solutions" : (binfo ? "blog" : (ginfo ? "glossary" : (cinfo ? "compare" : (tinfo ? "trust" : (linfo ? "legal" : (PATH_TO_SCREEN[path] || "landing")))))))));
-      if (cid) setViewCandidateId(cid);
+      if (cid) { setViewCandidateId(cid); setViewCandidateJobId(new URLSearchParams(window.location.search).get("job")); }
       if (ajob) setActiveJobId(ajob);
       if (pslug != null) setProductSlug(pslug);
       if (sslug != null) setSolutionSlug(sslug);
@@ -18729,7 +18729,9 @@ export default function ResumeAIPreview() {
     setViewCandidateId(candidateId);
     setViewCandidateJobId(jobId);
     setViewCandidateStage(stage);
-    navigate("candidateProfile", `/candidates/${candidateId}`);
+    // Keep the job in the URL so a refresh restores the pipeline context (the
+    // scheduling / questions / scorecard panels all key off it).
+    navigate("candidateProfile", jobId ? `/candidates/${candidateId}?job=${encodeURIComponent(jobId)}` : `/candidates/${candidateId}`);
   };
 
   // Open a Product marketing page (slug "" = overview).
