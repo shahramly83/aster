@@ -8330,7 +8330,7 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, company = "Your workspace" }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, seeWhyUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   // "Upcoming" excludes interviews whose slot has already passed: once the time
@@ -8658,10 +8658,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   const L = planLimits(plan);
                   const items = [
                     { label: "AI Parsing credits", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
-                    { label: "AI Rank credits", used: stats.matches, limit: L.aiRunsPerMonth },
-                    { label: "AI Insights credits", used: stats.inInterview, limit: L.aiInsightsPerMonth },
-                    { label: "AI Interview questions credits", used: stats.interviewsScheduled, limit: L.interviewQuestionsPerMonth },
-                    { label: "See-why explanations credits", used: stats.matches, limit: L.seeWhyPerMonth },
+                    { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
+                    { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
+                    { label: "See-why explanations credits", used: seeWhyUsed, limit: L.seeWhyPerMonth },
                   ];
                   const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
                   return (
@@ -19473,6 +19472,9 @@ export default function ResumeAIPreview() {
             hiredIds={hiredIds}
             avatarUrl={avatarUrl}
             parseUsage={parseUsage}
+            matchRunsUsed={matchRunsUsed}
+            aiInsightsUsed={aiInsightsUsed}
+            seeWhyUsed={seeWhyUsed}
             company={company}
           />
         )}
