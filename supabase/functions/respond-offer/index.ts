@@ -48,9 +48,14 @@ Deno.serve(async (req) => {
     const firstResponse = offer.status === "sent";
     if (firstResponse) {
       await admin.from("offers").update({ status: accepted ? "accepted" : "declined", responded_at: new Date().toISOString() }).eq("id", offer.id);
-      // Accept -> hired, decline -> declined. Both are terminal application stages.
-      await admin.from("applications").update({ stage: accepted ? "hired" : "declined" })
-        .eq("company_id", offer.company_id).eq("candidate_id", offer.candidate_id);
+      // Decline is terminal (stage -> declined). Accept does NOT auto-hire: the
+      // candidate says yes, then the hiring manager reviews and closes the process
+      // by clicking "Mark as hired". So on accept we leave the application at the
+      // 'offer' stage; the offer status flips to 'accepted' for HR to act on.
+      if (!accepted) {
+        await admin.from("applications").update({ stage: "declined" })
+          .eq("company_id", offer.company_id).eq("candidate_id", offer.candidate_id);
+      }
     }
 
     // Emails only on the first accept (a decline updates the stage, no email).

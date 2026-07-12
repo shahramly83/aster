@@ -227,7 +227,7 @@ function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob })
 // on failure or when there's nothing to show (so callers keep the demo data).
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
-  const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes] = await Promise.all([
+  const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes, offRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
@@ -236,6 +236,7 @@ async function loadWorkspaceData(companyId) {
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
     supabase.from("interview_questions").select("candidate_id, job_id, questions").eq("company_id", companyId),
+    supabase.from("offers").select("candidate_id, status").eq("company_id", companyId),
   ]);
   const jobRows = jobsRes.data || [];
   // A hard error → keep whatever's loaded. A workspace with zero jobs is still a
@@ -346,7 +347,11 @@ async function loadWorkspaceData(companyId) {
   const interviewQuestions = {};
   for (const q of iqRes.data || []) interviewQuestions[`${q.candidate_id}:${q.job_id}`] = Array.isArray(q.questions) ? q.questions : [];
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions };
+  // Offers, keyed by candidate: their current status (sent | accepted | declined).
+  const offers = {};
+  for (const o of offRes.data || []) offers[o.candidate_id] = { status: o.status };
+
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions, offers };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -16438,6 +16443,16 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     </button>
                   </div>
                 </div>
+              ) : offerStatus === "accepted" ? (
+                <div className="mt-2">
+                  <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
+                    <p className="text-sm font-medium" style={{ color: "#166534" }}>{firstName} accepted the offer 🎉</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#166534" }}>Confirm the details with them, then close the process by marking them hired.</p>
+                  </div>
+                  <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
+                    <Icon name="check" className="w-4 h-4" /> Mark as hired
+                  </button>
+                </div>
               ) : offerStatus === "sent" ? (
                 <div className="mt-2">
                   <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#BFDBFE", background: "#EFF6FF" }}>
@@ -17962,6 +17977,11 @@ export default function ResumeAIPreview() {
     if (canPersist) await dbSaveInterviewQuestions(companyId, userId, { candidateId, jobId, questions });
   };
   const [scheduleRequests, setScheduleRequests] = useState([]); // [{ application_id, requested_by }] — open interview requests
+  // Offer status per candidate: 'sent' | 'accepted' | 'declined'. Sending moves
+  // them to the Offer stage; accepting waits for HR to click "Mark as hired".
+  const [offers, setOffers] = useState({});
+  // When each candidate was hired (YYYY-MM-DD), for the Hired-list month filter.
+  const [hiredDates, setHiredDates] = useState({ c8: "2026-06-18" });
   // Interviewer flags a candidate for the hiring manager to schedule. Idempotent:
   // the first request per application wins (server-enforced). Returns error|null.
   const requestScheduling = async (applicationId) => {
@@ -18401,6 +18421,7 @@ export default function ResumeAIPreview() {
     setJobAssignments(data.jobAssignments || []);
     setScheduleRequests(data.scheduleRequests || []);
     setInterviewQuestions(data.interviewQuestions || {});
+    setOffers(data.offers || {});
     setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
@@ -18753,6 +18774,8 @@ export default function ResumeAIPreview() {
   const setCandidateStage = (candidateId, stage, { notify = true } = {}) => {
     const prevStage = stageOverrides[candidateId];
     setStageOverrides((prev) => ({ ...prev, [candidateId]: stage }));
+    // Stamp the hire date when a candidate is marked hired (drives "Hired {date}").
+    if (stage === "hired") setHiredDates((prev) => (prev[candidateId] ? prev : { ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
     if (!canPersist || prevStage === stage) return;
     dbSetCandidateStage(companyId, candidateId, stage);
     // 'offer' is intentionally excluded: offers are sent via the dedicated
@@ -18775,11 +18798,6 @@ export default function ResumeAIPreview() {
   };
 
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
-  // or 'declined'. Sending moves them to the Offer stage; accepting → Hired.
-  const [offers, setOffers] = useState({});
-  // When each candidate was hired (YYYY-MM), used for the month filter on the
-  // Hired list. Seeded for the pre-hired sample; live hires stamp the current month.
-  const [hiredDates, setHiredDates] = useState({ c8: "2026-06-18" });
   const sendOffer = (candidateId, emailSent) => {
     setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now" } }));
     // Move to Offer without the generic stage email; the offer email (with the
@@ -18792,13 +18810,10 @@ export default function ResumeAIPreview() {
     }
   };
   const respondOffer = (candidateId, accepted) => {
+    // Accepting does NOT auto-hire: the candidate says yes, then HR reviews and
+    // clicks "Mark as hired" to close the process (see the Decision panel).
     setOffers((prev) => ({ ...prev, [candidateId]: { ...(prev[candidateId] || {}), status: accepted ? "accepted" : "declined" } }));
-    if (accepted) {
-      // This is the preview "simulate the candidate's reply" action, so move the
-      // stage but don't email (notify:false) — a real hire is an HR-set stage.
-      setCandidateStage(candidateId, "hired", { notify: false });
-      setHiredDates((prev) => ({ ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
-    }
+    if (!accepted) setCandidateStage(candidateId, "declined", { notify: false });
   };
 
   const activeCandidate = MOCK_CANDIDATES.find((c) => c.id === viewCandidateId);
@@ -19272,7 +19287,7 @@ export default function ResumeAIPreview() {
             scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? "applied") : "applied"}
-            onSetStage={(s) => activeCandidate && setCandidateStage(activeCandidate.id, s)}
+            onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             onSendOffer={(emailSent) => activeCandidate && sendOffer(activeCandidate.id, emailSent)}
