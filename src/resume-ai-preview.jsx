@@ -7314,10 +7314,14 @@ function BrandLogo({ logoUrl, compact = false, onDark = false, large = false, mo
   const wtx = W.left * (1 - s);
   const wty = W.cy * (1 - s);
   const padX = 2;
-  const vbX = M.left - padX;
+  // The animated burst's outer dots sit ~4 units beyond the static mark bounds
+  // (radius r plus the dot radius), so the tight static viewBox clips the top
+  // rays (visible in the marketing nav). Pad the box symmetrically when animated.
+  const pad = animated ? 6 : 0;
+  const vbX = M.left - padX - pad;
   const vbW = (W.left + W.w * s + padX) - vbX;
   return (
-    <svg viewBox={`${vbX} ${M.top} ${vbW} ${M.bottom - M.top}`} className={`${h} w-auto block`} role="img" aria-label="Aster" fill={color}>
+    <svg viewBox={`${vbX} ${M.top - pad} ${vbW} ${M.bottom - M.top + 2 * pad}`} className={`${h} w-auto block`} role="img" aria-label="Aster" fill={color}>
       {animated
         ? asterBurstEls(color, M.cx, M.cy, M.r)
         : <path d={ASTER_MARK_PATH} />}
