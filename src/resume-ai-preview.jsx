@@ -16795,7 +16795,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {!isManagerView && interviewPast && (
           <div className="mt-6">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>After the interview</span>
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Your scorecard</span>
               <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview done · {interviewWhen}</span>
             </div>
             <ScorecardPanel
