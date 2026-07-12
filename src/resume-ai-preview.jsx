@@ -17569,8 +17569,9 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
 // The interviewer pool for one job: who can see its applicants and be put on
 // interviews. Admins/hiring managers always have access, so this only adds
 // interviewers. Read-only for non-managers; add/remove is admin-gated server-side.
-// Tiny dismissible onboarding tooltip: a STEP label, a short hint, and a close ×.
-function GuideBubble({ step, children, onClose }) {
+// Tiny dismissible onboarding tooltip: a STEP label, a short hint, a close ×, and
+// an optional pointer ("down" points at the action below it, "up" at one above).
+function GuideBubble({ step, children, onClose, pointer }) {
   return (
     <div className="relative rounded-lg bg-white px-2.5 py-2 text-[11px] act-shadow" style={{ border: "1px solid var(--line)" }}>
       <button onClick={onClose} aria-label="Dismiss" className="absolute top-1.5 right-1.5 w-4 h-4 rounded flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
@@ -17578,11 +17579,13 @@ function GuideBubble({ step, children, onClose }) {
       </button>
       <p className="font-bold uppercase pr-4" style={{ color: "var(--brand)", letterSpacing: "0.07em", fontSize: "9px" }}>{step}</p>
       <p className="mt-0.5 pr-4 leading-snug" style={{ color: "var(--ink-2)" }}>{children}</p>
+      {pointer === "down" && <span className="absolute -bottom-[5px] right-6 w-2.5 h-2.5 rotate-45 bg-white" style={{ borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }} />}
+      {pointer === "up" && <span className="absolute -top-[5px] right-6 w-2.5 h-2.5 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />}
     </div>
   );
 }
 
-function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign, locked = false, stepLabel = null }) {
+function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign, locked = false, stepLabel = null, guideStep3 = false, onDismissStep3 = () => {} }) {
   const [open, setOpen] = useState(false);
   const [addMenuRef, addUp] = useDropUp(open, 280);
   const [busyId, setBusyId] = useState(null);
@@ -17616,6 +17619,13 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
         </div>
         {canManage && (
           <div className="relative shrink-0" ref={addMenuRef}>
+            {guideStep3 && !locked && (
+              <div className="absolute bottom-full right-0 mb-2 w-[210px] z-30">
+                <GuideBubble step="Step 3" pointer="down" onClose={onDismissStep3}>
+                  Invite an interviewer to review the ranked candidates.
+                </GuideBubble>
+              </div>
+            )}
             <button
               onClick={() => setOpen((o) => !o)}
               disabled={locked || addable.length === 0}
@@ -17910,6 +17920,112 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Free can view every applicant now; only AI-match depth is gated.
   const shownApps = filtered;
 
+  // The Hiring Manager's workflow cards now live in the right sidebar; the left
+  // column shows only the applicant tabs + list. Step 2 / Step 3 guidance bubbles
+  // are anchored (absolute) beside their action buttons and scroll with them.
+  const workflowRail = !isInterviewer(profile?.role) ? (
+    <div className="space-y-4">
+      {!onOtherTab && (
+        <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4">
+          <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
+            Rank these applicants with AI
+            <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning. Each run re-ranks every candidate and uses 1 AI Rank credit." />
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+            {visible.length === 0
+              ? "No applicants yet. Matching becomes available once someone applies."
+              : rankableActive.length < 2
+                ? "AI Rank needs at least 2 candidates who aren't hired yet."
+                : matchResults
+                  ? "Ranked by fit. Re-run to re-score everyone (uses 1 credit)."
+                  : "Score every candidate against this role and see who fits best."}
+          </p>
+          {matchOk && !matchErr && (
+            <p className="text-xs mt-2 rounded-lg px-3 py-2 inline-flex items-start gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5 mt-px shrink-0" /> Rankings updated and synced. Interviewers now see the latest list.</p>
+          )}
+          {matchErr && (
+            <p role="alert" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
+          )}
+          <div className="relative mt-3">
+            {!guideS2Off && (
+              <div className="absolute bottom-full right-0 mb-2 w-[210px] z-20">
+                <GuideBubble step="Step 2" pointer="down" onClose={() => dismissGuide("aster.guide.s2", setGuideS2Off)}>
+                  Run AI Rank once the candidates are ready. Rerun it whenever new candidates apply.
+                </GuideBubble>
+              </div>
+            )}
+            <button
+              onClick={() => askAiRank(runMatching)}
+              disabled={matching || (!outOfRuns && !canRank)}
+              title={matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+              className="w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity"
+            >
+              <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
+              {matching ? "Ranking…" : outOfRuns ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
+            </button>
+          </div>
+        </div>
+      )}
+      {job && (
+        <JobInterviewersPanel
+          jobId={activeJobId}
+          team={interviewers}
+          assignedIds={assignedIds}
+          canManage={canManageInterviewers}
+          currentUserId={profile?.id}
+          onAssign={onAssignInterviewer}
+          onUnassign={onUnassignInterviewer}
+          locked={!step2Enabled}
+          guideStep3={!guideS3Off}
+          onDismissStep3={() => dismissGuide("aster.guide.s3", setGuideS3Off)}
+        />
+      )}
+      {canManageInterviewers && job && job.status === "open" && (openings > 1 || openingsFilled) && (
+        <div className="rounded-2xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: openingsFilled ? "#BBF7D0" : "var(--line)", background: openingsFilled ? "#F0FDF4" : "#fff" }}>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold" style={{ color: openingsFilled ? "#166534" : "var(--ink)" }}>
+              {openingsFilled ? `All ${openings} opening${openings === 1 ? "" : "s"} filled` : `${hiredCount} of ${openings} openings filled`}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: openingsFilled ? "#166534" : "var(--ink-3)" }}>
+              {openingsFilled
+                ? `${inProgressApplicants.length} candidate${inProgressApplicants.length === 1 ? "" : "s"} still in progress. Close the role to wrap up.`
+                : `${openings - hiredCount} more to hire. The role stays open until then.`}
+            </p>
+          </div>
+          {openingsFilled && (
+            <button onClick={() => setClosePrompt(true)} className="shrink-0 text-sm rounded-xl brand-gradient text-white font-medium px-3 py-2 hover:opacity-90 transition-opacity">Close</button>
+          )}
+        </div>
+      )}
+      {limits.aiRunsPerMonth !== Infinity && (
+        <UsageMeter
+          title="AI Rank"
+          hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
+          used={matchRunsUsed}
+          limit={limits.aiRunsPerMonth}
+          unit="credits used"
+          danger={outOfRuns}
+          note={outOfRuns ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning." : `${runsLeft} left this cycle. You'll see the top ${limits.aiMatches} fits with scores.`}
+          onUpgrade={() => navigate("billing")}
+          upgradeLabel="Upgrade for more"
+        />
+      )}
+      {!seeWhyUnlimited && (
+        <UsageMeter
+          title="Why this fit"
+          hint="A per-candidate AI explanation of why they do or don't fit this role. 1 credit each, saved so re-viewing is free."
+          used={seeWhyUsed}
+          limit={seeWhyLimit}
+          unit="credits used"
+          danger={seeWhyLeft <= 0}
+          note={seeWhyLeft <= 0 ? "Out of Why this fit credits this cycle. Upgrade for more." : `${seeWhyLeft} left this cycle.`}
+          onUpgrade={() => navigate("billing")}
+          upgradeLabel="Upgrade for more"
+        />
+      )}
+    </div>
+  ) : null;
+
   return (
     <AccountShell
       title={`Applicants${job ? `: ${job.title}` : ""}`}
@@ -17923,48 +18039,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       onOpenNotifications={onOpenNotifications}
       backTo={isInterviewer(profile?.role) ? "interviews" : "jobs"}
       backLabel={isInterviewer(profile?.role) ? "Interviews" : "Jobs"}
-      rail={!isInterviewer(profile?.role) ? (
-        <div className="space-y-4">
-          {!guideS2Off && (
-            <GuideBubble step="Step 2" onClose={() => dismissGuide("aster.guide.s2", setGuideS2Off)}>
-              Run AI Rank once the candidates are ready. You can rerun it whenever new candidates apply.
-            </GuideBubble>
-          )}
-          {!guideS3Off && (
-            <GuideBubble step="Step 3" onClose={() => dismissGuide("aster.guide.s3", setGuideS3Off)}>
-              Invite an interviewer to review the ranked candidates. This unlocks after AI Rank.
-            </GuideBubble>
-          )}
-          {limits.aiRunsPerMonth !== Infinity && (
-            <UsageMeter
-              title="AI Rank"
-              hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
-              used={matchRunsUsed}
-              limit={limits.aiRunsPerMonth}
-              unit="credits used"
-              danger={outOfRuns}
-              note={outOfRuns
-                ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning."
-                : `${runsLeft} left this cycle. You'll see the top ${limits.aiMatches} fits with scores.`}
-              onUpgrade={() => navigate("billing")}
-              upgradeLabel="Upgrade for more"
-            />
-          )}
-          {!seeWhyUnlimited && (
-            <UsageMeter
-              title="Why this fit"
-              hint="A per-candidate AI explanation of why they do or don't fit this role. 1 credit each, saved so re-viewing is free."
-              used={seeWhyUsed}
-              limit={seeWhyLimit}
-              unit="credits used"
-              danger={seeWhyLeft <= 0}
-              note={seeWhyLeft <= 0 ? "Out of Why this fit credits this cycle. Upgrade for more." : `${seeWhyLeft} left this cycle.`}
-              onUpgrade={() => navigate("billing")}
-              upgradeLabel="Upgrade for more"
-            />
-          )}
-        </div>
-      ) : null}
+      rail={workflowRail}
     >
 
         {!isInterviewer(profile?.role) && visible.length === 0 && !guideS1Off && (
@@ -17972,77 +18047,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             <GuideBubble step="Step 1" onClose={() => dismissGuide("aster.guide.s1", setGuideS1Off)}>
               Waiting for candidates to apply. Share the public job link to start collecting applicants.
             </GuideBubble>
-          </div>
-        )}
-        {!isInterviewer(profile?.role) && !onOtherTab && (
-        <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
-              Rank these applicants with AI
-              <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning. Each run re-ranks every candidate and uses 1 AI Rank credit." />
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
-              {visible.length === 0
-                ? "No applicants yet. Matching becomes available once someone applies."
-                : rankableActive.length < 2
-                  ? "AI Rank needs at least 2 candidates who aren't hired yet."
-                  : matchResults
-                    ? "Ranked by fit against this role. Re-run to re-score everyone (uses 1 credit)."
-                    : "Score every candidate against this role and see who fits best."}
-            </p>
-            {matchOk && !matchErr && (
-              <p className="text-xs mt-2 rounded-lg px-3 py-2 inline-flex items-center gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5" /> Rankings updated and synced. Interviewers now see the latest list, and you can invite one.</p>
-            )}
-            {matchErr && (
-              <p role="alert" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
-            )}
-          </div>
-          <button
-            onClick={() => askAiRank(runMatching)}
-            disabled={matching || (!outOfRuns && !canRank)}
-            title={matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
-            className="shrink-0 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 flex items-center gap-2 transition-opacity"
-          >
-            <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
-            {matching
-              ? "Ranking…"
-              : outOfRuns
-                ? "Out of credits"
-                : matchResults
-                  ? "Re-run AI Rank"
-                  : "AI Rank"}
-          </button>
-        </div>
-        )}
-        {job && !isInterviewer(profile?.role) && (
-          <JobInterviewersPanel
-            jobId={activeJobId}
-            team={interviewers}
-            assignedIds={assignedIds}
-            canManage={canManageInterviewers}
-            currentUserId={profile?.id}
-            onAssign={onAssignInterviewer}
-            onUnassign={onUnassignInterviewer}
-            locked={!step2Enabled}
-          />
-        )}
-        {/* Openings / headcount status (HR). A role can hire more than one person;
-            when the headcount is reached it's filled and HR closes it. */}
-        {canManageInterviewers && job && job.status === "open" && (openings > 1 || openingsFilled) && (
-          <div className="rounded-2xl border p-4 mb-5 flex items-center justify-between gap-3" style={{ borderColor: openingsFilled ? "#BBF7D0" : "var(--line)", background: openingsFilled ? "#F0FDF4" : "#fff" }}>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold" style={{ color: openingsFilled ? "#166534" : "var(--ink)" }}>
-                {openingsFilled ? `All ${openings} opening${openings === 1 ? "" : "s"} filled` : `${hiredCount} of ${openings} openings filled`}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: openingsFilled ? "#166534" : "var(--ink-3)" }}>
-                {openingsFilled
-                  ? `${inProgressApplicants.length} candidate${inProgressApplicants.length === 1 ? "" : "s"} still in progress. Close the role to wrap up.`
-                  : `${openings - hiredCount} more to hire. The role stays open until then.`}
-              </p>
-            </div>
-            {openingsFilled && (
-              <button onClick={() => setClosePrompt(true)} className="shrink-0 text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">Close this role</button>
-            )}
           </div>
         )}
         {closePrompt && (
