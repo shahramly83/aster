@@ -524,6 +524,15 @@ const BRAND_STYLES = `
 .card-hover { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
 .card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
 .act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 1px 3px rgba(18,19,42,.02); }
+/* Onboarding-tour: gently pulse the target action button; pop the bubble in
+   with a spring; radar-ping the tail toward the target so the eye follows it. */
+@keyframes tourPulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(11,42,224,.18); } 50% { box-shadow: 0 0 0 6px rgba(11,42,224,.30); } }
+.tour-pulse { animation: tourPulse 1.6s ease-in-out infinite; }
+@keyframes tourPop { 0% { opacity: 0; transform: scale(.92) translateY(5px); } 60% { transform: scale(1.015) translateY(0); } 100% { opacity: 1; transform: scale(1); } }
+.tour-pop { animation: tourPop .34s cubic-bezier(.34,1.56,.64,1); transform-origin: top center; }
+@keyframes tourPing { 0% { transform: scale(.5); opacity: .75; } 70%, 100% { transform: scale(2.4); opacity: 0; } }
+.tour-ping { animation: tourPing 1.7s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tour-pulse, .tour-pop, .tour-ping { animation: none !important; } }
 /* Hiring-tool surface: a subtle brand tint that sets the interview workflow
    (questions, scheduling, scorecards, decision) apart from the candidate's own
    resume cards, which stay plain white. Matches the AI Insights card. */
@@ -2923,10 +2932,10 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   {plan.sub && <span className="text-sm text-neutral-500">{plan.sub}</span>}
                 </div>
                 <p className="text-xs font-semibold mt-1.5 min-h-[1rem]" style={{ color: "#166534" }}>{plan.note || ""}</p>
-                <button onClick={() => goSignup(plan.key)}
-                  className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(var(--brand-rgb),0.6)]"}`}
+                <button onClick={() => (plan.key === "enterprise" ? navigate("contactSales") : goSignup(plan.key))}
+                  className={`w-full mt-4 rounded-xl text-sm font-semibold py-3 transition-all inline-flex items-center justify-center gap-1.5 ${plan.ghost ? "border hover:bg-neutral-50" : "brand-gradient text-white hover:opacity-90 shadow-[0_10px_26px_-12px_rgba(var(--brand-rgb),0.6)]"}`}
                   style={plan.ghost ? { borderColor: "var(--line-strong)", color: "var(--ink)" } : undefined}>
-                  {plan.cta}
+                  {plan.cta}{plan.key === "enterprise" && <Icon name="arrowUpRight" className="w-4 h-4" />}
                 </button>
                 {/* curated highlights, clean "what you get", full matrix on desktop */}
                 {(() => {
@@ -7418,7 +7427,7 @@ function DonutChart({ segments, total, size = 120 }) {
 
 // ---------- Icons (inline SVG, inherit currentColor) ----------
 
-function Icon({ name, className = "w-5 h-5" }) {
+function Icon({ name, className = "w-5 h-5", style }) {
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
   const paths = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
@@ -7467,7 +7476,7 @@ function Icon({ name, className = "w-5 h-5" }) {
     trash: <><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6" /><path d="M10 11v6M14 11v6" /></>,
   };
   return (
-    <svg viewBox="0 0 24 24" className={className} {...common} aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} style={style} {...common} aria-hidden="true">
       {paths[name] ?? null}
     </svg>
   );
@@ -14428,7 +14437,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   };
 
   const choosePlan = (p) => {
-    if (p.key === "enterprise") return; // rendered as a mailto link, not a button
+    if (p.key === "enterprise") { if (typeof window !== "undefined") window.open("/contact-sales", "_blank", "noopener"); return; } // book a call on the sales page
     // A trialling account holds the Scale tier without paying, so let it buy that
     // same tier; only a real subscriber is blocked from re-buying what they have.
     if (!onTrial && p.key === plan && cycle === planCycle) return;
@@ -14628,10 +14637,12 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               <p className="text-xs text-neutral-600 leading-relaxed">Everything in Elite, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
             </div>
             <a
-              href={`mailto:sales@hireaster.com?subject=${encodeURIComponent(`Enterprise enquiry — ${company || "Aster"}`)}`}
+              href="/contact-sales"
+              target="_blank"
+              rel="noopener noreferrer"
               className="shrink-0 inline-flex items-center gap-1.5 rounded-xl text-xs font-semibold px-4 py-2 bg-white border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50 transition-colors"
             >
-              Contact sales <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
+              Book a call <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
             </a>
           </div>
         </div>
@@ -17569,23 +17580,65 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
 // The interviewer pool for one job: who can see its applicants and be put on
 // interviews. Admins/hiring managers always have access, so this only adds
 // interviewers. Read-only for non-managers; add/remove is admin-gated server-side.
-// Tiny dismissible onboarding tooltip: a STEP label, a short hint, a close ×, and
-// an optional pointer ("down" points at the action below it, "up" at one above).
-function GuideBubble({ step, children, onClose, pointer }) {
+// One step of the first-time onboarding tour: a STEP label, a short hint, a
+// primary button (Next / Close), a skip ×, and a pointer aimed at its action
+// ("down"/"up"/"left"/"right"). Fixed narrow width so it never sprawls.
+function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer }) {
+  const num = parseInt(String(step).replace(/\D/g, ""), 10) || 1;
+  const total = 3;
+  const isLast = primaryLabel === "Close";
+  // Arrow: a rotated square that reads as a speech-bubble tail, sitting flush to
+  // the card edge, with a soft brand "ping" glow behind it that pulses toward the
+  // target button so the eye follows it.
+  const pos = {
+    down: { bottom: -6, right: 22 },
+    up: { top: -6, right: 22 },
+    right: { top: "50%", right: -6, marginTop: -6 },
+    left: { top: "50%", left: -6, marginTop: -6 },
+  }[pointer];
+  const arrowBorder = {
+    down: { borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)" },
+    up: { borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" },
+    right: { borderRight: "1px solid var(--line)", borderTop: "1px solid var(--line)" },
+    left: { borderLeft: "1px solid var(--line)", borderBottom: "1px solid var(--line)" },
+  }[pointer];
   return (
-    <div className="relative rounded-lg bg-white px-2.5 py-2 text-[11px] act-shadow" style={{ border: "1px solid var(--line)" }}>
-      <button onClick={onClose} aria-label="Dismiss" className="absolute top-1.5 right-1.5 w-4 h-4 rounded flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
-        <Icon name="close" className="w-3 h-3" />
-      </button>
-      <p className="font-bold uppercase pr-4" style={{ color: "var(--brand)", letterSpacing: "0.07em", fontSize: "9px" }}>{step}</p>
-      <p className="mt-0.5 pr-4 leading-snug" style={{ color: "var(--ink-2)" }}>{children}</p>
-      {pointer === "down" && <span className="absolute -bottom-[5px] right-6 w-2.5 h-2.5 rotate-45 bg-white" style={{ borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }} />}
-      {pointer === "up" && <span className="absolute -top-[5px] right-6 w-2.5 h-2.5 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />}
+    <div className="tour-pop relative rounded-2xl bg-white w-[244px]"
+      style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -18px rgba(11,42,224,0.42), 0 4px 14px rgba(18,19,42,0.08)" }}>
+      {/* header: numbered badge, progress track, skip */}
+      <div className="flex items-center gap-2 px-3.5 pt-3">
+        <span className="shrink-0 w-6 h-6 rounded-full brand-gradient text-white text-[11px] font-bold flex items-center justify-center shadow-[0_5px_12px_-4px_rgba(11,42,224,0.8)]">{num}</span>
+        <div className="flex items-center gap-1 flex-1">
+          {Array.from({ length: total }).map((_, i) => (
+            <span key={i} className="h-1 rounded-full transition-all duration-300" style={{ width: i === num - 1 ? 18 : 6, background: i <= num - 1 ? "var(--brand)" : "var(--line-strong)" }} />
+          ))}
+        </div>
+        <button onClick={onClose} aria-label="Skip tour" className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+          <Icon name="close" className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <p className="px-3.5 mt-2 text-[12px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{children}</p>
+      <div className="flex items-center justify-between px-3.5 pb-3 pt-3">
+        <button onClick={onClose} className="text-[11px] font-medium transition-colors hover:opacity-70" style={{ color: "var(--ink-3)" }}>Skip tour</button>
+        {primaryLabel && (
+          <button onClick={onPrimary} className="text-[11px] font-semibold rounded-lg brand-gradient text-white pl-3 pr-2.5 py-1.5 hover:opacity-90 transition-opacity inline-flex items-center gap-1 shadow-[0_6px_14px_-6px_rgba(11,42,224,0.8)]">
+            {primaryLabel}
+            <Icon name={isLast ? "check" : "chevronRight"} className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      {/* speech-bubble tail + pulsing ping toward the target */}
+      {pointer && (
+        <>
+          <span className="tour-ping absolute rounded-full" style={{ ...pos, width: 12, height: 12, background: "rgba(11,42,224,0.28)" }} />
+          <span className="absolute w-3 h-3 rotate-45 bg-white" style={{ ...pos, ...arrowBorder }} />
+        </>
+      )}
     </div>
   );
 }
 
-function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign, locked = false, stepLabel = null, guideStep3 = false, onDismissStep3 = () => {} }) {
+function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign, locked = false, stepLabel = null, showStep3 = false, onStep3Close = () => {} }) {
   const [open, setOpen] = useState(false);
   const [addMenuRef, addUp] = useDropUp(open, 280);
   const [busyId, setBusyId] = useState(null);
@@ -17607,7 +17660,14 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   };
 
   return (
-    <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5" style={{ opacity: locked ? 0.72 : 1 }}>
+    <div className="relative rounded-2xl border border-[color:var(--line)] bg-white p-4 mb-5" style={{ opacity: locked && !showStep3 ? 0.72 : 1 }}>
+      {showStep3 && (
+        <div className="absolute top-5 right-full mr-3 z-40">
+          <GuideBubble step="Step 3" pointer="right" primaryLabel="Close" onPrimary={onStep3Close} onClose={onStep3Close}>
+            Invite an interviewer to review the ranked candidates. Unlocks after AI Rank.
+          </GuideBubble>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {stepLabel && <p className="text-[11px] font-bold uppercase mb-1" style={{ color: "var(--brand)", letterSpacing: "0.08em" }}>{stepLabel}</p>}
@@ -17619,18 +17679,11 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
         </div>
         {canManage && (
           <div className="relative shrink-0" ref={addMenuRef}>
-            {guideStep3 && !locked && (
-              <div className="absolute bottom-full right-0 mb-2 w-[210px] z-30">
-                <GuideBubble step="Step 3" pointer="down" onClose={onDismissStep3}>
-                  Invite an interviewer to review the ranked candidates.
-                </GuideBubble>
-              </div>
-            )}
             <button
               onClick={() => setOpen((o) => !o)}
               disabled={locked || addable.length === 0}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40 inline-flex items-center gap-1.5"
-              style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}
+              className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40 inline-flex items-center gap-1.5 ${showStep3 ? "tour-pulse" : ""}`}
+              style={{ borderColor: showStep3 ? "var(--brand)" : "var(--line-strong)", color: "var(--brand)" }}
             >
               <Icon name="userPlus" className="w-3.5 h-3.5" /> Add interviewer
             </button>
@@ -17745,6 +17798,15 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Shared source of truth (also drives the count on the Jobs card).
   const baseApplicants = APPLICANTS_BY_JOB[activeJobId] || [];
   const [localRejectEmail, setLocalRejectEmail] = useState({}); // candidateId -> emailSent
+  const [linkCopied, setLinkCopied] = useState(false);
+  const copyApplyLink = async () => {
+    const url = `${window.location.origin}/apply/${activeJobId}`;
+    try {
+      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(url);
+    } catch { /* clipboard blocked; ignore */ }
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
 
   const applicants = baseApplicants.map((a) => ({
     ...a,
@@ -17771,13 +17833,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
   // Strong Matches vs Other Applicants tabs (fit classification from apply time).
   const [applicantTab, setApplicantTab] = useState("strong");
-  // Guided HM workflow: three small onboarding bubbles (Wait for candidates ->
-  // Run AI Rank -> Invite interviewer). Dismissal persists per browser.
-  const readGuide = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return false; } };
-  const [guideS1Off, setGuideS1Off] = useState(() => readGuide("aster.guide.s1"));
-  const [guideS2Off, setGuideS2Off] = useState(() => readGuide("aster.guide.s2"));
-  const [guideS3Off, setGuideS3Off] = useState(() => readGuide("aster.guide.s3"));
-  const dismissGuide = (k, setter) => { setter(true); try { localStorage.setItem(k, "1"); } catch { /* private mode */ } };
+  // Guided HM onboarding tour: one bubble at a time, Step 1 -> 2 -> 3. Steps 1-2
+  // have a Next button that advances; Step 3 has Close. Runs once; the "done"
+  // state persists so it doesn't reappear. tourStep 0 = finished/skipped.
+  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem("aster.tour.applicants.v2") === "done" ? 0 : 1; } catch { return 1; } });
+  const endTour = () => { setTourStep(0); try { localStorage.setItem("aster.tour.applicants.v2", "done"); } catch { /* private mode */ } };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
   const [stageFilter, setStageFilter] = useState("all");
@@ -17891,12 +17951,15 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // shows the active pipeline; pick a specific stage to see hired/rejected.
   const TERMINAL_STAGES = ["hired", "rejected", "declined"];
   const activeVisible = visible.filter((a) => !TERMINAL_STAGES.includes(a.stage));
-  // Split into Strong Matches (fit the role, fully ranked) and Other Applicants
-  // (kept in the talent pool, not ranked for this role). Unclassified = Strong.
+  // Three tabs: Strong Matches (fit the role, fully ranked), Other Applicants
+  // (kept in the talent pool, not ranked) and Hired (completed hires for this
+  // role). Unclassified = Strong.
   const strongApplicants = activeVisible.filter((a) => a.fit !== "other");
   const otherApplicants = activeVisible.filter((a) => a.fit === "other");
+  const hiredApplicants = visible.filter((a) => a.stage === "hired");
   const onOtherTab = applicantTab === "other";
-  const tabBase = onOtherTab ? otherApplicants : strongApplicants;
+  const onHiredTab = applicantTab === "hired";
+  const tabBase = onHiredTab ? hiredApplicants : onOtherTab ? otherApplicants : strongApplicants;
   const countFor = (key) => (key === "all" ? tabBase.length : tabBase.filter((a) => a.stage === key).length);
   let filtered = stageFilter === "all" ? tabBase : tabBase.filter((a) => a.stage === stageFilter);
   // Recency rank: lower = newer ("today" newest, "6d ago" older).
@@ -17947,10 +18010,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             <p role="alert" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
           )}
           <div className="relative mt-3">
-            {!guideS2Off && (
-              <div className="absolute bottom-full right-0 mb-2 w-[210px] z-20">
-                <GuideBubble step="Step 2" pointer="down" onClose={() => dismissGuide("aster.guide.s2", setGuideS2Off)}>
-                  Run AI Rank once the candidates are ready. Rerun it whenever new candidates apply.
+            {tourStep === 2 && (
+              <div className="absolute top-1/2 right-full -translate-y-1/2 mr-3 z-30">
+                <GuideBubble step="Step 2" pointer="right" primaryLabel="Next" onPrimary={() => setTourStep(3)} onClose={endTour}>
+                  Run AI Rank to score your candidates. Rerun it whenever new candidates apply.
                 </GuideBubble>
               </div>
             )}
@@ -17958,7 +18021,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               onClick={() => askAiRank(runMatching)}
               disabled={matching || (!outOfRuns && !canRank)}
               title={matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
-              className="w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity"
+              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : undefined}
+              className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
               <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
               {matching ? "Ranking…" : outOfRuns ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
@@ -17976,26 +18040,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           onAssign={onAssignInterviewer}
           onUnassign={onUnassignInterviewer}
           locked={!step2Enabled}
-          guideStep3={!guideS3Off}
-          onDismissStep3={() => dismissGuide("aster.guide.s3", setGuideS3Off)}
+          showStep3={tourStep === 3}
+          onStep3Close={endTour}
         />
-      )}
-      {canManageInterviewers && job && job.status === "open" && (openings > 1 || openingsFilled) && (
-        <div className="rounded-2xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: openingsFilled ? "#BBF7D0" : "var(--line)", background: openingsFilled ? "#F0FDF4" : "#fff" }}>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold" style={{ color: openingsFilled ? "#166534" : "var(--ink)" }}>
-              {openingsFilled ? `All ${openings} opening${openings === 1 ? "" : "s"} filled` : `${hiredCount} of ${openings} openings filled`}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: openingsFilled ? "#166534" : "var(--ink-3)" }}>
-              {openingsFilled
-                ? `${inProgressApplicants.length} candidate${inProgressApplicants.length === 1 ? "" : "s"} still in progress. Close the role to wrap up.`
-                : `${openings - hiredCount} more to hire. The role stays open until then.`}
-            </p>
-          </div>
-          {openingsFilled && (
-            <button onClick={() => setClosePrompt(true)} className="shrink-0 text-sm rounded-xl brand-gradient text-white font-medium px-3 py-2 hover:opacity-90 transition-opacity">Close</button>
-          )}
-        </div>
       )}
       {limits.aiRunsPerMonth !== Infinity && (
         <UsageMeter
@@ -18042,13 +18089,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       rail={workflowRail}
     >
 
-        {!isInterviewer(profile?.role) && visible.length === 0 && !guideS1Off && (
-          <div className="mb-4 max-w-sm">
-            <GuideBubble step="Step 1" onClose={() => dismissGuide("aster.guide.s1", setGuideS1Off)}>
-              Waiting for candidates to apply. Share the public job link to start collecting applicants.
-            </GuideBubble>
-          </div>
-        )}
         {closePrompt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
             <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
@@ -18067,9 +18107,34 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             </div>
           </div>
         )}
+        {canManageInterviewers && job && job.status === "open" && (openings > 1 || openingsFilled) && (
+          <div className="rounded-2xl border p-4 mb-5 flex items-center justify-between gap-3" style={{ borderColor: openingsFilled ? "#BBF7D0" : "var(--line)", background: openingsFilled ? "#F0FDF4" : "#fff" }}>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: openingsFilled ? "#166534" : "var(--ink)" }}>
+                {openingsFilled ? `All ${openings} opening${openings === 1 ? "" : "s"} filled` : `${hiredCount} of ${openings} openings filled`}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: openingsFilled ? "#166534" : "var(--ink-3)" }}>
+                {openingsFilled
+                  ? `${inProgressApplicants.length} candidate${inProgressApplicants.length === 1 ? "" : "s"} still in progress. Close the role to wrap up.`
+                  : `${openings - hiredCount} more to hire. The role stays open until then.`}
+              </p>
+            </div>
+            {openingsFilled && (
+              <button onClick={() => setClosePrompt(true)} className="shrink-0 text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">Close this role</button>
+            )}
+          </div>
+        )}
         {/* Strong Matches / Other Applicants tabs */}
+        <div className="relative inline-block">
+          {!isInterviewer(profile?.role) && tourStep === 1 && (
+            <div className="absolute bottom-full left-2 mb-2 z-30">
+              <GuideBubble step="Step 1" pointer="down" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
+                These are the candidates who applied. Strong Matches fit the role; Other Applicants stay in your talent pool.
+              </GuideBubble>
+            </div>
+          )}
         <div className="flex items-center gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Other Applicants", otherApplicants.length]].map(([key, label, n]) => {
+          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Other Applicants", otherApplicants.length], ["hired", "Hired", hiredApplicants.length]].map(([key, label, n]) => {
             const on = applicantTab === key;
             return (
               <button key={key} onClick={() => { setApplicantTab(key); setStageFilter("all"); }}
@@ -18079,6 +18144,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               </button>
             );
           })}
+        </div>
         </div>
         {onOtherTab && (
           <div className="mb-4 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm" style={{ background: "#FFF8EC", border: "1px solid #F5E3BE", color: "#8A6D1F" }}>
@@ -18124,7 +18190,47 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         </div>
 
         {filtered.length === 0 ? (
-          <p className="text-sm text-neutral-500">{stageFilter === "all" ? "No active candidates for this role yet. Hired and rejected candidates are in their own filters." : "No candidates in this stage."}</p>
+          stageFilter !== "all" ? (
+            <div className="rounded-2xl bg-white border border-dashed px-6 py-10 text-center" style={{ borderColor: "var(--line-strong)" }}>
+              <div className="mx-auto w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--bg)" }}>
+                <Icon name="filter" className="w-5 h-5" style={{ color: "var(--ink-3)" }} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No one in {STAGE_LABELS[stageFilter]?.toLowerCase?.() ?? "this stage"}</p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Move a candidate here from their profile, or pick another stage above.</p>
+            </div>
+          ) : onHiredTab ? (
+            <div className="rounded-2xl bg-white border border-dashed px-6 py-10 text-center" style={{ borderColor: "var(--line-strong)" }}>
+              <div className="mx-auto w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "#EAF7EF" }}>
+                <Icon name="check" className="w-5 h-5" style={{ color: "#166534" }} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No hires yet</p>
+              <p className="text-xs mt-1 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>When you mark a candidate as hired, they move here so you can keep the whole team in one place.</p>
+            </div>
+          ) : onOtherTab ? (
+            <div className="rounded-2xl bg-white border border-dashed px-6 py-10 text-center" style={{ borderColor: "var(--line-strong)" }}>
+              <div className="mx-auto w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "#FEF3E2" }}>
+                <Icon name="users" className="w-5 h-5" style={{ color: "#9A6B14" }} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Nobody in the talent pool yet</p>
+              <p className="text-xs mt-1 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>Applicants who don&apos;t match this role land here, so you can revisit them for future openings.</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-white border border-dashed px-6 py-12 text-center" style={{ borderColor: "var(--line-strong)" }}>
+              <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3.5" style={{ background: "var(--brand-soft)" }}>
+                <Icon name="users" className="w-6 h-6" style={{ color: "var(--brand)" }} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No applicants yet</p>
+              <p className="text-xs mt-1 mb-5 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Share your job link and candidates will show up here the moment they apply. Aster reads each resume and ranks the strong matches for you.</p>
+              <button
+                onClick={copyApplyLink}
+                className="inline-flex items-center gap-2 text-sm font-medium rounded-xl px-4 py-2 transition-colors"
+                style={linkCopied ? { background: "#EAF7EF", color: "#166534", border: "1px solid #BBE5C9" } : { background: "var(--brand)", color: "#fff" }}
+              >
+                <Icon name={linkCopied ? "check" : "link"} className="w-4 h-4" />
+                {linkCopied ? "Link copied" : "Copy job link"}
+              </button>
+            </div>
+          )
         ) : (
           <div className="space-y-2">
             {shownApps.map((a, idx) => {
@@ -19189,7 +19295,7 @@ export default function ResumeAIPreview() {
       const row = Array.isArray(data) ? data[0] : data;
       if (error || !row) { setPublicApply({ id, status: "notfound" }); return; }
       const job = { id: row.id, title: row.title, status: row.status, expires_at: row.expires_at, ...(row.details || {}) };
-      setPublicApply({ id, status: "ok", job, company: row.company_name || "" });
+      setPublicApply({ id, status: "ok", job, company: row.company_name || "", logoUrl: row.logo_url || null });
       // Record the visit: unique per browser per day, tagged with ?source=.
       let source = null, vid = null;
       try { source = new URLSearchParams(window.location.search).get("source"); } catch { /* ignore */ }
@@ -20133,7 +20239,7 @@ export default function ResumeAIPreview() {
       return (
         <Shell>
           <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
-            <ApplyScreen navigate={navigate} job={p.job} isPublic company={p.company} logoUrl={null} onApplied={() => {}} />
+            <ApplyScreen navigate={navigate} job={p.job} isPublic company={p.company} logoUrl={p.logoUrl || null} onApplied={() => {}} />
           </div>
         </Shell>
       );
