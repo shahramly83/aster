@@ -6996,11 +6996,11 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                 />
                 <span className="flex items-center px-3 text-sm shrink-0" style={{ color: "var(--ink-3)", background: "var(--bg)", borderLeft: "1px solid var(--line-strong)" }}>.hireaster.com</span>
               </div>
-              <p className="text-[11px] mt-1.5" style={{ color: slugValid && slugAvail === false ? "#DC2626" : slugValid && slugAvail === true ? "#16A34A" : "var(--ink-3)" }}>
+              <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: slugValid && slugAvail === false ? "#DC2626" : slugValid && slugAvail === true ? "#16A34A" : "var(--ink-3)" }}>
                 {!workspaceUrl ? "Pick a subdomain: lowercase letters and numbers, no dashes."
                   : !slugValid ? "2 to 30 lowercase letters or numbers, no dashes."
-                  : slugAvail === false ? "That URL is taken. Try another."
-                  : slugAvail === true ? <>Available. Your team signs in at <span className="font-medium">{workspaceUrl}.hireaster.com</span></>
+                  : slugAvail === false ? <><Icon name="close" className="w-3 h-3 shrink-0" /> That URL is taken. Try another.</>
+                  : slugAvail === true ? <><Icon name="check" className="w-3 h-3 shrink-0" /> Available: <span className="font-medium">{workspaceUrl}.hireaster.com</span></>
                   : <>Your team will sign in at <span className="font-medium" style={{ color: "var(--ink-2)" }}>{workspaceUrl}.hireaster.com</span></>}
               </p>
             </div>
