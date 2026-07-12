@@ -17252,20 +17252,28 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
   };
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition-colors hover:brightness-95 ${STAGE_STYLES[stage]}`}
-      >
-        <span className="text-xs font-medium">{STAGE_LABELS[stage]}</span>
-        <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
+    <div className="flex items-center justify-end gap-2">
       {stage === "rejected" && (
-        <p className="text-[11px] text-neutral-400 mt-1 text-right">
-          {rejectionEmailSent ? "Email sent" : "No email sent"}
-        </p>
+        rejectionEmailSent ? (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: "#ECFDF5", color: "#047857" }}>
+            <Icon name="check" className="w-3 h-3" />
+            Rejection email sent
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px dashed var(--line)" }}>
+            <Icon name="mail" className="w-3 h-3" />
+            No email sent
+          </span>
+        )
       )}
+      <div className="relative">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition-colors hover:brightness-95 ${STAGE_STYLES[stage]}`}
+        >
+          <span className="text-xs font-medium">{STAGE_LABELS[stage]}</span>
+          <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
 
       {open && (
         <>
@@ -17316,6 +17324,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
           onReject={(emailSent) => { setShowReject(false); onStageChange("rejected", emailSent); }}
         />
       )}
+      </div>
     </div>
   );
 }
