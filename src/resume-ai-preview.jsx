@@ -480,7 +480,7 @@ const BRAND_STYLES = `
 /* Hiring-tool surface: a subtle brand tint that sets the interview workflow
    (questions, scheduling, scorecards, decision) apart from the candidate's own
    resume cards, which stay plain white. Matches the AI Insights card. */
-.tool-card { background: linear-gradient(135deg, rgba(11,42,224,0.05), rgba(53,80,238,0.04)); border: 1px solid #DCE3FB; }
+.tool-card { background: var(--brand-soft); border: 1px solid #CBD6F7; }
 
 /* Dialog entrance. The scrim fades; the panel rises and settles, so the eye
    follows it to the decision. Transform/opacity only, so nothing reflows. */
@@ -12226,7 +12226,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const atSeatCap = seatsUsed >= seatCap;
   const [showForm, setShowForm] = useState(false);
   const [email, setEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("interviewer"); // 'interviewer' | 'admin' (Hiring Manager)
+  const [inviteRole, setInviteRole] = useState("admin"); // 'admin' (Hiring Manager) | 'interviewer'
   const [banner, setBanner] = useState(null);
   const [sending, setSending] = useState(false);
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
@@ -12308,7 +12308,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       ? `${inviteEmail} was added back to your team. They keep their existing login and history.`
       : `Invite sent to ${inviteEmail}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
     setEmail("");
-    setInviteRole("interviewer");
+    setInviteRole("admin");
     setShowForm(false);
   };
 
