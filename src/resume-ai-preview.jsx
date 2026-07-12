@@ -961,7 +961,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
               </div>
               <div className="relative">
                 <input id="li-password" name="current-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -3656,9 +3656,9 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
             <button onMouseEnter={closeMenus} onClick={() => navigate("login")} className={`hidden sm:block ${navHover} ${linkC}`} style={{ color: navActive }}>Sign in</button>
             {blueNav
               ? (scrolled
-                  ? <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 brand-gradient text-white shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>
-                  : <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-14px_rgba(15,27,51,0.5)]" style={{ background: "#fff", color: "var(--brand)" }}>Get started</button>)
-              : <button onMouseEnter={closeMenus} onClick={cta} className="ml-1.5 shrink-0 whitespace-nowrap text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>}
+                  ? <button onMouseEnter={closeMenus} onClick={cta} className="hidden sm:inline-flex ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 brand-gradient text-white shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>
+                  : <button onMouseEnter={closeMenus} onClick={cta} className="hidden sm:inline-flex ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-14px_rgba(15,27,51,0.5)]" style={{ background: "#fff", color: "var(--brand)" }}>Get started</button>)
+              : <button onMouseEnter={closeMenus} onClick={cta} className="hidden sm:inline-flex ml-1.5 shrink-0 whitespace-nowrap text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>}
             <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
               <span className="burger-bar block h-[2px] w-[18px] rounded-full" style={{ background: navLight ? "var(--ink)" : "#fff" }} /><span className="burger-bar block h-[2px] w-[12px] rounded-full" style={{ background: navLight ? "var(--ink)" : "#fff" }} />
             </button>
@@ -6551,7 +6551,7 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
               <label className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
               <div className="relative">
                 <input type={showPassword ? "text" : "password"} autoComplete={mode === "create" ? "new-password" : "current-password"} value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder={mode === "create" ? "Create a password" : "Enter your password"} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -6958,12 +6958,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
               </span>
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ink-2)" }}>Selected plan</p>
-                <p className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--ink)" }}>
-                  <span>{planLabel}</span>
-                  {signupTrial && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>14-day free trial</span>
-                  )}
-                </p>
+                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{planLabel}</p>
                 <p className="text-[12px] mt-0.5 flex items-center gap-1.5 truncate" style={{ color: "var(--ink-2)" }}>
                   {signupTrial ? (
                     <>
@@ -7027,7 +7022,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
               <label htmlFor="su-password" className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
               <div className="relative">
                 <input id="su-password" name="new-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Create a password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -7102,8 +7097,8 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
 
           <p className="text-[12px] mt-5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
             By creating an account you agree to Aster's{" "}
-            <button type="button" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Terms</button> and{" "}
-            <button type="button" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Privacy Policy</button>.
+            <button type="button" onClick={() => navigate("legal", "/legal/terms")} className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Terms</button> and{" "}
+            <button type="button" onClick={() => navigate("legal", "/legal/privacy")} className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Privacy Policy</button>.
           </p>
 
           <div className="my-5" style={{ borderTop: "1px solid var(--line)" }} />
