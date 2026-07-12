@@ -3935,6 +3935,17 @@ function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossar
   const [status, setStatus] = useState("idle"); // idle | submitting | done
   const [err, setErr] = useState(null);
   const [ref, setRef] = useState(null);
+  // Dates an Aster admin has blocked (holidays, off-sites), read from the public
+  // booking_blocked_dates table (set in /admin). Greyed out on the calendar.
+  const [blockedDates, setBlockedDates] = useState(() => new Set());
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let alive = true;
+    supabase.from("booking_blocked_dates").select("day").then(({ data }) => {
+      if (alive && Array.isArray(data)) setBlockedDates(new Set(data.map((r) => r.day)));
+    });
+    return () => { alive = false; };
+  }, []);
 
   const dateLabel = date ? date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : null;
   const inputCls = "w-full rounded-xl bg-white border px-3.5 py-2.5 text-[15px] outline-none transition-colors focus:border-[color:var(--brand)]";
@@ -4028,6 +4039,7 @@ function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossar
                   start={date} end={date}
                   minDate={minBookable}
                   disableWeekends
+                  blockedDates={blockedDates}
                   onPick={(d) => setDate(d)}
                 />
               </div>
@@ -7804,7 +7816,7 @@ function formatRange(start, end) {
 // minDate: days before it are unavailable (greyed). disableWeekends: Sat/Sun are
 // unavailable and shown in a distinct tint. Both default off so existing callers
 // (the analytics range picker) are unchanged.
-function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick, minDate = null, disableWeekends = false }) {
+function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick, minDate = null, disableWeekends = false, blockedDates = null }) {
   const days = ["S", "M", "T", "W", "T", "F", "S"];
   const year = month.getFullYear();
   const m = month.getMonth();
@@ -7823,10 +7835,12 @@ function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick, min
     return sameDay(d, start) || sameDay(d, end);
   };
   const isWeekend = (day) => { const wd = new Date(year, m, day).getDay(); return wd === 0 || wd === 6; };
+  const isoDay = (day) => `${year}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const isBlocked = (day) => blockedDates && blockedDates.has(isoDay(day)); // admin-blocked
   // Too-soon / past (before minDate). Weekend disabling is handled separately so
   // the two get different colours.
   const beforeMin = (day) => minDate && startOfDay(new Date(year, m, day)) < startOfDay(minDate);
-  const disabled = (day) => beforeMin(day) || (disableWeekends && isWeekend(day));
+  const disabled = (day) => beforeMin(day) || isBlocked(day) || (disableWeekends && isWeekend(day));
 
   return (
     <div className="px-1">

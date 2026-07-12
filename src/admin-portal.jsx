@@ -62,6 +62,7 @@ const PATHS = {
   key: "M15 7a4 4 0 1 1-4 4l-6 6H3v-2l6-6a4 4 0 0 1 6-2Z",
   eyeOff: "M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.2A9.5 9.5 0 0 1 12 5c5 0 9 5 9 7a12 12 0 0 1-2.2 2.9M6.1 6.1C3.8 7.5 2 10 2 12c0 2 4 7 10 7a9.7 9.7 0 0 0 3.6-.7",
   filter: "M4 5h16l-6 8v5l-4 2v-7L4 5Z",
+  calendar: "M3 9h18M8 3v4M16 3v4M4 5h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z",
   ban: "M5.6 5.6l12.8 12.8M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
   refresh: "M21 12a9 9 0 1 1-3-6.7M21 4v4h-4",
   dot: "M12 12h.01",
@@ -109,6 +110,7 @@ const SECTIONS = [
   { key: "usage",         label: "Usage monitoring", icon: "chart",     roles: ["super", "support", "billing"] },
   { key: "support",       label: "Support logs",     icon: "headset",   roles: ["super", "support"] },
   { key: "flags",         label: "Feature flags",    icon: "flag",      roles: ["super"] },
+  { key: "booking",       label: "Booking dates",    icon: "calendar",  roles: ["super", "support"] },
   { key: "email_templates", label: "Email templates", icon: "mail",     roles: ["super", "support"] },
   { key: "audit",         label: "Audit logs",       icon: "audit",     roles: ["super", "billing"] },
 ];
@@ -121,6 +123,7 @@ const PERMS = {
   "user.deactivate":     ["super"],
   "subscription.change": ["super", "billing"],
   "flag.toggle":         ["super"],
+  "booking.block":       ["super", "support"],
   "support.resolve":     ["super", "support"],
   "template.edit":       ["super", "support"],
 };
@@ -1001,6 +1004,83 @@ function mapTicketRow(r) {
 const ADMIN_PLAN_LABEL = { launch: "Launch", scale: "Scale", elite: "Elite", enterprise: "Enterprise" };
 const ADMIN_PLAN_KEY = { Launch: "launch", Scale: "scale", Elite: "elite", Enterprise: "enterprise" };
 
+// Blocked dates for the public "book a 1:1" calendar (/contact-sales). Admin adds
+// a date (holiday, off-site); the marketing page reads booking_blocked_dates and
+// greys it out. Writes go through the admin-gated RPCs (migration 0065).
+function BookingDates({ role, blocked, setBlocked, audit }) {
+  const [day, setDay] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const allowed = can(role, "booking.block");
+  const inputCls = "rounded-lg border px-3 py-2 text-sm outline-none";
+  const fmt = (d) => { try { return new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
+
+  const add = async () => {
+    if (!day || busy) return;
+    setErr(""); setBusy(true);
+    if (hasSupabase) {
+      const { error } = await supabase.rpc("add_booking_blocked_date", { p_day: day, p_reason: reason || null });
+      if (error) { setErr(error.message || "Could not block that date."); setBusy(false); return; }
+    }
+    setBlocked((b) => [...b.filter((x) => x.day !== day), { day, reason: reason.trim() || null }].sort((a, c) => a.day.localeCompare(c.day)));
+    audit("Blocked booking date", reason.trim() ? `${day} (${reason.trim()})` : day);
+    setDay(""); setReason(""); setBusy(false);
+  };
+  const remove = async (d) => {
+    if (busy) return;
+    setErr(""); setBusy(true);
+    if (hasSupabase) {
+      const { error } = await supabase.rpc("remove_booking_blocked_date", { p_day: d });
+      if (error) { setErr(error.message || "Could not unblock that date."); setBusy(false); return; }
+    }
+    setBlocked((b) => b.filter((x) => x.day !== d));
+    audit("Unblocked booking date", d);
+    setBusy(false);
+  };
+
+  return (
+    <div>
+      <SectionHead title="Booking dates" desc="Block dates on the public book-a-1:1 calendar (holidays, team off-sites). Visitors can't request a blocked day." />
+      <PrivacyNote>Blocked dates apply to the marketing booking page at <strong>/contact-sales</strong> for everyone. Every change is written to the audit log.</PrivacyNote>
+      {allowed && (
+        <Card pad="p-4 sm:p-5" className="mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Date to block</label>
+              <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className={inputCls} style={{ border: "1px solid var(--line)", color: "var(--ink)" }} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-3)" }}>Reason (optional)</label>
+              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Public holiday" className={inputCls + " w-full"} style={{ border: "1px solid var(--line)", color: "var(--ink)" }} />
+            </div>
+            <ActionBtn icon="ban" onClick={add} disabled={!day || busy}>Block date</ActionBtn>
+          </div>
+          {err && <p className="text-sm mt-2" style={{ color: "#B42318" }}>{err}</p>}
+        </Card>
+      )}
+      {blocked.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--ink-3)" }}>No dates are blocked. The booking calendar is open, minus weekends and the 3-day lead time.</p>
+      ) : (
+        <div className="grid gap-2">
+          {blocked.map((b) => (
+            <Card key={b.day} pad="p-3 sm:p-4">
+              <div className="flex items-center gap-3">
+                <span style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-4 h-4" /></span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-neutral-900 text-sm">{fmt(b.day)}</p>
+                  {b.reason && <p className="text-xs" style={{ color: "var(--ink-3)" }}>{b.reason}</p>}
+                </div>
+                {allowed && <ActionBtn icon="close" onClick={() => remove(b.day)} disabled={busy}>Unblock</ActionBtn>}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPortal() {
   const [admin, setAdmin] = useState(null);
   const initial = typeof window !== "undefined" ? (window.location.pathname.replace(/^\/admin\/?/, "") || "dashboard") : "dashboard";
@@ -1011,6 +1091,7 @@ export default function AdminPortal() {
   const [subs, setSubs] = useState(INIT_SUBSCRIPTIONS);
   const [tickets, setTickets] = useState(INIT_TICKETS);
   const [flags, setFlags] = useState(INIT_FLAGS);
+  const [blocked, setBlocked] = useState([]); // booking_blocked_dates: [{ day, reason }]
   const [audit, setAudit] = useState(INIT_AUDIT);
   const usage = INIT_USAGE;
   const [restoring, setRestoring] = useState(hasSupabase);
@@ -1140,6 +1221,16 @@ export default function AdminPortal() {
     return () => { active = false; };
   }, [admin]);
 
+  // Load blocked booking dates (public read) so the admin can manage them.
+  useEffect(() => {
+    if (!hasSupabase || !admin) return;
+    let active = true;
+    supabase.from("booking_blocked_dates").select("day, reason").order("day").then(({ data }) => {
+      if (active && Array.isArray(data)) setBlocked(data.map((r) => ({ day: r.day, reason: r.reason })));
+    });
+    return () => { active = false; };
+  }, [admin]);
+
   // Resolve persists to the DB (when live) before updating the table + audit log.
   const resolveTicket = async (t) => {
     if (hasSupabase) {
@@ -1202,6 +1293,7 @@ export default function AdminPortal() {
       case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
       case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />; break;
+      case "booking":       screen = <BookingDates role={role} blocked={blocked} setBlocked={setBlocked} audit={logAudit} />; break;
       case "email_templates": screen = <EmailTemplatesAdmin role={role} audit={logAudit} />; break;
       case "audit":         screen = <Audit audit={audit} />; break;
       default:              screen = <Dashboard role={role} companies={companies} tickets={tickets} audit={audit} go={go} />;
