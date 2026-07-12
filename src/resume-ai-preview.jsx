@@ -8901,6 +8901,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   const storesOriginal = limits.storeOriginal;
   const planName = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
+  const [uploadTab, setUploadTab] = useState("import"); // "import" | "recent"
   const [files, setFiles] = useState([]);
   const [rows, setRows] = useState([]);
   const [skipped, setSkipped] = useState(0);
@@ -9220,6 +9221,14 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
           <div className="lg:col-span-2 space-y-5">
         {stage === "idle" && (
           <>
+            {files.length === 0 && importHistory.length > 0 && (
+              <div className="flex items-center gap-1 rounded-xl p-1 border" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
+                {[{ k: "import", label: "Import" }, { k: "recent", label: `Recent imports (${importHistory.length})` }].map((t) => (
+                  <button key={t.k} type="button" onClick={() => setUploadTab(t.k)} className="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={uploadTab === t.k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "var(--ink-2)" }}>{t.label}</button>
+                ))}
+              </div>
+            )}
+            {uploadTab === "import" && (<>
             {files.length === 0 && outOfQuota && (
               /* Out of monthly parses, blocking state in place of the dropzone */
               <div className="rounded-2xl border bg-white act-shadow p-8 text-center" style={{ borderColor: "#FECACA" }}>
@@ -9352,9 +9361,11 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               </div>
             )}
 
-            {/* Import history, every past batch, reopenable as a read-only log.
-                Hidden once files are selected so it doesn't distract mid-import. */}
-            {files.length === 0 && importHistory.length > 0 && (
+            </>)}
+
+            {/* Recent imports, now its own tab: every past batch, reopenable as
+                a read-only log. */}
+            {uploadTab === "recent" && files.length === 0 && importHistory.length > 0 && (
               <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Recent imports</h2>
