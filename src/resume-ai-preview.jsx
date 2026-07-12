@@ -3014,11 +3014,14 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               <h3 className="font-display font-bold mb-1.5" style={{ color: "var(--ink)", fontSize: "1.35rem", letterSpacing: "-0.01em" }}>For organizations with security &amp; scale needs</h3>
               <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--ink-2)" }}>Everything in Pro, plus enterprise controls and hands-on support.</p>
               <div className="flex flex-wrap gap-2 mt-4">
-                {["SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding", "Unlimited everything"].map((c) => (
-                  <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
-                    <span style={{ color: "var(--brand)" }}><Icon name="check" className="w-3 h-3" /></span> {c}
-                  </span>
-                ))}
+                {["White label", "SSO & audit logs", "Dedicated success manager", "Custom SLAs & onboarding", "Unlimited everything"].map((c) => {
+                  const hl = c === "White label"; // the headline enterprise capability
+                  return (
+                    <span key={c} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium" style={hl ? { background: "var(--brand-soft)", border: "1px solid var(--brand)", color: "var(--brand)" } : { background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>
+                      <span style={{ color: "var(--brand)" }}><Icon name="check" className="w-3 h-3" /></span> {c}
+                    </span>
+                  );
+                })}
               </div>
             </div>
             <div className="shrink-0 md:border-l md:pl-6 flex flex-col md:items-end gap-3" style={{ borderColor: "var(--line-strong)" }}>

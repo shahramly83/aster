@@ -20,7 +20,7 @@ const HELP_STYLES = `
   .help-field:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(11,42,224,.15); }
 `;
 
-const CATEGORIES = ["Account & billing", "Uploading resumes", "AI ranking", "Interviews & scheduling", "Something else"];
+const CATEGORIES = ["Account & billing", "Uploading resumes", "AI ranking", "Interviews & scheduling", "Sales enquiry", "Something else"];
 
 export default function HelpPortal() {
   const [name, setName] = useState("");
@@ -95,10 +95,13 @@ export default function HelpPortal() {
       <header className="border-b" style={{ borderColor: "var(--line)" }}>
         <div className="max-w-5xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <a href="https://hireaster.com" className="flex items-center gap-2.5">
-            <img src="/aster-logo.png" alt="Aster" className="h-7 w-auto object-contain" />
+            <img src="/aster-logo.png" alt="Aster" className="h-9 sm:h-10 w-auto object-contain" />
             <span className="text-[15px] font-medium" style={{ color: "var(--ink-3)" }}>Help</span>
           </a>
-          <a href="https://hireaster.com" className="text-sm font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--ink-2)" }}>Back to Aster</a>
+          <a href="https://hireaster.com" className="inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors hover:bg-black/[0.03]" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            Back to Aster
+          </a>
         </div>
       </header>
 
