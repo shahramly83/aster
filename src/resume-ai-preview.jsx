@@ -17690,11 +17690,16 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
       title = filter.status === "pending" ? "Parsing pending" : "Parse failed";
       base = [];
     } else if (filter.source === "public_application") {
-      title = "Applications";
-      base = base.filter((c) => ["c1", "c3"].includes(c.id));
+      title = "New applications";
+      // Real applicants across every job (not a hardcoded demo id list).
+      const applicantIds = new Set(Object.values(APPLICANTS_BY_JOB).flat().map((a) => a.candidateId));
+      base = base.filter((c) => applicantIds.has(c.id));
     } else if (filter.interview) {
       title = "Candidates in interview";
-      base = base.filter((c) => c.id === "c1");
+      const interviewIds = new Set(
+        Object.values(APPLICANTS_BY_JOB).flat().filter((a) => a.baseStage === "interviewing").map((a) => a.candidateId)
+      );
+      base = base.filter((c) => interviewIds.has(c.id));
     }
   }
 
@@ -17758,9 +17763,24 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
         </div>
 
         {filtered.length === 0 ? (
-          <p className="text-sm text-neutral-500">
-            {q ? `No candidates matching “${query}”.` : "No parsed candidates to show."}
-          </p>
+          <div className="rounded-2xl bg-white act-shadow border px-6 py-14 sm:py-16 text-center" style={{ borderColor: "var(--line)" }}>
+            <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name={isHiredView ? "hire" : q ? "search" : "users"} className="w-7 h-7" />
+            </div>
+            <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>
+              {q ? "No matches" : isHiredView ? "No hires yet" : `No ${title.toLowerCase()} yet`}
+            </p>
+            <p className="text-sm mt-1.5 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              {q ? <>Nothing matches &ldquo;{query}&rdquo;. Try a different name.</>
+                : isHiredView ? "When you mark a candidate hired, they'll appear here with the role and date."
+                : "As candidates move through your pipeline, they'll show up here."}
+            </p>
+            {!q && (
+              <button onClick={() => navigate("search")} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white transition-transform hover:-translate-y-0.5">
+                <Icon name="search" className="w-4 h-4" /> Browse candidates
+              </button>
+            )}
+          </div>
         ) : (
           <div className="space-y-2">
             {visible.map((c) => (
