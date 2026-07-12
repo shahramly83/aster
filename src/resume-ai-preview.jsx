@@ -12042,21 +12042,39 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   );
 }
 
-function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, jobAssignments = [], currentUserId = null, setActiveJobId }) {
-  const interviews = scheduledInterviewsFrom(bookings, candidates);
+// Where a candidate sits in the interview process, as a labelled pill. Semantic
+// status colours (amber = waiting on someone, green = done, blue = your action).
+const INTERVIEW_STAGE_META = {
+  awaiting_candidate: { label: "Awaiting candidate", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
+  confirmed:          { label: "Confirmed",          bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
+  awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
+  scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
+  completed:          { label: "Interview done",     bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
+};
+// Priority orders the list so the cards that need action sit at the top.
+const INTERVIEW_STAGE_ORDER = { awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4 };
+
+function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, jobAssignments = [], currentUserId = null, setActiveJobId, scorecards = {} }) {
   const forInterviewer = isInterviewer(role);
-  // Roles this interviewer is on (their pool memberships). Jobs are already
-  // RLS-scoped to their assignments; cross-reference to be explicit.
+  const interviews = interviewPipelineFrom(bookings, candidates, scorecards, currentUserId, forInterviewer);
+  // Roles this interviewer is on (their pool memberships), open ones only. Jobs
+  // are already RLS-scoped to their assignments; cross-reference to be explicit.
   const myJobIds = new Set(jobAssignments.filter((a) => a.profile_id === currentUserId).map((a) => a.job_id));
-  const myJobs = forInterviewer ? jobs.filter((j) => myJobIds.has(j.id)) : [];
+  const myJobs = forInterviewer ? jobs.filter((j) => myJobIds.has(j.id) && j.status === "open") : [];
 
   const jobForTitle = (title) => jobs.find((j) => j.title === title);
+  // How many still need this interviewer's scorecard — surfaced in the subtitle.
+  const needsAction = interviews.filter((iv) => iv.stage === "awaiting_score").length;
 
   const title = forInterviewer ? "Your Interviews" : "Scheduled Interviews";
   const subtitle = interviews.length > 0
-    ? `${interviews.length} interview${interviews.length > 1 ? "s" : ""} confirmed and on the calendar.`
+    ? forInterviewer
+      ? needsAction > 0
+        ? `${needsAction} candidate${needsAction > 1 ? "s are" : " is"} waiting on your scorecard.`
+        : `${interviews.length} candidate${interviews.length > 1 ? "s" : ""} in your interview pipeline.`
+      : `${interviews.length} interview${interviews.length > 1 ? "s" : ""} on the calendar.`
     : forInterviewer
-      ? "Interviews assigned to you appear here once the candidate picks a time."
+      ? "Candidates you're interviewing show up here, from invite through scorecard."
       : "Interviews a candidate has confirmed appear here.";
 
   return (
@@ -12079,9 +12097,9 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
       )}
 
       {forInterviewer && myJobs.length > 0 && (
-        <div className="mb-7">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Roles you're assigned to</h2>
-          <p className="text-xs mt-0.5 mb-3" style={{ color: "var(--ink-3)" }}>Open a role to review its applicants and request an interview.</p>
+        <div className="mb-8">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Open roles</h2>
+          <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Roles assigned to you. Open one to review its applicants and request an interview.</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {myJobs.map((j) => {
               const n = applicantCountFor(j.id);
@@ -12105,6 +12123,13 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
         </div>
       )}
 
+      {forInterviewer && (
+        <div className="mb-3">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Interviews</h2>
+          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Candidates you're interviewing, and where each one is in the process.</p>
+        </div>
+      )}
+
       {interviews.length === 0 ? (
         <div className="rounded-2xl bg-white act-shadow border px-6 py-14 sm:py-20 text-center" style={{ borderColor: "var(--line)" }}>
           <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
@@ -12120,13 +12145,8 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
       ) : (
         <div className="space-y-3">
             {interviews.map((iv) => {
-              const cand = candidates.find((c) => c.id === iv.candidateId);
               const job = jobForTitle(iv.jobTitle);
-              const dateLine = iv.start.toLocaleString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              });
+              const st = INTERVIEW_STAGE_META[iv.stage] || INTERVIEW_STAGE_META.completed;
               return (
                 <button
                   key={iv.candidateId}
@@ -12134,23 +12154,37 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                   className="w-full text-left rounded-2xl bg-white act-shadow border p-4 sm:p-5 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-4"
                   style={{ borderColor: "var(--line)" }}
                 >
-                  {/* Date chip */}
-                  <div className="w-14 shrink-0 text-center rounded-xl py-2" style={{ background: "var(--brand-soft)" }}>
-                    <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--brand)" }}>{iv.month}</p>
-                    <p className="text-lg font-bold leading-none" style={{ color: "var(--ink)" }}>{iv.day}</p>
-                  </div>
+                  {/* Date chip — a neutral placeholder while a time is still being picked */}
+                  {iv.start ? (
+                    <div className="w-14 shrink-0 text-center rounded-xl py-2" style={{ background: "var(--brand-soft)" }}>
+                      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--brand)" }}>{iv.month}</p>
+                      <p className="text-lg font-bold leading-none" style={{ color: "var(--ink)" }}>{iv.day}</p>
+                    </div>
+                  ) : (
+                    <div className="w-14 h-14 shrink-0 rounded-xl flex items-center justify-center" style={{ background: "var(--bg)", color: "var(--ink-3)" }}>
+                      <Icon name="calendar" className="w-5 h-5" />
+                    </div>
+                  )}
 
                   {/* Candidate + position */}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
                     <p className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{iv.jobTitle}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                      <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
-                        <Icon name="calendar" className="w-3 h-3" /> {dateLine}
-                      </span>
-                      <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
-                        <Icon name="clock" className="w-3 h-3" /> {iv.time}
-                      </span>
+                      {iv.dateLine ? (
+                        <>
+                          <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                            <Icon name="calendar" className="w-3 h-3" /> {iv.dateLine}
+                          </span>
+                          <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                            <Icon name="clock" className="w-3 h-3" /> {iv.time}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                          <Icon name="clock" className="w-3 h-3" /> Times sent, waiting for the candidate to pick
+                        </span>
+                      )}
                       {iv.interviewerName && (
                         <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
                           <Icon name="users" className="w-3 h-3" /> {iv.interviewerName}
@@ -12159,12 +12193,11 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                     </div>
                   </div>
 
-                  {/* Provider + status */}
-                  <div className="text-right shrink-0 hidden sm:block">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1" style={{ background: "#ECFDF3", color: "#067647" }}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#12B76A" }} /> Confirmed
+                  {/* Process stage */}
+                  <div className="shrink-0">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1" style={{ background: st.bg, color: st.color }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} /> {st.label}
                     </span>
-                    <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{iv.provider}</p>
                   </div>
                 </button>
               );
@@ -12589,6 +12622,47 @@ function scheduledInterviewsFrom(bookings, candidates) {
       };
     })
     .sort((a, b) => a.start - b.start);
+  return rows;
+}
+
+// Every candidate with a live interview (times sent OR a confirmed slot),
+// tagged with the viewer's process stage. Interviewers get scorecard-aware
+// stages; managers see "Interview done" once the slot is in the past.
+function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUserId = null, forInterviewer = false) {
+  const now = Date.now();
+  const rows = Object.entries(bookings || {})
+    .filter(([, b]) => b && (b.status === "sent" || (b.status === "scheduled" && b.confirmedSlot?.start)))
+    .map(([candidateId, b]) => {
+      const cand = candidates.find((c) => c.id === candidateId);
+      const start = b.confirmedSlot?.start ? new Date(b.confirmedSlot.start) : null;
+      let stage;
+      if (b.status === "sent") stage = "awaiting_candidate";
+      else if (start && start.getTime() > now) stage = "confirmed";
+      else if (forInterviewer) {
+        const mine = (scorecards[candidateId] || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
+        stage = mine ? "scored" : "awaiting_score";
+      } else stage = "completed";
+      return {
+        candidateId,
+        candidateName: cand?.parsed?.name || b.request?.candidateName || cand?.name || "Candidate",
+        jobTitle: b.request?.jobTitle || "Interview",
+        interviewerName: b.request?.interviewerName || null,
+        stage,
+        start,
+        month: start ? start.toLocaleString("en-US", { month: "short" }) : null,
+        day: start ? String(start.getDate()) : null,
+        time: start ? start.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" }) : null,
+        dateLine: start ? start.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric" }) : null,
+      };
+    })
+    .sort((a, b) => {
+      const pa = INTERVIEW_STAGE_ORDER[a.stage] ?? 9;
+      const pb = INTERVIEW_STAGE_ORDER[b.stage] ?? 9;
+      if (pa !== pb) return pa - pb;
+      // Within a stage: soonest date first; undated (awaiting candidate) last.
+      if (a.start && b.start) return a.start - b.start;
+      return a.start ? -1 : b.start ? 1 : 0;
+    });
   return rows;
 }
 
@@ -15690,7 +15764,9 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
   const hasMine = scorecards.some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
   const onPanel = isManager || isAttendee;   // whose scorecard this is
   const canSeeAll = isManager || hasMine;    // full panel visible
-  const canScore = isAttendee && !hasMine;   // still owes a card
+  // Only interviewers score. The hiring manager runs the process and reads the
+  // panel's results, but never rates the candidate themselves.
+  const canScore = isAttendee && !isManager && !hasMine;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -15745,7 +15821,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
             </div>
           )}
           {canSeeAll && scorecards.length === 0 && !open && (
-            <p className="text-sm text-neutral-500">No scorecards yet. Add yours after the interview, and your teammates' will collect here.</p>
+            <p className="text-sm text-neutral-500">{isManager ? "No scorecards yet. Each interviewer's rating collects here once they submit." : "No scorecards yet. Add yours after the interview, and your teammates' will collect here."}</p>
           )}
 
           {canSeeAll && scorecards.map((sc) => {
@@ -19318,6 +19394,7 @@ export default function ResumeAIPreview() {
             jobAssignments={jobAssignments}
             currentUserId={userId}
             setActiveJobId={setActiveJobId}
+            scorecards={scorecards}
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
