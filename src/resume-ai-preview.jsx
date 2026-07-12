@@ -8577,8 +8577,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const allApplicants = Object.values(APPLICANTS_BY_JOB).flat();
   // Hired candidates (a completed hire, the headline win). Global per candidate.
   const hiredCandidates = candidates.filter((c) => hiredIds.has(c.id));
+  // Candidates who are out of the active pipeline: hired or turned down. Excluded
+  // from the "Total Candidates" headline so it reflects who's still in play.
+  const rejectedIds = new Set(allApplicants.filter((a) => a.baseStage === "rejected" || a.baseStage === "declined").map((a) => a.candidateId));
   const stats = {
-    totalCandidates: candidates.length,
+    totalCandidates: candidates.filter((c) => !hiredIds.has(c.id) && !rejectedIds.has(c.id)).length,
     parsed: candidates.filter((c) => c.status === "parsed").length,
     pending: candidates.filter((c) => c.status === "pending").length,
     openJobs: jobs.filter((j) => j.status === "open").length,
@@ -8646,15 +8649,17 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     </div>
   );
 
-  const donutColors = ["#0B2AE0", "#3B82F6", "#93C5FD", "#D1D5DB"];
+  const donutColors = ["#0B2AE0", "#3B82F6", "#6366F1", "#93C5FD", "#C7D2FE"];
 
-  // Top Roles: applicants per role, derived from real applicant data.
+  // Top Roles: applicants per ACTIVE (open) role, derived from real applicant data.
+  // Closed / draft roles are excluded so this reflects where hiring is live now.
   const roleCounts = jobs
+    .filter((j) => j.status === "open")
     .map((j) => ({ label: j.title, value: applicantCountFor(j.id) }))
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value);
-  // Top 3 roles by applicant count (View all shows the rest on the Jobs screen).
-  const roleSegments = roleCounts.slice(0, 3).map((r, i) => ({ ...r, color: donutColors[i] }));
+  // Top 5 roles by applicant count (View all shows the rest on the Jobs screen).
+  const roleSegments = roleCounts.slice(0, 5).map((r, i) => ({ ...r, color: donutColors[i % donutColors.length] }));
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
   // Application Source: distribution of where applicants came from.
@@ -8668,8 +8673,8 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     .map(([label, value]) => ({ label, value, color: sourcePalette[label] || "#D1D5DB" }))
     .sort((a, b) => b.value - a.value);
   const sourceTotal = sourceSegments.reduce((s, r) => s + r.value, 0);
-  // Show the top 4 sources by default; "View all" reveals the rest.
-  const shownSources = showAllSources ? sourceSegments : sourceSegments.slice(0, 4);
+  // Show the top 5 sources by default; "Show all" reveals the rest.
+  const shownSources = showAllSources ? sourceSegments : sourceSegments.slice(0, 5);
   const shownSourceTotal = shownSources.reduce((s, r) => s + r.value, 0);
 
   const donutBody = (segments, total, emptyTitle, emptySub) =>
@@ -8750,14 +8755,14 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 </button>
               );
               const stageCount = (s) => allApplicants.filter((a) => a.baseStage === s).length;
-              // Cumulative funnel: how many candidates reached (at least) each stage.
-              const stageRank = { applied: 0, shortlisted: 1, interviewing: 2, offer: 3, hired: 4 };
-              const reachedAtLeast = (r) => allApplicants.filter((a) => (stageRank[a.baseStage] ?? -1) >= r).length;
+              // Current-stage distribution: each candidate counts in exactly the
+              // stage they're in now, so moving offer -> hired empties Offer and
+              // fills Hired. (Rejected / declined fall out of the funnel entirely.)
               const funnel = [
-                { label: "Applied", value: allApplicants.length },
-                { label: "Interview", value: reachedAtLeast(2) },
-                { label: "Offer", value: reachedAtLeast(3) },
-                { label: "Hired", value: reachedAtLeast(4) },
+                { label: "Applied", value: stageCount("applied") + stageCount("shortlisted") },
+                { label: "Interview", value: stageCount("interviewing") },
+                { label: "Offer", value: stageCount("offer") },
+                { label: "Hired", value: stageCount("hired") },
               ];
               const fmax = Math.max(...funnel.map((f) => f.value), 1);
               return (
@@ -8766,14 +8771,14 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                     {heroCard({ ...kpis[5], dark: true, celebrate: true })}
                     {heroCard(kpis[0])}
-                    {heroCard({ label: "Total Job Postings", value: jobs.length, icon: "jobs", delta: pctChange(stats.openJobs, prevPeriod.openJobs), onClick: () => goToJobs(null) })}
+                    {heroCard({ label: "Total Job Postings", value: jobs.filter((j) => j.status !== "closed").length, icon: "jobs", delta: pctChange(stats.openJobs, prevPeriod.openJobs), onClick: () => goToJobs(null) })}
                     {heroCard({ label: "New Applicants", value: stageCount("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
                   </div>
 
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
-                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Your hiring funnel, showing how many applicants have reached each stage from Applied through to Hired.")}
+                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Where your candidates are right now, counted in the stage they're currently in from Applied through to Hired.")}
                       <div className="flex items-end justify-between gap-3 flex-1 min-h-[128px] pt-8">
                         {funnel.map((f) => {
                           const top = f.value === fmax && f.value > 0;
@@ -8957,7 +8962,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           <div className={cardClass}>
             {sectionHead(
               "Application Source",
-              sourceSegments.length > 4 ? (
+              sourceSegments.length > 5 ? (
                 <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : "Show all"} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
               ) : null
             )}
