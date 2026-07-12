@@ -9,6 +9,24 @@ import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, A
 import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
+// Keep a click-opened popover inside the viewport: measure the trigger on open
+// and, when there isn't room below for the menu, flip it above the trigger.
+// Attach the returned ref to the menu's relative anchor and use `up` to swap the
+// menu's position classes (`bottom-full mb-1` when up, `top-full mt-1` when down).
+// estHeight is a rough menu height; being generous just flips a little earlier.
+function useDropUp(open, estHeight = 300) {
+  const anchorRef = useRef(null);
+  const [up, setUp] = useState(false);
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current || typeof window === "undefined") return;
+    const r = anchorRef.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    // Flip up only when below is tight AND there's genuinely more room above.
+    setUp(below < estHeight && r.top > below);
+  }, [open, estHeight]);
+  return [anchorRef, up];
+}
+
 // Turn a stored profile_role ('owner' | 'admin' | 'recruiter' | 'interviewer')
 // into the friendly label the workspace greeting/sidebar expect.
 const ROLE_LABELS = { owner: "Tenant", admin: "Hiring Manager", recruiter: "Recruiter", interviewer: "Interviewer" };
@@ -7664,6 +7682,7 @@ function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick }) {
 
 function DateRangePicker({ range, setRange }) {
   const [open, setOpen] = useState(false);
+  const [calMenuRef, calUp] = useDropUp(open, 380);
   const [viewMonth, setViewMonth] = useState(startOfDay(range.end || new Date()));
 
   const pick = (date) => {
@@ -7697,7 +7716,7 @@ function DateRangePicker({ range, setRange }) {
   ];
 
   return (
-    <div className="relative">
+    <div className="relative" ref={calMenuRef}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 rounded-xl bg-white border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:border-neutral-300 transition-colors"
@@ -7710,7 +7729,7 @@ function DateRangePicker({ range, setRange }) {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 right-0 mt-2 w-64 rounded-2xl border border-neutral-200 bg-white shadow-lg p-3">
+          <div className={`absolute z-20 right-0 ${calUp ? "bottom-full mb-2" : "top-full mt-2"} w-64 rounded-2xl border border-neutral-200 bg-white shadow-lg p-3`}>
             <MiniCalendar
               month={viewMonth}
               onPrevMonth={() => setViewMonth((mo) => new Date(mo.getFullYear(), mo.getMonth() - 1, 1))}
@@ -10145,6 +10164,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [editJob, setEditJob] = useState(null); // job open in the edit modal
   const [sortBy, setSortBy] = useState("newest"); // newest | applicants | oldest | az
   const [sortOpen, setSortOpen] = useState(false);
+  const [statusMenuRef, statusUp] = useDropUp(filterOpen, 220);
+  const [sortMenuRef, sortUp] = useDropUp(sortOpen, 220);
   const [view, setView] = useState("grid"); // grid | list
   const [openHelp, setOpenHelp] = useState(null); // sidebar "how it works" accordion
   const [page, setPage] = useState(0);
@@ -10381,7 +10402,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             />
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={statusMenuRef}>
             <button
               onClick={() => setFilterOpen((o) => !o)}
               aria-haspopup="listbox"
@@ -10400,7 +10421,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             {filterOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setFilterOpen(false)} />
-                <div role="listbox" className="absolute right-0 z-20 mt-1.5 w-40 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                <div role="listbox" className={`absolute right-0 z-20 ${statusUp ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-40 rounded-xl bg-white border p-1 act-shadow`} style={{ borderColor: "var(--line)" }}>
                   {["all", "open", "draft", "closed"].map((v) => {
                     const on = statusFilter === v;
                     return (
@@ -10424,7 +10445,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>
 
           {/* Sort */}
-          <div className="relative">
+          <div className="relative" ref={sortMenuRef}>
             <button onClick={() => setSortOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={sortOpen} className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2.5 text-sm transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)" }}>
               <span style={{ color: "var(--ink-3)" }}>Sort</span>
               <span className="font-medium" style={{ color: "var(--ink)" }}>{SORT_LABELS[sortBy]}</span>
@@ -10433,7 +10454,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             {sortOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} />
-                <div role="listbox" className="absolute right-0 z-20 mt-1.5 w-48 rounded-xl bg-white border p-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                <div role="listbox" className={`absolute right-0 z-20 ${sortUp ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-48 rounded-xl bg-white border p-1 act-shadow`} style={{ borderColor: "var(--line)" }}>
                   {["newest", "applicants", "oldest", "az"].map((v) => {
                     const on = sortBy === v;
                     return (
@@ -17232,6 +17253,7 @@ function RejectionModal({ candidateName, jobTitle, hasEmail = true, onClose, onR
 function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasEmail, onStageChange }) {
   const [open, setOpen] = useState(false);
   const [showReject, setShowReject] = useState(false);
+  const [menuRef, dropUp] = useDropUp(open, 320);
 
   // Manual moves are limited to Shortlisted and Rejected. The rest of the funnel
   // is set by the flow, not the dropdown: Applied is the entry state, Interview
@@ -17269,7 +17291,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
           </span>
         )
       )}
-      <div className="relative">
+      <div className="relative" ref={menuRef}>
         <button
           onClick={() => setOpen((o) => !o)}
           className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition-colors hover:brightness-95 ${STAGE_STYLES[stage]}`}
@@ -17281,7 +17303,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute z-40 right-0 mt-1 w-52 rounded-xl border border-neutral-200 bg-white shadow-lg py-1">
+          <div className={`absolute z-40 right-0 ${dropUp ? "bottom-full mb-1" : "top-full mt-1"} w-52 rounded-xl border border-neutral-200 bg-white shadow-lg py-1`}>
             <p className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-wide text-neutral-400">Move to stage</p>
             {STAGE_ORDER.map((s) => {
               const current = s === stage;
@@ -17337,6 +17359,7 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
 // interviewers. Read-only for non-managers; add/remove is admin-gated server-side.
 function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign }) {
   const [open, setOpen] = useState(false);
+  const [addMenuRef, addUp] = useDropUp(open, 280);
   const [busyId, setBusyId] = useState(null);
   const [err, setErr] = useState(null);
   const assigned = team.filter((m) => assignedIds.has(m.id));
@@ -17366,7 +17389,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
           <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>They can see these applicants and request interviews. You and other hiring managers always have access.</p>
         </div>
         {canManage && (
-          <div className="relative shrink-0">
+          <div className="relative shrink-0" ref={addMenuRef}>
             <button
               onClick={() => setOpen((o) => !o)}
               disabled={addable.length === 0}
@@ -17378,7 +17401,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
             {open && addable.length > 0 && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-                <div className="absolute right-0 mt-1.5 w-64 max-h-64 overflow-auto rounded-xl border bg-white z-20 py-1 act-shadow" style={{ borderColor: "var(--line)" }}>
+                <div className={`absolute right-0 ${addUp ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-64 max-h-64 overflow-auto rounded-xl border bg-white z-20 py-1 act-shadow`} style={{ borderColor: "var(--line)" }}>
                   {addable.map((m) => (
                     <button key={m.id} onClick={() => add(m)} className="w-full text-left px-3 py-2 hover:bg-neutral-50 transition-colors">
                       <span className="text-sm block truncate" style={{ color: "var(--ink)" }}>{m.name}{m.id === currentUserId ? " (You)" : ""}</span>
@@ -17511,6 +17534,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
   const [stageFilter, setStageFilter] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [filterMenuRef, filterUp] = useDropUp(filterOpen, 260);
   // Inline AI matching, ranks these applicants against the job.
   const [matching, setMatching] = useState(false);
   const [matchErr, setMatchErr] = useState(null);
@@ -17734,7 +17758,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             {filtered.length} {filtered.length === 1 ? "candidate" : "candidates"}
             {stageFilter !== "all" ? ` · ${STAGE_LABELS[stageFilter]}` : ""}
           </p>
-          <div className="relative">
+          <div className="relative" ref={filterMenuRef}>
             <button
               onClick={() => setFilterOpen((o) => !o)}
               className="flex items-center gap-2 rounded-xl bg-white border border-neutral-200 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-300 transition-colors"
@@ -17746,7 +17770,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             {filterOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
-                <div className="absolute z-40 right-0 mt-1 w-48 rounded-xl border border-neutral-200 bg-white shadow-lg py-1">
+                <div className={`absolute z-40 right-0 ${filterUp ? "bottom-full mb-1" : "top-full mt-1"} w-48 rounded-xl border border-neutral-200 bg-white shadow-lg py-1`}>
                   {filterOptions.map((key) => (
                     <button
                       key={key}
