@@ -13,9 +13,20 @@
 // Secrets: CRON_SECRET (required), RESEND_API_KEY (optional — skipped if unset)
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, emailShell, loadTemplate, renderTemplate } from "../_shared/email.ts";
+import { sendEmail, emailShell, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
 
 const SITE = "https://hireaster.com";
+
+// Human-readable slot label. The candidate's timezone is unknown here, so render
+// in UTC with the zone shown (same convention as confirm-booking).
+function fmtWhen(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short", day: "numeric", month: "short",
+      hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short",
+    }).format(new Date(iso));
+  } catch { return iso; }
+}
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -100,6 +111,65 @@ async function runTrialEnding(admin: Admin): Promise<number> {
   return sent;
 }
 
+// Remind the candidate + panel about interviews happening in the next ~28h that
+// haven't been reminded yet. reminder_sent_at (0060) is stamped after, so a
+// candidate is reminded exactly once no matter how often the cron runs.
+async function runInterviewReminder(admin: Admin): Promise<number> {
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + 28 * 3600 * 1000).toISOString();
+  const { data: ivs } = await admin.from("interviews")
+    .select("id, company_id, candidate_id, job_id, scheduled_at, attendees")
+    .eq("status", "scheduled")
+    .is("reminder_sent_at", null)
+    .gte("scheduled_at", now.toISOString())
+    .lte("scheduled_at", windowEnd);
+  let sent = 0;
+  for (const iv of (ivs || []) as { id: string; company_id: string; candidate_id: string; job_id: string | null; scheduled_at: string; attendees: { email?: string }[] | null }[]) {
+    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", iv.company_id).maybeSingle();
+    const companyName = comp?.name || "the hiring team";
+    const logoUrl = comp?.logo_url || null;
+    let jobTitle = "the role";
+    if (iv.job_id) { const { data: job } = await admin.from("jobs").select("title").eq("id", iv.job_id).maybeSingle(); jobTitle = job?.title || jobTitle; }
+    const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
+    const dateTime = fmtWhen(iv.scheduled_at);
+
+    // 1) Candidate reminder (company-branded).
+    if (cand?.email) {
+      try {
+        const tpl = await loadTemplate(admin, "interview_reminder", iv.company_id, {
+          subject: "Reminder: your interview is coming up ({{date_time}})",
+          body: "Hi {{candidate_name}},\n\nA quick reminder that your interview for the {{job_title}} role is coming up on {{date_time}}. Your interviewer will share the meeting link before the call. We look forward to speaking with you.",
+        });
+        const tokens = { candidate_name: cand.full_name || "there", job_title: jobTitle, company_name: companyName, date_time: dateTime };
+        await sendEmail({
+          to: cand.email,
+          subject: renderTemplate(tpl.subject, tokens),
+          html: companyShell({ companyName, logoUrl, heading: "Your interview is coming up", preview: `Reminder for ${dateTime}.`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)) }),
+        });
+      } catch (e) { console.error("candidate reminder failed", e); }
+    }
+
+    // 2) Panel reminder (every attendee).
+    const recipients = new Set<string>();
+    for (const a of (Array.isArray(iv.attendees) ? iv.attendees : [])) {
+      const e = (a && typeof a.email === "string") ? a.email.trim().toLowerCase() : "";
+      if (e) recipients.add(e);
+    }
+    if (recipients.size) {
+      try {
+        const subject = `Reminder: interview with ${cand?.full_name || "a candidate"} on ${dateTime}`;
+        const html = companyShell({ companyName, logoUrl, heading: "Interview reminder", preview: `${cand?.full_name || "A candidate"} · ${dateTime}.`, bodyHtml: paragraphs(`Reminder: your interview with ${cand?.full_name || "the candidate"} for the ${jobTitle} role is on ${dateTime}.`), signoff: false });
+        await Promise.all([...recipients].map((to) => sendEmail({ to, subject, html }).catch((e) => console.error("panel reminder failed", to, e))));
+      } catch (e) { console.error("panel reminders failed", e); }
+    }
+
+    // Stamp so it never sends twice.
+    await admin.from("interviews").update({ reminder_sent_at: new Date().toISOString() }).eq("id", iv.id);
+    sent++;
+  }
+  return sent;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -114,6 +184,7 @@ Deno.serve(async (req) => {
     let sent = 0;
     if (task === "weekly_digest") sent = await runWeeklyDigest(admin);
     else if (task === "trial_ending") sent = await runTrialEnding(admin);
+    else if (task === "interview_reminder") sent = await runInterviewReminder(admin);
     else return json({ error: "unknown task" }, 400);
 
     return json({ ok: true, task, sent });
