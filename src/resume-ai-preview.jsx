@@ -12163,9 +12163,20 @@ const INTERVIEW_STAGE_META = {
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
   scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   completed:          { label: "Interview done",     bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
+  hired:              { label: "Hired",              bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
+  rejected:           { label: "Not selected",       bg: "#FEF2F2", color: "#B42318", dot: "#DC2626" },
 };
 // Priority orders the list so the cards that need action sit at the top.
-const INTERVIEW_STAGE_ORDER = { awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4 };
+const INTERVIEW_STAGE_ORDER = { awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4, hired: 5, rejected: 6 };
+// A candidate's terminal outcome (from the loaded pipeline), if any. Once they're
+// hired or turned down, that trumps the interview-process status everywhere.
+const candidateOutcome = (candidateId) => {
+  for (const list of Object.values(APPLICANTS_BY_JOB)) {
+    const a = list.find((x) => x.candidateId === candidateId);
+    if (a && ["hired", "rejected", "declined"].includes(a.baseStage)) return a.baseStage === "declined" ? "rejected" : a.baseStage;
+  }
+  return null;
+};
 
 function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, currentUserId = null, scorecards = {} }) {
   const forInterviewer = isInterviewer(role);
@@ -12794,8 +12805,12 @@ function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUse
     .map(([candidateId, b]) => {
       const cand = candidates.find((c) => c.id === candidateId);
       const start = b.confirmedSlot?.start ? new Date(b.confirmedSlot.start) : null;
+      // A hired / turned-down candidate is out of the interview process, so that
+      // outcome wins over "Scored" / "Confirmed" / etc.
+      const outcome = candidateOutcome(candidateId);
       let stage;
-      if (b.status === "sent") stage = "awaiting_candidate";
+      if (outcome) stage = outcome;
+      else if (b.status === "sent") stage = "awaiting_candidate";
       else if (start && start.getTime() > now) stage = "confirmed";
       else if (forInterviewer) {
         const mine = (scorecards[candidateId] || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
@@ -19337,6 +19352,10 @@ export default function ResumeAIPreview() {
   const setCandidateStage = (candidateId, stage, { notify = true } = {}) => {
     const prevStage = stageOverrides[candidateId];
     setStageOverrides((prev) => ({ ...prev, [candidateId]: stage }));
+    // Keep the loaded snapshot (baseStage) in sync so stage-derived statuses,
+    // the job pipeline bar, the profile stage pill, the interviewer's interview
+    // status, don't show a stale stage until the next reload.
+    Object.values(APPLICANTS_BY_JOB).forEach((list) => list.forEach((a) => { if (a.candidateId === candidateId) a.baseStage = stage; }));
     // Stamp the hire date when a candidate is marked hired (drives "Hired {date}").
     if (stage === "hired") setHiredDates((prev) => (prev[candidateId] ? prev : { ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
     if (!canPersist || prevStage === stage) return;
