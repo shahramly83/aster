@@ -63,7 +63,7 @@ Every plan starts with a 14-day Scale trial: full access, no card required. When
 
 # What each plan includes (metered credits reset every 30 days)
 Numbers are Launch / Scale / Elite. Enterprise is unlimited on all of these.
-- Active jobs: 1 / 5 / 10. Seats: 10 / 30 / 100 (Enterprise unlimited).
+- Active jobs: 1 / 5 / 10. Seats: 1 / 30 / 100 (Enterprise unlimited).
 - Applicant parsing: 100 / 500 / 1,000 a month. Bulk upload parsing: 10 / 50 / 100 a month.
 - AI Rank credits: 5 / 30 / 100 a month (these also cover match-to-role and talent-pool ranking).
 - AI Insight credits: 5 / 100 / 300 a month. See Why (the detailed reasoning behind a rank): 5 / 30 / 100 a month.

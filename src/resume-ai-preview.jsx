@@ -2207,7 +2207,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const compareGroups = [
     { group: "Jobs & team", rows: [
       { label: "Active job postings", free: "1", starter: "5", pro: "10", ent: "Unlimited" },
-      { label: "Seats", free: "10", starter: "30", pro: "100", ent: "Unlimited" },
+      { label: "Seats", free: "1", starter: "30", pro: "100", ent: "Unlimited" },
     ]},
     { group: "AI screening", rows: [
       { label: "Applicant parsing", free: "100 / mo", starter: "500 / mo", pro: "1,000 / mo", ent: "Unlimited" },
@@ -2234,7 +2234,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   // Curated, scannable highlights for the mobile plan cards (keyed by plan.col).
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
-    free: { lead: "Includes", items: ["1 job posting · 10 seats", "100 parses + 5 AI Rank / month", "5 AI Insight credits / month", "Scorecard & 2FA", "Support ticket"] },
+    free: { lead: "Includes", items: ["1 job posting · 1 seat", "100 parses + 5 AI Rank / month", "5 AI Insight credits / month", "Scorecard & 2FA", "Support ticket"] },
     starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 30 seats", "500 parses + 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
     pro: { lead: "Everything in Scale, plus", items: ["10 jobs · 100 seats", "1,000 parses + 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
