@@ -12163,17 +12163,20 @@ const INTERVIEW_STAGE_META = {
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
   scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   completed:          { label: "Interview done",     bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
+  offer:              { label: "Offer",              bg: "#F5F3FF", color: "#6D28D9", dot: "#8B5CF6" },
   hired:              { label: "Hired",              bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   rejected:           { label: "Not selected",       bg: "#FEF2F2", color: "#B42318", dot: "#DC2626" },
 };
 // Priority orders the list so the cards that need action sit at the top.
-const INTERVIEW_STAGE_ORDER = { awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4, hired: 5, rejected: 6 };
-// A candidate's terminal outcome (from the loaded pipeline), if any. Once they're
-// hired or turned down, that trumps the interview-process status everywhere.
+const INTERVIEW_STAGE_ORDER = { awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4, offer: 5, hired: 6, rejected: 7 };
+// The candidate's dominant pipeline stage (from the loaded pipeline), if it has
+// moved beyond the interview itself. Once they're at offer, hired or turned down,
+// that trumps the interview-process status ("Scored"/"Confirmed"/etc.) everywhere,
+// so an interviewer never sees a stale "Scored" for someone already at offer/hired.
 const candidateOutcome = (candidateId) => {
   for (const list of Object.values(APPLICANTS_BY_JOB)) {
     const a = list.find((x) => x.candidateId === candidateId);
-    if (a && ["hired", "rejected", "declined"].includes(a.baseStage)) return a.baseStage === "declined" ? "rejected" : a.baseStage;
+    if (a && ["hired", "rejected", "declined", "offer"].includes(a.baseStage)) return a.baseStage === "declined" ? "rejected" : a.baseStage;
   }
   return null;
 };
@@ -17416,7 +17419,13 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
 function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
-    if (bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
+    // Once a candidate advances to offer or a terminal state, the stage pill is
+    // the whole truth; a lingering "Interview scheduled" / "New" badge only
+    // contradicts it (e.g. "Interview scheduled" sitting next to an "Offer" pill).
+    if (["offer", "hired", "rejected", "declined"].includes(a.stage)) return null;
+    // Only flag "Interview scheduled" when the stage pill doesn't already say it
+    // (the pill reads "Interview Scheduled" once the stage flips to interviewing).
+    if (a.stage !== "interviewing" && bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
     const t = (a.appliedAt || "").toLowerCase();
     if (t.includes("today") || /^\s*1\s*d/.test(t)) return { label: "New", color: "#166534", bg: "#DCFCE7" };
     return null;
@@ -17771,10 +17780,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               const scoreVisible = idx < aiMatchLimit;
               const ranked = !!match && scoreVisible;
               const isTop = !!matchResults && idx === 0 && ranked;
-              // Once a candidate is closed out (rejected / hired / declined), the
-              // stage badge tells the whole story, so drop the activity badge
-              // (an old "Interview scheduled" next to "Rejected" just confuses).
-              const act = ["rejected", "hired", "declined"].includes(a.stage) ? null : activityFor(a);
+              // activityFor already suppresses the badge once the candidate has
+              // advanced to offer or a terminal state, so the stage pill stands alone.
+              const act = activityFor(a);
               return (
                 <div
                   key={a.candidateId}
@@ -18477,31 +18485,26 @@ function hasStoredAuthSession() {
   return false;
 }
 
-// Full-screen Aster-branded loader. Shown while a returning user's session and
-// workspace hydrate, in place of a flash of demo data or the marketing header.
-// The mark breathes and a brand ring orbits it; both stop under reduced-motion.
+// Full-screen Aster-branded loader: the Aster asterisk mark in brand blue,
+// turning gently while a returning user's session and workspace hydrate. Shown
+// in place of a flash of demo data or the marketing header. The mark is inlined
+// SVG so it paints on the first frame; motion stops under reduced-motion.
 function AsterSplash({ label = "Loading your workspace" }) {
   return (
     <div data-aster-splash className="min-h-dvh flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>
       <style>{`
-        @keyframes asterBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
-        @keyframes asterRing { to { transform: rotate(360deg); } }
+        @keyframes asterSpin { to { transform: rotate(360deg); } }
         @keyframes asterFade { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) {
-          [data-aster-splash] .aster-breath, [data-aster-splash] .aster-ring, [data-aster-splash] .aster-fade { animation: none !important; }
+          [data-aster-splash] .aster-spin, [data-aster-splash] .aster-fade { animation: none !important; }
         }
       `}</style>
       <div className="flex flex-col items-center gap-6">
-        <div className="relative" style={{ width: 80, height: 80 }}>
-          <div className="aster-ring absolute inset-0 rounded-full" style={{ border: "2px solid var(--brand-soft)", borderTopColor: "var(--brand)", animation: "asterRing 0.9s linear infinite" }} />
-          {/* Aster mark inlined (no network fetch) so it paints instantly on first frame. */}
-          <svg className="aster-breath absolute" style={{ top: 13, left: 13, animation: "asterBreath 1.7s ease-in-out infinite" }} width="54" height="54" viewBox="0 0 128 128" fill="none" role="img" aria-label="Aster">
-            <rect width="128" height="128" rx="28" fill="#0B2AE0" />
-            <g transform="translate(64 64) scale(0.92) translate(-250.9 -296.1)" fill="#FFFFFF">
-              <path d="M251.08,334.83c1.9.32,3.12,1.87,3.06,3.75-.04,1.23-.67,2.28-1.58,2.87-1.08.69-2.39.75-3.55.22-1.49-.68-2.22-2.24-1.96-3.85.25-1.5,1.47-2.76,3.15-2.97l.02-30.97c-.48-.2-.93-.23-1.52-.33l-11.1,28.88c1.01.68,1.56,1.72,1.63,2.76.08,1.17-.35,2.25-1.25,3-1.33,1.12-3.19,1.04-4.48.01s-1.66-2.94-.89-4.42,2.5-2.17,4.19-1.73l.86-2.32,10.22-26.54-1.71-1.04-20.69,23.25c1.28,1.69,1.01,4.03-.68,5.25-1.48,1.06-3.5.8-4.68-.48s-1.26-3.36-.11-4.75,3.16-1.73,4.8-.62l20.72-23.29c-.48-.5-.78-.9-1.1-1.49l-28.61,13.54c.52,2.14-.79,4.21-2.89,4.51-2.18.32-4.11-1.28-4.13-3.53-.02-1.66,1.09-3.05,2.52-3.47,1.65-.48,3.25.14,4.15,1.65l12.9-6.12,15.64-7.38-.4-1.68-31.2,1.08c-.19,1.85-1.64,3.2-3.42,3.27s-3.39-1.14-3.68-2.94c-.34-2.03.91-3.83,2.87-4.21s3.84.93,4.2,2.99l31.14-1.05c.05-.76.07-1.44.31-2.29l-29.4-9.87c-.64,1.53-2.03,2.42-3.61,2.34s-2.87-1.04-3.32-2.59c-.66-2.28.85-4.51,3.09-4.75,2.36-.25,4.32,1.63,4.06,4.13l29.48,9.88c.38-.77.78-1.35,1.29-2.01l-14.99-13.35-8.13-7.2c-1.05,1.05-2.4,1.34-3.78.94-1.14-.33-2.14-1.34-2.41-2.65-.35-1.66.35-3.25,1.78-4.05,1.39-.79,3.17-.57,4.32.56s1.42,2.97.62,4.49l23.24,20.66,1.62-1.07-8.47-18.77-4.23-9.49c-1.49.52-3.09.17-4.09-.92s-1.3-2.8-.6-4.23c1.06-2.14,3.93-2.78,5.81-1.29,1.63,1.29,1.75,4.61-.34,6.03l12.74,28.33,1.74-.32v-31.45c-2.08-.28-3.49-1.94-3.35-3.99.09-1.45.92-2.76,2.31-3.31,1.31-.51,2.93-.35,4.04.54.85.68,1.15,1.83,1.18,2.9.05,1.99-1.34,3.58-3.27,3.85l.02,31.38,1.92.41,5.91-13.1,6.92-15.22c-1.47-1.11-1.91-2.94-1.2-4.55.65-1.49,2.23-2.41,3.98-2.15,1.6.24,2.94,1.61,3.09,3.36.11,1.32-.46,2.47-1.37,3.22-1.02.84-2.33.96-3.68.56l-12.82,28.21,1.63,1.06,23.38-20.51c-.79-1.57-.47-3.35.74-4.48,1.2-1.12,3.1-1.31,4.52-.35,1.01.68,1.53,1.8,1.57,2.94.04,1.2-.47,2.37-1.5,3.1-1.51,1.07-3.51.83-4.81-.46l-23.23,20.37,1.23,1.93,29.57-9.61c-.18-1.97,1.06-3.67,2.91-4.01s3.71.74,4.16,2.66-.52,3.79-2.34,4.36-3.78-.25-4.51-2.15l-9.04,2.97-20.39,6.61.31,2.41,31.25,1.05c.26-1.55,1.38-2.65,2.72-2.95,1.46-.33,2.96.23,3.76,1.51s.81,2.91-.12,4.15c-.84,1.12-2.32,1.7-3.82,1.3-1.37-.37-2.43-1.56-2.6-3.12l-31.24-1.05-.45,1.65,15.37,7.34,13.06,6.28c.83-1.25,2.09-1.88,3.52-1.72,1.29.15,2.48,1.04,2.93,2.39.49,1.48.02,3.04-1.13,3.97-1.21.98-2.93,1.03-4.22.18s-1.83-2.42-1.43-4l-28.51-13.64c-.3.56-.61.95-1.09,1.51l20.38,23.37c1.25-.83,2.77-.9,3.97-.11,1.94,1.28,2.21,4.03.52,5.64-1.36,1.3-3.49,1.21-4.82,0-1.38-1.26-1.51-3.41-.32-4.94l-20.38-23.32-1.72,1.1,10.69,28.81c1.34-.3,2.61,0,3.47.83.93.91,1.27,2.16.98,3.46-.36,1.56-1.75,2.62-3.23,2.68-1.62.07-3.01-.92-3.51-2.35-.54-1.56,0-3.26,1.48-4.23l-4.85-13.14-5.87-15.73-1.79.27-.03,30.97Z" />
-            </g>
-          </svg>
-        </div>
+        <svg className="aster-spin" width="60" height="60" viewBox="0 0 128 128" fill="none" role="img" aria-label="Aster" style={{ transformOrigin: "center", animation: "asterSpin 1.6s linear infinite" }}>
+          <g transform="translate(64 64) scale(0.92) translate(-250.9 -296.1)" fill="#0B2AE0">
+            <path d="M251.08,334.83c1.9.32,3.12,1.87,3.06,3.75-.04,1.23-.67,2.28-1.58,2.87-1.08.69-2.39.75-3.55.22-1.49-.68-2.22-2.24-1.96-3.85.25-1.5,1.47-2.76,3.15-2.97l.02-30.97c-.48-.2-.93-.23-1.52-.33l-11.1,28.88c1.01.68,1.56,1.72,1.63,2.76.08,1.17-.35,2.25-1.25,3-1.33,1.12-3.19,1.04-4.48.01s-1.66-2.94-.89-4.42,2.5-2.17,4.19-1.73l.86-2.32,10.22-26.54-1.71-1.04-20.69,23.25c1.28,1.69,1.01,4.03-.68,5.25-1.48,1.06-3.5.8-4.68-.48s-1.26-3.36-.11-4.75,3.16-1.73,4.8-.62l20.72-23.29c-.48-.5-.78-.9-1.1-1.49l-28.61,13.54c.52,2.14-.79,4.21-2.89,4.51-2.18.32-4.11-1.28-4.13-3.53-.02-1.66,1.09-3.05,2.52-3.47,1.65-.48,3.25.14,4.15,1.65l12.9-6.12,15.64-7.38-.4-1.68-31.2,1.08c-.19,1.85-1.64,3.2-3.42,3.27s-3.39-1.14-3.68-2.94c-.34-2.03.91-3.83,2.87-4.21s3.84.93,4.2,2.99l31.14-1.05c.05-.76.07-1.44.31-2.29l-29.4-9.87c-.64,1.53-2.03,2.42-3.61,2.34s-2.87-1.04-3.32-2.59c-.66-2.28.85-4.51,3.09-4.75,2.36-.25,4.32,1.63,4.06,4.13l29.48,9.88c.38-.77.78-1.35,1.29-2.01l-14.99-13.35-8.13-7.2c-1.05,1.05-2.4,1.34-3.78.94-1.14-.33-2.14-1.34-2.41-2.65-.35-1.66.35-3.25,1.78-4.05,1.39-.79,3.17-.57,4.32.56s1.42,2.97.62,4.49l23.24,20.66,1.62-1.07-8.47-18.77-4.23-9.49c-1.49.52-3.09.17-4.09-.92s-1.3-2.8-.6-4.23c1.06-2.14,3.93-2.78,5.81-1.29,1.63,1.29,1.75,4.61-.34,6.03l12.74,28.33,1.74-.32v-31.45c-2.08-.28-3.49-1.94-3.35-3.99.09-1.45.92-2.76,2.31-3.31,1.31-.51,2.93-.35,4.04.54.85.68,1.15,1.83,1.18,2.9.05,1.99-1.34,3.58-3.27,3.85l.02,31.38,1.92.41,5.91-13.1,6.92-15.22c-1.47-1.11-1.91-2.94-1.2-4.55.65-1.49,2.23-2.41,3.98-2.15,1.6.24,2.94,1.61,3.09,3.36.11,1.32-.46,2.47-1.37,3.22-1.02.84-2.33.96-3.68.56l-12.82,28.21,1.63,1.06,23.38-20.51c-.79-1.57-.47-3.35.74-4.48,1.2-1.12,3.1-1.31,4.52-.35,1.01.68,1.53,1.8,1.57,2.94.04,1.2-.47,2.37-1.5,3.1-1.51,1.07-3.51.83-4.81-.46l-23.23,20.37,1.23,1.93,29.57-9.61c-.18-1.97,1.06-3.67,2.91-4.01s3.71.74,4.16,2.66-.52,3.79-2.34,4.36-3.78-.25-4.51-2.15l-9.04,2.97-20.39,6.61.31,2.41,31.25,1.05c.26-1.55,1.38-2.65,2.72-2.95,1.46-.33,2.96.23,3.76,1.51s.81,2.91-.12,4.15c-.84,1.12-2.32,1.7-3.82,1.3-1.37-.37-2.43-1.56-2.6-3.12l-31.24-1.05-.45,1.65,15.37,7.34,13.06,6.28c.83-1.25,2.09-1.88,3.52-1.72,1.29.15,2.48,1.04,2.93,2.39.49,1.48.02,3.04-1.13,3.97-1.21.98-2.93,1.03-4.22.18s-1.83-2.42-1.43-4l-28.51-13.64c-.3.56-.61.95-1.09,1.51l20.38,23.37c1.25-.83,2.77-.9,3.97-.11,1.94,1.28,2.21,4.03.52,5.64-1.36,1.3-3.49,1.21-4.82,0-1.38-1.26-1.51-3.41-.32-4.94l-20.38-23.32-1.72,1.1,10.69,28.81c1.34-.3,2.61,0,3.47.83.93.91,1.27,2.16.98,3.46-.36,1.56-1.75,2.62-3.23,2.68-1.62.07-3.01-.92-3.51-2.35-.54-1.56,0-3.26,1.48-4.23l-4.85-13.14-5.87-15.73-1.79.27-.03,30.97Z" />
+          </g>
+        </svg>
         <p className="aster-fade text-sm font-medium" style={{ color: "var(--ink-2)", animation: "asterFade 1.7s ease-in-out infinite" }}>{label}</p>
       </div>
     </div>
