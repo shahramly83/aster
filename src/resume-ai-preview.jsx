@@ -413,6 +413,22 @@ let APPLICANTS_BY_JOB = {};
 
 const applicantCountFor = (jobId) => (APPLICANTS_BY_JOB[jobId] || []).length;
 
+// The candidate's real pipeline stage from loaded data (preferring a given job),
+// so a view that wasn't handed a stage (e.g. an interviewer opening a profile
+// from "Your Interviews") shows the true stage instead of defaulting to
+// "applied". Returns null when the candidate isn't in any loaded job list.
+const stageForCandidate = (candidateId, jobId = null) => {
+  if (jobId && Array.isArray(APPLICANTS_BY_JOB[jobId])) {
+    const a = APPLICANTS_BY_JOB[jobId].find((x) => x.candidateId === candidateId);
+    if (a) return a.baseStage;
+  }
+  for (const list of Object.values(APPLICANTS_BY_JOB)) {
+    const a = list.find((x) => x.candidateId === candidateId);
+    if (a) return a.baseStage;
+  }
+  return null;
+};
+
 // Pipeline stage breakdown for a job (active stages; rejected are excluded).
 const JOB_STAGES = [
   { key: "applied", label: "Applied", color: "var(--brand)" },
@@ -16152,7 +16168,12 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage = "applied", onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [] }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [] }) {
+  // The caller may not hand us a stage (e.g. an interviewer opening a profile
+  // from "Your Interviews"), or hands a stale snapshot. Prefer the true stage
+  // from the loaded pipeline so the header/pill never wrongly reads "Applied"
+  // for someone already at offer/hired.
+  const stage = stageProp ?? stageForCandidate(candidate?.id, contextJobId) ?? (hiredIds.has(candidate?.id) ? "hired" : "applied");
   const [confirmDelete, setConfirmDelete] = useState(false); // Delete-candidate confirm dialog
   // Insights are never generated automatically. Once a user runs them they're
   // saved in a session cache keyed by candidate id, so returning to the profile
@@ -19988,7 +20009,7 @@ export default function ResumeAIPreview() {
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
             onSetAttendance={(ids) => activeCandidate && setAttendance(activeCandidate.id, ids)}
             onSubstitute={(oldId, replacement) => activeCandidate && substituteAttendee(activeCandidate.id, oldId, replacement)}
-            stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? "applied") : "applied"}
+            stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? null) : null}
             onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
