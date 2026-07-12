@@ -17382,14 +17382,33 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const seeWhyLimit = limits.seeWhyPerMonth;
   const seeWhyUnlimited = seeWhyLimit === Infinity;
   const seeWhyLeft = Math.max(0, seeWhyLimit - seeWhyUsed);
-  const [confirmRegen, setConfirmRegen] = useState(null); // { candidateId, rationale }
-  const chargeSeeWhy = (candidateId, rationale) => {
-    setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: rationale }));
-    if (seeWhyUnlimited || !setSeeWhyUsed) return;
-    if (hasSupabase) {
-      supabase.rpc("bump_see_why").then(({ data }) => { const used = Array.isArray(data) ? data?.[0]?.used : data?.used; if (typeof used === "number") setSeeWhyUsed(used); }).catch(() => setSeeWhyUsed((n) => n + 1));
-    } else {
-      setSeeWhyUsed((n) => n + 1);
+  const [confirmRegen, setConfirmRegen] = useState(null); // { candidateId, candidate, fallback, role }
+  const [seeWhyLoading, setSeeWhyLoading] = useState(null); // candidateId being explained
+  // Dedicated See-why AI: a fresh, candidate-specific fit explanation from the
+  // see-why edge function (metered there). Falls back to the AI-Rank rationale
+  // offline / on error, so the reveal never comes back empty.
+  const revealSeeWhy = async (candidateId, candidate, fallback, role, opts = {}) => {
+    if (!opts.force && (seeWhyCache[candidateId] || seeWhyLoading)) return;
+    if (!hasSupabase) {
+      setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: fallback }));
+      if (!seeWhyUnlimited && setSeeWhyUsed) setSeeWhyUsed((n) => n + 1);
+      return;
+    }
+    setSeeWhyLoading(candidateId);
+    try {
+      const { data, error } = await supabase.functions.invoke("see-why", { body: { candidate, role } });
+      if (error) {
+        let body = null; try { body = await error.context?.json?.(); } catch { /* non-json */ }
+        if (body?.error === "limit_reached") { if (typeof body.used === "number") setSeeWhyUsed?.(body.used); navigate("billing"); return; }
+        throw error;
+      }
+      setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: data.explanation }));
+      if (typeof data.used === "number" && setSeeWhyUsed) setSeeWhyUsed(data.used);
+    } catch {
+      setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: fallback }));
+      if (!seeWhyUnlimited && setSeeWhyUsed) setSeeWhyUsed((n) => n + 1);
+    } finally {
+      setSeeWhyLoading(null);
     }
   };
   const job = jobs.find((j) => j.id === activeJobId);
@@ -17760,7 +17779,17 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                   </div>
 
                   {ranked && (() => {
+                    const roleObj = { title: jobTitle, skills: job?.skills, requirements: job?.requirements, seniority_level: job?.seniority_level };
                     const revealed = seeWhyCache[a.candidateId];
+                    if (seeWhyLoading === a.candidateId) {
+                      return (
+                        <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
+                          <p className="text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--brand)" }}>
+                            <span className="inline-block w-3 h-3 rounded-full border-2 animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} /> Reading {c.parsed.name?.split(" ")[0] || "the"} resume against this role…
+                          </p>
+                        </div>
+                      );
+                    }
                     if (revealed) {
                       return (
                         <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
@@ -17769,7 +17798,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                             <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>See Why: </span>{revealed}</p>
                           </div>
                           {!seeWhyUnlimited && (
-                            <button onClick={() => setConfirmRegen({ candidateId: a.candidateId, rationale: match.rationale })} className="mt-1.5 ml-5 text-[10px] font-medium inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
+                            <button onClick={() => setConfirmRegen({ candidateId: a.candidateId, candidate: c, fallback: match.rationale, role: roleObj })} className="mt-1.5 ml-5 text-[10px] font-medium inline-flex items-center gap-1 hover:opacity-80" style={{ color: "var(--brand)" }}>
                               <Icon name="refresh" className="w-3 h-3" /> Regenerate
                             </button>
                           )}
@@ -17779,7 +17808,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     const out = !seeWhyUnlimited && seeWhyLeft <= 0;
                     return (
                       <button
-                        onClick={() => (out ? navigate("billing") : chargeSeeWhy(a.candidateId, match.rationale))}
+                        onClick={() => (out ? navigate("billing") : revealSeeWhy(a.candidateId, c, match.rationale, roleObj))}
                         className="text-xs mt-2.5 inline-flex items-center gap-1 hover:opacity-80"
                         style={{ color: "var(--brand)" }}
                       >
@@ -17809,7 +17838,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         title="Regenerate See Why?"
         body={`This runs a fresh rationale and uses 1 See Why credit, replacing the cached result. You have ${seeWhyLeft} left this cycle.`}
         confirmLabel="Use 1 credit"
-        onConfirm={() => { const c = confirmRegen; setConfirmRegen(null); if (c) chargeSeeWhy(c.candidateId, c.rationale); }}
+        onConfirm={() => { const r = confirmRegen; setConfirmRegen(null); if (r) revealSeeWhy(r.candidateId, r.candidate, r.fallback, r.role, { force: true }); }}
         onClose={() => setConfirmRegen(null)}
       />
     </AccountShell>

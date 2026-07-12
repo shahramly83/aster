@@ -12,10 +12,10 @@
 // parameter and resolve the company from the caller's own JWT.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-export type Meter = "ai_rank" | "ai_insight" | "interview_questions";
+export type Meter = "ai_rank" | "ai_insight" | "interview_questions" | "see_why";
 
-const BUMP: Record<Meter, string> = { ai_rank: "bump_ai_rank", ai_insight: "bump_ai_insight", interview_questions: "bump_interview_questions" };
-const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for" };
+const BUMP: Record<Meter, string> = { ai_rank: "bump_ai_rank", ai_insight: "bump_ai_insight", interview_questions: "bump_interview_questions", see_why: "bump_see_why" };
+const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for", see_why: "refund_see_why_for" };
 
 export interface Charge {
   ok: boolean;              // false = out of credits, caller must not call the model
