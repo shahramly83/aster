@@ -10077,7 +10077,9 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
   const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
   const [expiresAt, setExpiresAt] = useState(initialJob?.expires_at || ""); // yyyy-mm-dd; blank = never closes
-  const [screening, setScreening] = useState(initialJob?.applicant_screening || "strict"); // strict = AI turns away non-fits; open = everyone applies
+  // Public applications always accept everyone now; the AI sorts them into Strong
+  // Matches / Other Applicants on the Applicants page instead of blocking anyone.
+  const screening = "open";
   const [description, setDescription] = useState(initialJob?.description || "");
   const [responsibilities, setResponsibilities] = useState((initialJob?.responsibilities || []).join("\n"));
   const [requirements, setRequirements] = useState((initialJob?.requirements || []).join("\n"));
@@ -10261,20 +10263,6 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           const label = days === 0 ? "Closes today. Applications stop at the end of the day." : `Closes in ${days} day${days === 1 ? "" : "s"}. Applications stop after this day.`;
           return <p className="text-xs text-neutral-400 mt-1">{label}</p>;
         })()}
-      </div>
-      <div>
-        <label className={labelClass}>Who can apply</label>
-        <select value={screening} onChange={(e) => setScreening(e.target.value)} className={inputClass}>
-          <option value="strict">Only strong matches</option>
-          <option value="open">Anyone can apply</option>
-        </select>
-        <p className="text-xs text-neutral-400 mt-1">
-          {screening === "strict"
-            ? (skills.length || seniorityLevels.length || requirements.trim()
-                ? "Aster reads each resume against the skills and requirements above and turns away anyone clearly off-target. You only see applicants worth a look."
-                : "Add key skills or requirements above for Aster to screen against. Until then, everyone who applies is let through.")
-            : "Everyone who uploads a resume becomes an applicant. Aster still reads and ranks them, but it won't turn anyone away."}
-        </p>
       </div>
       {createErr && (
         <p role="alert" className="text-xs rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{createErr}</p>
@@ -17800,16 +17788,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
       .filter((c) => c && c.parsed);
     if (activePool.length < 2) { setMatchErr("AI Rank needs at least 2 candidates who aren't hired yet."); return; }
-    // Skip anyone already ranked — only score new arrivals, so we never re-run
-    // (or re-charge) for a candidate that already has a result.
-    const toRank = activePool.filter((c) => !(matchResults && matchResults[c.id]));
-    if (!toRank.length) { setMatchErr("Everyone here is already ranked. New applicants can be ranked when they arrive."); return; }
 
     setMatching(true);
     setMatchErr(null);
     try {
       if (!hasSupabase) { setMatching(false); return; }  // demo build: nothing to rank against
-      const payload = toRank.slice(0, 40).map((c) => ({
+      // Re-rank EVERY active candidate on each run (including ones ranked before),
+      // so scores stay consistent as the pool changes. Each run costs 1 credit.
+      const payload = activePool.slice(0, 40).map((c) => ({
         id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
         years: c.parsed?.years_of_experience ?? null,
         skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
@@ -17836,11 +17822,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     }
   };
 
-  // AI Rank gating: hired candidates don't count, need at least 2 active ones,
-  // and there must be at least one not-yet-ranked among them to bother running.
+  // AI Rank gating: hired candidates don't count; need at least 2 active ones.
+  // Every run re-ranks all of them and spends 1 credit (re-run is intentional).
   const rankableActive = applicants.filter((a) => !hiredIds.has(a.candidateId));
-  const unrankedCount = rankableActive.filter((a) => !(matchResults && matchResults[a.candidateId])).length;
-  const canRank = rankableActive.length >= 2 && unrankedCount > 0;
+  const canRank = rankableActive.length >= 2;
 
   const setStage = (candidateId, stage, emailSent) => {
     if (stage === "rejected") {
@@ -17918,7 +17903,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           <div className="min-w-0">
             <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
               Rank these applicants with AI
-              <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score." />
+              <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning. Each run re-ranks every candidate and uses 1 AI Rank credit." />
             </p>
             <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
               {visible.length === 0
@@ -17926,7 +17911,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                 : rankableActive.length < 2
                   ? "AI Rank needs at least 2 candidates who aren't hired yet."
                   : matchResults
-                    ? (unrankedCount > 0 ? `Ranked by fit. ${unrankedCount} new applicant${unrankedCount === 1 ? "" : "s"} can be ranked.` : "Ranked by fit against this role. Best matches shown first.")
+                    ? "Ranked by fit against this role. Re-run to re-score everyone (uses 1 credit)."
                     : "Score every candidate against this role and see who fits best."}
             </p>
             {matchErr && (
@@ -17936,6 +17921,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           <button
             onClick={() => askAiRank(runMatching)}
             disabled={matching || (!outOfRuns && !canRank)}
+            title={matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
             className="shrink-0 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 flex items-center gap-2 transition-opacity"
           >
             <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
@@ -17944,7 +17930,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               : outOfRuns
                 ? "Out of credits"
                 : matchResults
-                  ? (unrankedCount > 0 ? "Rank new candidates" : "All ranked")
+                  ? "Re-run AI Rank"
                   : "AI Rank"}
           </button>
         </div>
