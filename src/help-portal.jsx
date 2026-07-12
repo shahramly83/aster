@@ -93,8 +93,8 @@ export default function HelpPortal() {
       <header className="border-b" style={{ borderColor: "var(--line)" }}>
         <div className="max-w-5xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <a href="https://hireaster.com" className="flex items-center gap-2.5">
-            <img src="/aster-mark.svg" alt="Aster" width="30" height="30" className="rounded-lg" />
-            <span className="font-semibold text-[17px] tracking-tight">Aster <span style={{ color: "var(--ink-3)" }}>Help</span></span>
+            <img src="/aster-logo.png" alt="Aster" className="h-7 w-auto object-contain" />
+            <span className="text-[15px] font-medium" style={{ color: "var(--ink-3)" }}>Help</span>
           </a>
           <a href="https://hireaster.com" className="text-sm font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--ink-2)" }}>Back to Aster</a>
         </div>
