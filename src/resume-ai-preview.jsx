@@ -18151,12 +18151,29 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   );
 }
 
-function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, plan = "launch", hiredIds = new Set(), hiredDates = {} }) {
+function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCandidate, plan = "launch", hiredIds = new Set(), hiredDates = {}, activities = [], onOpenNotifications, avatarUrl = null, profile }) {
   const [query, setQuery] = useState("");
+  // Which job(s) each candidate applied to, so the applications / interview lists
+  // can label the role a candidate came in for (essential once several jobs are
+  // live). Keyed candidateId -> [job titles].
+  const appliedJobs = useMemo(() => {
+    const titleById = Object.fromEntries((jobs || []).map((j) => [j.id, j.title]));
+    const m = {};
+    for (const [jobId, list] of Object.entries(APPLICANTS_BY_JOB)) {
+      for (const a of list) {
+        const t = titleById[jobId] || "a role";
+        (m[a.candidateId] ||= []);
+        if (!m[a.candidateId].includes(t)) m[a.candidateId].push(t);
+      }
+    }
+    return m;
+  }, [jobs]);
   const [hiredMonth, setHiredMonth] = useState("all"); // "all" | "YYYY-MM"
   const limit = planLimits(plan).visibleCandidates;
 
   const isHiredView = !!(filter && filter.hired);
+  // Views where the candidate came in through a specific job, so we label it.
+  const showApplied = !!(filter && (filter.source === "public_application" || filter.interview));
   let title = "Candidates";
   // Only parsed candidates are shown, unparsed ones have no name/role to display yet.
   let base = candidates.filter((c) => c.status === "parsed");
@@ -18209,16 +18226,41 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
   };
 
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="mx-auto w-full max-w-[1400px]">
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
-        <div className="flex items-start justify-between gap-3 mt-2 mb-1">
-          <h1 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{title}</h1>
+        <div className="mt-1">
+          <TopBar
+            title={title}
+            subtitle={`${filtered.length} ${isHiredView ? "hire" : "candidate"}${filtered.length === 1 ? "" : "s"}${isHiredView && hiredMonth !== "all" ? ` in ${monthLabel(hiredMonth)}` : ""}`}
+            activities={activities}
+            onOpenNotifications={onOpenNotifications}
+            avatarUrl={avatarUrl}
+            profile={profile}
+            navigate={navigate}
+          />
+        </div>
+
+        {/* Filter row: search by name + (hired month) */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}>
+              <Icon name="search" className="w-4 h-4" />
+            </span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search candidates by name…"
+              className="w-full rounded-xl bg-white border pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[color:var(--brand)]"
+              style={{ borderColor: "var(--line)", color: "var(--ink)" }}
+            />
+          </div>
           {isHiredView && hiredMonths.length > 0 && (
             <select
               value={hiredMonth}
               onChange={(e) => setHiredMonth(e.target.value)}
-              className="shrink-0 rounded-xl bg-white border border-neutral-200 text-sm text-neutral-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+              className="shrink-0 rounded-xl bg-white border text-sm px-3 py-2.5 focus:outline-none focus:border-[color:var(--brand)]"
+              style={{ borderColor: "var(--line)", color: "var(--ink)" }}
             >
               <option value="all">All months</option>
               {hiredMonths.map((ym) => (
@@ -18226,22 +18268,6 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
               ))}
             </select>
           )}
-        </div>
-        <p className="text-sm text-neutral-600 mb-4">
-          {filtered.length} {isHiredView ? "hire" : "candidate"}{filtered.length === 1 ? "" : "s"}{isHiredView && hiredMonth !== "all" ? ` in ${monthLabel(hiredMonth)}` : ""}
-        </p>
-
-        {/* Search by name */}
-        <div className="relative mb-5">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
-            <Icon name="search" className="w-4 h-4" />
-          </span>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search candidates by name…"
-            className="w-full rounded-xl bg-white border border-neutral-200 pl-9 pr-3 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400"
-          />
         </div>
 
         {filtered.length === 0 ? (
@@ -18264,36 +18290,54 @@ function CandidateListScreen({ navigate, candidates, filter, onViewCandidate, pl
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            {visible.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => onViewCandidate(c.id)}
-                className="flex items-center gap-4 w-full text-left rounded-2xl bg-white act-shadow card-hover px-5 py-4 border border-[color:var(--line)]"
-              >
-                <CandidateAvatar name={c.parsed?.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={48} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-semibold text-neutral-900 truncate">
-                      {c.parsed?.name ?? c.fileName}
-                    </p>
-                    {hiredIds.has(c.id) && (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>
-                        <Icon name="check" className="w-3 h-3" /> Hired
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 lg:gap-3">
+            {visible.map((c) => {
+              const hired = hiredIds.has(c.id);
+              const role = currentRole(c);
+              const jobsFor = appliedJobs[c.id] || [];
+              const when = hiredDates[c.id] ? new Date(hiredDates[c.id]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => onViewCandidate(c.id)}
+                  className="group flex items-center gap-4 w-full text-left rounded-2xl bg-white act-shadow card-hover px-4 sm:px-5 py-4 border border-[color:var(--line)]"
+                >
+                  <div className="relative shrink-0">
+                    <CandidateAvatar name={c.parsed?.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={52} />
+                    {hired && (
+                      <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white" style={{ background: "#16A34A", color: "#fff" }}>
+                        <Icon name="check" className="w-3 h-3" />
                       </span>
                     )}
                   </div>
-                  {currentRole(c) && (
-                    <p className="text-sm text-neutral-500 truncate">
-                      {hiredIds.has(c.id)
-                        ? (hiredDates[c.id] ? `Hired ${new Date(hiredDates[c.id]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "Hired, no longer available")
-                        : currentRole(c)}
-                    </p>
-                  )}
-                </div>
-                <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
-              </button>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-base sm:text-lg font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed?.name ?? c.fileName}</p>
+                      {hired && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>
+                          <Icon name="check" className="w-3 h-3" /> Hired
+                        </span>
+                      )}
+                    </div>
+                    {role && <p className="text-sm truncate mt-0.5" style={{ color: "var(--ink-2)" }}>{role}</p>}
+                    {showApplied && jobsFor.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                          <Icon name="briefcase" className="w-3 h-3" /> Applied: {jobsFor[0]}{jobsFor.length > 1 ? ` +${jobsFor.length - 1} more` : ""}
+                        </span>
+                      </div>
+                    )}
+                    {hired && (
+                      <p className="text-xs mt-1 inline-flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
+                        <Icon name="calendar" className="w-3.5 h-3.5" />
+                        {when ? `Hired ${when}` : "Hired"}<span aria-hidden="true">·</span>not in your active pool
+                      </p>
+                    )}
+                  </div>
+                  <Icon name="chevronRight" className="w-5 h-5 shrink-0 transition-colors group-hover:text-[color:var(--brand)]" style={{ color: "var(--ink-3)" }} />
+                </button>
+              );
+            })}
 
           </div>
         )}
@@ -20246,11 +20290,16 @@ export default function ResumeAIPreview() {
           <CandidateListScreen
             navigate={navigate}
             candidates={MOCK_CANDIDATES}
+            jobs={jobs}
             filter={candidateFilter}
             onViewCandidate={viewCandidate}
             plan={effectivePlan}
             hiredIds={hiredIds}
             hiredDates={hiredDates}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
+            avatarUrl={avatarUrl}
+            profile={profile}
           />
         )}
         {screen === "applicants" && (
