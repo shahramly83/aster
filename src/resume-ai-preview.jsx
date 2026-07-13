@@ -18018,9 +18018,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               </div>
             )}
             <button
-              onClick={() => askAiRank(runMatching)}
-              disabled={aiRankDisabled}
-              title={!canRank && !outOfRuns ? "AI Rank turns on once at least 2 candidates have applied to this role." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+              onClick={() => { if (tourStep === 2) { setTourStep(3); return; } askAiRank(runMatching); }}
+              disabled={aiRankDisabled && tourStep !== 2}
+              title={tourStep === 2 ? "This is where you run AI Rank. Finish the quick tour first." : !canRank && !outOfRuns ? "AI Rank turns on once at least 2 candidates have applied to this role." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
               // During Step 2 of the tour, keep the button lit as the highlight
               // target (opacity:1 overrides the disabled dim) even when it can't
               // run yet; the tooltip explains why it won't click.
