@@ -7340,8 +7340,8 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
 
           <p className="text-[12px] mt-5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
             By creating an account you agree to Aster's{" "}
-            <button type="button" onClick={() => navigate("legal", "/legal/terms")} className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Terms</button> and{" "}
-            <button type="button" onClick={() => navigate("legal", "/legal/privacy")} className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Privacy Policy</button>.
+            <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Terms</a> and{" "}
+            <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-80 transition-colors" style={{ color: "var(--brand)" }}>Privacy Policy</a>.
           </p>
 
           <div className="my-5" style={{ borderTop: "1px solid var(--line)" }} />
