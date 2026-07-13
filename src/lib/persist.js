@@ -340,10 +340,16 @@ export async function dbSaveInterviewQuestions(companyId, userId, { candidateId,
 export async function dbRequestScheduling(applicationId) {
   if (!hasSupabase || !applicationId) return "Not connected to a live workspace.";
   const { error } = await supabase.rpc("request_scheduling", { p_application_id: applicationId });
-  if (!error) return null;
-  console.error("dbRequestScheduling", error.message);
-  if (error.code === "42501") return "You can only request interviews for jobs you're assigned to.";
-  return error.message || "Couldn't send that request. Try again in a moment.";
+  if (error) {
+    console.error("dbRequestScheduling", error.message);
+    if (error.code === "42501") return "You can only request interviews for jobs you're assigned to.";
+    return error.message || "Couldn't send that request. Try again in a moment.";
+  }
+  // Email the hiring managers so they know to set it up. Best-effort: the request
+  // is already recorded, so a mail hiccup never blocks or fails it. The function
+  // claims notified_at atomically, so re-requests don't double-email.
+  supabase.functions.invoke("notify-scheduling-request", { body: { application_id: applicationId } }).catch(() => {});
+  return null;
 }
 
 // Upload the signed-in user's avatar into the private, company-scoped bucket.
