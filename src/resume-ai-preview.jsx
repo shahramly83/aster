@@ -7765,6 +7765,10 @@ const NAV_ITEMS = [
 // `profile.role` carries the display label ("Interviewer"), while the DB enum is
 // "interviewer" — normalise so either form matches.
 const isInterviewer = (role) => String(role || "").toLowerCase() === "interviewer";
+// The workspace owner (creator). "Tenant" is the owner's role label (ROLE_LABELS).
+// Guided setup tours are for the owner only; invited teammates join an already
+// set-up workspace, so the first-run walkthrough would just confuse them.
+const isOwner = (role) => String(role || "").toLowerCase() === "tenant";
 const INTERVIEWER_ALLOWED = new Set(["interviews", "openRoles", "applicants", "candidateProfile", "profile"]);
 const INTERVIEWER_NAV = [
   { key: "interviews", label: "Interviews", icon: "interviewers" },
@@ -7902,11 +7906,13 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
   const profileKey = `aster.onboard.profile:${uid}`;
   const jobsKey = `aster.hint.postjob:${uid}`;
   const [jobsDismissed, setJobsDismissed] = useState(() => onboardingDone(profile, "postjob", jobsKey));
-  const isManager = !isInterviewer(profile?.role);
+  // Guided setup coach marks: owner (Tenant) only. Invited hiring managers /
+  // interviewers join an already set-up workspace, so they skip the first-run tour.
+  const ownerUser = isOwner(profile?.role);
   const onDash = active === "dashboard";
   const profileDone = onboardingDone(profile, "profile", profileKey); // ProfileScreen flips it on save
-  const showProfileHint = onDash && isManager && !profileDone;
-  const showJobsHint = onDash && isManager && profileDone && !jobsDismissed;
+  const showProfileHint = onDash && ownerUser && !profileDone;
+  const showJobsHint = onDash && ownerUser && profileDone && !jobsDismissed;
   const activeHint = showProfileHint ? "profile" : showJobsHint ? "jobs" : null;
   const dismissJobsHint = () => { markOnboardingDone("postjob", jobsKey); setJobsDismissed(true); };
   const skipOnboarding = () => { markOnboardingDone("profile", profileKey); markOnboardingDone("postjob", jobsKey); setJobsDismissed(true); };
@@ -10684,15 +10690,16 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   //   - Once a role exists: point at Copy link (share it, tag the source), then
   //     after the link modal closes, at the applicants count (where candidates
   //     land), then finish.
-  const isManager = !isInterviewer(profile?.role);
+  // Guided setup tour (post-a-job nudge + share-link walkthrough): owner only.
+  const ownerUser = isOwner(profile?.role);
   const anyOpenJob = (jobs || []).some((j) => j.status === "open");
   const postCtaKey = `aster.hint.postjobcta:${profile?.id || "anon"}`;
   const [postCtaDone, setPostCtaDone] = useState(() => { try { return localStorage.getItem(postCtaKey) === "done"; } catch { return false; } });
-  const showPostCta = isManager && !anyOpenJob && !postCtaDone;
+  const showPostCta = ownerUser && !anyOpenJob && !postCtaDone;
   const dismissPostCta = () => { try { localStorage.setItem(postCtaKey, "done"); } catch { /* private mode */ } setPostCtaDone(true); };
   const jobsTourKey = `aster.onboard.jobstour:${profile?.id || "anon"}`;
   const [jobsTourStep, setJobsTourStep] = useState(() => (onboardingDone(profile, "jobstour", jobsTourKey) ? "done" : "copylink"));
-  const jobsTourOn = isManager && anyOpenJob && jobsTourStep !== "done";
+  const jobsTourOn = ownerUser && anyOpenJob && jobsTourStep !== "done";
   const endJobsTour = () => { markOnboardingDone("jobstour", jobsTourKey); setJobsTourStep("done"); };
   const copyLinkRef = useRef(null);
   const applicantsRef = useRef(null);
@@ -18347,7 +18354,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Runs once per user (keyed by profile id) the first time; the "done" flag
   // persists so it doesn't reappear. tourStep 0 = finished/skipped.
   const tourKey = `aster.tour.applicants.v6:${profile?.id || "anon"}`;
-  const [tourStep, setTourStep] = useState(() => (onboardingDone(profile, "applicants_v6", tourKey) ? 0 : 1));
+  // Owner (Tenant) only: invited teammates skip the first-run applicants walkthrough.
+  const [tourStep, setTourStep] = useState(() => (isOwner(profile?.role) && !onboardingDone(profile, "applicants_v6", tourKey) ? 1 : 0));
   const endTour = () => { setTourStep(0); markOnboardingDone("applicants_v6", tourKey); };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
