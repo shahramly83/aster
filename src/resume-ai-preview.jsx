@@ -18112,7 +18112,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           </div>
         )}
         {canManageInterviewers && job && job.status === "open" && (openings > 1 || openingsFilled) && (
-          <div className="rounded-2xl border p-4 mb-5 flex items-center justify-between gap-3" style={{ borderColor: openingsFilled ? "#BBF7D0" : "var(--line)", background: openingsFilled ? "#F0FDF4" : "#fff" }}>
+          <div className="rounded-2xl border p-4 mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style={{ borderColor: openingsFilled ? "#BBF7D0" : "var(--line)", background: openingsFilled ? "#F0FDF4" : "#fff" }}>
             <div className="min-w-0">
               <p className="text-sm font-semibold" style={{ color: openingsFilled ? "#166534" : "var(--ink)" }}>
                 {openingsFilled ? `All ${openings} opening${openings === 1 ? "" : "s"} filled` : `${hiredCount} of ${openings} openings filled`}
@@ -18124,7 +18124,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               </p>
             </div>
             {openingsFilled && (
-              <button onClick={() => setClosePrompt(true)} className="shrink-0 text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">Close this role</button>
+              <button onClick={() => setClosePrompt(true)} className="shrink-0 w-full sm:w-auto text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">Close this role</button>
             )}
           </div>
         )}
@@ -18253,7 +18253,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                   style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(var(--brand-rgb),0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}
                 >
                   {isTop && <span className="absolute top-3 right-4 sm:right-5 z-10 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold shadow-[0_6px_16px_-6px_rgba(var(--brand-rgb),0.7)]">Top match</span>}
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
                     <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
                       {ranked
                         ? <ScoreRingLight value={Math.round(match.score * 100)} size={52} />
@@ -18281,7 +18282,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
                       )}
                     </div>
-                    <div className="shrink-0 flex items-center gap-2">
+                    </div>
+                    <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
                       {act && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
