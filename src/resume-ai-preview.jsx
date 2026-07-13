@@ -45,7 +45,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, companies ( name, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
+    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, companies ( name, slug, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -78,6 +78,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
     avatarPath: data.avatar_path || null,
     calendarProvider: data.calendar_provider || null,
     company: co.name || "Your workspace",
+    companySlug: co.slug || null, // the <slug>.hireaster.com subdomain for this workspace
     // plan_tier enum and app plan key are the same vocabulary since 0040:
     // launch | scale | elite | enterprise.
     plan: PLAN_TIER_ALIASES[co.plan] || co.plan || "launch",
@@ -865,6 +866,66 @@ async function createCompanyAndWelcome(companyName, fullName, slug = null) {
   return null;
 }
 
+// Multi-tenant subdomain sign-in (<slug>.hireaster.com). Kept OFF until the
+// wildcard DNS + SSL are live in Vercel; flip to true (and redeploy) to switch on
+// the branded per-workspace login + apex→subdomain forwarding.
+const SUBDOMAIN_ROUTING = false;
+const APEX_ROOT = "hireaster.com";
+// Subdomains that are NOT workspaces (marketing, product surfaces, infra).
+const RESERVED_SUBDOMAINS = new Set(["www", "app", "jobs", "help", "api", "admin", "staging", "preview", "mail", "cdn", "assets", "static"]);
+// The workspace slug from the current host, or null on the apex / localhost /
+// preview hosts / reserved subdomains. e.g. "oryx.hireaster.com" -> "oryx".
+const currentSubdomainSlug = () => {
+  if (typeof window === "undefined") return null;
+  const host = (window.location.hostname || "").toLowerCase();
+  if (!host.endsWith("." + APEX_ROOT)) return null;      // apex, localhost, *.vercel.app
+  const sub = host.slice(0, -(APEX_ROOT.length + 1));    // strip ".hireaster.com"
+  if (!sub || sub.includes(".")) return null;            // apex ("") or multi-level
+  if (RESERVED_SUBDOMAINS.has(sub)) return null;
+  return sub;
+};
+const workspaceOrigin = (slug) => `https://${slug}.${APEX_ROOT}`;
+// Move the just-authenticated session to the workspace's own subdomain. The tokens
+// ride in the URL hash (never sent to a server, same pattern as OAuth implicit
+// flow) so the user stays signed in without re-typing their password. The target
+// subdomain picks them up on load (see consumeHandoffTokens).
+async function redirectToWorkspace(slug) {
+  const base = `${workspaceOrigin(slug)}/login`;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const s = data?.session;
+    if (s?.access_token && s?.refresh_token) {
+      window.location.assign(`${base}#ws_at=${encodeURIComponent(s.access_token)}&ws_rt=${encodeURIComponent(s.refresh_token)}`);
+      return;
+    }
+  } catch { /* fall through to a plain redirect (user re-auths on the subdomain) */ }
+  window.location.assign(base);
+}
+// After a fresh sign-in, decide whether to jump to the workspace's own subdomain.
+// Returns true if it kicked off a redirect (the caller should stop navigating).
+function needsWorkspaceRedirect(sess) {
+  if (!SUBDOMAIN_ROUTING || typeof window === "undefined") return false;
+  const slug = sess?.companySlug;
+  if (!slug) return false;                 // no slug on record: stay on this origin
+  if (currentSubdomainSlug() === slug) return false; // already on the right subdomain
+  redirectToWorkspace(slug);               // apex or wrong subdomain -> forward
+  return true;
+}
+// On load, if we arrived via a cross-subdomain handoff (#ws_at/#ws_rt in the URL),
+// restore that session here and clean the hash. Returns true if it applied one.
+async function consumeHandoffTokens() {
+  if (typeof window === "undefined" || !window.location.hash) return false;
+  const h = new URLSearchParams(window.location.hash.slice(1));
+  const at = h.get("ws_at"), rt = h.get("ws_rt");
+  if (!at || !rt) return false;
+  try {
+    await supabase.auth.setSession({ access_token: at, refresh_token: rt });
+  } catch { /* invalid/expired tokens: user just signs in normally */ }
+  // Strip the tokens from the URL so they aren't left in history.
+  try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ignore */ }
+  return true;
+}
+
 function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -890,6 +951,24 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
     })();
     return () => { off = true; };
   }, []);
+
+  // Subdomain sign-in: brand this page for the workspace at <slug>.hireaster.com.
+  // wsSlug is null on the apex; wsBrand = undefined (loading) | null (unknown slug)
+  // | { name, logoUrl } (found). An unknown slug shows a "not found" state, not a
+  // working login form, so a made-up subdomain can't masquerade as a workspace.
+  const wsSlug = SUBDOMAIN_ROUTING ? currentSubdomainSlug() : null;
+  const [wsBrand, setWsBrand] = useState(wsSlug ? undefined : null);
+  useEffect(() => {
+    if (!wsSlug || !hasSupabase) return undefined;
+    let off = false;
+    supabase.rpc("workspace_by_slug", { p_slug: wsSlug }).then(({ data }) => {
+      if (off) return;
+      const row = Array.isArray(data) ? data[0] : data;
+      setWsBrand(row ? { name: row.name, logoUrl: row.logo_url || null } : null);
+    });
+    return () => { off = true; };
+  }, [wsSlug]);
+  const unknownWorkspace = !!wsSlug && wsBrand === null;
 
   // Surface the "work email only" rejection after a Google redirect bounce.
   useEffect(() => {
@@ -994,8 +1073,19 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
             <BrandLogo logoUrl={logoUrl} />
           </button>
 
+          {unknownWorkspace ? (
+            <div className="rounded-2xl border p-6 text-center" style={{ borderColor: "var(--line)", background: "#fff" }}>
+              <div className="mx-auto mb-3 w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="search" className="w-6 h-6" /></div>
+              <h1 className="text-xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Workspace not found</h1>
+              <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>There&apos;s no Aster workspace at <span className="font-semibold" style={{ color: "var(--ink)" }}>{wsSlug}.hireaster.com</span>. Check the address, or sign in from the main site.</p>
+              <a href={`https://${APEX_ROOT}/login`} className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl brand-gradient text-white text-sm font-semibold px-5 py-2.5 hover:opacity-95 transition-opacity">Go to {APEX_ROOT}/login</a>
+            </div>
+          ) : (<>
+          {wsBrand?.logoUrl && (
+            <img src={wsBrand.logoUrl} alt={wsBrand.name ? `${wsBrand.name} logo` : "Workspace logo"} className="h-9 object-contain mb-4" style={{ maxWidth: 180 }} />
+          )}
           <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Welcome back</h1>
-          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>Sign in to your Aster workspace.</p>
+          <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>{wsBrand?.name ? <>Sign in to <span className="font-semibold" style={{ color: "var(--ink)" }}>{wsBrand.name}</span>.</> : "Sign in to your Aster workspace."}</p>
 
           {mfaChallenge ? (
             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); verifyMfa(); }}>
@@ -1057,6 +1147,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
               Sign up
             </button>
           </p>
+          </>)}
         </div>
       </main>
     </div>
@@ -7069,8 +7160,11 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
       options: {
         data: { full_name: fullName, company_name: companyName.trim(), workspace_slug: workspaceUrl },
         // After the user clicks the confirmation link, land them on the sign-in
-        // page (not the marketing home) to finish logging in.
-        emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : "https://hireaster.com/login",
+        // page. With subdomain routing on, that's their new workspace's own
+        // <slug>.hireaster.com/login; otherwise the current origin's /login.
+        emailRedirectTo: SUBDOMAIN_ROUTING
+          ? `${workspaceOrigin(workspaceUrl)}/login`
+          : (typeof window !== "undefined" ? `${window.location.origin}/login` : "https://hireaster.com/login"),
       },
     });
     if (error) {
@@ -19709,6 +19803,9 @@ export default function ResumeAIPreview() {
   // Apply a loaded Supabase session to the workspace, then route in. In mock
   // mode (no keys) sess is null and the demo profile is left untouched.
   const applyCustomerSession = (sess, dest = "dashboard") => {
+    // Multi-tenant: if this workspace lives on its own subdomain and we're not
+    // there yet, forward (with a session handoff) instead of loading here.
+    if (needsWorkspaceRedirect(sess)) return;
     if (sess) {
       setProfile(sess.profile);
       setCompany(sess.company);
@@ -19956,6 +20053,9 @@ export default function ResumeAIPreview() {
           if (!rpcErr) sess = await loadCustomerSession(session.user.id, email);
         }
         if (cancelled || !sess) return;
+        // Multi-tenant: on the apex or a subdomain that isn't this workspace's,
+        // forward to the correct <slug>.hireaster.com instead of loading here.
+        if (needsWorkspaceRedirect(sess)) return;
         setProfile(sess.profile);
         setCompany(sess.company);
         setCompanyLogoUrl(sess.logoUrl || null);
@@ -19997,6 +20097,9 @@ export default function ResumeAIPreview() {
       // the domain-gate sign-out never completes. setTimeout(…,0) breaks the lock.
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN") setTimeout(() => applySession(session), 0);
     });
+    // If we arrived via a cross-subdomain handoff (#ws_at/#ws_rt), restore that
+    // session now; setSession fires SIGNED_IN above, which runs applySession.
+    consumeHandoffTokens();
     return () => { cancelled = true; subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
