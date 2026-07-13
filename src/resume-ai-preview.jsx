@@ -7134,9 +7134,8 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
           </div>
           <h1 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Confirm your email</h1>
           <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-            We sent a confirmation link to <span className="font-semibold" style={{ color: "var(--ink)" }}>{email.trim()}</span>. Click it, then sign in to finish setting up your workspace.
+            We sent a confirmation link to <span className="font-semibold" style={{ color: "var(--ink)" }}>{email.trim()}</span>. Click it to finish setting up your workspace, and it will bring you to sign in.
           </p>
-          <button type="button" onClick={() => navigate("login")} className="mt-6 w-full rounded-xl brand-gradient text-white text-sm font-semibold py-3 hover:opacity-95 transition-opacity">Go to sign in</button>
         </div>
       </div>
     );
