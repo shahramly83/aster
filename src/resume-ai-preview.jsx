@@ -17991,7 +17991,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4">
           <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
             Rank these applicants with AI
-            <InfoHint dir="down" hint="Scores every applicant against this role from 0 to 100 (with the reasoning on paid plans). Running it also unlocks the interviewer step, so your team opens a ranked shortlist instead of a raw pile. Each run re-ranks everyone and uses 1 credit." />
+            <InfoHint dir="down" hint="Scores each applicant against this role and unlocks the interviewer step. Each run uses 1 credit." />
           </p>
           <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
             {visible.length === 0
