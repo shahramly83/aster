@@ -18954,6 +18954,14 @@ const WORKSPACE_SCREENS = new Set([
   "interviewers", "openRoles", "jobs", "search", "upload", "emailTemplates",
   "billing", "profile", "settings", "schedulePicker",
 ]);
+// On a workspace subdomain (<slug>.hireaster.com) there's no marketing site: only
+// the app, auth, and public tenant-facing pages are valid. Anything else (landing,
+// product, pricing, blog, ...) redirects to the branded login.
+const SUBDOMAIN_ALLOWED_SCREENS = new Set([
+  ...WORKSPACE_SCREENS,
+  "login", "signup", "forgotPassword", "acceptInvite",
+  "apply", "bookInterview", "publicOffer",
+]);
 
 // Each candidate profile has its own deep-linkable URL, /candidates/<id>.
 function candidateIdFromPath(pathname) {
@@ -19027,7 +19035,7 @@ function offerTokenFromPath(pathname) {
   const m = (pathname || "").match(/^\/offer\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
 }
-function screenFromPath(pathname) {
+function screenFromPathRaw(pathname) {
   if (applyJobFromPath(pathname)) return "apply";
   if (bookTokenFromPath(pathname)) return "bookInterview";
   if (offerTokenFromPath(pathname)) return "publicOffer";
@@ -19041,6 +19049,13 @@ function screenFromPath(pathname) {
   if (trustInfoFromPath(pathname)) return "trust";
   if (legalInfoFromPath(pathname)) return "legal";
   return PATH_TO_SCREEN[pathname] || "landing";
+}
+function screenFromPath(pathname) {
+  const scr = screenFromPathRaw(pathname);
+  // On a workspace subdomain the marketing site doesn't exist: send anything that
+  // isn't the app / auth / a public tenant page to the branded login.
+  if (SUBDOMAIN_ROUTING && currentSubdomainSlug() && !SUBDOMAIN_ALLOWED_SCREENS.has(scr)) return "login";
+  return scr;
 }
 
 // ---------- Per-route SEO metadata (title / description / canonical) ----------
@@ -20081,6 +20096,12 @@ export default function ResumeAIPreview() {
           setInvite(null);
           if (typeof window !== "undefined") window.history.replaceState({ aster: true }, "", "/");
           navigate(isInterviewer(sess.profile?.role) ? "interviews" : "dashboard");
+        } else if (!cancelled && typeof window !== "undefined") {
+          // Restored a session while sitting on the sign-in screen (a fresh login,
+          // a cross-subdomain handoff, or the subdomain root that resolves to
+          // login) — drop into the app rather than show a form to an authed user.
+          const cur = screenFromPath(window.location.pathname);
+          if (cur === "login" || cur === "signup") navigate(isInterviewer(sess.profile?.role) ? "interviews" : "dashboard");
         }
       } finally {
         if (!cancelled) setRestoring(false);
