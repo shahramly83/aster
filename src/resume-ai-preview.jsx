@@ -18497,8 +18497,16 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
 
       // Merge new scores onto the existing ones so prior results are preserved.
+      // A re-run refreshes every candidate's SCORE, but keeps each existing "Why"
+      // stable — the rationale is only written for a candidate that doesn't have
+      // one yet (a new applicant), so re-ranking never rewrites reasoning the team
+      // has already read.
       const map = { ...(matchResults || {}) };
-      data.ranked.forEach((r) => { if (r && r.id) map[r.id] = { score: (Number(r.score) || 0) / 100, rationale: r.reason || "" }; });
+      data.ranked.forEach((r) => {
+        if (!r || !r.id) return;
+        const prev = map[r.id];
+        map[r.id] = { score: (Number(r.score) || 0) / 100, rationale: prev?.rationale ? prev.rationale : (r.reason || "") };
+      });
       if (!Object.keys(map).length) throw new Error("no scores returned");
 
       setMatchResults(map);
