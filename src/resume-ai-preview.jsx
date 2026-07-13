@@ -18834,7 +18834,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
                       <div className="flex items-start gap-2">
                         <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
-                        <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>Why this fit: </span>{match.rationale}</p>
+                        <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>Why: </span>{match.rationale}</p>
                       </div>
                     </div>
                   )}
