@@ -14529,8 +14529,9 @@ This is what a candidate sees. A public page, no login, reached only through the
         </div>
         )}
 
-        {/* Company header, the company's logo when uploaded, else a mark + name. */}
-        <div className="flex items-center gap-3 mb-6">
+        {/* Company header, the company's logo when uploaded, else a mark + name.
+            Centered on the success screen to line up with the centered confirmation. */}
+        <div className={`flex items-center gap-3 mb-6 ${stage === "done" ? "justify-center" : ""}`}>
           {logoUrl ? (
             <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-10 object-contain" style={{ maxWidth: 200 }} />
           ) : (
