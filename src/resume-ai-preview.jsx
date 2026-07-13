@@ -7066,7 +7066,12 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     const { data, error } = await supabase.auth.signUp({
       email: em,
       password,
-      options: { data: { full_name: fullName, company_name: companyName.trim(), workspace_slug: workspaceUrl } },
+      options: {
+        data: { full_name: fullName, company_name: companyName.trim(), workspace_slug: workspaceUrl },
+        // After the user clicks the confirmation link, land them on the sign-in
+        // page (not the marketing home) to finish logging in.
+        emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : "https://hireaster.com/login",
+      },
     });
     if (error) {
       setErr(/already registered/i.test(error.message) ? "An account with this email already exists. Try signing in." : error.message);
@@ -7114,6 +7119,28 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     "Turn weeks of CV screening into a single afternoon",
     "Full Scale free for 14 days, no credit card required",
   ];
+
+  // After sign up, the whole screen becomes a dedicated confirm-your-email page
+  // with the Aster wordmark at the top, so there's no half-filled form behind it.
+  if (sent) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center px-6 py-12" style={{ background: "var(--bg)" }}>
+        <button onClick={() => navigate("landing")} aria-label="Aster home" className="mb-8 flex [&_img]:!h-11">
+          <BrandLogo black large logoUrl={logoUrl} />
+        </button>
+        <div className="w-full max-w-md rounded-3xl bg-white border p-8 text-center act-shadow" style={{ borderColor: "var(--line)" }}>
+          <div className="mx-auto mb-4 w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(34,197,94,0.12)", color: "#16A34A" }}>
+            <Icon name="check" className="w-7 h-7" />
+          </div>
+          <h1 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Confirm your email</h1>
+          <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+            We sent a confirmation link to <span className="font-semibold" style={{ color: "var(--ink)" }}>{email.trim()}</span>. Click it, then sign in to finish setting up your workspace.
+          </p>
+          <button type="button" onClick={() => navigate("login")} className="mt-6 w-full rounded-xl brand-gradient text-white text-sm font-semibold py-3 hover:opacity-95 transition-opacity">Go to sign in</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh flex" style={{ background: "#fff" }}>
@@ -7285,27 +7312,14 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             {err && (
               <p role="alert" className="text-[13px] rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>
             )}
-            {sent ? (
-              <div className="rounded-xl px-4 py-4 text-center" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.32)" }}>
-                <div className="mx-auto mb-2 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)", color: "#16A34A" }}>
-                  <Icon name="check" className="w-4 h-4" />
-                </div>
-                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Confirm your email</p>
-                <p className="text-[13px] mt-1" style={{ color: "var(--ink-2)" }}>
-                  We sent a confirmation link to <span style={{ color: "var(--ink)" }}>{email.trim()}</span>. Click it, then sign in to finish setting up your workspace.
-                </p>
-                <button type="button" onClick={() => navigate("login")} className="mt-3 text-[13px] font-semibold hover:opacity-80" style={{ color: "var(--brand)" }}>Go to sign in</button>
-              </div>
-            ) : (
-              <button
-                type="submit"
-                disabled={!canSubmit || busy}
-                className="w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
-              >
-                {busy ? "Creating your workspace…" : ctaText}
-                {!busy && <Icon name={ctaIcon} className="w-4 h-4" />}
-              </button>
-            )}
+            <button
+              type="submit"
+              disabled={!canSubmit || busy}
+              className="w-full rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
+            >
+              {busy ? "Creating your workspace…" : ctaText}
+              {!busy && <Icon name={ctaIcon} className="w-4 h-4" />}
+            </button>
           </form>
 
           {ssoEnabled && (<>
