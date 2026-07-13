@@ -8,7 +8,7 @@ export const PLAN_LIMITS = {
   launch: {
     maxJobs: 1, seats: 1, interviewers: 10, canAddInterviewers: true,
     parseApplicant: 100, resumeUploads: 10,               // resumeUploads = AI Parsing (Bulk upload)
-    aiRunsPerMonth: 5, aiInsightsPerMonth: 5, seeWhyPerMonth: 5, interviewQuestionsPerMonth: 5,
+    aiRunsPerMonth: 5, aiInsightsPerMonth: 5, interviewQuestionsPerMonth: 5,
     aiMatches: 3, visibleCandidates: Infinity,
     applicantViewLimit: 10, browseLimit: 10, skillsIndustriesLimit: 10,
     showRationale: true, storeOriginal: false, scorecards: true, matchToRole: true, databaseAiRank: true,
@@ -18,7 +18,7 @@ export const PLAN_LIMITS = {
   scale: {
     maxJobs: 5, seats: 30, interviewers: 100, canAddInterviewers: true,
     parseApplicant: 500, resumeUploads: 50,
-    aiRunsPerMonth: 30, aiInsightsPerMonth: 100, seeWhyPerMonth: 30, interviewQuestionsPerMonth: 100,
+    aiRunsPerMonth: 30, aiInsightsPerMonth: 100, interviewQuestionsPerMonth: 100,
     aiMatches: 10, visibleCandidates: Infinity,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
@@ -28,7 +28,7 @@ export const PLAN_LIMITS = {
   elite: {
     maxJobs: 10, seats: 100, interviewers: Infinity, canAddInterviewers: true,
     parseApplicant: 1000, resumeUploads: 100,
-    aiRunsPerMonth: 100, aiInsightsPerMonth: 300, seeWhyPerMonth: 100, interviewQuestionsPerMonth: 300,
+    aiRunsPerMonth: 100, aiInsightsPerMonth: 300, interviewQuestionsPerMonth: 300,
     aiMatches: Infinity, visibleCandidates: Infinity,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
@@ -38,7 +38,7 @@ export const PLAN_LIMITS = {
   enterprise: {
     maxJobs: Infinity, seats: Infinity, interviewers: Infinity, canAddInterviewers: true,
     parseApplicant: Infinity, resumeUploads: Infinity,
-    aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, seeWhyPerMonth: Infinity, interviewQuestionsPerMonth: Infinity,
+    aiRunsPerMonth: Infinity, aiInsightsPerMonth: Infinity, interviewQuestionsPerMonth: Infinity,
     aiMatches: Infinity, visibleCandidates: Infinity,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,

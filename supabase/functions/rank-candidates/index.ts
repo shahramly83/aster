@@ -56,13 +56,13 @@ Industry wanted: ${industries.length ? industries.join(", ") : "(none specified)
 Candidates (JSON):
 ${JSON.stringify(candidates)}
 
-Score each candidate 0-100 for overall fit, weighing: how well their actual skills and job titles match what's needed, relevant industry experience, and seniority/years. A candidate from an unrelated field should score low even if they're strong in their own area. Be decisive and spread the scores out — the clear best fit should score much higher than a weak one. In each reason, name the specific matching (or missing) skills/experience; do not use vague filler. Return ONLY a JSON array, best fit first, no prose:
-[{ "id": "<candidate id>", "score": <0-100 integer>, "reason": "<one concise, specific sentence>" }]`;
+Score each candidate 0-100 for overall fit, weighing: how well their actual skills and job titles match what's needed, relevant industry experience, and seniority/years. A candidate from an unrelated field should score low even if they're strong in their own area. Be decisive and spread the scores out, so the clear best fit scores much higher than a weak one. In "reason", write two short, specific sentences a hiring manager can act on: name the concrete matching or missing skills and experience, and flag any standout or risk (over- or under-qualified, seniority gap, domain mismatch). Plain language, no vague filler, and do not use dashes. Return ONLY a JSON array, best fit first, no prose:
+[{ "id": "<candidate id>", "score": <0-100 integer>, "reason": "<two concise, specific sentences>" }]`;
 
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 2500, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
     });
     // Our failure, not theirs: hand the credit back.
     if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "ai_rank"); return json({ error: "rank_failed" }, 502); }
@@ -78,7 +78,7 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
     const allowed = new Set((candidates as any[]).map((c) => c.id));
     ranked = (ranked as any[])
       .filter((r) => r && allowed.has(r.id))
-      .map((r) => ({ id: r.id, score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), reason: String(r.reason || "").slice(0, 240) }));
+      .map((r) => ({ id: r.id, score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), reason: String(r.reason || "").slice(0, 400) }));
 
     return json({ ranked, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {

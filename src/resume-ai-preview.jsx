@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbSaveSeeWhy } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -2369,7 +2369,6 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       { label: "Bulk upload parsing", free: "10 / mo", starter: "50 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "AI Rank credits", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "AI Insight credits", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
-      { label: "Why this fit (per-candidate rationale)", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
     ]},
     { group: "Interviews", rows: [
@@ -8822,7 +8821,7 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, seeWhyUsed = 0, company = "Your workspace" }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   // "Upcoming" excludes interviews whose slot has already passed: once the time
@@ -9157,7 +9156,6 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     { label: "AI Parsing credits", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
                     { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
                     { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
-                    { label: "Why this fit credits", used: seeWhyUsed, limit: L.seeWhyPerMonth },
                   ];
                   const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
                   return (
@@ -9165,7 +9163,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
-                          <InfoHint dir="up" hint="How much of this month's AI plan you have used across parsing, ranking, insights, interview questions and see-why. Limits reset on the 1st." />
+                          <InfoHint dir="up" hint="How much of this month's AI plan you have used across parsing, ranking, insights and interview questions. Limits reset on the 1st." />
                         </div>
                         <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
                       </div>
@@ -10326,7 +10324,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [department, setDepartment] = useState(initialJob?.department || "");
   const [location, setLocation] = useState(initialJob?.location || "");
   const [employmentType, setEmploymentType] = useState(initialJob?.employment_type || "full_time");
-  const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "hybrid");
+  const [remoteType, setRemoteType] = useState(initialJob?.remote_type || "onsite");
   const [openings, setOpenings] = useState(initialJob?.openings ?? 1); // how many people to hire
   const SENIORITY_OPTIONS = ["junior", "mid", "senior", "lead", "principal"];
   const [seniorityLevels, setSeniorityLevels] = useState(initialJob?.seniority_levels || (initialJob?.seniority_level ? [initialJob.seniority_level] : ["mid"]));
@@ -18266,7 +18264,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, seeWhyUsed = 0, setSeeWhyUsed, seeWhyCache = {}, setSeeWhyCache, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {} }) {
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {} }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     // Once a candidate advances to offer or a terminal state, the stage pill is
@@ -18287,42 +18285,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
   const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
   const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
-  // "Why this fit": a metered per-candidate credit, separate from AI Rank. First
-  // reveal charges 1 credit and saves the rationale to the DB; re-viewing (even
-  // after a reload or an AI Rank re-run) is free and reads the saved copy.
-  const seeWhyLimit = limits.seeWhyPerMonth;
-  const seeWhyUnlimited = seeWhyLimit === Infinity;
-  const seeWhyLeft = Math.max(0, seeWhyLimit - seeWhyUsed);
-  const [seeWhyLoading, setSeeWhyLoading] = useState(null); // candidateId being explained
-  // Dedicated See-why AI: a fresh, candidate-specific fit explanation from the
-  // see-why edge function (metered there). Falls back to the AI-Rank rationale
-  // offline / on error, so the reveal never comes back empty.
-  const revealSeeWhy = async (candidateId, candidate, fallback, role, opts = {}) => {
-    if (!opts.force && (seeWhyCache[candidateId] || seeWhyLoading)) return;
-    if (!hasSupabase) {
-      setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: fallback }));
-      if (!seeWhyUnlimited && setSeeWhyUsed) setSeeWhyUsed((n) => n + 1);
-      return;
-    }
-    setSeeWhyLoading(candidateId);
-    try {
-      const { data, error } = await supabase.functions.invoke("see-why", { body: { candidate, role } });
-      if (error) {
-        let body = null; try { body = await error.context?.json?.(); } catch { /* non-json */ }
-        if (body?.error === "limit_reached") { if (typeof body.used === "number") setSeeWhyUsed?.(body.used); navigate("billing"); return; }
-        throw error;
-      }
-      setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: data.explanation }));
-      if (typeof data.used === "number" && setSeeWhyUsed) setSeeWhyUsed(data.used);
-      // Persist so it survives a reload / AI Rank re-run and never re-charges.
-      dbSaveSeeWhy(companyId, activeJobId, candidateId, data.explanation);
-    } catch {
-      setSeeWhyCache && setSeeWhyCache((prev) => ({ ...prev, [candidateId]: fallback }));
-      if (!seeWhyUnlimited && setSeeWhyUsed) setSeeWhyUsed((n) => n + 1);
-    } finally {
-      setSeeWhyLoading(null);
-    }
-  };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
   // Interviewer pool for this job (who can see these applicants).
@@ -18601,19 +18563,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           upgradeLabel="Upgrade for more"
         />
       )}
-      {!seeWhyUnlimited && (
-        <UsageMeter
-          title="Why this fit"
-          hint="A per-candidate AI explanation of why they do or don't fit this role. 1 credit each, saved so re-viewing is free."
-          used={seeWhyUsed}
-          limit={seeWhyLimit}
-          unit="credits used"
-          danger={seeWhyLeft <= 0}
-          note={seeWhyLeft <= 0 ? "Out of Why this fit credits this cycle. Upgrade for more." : `${seeWhyLeft} left this cycle.`}
-          onUpgrade={() => navigate("billing")}
-          upgradeLabel="Upgrade for more"
-        />
-      )}
     </div>
   ) : null;
 
@@ -18860,40 +18809,17 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     </div>
                   </div>
 
-                  {ranked && (() => {
-                    const roleObj = { title: jobTitle, skills: job?.skills, requirements: job?.requirements, seniority_level: job?.seniority_level };
-                    const revealed = seeWhyCache[a.candidateId];
-                    if (seeWhyLoading === a.candidateId) {
-                      return (
-                        <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
-                          <p className="text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--brand)" }}>
-                            <span className="inline-block w-3 h-3 rounded-full border-2 animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} /> Reading {c.parsed.name?.split(" ")[0] || "the"} resume against this role…
-                          </p>
-                        </div>
-                      );
-                    }
-                    if (revealed) {
-                      return (
-                        <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
-                          <div className="flex items-start gap-2">
-                            <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
-                            <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>Why this fit: </span>{revealed}</p>
-                          </div>
-                        </div>
-                      );
-                    }
-                    const out = !seeWhyUnlimited && seeWhyLeft <= 0;
-                    return (
-                      <button
-                        onClick={() => (out ? navigate("billing") : revealSeeWhy(a.candidateId, c, match.rationale, roleObj))}
-                        className="text-xs mt-2.5 inline-flex items-center gap-1 hover:opacity-80"
-                        style={{ color: "var(--brand)" }}
-                      >
-                        <Icon name={out ? "lock" : "matching"} className="w-3 h-3" />
-                        {out ? "Out of credits: upgrade" : seeWhyUnlimited ? "Why this fit" : `Why this fit · ${seeWhyLeft} left`}
-                      </button>
-                    );
-                  })()}
+                  {/* AI Rank writes a per-candidate "why this fit" as part of the
+                      single rank run, so we show it automatically here, free — no
+                      separate per-candidate credit. */}
+                  {ranked && match?.rationale && (
+                    <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
+                      <div className="flex items-start gap-2">
+                        <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
+                        <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--brand)" }}>Why this fit: </span>{match.rationale}</p>
+                      </div>
+                    </div>
+                  )}
 
                 </div>
               );
@@ -19797,8 +19723,6 @@ export default function ResumeAIPreview() {
   const [insightsCache, setInsightsCache] = useState({});
   // See Why (Option B): its own metered credit, charged once per candidate and
   // cached (candidate id -> rationale). Regenerating charges again via a prompt.
-  const [seeWhyUsed, setSeeWhyUsed] = useState(0);
-  const [seeWhyCache, setSeeWhyCache] = useState({});
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("elite");
   const [signupCycle, setSignupCycle] = useState("monthly");
@@ -20124,23 +20048,6 @@ export default function ResumeAIPreview() {
         const row = Array.isArray(data) ? data?.[0] : data;
         if (row && typeof row.used === "number") setAiInsightsUsed(row.used);
       }).catch((e) => console.error("get_ai_insight_usage threw:", e));
-      // "Why this fit" (See Why) credits. This was never hydrated, so the meter
-      // reset to zero on every reload even though the DB had counted the usage,
-      // making it look like the credit was never charged.
-      supabase.rpc("get_see_why_usage").then(({ data, error }) => {
-        if (error) { console.error("get_see_why_usage failed:", error.message || error); return; }
-        const row = Array.isArray(data) ? data?.[0] : data;
-        if (row && typeof row.used === "number") setSeeWhyUsed(row.used);
-      }).catch((e) => console.error("get_see_why_usage threw:", e));
-      // Load saved "Why this fit" explanations into the cache so they show for
-      // free after a reload (best-effort; the see_why column may not exist until
-      // 0066 is applied, so any error here is simply ignored).
-      supabase.from("applications").select("candidate_id, see_why").not("see_why", "is", null).then(({ data, error }) => {
-        if (error || !Array.isArray(data)) return;
-        const m = {};
-        data.forEach((r) => { if (r.candidate_id && r.see_why) m[r.candidate_id] = r.see_why; });
-        if (Object.keys(m).length) setSeeWhyCache((prev) => ({ ...m, ...prev }));
-      }).catch(() => { /* column missing / offline: ignore */ });
       // Job posting is a concurrent open-role limit now, derived from the jobs
       // list on the client, so there's no per-cycle usage to load here.
       // AI Parsing (bulk upload) credits for this cycle.
@@ -20976,7 +20883,6 @@ export default function ResumeAIPreview() {
             parseUsage={parseUsage}
             matchRunsUsed={matchRunsUsed}
             aiInsightsUsed={aiInsightsUsed}
-            seeWhyUsed={seeWhyUsed}
             company={company}
           />
         )}
@@ -21169,10 +21075,6 @@ export default function ResumeAIPreview() {
             plan={effectivePlan}
             matchRunsUsed={matchRunsUsed}
             setMatchRunsUsed={setMatchRunsUsed}
-            seeWhyUsed={seeWhyUsed}
-            setSeeWhyUsed={setSeeWhyUsed}
-            seeWhyCache={seeWhyCache}
-            setSeeWhyCache={setSeeWhyCache}
             bookings={bookings}
             hiredIds={hiredIds}
             profile={profile}
