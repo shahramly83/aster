@@ -10282,8 +10282,8 @@ function formatSalary(job) {
 function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost, requestMode = false, requesterId = null, requesterName = "" }) {
   const editing = !!initialJob;
   const limits = planLimits(plan);
-  // Publishing spends one job credit for the cycle, unless the role is already
-  // live (re-saving an open job). Drafts never spend a credit.
+  // Publishing (or reopening) takes one of the plan's open-role slots, unless the
+  // role is already open (re-saving a live job). Drafts never take a slot.
   const willConsumeCredit = !editing || initialJob?.status !== "open";
   const publishBlocked = jobPostBlocked && willConsumeCredit;
   const [createErr, setCreateErr] = useState(null);
@@ -10547,7 +10547,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             <button
               onClick={() => handleSubmit("open")}
               disabled={!canPublish || publishBlocked}
-              title={publishBlocked ? `You've used all ${jobPostUsage.limit} job posts this cycle. Save as draft, or upgrade.` : undefined}
+              title={publishBlocked ? `All ${jobPostUsage.limit} open-role slots are in use. Close a role, save this as a draft, or upgrade.` : undefined}
               className="rounded-xl brand-gradient disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 transition-opacity hover:opacity-90">
               Publish
             </button>
@@ -10566,7 +10566,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       </div>
       {publishBlocked && (
         <p className="text-xs" style={{ color: "#B45309" }}>
-          You've used all {jobPostUsage.limit} job posts for this cycle{jobPostUsage.resetsAt ? ` (renews ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })})` : ""}. You can still save this as a draft, or{" "}
+          All {jobPostUsage.limit} of your open-role slots are in use. Close a role to free one up, save this as a draft, or{" "}
           <button onClick={() => navigate("billing")} className="font-semibold underline" style={{ color: "var(--brand)" }}>upgrade for more</button>.
         </p>
       )}
@@ -10664,8 +10664,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // A just-posted job is prepended (newest first); jump back to page 1 so it's visible.
   useEffect(() => { setPage(0); }, [jobs.length]);
   const limits = planLimits(plan);
-  // Job posting is metered per 30-day cycle (see jobPostUsage), not by a
-  // concurrent cap, so nothing is auto-paused, the credit gate does the work.
+  // Job posting is a concurrent open-role cap (see jobPostUsage), enforced at
+  // publish/reopen time, so nothing is auto-paused here.
   const pausedIds = new Set();
   // Link-source modal: which job we're generating a link for, and the source tag.
   const [linkJob, setLinkJob] = useState(null); // job object or null
@@ -10850,12 +10850,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
   // Sidebar content, job-post credits meter + a "how it works" accordion,
   // mirroring the Candidate Search sidebar for a consistent look across screens.
-  const jobCreditFmt = (d) => new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   const jobPostsLeft = jobPostUsage.limit != null ? Math.max(jobPostUsage.limit - jobPostUsage.used, 0) : null;
   const jobPlanLabel = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current";
-  const jobRenews = jobPostUsage.resetsAt ? ` · renews ${jobCreditFmt(jobPostUsage.resetsAt)}` : "";
   const JOBS_HELP = [
-    { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Publishing spends one job credit." },
+    { icon: "briefcase", title: "Publish a role", body: "Fill in the role details and hit Publish. It goes live on your careers page and starts collecting applicants right away. Each open role takes one of your plan's slots; close a role to free one up." },
     { icon: "doc", title: "Save it as a draft", body: "Not ready to go live? Save it as a draft and keep editing. Drafts are free and don't spend a credit until you publish." },
     { icon: "matching", title: "Aster screens every applicant", body: "As people apply, Aster reads each resume and ranks it against the role, so the strongest fits rise to the top on their own." },
     { icon: "link", title: "Share the apply link", body: "Copy a role's application link to post on job boards or send to candidates, then watch views climb right on the job card." },
@@ -11237,14 +11235,14 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           <aside className="mt-5 lg:mt-0 space-y-5 lg:sticky lg:top-4 lg:self-start">
             {jobPostUsage.limit != null && (
               <UsageMeter
-                title="Job post credits this cycle"
-                hint="Publishing a role (or reopening a closed one) uses one job credit; drafts are free. Your plan includes a set number of posts each cycle, renewing every 30 days from your signup date."
+                title="Open roles"
+                hint="Your plan sets how many roles you can have open at once. Publishing a role (or reopening a closed one) takes a slot; closing a role frees one. Drafts don't count."
                 used={jobPostUsage.used}
                 limit={jobPostUsage.limit}
-                unit="credits used"
+                unit="open"
                 note={jobPostBlocked
-                  ? `You've used all ${jobPostUsage.limit} job posts this cycle${jobRenews}. You can still save drafts.`
-                  : `${jobPostsLeft} post${jobPostsLeft === 1 ? "" : "s"} left on your ${jobPlanLabel} plan${jobRenews}.`}
+                  ? `All ${jobPostUsage.limit} open-role slots are in use. Close a role to post another, or upgrade for more.`
+                  : `${jobPostsLeft} more role${jobPostsLeft === 1 ? "" : "s"} you can open on your ${jobPlanLabel} plan.`}
                 onManage={() => navigate("billing")}
                 onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
               />
@@ -11453,11 +11451,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         onClose={() => setConfirmDeleteJob(null)}
       />
 
-      {/* Reopening/publishing blocked, this cycle's job credits are used up */}
+      {/* Reopening/publishing blocked: all open-role slots are in use */}
       <ConfirmDialog
         open={limitPrompt}
-        title="You're out of job posts for this cycle"
-        body={`You've used all ${jobPostUsage.limit ?? ""} job posts on your plan this cycle.${jobPostUsage.resetsAt ? ` They renew on ${new Date(jobPostUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.` : ""} Upgrade for more, or wait for the reset.`}
+        title="All open-role slots are in use"
+        body={`Your plan allows ${jobPostUsage.limit ?? ""} open role${jobPostUsage.limit === 1 ? "" : "s"} at a time, and they're all in use. Close a role to free a slot, or upgrade for more.`}
         confirmLabel="Upgrade"
         onConfirm={() => { setLimitPrompt(false); navigate("billing"); }}
         onClose={() => setLimitPrompt(false)}
@@ -19601,8 +19599,13 @@ export default function ResumeAIPreview() {
   // each billing period, here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
   const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
-  // Job-posting credits for the current 30-day cycle (limit null = unlimited).
-  const [jobPostUsage, setJobPostUsage] = useState({ used: 0, limit: null, resetsAt: null });
+  // Job posting is a concurrent OPEN-role limit (plan maxJobs), not a monthly
+  // credit: closing a role frees a slot, reopening takes one. Derived live from
+  // the jobs list so posting/closing updates the meter at once. resetsAt stays
+  // null (jobs never reset); AI Rank / parses / insights keep their monthly cycles.
+  const jobLimit = (() => { const m = planLimits(effectivePlan).maxJobs; return m === Infinity ? null : m; })();
+  const openJobsCount = jobs.filter((j) => j.status === "open").length;
+  const jobPostUsage = { used: openJobsCount, limit: jobLimit, resetsAt: null };
   // AI Parsing (bulk upload) credits for the current 30-day cycle.
   const [parseUsage, setParseUsage] = useState({ used: 0, limit: null, resetsAt: null });
   // Persistent "Recent imports" log (loaded from import_runs on hydrate).
@@ -19614,18 +19617,11 @@ export default function ResumeAIPreview() {
     const saved = await dbSaveImportRun(companyId, userId, run);
     if (saved) setImportHistory((h) => h.map((r) => (r === run ? saved : r)));
   };
-  // Job-posting credits: blocked when this cycle's usage hits the plan limit.
-  const jobPostBlocked = jobPostUsage.limit != null && jobPostUsage.used >= jobPostUsage.limit;
-  // The database charges the credit now (0047, trg_charge_job_post), so this only
-  // refreshes the meter. Bumping here too would spend two credits per job.
-  const consumeJobPost = async () => {
-    if (!hasSupabase) { setJobPostUsage((u) => ({ ...u, used: u.used + 1 })); return; }
-    try {
-      const { data } = await supabase.rpc("get_job_post_usage");
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row) setJobPostUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
-    } catch (e) { console.error("get_job_post_usage", e); }
-  };
+  // Blocked from publishing when the workspace is already at its open-role limit.
+  const jobPostBlocked = jobLimit != null && openJobsCount >= jobLimit;
+  // No-op: the open-role meter is derived from `jobs`, so it updates itself the
+  // moment a role is published or closed. Kept as a prop for the job screens.
+  const consumeJobPost = () => {};
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
   const [insightsCache, setInsightsCache] = useState({});
@@ -19975,12 +19971,8 @@ export default function ResumeAIPreview() {
         data.forEach((r) => { if (r.candidate_id && r.see_why) m[r.candidate_id] = r.see_why; });
         if (Object.keys(m).length) setSeeWhyCache((prev) => ({ ...m, ...prev }));
       }).catch(() => { /* column missing / offline: ignore */ });
-      // Job-posting credits for this cycle (same 30-day cycle as AI Rank).
-      supabase.rpc("get_job_post_usage").then(({ data, error }) => {
-        if (error) { console.error("get_job_post_usage failed:", error.message || error); return; }
-        const row = Array.isArray(data) ? data?.[0] : data;
-        if (row) setJobPostUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
-      }).catch((e) => console.error("get_job_post_usage threw:", e));
+      // Job posting is a concurrent open-role limit now, derived from the jobs
+      // list on the client, so there's no per-cycle usage to load here.
       // AI Parsing (bulk upload) credits for this cycle.
       supabase.rpc("get_resume_parse_usage").then(({ data, error }) => {
         if (error) { console.error("get_resume_parse_usage failed:", error.message || error); return; }
