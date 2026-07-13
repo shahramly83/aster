@@ -14425,19 +14425,27 @@ This is what a candidate sees if they open the link after the role has closed.
   }
 
   const isPdf = (f) => f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+  const isDocx = (f) => f && (f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || /\.docx$/i.test(f.name));
+  const isDoc = (f) => f && !isDocx(f) && /\.doc$/i.test(f.name); // legacy binary Word
+  const isAllowedResume = (f) => isPdf(f) || isDocx(f);
 
   const MAX_MB = 10; // resumes are tiny; anything bigger is usually not a CV
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!isPdf(f)) {
+    if (isDoc(f)) {
       setFile(null);
-      setFileError("That's not a PDF. Upload your resume as a PDF file.");
+      setFileError("Old .doc files aren't supported. Save your resume as a PDF or .docx and upload again.");
+      return;
+    }
+    if (!isAllowedResume(f)) {
+      setFile(null);
+      setFileError("Upload your resume as a PDF or Word (.docx) file.");
       return;
     }
     if (f.size > MAX_MB * 1024 * 1024) {
       setFile(null);
-      setFileError(`That file is ${(f.size / 1048576).toFixed(0)} MB, which is large for a resume. Upload a PDF under ${MAX_MB} MB.`);
+      setFileError(`That file is ${(f.size / 1048576).toFixed(0)} MB, which is large for a resume. Upload a file under ${MAX_MB} MB.`);
       return;
     }
     setFileError(null);
@@ -14445,7 +14453,7 @@ This is what a candidate sees if they open the link after the role has closed.
     setFile(f);
   };
 
-  const canSubmit = file && isPdf(file) && stage === "form";
+  const canSubmit = file && isAllowedResume(file) && stage === "form";
 
   // A real job carries a uuid id; demo jobs use "j…" ids we never send to the DB.
   const isRealJob = (id) => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
@@ -14467,13 +14475,25 @@ This is what a candidate sees if they open the link after the role has closed.
       return;
     }
 
-    // The edge function reads the PDF with Claude, pulls out the applicant's
+    // The edge function reads the resume with Claude, pulls out the applicant's
     // details, rejects anything that isn't a resume, and files the application.
+    // PDFs go over as base64 (Claude reads them natively); Word (.docx) resumes are
+    // turned into text here first, since Claude can't read a .docx binary.
     try {
-      const resume_base64 = await fileToBase64(file);
-      const { data, error } = await supabase.functions.invoke("parse-application", {
-        body: { job_id: job.id, resume_base64, filename: file?.name || null, source: "Career Page" },
-      });
+      let body;
+      if (isDocx(file)) {
+        const text = await extractDocxText(await file.arrayBuffer());
+        if (!text) {
+          setSubmitErr("We couldn't read that Word file. Save it as a PDF and try again.");
+          setStage("form");
+          return;
+        }
+        body = { job_id: job.id, resume_text: text, filename: file?.name || null, source: "Career Page" };
+      } else {
+        const resume_base64 = await fileToBase64(file);
+        body = { job_id: job.id, resume_base64, filename: file?.name || null, source: "Career Page" };
+      }
+      const { data, error } = await supabase.functions.invoke("parse-application", { body });
       // On a non-2xx status, invoke returns `error` and the JSON body (with our
       // reason code) sits on error.context, not in `data`. Read both.
       let code = data?.error || "";
@@ -14608,12 +14628,12 @@ This is what a candidate sees. A public page, no login, reached only through the
                   <div className="space-y-3">
                     <div>
                       <label className={`block rounded-xl border-2 border-dashed px-4 py-7 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-[color:var(--brand-soft)]/40 hover:border-[color:var(--brand)]"} ${!file && stage === "form" ? "upload-glow" : ""}`} style={{ borderColor: file ? "var(--brand)" : "var(--line-strong)" }}>
-                        <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form"} />
+                        <input type="file" accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFile} className="hidden" disabled={stage !== "form"} />
                         <span className="mx-auto mb-2 flex w-9 h-9 items-center justify-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={file ? "check" : "upload"} className="w-4 h-4" /></span>
                         {file ? (
                           <span className="block text-sm font-medium break-all" style={{ color: "var(--ink)" }}>{file.name}</span>
                         ) : (
-                          <span className="block text-sm" style={{ color: "var(--ink-3)" }}>Tap to upload your resume<br /><span className="text-xs">PDF only</span></span>
+                          <span className="block text-sm" style={{ color: "var(--ink-3)" }}>Tap to upload your resume<br /><span className="text-xs">PDF or Word (.docx)</span></span>
                         )}
                       </label>
                       <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Make sure your resume includes your email so the team can reach you.</p>
