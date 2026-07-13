@@ -17583,16 +17583,18 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
 // One step of the first-time onboarding tour: a STEP label, a short hint, a
 // primary button (Next / Close), a skip ×, and a pointer aimed at its action
 // ("down"/"up"/"left"/"right"). Fixed narrow width so it never sprawls.
-function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer }) {
+function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer, arrowAlign = "right" }) {
   const num = parseInt(String(step).replace(/\D/g, ""), 10) || 1;
   const total = 3;
   const isLast = primaryLabel === "Close";
   // Arrow: a rotated square that reads as a speech-bubble tail, sitting flush to
   // the card edge, with a soft brand "ping" glow behind it that pulses toward the
-  // target button so the eye follows it.
+  // target button so the eye follows it. For vertical pointers, arrowAlign picks
+  // which side of the bubble the tail hangs from so it lands over the target.
+  const hEdge = arrowAlign === "left" ? { left: 26 } : { right: 22 };
   const pos = {
-    down: { bottom: -6, right: 22 },
-    up: { top: -6, right: 22 },
+    down: { bottom: -6, ...hEdge },
+    up: { top: -6, ...hEdge },
     right: { top: "50%", right: -6, marginTop: -6 },
     left: { top: "50%", left: -6, marginTop: -6 },
   }[pointer];
@@ -17827,8 +17829,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Guided HM onboarding tour: one bubble at a time, Step 1 -> 2 -> 3. Steps 1-2
   // have a Next button that advances; Step 3 has Close. Runs once; the "done"
   // state persists so it doesn't reappear. tourStep 0 = finished/skipped.
-  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem("aster.tour.applicants.v2") === "done" ? 0 : 1; } catch { return 1; } });
-  const endTour = () => { setTourStep(0); try { localStorage.setItem("aster.tour.applicants.v2", "done"); } catch { /* private mode */ } };
+  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem("aster.tour.applicants.v3") === "done" ? 0 : 1; } catch { return 1; } });
+  const endTour = () => { setTourStep(0); try { localStorage.setItem("aster.tour.applicants.v3", "done"); } catch { /* private mode */ } };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
   const [stageFilter, setStageFilter] = useState("all");
@@ -18119,7 +18121,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         <div className="relative inline-block">
           {!isInterviewer(profile?.role) && tourStep === 1 && (
             <div className="absolute bottom-full left-2 mb-2 z-30">
-              <GuideBubble step="Step 1" pointer="down" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
+              <GuideBubble step="Step 1" pointer="down" arrowAlign="left" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
                 These are the candidates who applied. Strong Matches fit the role; Other Applicants stay in your talent pool.
               </GuideBubble>
             </div>
