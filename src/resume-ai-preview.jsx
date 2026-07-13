@@ -18018,13 +18018,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               </div>
             )}
             <button
-              onClick={() => { if (tourStep === 2) { setTourStep(3); return; } askAiRank(runMatching); }}
-              disabled={aiRankDisabled && tourStep !== 2}
-              title={tourStep === 2 ? "This is where you run AI Rank. Finish the quick tour first." : !canRank && !outOfRuns ? "AI Rank turns on once at least 2 candidates have applied to this role." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
-              // During Step 2 of the tour, keep the button lit as the highlight
-              // target (opacity:1 overrides the disabled dim) even when it can't
-              // run yet; the tooltip explains why it won't click.
-              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
+              onClick={() => askAiRank(runMatching)}
+              disabled={aiRankDisabled || tourStep === 2}
+              title={tourStep === 2 ? "Finish the quick tour first, then AI Rank is ready here." : !canRank && !outOfRuns ? "AI Rank turns on once at least 2 candidates have applied to this role." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+              // During Step 2 the button is a highlight only: disabled (so a click
+              // never runs AI Rank or jumps the tour) but ringed by the pulse so
+              // it's clearly the target. Advance with the bubble's Next button.
+              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : undefined}
               className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
               <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
