@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const companyId = profile?.company_id;
     if (!companyId) return json({ error: "no company for this session" }, 403);
 
-    const { data: comp } = await admin.from("companies").select("name, welcomed_at").eq("id", companyId).maybeSingle();
+    const { data: comp } = await admin.from("companies").select("name, slug, welcomed_at").eq("id", companyId).maybeSingle();
     if (!comp) return json({ error: "not found" }, 404);
     if (comp.welcomed_at) return json({ ok: true, skipped: "already_welcomed" });
 
@@ -51,15 +51,18 @@ Deno.serve(async (req) => {
     if (!to) return json({ ok: true, skipped: "no_recipient" });
 
     const tpl = await loadTemplate(admin, "company_welcome", null, {
-      subject: "Welcome to Aster, {{company_name}}",
+      subject: "Your {{company_name}} workspace is ready",
       body: `<p>Hi {{recipient_name}},</p>
-<p>Welcome to Aster. Your workspace for {{company_name}} is ready, post your first role and let Aster read every application for you.</p>
+<p>Your {{company_name}} workspace is set up and ready to go. Post your first role and share the apply link, and Aster reads every application as it arrives, scores each one against the role, and hands you a ranked shortlist. You start from the best-fit candidates instead of a pile of CVs.</p>
+<p>Your workspace lives at <strong>{{workspace_url}}</strong>. Bookmark it for next time.</p>
 <p><a href="{{cta_link}}">Open your dashboard</a></p>`,
     });
+    const workspaceHost = comp.slug ? `${comp.slug}.hireaster.com` : "hireaster.com";
     const tokens = {
       recipient_name: (profile?.full_name || "there").split(" ")[0] || "there",
       company_name: comp.name || "your team",
-      cta_link: `${SITE}/login`,
+      workspace_url: workspaceHost,
+      cta_link: comp.slug ? `https://${comp.slug}.hireaster.com/dashboard` : `${SITE}/login`,
     };
     await sendEmail({
       to,
