@@ -10312,6 +10312,10 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
   const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
   const [expiresAt, setExpiresAt] = useState(initialJob?.expires_at || ""); // yyyy-mm-dd; blank = never closes
+  const [dateOpen, setDateOpen] = useState(false);
+  const [dateMenuRef, dateUp] = useDropUp(dateOpen, 340); // flip the calendar up when it'd overflow the modal bottom
+  const [dateMonth, setDateMonth] = useState(() => { const d = initialJob?.expires_at ? new Date(initialJob.expires_at + "T00:00:00") : new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   // Public applications always accept everyone now; the AI sorts them into Strong
   // Matches / Other Applicants on the Applicants page instead of blocking anyone.
   const screening = "open";
@@ -10491,7 +10495,33 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       </div>
       <div>
         <label className={labelClass}>Closing date <span className="text-neutral-400 font-normal">(optional)</span></label>
-        <input type="date" value={expiresAt} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setExpiresAt(e.target.value)} className={inputClass} />
+        <div className="relative" ref={dateMenuRef}>
+          <button type="button" onClick={() => setDateOpen((o) => !o)} className={`${inputClass} text-left flex items-center justify-between`}>
+            <span style={{ color: expiresAt ? "var(--ink)" : "var(--ink-3)" }}>
+              {expiresAt ? new Date(expiresAt + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "long", year: "numeric" }) : "Select a date"}
+            </span>
+            <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
+          </button>
+          {dateOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setDateOpen(false)} />
+              <div className={`absolute z-30 left-0 w-[280px] max-w-full rounded-2xl bg-white border p-3 act-shadow ${dateUp ? "bottom-full mb-1.5" : "top-full mt-1.5"}`} style={{ borderColor: "var(--line)" }}>
+                <MiniCalendar
+                  month={dateMonth}
+                  onPrevMonth={() => setDateMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                  onNextMonth={() => setDateMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                  start={expiresAt ? new Date(expiresAt + "T00:00:00") : null}
+                  end={expiresAt ? new Date(expiresAt + "T00:00:00") : null}
+                  minDate={startOfDay(new Date())}
+                  onPick={(d) => { setExpiresAt(ymdLocal(d)); setDateOpen(false); }}
+                />
+                {expiresAt && (
+                  <button type="button" onClick={() => { setExpiresAt(""); setDateOpen(false); }} className="mt-2 w-full text-xs font-medium rounded-lg py-1.5 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>Clear date</button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
         {(() => {
           if (!expiresAt) return <p className="text-xs text-neutral-400 mt-1">Leave blank to keep the posting open until you close it.</p>;
           const days = Math.round((new Date(expiresAt + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
