@@ -14042,7 +14042,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             {sentRequest?.jobTitle ? ` · ${sentRequest.jobTitle}` : ""}
           </p>
           <p className="text-xs text-neutral-400 mt-1">
-            The candidate confirmed this time. Add the video link below to send it to everyone.
+            The candidate confirmed this time. Paste the meeting link below to send it to everyone.
           </p>
         </div>
         {/* Meeting link: paste your own video-call URL, share it with the candidate
@@ -19764,14 +19764,25 @@ export default function ResumeAIPreview() {
   const substituteAttendee = (candidateId, oldId, replacement) => {
     if (!candidateId || !oldId || !replacement?.id) return;
     let nextAttendees = null;
+    let jobId = null;
     setBookings((prev) => {
       const b = prev[candidateId];
       if (!b) return prev;
+      jobId = b.jobId || null;
       const attendees = (b.attendees || []).map((a) => (a.id === oldId ? { id: replacement.id, name: replacement.name, email: replacement.email } : a));
       nextAttendees = attendees;
       return { ...prev, [candidateId]: { ...b, attendees } };
     });
-    if (canPersist && nextAttendees) dbSetInterviewAttendees(companyId, candidateId, nextAttendees);
+    if (canPersist && nextAttendees) {
+      dbSetInterviewAttendees(companyId, candidateId, nextAttendees);
+      // The panel swap alone doesn't grant access: assign the new interviewer to
+      // the job so the candidate, the interview and the scorecard show up in THEIR
+      // dashboard (RLS scopes interviewers to jobs they're assigned to).
+      if (jobId) {
+        dbAssignInterviewer(jobId, replacement.id);
+        setJobAssignments((prev) => (prev.some((x) => x.job_id === jobId && x.profile_id === replacement.id) ? prev : [...prev, { job_id: jobId, profile_id: replacement.id }]));
+      }
+    }
   };
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
   const addScorecard = (candidateId, card, jobId = null) => {
