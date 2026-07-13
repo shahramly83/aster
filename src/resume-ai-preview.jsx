@@ -18025,8 +18025,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               onClick={() => askAiRank(runMatching)}
               disabled={aiRankDisabled}
               title={!canRank && !outOfRuns ? "You need at least 2 candidates in Strong Matches (not yet hired) to run AI Rank." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
-              style={tourStep === 2 && !aiRankDisabled ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : undefined}
-              className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 && !aiRankDisabled ? "tour-pulse" : ""}`}
+              // During Step 2 of the tour, keep the button lit as the highlight
+              // target (opacity:1 overrides the disabled dim) even when it can't
+              // run yet; the amber note above explains why it won't click.
+              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
+              className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
               <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
               {matching ? "Ranking…" : outOfRuns ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
