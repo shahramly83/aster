@@ -20070,6 +20070,17 @@ export default function ResumeAIPreview() {
           );
           if (!rpcErr) sess = await loadCustomerSession(session.user.id, email);
         }
+        // First-time password user (just confirmed their email, so they're auto
+        // signed in here) with no workspace yet: provision from the signup metadata
+        // (company name + chosen slug), so they don't have to sign in a second time.
+        if (!sess && !isSSO && session.user.user_metadata?.company_name) {
+          const rpcErr = await createCompanyAndWelcome(
+            session.user.user_metadata.company_name,
+            session.user.user_metadata?.full_name || null,
+            session.user.user_metadata?.workspace_slug || null,
+          );
+          if (!rpcErr) sess = await loadCustomerSession(session.user.id, email);
+        }
         if (cancelled || !sess) return;
         // Multi-tenant: on the apex or a subdomain that isn't this workspace's,
         // forward to the correct <slug>.hireaster.com instead of loading here.
