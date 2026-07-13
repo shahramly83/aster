@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useLayoutEffect, useRef, useId, Fragment, Component } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
@@ -7711,6 +7712,25 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
 function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) {
+  // First-time nudge: point a bubble at Job Postings from the dashboard so a new
+  // hiring manager knows where to start. Once per user (keyed by profile id).
+  const jobsRef = useRef(null);
+  const jobsHintKey = `aster.hint.postjob:${profile?.id || "anon"}`;
+  const [jobsHintDismissed, setJobsHintDismissed] = useState(() => { try { return localStorage.getItem(jobsHintKey) === "done"; } catch { return false; } });
+  const showJobsHint = active === "dashboard" && !isInterviewer(profile?.role) && !jobsHintDismissed;
+  const dismissJobsHint = () => { setJobsHintDismissed(true); try { localStorage.setItem(jobsHintKey, "done"); } catch { /* private mode */ } };
+  // The rail is overflow-hidden (for the hover-expand label reveal), so the bubble
+  // can't live inside it. Measure the Jobs button and render a fixed bubble beside
+  // it; re-measure on scroll/resize since the rail is sticky.
+  const [hintPos, setHintPos] = useState(null);
+  useLayoutEffect(() => {
+    if (!showJobsHint) return undefined;
+    const measure = () => { const el = jobsRef.current; if (el) { const r = el.getBoundingClientRect(); setHintPos({ top: r.top + r.height / 2, left: r.right }); } };
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+  }, [showJobsHint]);
   // Rows are full width so that when the rail expands on hover the icon stays put
   // and the label fades in beside it (no icon jump). Collapsed, only the icon shows.
   const railBtn = (item, i = 0) => {
@@ -7718,11 +7738,12 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
     return (
       <button
         key={item.key}
+        ref={item.key === "jobs" ? jobsRef : undefined}
         onClick={() => navigate(item.key)}
         title={item.label}
         aria-label={item.label}
         aria-current={on ? "page" : undefined}
-        className="relative w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-[gap,padding,justify-content,color] duration-300"
+        className={`relative w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-[gap,padding,justify-content,color] duration-300 ${item.key === "jobs" && showJobsHint ? "tour-pulse" : ""}`}
         style={{ color: on ? "#fff" : "var(--ink-2)" }}
         onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--brand)"; }}
         onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
@@ -7766,6 +7787,14 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
           <span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200">Log out</span>
         </button>
       </div>
+      {showJobsHint && hintPos && typeof document !== "undefined" && createPortal(
+        <div style={{ position: "fixed", top: hintPos.top - 26, left: hintPos.left + 18, zIndex: 100 }}>
+          <GuideBubble step="1" total={1} pointer="left" arrowAlign="top" primaryLabel="Post a job" onPrimary={() => { dismissJobsHint(); navigate("jobs"); }} onClose={dismissJobsHint}>
+            Start here. Post your first job to get a shareable apply link and start collecting applicants.
+          </GuideBubble>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -17591,11 +17620,14 @@ function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer
   // target button so the eye follows it. For vertical pointers, arrowAlign picks
   // which side of the bubble the tail hangs from so it lands over the target.
   const hEdge = arrowAlign === "left" ? { left: 26 } : { right: 22 };
+  // For side pointers, arrowAlign "top" hangs the tail near the top edge so the
+  // bubble body can extend downward from the target instead of centering on it.
+  const vEdge = arrowAlign === "top" ? { top: 20 } : { top: "50%", marginTop: -6 };
   const pos = {
     down: { bottom: -6, ...hEdge },
     up: { top: -6, ...hEdge },
-    right: { top: "50%", right: -6, marginTop: -6 },
-    left: { top: "50%", left: -6, marginTop: -6 },
+    right: { ...vEdge, right: -6 },
+    left: { ...vEdge, left: -6 },
   }[pointer];
   const bubbleBg = "#E8EDFF"; // light blue
   const bubbleLine = "rgba(11,42,224,0.22)";
