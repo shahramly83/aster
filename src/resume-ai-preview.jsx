@@ -10274,7 +10274,11 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 function formatSalary(job) {
   if (!job.salary_min && !job.salary_max) return null;
   const fmt = (n) => n.toLocaleString();
-  if (job.salary_min && job.salary_max) return `${job.salary_currency} ${fmt(job.salary_min)}–${fmt(job.salary_max)}`;
+  if (job.salary_min && job.salary_max) {
+    // Same min and max is a single figure, not a range.
+    if (job.salary_min === job.salary_max) return `${job.salary_currency} ${fmt(job.salary_min)}`;
+    return `${job.salary_currency} ${fmt(job.salary_min)}–${fmt(job.salary_max)}`;
+  }
   return `${job.salary_currency} ${fmt(job.salary_min ?? job.salary_max)}+`;
 }
 
