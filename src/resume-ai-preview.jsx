@@ -68,6 +68,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
     userId,
     companyId: data.company_id,
     profile: {
+      id: userId, // the auth user id, so self-checks (e.g. "don't assign myself") work
       firstName: parts[0] || "",
       lastName: parts.slice(1).join(" "),
       email: fallbackEmail || "",
@@ -18133,13 +18134,11 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState(null);
   const assigned = team.filter((m) => assignedIds.has(m.id));
-  // Owners (Tenant) and hiring managers (admins) already have access to every
-  // job, so they're never "interviewers to add" — the dropdown is only for
-  // teammates whose visibility is scoped per job. Also drop yourself and anyone
-  // with a still-pending invite (they can't be assigned until they accept).
+  // You can assign anyone on the team EXCEPT yourself (you already have access to
+  // every job you manage). Also drop anyone already assigned or with a still-
+  // pending invite (they can't be assigned until they accept).
   const addable = team.filter((m) =>
-    !assignedIds.has(m.id) && !m.pending && m.id !== currentUserId &&
-    m.role !== "owner" && m.role !== "admin");
+    !assignedIds.has(m.id) && !m.pending && m.id !== currentUserId);
   // No one left to assign and none assigned: show the invite empty state so a
   // manager can bring an interviewer onto the team without leaving this screen.
   const needsTeam = canManage && addable.length === 0 && assigned.length === 0;
