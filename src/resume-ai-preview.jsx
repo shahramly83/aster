@@ -935,6 +935,10 @@ async function redirectToWorkspace(slug) {
 // Returns true if it kicked off a redirect (the caller should stop navigating).
 function needsWorkspaceRedirect(sess) {
   if (!SUBDOMAIN_ROUTING || typeof window === "undefined") return false;
+  // An in-flight invite acceptance owns this load. Never forward to a workspace
+  // subdomain here: the redirect drops the ?invite= token, so the invitee would
+  // land on a login screen instead of the accept-invite form. Let it run in place.
+  if (new URLSearchParams(window.location.search).get("invite")) return false;
   const slug = sess?.companySlug;
   if (!slug) return false;                 // no slug on record: stay on this origin
   if (currentSubdomainSlug() === slug) return false; // already on the right subdomain

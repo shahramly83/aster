@@ -63,11 +63,17 @@ Deno.serve(async (req) => {
 
     // Resolve inviter name + company for the email tokens (service role).
     const { data: inviter } = await admin
-      .from("profiles").select("full_name, company_id, companies(name)").eq("id", user.id).maybeSingle();
+      .from("profiles").select("full_name, company_id, companies(name, slug)").eq("id", user.id).maybeSingle();
     const companyId = inviter?.company_id || null;
-    const companyName = (inviter as { companies?: { name?: string } })?.companies?.name || "your workspace";
+    const rel = (inviter as { companies?: { name?: string; slug?: string } })?.companies;
+    const companyName = rel?.name || "your workspace";
     const inviterName = inviter?.full_name || "A teammate";
-    const ctaLink = `${SITE}/?invite=${inviteToken}`;
+    // Point the accept link at the workspace's own subdomain when it has a slug.
+    // On <slug>.hireaster.com the invitee is already on the right host, so the
+    // accept flow runs in place (branded) instead of the apex forwarding to a
+    // subdomain and dropping the ?invite= token en route.
+    const inviteBase = rel?.slug ? `https://${rel.slug}.hireaster.com` : SITE;
+    const ctaLink = `${inviteBase}/?invite=${inviteToken}`;
 
     // Send the Tier 1 invite email (company override → platform default → code default).
     try {
