@@ -7006,7 +7006,12 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const reqStar = <span aria-hidden="true" style={{ color: "var(--brand-0)" }}> *</span>;
 
   const slugValid = isWorkspaceSlugValid(workspaceUrl);
-  const canSubmit = companyName.trim() && firstName.trim() && email.trim() && slugValid && slugAvail !== false;
+  // Live work-email check (instant, no round-trip): valid format + a business
+  // domain (Gmail, Outlook, iCloud and the like are rejected).
+  const emailTrimmed = email.trim();
+  const emailFmtOk = isValidEmail(emailTrimmed);
+  const emailBusiness = emailFmtOk && isBusinessEmail(emailTrimmed);
+  const canSubmit = companyName.trim() && firstName.trim() && emailBusiness && slugValid && slugAvail !== false;
 
   // Debounced availability check against the DB (workspace_slug_available RPC).
   // Only sets state inside the async callback, so it never fires a synchronous
@@ -7249,6 +7254,12 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             <div>
               <label htmlFor="su-email" className={labelDark} style={{ color: "var(--ink)" }}>Work email{reqStar}</label>
               <input id="su-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
+              <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: emailFmtOk && !emailBusiness ? "#DC2626" : emailBusiness ? "#16A34A" : "var(--ink-3)" }}>
+                {!emailTrimmed ? "Use your work email, not a personal one (Gmail, Outlook, iCloud, etc.)."
+                  : !emailFmtOk ? "Enter a valid email address."
+                  : !emailBusiness ? <><Icon name="close" className="w-3 h-3 shrink-0" /> Personal emails aren&apos;t accepted. Use your work email.</>
+                  : <><Icon name="check" className="w-3 h-3 shrink-0" /> Looks like a work email.</>}
+              </p>
             </div>
             <div>
               <label htmlFor="su-password" className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
