@@ -12702,7 +12702,13 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
         <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Assigned to you</h2>
         <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Open a role to review its applicants and request an interview.</p>
         {assigned.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--ink-3)" }}>No open roles assigned to you yet. Your hiring manager assigns interviewers per role.</p>
+          <div className="rounded-2xl bg-white border border-dashed px-6 py-12 text-center" style={{ borderColor: "var(--line-strong)" }}>
+            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3.5" style={{ background: "var(--brand-soft)" }}>
+              <Icon name="briefcase" className="w-6 h-6" style={{ color: "var(--brand)" }} />
+            </div>
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No roles assigned yet</p>
+            <p className="text-xs mt-1 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Your hiring manager assigns interviewers per role. Once you&apos;re added to one, it shows up here with its applicants ready to review.</p>
+          </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {assigned.map((j) => {
@@ -17812,13 +17818,17 @@ function AnchoredTourBubble({ targetRef, side = "bottom", align = "start", rende
   );
 }
 
-function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign, locked = false, stepLabel = null, showStep3 = false, onStep3Close = () => {} }) {
+function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUserId, onAssign, onUnassign, locked = false, stepLabel = null, showStep3 = false, onStep3Close = () => {}, navigate = () => {} }) {
   const [open, setOpen] = useState(false);
   const [addMenuRef, addUp] = useDropUp(open, 280);
   const [busyId, setBusyId] = useState(null);
   const [err, setErr] = useState(null);
   const assigned = team.filter((m) => assignedIds.has(m.id));
-  const addable = team.filter((m) => !assignedIds.has(m.id) && !m.pending);
+  // You (the manager) always have access, so you're never an "interviewer" to add.
+  const addable = team.filter((m) => !assignedIds.has(m.id) && !m.pending && m.id !== currentUserId);
+  // No teammates left to assign: the block is locked until someone is invited on
+  // the Team page.
+  const needsTeam = canManage && addable.length === 0 && assigned.length === 0;
 
   const add = async (m) => {
     setErr(null); setBusyId(m.id); setOpen(false);
@@ -17846,17 +17856,18 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
         <div className="min-w-0">
           {stepLabel && <p className="text-[11px] font-bold uppercase mb-1" style={{ color: "var(--brand)", letterSpacing: "0.08em" }}>{stepLabel}</p>}
           <h3 className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
-            <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name={locked ? "lock" : "users"} className="w-4 h-4" /></span>
+            <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name={locked || needsTeam ? "lock" : "users"} className="w-4 h-4" /></span>
             Interviewers on this job
             <InfoHint dir="down" hint="Interviewers unlock after you run AI Rank, so they open a ranked shortlist instead of a raw pile of applications." />
           </h3>
-          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{locked ? "Complete Step 1 (AI Rank) first, so interviewers get a prepared, ranked list. This unlocks automatically once ranking is done." : "They can see these applicants and request interviews. You and other hiring managers always have access."}</p>
+          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{locked ? "Complete Step 1 (AI Rank) first, so interviewers get a prepared, ranked list. This unlocks automatically once ranking is done." : needsTeam ? "You have no interviewers on your team yet. Add one on the Team page to assign them here." : "They can see these applicants and request interviews. You and other hiring managers always have access."}</p>
         </div>
-        {canManage && (
+        {canManage && !needsTeam && (
           <div className="relative shrink-0" ref={addMenuRef}>
             <button
-              onClick={() => setOpen((o) => !o)}
-              disabled={locked || addable.length === 0}
+              onClick={() => { if (addable.length > 0) setOpen((o) => !o); else navigate("interviewers"); }}
+              disabled={locked}
+              title={addable.length === 0 ? "Invite a teammate on the Team page, then assign them here." : undefined}
               className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40 inline-flex items-center gap-1.5 ${showStep3 ? "tour-pulse" : ""}`}
               style={{ borderColor: showStep3 ? "var(--brand)" : "var(--line-strong)", color: "var(--brand)" }}
             >
@@ -17882,8 +17893,19 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
       {err && <p role="alert" className="text-[13px] mt-3 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>}
 
       <div className="mt-3">
-        {assigned.length === 0 ? (
-          <p className="text-xs" style={{ color: "var(--ink-3)" }}>{canManage ? "No interviewers added yet. Add teammates so they can review these candidates." : "No interviewers added yet."}</p>
+        {needsTeam ? (
+          <div className="rounded-xl border border-dashed px-4 py-5 text-center" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
+            <div className="mx-auto w-10 h-10 rounded-full flex items-center justify-center mb-2.5" style={{ background: "var(--brand-soft)" }}>
+              <Icon name="userPlus" className="w-5 h-5" style={{ color: "var(--brand)" }} />
+            </div>
+            <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>No interviewers on your team</p>
+            <p className="text-[11px] mt-1 mb-3 max-w-[16rem] mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Invite a teammate on the Team page, then assign them here to review these candidates.</p>
+            <button onClick={() => navigate("interviewers")} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3.5 py-2 brand-gradient text-white hover:opacity-90 transition-opacity">
+              <Icon name="userPlus" className="w-3.5 h-3.5" /> Add interviewer
+            </button>
+          </div>
+        ) : assigned.length === 0 ? (
+          <p className="text-xs" style={{ color: "var(--ink-3)" }}>{canManage ? "No interviewers added yet. Use Add interviewer to assign a teammate." : "No interviewers added yet."}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {assigned.map((m) => (
@@ -18218,6 +18240,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           locked={!step2Enabled}
           showStep3={tourStep === 3}
           onStep3Close={endTour}
+          navigate={navigate}
         />
       )}
       {limits.aiRunsPerMonth !== Infinity && (
