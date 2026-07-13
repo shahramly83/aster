@@ -45,7 +45,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, companies ( name, slug, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
+    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, onboarding, companies ( name, slug, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -74,6 +74,8 @@ async function loadCustomerSession(userId, fallbackEmail) {
       role: ROLE_LABELS[data.role] || "Hiring Manager",
       phone: data.phone || "",
       notifications: data.notify_prefs || {},
+      // Per-user onboarding/tour flags, so a "skip" persists across browsers.
+      onboarding: data.onboarding || {},
     },
     avatarPath: data.avatar_path || null,
     calendarProvider: data.calendar_provider || null,
@@ -94,6 +96,19 @@ async function loadCustomerSession(userId, fallbackEmail) {
     addressParts,
     registrationNo: co.registration_no || "",
   };
+}
+
+// Onboarding/tour flags persist per USER on profiles.onboarding (server), and are
+// mirrored to localStorage for an instant read. A flag counts as "done" if either
+// source says so; ending/skipping a tour writes BOTH, so a "skip" sticks to the
+// account across browsers and incognito windows, not just the one that clicked it.
+function onboardingDone(profile, serverKey, lsKey) {
+  if (profile && profile.onboarding && profile.onboarding[serverKey] === true) return true;
+  try { return localStorage.getItem(lsKey) === "done"; } catch { return false; }
+}
+function markOnboardingDone(serverKey, lsKey) {
+  try { if (lsKey) localStorage.setItem(lsKey, "done"); } catch { /* private mode */ }
+  if (hasSupabase) { try { supabase.rpc("mark_onboarding", { p_key: serverKey }).catch(() => {}); } catch { /* ignore */ } }
 }
 
 // Redirect to Stripe's hosted Checkout for a plan + cycle. create-checkout-session
@@ -7882,16 +7897,15 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
   const uid = profile?.id || "anon";
   const profileKey = `aster.onboard.profile:${uid}`;
   const jobsKey = `aster.hint.postjob:${uid}`;
-  const readFlag = (k) => { try { return localStorage.getItem(k) === "done"; } catch { return false; } };
-  const [jobsDismissed, setJobsDismissed] = useState(() => readFlag(jobsKey));
+  const [jobsDismissed, setJobsDismissed] = useState(() => onboardingDone(profile, "postjob", jobsKey));
   const isManager = !isInterviewer(profile?.role);
   const onDash = active === "dashboard";
-  const profileDone = readFlag(profileKey); // read fresh; ProfileScreen flips it on save
+  const profileDone = onboardingDone(profile, "profile", profileKey); // ProfileScreen flips it on save
   const showProfileHint = onDash && isManager && !profileDone;
   const showJobsHint = onDash && isManager && profileDone && !jobsDismissed;
   const activeHint = showProfileHint ? "profile" : showJobsHint ? "jobs" : null;
-  const dismissJobsHint = () => { try { localStorage.setItem(jobsKey, "done"); } catch { /* private mode */ } setJobsDismissed(true); };
-  const skipOnboarding = () => { try { localStorage.setItem(profileKey, "done"); localStorage.setItem(jobsKey, "done"); } catch { /* private mode */ } setJobsDismissed(true); };
+  const dismissJobsHint = () => { markOnboardingDone("postjob", jobsKey); setJobsDismissed(true); };
+  const skipOnboarding = () => { markOnboardingDone("profile", profileKey); markOnboardingDone("postjob", jobsKey); setJobsDismissed(true); };
   // The rail is overflow-hidden (for the hover-expand label reveal), so the bubble
   // can't live inside it. Measure the active target button and render a fixed,
   // portaled bubble beside it; re-measure on scroll/resize (the rail is sticky).
@@ -10674,9 +10688,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const showPostCta = isManager && !anyOpenJob && !postCtaDone;
   const dismissPostCta = () => { try { localStorage.setItem(postCtaKey, "done"); } catch { /* private mode */ } setPostCtaDone(true); };
   const jobsTourKey = `aster.onboard.jobstour:${profile?.id || "anon"}`;
-  const [jobsTourStep, setJobsTourStep] = useState(() => { try { return localStorage.getItem(jobsTourKey) === "done" ? "done" : "copylink"; } catch { return "done"; } });
+  const [jobsTourStep, setJobsTourStep] = useState(() => (onboardingDone(profile, "jobstour", jobsTourKey) ? "done" : "copylink"));
   const jobsTourOn = isManager && anyOpenJob && jobsTourStep !== "done";
-  const endJobsTour = () => { try { localStorage.setItem(jobsTourKey, "done"); } catch { /* private mode */ } setJobsTourStep("done"); };
+  const endJobsTour = () => { markOnboardingDone("jobstour", jobsTourKey); setJobsTourStep("done"); };
   const copyLinkRef = useRef(null);
   const applicantsRef = useRef(null);
   const [openHelp, setOpenHelp] = useState(null); // sidebar "how it works" accordion
@@ -15753,13 +15767,11 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
     // mark it done and send them to the dashboard, where the "post your first
     // job" nudge takes over.
     if (!isInterviewer(profile?.role)) {
-      try {
-        const pk = `aster.onboard.profile:${profile?.id || "anon"}`;
-        if (localStorage.getItem(pk) !== "done") {
-          localStorage.setItem(pk, "done");
-          setTimeout(() => navigate("dashboard"), 900);
-        }
-      } catch { /* private mode */ }
+      const pk = `aster.onboard.profile:${profile?.id || "anon"}`;
+      if (!onboardingDone(profile, "profile", pk)) {
+        markOnboardingDone("profile", pk); // persists per-user (server + localStorage)
+        setTimeout(() => navigate("dashboard"), 900);
+      }
     }
   };
   const handleCancel = () => {
@@ -18355,8 +18367,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Runs once per user (keyed by profile id) the first time; the "done" flag
   // persists so it doesn't reappear. tourStep 0 = finished/skipped.
   const tourKey = `aster.tour.applicants.v6:${profile?.id || "anon"}`;
-  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem(tourKey) === "done" ? 0 : 1; } catch { return 1; } });
-  const endTour = () => { setTourStep(0); try { localStorage.setItem(tourKey, "done"); } catch { /* private mode */ } };
+  const [tourStep, setTourStep] = useState(() => (onboardingDone(profile, "applicants_v6", tourKey) ? 0 : 1));
+  const endTour = () => { setTourStep(0); markOnboardingDone("applicants_v6", tourKey); };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
   const [stageFilter, setStageFilter] = useState("all");
