@@ -340,6 +340,34 @@ export async function dbSaveInterviewQuestions(companyId, userId, { candidateId,
 // Interviewer flags a candidate as ready for the hiring manager to schedule.
 // Idempotent server-side: the first request per application wins. Returns an
 // error message, or null on success.
+// The signed-in user's own candidate shortlist (application ids they've starred).
+// RLS returns every pick for a manager, so we scope to the caller's own rows.
+export async function dbListMyShortlist(companyId, userId) {
+  if (!hasSupabase || !companyId || !userId) return [];
+  const { data, error } = await supabase
+    .from("candidate_shortlists").select("application_id")
+    .eq("company_id", companyId).eq("profile_id", userId);
+  if (error) { console.error("dbListMyShortlist", error.message); return []; }
+  return (data || []).map((r) => r.application_id).filter(Boolean);
+}
+
+// Star / unstar a candidate for the signed-in user. profile_id must equal
+// auth.uid() (RLS enforces it); passing userId here just satisfies the insert.
+export async function dbSetShortlist(companyId, userId, applicationId, on) {
+  if (!hasSupabase || !companyId || !userId || !applicationId) return;
+  if (on) {
+    const { error } = await supabase
+      .from("candidate_shortlists")
+      .upsert({ company_id: companyId, application_id: applicationId, profile_id: userId }, { onConflict: "application_id,profile_id" });
+    if (error) console.error("dbSetShortlist add", error.message);
+  } else {
+    const { error } = await supabase
+      .from("candidate_shortlists").delete()
+      .eq("application_id", applicationId).eq("profile_id", userId);
+    if (error) console.error("dbSetShortlist remove", error.message);
+  }
+}
+
 export async function dbRequestScheduling(applicationId) {
   if (!hasSupabase || !applicationId) return "Not connected to a live workspace.";
   const { error } = await supabase.rpc("request_scheduling", { p_application_id: applicationId });

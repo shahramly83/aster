@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -18311,7 +18311,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {} }) {
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {} }) {
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     // Once a candidate advances to offer or a terminal state, the stage pill is
@@ -18527,8 +18527,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const filterOptions = ["all", ...STAGE_ORDER];
   const filterLabel = (key) => (key === "all" ? "All stages" : STAGE_LABELS[key]);
 
+  // "My shortlist" toggle: show only the candidates the signed-in user starred.
+  // It rides on top of the score sort, so a re-rank never hides or reorders picks
+  // away — the reviewer always sees exactly who they shortlisted.
+  const [shortlistOnly, setShortlistOnly] = useState(false);
+  const shortlistCount = tabBase.filter((a) => shortlistedApps.has(a.applicationId)).length;
   // Free can view every applicant now; only AI-match depth is gated.
-  const shownApps = filtered;
+  const shownApps = shortlistOnly ? filtered.filter((a) => shortlistedApps.has(a.applicationId)) : filtered;
 
   // The Hiring Manager's workflow cards now live in the right sidebar; the left
   // column shows only the applicant tabs + list. Step 2 / Step 3 guidance bubbles
@@ -18705,9 +18710,19 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         {/* Stage filter */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <p className="text-sm text-neutral-500">
-            {filtered.length} {filtered.length === 1 ? "candidate" : "candidates"}
-            {stageFilter !== "all" ? ` · ${STAGE_LABELS[stageFilter]}` : ""}
+            {shownApps.length} {shownApps.length === 1 ? "candidate" : "candidates"}
+            {shortlistOnly ? " · shortlisted" : stageFilter !== "all" ? ` · ${STAGE_LABELS[stageFilter]}` : ""}
           </p>
+          <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShortlistOnly((v) => !v)}
+            title="Show only the candidates you've shortlisted"
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition-colors ${shortlistOnly ? "font-medium" : "bg-white border-neutral-200 text-neutral-700 hover:border-neutral-300"}`}
+            style={shortlistOnly ? { borderColor: "var(--brand)", color: "var(--brand)", background: "var(--brand-soft)" } : undefined}
+          >
+            <Icon name="star" className="w-4 h-4" style={shortlistOnly ? { fill: "currentColor" } : undefined} />
+            <span>Shortlisted{shortlistCount ? ` · ${shortlistCount}` : ""}</span>
+          </button>
           <div className="relative" ref={filterMenuRef}>
             <button
               onClick={() => setFilterOpen((o) => !o)}
@@ -18737,10 +18752,19 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               </>
             )}
           </div>
+          </div>
         </div>
 
-        {filtered.length === 0 ? (
-          stageFilter !== "all" ? (
+        {shownApps.length === 0 ? (
+          shortlistOnly ? (
+            <div className="rounded-2xl bg-white border border-dashed px-6 py-10 text-center" style={{ borderColor: "var(--line-strong)" }}>
+              <div className="mx-auto w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--bg)" }}>
+                <Icon name="star" className="w-5 h-5" style={{ color: "var(--ink-3)" }} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No shortlisted candidates yet</p>
+              <p className="text-xs mt-1 max-w-xs mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Tap the star on a candidate to add them to your shortlist. Your picks stay here even after AI Rank re-sorts the list.</p>
+            </div>
+          ) : stageFilter !== "all" ? (
             <div className="rounded-2xl bg-white border border-dashed px-6 py-10 text-center" style={{ borderColor: "var(--line-strong)" }}>
               <div className="mx-auto w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--bg)" }}>
                 <Icon name="filter" className="w-5 h-5" style={{ color: "var(--ink-3)" }} />
@@ -18832,6 +18856,17 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
+                      {(() => { const on = shortlistedApps.has(a.applicationId); return (
+                        <button
+                          onClick={() => onToggleShortlist(a.applicationId)}
+                          aria-label={on ? "Remove from your shortlist" : "Add to your shortlist"}
+                          title={on ? "Shortlisted by you. Tap to remove." : "Add to your shortlist"}
+                          className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border transition-colors hover:bg-neutral-50"
+                          style={on ? { borderColor: "var(--brand)", color: "var(--brand)" } : { borderColor: "var(--line-strong)", color: "var(--ink-3)" }}
+                        >
+                          <Icon name="star" className="w-4 h-4" style={on ? { fill: "currentColor" } : undefined} />
+                        </button>
+                      ); })()}
                       {act && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
@@ -19742,6 +19777,10 @@ export default function ResumeAIPreview() {
   // Shared monthly AI-match run counter (Free is limited; resets in production
   // each billing period, here it's per session).
   const [matchRunsUsed, setMatchRunsUsed] = useState(0);
+  // The signed-in user's own candidate shortlist (starred application ids). Keyed
+  // by application, independent of AI Rank order and pipeline stage, so a re-rank
+  // never loses a reviewer's picks.
+  const [shortlistedApps, setShortlistedApps] = useState(() => new Set());
   const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
   // Job posting is a concurrent OPEN-role limit (plan maxJobs), not a monthly
   // credit: closing a role frees a slot, reopening takes one. Derived live from
@@ -20090,6 +20129,23 @@ export default function ResumeAIPreview() {
     ]);
     setInterviewers((profs || []).map((p) => ({ id: p.id, name: p.full_name || "Interviewer", email: p.email || "", role: p.role, pending: p.status === "invited", timezone: "Asia/Kuala_Lumpur" })));
     setPendingInvites((invs || []).map((v) => ({ id: v.id, email: v.email || "", role: v.role || "interviewer" })));
+  };
+
+  // The signed-in user's own candidate shortlist. Loaded once identity is known
+  // (companyId + userId), and refreshed if either changes.
+  useEffect(() => {
+    if (!hasSupabase || !companyId || !userId) return;
+    let alive = true;
+    dbListMyShortlist(companyId, userId).then((ids) => { if (alive) setShortlistedApps(new Set(ids)); });
+    return () => { alive = false; };
+  }, [companyId, userId]);
+
+  // Star / unstar a candidate for the signed-in user (optimistic; persisted).
+  const toggleShortlist = (applicationId) => {
+    if (!applicationId) return;
+    const on = !shortlistedApps.has(applicationId);
+    setShortlistedApps((prev) => { const next = new Set(prev); if (on) next.add(applicationId); else next.delete(applicationId); return next; });
+    if (canPersist) dbSetShortlist(companyId, userId, applicationId, on);
   };
 
   const hydrateWorkspace = async (companyId, opts = {}) => {
@@ -21101,6 +21157,8 @@ export default function ResumeAIPreview() {
             onOpenNotifications={markActivitiesRead}
             jobAssignments={jobAssignments}
             reloadTeam={reloadTeam}
+            shortlistedApps={shortlistedApps}
+            onToggleShortlist={toggleShortlist}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
             insightsCache={insightsCache}
