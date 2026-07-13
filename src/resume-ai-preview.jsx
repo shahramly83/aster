@@ -17832,8 +17832,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Guided HM onboarding tour: one bubble at a time, Step 1 -> 2 -> 3. Steps 1-2
   // have a Next button that advances; Step 3 has Close. Runs once; the "done"
   // state persists so it doesn't reappear. tourStep 0 = finished/skipped.
-  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem("aster.tour.applicants.v3") === "done" ? 0 : 1; } catch { return 1; } });
-  const endTour = () => { setTourStep(0); try { localStorage.setItem("aster.tour.applicants.v3", "done"); } catch { /* private mode */ } };
+  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem("aster.tour.applicants.v4") === "done" ? 0 : 1; } catch { return 1; } });
+  const endTour = () => { setTourStep(0); try { localStorage.setItem("aster.tour.applicants.v4", "done"); } catch { /* private mode */ } };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
   const [stageFilter, setStageFilter] = useState("all");
