@@ -980,15 +980,24 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
   const finishAuth = async (user) => {
     let sess = await loadCustomerSession(user.id, user.email);
     if (!sess) {
+      // Provision the workspace on first sign-in, from the company name + slug the
+      // user chose at signup (in the auth metadata). The boot session-restore is
+      // the primary provisioning path (it runs on the confirmation-link landing
+      // and has a work-email fallback); this covers a direct password sign-in.
       const cn = user.user_metadata?.company_name;
       if (cn) {
-        // Provision with the slug the user chose at signup, so their subdomain
-        // (<slug>.hireaster.com) matches what they picked.
         const rpcErr = await createCompanyAndWelcome(cn, user.user_metadata?.full_name || null, user.user_metadata?.workspace_slug || null);
-        if (!rpcErr) sess = await loadCustomerSession(user.id, user.email);
+        if (rpcErr) {
+          // Surface the real reason instead of a generic dead-end.
+          await supabase.auth.signOut();
+          setErr(rpcErr.message ? `Couldn't set up your workspace: ${rpcErr.message}` : "Couldn't set up your workspace. Please try again.");
+          setBusy(false);
+          return;
+        }
+        sess = await loadCustomerSession(user.id, user.email);
       }
     }
-    if (!sess) { await supabase.auth.signOut(); setErr("This account isn't linked to a workspace yet."); setBusy(false); return; }
+    if (!sess) { await supabase.auth.signOut(); setErr("This account isn't linked to a workspace yet. Please contact support."); setBusy(false); return; }
     onAuthed(sess);
   };
 
@@ -7047,6 +7056,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -7104,7 +7114,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const emailTrimmed = email.trim();
   const emailFmtOk = isValidEmail(emailTrimmed);
   const emailBusiness = emailFmtOk && isBusinessEmail(emailTrimmed);
-  const canSubmit = companyName.trim() && firstName.trim() && emailBusiness && slugValid && slugAvail !== false;
+  const canSubmit = companyName.trim() && firstName.trim() && emailBusiness && slugValid && slugAvail !== false && !!password && confirmPw === password;
 
   // Debounced availability check against the DB (workspace_slug_available RPC).
   // Only sets state inside the async callback, so it never fires a synchronous
@@ -7153,6 +7163,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     if (!isWorkspaceSlugValid(workspaceUrl)) { setErr("Choose a dashboard URL: 2-30 lowercase letters, numbers or hyphens."); return; }
     const pwProblem = passwordProblem(password);
     if (pwProblem) { setErr(pwProblem); return; }
+    if (password !== confirmPw) { setErr("Passwords don't match. Re-enter the same password in both fields."); return; }
     setBusy(true); setErr(null);
 
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
@@ -7403,6 +7414,22 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                 </div>
               )}
               <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-2)" }}>At least 8 characters, with a letter and a number.</p>
+            </div>
+            <div>
+              <label htmlFor="su-confirm" className={labelDark} style={{ color: "var(--ink)" }}>Confirm password{reqStar}</label>
+              <div className="relative">
+                <input id="su-confirm" name="confirm-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setErr(null); }} placeholder="Re-enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                  <Icon name="eye" className="w-4 h-4" />
+                </button>
+              </div>
+              {confirmPw && (
+                <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: confirmPw === password ? "#16A34A" : "#DC2626" }}>
+                  {confirmPw === password
+                    ? <><Icon name="check" className="w-3 h-3 shrink-0" /> Passwords match.</>
+                    : <><Icon name="close" className="w-3 h-3 shrink-0" /> Passwords don&apos;t match.</>}
+                </p>
+              )}
             </div>
 
             {err && (
@@ -20061,25 +20088,20 @@ export default function ResumeAIPreview() {
           const { error: accErr } = await supabase.rpc("accept_invite", { p_token: inviteTok });
           if (!accErr || /already exists/i.test(accErr.message)) { sess = await loadCustomerSession(session.user.id, email); joinedViaInvite = true; }
         }
-        // First-time SSO user with no workspace yet: provision one from their work
-        // domain (matches the password-signup provisioning path), then reload.
-        if (!sess && isSSO && isBusinessEmail(email)) {
+        // First-time user with no workspace yet (a just-confirmed password signup
+        // lands here already authed, and so does a fresh SSO sign-in): provision
+        // one. Prefer the company name + slug chosen at signup (auth metadata);
+        // fall back to a name derived from the work-email domain so any business
+        // email always ends up in a workspace instead of a dead-end.
+        if (!sess && isBusinessEmail(email)) {
+          const cn = session.user.user_metadata?.company_name || companyFromEmail(email);
           const rpcErr = await createCompanyAndWelcome(
-            companyFromEmail(email),
+            cn,
             session.user.user_metadata?.full_name || session.user.user_metadata?.name || null,
-          );
-          if (!rpcErr) sess = await loadCustomerSession(session.user.id, email);
-        }
-        // First-time password user (just confirmed their email, so they're auto
-        // signed in here) with no workspace yet: provision from the signup metadata
-        // (company name + chosen slug), so they don't have to sign in a second time.
-        if (!sess && !isSSO && session.user.user_metadata?.company_name) {
-          const rpcErr = await createCompanyAndWelcome(
-            session.user.user_metadata.company_name,
-            session.user.user_metadata?.full_name || null,
             session.user.user_metadata?.workspace_slug || null,
           );
-          if (!rpcErr) sess = await loadCustomerSession(session.user.id, email);
+          if (rpcErr) console.error("workspace provisioning failed:", rpcErr.message || rpcErr);
+          else sess = await loadCustomerSession(session.user.id, email);
         }
         if (cancelled || !sess) return;
         // Multi-tenant: on the apex or a subdomain that isn't this workspace's,
