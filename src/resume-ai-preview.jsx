@@ -17583,10 +17583,9 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
 // One step of the first-time onboarding tour: a STEP label, a short hint, a
 // primary button (Next / Close), a skip ×, and a pointer aimed at its action
 // ("down"/"up"/"left"/"right"). Fixed narrow width so it never sprawls.
-function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer, arrowAlign = "right" }) {
+function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer, arrowAlign = "right", total = 3 }) {
   const num = parseInt(String(step).replace(/\D/g, ""), 10) || 1;
-  const total = 3;
-  const isLast = primaryLabel === "Close";
+  const isLast = primaryLabel === "Close" || num >= total;
   // Arrow: a rotated square that reads as a speech-bubble tail, sitting flush to
   // the card edge, with a soft brand "ping" glow behind it that pulses toward the
   // target button so the eye follows it. For vertical pointers, arrowAlign picks
@@ -17829,11 +17828,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
   // Strong Matches vs Other Applicants tabs (fit classification from apply time).
   const [applicantTab, setApplicantTab] = useState("strong");
-  // Guided HM onboarding tour: one bubble at a time, Step 1 -> 2 -> 3. Steps 1-2
-  // have a Next button that advances; Step 3 has Close. Runs once; the "done"
-  // state persists so it doesn't reappear. tourStep 0 = finished/skipped.
-  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem("aster.tour.applicants.v4") === "done" ? 0 : 1; } catch { return 1; } });
-  const endTour = () => { setTourStep(0); try { localStorage.setItem("aster.tour.applicants.v4", "done"); } catch { /* private mode */ } };
+  // Guided onboarding tour: one bubble at a time. Hiring managers get Step 1 -> 2
+  // -> 3; interviewers (who can't run AI Rank or add interviewers) get just Step 1.
+  // Runs once per user (keyed by profile id) the first time; the "done" flag
+  // persists so it doesn't reappear. tourStep 0 = finished/skipped.
+  const tourKey = `aster.tour.applicants.v5:${profile?.id || "anon"}`;
+  const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem(tourKey) === "done" ? 0 : 1; } catch { return 1; } });
+  const endTour = () => { setTourStep(0); try { localStorage.setItem(tourKey, "done"); } catch { /* private mode */ } };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
   const [stageFilter, setStageFilter] = useState("all");
@@ -18028,7 +18029,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
               className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
-              <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
+              <Icon name={!matching && (outOfRuns || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />
               {matching ? "Ranking…" : outOfRuns ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
             </button>
           </div>
@@ -18130,11 +18131,17 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         )}
         {/* Strong Matches / Other Applicants tabs */}
         <div className="relative inline-block">
-          {!isInterviewer(profile?.role) && tourStep === 1 && (
+          {tourStep === 1 && (
             <div className="absolute top-full left-2 mt-2 z-30">
-              <GuideBubble step="Step 1" pointer="up" arrowAlign="left" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
-                Everyone who applied shows up here. Strong Matches fit the role. The rest stay in your talent pool for later.
-              </GuideBubble>
+              {isInterviewer(profile?.role) ? (
+                <GuideBubble step="Step 1" total={1} pointer="up" arrowAlign="left" primaryLabel="Got it" onPrimary={endTour} onClose={endTour}>
+                  Everyone who applied shows up here. Strong Matches fit the role. The rest stay in your talent pool for later.
+                </GuideBubble>
+              ) : (
+                <GuideBubble step="Step 1" pointer="up" arrowAlign="left" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
+                  Everyone who applied shows up here. Strong Matches fit the role. The rest stay in your talent pool for later.
+                </GuideBubble>
+              )}
             </div>
           )}
         <div className="flex items-center gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
