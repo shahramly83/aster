@@ -21156,9 +21156,6 @@ export default function ResumeAIPreview() {
             activities={activities}
             onOpenNotifications={markActivitiesRead}
             jobAssignments={jobAssignments}
-            reloadTeam={reloadTeam}
-            shortlistedApps={shortlistedApps}
-            onToggleShortlist={toggleShortlist}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
             insightsCache={insightsCache}
@@ -21205,6 +21202,9 @@ export default function ResumeAIPreview() {
             onAssignInterviewer={assignInterviewer}
             onUnassignInterviewer={unassignInterviewer}
             onCloseJob={(jobId) => { setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: "closed" } : j))); if (canPersist) dbSetJobStatus(jobId, "closed"); }}
+            reloadTeam={reloadTeam}
+            shortlistedApps={shortlistedApps}
+            onToggleShortlist={toggleShortlist}
           />
         )}
         </ErrorBoundary>
