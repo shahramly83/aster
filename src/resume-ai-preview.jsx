@@ -17877,7 +17877,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       .filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other")
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
       .filter((c) => c && c.parsed);
-    if (activePool.length < 1) { setMatchErr("No active candidates to rank. They may all be hired or marked Not a match."); return; }
+    if (activePool.length < 2) { setMatchErr("AI Rank becomes available when at least 2 candidates are ready to rank."); return; }
 
     setMatching(true);
     setMatchErr(null);
@@ -17948,14 +17948,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const strongApplicants = activeVisible.filter((a) => a.fit !== "other");
   const otherApplicants = activeVisible.filter((a) => a.fit === "other");
   const hiredApplicants = visible.filter((a) => a.stage === "hired");
-  // AI Rank turns on once at least 2 candidates have applied to this role.
-  // The requirement lives in the button tooltip (no inline note). Every run
-  // re-ranks the active pool and spends 1 credit (re-run is intentional).
-  const appliedCount = visible.length;
-  const canRank = appliedCount >= 2;
+  // AI Rank becomes available once at least 2 candidates are eligible for
+  // ranking: active (not hired/rejected) Strong Matches, the count shown on the
+  // tab. Every run re-ranks the pool and spends 1 credit (re-run is intentional).
+  const canRank = strongApplicants.length >= 2;
   // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
-  // applicants). Out-of-credits stays clickable so it can route to billing.
-  // This stops the tour glow from making a dead button look live.
+  // eligible candidates). Out-of-credits stays clickable so it can route to
+  // billing. During the tour the button is disabled too but styled to look live.
   const aiRankDisabled = matching || (!outOfRuns && !canRank);
   const onOtherTab = applicantTab === "other";
   const onHiredTab = applicantTab === "hired";
@@ -17992,13 +17991,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4">
           <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
             Rank these applicants with AI
-            <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning. Each run re-ranks every candidate and uses 1 AI Rank credit." />
+            <InfoHint dir="down" hint="Scores every applicant against this role from 0 to 100 (with the reasoning on paid plans). Running it also unlocks the interviewer step, so your team opens a ranked shortlist instead of a raw pile. Each run re-ranks everyone and uses 1 credit." />
           </p>
           <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
             {visible.length === 0
               ? "No applicants yet. Matching becomes available once someone applies."
               : !canRank
-                ? "Needs at least 2 applicants. Once a second candidate applies, AI Rank turns on."
+                ? "AI Rank becomes available when at least 2 candidates are ready to rank."
                 : matchResults
                   ? "Ranked by fit. Re-run to re-score everyone (uses 1 credit)."
                   : "Score every candidate against this role and see who fits best."}
@@ -18020,11 +18019,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             <button
               onClick={() => askAiRank(runMatching)}
               disabled={aiRankDisabled || tourStep === 2}
-              title={tourStep === 2 ? "Finish the quick tour first, then AI Rank is ready here." : !canRank && !outOfRuns ? "AI Rank turns on once at least 2 candidates have applied to this role." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
-              // During Step 2 the button is a highlight only: disabled (so a click
-              // never runs AI Rank or jumps the tour) but ringed by the pulse so
-              // it's clearly the target. Advance with the bubble's Next button.
-              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : undefined}
+              title={tourStep === 2 ? "Step 2: Run AI Rank. AI Rank becomes available when at least 2 candidates are ready." : !canRank && !outOfRuns ? "AI Rank becomes available when at least 2 candidates are ready." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+              // During Step 2 the button stays disabled (a click never runs AI Rank
+              // or jumps the tour) but LOOKS enabled: opacity:1 overrides the
+              // disabled dim and the pulse ring marks it as the target. Advance
+              // with the bubble's Next button. Outside the tour it dims normally
+              // when there aren't 2 applicants yet.
+              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
               className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
               <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
