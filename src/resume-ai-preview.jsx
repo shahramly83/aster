@@ -19781,6 +19781,8 @@ export default function ResumeAIPreview() {
       if (jobId) {
         dbAssignInterviewer(jobId, replacement.id);
         setJobAssignments((prev) => (prev.some((x) => x.job_id === jobId && x.profile_id === replacement.id) ? prev : [...prev, { job_id: jobId, profile_id: replacement.id }]));
+        // Email the new interviewer that they're on the panel (best-effort).
+        if (hasSupabase) supabase.functions.invoke("notify-panel-added", { body: { candidate_id: candidateId, job_id: jobId, interviewer_id: replacement.id } }).catch(() => {});
       }
     }
   };
