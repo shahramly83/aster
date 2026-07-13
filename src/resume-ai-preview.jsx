@@ -11094,9 +11094,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       <p className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: "#3730A3" }}>
                         <Icon name="clock" className="w-3 h-3" /> Role requested{job.requestedByName ? ` by ${job.requestedByName}` : ""}
                       </p>
-                      <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#4338CA" }}>Approve to add it to your drafts, then publish when you're ready.</p>
+                      <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#4338CA" }}>Approve to publish this role and open its apply link. If your open-role slots are full, it stays a draft until you free one.</p>
                       <div className="flex items-center gap-2 mt-2">
-                        <button onClick={() => onDecideRequest(job.id, true)} className="text-[11px] font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">Approve</button>
+                        <button onClick={() => onDecideRequest(job.id, true)} className="text-[11px] font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">Approve &amp; publish</button>
                         <button onClick={() => onDecideRequest(job.id, false)} className="text-[11px] font-semibold rounded-lg px-3 py-1.5 bg-white transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>Reject</button>
                       </div>
                     </div>
@@ -12961,7 +12961,7 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
                   <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
-                    <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>{j.department || j.location || "Role request"}{j.approvalStatus === "approved" ? " · your hiring manager will publish it" : ""}</p>
+                    <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>{j.department || j.location || "Role request"}{j.approvalStatus === "approved" ? (j.status === "open" ? " · approved and live" : " · approved, publishing when a slot frees") : ""}</p>
                   </div>
                   <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: st.bg, color: st.color }}>{st.label}</span>
                 </div>
@@ -14315,6 +14315,11 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   const isExpired = !!job.expires_at && job.expires_at < todayStr;
   const postedStr = job.posted_at ? fmtDate(job.posted_at) : null;
   const closesStr = job.expires_at ? fmtDate(job.expires_at) : null;
+  // Admin preview of a DRAFT: a draft isn't closed, it's just unpublished. Let the
+  // manager see the real apply page (so they can proof it) but with the upload and
+  // submit disabled, since a draft can't take applications yet. A genuinely closed
+  // role, or a draft opened by a real public visitor, still shows the closed notice.
+  const isDraftPreview = !isPublic && job.status === "draft";
 
   // Paused job (over the owner's plan limit): the public link still resolves,
   // but it stops taking applications until the owner reactivates. Nothing breaks.
@@ -14359,7 +14364,8 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   }
 
   // Closed jobs can't take new applications, the public link shows a notice.
-  if (job.status !== "open") {
+  // (A draft in admin preview is exempt: it falls through to the disabled form.)
+  if (job.status !== "open" && !isDraftPreview) {
     return (
       <div className="px-4 sm:px-6 py-8 sm:py-10">
         <div className="max-w-xl mx-auto">
@@ -14486,7 +14492,7 @@ This is what a candidate sees if they open the link after the role has closed.
     setFile(f);
   };
 
-  const canSubmit = file && isAllowedResume(file) && stage === "form";
+  const canSubmit = file && isAllowedResume(file) && stage === "form" && !isDraftPreview;
 
   // A real job carries a uuid id; demo jobs use "j…" ids we never send to the DB.
   const isRealJob = (id) => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
@@ -14558,11 +14564,20 @@ This is what a candidate sees if they open the link after the role has closed.
       <div className="max-w-4xl mx-auto">
         {adminBack}
         {!isPublic && (
-        <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
-          <p className="text-xs text-indigo-700">
+          isDraftPreview ? (
+            <div className="mt-6 rounded-xl border px-4 py-2.5 mb-6 flex items-center justify-between gap-3" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
+              <p className="text-xs" style={{ color: "#92400E" }}>
+                Draft preview. This is how the apply page will look. Uploads are off until you publish this role.
+              </p>
+              <button onClick={() => navigate("jobs")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Publish</button>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
+              <p className="text-xs text-indigo-700">
 This is what a candidate sees. A public page, no login, reached only through the job's application link.
-          </p>
-        </div>
+              </p>
+            </div>
+          )
         )}
 
         {/* Company header, the company's logo when uploaded, else a mark + name.
@@ -14664,8 +14679,8 @@ This is what a candidate sees. A public page, no login, reached only through the
 
                   <div className="space-y-3">
                     <div>
-                      <label className={`block rounded-xl border-2 border-dashed px-4 py-7 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-[color:var(--brand-soft)]/40 hover:border-[color:var(--brand)]"} ${!file && stage === "form" ? "upload-glow" : ""}`} style={{ borderColor: file ? "var(--brand)" : "var(--line-strong)" }}>
-                        <input type="file" accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFile} className="hidden" disabled={stage !== "form"} />
+                      <label className={`block rounded-xl border-2 border-dashed px-4 py-7 text-center cursor-pointer transition-colors ${stage !== "form" || isDraftPreview ? "opacity-60 pointer-events-none" : "hover:bg-[color:var(--brand-soft)]/40 hover:border-[color:var(--brand)]"} ${!file && stage === "form" && !isDraftPreview ? "upload-glow" : ""}`} style={{ borderColor: file ? "var(--brand)" : "var(--line-strong)" }}>
+                        <input type="file" accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFile} className="hidden" disabled={stage !== "form" || isDraftPreview} />
                         <span className="mx-auto mb-2 flex w-9 h-9 items-center justify-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={file ? "check" : "upload"} className="w-4 h-4" /></span>
                         {file ? (
                           <span className="block text-sm font-medium break-all" style={{ color: "var(--ink)" }}>{file.name}</span>
@@ -19780,16 +19795,27 @@ export default function ResumeAIPreview() {
       : rawScreen;
   const [newJobOpen, setNewJobOpen] = useState(false);
   const [requestRoleOpen, setRequestRoleOpen] = useState(false); // interviewer's "Request a role" modal
-  // Hiring manager approves / rejects an interviewer's role request. The job
-  // stays a draft; approval just clears the request so the HM can publish it.
-  const decideJobRequest = (jobId, approve) => {
-    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, approvalStatus: approve ? "approved" : "rejected" } : j)));
+  // Hiring manager approves / rejects an interviewer's role request. Approving
+  // publishes the role right away (status "open") so it isn't a two-step
+  // approve-then-publish. If the workspace is at its open-role limit, it lands as
+  // an approved draft to publish once a slot frees. Rejecting just marks it.
+  const decideJobRequest = async (jobId, approve) => {
+    const j = jobs.find((x) => x.id === jobId);
+    if (!j) return;
+    const approvalStatus = approve ? "approved" : "rejected";
+    const publishNow = approve && !jobPostBlocked;
+    setJobs((prev) => prev.map((x) => (x.id === jobId
+      ? { ...x, approvalStatus, status: publishNow ? "open" : x.status, ...(publishNow && !x.posted_at ? { posted_at: new Date().toISOString() } : {}) }
+      : x)));
     if (canPersist) {
-      const j = jobs.find((x) => x.id === jobId);
-      if (j) {
-        const clean = { ...j, approvalStatus: approve ? "approved" : "rejected" };
-        delete clean.posted_at; delete clean.viewStats; // derived on load, not stored in details
-        dbUpdateJob(jobId, clean);
+      const clean = { ...j, approvalStatus };
+      delete clean.posted_at; delete clean.viewStats; // derived on load, not stored in details
+      dbUpdateJob(jobId, clean);
+      if (publishNow) {
+        // dbSetJobStatus runs trg_charge_job_post, which enforces the open-role
+        // limit server-side. If it refuses, fall back to an approved draft.
+        const res = await dbSetJobStatus(jobId, "open");
+        if (res?.error) setJobs((prev) => prev.map((x) => (x.id === jobId ? { ...x, status: "draft" } : x)));
       }
     }
   };
