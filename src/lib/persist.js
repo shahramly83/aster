@@ -66,6 +66,9 @@ export async function dbRequestJob(payload) {
   delete rest.status; delete rest.expires_at; delete rest.approvalStatus; delete rest.requestedBy; delete rest.requestedByName;
   const { data, error } = await supabase.rpc("request_job", { p_title: title, p_details: rest });
   if (error) { console.error("dbRequestJob", error.message); return null; }
+  // Email the hiring managers that a role needs review (best-effort; the request
+  // is already filed, so a mail hiccup never blocks it).
+  if (data) supabase.functions.invoke("notify-role-request", { body: { job_id: data, event: "requested" } }).catch(() => {});
   return data || null;
 }
 

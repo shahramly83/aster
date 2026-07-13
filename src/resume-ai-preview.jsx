@@ -8571,6 +8571,19 @@ function buildActivities(seenAt = null) {
     list.push({ ts: publishedJob.posted_at, icon: "briefcase", accent: "#F59E0B", title: "Position published", desc: publishedJob.title, dotColor: "bg-neutral-300", target: { screen: "jobs", jobStatus: "open" } });
   }
 
+  // Role requests (interviewer → hiring manager). Managers see a pending request
+  // as an action; the requester sees the manager's decision. RLS already scopes
+  // which of these jobs each viewer can see, so the feed stays relevant per user.
+  MOCK_JOBS.filter((j) => j.approvalStatus).forEach((j) => {
+    if (j.approvalStatus === "pending") {
+      list.push({ ts: j.posted_at, icon: "briefcase", accent: "#6366F1", title: "New role requested", desc: `${j.title}${j.requestedByName ? ` · by ${j.requestedByName}` : ""}`, dotColor: "bg-indigo-500", target: { screen: "jobs", jobStatus: null } });
+    } else if (j.approvalStatus === "approved") {
+      list.push({ ts: j.posted_at, icon: "check", accent: "#16A34A", title: "Role request approved", desc: j.title, dotColor: "bg-emerald-500", target: { screen: "openRoles" } });
+    } else if (j.approvalStatus === "rejected") {
+      list.push({ ts: j.posted_at, icon: "close", accent: "#DC2626", title: "Role request declined", desc: j.title, dotColor: "bg-rose-500", target: { screen: "openRoles" } });
+    }
+  });
+
   const seen = seenAt ? new Date(seenAt).getTime() : null;
   return list
     .filter((it) => it.ts)                                    // an item with no real timestamp is not an event
@@ -14145,13 +14158,19 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             </label>
           )}
 
-          <button
-            onClick={attemptSend}
-            disabled={sending || slots.length === 0 || !confirmedOffline}
-            className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
-          >
-            {sending ? "Sending…" : `Send ${slots.length} time${slots.length === 1 ? "" : "s"} to candidate`}
-          </button>
+          {(() => {
+            const sendDisabled = sending || slots.length === 0 || !confirmedOffline;
+            return (
+              <button
+                onClick={attemptSend}
+                disabled={sendDisabled}
+                className={`rounded-xl text-sm font-medium px-4 py-2 transition-all ${sendDisabled ? "cursor-not-allowed" : "brand-gradient text-white shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] hover:opacity-90"}`}
+                style={sendDisabled ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : undefined}
+              >
+                {sending ? "Sending…" : `Send ${slots.length} time${slots.length === 1 ? "" : "s"} to candidate`}
+              </button>
+            );
+          })()}
 
           <ConfirmDialog
             open={confirmOne}
@@ -19828,6 +19847,8 @@ export default function ResumeAIPreview() {
         const res = await dbSetJobStatus(jobId, "open");
         if (res?.error) setJobs((prev) => prev.map((x) => (x.id === jobId ? { ...x, status: "draft" } : x)));
       }
+      // Email the interviewer who requested the role with the decision (best-effort).
+      supabase.functions.invoke("notify-role-request", { body: { job_id: jobId, event: approvalStatus } }).catch(() => {});
     }
   };
 
