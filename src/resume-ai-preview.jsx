@@ -10451,11 +10451,23 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [statusMenuRef, statusUp] = useDropUp(filterOpen, 220);
   const [sortMenuRef, sortUp] = useDropUp(sortOpen, 220);
   const [view, setView] = useState("grid"); // grid | list
-  // First-run nudge on this screen: point at the Post a job button. Per user.
+  // First-run onboarding on the Jobs screen (managers only, per user):
+  //   - No open role yet: nudge the Post a job button.
+  //   - Once a role exists: point at Copy link (share it, tag the source), then
+  //     after the link modal closes, at the applicants count (where candidates
+  //     land), then finish.
+  const isManager = !isInterviewer(profile?.role);
+  const anyOpenJob = (jobs || []).some((j) => j.status === "open");
   const postCtaKey = `aster.hint.postjobcta:${profile?.id || "anon"}`;
   const [postCtaDone, setPostCtaDone] = useState(() => { try { return localStorage.getItem(postCtaKey) === "done"; } catch { return false; } });
-  const showPostCta = !isInterviewer(profile?.role) && !postCtaDone;
+  const showPostCta = isManager && !anyOpenJob && !postCtaDone;
   const dismissPostCta = () => { try { localStorage.setItem(postCtaKey, "done"); } catch { /* private mode */ } setPostCtaDone(true); };
+  const jobsTourKey = `aster.onboard.jobstour:${profile?.id || "anon"}`;
+  const [jobsTourStep, setJobsTourStep] = useState(() => { try { return localStorage.getItem(jobsTourKey) === "done" ? "done" : "copylink"; } catch { return "done"; } });
+  const jobsTourOn = isManager && anyOpenJob && jobsTourStep !== "done";
+  const endJobsTour = () => { try { localStorage.setItem(jobsTourKey, "done"); } catch { /* private mode */ } setJobsTourStep("done"); };
+  const copyLinkRef = useRef(null);
+  const applicantsRef = useRef(null);
   const [openHelp, setOpenHelp] = useState(null); // sidebar "how it works" accordion
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
@@ -10520,6 +10532,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     setLinkJob(job);
     setLinkSource("");
     setLinkCopied(false);
+    // Onboarding: advance now so the "where candidates land" bubble is waiting
+    // behind the modal and appears the moment the recruiter closes it.
+    if (jobsTourOn && jobsTourStep === "copylink") setJobsTourStep("applicants");
   };
 
   const copyTaggedLink = async () => {
@@ -10584,20 +10599,23 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const pageJobs = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  // The onboarding tour anchors to the first open role on the page.
+  const firstOpenJobId = pageJobs.find((j) => j.status === "open")?.id || null;
   const STATUS_LABELS = { all: "All", open: "Open", draft: "Draft", closed: "Closed" };
   const STATUS_DOT = { open: "#22C55E", draft: "#D97706", closed: "#9A9AA6" };
   const setStatus = (v) => { setStatusFilter(v); setPage(0); setFilterOpen(false); };
 
   // Shared actions, used by both the card grid and the list/table view: a direct
   // Copy link button (opens the source modal) sits next to the ⋯ overflow menu.
-  const jobMenu = (job, up = false) => (
+  const jobMenu = (job, up = false, copyHint = false) => (
     <div className="flex items-center gap-1 shrink-0">
       {job.status === "open" && (
         <button
+          ref={copyHint ? copyLinkRef : undefined}
           onClick={(e) => { e.stopPropagation(); openLinkModal(job); }}
           aria-label="Copy apply link" title="Copy apply link"
-          className="inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100"
-          style={{ color: "var(--ink-3)" }}
+          className={`inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100 ${copyHint ? "tour-pulse" : ""}`}
+          style={{ color: copyHint ? "var(--brand)" : "var(--ink-3)" }}
         >
           <Icon name="link" className="w-[18px] h-[18px]" />
         </button>
@@ -10893,7 +10911,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
                   <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
                     <div className="flex items-center gap-3 min-w-0">
-                      <button onClick={() => { setActiveJobId(job.id); navigate("applicants", `/applicants/${job.id}`); }} className="group/app inline-flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors" title="View applicants">
+                      <button ref={jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? applicantsRef : undefined} onClick={() => { setActiveJobId(job.id); navigate("applicants", `/applicants/${job.id}`); }} className={`group/app inline-flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors ${jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? "tour-pulse" : ""}`} title="View applicants">
                         <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
                           <Icon name="users" className="w-4 h-4" />
                         </span>
@@ -10906,7 +10924,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span> view{(job.viewStats?.total || 0) === 1 ? "" : "s"}
                       </span>
                     </div>
-                    {!paused && jobMenu(job, true)}
+                    {!paused && jobMenu(job, true, jobsTourOn && jobsTourStep === "copylink" && job.id === firstOpenJobId)}
                   </div>
                 </div>
               );
@@ -11250,6 +11268,23 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         onConfirm={() => { setLimitPrompt(false); navigate("billing"); }}
         onClose={() => setLimitPrompt(false)}
       />
+
+      {/* Onboarding coach marks: share the link, then where candidates land. Both
+          are portaled and clamped so they stay fully within the window. */}
+      {jobsTourOn && jobsTourStep === "copylink" && firstOpenJobId && (
+        <AnchoredTourBubble targetRef={copyLinkRef} side="bottom" align="end" render={(pointer) => (
+          <GuideBubble step="1" total={2} pointer={pointer} arrowAlign="right" primaryLabel="Copy link" onPrimary={() => { const j = pageJobs.find((x) => x.id === firstOpenJobId); if (j) openLinkModal(j); }} onClose={endJobsTour}>
+            Share your job link from here. Tag the source (LinkedIn, JobStreet, and so on) so you can see where each applicant came from.
+          </GuideBubble>
+        )} />
+      )}
+      {jobsTourOn && jobsTourStep === "applicants" && firstOpenJobId && (
+        <AnchoredTourBubble targetRef={applicantsRef} side="top" align="start" render={(pointer) => (
+          <GuideBubble step="2" total={2} pointer={pointer} arrowAlign="left" primaryLabel="Finish" onPrimary={endJobsTour} onClose={endJobsTour}>
+            Your candidates land here. Everyone who applies to this role shows up as an applicant, ready for you to review and rank.
+          </GuideBubble>
+        )} />
+      )}
 
       {/* Copy application link, source tagging modal */}
       {linkJob && (
@@ -17729,6 +17764,47 @@ function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer
         </>
       )}
     </div>
+  );
+}
+
+// Anchors a GuideBubble to a target element, portaled to <body> and clamped to
+// the viewport so it's always fully within the window. Prefers `side`, flips if
+// there isn't room, and re-measures on scroll/resize. `render(pointer)` returns
+// the GuideBubble with the correct arrow direction for where it ended up.
+function AnchoredTourBubble({ targetRef, side = "bottom", align = "start", render }) {
+  const bubbleRef = useRef(null);
+  const [pos, setPos] = useState(null);
+  const [pointer, setPointer] = useState(side === "bottom" ? "up" : "down");
+  useLayoutEffect(() => {
+    const measure = () => {
+      const t = targetRef.current, b = bubbleRef.current;
+      if (!t) return;
+      const r = t.getBoundingClientRect();
+      const bh = b ? b.offsetHeight : 160;
+      const bw = b ? b.offsetWidth : 244;
+      const gap = 12, m = 10, vw = window.innerWidth, vh = window.innerHeight;
+      const roomBelow = vh - r.bottom, roomAbove = r.top;
+      const below = side === "bottom"
+        ? (roomBelow >= bh + gap + m || roomBelow >= roomAbove)
+        : !(roomAbove >= bh + gap + m || roomAbove >= roomBelow);
+      let top = below ? r.bottom + gap : r.top - gap - bh;
+      top = Math.max(m, Math.min(top, vh - bh - m));
+      let left = align === "end" ? r.right - bw : r.left;
+      left = Math.max(m, Math.min(left, vw - bw - m));
+      setPointer(below ? "up" : "down");
+      setPos({ top, left });
+    };
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+  }, [targetRef, side, align]);
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div ref={bubbleRef} style={pos ? { position: "fixed", top: pos.top, left: pos.left, zIndex: 100 } : { position: "fixed", top: -9999, left: -9999, opacity: 0 }}>
+      {render(pointer)}
+    </div>,
+    document.body
   );
 }
 
