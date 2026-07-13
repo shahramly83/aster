@@ -267,7 +267,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
-    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, scheduled_at, status, provider, attendees").eq("company_id", companyId),
+    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, scheduled_at, status, provider, attendees, meeting_link").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
@@ -378,6 +378,7 @@ async function loadWorkspaceData(companyId) {
       confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
       provider: iv.provider || "google",
       attendees: Array.isArray(iv.attendees) ? iv.attendees : [],
+      meetingLink: iv.meeting_link || null,
       request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer" },
     };
   }
@@ -13915,6 +13916,27 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
 
 function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute }) {
   const [replacing, setReplacing] = useState(null); // attendee id being swapped out
+  // Meeting link: the HM pastes the video-call URL they made and shares it with
+  // the candidate + panel (share-meeting-link sends each their own message, same
+  // link). Seeded from the saved link so it survives reloads.
+  const [linkInput, setLinkInput] = useState(booking?.meetingLink || "");
+  const [linkShared, setLinkShared] = useState(!!booking?.meetingLink);
+  const [sharing, setSharing] = useState(false);
+  const [shareErr, setShareErr] = useState(null);
+  const validLink = /^https?:\/\/\S+$/i.test(linkInput.trim());
+  const shareMeetingLink = async () => {
+    const link = linkInput.trim();
+    if (!validLink || sharing) return;
+    setSharing(true); setShareErr(null);
+    try {
+      if (hasSupabase && candidate?.id) {
+        const { data, error } = await supabase.functions.invoke("share-meeting-link", { body: { candidate_id: candidate.id, job_id: contextJobId || null, meeting_link: link } });
+        if (error || data?.error) throw new Error(data?.error || "failed");
+      }
+      setLinkShared(true);
+    } catch { setShareErr("Couldn't share that link. Check it's a full https:// URL and try again."); }
+    setSharing(false);
+  };
   const openJobs = jobs.filter((j) => j.status === "open");
   // If opened from a specific job's applicant list, that job is fixed and
   // there's no need to pick one. Otherwise let HR choose the open role.
@@ -14020,8 +14042,39 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             {sentRequest?.jobTitle ? ` · ${sentRequest.jobTitle}` : ""}
           </p>
           <p className="text-xs text-neutral-400 mt-1">
-            The candidate confirmed this time. Calendar invite and video link have been sent to everyone.
+            The candidate confirmed this time. Add the video link below to send it to everyone.
           </p>
+        </div>
+        {/* Meeting link: paste your own video-call URL, share it with the candidate
+            and the panel (each gets their own message, the same link). */}
+        <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Meeting link</p>
+          <p className="text-[11px] mt-1 mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+            Create the video call yourself (Google Meet, Zoom, Teams) and paste the link. Sharing sends it to the candidate and every interviewer, each with their own message.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="url"
+              value={linkInput}
+              onChange={(e) => { setLinkInput(e.target.value); setLinkShared(false); setShareErr(null); }}
+              placeholder="https://meet.google.com/…"
+              className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
+              style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
+            />
+            <button
+              onClick={shareMeetingLink}
+              disabled={!validLink || sharing}
+              className="shrink-0 text-sm font-semibold rounded-lg px-3.5 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            >
+              {sharing ? "Sharing…" : linkShared ? "Re-share" : "Share"}
+            </button>
+          </div>
+          {shareErr && <p className="text-[11px] mt-2 text-rose-600">{shareErr}</p>}
+          {linkShared && !shareErr && (
+            <p className="text-[11px] mt-2 inline-flex items-center gap-1.5" style={{ color: "#166534" }}>
+              <Icon name="check" className="w-3.5 h-3.5" /> Shared with the candidate and the panel.
+            </p>
+          )}
         </div>
         {/* Panel + drop-out substitution: swap an interviewer who can't attend. */}
         {onSubstitute && Array.isArray(booking.attendees) && booking.attendees.some((a) => a.id !== hmId) && (
