@@ -19772,18 +19772,21 @@ export default function ResumeAIPreview() {
   // Swap one interviewer on a scheduled interview for another (drop-out cover).
   // Replaces the attendee in the booking's panel, keeping any attended flag off
   // for the newcomer, and persists the whole panel.
-  const substituteAttendee = (candidateId, oldId, replacement) => {
+  const substituteAttendee = (candidateId, oldId, replacement, fallbackJobId = null) => {
     if (!candidateId || !oldId || !replacement?.id) return;
     let nextAttendees = null;
-    let jobId = null;
+    let bookingJobId = null;
     setBookings((prev) => {
       const b = prev[candidateId];
       if (!b) return prev;
-      jobId = b.jobId || null;
+      bookingJobId = b.jobId || null;
       const attendees = (b.attendees || []).map((a) => (a.id === oldId ? { id: replacement.id, name: replacement.name, email: replacement.email } : a));
       nextAttendees = attendees;
       return { ...prev, [candidateId]: { ...b, attendees } };
     });
+    // The interview's own job_id can be null; fall back to the job the candidate
+    // is being viewed under, so we always know which job to grant access to.
+    const jobId = bookingJobId || fallbackJobId || null;
     if (canPersist && nextAttendees) {
       dbSetInterviewAttendees(companyId, candidateId, nextAttendees);
       // The panel swap alone doesn't grant access: assign the new interviewer to
@@ -21215,7 +21218,7 @@ export default function ResumeAIPreview() {
             scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
             onSetAttendance={(ids) => activeCandidate && setAttendance(activeCandidate.id, ids)}
-            onSubstitute={(oldId, replacement) => activeCandidate && substituteAttendee(activeCandidate.id, oldId, replacement)}
+            onSubstitute={(oldId, replacement) => activeCandidate && substituteAttendee(activeCandidate.id, oldId, replacement, viewCandidateJobId)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? null) : null}
             onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
