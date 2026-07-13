@@ -7712,25 +7712,42 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
 function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) {
-  // First-time nudge: point a bubble at Job Postings from the dashboard so a new
-  // hiring manager knows where to start. Once per user (keyed by profile id).
-  const jobsRef = useRef(null);
-  const jobsHintKey = `aster.hint.postjob:${profile?.id || "anon"}`;
-  const [jobsHintDismissed, setJobsHintDismissed] = useState(() => { try { return localStorage.getItem(jobsHintKey) === "done"; } catch { return false; } });
-  const showJobsHint = active === "dashboard" && !isInterviewer(profile?.role) && !jobsHintDismissed;
-  const dismissJobsHint = () => { setJobsHintDismissed(true); try { localStorage.setItem(jobsHintKey, "done"); } catch { /* private mode */ } };
+  // First-run onboarding coach marks (managers only, on the dashboard, per user):
+  //   1. Complete your profile, so apply pages show accurate company details.
+  //   2. After the profile is saved (ProfileScreen sets the flag and redirects
+  //      here), a second bubble points at Job Postings to post the first role.
+  const uid = profile?.id || "anon";
+  const profileKey = `aster.onboard.profile:${uid}`;
+  const jobsKey = `aster.hint.postjob:${uid}`;
+  const readFlag = (k) => { try { return localStorage.getItem(k) === "done"; } catch { return false; } };
+  const [jobsDismissed, setJobsDismissed] = useState(() => readFlag(jobsKey));
+  const isManager = !isInterviewer(profile?.role);
+  const onDash = active === "dashboard";
+  const profileDone = readFlag(profileKey); // read fresh; ProfileScreen flips it on save
+  const showProfileHint = onDash && isManager && !profileDone;
+  const showJobsHint = onDash && isManager && profileDone && !jobsDismissed;
+  const activeHint = showProfileHint ? "profile" : showJobsHint ? "jobs" : null;
+  const dismissJobsHint = () => { try { localStorage.setItem(jobsKey, "done"); } catch { /* private mode */ } setJobsDismissed(true); };
+  const skipOnboarding = () => { try { localStorage.setItem(profileKey, "done"); localStorage.setItem(jobsKey, "done"); } catch { /* private mode */ } setJobsDismissed(true); };
   // The rail is overflow-hidden (for the hover-expand label reveal), so the bubble
-  // can't live inside it. Measure the Jobs button and render a fixed bubble beside
-  // it; re-measure on scroll/resize since the rail is sticky.
+  // can't live inside it. Measure the active target button and render a fixed,
+  // portaled bubble beside it; re-measure on scroll/resize (the rail is sticky).
+  const targetRef = useRef(null);
   const [hintPos, setHintPos] = useState(null);
   useLayoutEffect(() => {
-    if (!showJobsHint) return undefined;
-    const measure = () => { const el = jobsRef.current; if (el) { const r = el.getBoundingClientRect(); setHintPos({ top: r.top + r.height / 2, left: r.right }); } };
+    if (!activeHint) return undefined;
+    const measure = () => { const el = targetRef.current; if (el) { const r = el.getBoundingClientRect(); setHintPos({ top: r.top + r.height / 2, left: r.right }); } };
     const raf = requestAnimationFrame(measure);
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
-  }, [showJobsHint]);
+    // The rail widens on hover (76px -> 236px, animated), so the target button's
+    // right edge moves. Observe it and re-measure through the whole transition so
+    // the bubble tracks the button instead of staying at the collapsed spot.
+    let ro;
+    const el = targetRef.current;
+    if (el && typeof ResizeObserver !== "undefined") { ro = new ResizeObserver(measure); ro.observe(el); }
+    return () => { cancelAnimationFrame(raf); if (ro) ro.disconnect(); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+  }, [activeHint]);
   // Rows are full width so that when the rail expands on hover the icon stays put
   // and the label fades in beside it (no icon jump). Collapsed, only the icon shows.
   const railBtn = (item, i = 0) => {
@@ -7738,12 +7755,12 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
     return (
       <button
         key={item.key}
-        ref={item.key === "jobs" ? jobsRef : undefined}
+        ref={activeHint && item.key === activeHint ? targetRef : undefined}
         onClick={() => navigate(item.key)}
         title={item.label}
         aria-label={item.label}
         aria-current={on ? "page" : undefined}
-        className={`relative w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-[gap,padding,justify-content,color] duration-300 ${item.key === "jobs" && showJobsHint ? "tour-pulse" : ""}`}
+        className={`relative w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-[gap,padding,justify-content,color] duration-300 ${item.key === activeHint ? "tour-pulse" : ""}`}
         style={{ color: on ? "#fff" : "var(--ink-2)" }}
         onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--brand)"; }}
         onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
@@ -7787,12 +7804,20 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
           <span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200">Log out</span>
         </button>
       </div>
-      {showJobsHint && hintPos && typeof document !== "undefined" && createPortal(
-        <div style={{ position: "fixed", top: hintPos.top - 26, left: hintPos.left + 18, zIndex: 100 }}>
-          <GuideBubble step="1" total={1} pointer="left" arrowAlign="top" primaryLabel="Post a job" onPrimary={() => { dismissJobsHint(); navigate("jobs"); }} onClose={dismissJobsHint}>
-            Start here. Post your first job to get a shareable apply link and start collecting applicants.
-          </GuideBubble>
-        </div>,
+      {activeHint && hintPos && typeof document !== "undefined" && createPortal(
+        showProfileHint ? (
+          <div style={{ position: "fixed", top: hintPos.top, left: hintPos.left + 18, transform: "translateY(-50%)", zIndex: 100 }}>
+            <GuideBubble step="Set up" total={1} pointer="left" primaryLabel="Complete profile" onPrimary={() => navigate("profile")} onClose={skipOnboarding}>
+              Complete your profile first so candidates see accurate company details on your apply pages.
+            </GuideBubble>
+          </div>
+        ) : (
+          <div style={{ position: "fixed", top: hintPos.top - 26, left: hintPos.left + 18, zIndex: 100 }}>
+            <GuideBubble step="1" total={1} pointer="left" arrowAlign="top" primaryLabel="Post a job" onPrimary={() => { dismissJobsHint(); navigate("jobs"); }} onClose={dismissJobsHint}>
+              Start here. Post your first job to get a shareable apply link and start collecting applicants.
+            </GuideBubble>
+          </div>
+        ),
         document.body
       )}
     </div>
@@ -15383,6 +15408,18 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
     setProfile({ ...(profile || {}), firstName: dFirst.trim(), lastName: dLast.trim(), phone: dPhone.trim() });
     setSaving(false);
     setSavedMsg("All changes saved.");
+    // First-run onboarding: once a manager saves their profile the first time,
+    // mark it done and send them to the dashboard, where the "post your first
+    // job" nudge takes over.
+    if (!isInterviewer(profile?.role)) {
+      try {
+        const pk = `aster.onboard.profile:${profile?.id || "anon"}`;
+        if (localStorage.getItem(pk) !== "done") {
+          localStorage.setItem(pk, "done");
+          setTimeout(() => navigate("dashboard"), 900);
+        }
+      } catch { /* private mode */ }
+    }
   };
   const handleCancel = () => {
     setDLogo(logoUrl); setDLogoFile(null); setDCompany(company || ""); setDAddr({ ...EMPTY_ADDRESS, ...addressParts }); setDRegNo(regNo || ""); setDAvatar(avatarUrl);
