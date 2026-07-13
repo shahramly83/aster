@@ -10588,12 +10588,24 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const STATUS_DOT = { open: "#22C55E", draft: "#D97706", closed: "#9A9AA6" };
   const setStatus = (v) => { setStatusFilter(v); setPage(0); setFilterOpen(false); };
 
-  // Shared ⋯ actions menu, used by both the card grid and the list/table view.
+  // Shared actions, used by both the card grid and the list/table view: a direct
+  // Copy link button (opens the source modal) sits next to the ⋯ overflow menu.
   const jobMenu = (job, up = false) => (
-    <div className="relative shrink-0">
+    <div className="flex items-center gap-1 shrink-0">
+      {job.status === "open" && (
+        <button
+          onClick={(e) => { e.stopPropagation(); openLinkModal(job); }}
+          aria-label="Copy apply link" title="Copy apply link"
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100"
+          style={{ color: "var(--ink-3)" }}
+        >
+          <Icon name="link" className="w-[18px] h-[18px]" />
+        </button>
+      )}
+      <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setMenuJob(menuJob === job.id ? null : job.id); }}
-        aria-haspopup="menu" aria-expanded={menuJob === job.id} aria-label="Job actions"
+        aria-haspopup="menu" aria-expanded={menuJob === job.id} aria-label="More job actions"
         className="inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100"
         style={{ color: "var(--ink-3)", background: menuJob === job.id ? "#F1F1F4" : undefined }}
       >
@@ -10609,11 +10621,6 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <button role="menuitem" onClick={() => { setMenuJob(null); setEditJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
               <Icon name="settings" className="w-4 h-4" /> Edit role
             </button>
-            {job.status === "open" && (
-              <button role="menuitem" onClick={() => { setMenuJob(null); openLinkModal(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
-                <Icon name="link" className="w-4 h-4" /> Copy job URL
-              </button>
-            )}
             <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
               <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : job.status === "draft" ? "Publish role" : "Reopen this role"}
             </button>
@@ -10625,6 +10632,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>
         </>
       )}
+      </div>
     </div>
   );
 
