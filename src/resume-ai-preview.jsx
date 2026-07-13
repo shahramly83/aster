@@ -10297,7 +10297,18 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const [seniorityLevels, setSeniorityLevels] = useState(initialJob?.seniority_levels || (initialJob?.seniority_level ? [initialJob.seniority_level] : ["mid"]));
   const [skills, setSkills] = useState(initialJob?.skills || []);
   const [skillInput, setSkillInput] = useState("");
-  const addJobSkill = () => { const v = skillInput.trim().replace(/,$/, ""); if (!v) return; setSkills((prev) => prev.some((x) => x.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]); setSkillInput(""); };
+  // Split on commas / newlines / semicolons so pasting "React, SQL, Node" (or a
+  // whole list) lands as separate tags, not one grouped tag. Trims + de-dupes.
+  const addSkills = (raw) => {
+    const parts = raw.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean);
+    if (!parts.length) return;
+    setSkills((prev) => {
+      const next = [...prev];
+      for (const p of parts) if (!next.some((x) => x.toLowerCase() === p.toLowerCase())) next.push(p);
+      return next;
+    });
+  };
+  const addJobSkill = () => { addSkills(skillInput); setSkillInput(""); };
   const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
   const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
   const [expiresAt, setExpiresAt] = useState(initialJob?.expires_at || ""); // yyyy-mm-dd; blank = never closes
@@ -10447,6 +10458,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
           ))}
           <input value={skillInput} onChange={(e) => setSkillInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addJobSkill(); } else if (e.key === "Backspace" && !skillInput && skills.length) { setSkills((prev) => prev.slice(0, -1)); } }}
+            onPaste={(e) => { const text = e.clipboardData?.getData("text") || ""; if (/[,\n;]/.test(text)) { e.preventDefault(); addSkills(skillInput + text); setSkillInput(""); } }}
             onBlur={addJobSkill}
             placeholder={skills.length ? "" : "React, SQL, Data Analysis…"} className="flex-1 min-w-[140px] bg-transparent text-sm px-1 py-1 focus:outline-none" style={{ color: "var(--ink)" }} />
         </div>
