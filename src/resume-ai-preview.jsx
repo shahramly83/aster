@@ -4036,7 +4036,7 @@ function ContactSalesScreen({ navigate, goProduct, goSolution, goBlog, goGlossar
             {/* Left: pitch */}
             <div className="lg:pt-6">
               <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}>Talk to sales</span>
-              <h1 className="font-display font-bold mt-2 mb-3" style={{ color: "var(--ink)", fontSize: "2rem", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Book a 1:1 with our team</h1>
+              <h1 className="font-display font-bold mt-2 mb-3" style={{ color: "var(--ink)", fontSize: "clamp(1.55rem, 6vw, 2rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>Book a 1:1 with our team</h1>
               <p className="text-[15px] leading-relaxed max-w-md" style={{ color: "var(--ink-2)" }}>Pick a time that suits you. We&apos;ll walk through your hiring workflow, answer questions on security and pricing, and show how Aster fits your team, no slides required.</p>
               <ul className="mt-6 space-y-3">
                 {["A 30-minute call, tailored to your roles", "Live answers on SSO, white label and SLAs", "No obligation, no hard sell"].map((t) => (
@@ -7949,7 +7949,7 @@ function MiniCalendar({ month, onPrevMonth, onNextMonth, start, end, onPick, min
               disabled={off}
               aria-disabled={off}
               onClick={() => { if (!off) onPick(new Date(year, m, day)); }}
-              className="text-xs py-1 rounded-md transition-colors"
+              className="text-xs aspect-square flex items-center justify-center rounded-md transition-colors"
               style={
                 off
                   ? offStyle
@@ -10532,8 +10532,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     setLinkJob(job);
     setLinkSource("");
     setLinkCopied(false);
-    // Onboarding: advance now so the "where candidates land" bubble is waiting
-    // behind the modal and appears the moment the recruiter closes it.
+  };
+  // Closing the link modal during onboarding reveals the final "where candidates
+  // land" bubble. Advancing on close (not open) keeps the bubble hidden while the
+  // modal is up.
+  const closeLinkModal = () => {
+    setLinkJob(null);
     if (jobsTourOn && jobsTourStep === "copylink") setJobsTourStep("applicants");
   };
 
@@ -10569,7 +10573,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     setLinkCopied(ok ? "ok" : "fail");
     if (ok) {
       setTimeout(() => {
-        setLinkJob(null);
+        closeLinkModal();
         setLinkCopied(false);
       }, 1000);
     }
@@ -10924,7 +10928,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span> view{(job.viewStats?.total || 0) === 1 ? "" : "s"}
                       </span>
                     </div>
-                    {!paused && jobMenu(job, true, jobsTourOn && jobsTourStep === "copylink" && job.id === firstOpenJobId)}
+                    {!paused && jobMenu(job, true, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
                   </div>
                 </div>
               );
@@ -11271,7 +11275,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
       {/* Onboarding coach marks: share the link, then where candidates land. Both
           are portaled and clamped so they stay fully within the window. */}
-      {jobsTourOn && jobsTourStep === "copylink" && firstOpenJobId && (
+      {jobsTourOn && jobsTourStep === "copylink" && !linkJob && firstOpenJobId && (
         <AnchoredTourBubble targetRef={copyLinkRef} side="bottom" align="end" render={(pointer) => (
           <GuideBubble step="1" total={2} pointer={pointer} arrowAlign="right" primaryLabel="Copy link" onPrimary={() => { const j = pageJobs.find((x) => x.id === firstOpenJobId); if (j) openLinkModal(j); }} onClose={endJobsTour}>
             Share your job link from here. Tag the source (LinkedIn, JobStreet, and so on) so you can see where each applicant came from.
@@ -11289,7 +11293,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       {/* Copy application link, source tagging modal */}
       {linkJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLinkJob(null)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeLinkModal} />
           <div className="relative w-full max-w-md rounded-2xl bg-white p-5 act-shadow border border-[color:var(--line)]">
             <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Share application link</h2>
             <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
@@ -11333,7 +11337,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             )}
 
             <button
-              onClick={() => { const j = linkJob; setLinkJob(null); onPreviewApply && onPreviewApply(j); }}
+              onClick={() => { const j = linkJob; closeLinkModal(); onPreviewApply && onPreviewApply(j); }}
               className="text-sm font-medium mt-3 hover:opacity-70 transition-opacity"
               style={{ color: "var(--brand)" }}
             >
@@ -11342,7 +11346,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
             <div className="flex items-center justify-end gap-2 mt-5">
               <button
-                onClick={() => setLinkJob(null)}
+                onClick={closeLinkModal}
                 className="text-sm rounded-xl px-4 py-2 transition-colors"
                 style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
               >
@@ -17999,7 +18003,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // -> 3; interviewers (who can't run AI Rank or add interviewers) get just Step 1.
   // Runs once per user (keyed by profile id) the first time; the "done" flag
   // persists so it doesn't reappear. tourStep 0 = finished/skipped.
-  const tourKey = `aster.tour.applicants.v5:${profile?.id || "anon"}`;
+  const tourKey = `aster.tour.applicants.v6:${profile?.id || "anon"}`;
   const [tourStep, setTourStep] = useState(() => { try { return localStorage.getItem(tourKey) === "done" ? 0 : 1; } catch { return 1; } });
   const endTour = () => { setTourStep(0); try { localStorage.setItem(tourKey, "done"); } catch { /* private mode */ } };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
@@ -20433,7 +20437,7 @@ export default function ResumeAIPreview() {
     return (
       <Shell>
         <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
-          <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} logoUrl={logoUrl} company={company} onApplied={() => { if (companyId) hydrateWorkspace(companyId); }} />
+          <ApplyScreen navigate={navigate} job={liveApplyJob} paused={applyPaused} hiredEmails={hiredEmails} logoUrl={companyLogoUrl} company={company} onApplied={() => { if (companyId) hydrateWorkspace(companyId); }} />
         </div>
       </Shell>
     );
