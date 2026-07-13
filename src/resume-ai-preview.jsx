@@ -17678,6 +17678,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
           <h3 className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
             <span className="inline-flex" style={{ color: "var(--brand)" }}><Icon name={locked ? "lock" : "users"} className="w-4 h-4" /></span>
             Interviewers on this job
+            <InfoHint dir="down" hint="Interviewers unlock after you run AI Rank, so they open a ranked shortlist instead of a raw pile of applications." />
           </h3>
           <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{locked ? "Complete Step 1 (AI Rank) first, so interviewers get a prepared, ranked list. This unlocks automatically once ranking is done." : "They can see these applicants and request interviews. You and other hiring managers always have access."}</p>
         </div>
@@ -17876,7 +17877,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       .filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other")
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
       .filter((c) => c && c.parsed);
-    if (activePool.length < 2) { setMatchErr("AI Rank needs at least 2 candidates who aren't hired yet."); return; }
+    if (activePool.length < 1) { setMatchErr("No active candidates to rank. They may all be hired or marked Not a match."); return; }
 
     setMatching(true);
     setMatchErr(null);
@@ -17947,14 +17948,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const strongApplicants = activeVisible.filter((a) => a.fit !== "other");
   const otherApplicants = activeVisible.filter((a) => a.fit === "other");
   const hiredApplicants = visible.filter((a) => a.stage === "hired");
-  // AI Rank gating: tied to the Strong Matches tab count the user sees (active,
-  // non-hired, fit the role). Need at least 2 so there's something to compare;
-  // once two have applied the "needs 2" note disappears and the button unlocks.
-  // Every run re-ranks all of them and spends 1 credit (re-run is intentional).
-  const canRank = strongApplicants.length >= 2;
+  // AI Rank turns on once at least 2 candidates have applied to this role.
+  // The requirement lives in the button tooltip (no inline note). Every run
+  // re-ranks the active pool and spends 1 credit (re-run is intentional).
+  const appliedCount = visible.length;
+  const canRank = appliedCount >= 2;
   // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
-  // rankable candidates). Out-of-credits stays clickable so it can route to
-  // billing. This stops the tour glow from making a dead button look live.
+  // applicants). Out-of-credits stays clickable so it can route to billing.
+  // This stops the tour glow from making a dead button look live.
   const aiRankDisabled = matching || (!outOfRuns && !canRank);
   const onOtherTab = applicantTab === "other";
   const onHiredTab = applicantTab === "hired";
@@ -17993,20 +17994,15 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             Rank these applicants with AI
             <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning. Each run re-ranks every candidate and uses 1 AI Rank credit." />
           </p>
-          {visible.length === 0 ? (
-            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>No applicants yet. Matching becomes available once someone applies.</p>
-          ) : !canRank ? (
-            <p className="text-xs mt-2 rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ color: "#8A6D1F", background: "#FFF8EC", border: "1px solid #F5E3BE" }}>
-              <Icon name="info" className="w-3.5 h-3.5 mt-px shrink-0" />
-              <span>AI Rank needs at least 2 candidates in Strong Matches. It scores them against the role, so add another before you run it.</span>
-            </p>
-          ) : (
-            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-              {matchResults
-                ? "Ranked by fit. Re-run to re-score everyone (uses 1 credit)."
-                : "Score every candidate against this role and see who fits best."}
-            </p>
-          )}
+          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+            {visible.length === 0
+              ? "No applicants yet. Matching becomes available once someone applies."
+              : !canRank
+                ? "Needs at least 2 applicants. Once a second candidate applies, AI Rank turns on."
+                : matchResults
+                  ? "Ranked by fit. Re-run to re-score everyone (uses 1 credit)."
+                  : "Score every candidate against this role and see who fits best."}
+          </p>
           {matchOk && !matchErr && (
             <p className="text-xs mt-2 rounded-lg px-3 py-2 inline-flex items-start gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5 mt-px shrink-0" /> Rankings updated and synced. Interviewers now see the latest list.</p>
           )}
@@ -18024,10 +18020,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             <button
               onClick={() => askAiRank(runMatching)}
               disabled={aiRankDisabled}
-              title={!canRank && !outOfRuns ? "You need at least 2 candidates in Strong Matches (not yet hired) to run AI Rank." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+              title={!canRank && !outOfRuns ? "AI Rank turns on once at least 2 candidates have applied to this role." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
               // During Step 2 of the tour, keep the button lit as the highlight
               // target (opacity:1 overrides the disabled dim) even when it can't
-              // run yet; the amber note above explains why it won't click.
+              // run yet; the tooltip explains why it won't click.
               style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
               className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
@@ -18141,7 +18137,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             </div>
           )}
         <div className="flex items-center gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Not a match", otherApplicants.length], ["hired", "Hired", hiredApplicants.length]].map(([key, label, n]) => {
+          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Non-Matches", otherApplicants.length], ["hired", "Hired", hiredApplicants.length]].map(([key, label, n]) => {
             const on = applicantTab === key;
             // Step 1 of the tour points at Strong Matches, so glow it like the
             // Step 2 / Step 3 target buttons.
