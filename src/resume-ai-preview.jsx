@@ -316,6 +316,12 @@ async function loadWorkspaceData(companyId) {
       applicationId: a.id,
       appliedAt: relDaysAgo(a.created_at),
       appliedAtIso: a.created_at,
+      // For non-matches, match_reasons holds the AI's fit explanation (why the
+      // candidate was set aside). Carried here so the Non-Matches card can show
+      // it — free, since it was generated during the parse. Only rendered on
+      // cards where fit === "other" (for ranked strong matches this same column
+      // holds the AI Rank rationale instead, which we never show here).
+      fitReason: a.match_reasons || "",
       baseStage: a.stage,
       rejectionEmailSent: false,
       source: a.source || "Career Page",
@@ -18694,7 +18700,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
                         </button>
                         {a.fit === "other" && (
-                          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title="Doesn't match this role's requirements; kept in your talent pool.">Not a match for this role</span>
+                          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title={a.fitReason || "Doesn't match this role's requirements; kept in your talent pool."}>Not a match for this role</span>
                         )}
                         {match && !scoreVisible && (
                           <button onClick={() => navigate("billing")} className="shrink-0" aria-label="Upgrade to see match score">
@@ -18705,6 +18711,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         )}
                       </div>
                       <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor} · applied {a.appliedAt}</p>
+                      {a.fit === "other" && a.fitReason && (
+                        <p className="text-xs mt-1.5 leading-relaxed rounded-lg px-2.5 py-1.5" style={{ background: "#FEF9F0", color: "#9A6B14", border: "1px solid #F6E6C8" }}>
+                          <span className="font-semibold">Why:</span> {a.fitReason}
+                        </p>
+                      )}
                       {chips.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
                       )}
