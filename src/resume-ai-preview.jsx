@@ -8229,7 +8229,9 @@ function NotificationBell({ activities, onOpen, onActivityClick, compact = false
   };
 
   return (
-    <div className="relative">
+    // z-[120]: the open panel must sit above the sidebar rail (z-30) and the
+    // onboarding tour bubbles (z-100), so a notification always comes to front.
+    <div className={`relative ${open ? "z-[120]" : ""}`}>
       <button
         onClick={toggle}
         className={`relative rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors ${compact ? "w-9 h-9" : "w-12 h-12"}`}
@@ -20107,6 +20109,25 @@ export default function ResumeAIPreview() {
     setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
+
+  // Keep the open workspace fresh without a manual reload. New applicants land in
+  // the DB from the public apply flow while the recruiter is elsewhere in the app,
+  // so re-hydrate when the tab regains focus or becomes visible, and poll gently
+  // while it's open and visible. (No Supabase realtime publication is configured,
+  // so this is the reliable path; it replaces "refresh the page to see them".)
+  useEffect(() => {
+    if (!hasSupabase || !canPersist || !companyId) return;
+    const refresh = () => { if (document.visibilityState === "visible") hydrateWorkspace(companyId); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    const id = setInterval(refresh, 45000);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPersist, companyId]);
 
   // Sign out for real when Supabase is wired, then reset to defaults and return
   // to the login screen.
