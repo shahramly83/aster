@@ -14488,7 +14488,10 @@ This is what a candidate sees if they open the link after the role has closed.
           setStage("form");
           return;
         }
-        body = { job_id: job.id, resume_text: text, filename: file?.name || null, source: "Career Page" };
+        // resume_text is what Claude parses; original_base64 is the untouched .docx
+        // so the recruiter can download the real file (not a reconstruction).
+        const original_base64 = await fileToBase64(file);
+        body = { job_id: job.id, resume_text: text, original_base64, original_ext: "docx", filename: file?.name || null, source: "Career Page" };
       } else {
         const resume_base64 = await fileToBase64(file);
         body = { job_id: job.id, resume_base64, filename: file?.name || null, source: "Career Page" };
@@ -17072,7 +17075,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
             {planLimits(plan).storeOriginal ? (
               <button onClick={() => setShowPdf(true)} className="rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm text-neutral-800 px-3 py-1.5 transition-colors inline-flex items-center gap-1.5">
-                <Icon name="doc" className="w-4 h-4" /> View original PDF
+                <Icon name="doc" className="w-4 h-4" /> View resume
               </button>
             ) : (
               <button onClick={() => navigate("billing")} className="rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title="On Launch, the original file isn't stored">
@@ -17595,8 +17598,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 // document and exports the same content on download.
 function ResumePdfModal({ candidate, onClose }) {
   const p = candidate.parsed;
-  const realPdf = candidate.resumeUrl || null; // signed URL to the stored original
-  const fileName = realPdf ? (candidate.fileName || "resume.pdf") : `${(p.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`;
+  const realDoc = candidate.resumeUrl || null; // signed URL to the stored original (PDF or .docx)
+  const fileName = realDoc ? (candidate.fileName || "resume") : `${(p.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`;
+  // Only a PDF can be shown inline in the iframe. A stored .docx is offered as a
+  // download; its content is still shown here as the clean reconstruction.
+  const isPdfOriginal = !!realDoc && /\.pdf$/i.test(candidate.fileName || "");
   const download = () => {
     const out = [];
     out.push(p.name || "");
@@ -17635,9 +17641,9 @@ function ResumePdfModal({ candidate, onClose }) {
           <Icon name="doc" className="w-4 h-4 shrink-0" style={{ color: "rgba(255,255,255,0.8)" }} />
           <span className="text-sm font-medium truncate" style={{ color: "rgba(255,255,255,0.92)" }}>{fileName}</span>
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
-            {realPdf ? (
-              <a href={realPdf} target="_blank" rel="noopener noreferrer" className="text-xs font-medium rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.9)" }}>
-                <Icon name="download" className="w-3.5 h-3.5" /> Open in new tab
+            {realDoc ? (
+              <a href={realDoc} target="_blank" rel="noopener noreferrer" download={isPdfOriginal ? undefined : fileName} className="text-xs font-medium rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.9)" }}>
+                <Icon name="download" className="w-3.5 h-3.5" /> {isPdfOriginal ? "Open in new tab" : "Download original"}
               </a>
             ) : (
               <button onClick={download} className="text-xs font-medium rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:bg-white/10" style={{ color: "rgba(255,255,255,0.9)" }}>
@@ -17651,8 +17657,8 @@ function ResumePdfModal({ candidate, onClose }) {
         </div>
         {/* Document page: the real uploaded PDF when we have it, else a clean
             reconstruction from the parsed fields. */}
-        {realPdf ? (
-          <iframe title={fileName} src={realPdf} className="flex-1 w-full" style={{ border: 0, background: "#3A3F5C", minHeight: "60vh" }} />
+        {isPdfOriginal ? (
+          <iframe title={fileName} src={realDoc} className="flex-1 w-full" style={{ border: 0, background: "#3A3F5C", minHeight: "60vh" }} />
         ) : (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ background: "#3A3F5C" }}>
           <div className="mx-auto bg-white shadow-xl px-8 sm:px-10 py-9 max-w-[620px]" style={{ color: "#1f2937" }}>

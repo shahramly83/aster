@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     // PDFs arrive as resume_base64 (Claude reads the PDF directly). Word (.docx)
     // resumes arrive as resume_text: the client extracts the document text, since
     // Claude can't read a .docx binary. Exactly one of the two is present.
-    const { job_id, name, email, resume_base64, resume_text, filename, source } = await req.json();
+    const { job_id, name, email, resume_base64, resume_text, original_base64, original_ext, filename, source } = await req.json();
     if (!job_id || (!resume_base64 && !resume_text)) return json({ error: "job_id and a resume (resume_base64 or resume_text) are required" }, 400);
 
     const admin = createClient(
@@ -292,26 +292,29 @@ Deno.serve(async (req) => {
       candidateId = ins.id;
     }
 
-    // Storing the original file and pulling out a profile photo both need the raw
-    // PDF bytes. Word resumes reach us as extracted text only, so these steps are
-    // PDF-only; the Word applicant still gets a full parsed profile, just no stored
-    // original file or auto-extracted headshot.
-    if (resume_base64) {
-      const pdfBytes = Uint8Array.from(atob(resume_base64), (c) => c.charCodeAt(0));
-
-      // --- Store the PDF privately at resumes/{company}/{candidate}.pdf ---
+    // --- Store the original uploaded file so recruiters download the real resume
+    // (PDF as .pdf, Word as .docx), never a reconstruction. ---
+    const origB64: string | null = resume_base64 || original_base64 || null;
+    const origExt = resume_base64 ? "pdf" : (original_ext === "docx" ? "docx" : null);
+    const origMime = origExt === "pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (origB64 && origExt) {
+      const bytes = Uint8Array.from(atob(origB64), (c) => c.charCodeAt(0));
       try {
-        const path = `${companyId}/${candidateId}.pdf`;
-        await admin.storage.from("resumes").upload(path, pdfBytes, { contentType: "application/pdf", upsert: true });
+        const path = `${companyId}/${candidateId}.${origExt}`;
+        await admin.storage.from("resumes").upload(path, bytes, { contentType: origMime, upsert: true });
         await admin.from("candidates").update({ resume_path: path }).eq("id", candidateId);
       } catch (e) {
         console.error("resume upload failed", e); // non-fatal
       }
 
-      // --- Best-effort: pull the applicant's photo out of the resume ---
-      if (apiKey) {
+      // --- Best-effort: pull the applicant's photo out of the resume. This needs
+      // the raw PDF image streams, so it's PDF-only; a Word applicant simply keeps
+      // their initials avatar. ---
+      if (resume_base64 && apiKey) {
         try {
-          const imgs = extractPhotos(pdfBytes);
+          const imgs = extractPhotos(bytes);
           const idx = await pickFaceIndex(apiKey, imgs);
           if (idx >= 0 && imgs[idx]) {
             const photoPath = `${companyId}/${candidateId}_photo.jpg`;
