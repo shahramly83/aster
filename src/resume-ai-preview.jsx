@@ -869,7 +869,7 @@ async function createCompanyAndWelcome(companyName, fullName, slug = null) {
 // Multi-tenant subdomain sign-in (<slug>.hireaster.com). Kept OFF until the
 // wildcard DNS + SSL are live in Vercel; flip to true (and redeploy) to switch on
 // the branded per-workspace login + apex→subdomain forwarding.
-const SUBDOMAIN_ROUTING = false;
+const SUBDOMAIN_ROUTING = true;
 const APEX_ROOT = "hireaster.com";
 // Subdomains that are NOT workspaces (marketing, product surfaces, infra).
 const RESERVED_SUBDOMAINS = new Set(["www", "app", "jobs", "help", "api", "admin", "staging", "preview", "mail", "cdn", "assets", "static"]);
