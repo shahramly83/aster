@@ -19411,6 +19411,18 @@ export default function ResumeAIPreview() {
   // (including "/", which otherwise renders the public marketing header) until
   // `restoring` clears. Captured once at mount so it can't flip mid-restore.
   const [bootHadSession] = useState(hasStoredAuthSession);
+  // We also arrive here mid-auth-transition with no session on disk yet: right
+  // after an email-confirmation redirect (Supabase auth tokens in the hash) or a
+  // cross-subdomain handoff (#ws_at/#ws_rt). Detect that at mount and hold the
+  // splash too, so the confirm -> provision -> forward -> dashboard journey reads
+  // as one continuous loading screen instead of flashing login forms between hops.
+  const [authTransitionPending] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return /(ws_at=|ws_rt=|access_token=|refresh_token=|type=signup|type=recovery)/.test(window.location.hash || "");
+  });
+  // Set while we're forwarding to a workspace subdomain, so the splash stays up
+  // through the cross-origin navigation instead of blinking the login form.
+  const [redirecting, setRedirecting] = useState(false);
   // Set when the signed-in owner's workspace is soft-deleted (within the 30-day
   // window). We show the restore screen instead of the app.
   const [deletedInfo, setDeletedInfo] = useState(null);
@@ -19850,7 +19862,7 @@ export default function ResumeAIPreview() {
   const applyCustomerSession = (sess, dest = "dashboard") => {
     // Multi-tenant: if this workspace lives on its own subdomain and we're not
     // there yet, forward (with a session handoff) instead of loading here.
-    if (needsWorkspaceRedirect(sess)) return;
+    if (needsWorkspaceRedirect(sess)) { setRedirecting(true); return; }
     if (sess) {
       setProfile(sess.profile);
       setCompany(sess.company);
@@ -20106,7 +20118,7 @@ export default function ResumeAIPreview() {
         if (cancelled || !sess) return;
         // Multi-tenant: on the apex or a subdomain that isn't this workspace's,
         // forward to the correct <slug>.hireaster.com instead of loading here.
-        if (needsWorkspaceRedirect(sess)) return;
+        if (needsWorkspaceRedirect(sess)) { setRedirecting(true); return; }
         setProfile(sess.profile);
         setCompany(sess.company);
         setCompanyLogoUrl(sess.logoUrl || null);
@@ -20398,7 +20410,7 @@ export default function ResumeAIPreview() {
   // when a route falls back to "/". Hold the Aster splash over every screen until
   // `restoring` clears. Public candidate links (apply / book / offer) are exempt
   // so a logged-in recruiter opening one still gets the candidate-facing page.
-  if (restoring && bootHadSession && screen !== "apply" && screen !== "bookInterview" && screen !== "publicOffer") {
+  if (((restoring && (bootHadSession || authTransitionPending)) || redirecting) && screen !== "apply" && screen !== "bookInterview" && screen !== "publicOffer") {
     return (
       <Shell>
         <AsterSplash />
