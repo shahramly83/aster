@@ -17598,15 +17598,17 @@ function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer
     right: { top: "50%", right: -6, marginTop: -6 },
     left: { top: "50%", left: -6, marginTop: -6 },
   }[pointer];
+  const bubbleBg = "#E8EDFF"; // light blue
+  const bubbleLine = "rgba(11,42,224,0.22)";
   const arrowBorder = {
-    down: { borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)" },
-    up: { borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" },
-    right: { borderRight: "1px solid var(--line)", borderTop: "1px solid var(--line)" },
-    left: { borderLeft: "1px solid var(--line)", borderBottom: "1px solid var(--line)" },
+    down: { borderRight: `1px solid ${bubbleLine}`, borderBottom: `1px solid ${bubbleLine}` },
+    up: { borderLeft: `1px solid ${bubbleLine}`, borderTop: `1px solid ${bubbleLine}` },
+    right: { borderRight: `1px solid ${bubbleLine}`, borderTop: `1px solid ${bubbleLine}` },
+    left: { borderLeft: `1px solid ${bubbleLine}`, borderBottom: `1px solid ${bubbleLine}` },
   }[pointer];
   return (
-    <div className="tour-pop relative rounded-2xl bg-white w-[244px]"
-      style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -18px rgba(11,42,224,0.42), 0 4px 14px rgba(18,19,42,0.08)" }}>
+    <div className="tour-pop relative rounded-2xl w-[244px] max-w-[86vw]"
+      style={{ background: bubbleBg, border: `1px solid ${bubbleLine}`, boxShadow: "0 20px 44px -18px rgba(11,42,224,0.42), 0 4px 14px rgba(18,19,42,0.08)" }}>
       {/* header: numbered badge, progress track, skip */}
       <div className="flex items-center gap-2 px-3.5 pt-3">
         <span className="shrink-0 w-6 h-6 rounded-full brand-gradient text-white text-[11px] font-bold flex items-center justify-center shadow-[0_5px_12px_-4px_rgba(11,42,224,0.8)]">{num}</span>
@@ -17633,7 +17635,7 @@ function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer
       {pointer && (
         <>
           <span className="tour-ping absolute rounded-full" style={{ ...pos, width: 12, height: 12, background: "rgba(11,42,224,0.28)" }} />
-          <span className="absolute w-3 h-3 rotate-45 bg-white" style={{ ...pos, ...arrowBorder }} />
+          <span className="absolute w-3 h-3 rotate-45" style={{ ...pos, background: bubbleBg, ...arrowBorder }} />
         </>
       )}
     </div>
@@ -18120,19 +18122,22 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         {/* Strong Matches / Other Applicants tabs */}
         <div className="relative inline-block">
           {!isInterviewer(profile?.role) && tourStep === 1 && (
-            <div className="absolute bottom-full left-2 mb-2 z-30">
-              <GuideBubble step="Step 1" pointer="down" arrowAlign="left" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
-                Everyone who applied shows up here. Strong Matches fit the role, and Other Applicants stay in your talent pool.
+            <div className="absolute top-full left-2 mt-2 z-30">
+              <GuideBubble step="Step 1" pointer="up" arrowAlign="left" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
+                Everyone who applied shows up here. Strong Matches fit the role. The rest stay in your talent pool for later.
               </GuideBubble>
             </div>
           )}
         <div className="flex items-center gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Other Applicants", otherApplicants.length], ["hired", "Hired", hiredApplicants.length]].map(([key, label, n]) => {
+          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Not a match", otherApplicants.length], ["hired", "Hired", hiredApplicants.length]].map(([key, label, n]) => {
             const on = applicantTab === key;
+            // Step 1 of the tour points at Strong Matches, so glow it like the
+            // Step 2 / Step 3 target buttons.
+            const pulse = tourStep === 1 && key === "strong";
             return (
               <button key={key} onClick={() => { setApplicantTab(key); setStageFilter("all"); }}
-                className="text-sm font-medium px-3.5 py-1.5 rounded-lg transition-colors"
-                style={on ? { background: "#fff", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.08)" } : { color: "var(--ink-3)" }}>
+                className={`text-sm font-medium px-3.5 py-1.5 rounded-lg transition-colors ${pulse ? "tour-pulse" : ""}`}
+                style={{ ...(on ? { background: "#fff", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.08)" } : { color: "var(--ink-3)" }), ...(pulse ? { background: "#fff", boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : {}) }}>
                 {label} <span className="tnum" style={{ color: on ? "var(--brand)" : "var(--ink-3)" }}>{n}</span>
               </button>
             );
