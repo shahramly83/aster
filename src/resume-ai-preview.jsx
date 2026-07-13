@@ -534,7 +534,10 @@ const BRAND_STYLES = `
 .tour-pop { animation: tourPop .34s cubic-bezier(.34,1.56,.64,1); transform-origin: top center; }
 @keyframes tourPing { 0% { transform: scale(.5); opacity: .75; } 70%, 100% { transform: scale(2.4); opacity: 0; } }
 .tour-ping { animation: tourPing 1.7s ease-out infinite; }
-@media (prefers-reduced-motion: reduce) { .tour-pulse, .tour-pop, .tour-ping { animation: none !important; } }
+/* Resume upload dropzone: a soft brand glow that breathes, inviting the drop. */
+@keyframes uploadGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(11,42,224,0), 0 8px 22px -12px rgba(11,42,224,.20); border-color: var(--line-strong); } 50% { box-shadow: 0 0 0 4px rgba(11,42,224,.08), 0 12px 30px -10px rgba(11,42,224,.42); border-color: var(--brand); } }
+.upload-glow { animation: uploadGlow 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tour-pulse, .tour-pop, .tour-ping, .upload-glow { animation: none !important; } }
 /* Hiring-tool surface: a subtle brand tint that sets the interview workflow
    (questions, scheduling, scorecards, decision) apart from the candidate's own
    resume cards, which stay plain white. Matches the AI Insights card. */
@@ -14250,7 +14253,6 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   // Flow: review job → upload a PDF resume → submit → AI parses → profile created.
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState(null);
-  const [confirmed, setConfirmed] = useState(false); // gates the upload
   const [stage, setStage] = useState("form"); // form | processing | done
   const [submitErr, setSubmitErr] = useState(null);
   const [procStep, setProcStep] = useState(0);
@@ -14431,7 +14433,7 @@ This is what a candidate sees if they open the link after the role has closed.
     setFile(f);
   };
 
-  const canSubmit = file && isPdf(file) && confirmed && stage === "form";
+  const canSubmit = file && isPdf(file) && stage === "form";
 
   // A real job carries a uuid id; demo jobs use "j…" ids we never send to the DB.
   const isRealJob = (id) => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
@@ -14586,29 +14588,9 @@ This is what a candidate sees. A public page, no login, reached only through the
                   </p>
 
                   <div className="space-y-3">
-                    {/* Confirmation gate: the upload only unlocks once this is ticked.
-                        Custom box (native checkboxes render inconsistently per OS). */}
-                    <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={confirmed}
-                        onChange={(e) => setConfirmed(e.target.checked)}
-                        disabled={stage !== "form"}
-                        className="peer sr-only"
-                      />
-                      <span aria-hidden="true"
-                        className="mt-0.5 h-[18px] w-[18px] shrink-0 rounded-[6px] border flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-[color:var(--brand)]"
-                        style={{ borderColor: confirmed ? "var(--brand)" : "var(--line-strong)", background: confirmed ? "var(--brand)" : "#fff" }}>
-                        {confirmed && <Icon name="check" className="w-3 h-3 text-white" />}
-                      </span>
-                      <span className="text-[13px] leading-snug" style={{ color: "var(--ink-2)" }}>
-                        This is my resume, and it includes my current email so the team can reach me about this role.
-                      </span>
-                    </label>
-
-                    <div className={confirmed ? "" : "opacity-50 pointer-events-none"}>
-                      <label className={`block rounded-xl border-2 border-dashed px-4 py-7 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-[color:var(--brand-soft)]/40 hover:border-[color:var(--brand)]"}`} style={{ borderColor: file ? "var(--brand)" : "var(--line-strong)" }}>
-                        <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form" || !confirmed} />
+                    <div>
+                      <label className={`block rounded-xl border-2 border-dashed px-4 py-7 text-center cursor-pointer transition-colors ${stage !== "form" ? "opacity-60 pointer-events-none" : "hover:bg-[color:var(--brand-soft)]/40 hover:border-[color:var(--brand)]"} ${!file && stage === "form" ? "upload-glow" : ""}`} style={{ borderColor: file ? "var(--brand)" : "var(--line-strong)" }}>
+                        <input type="file" accept="application/pdf,.pdf" onChange={handleFile} className="hidden" disabled={stage !== "form"} />
                         <span className="mx-auto mb-2 flex w-9 h-9 items-center justify-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={file ? "check" : "upload"} className="w-4 h-4" /></span>
                         {file ? (
                           <span className="block text-sm font-medium break-all" style={{ color: "var(--ink)" }}>{file.name}</span>
@@ -14616,7 +14598,7 @@ This is what a candidate sees. A public page, no login, reached only through the
                           <span className="block text-sm" style={{ color: "var(--ink-3)" }}>Tap to upload your resume<br /><span className="text-xs">PDF only</span></span>
                         )}
                       </label>
-                      {!confirmed && <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Tick the box above to turn on the upload.</p>}
+                      <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Make sure your resume includes your email so the team can reach you.</p>
                       {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
                     </div>
                   </div>
@@ -14641,6 +14623,12 @@ This is what a candidate sees. A public page, no login, reached only through the
             </div>
           </>
         )}
+        <div className="mt-10 pt-5 flex items-center justify-end gap-1.5 border-t" style={{ borderColor: "var(--line)" }}>
+          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Powered by</span>
+          <a href="https://hireaster.com" target="_blank" rel="noopener noreferrer" aria-label="Aster" className="inline-flex opacity-70 hover:opacity-100 transition-opacity">
+            <img src="/aster-logo.png" alt="Aster" className="h-4 w-auto object-contain" />
+          </a>
+        </div>
       </div>
     </div>
   );
