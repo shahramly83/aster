@@ -17914,15 +17914,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     }
   };
 
-  // AI Rank gating: only Strong-match, non-hired candidates count (Other
-  // Applicants aren't ranked for this role); need at least 2. Every run re-ranks
-  // all of them and spends 1 credit (re-run is intentional).
-  const rankableActive = applicants.filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other");
-  const canRank = rankableActive.length >= 2;
-  // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
-  // rankable candidates). Out-of-credits stays clickable so it can route to
-  // billing. We use this to stop the tour glow from making a dead button look live.
-  const aiRankDisabled = matching || (!outOfRuns && !canRank);
   // Step 2 (assign interviewers) unlocks once AI Rank has been run for this role
   // (matchResults is seeded from saved scores, so it stays unlocked after reload).
   const step2Enabled = !!matchResults;
@@ -17956,6 +17947,15 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const strongApplicants = activeVisible.filter((a) => a.fit !== "other");
   const otherApplicants = activeVisible.filter((a) => a.fit === "other");
   const hiredApplicants = visible.filter((a) => a.stage === "hired");
+  // AI Rank gating: tied to the Strong Matches tab count the user sees (active,
+  // non-hired, fit the role). Need at least 2 so there's something to compare;
+  // once two have applied the "needs 2" note disappears and the button unlocks.
+  // Every run re-ranks all of them and spends 1 credit (re-run is intentional).
+  const canRank = strongApplicants.length >= 2;
+  // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
+  // rankable candidates). Out-of-credits stays clickable so it can route to
+  // billing. This stops the tour glow from making a dead button look live.
+  const aiRankDisabled = matching || (!outOfRuns && !canRank);
   const onOtherTab = applicantTab === "other";
   const onHiredTab = applicantTab === "hired";
   const tabBase = onHiredTab ? hiredApplicants : onOtherTab ? otherApplicants : strongApplicants;
