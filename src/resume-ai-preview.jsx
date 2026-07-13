@@ -18122,7 +18122,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           {!isInterviewer(profile?.role) && tourStep === 1 && (
             <div className="absolute bottom-full left-2 mb-2 z-30">
               <GuideBubble step="Step 1" pointer="down" arrowAlign="left" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
-                These are the candidates who applied. Strong Matches fit the role; Other Applicants stay in your talent pool.
+                Everyone who applied shows up here. Strong Matches fit the role, and Other Applicants stay in your talent pool.
               </GuideBubble>
             </div>
           )}
