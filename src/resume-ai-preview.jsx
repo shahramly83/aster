@@ -7906,9 +7906,13 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
   //   1. Complete your profile, so apply pages show accurate company details.
   //   2. After the profile is saved (ProfileScreen sets the flag and redirects
   //      here), a second bubble points at Job Postings to post the first role.
-  const uid = profile?.id || "anon";
-  const profileKey = `aster.onboard.profile:${uid}`;
-  const jobsKey = `aster.hint.postjob:${uid}`;
+  // Stable localStorage keys (no profile id): the id isn't always populated when
+  // a tour first reads its flag, so an id-suffixed key could be written and read
+  // under different names, making the tour reappear every refresh. Per-user
+  // correctness comes from the server onboarding map (keyed by auth.uid()); this
+  // is just a same-browser cache.
+  const profileKey = `aster.onboard.profile`;
+  const jobsKey = `aster.hint.postjob`;
   const [jobsDismissed, setJobsDismissed] = useState(() => onboardingDone(profile, "postjob", jobsKey));
   // Guided setup coach marks: owner (Tenant) only. Invited hiring managers /
   // interviewers join an already set-up workspace, so they skip the first-run tour.
@@ -10710,11 +10714,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // Guided setup tour (post-a-job nudge + share-link walkthrough): owner only.
   const ownerUser = isOwner(profile?.role);
   const anyOpenJob = (jobs || []).some((j) => j.status === "open");
-  const postCtaKey = `aster.hint.postjobcta:${profile?.id || "anon"}`;
+  const postCtaKey = `aster.hint.postjobcta`;
   const [postCtaDone, setPostCtaDone] = useState(() => { try { return localStorage.getItem(postCtaKey) === "done"; } catch { return false; } });
   const showPostCta = ownerUser && !anyOpenJob && !postCtaDone;
   const dismissPostCta = () => { try { localStorage.setItem(postCtaKey, "done"); } catch { /* private mode */ } setPostCtaDone(true); };
-  const jobsTourKey = `aster.onboard.jobstour:${profile?.id || "anon"}`;
+  const jobsTourKey = `aster.onboard.jobstour`;
   const [jobsTourStep, setJobsTourStep] = useState(() => (onboardingDone(profile, "jobstour", jobsTourKey) ? "done" : "copylink"));
   const jobsTourOn = ownerUser && anyOpenJob && jobsTourStep !== "done";
   const endJobsTour = () => { markOnboardingDone("jobstour", jobsTourKey); setJobsTourStep("done"); };
@@ -15870,7 +15874,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
     // mark it done and send them to the dashboard, where the "post your first
     // job" nudge takes over.
     if (!isInterviewer(profile?.role)) {
-      const pk = `aster.onboard.profile:${profile?.id || "anon"}`;
+      const pk = `aster.onboard.profile`;
       if (!onboardingDone(profile, "profile", pk)) {
         markOnboardingDone("profile", pk); // persists per-user (server + localStorage)
         setTimeout(() => navigate("dashboard"), 900);
@@ -18431,7 +18435,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // -> 3; interviewers (who can't run AI Rank or add interviewers) get just Step 1.
   // Runs once per user (keyed by profile id) the first time; the "done" flag
   // persists so it doesn't reappear. tourStep 0 = finished/skipped.
-  const tourKey = `aster.tour.applicants.v6:${profile?.id || "anon"}`;
+  const tourKey = `aster.tour.applicants.v6`;
   // Owner (Tenant) only: invited teammates skip the first-run applicants walkthrough.
   const [tourStep, setTourStep] = useState(() => (isOwner(profile?.role) && !onboardingDone(profile, "applicants_v6", tourKey) ? 1 : 0));
   const endTour = () => { setTourStep(0); markOnboardingDone("applicants_v6", tourKey); };
