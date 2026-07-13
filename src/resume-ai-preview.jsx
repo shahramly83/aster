@@ -864,7 +864,13 @@ async function createCompanyAndWelcome(companyName, fullName, slug = null) {
   if (error && /p_slug|could not find|function|schema cache|does not exist/i.test(error.message || "")) {
     ({ error } = await supabase.rpc("create_company_and_owner", { p_company_name: companyName, p_full_name: fullName || null }));
   }
-  if (error && !/already exists/i.test(error.message)) return error;
+  if (error) {
+    // Already provisioned (a concurrent path won): the workspace exists, and its
+    // welcome was already fired there, so don't send a second one from here.
+    if (/already exists/i.test(error.message)) return null;
+    return error;
+  }
+  // Only a genuine first-time creation triggers the welcome email.
   supabase.functions.invoke("send-welcome", { body: {} }).catch(() => { /* best-effort */ });
   return null;
 }

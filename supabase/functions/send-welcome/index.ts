@@ -44,8 +44,16 @@ Deno.serve(async (req) => {
     if (!comp) return json({ error: "not found" }, 404);
     if (comp.welcomed_at) return json({ ok: true, skipped: "already_welcomed" });
 
-    // Claim the welcome (guard against a concurrent second invocation).
-    await admin.from("companies").update({ welcomed_at: new Date().toISOString() }).eq("id", companyId).is("welcomed_at", null);
+    // Atomically claim the welcome: only the invocation whose UPDATE actually flips
+    // welcomed_at from null (returning a row) sends the email. Two racing calls both
+    // pass the check above, but only one wins the claim, so the email goes once.
+    const { data: claimed } = await admin
+      .from("companies")
+      .update({ welcomed_at: new Date().toISOString() })
+      .eq("id", companyId)
+      .is("welcomed_at", null)
+      .select("id");
+    if (!claimed || claimed.length === 0) return json({ ok: true, skipped: "already_welcomed_race" });
 
     const to = profile?.email || user.email;
     if (!to) return json({ ok: true, skipped: "no_recipient" });
