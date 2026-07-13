@@ -17919,6 +17919,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // all of them and spends 1 credit (re-run is intentional).
   const rankableActive = applicants.filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other");
   const canRank = rankableActive.length >= 2;
+  // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
+  // rankable candidates). Out-of-credits stays clickable so it can route to
+  // billing. We use this to stop the tour glow from making a dead button look live.
+  const aiRankDisabled = matching || (!outOfRuns && !canRank);
   // Step 2 (assign interviewers) unlocks once AI Rank has been run for this role
   // (matchResults is seeded from saved scores, so it stays unlocked after reload).
   const step2Enabled = !!matchResults;
@@ -17989,15 +17993,20 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             Rank these applicants with AI
             <InfoHint dir="down" hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning. Each run re-ranks every candidate and uses 1 AI Rank credit." />
           </p>
-          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-            {visible.length === 0
-              ? "No applicants yet. Matching becomes available once someone applies."
-              : rankableActive.length < 2
-                ? "AI Rank needs at least 2 candidates who aren't hired yet."
-                : matchResults
-                  ? "Ranked by fit. Re-run to re-score everyone (uses 1 credit)."
-                  : "Score every candidate against this role and see who fits best."}
-          </p>
+          {visible.length === 0 ? (
+            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>No applicants yet. Matching becomes available once someone applies.</p>
+          ) : !canRank ? (
+            <p className="text-xs mt-2 rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ color: "#8A6D1F", background: "#FFF8EC", border: "1px solid #F5E3BE" }}>
+              <Icon name="info" className="w-3.5 h-3.5 mt-px shrink-0" />
+              <span>AI Rank needs at least 2 candidates in Strong Matches. It scores them against the role, so add another before you run it.</span>
+            </p>
+          ) : (
+            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+              {matchResults
+                ? "Ranked by fit. Re-run to re-score everyone (uses 1 credit)."
+                : "Score every candidate against this role and see who fits best."}
+            </p>
+          )}
           {matchOk && !matchErr && (
             <p className="text-xs mt-2 rounded-lg px-3 py-2 inline-flex items-start gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5 mt-px shrink-0" /> Rankings updated and synced. Interviewers now see the latest list.</p>
           )}
@@ -18014,10 +18023,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             )}
             <button
               onClick={() => askAiRank(runMatching)}
-              disabled={matching || (!outOfRuns && !canRank)}
-              title={matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
-              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : undefined}
-              className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
+              disabled={aiRankDisabled}
+              title={!canRank && !outOfRuns ? "You need at least 2 candidates in Strong Matches (not yet hired) to run AI Rank." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+              style={tourStep === 2 && !aiRankDisabled ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : undefined}
+              className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 && !aiRankDisabled ? "tour-pulse" : ""}`}
             >
               <Icon name={outOfRuns ? "lock" : "target"} className="w-4 h-4" />
               {matching ? "Ranking…" : outOfRuns ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
