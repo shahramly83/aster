@@ -341,8 +341,11 @@ Deno.serve(async (req) => {
         match_reasons: fit === "other" ? (fitReason || null) : null,
       });
     } else {
-      // A re-submission: refresh the classification (in case the role changed).
-      await admin.from("applications").update({ fit }).eq("id", app.id);
+      // A re-submission (same candidate + job): refresh the classification in
+      // case the role changed, and update the source to whatever channel they
+      // came back through this time — otherwise the very first application's tag
+      // is frozen forever, so a later apply via a new ?source= link never shows.
+      await admin.from("applications").update({ fit, source: (source || "Career Page") }).eq("id", app.id);
     }
 
     // Every processed application spends one parse credit — including Other
