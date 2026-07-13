@@ -14527,6 +14527,12 @@ This is what a candidate sees. A public page, no login, reached only through the
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               The team reviews every applicant and will be in touch if there's a fit. Look out for a confirmation in your inbox.
             </p>
+            <div className="mt-8 pt-5 flex items-center justify-center gap-1.5 border-t" style={{ borderColor: "var(--line)" }}>
+              <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Powered by</span>
+              <a href="https://hireaster.com" target="_blank" rel="noopener noreferrer" aria-label="Aster" className="inline-flex opacity-70 hover:opacity-100 transition-opacity">
+                <img src="/aster-logo.png" alt="Aster" className="h-4 w-auto object-contain" />
+              </a>
+            </div>
           </div>
         ) : (
           <>
@@ -14624,17 +14630,18 @@ This is what a candidate sees. A public page, no login, reached only through the
                       This isn't stuck. Aster is reading your resume and looking up the companies you've worked at. It can take up to a minute, so please keep this page open.
                     </p>
                   )}
+
+                  <div className="mt-5 pt-4 flex items-center justify-center gap-1.5 border-t" style={{ borderColor: "var(--line)" }}>
+                    <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Powered by</span>
+                    <a href="https://hireaster.com" target="_blank" rel="noopener noreferrer" aria-label="Aster" className="inline-flex opacity-70 hover:opacity-100 transition-opacity">
+                      <img src="/aster-logo.png" alt="Aster" className="h-4 w-auto object-contain" />
+                    </a>
+                  </div>
                 </div>
               </aside>
             </div>
           </>
         )}
-        <div className="mt-10 pt-5 flex items-center justify-end gap-1.5 border-t" style={{ borderColor: "var(--line)" }}>
-          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Powered by</span>
-          <a href="https://hireaster.com" target="_blank" rel="noopener noreferrer" aria-label="Aster" className="inline-flex opacity-70 hover:opacity-100 transition-opacity">
-            <img src="/aster-logo.png" alt="Aster" className="h-4 w-auto object-contain" />
-          </a>
-        </div>
       </div>
     </div>
   );
@@ -18284,7 +18291,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     // Only rank ACTIVE applicants: hired candidates are out of the running (but
     // stay visible in the list). AI Rank needs at least 2 of them to compare.
     const activePool = applicants
-      .filter((a) => !hiredIds.has(a.candidateId) && a.fit !== "other")
+      .filter((a) => !hiredIds.has(a.candidateId) && (a.fit !== "other" || a.stage === "shortlisted"))
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
       .filter((c) => c && c.parsed);
     if (activePool.length < 2) { setMatchErr("AI Rank becomes available when at least 2 candidates are ready to rank."); return; }
@@ -18354,9 +18361,12 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const activeVisible = visible.filter((a) => !TERMINAL_STAGES.includes(a.stage));
   // Three tabs: Strong Matches (fit the role, fully ranked), Other Applicants
   // (kept in the talent pool, not ranked) and Hired (completed hires for this
-  // role). Unclassified = Strong.
-  const strongApplicants = activeVisible.filter((a) => a.fit !== "other");
-  const otherApplicants = activeVisible.filter((a) => a.fit === "other");
+  // role). Unclassified = Strong. A recruiter who manually shortlists a
+  // non-match overrides the AI's call: the candidate moves into Strong Matches
+  // (and becomes eligible for AI Rank) instead of staying in the talent pool.
+  const isStrongFit = (a) => a.fit !== "other" || a.stage === "shortlisted";
+  const strongApplicants = activeVisible.filter(isStrongFit);
+  const otherApplicants = activeVisible.filter((a) => !isStrongFit(a));
   const hiredApplicants = visible.filter((a) => a.stage === "hired");
   // AI Rank becomes available once at least 2 candidates are eligible for
   // ranking: active (not hired/rejected) Strong Matches, the count shown on the
