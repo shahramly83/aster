@@ -19512,6 +19512,14 @@ export default function ResumeAIPreview() {
   // Set while we're forwarding to a workspace subdomain, so the splash stays up
   // through the cross-origin navigation instead of blinking the login form.
   const [redirecting, setRedirecting] = useState(false);
+  // Hand off from the pre-boot splash (index.html sets data-app-booting before
+  // paint to hide the prerendered marketing shell for signed-in / mid-auth loads).
+  // On our first commit we render either the Aster splash (returning user) or the
+  // right screen, so clear the flag now: same frame, the boot overlay hides and
+  // #root becomes visible — a seamless load, never a flash of marketing.
+  useLayoutEffect(() => {
+    try { document.documentElement.removeAttribute("data-app-booting"); } catch { /* noop */ }
+  }, []);
   // Set when the signed-in owner's workspace is soft-deleted (within the 30-day
   // window). We show the restore screen instead of the app.
   const [deletedInfo, setDeletedInfo] = useState(null);
