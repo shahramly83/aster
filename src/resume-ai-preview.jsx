@@ -14429,6 +14429,25 @@ This is what a candidate sees if they open the link after the role has closed.
   const isDoc = (f) => f && !isDocx(f) && /\.doc$/i.test(f.name); // legacy binary Word
   const isAllowedResume = (f) => isPdf(f) || isDocx(f);
 
+  // Where this applicant came from: the ?source= tag the recruiter put on the
+  // apply link (?source=whatsapp → "WhatsApp"). A bare link with no tag is a
+  // direct visit to the public job page, which we record as "Career Page".
+  const applySource = (() => {
+    try {
+      const raw = new URLSearchParams(window.location.search).get("source");
+      if (!raw || !raw.trim()) return "Career Page";
+      const slug = raw.trim().toLowerCase().slice(0, 40);
+      const KNOWN = {
+        whatsapp: "WhatsApp", linkedin: "LinkedIn", linkedin_post: "LinkedIn",
+        facebook: "Facebook", instagram: "Instagram", twitter: "Twitter", x: "X",
+        tiktok: "TikTok", telegram: "Telegram", email: "Email", newsletter: "Newsletter",
+        referral: "Referral", indeed: "Indeed", jobstreet: "JobStreet", glassdoor: "Glassdoor",
+        database: "Talent database", website: "Website", career_page: "Career Page", careerpage: "Career Page",
+      };
+      return KNOWN[slug] || slug.replace(/_+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    } catch { return "Career Page"; }
+  })();
+
   const MAX_MB = 10; // resumes are tiny; anything bigger is usually not a CV
   const handleFile = (e) => {
     const f = e.target.files?.[0];
@@ -14491,10 +14510,10 @@ This is what a candidate sees if they open the link after the role has closed.
         // resume_text is what Claude parses; original_base64 is the untouched .docx
         // so the recruiter can download the real file (not a reconstruction).
         const original_base64 = await fileToBase64(file);
-        body = { job_id: job.id, resume_text: text, original_base64, original_ext: "docx", filename: file?.name || null, source: "Career Page" };
+        body = { job_id: job.id, resume_text: text, original_base64, original_ext: "docx", filename: file?.name || null, source: applySource };
       } else {
         const resume_base64 = await fileToBase64(file);
-        body = { job_id: job.id, resume_base64, filename: file?.name || null, source: "Career Page" };
+        body = { job_id: job.id, resume_base64, filename: file?.name || null, source: applySource };
       }
       const { data, error } = await supabase.functions.invoke("parse-application", { body });
       // On a non-2xx status, invoke returns `error` and the JSON body (with our

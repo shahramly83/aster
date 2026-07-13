@@ -116,7 +116,7 @@ export function companyShell(opts: {
     ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" height="34" style="max-height:34px;max-width:200px;display:inline-block;vertical-align:middle;border:0;">`
     : `<span style="font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:18px;color:#171326;vertical-align:middle;">${esc(companyName)}</span>`;
   const sign = signoff
-    ? `<p style="margin:20px 0 0;">Best Regards,<br>${esc(companyName)}</p>`
+    ? `<p style="margin:20px 0 0;">Best regards,<br>${esc(companyName)}</p>`
     : "";
   return `<!doctype html>
 <html lang="en">
