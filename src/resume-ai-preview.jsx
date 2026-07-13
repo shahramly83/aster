@@ -982,7 +982,9 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
     if (!sess) {
       const cn = user.user_metadata?.company_name;
       if (cn) {
-        const rpcErr = await createCompanyAndWelcome(cn, user.user_metadata?.full_name || null);
+        // Provision with the slug the user chose at signup, so their subdomain
+        // (<slug>.hireaster.com) matches what they picked.
+        const rpcErr = await createCompanyAndWelcome(cn, user.user_metadata?.full_name || null, user.user_metadata?.workspace_slug || null);
         if (!rpcErr) sess = await loadCustomerSession(user.id, user.email);
       }
     }
@@ -7159,11 +7161,12 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
       password,
       options: {
         data: { full_name: fullName, company_name: companyName.trim(), workspace_slug: workspaceUrl },
-        // After the user clicks the confirmation link, land them on the sign-in
-        // page. With subdomain routing on, that's their new workspace's own
-        // <slug>.hireaster.com/login; otherwise the current origin's /login.
+        // After the user clicks the confirmation link, land them on the APEX
+        // /login. The new workspace isn't provisioned until first sign-in, so the
+        // subdomain's branded login would show "not found"; provision on the apex,
+        // then the post-login forward carries them to <slug>.hireaster.com.
         emailRedirectTo: SUBDOMAIN_ROUTING
-          ? `${workspaceOrigin(workspaceUrl)}/login`
+          ? `https://${APEX_ROOT}/login`
           : (typeof window !== "undefined" ? `${window.location.origin}/login` : "https://hireaster.com/login"),
       },
     });
