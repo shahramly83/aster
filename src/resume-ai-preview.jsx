@@ -10451,6 +10451,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [statusMenuRef, statusUp] = useDropUp(filterOpen, 220);
   const [sortMenuRef, sortUp] = useDropUp(sortOpen, 220);
   const [view, setView] = useState("grid"); // grid | list
+  // First-run nudge on this screen: point at the Post a job button. Per user.
+  const postCtaKey = `aster.hint.postjobcta:${profile?.id || "anon"}`;
+  const [postCtaDone, setPostCtaDone] = useState(() => { try { return localStorage.getItem(postCtaKey) === "done"; } catch { return false; } });
+  const showPostCta = !isInterviewer(profile?.role) && !postCtaDone;
+  const dismissPostCta = () => { try { localStorage.setItem(postCtaKey, "done"); } catch { /* private mode */ } setPostCtaDone(true); };
   const [openHelp, setOpenHelp] = useState(null); // sidebar "how it works" accordion
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
@@ -10765,13 +10770,22 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             })}
           </div>
 
-          <button
-            onClick={() => navigate("newJob")}
-            className="order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
-            style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}
-          >
-            <Icon name="jobs" className="w-4 h-4" /> Post a job
-          </button>
+          <div className="relative order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0">
+            <button
+              onClick={() => navigate("newJob")}
+              className={`w-full inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 ${showPostCta ? "tour-pulse" : ""}`}
+              style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}
+            >
+              <Icon name="jobs" className="w-4 h-4" /> Post a job
+            </button>
+            {showPostCta && (
+              <div className="absolute top-full right-0 mt-2.5 z-40">
+                <GuideBubble step="1" total={1} pointer="up" arrowAlign="right" primaryLabel="Post a job" onPrimary={() => { dismissPostCta(); navigate("newJob"); }} onClose={dismissPostCta}>
+                  Post your first job here. Publish it to get a shareable apply link and start collecting applicants.
+                </GuideBubble>
+              </div>
+            )}
+          </div>
         </div>
         {/* Jobs list in the main column; credits usage + how-it-works sidebar. */}
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 lg:items-start">
