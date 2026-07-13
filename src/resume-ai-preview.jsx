@@ -14083,7 +14083,10 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             <div className="space-y-1.5">
               {booking.attendees.map((a) => {
                 const isHM = a.id === hmId;
-                const options = interviewers.filter((iv) => isInterviewer(iv.role) && !booking.attendees.some((x) => x.id === iv.id));
+                // Only interviewers who've actually joined (not pending invites)
+                // can be swapped in — a pending teammate has no login and couldn't
+                // see the interview.
+                const options = interviewers.filter((iv) => isInterviewer(iv.role) && !iv.pending && !booking.attendees.some((x) => x.id === iv.id));
                 return (
                   <div key={a.id} className="flex items-center gap-2.5">
                     <span className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
