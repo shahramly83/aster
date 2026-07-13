@@ -9,7 +9,7 @@
 //   "application received" confirmation email — optional; skipped if unset)
 // Auto-provided by Supabase:     SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { sendEmail, companyShell, emailShell, button, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
 import { rateLimit, clientIp } from "../_shared/ratelimit.ts";
 
 const CORS = {
@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
     // The job must exist and be open — this is the only thing that authorises
     // creating rows for its company.
     const { data: job, error: jobErr } = await admin
-      .from("jobs").select("company_id, status, title, details, expires_at, companies(name, logo_url)").eq("id", job_id).maybeSingle();
+      .from("jobs").select("company_id, status, title, details, expires_at, companies(name, logo_url, slug)").eq("id", job_id).maybeSingle();
     if (jobErr || !job) return json({ error: "job not found" }, 404);
     if (job.status !== "open") return json({ error: "job not open" }, 409);
     // Past its closing date → intake stops even though status is still 'open'.
@@ -355,10 +355,11 @@ Deno.serve(async (req) => {
     // template override when one exists, else the code default below. A duplicate
     // re-apply doesn't re-email.
     if (isNewApplication) {
-      const companyRel = (job as { companies?: { name?: string; logo_url?: string } }).companies;
+      const companyRel = (job as { companies?: { name?: string; logo_url?: string; slug?: string } }).companies;
       const companyName = companyRel?.name || "the hiring team";
       const logoUrl = companyRel?.logo_url || null;
-      const roleTitle = job.title || "the role";
+      const companySlug = companyRel?.slug || null;
+      const roleTitle = job.title || "this position";
 
       // Template tokens shared by both sends. Keep these key names in sync with
       // the editor catalog (EMAIL_TEMPLATE_DEFS in resume-ai-preview.jsx) so a
@@ -371,7 +372,7 @@ Deno.serve(async (req) => {
         try {
           const tpl = await loadTemplate(admin, "application_received", companyId, {
             subject: "We've received your application: {{job_title}}",
-            body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} role at {{company_name}}. Your application came through and it's now with the team. A real person will review it, and you'll hear from us about next steps if there's a fit. No action is needed right now.",
+            body: "Hi {{candidate_name}},\n\nThanks for applying for the {{job_title}} position at {{company_name}}. Your application came through and it's now with the team. A real person will review it, and you'll hear from us about next steps if there's a fit. No action is needed right now.",
           });
           await sendEmail({
             to: finalEmail,
@@ -397,19 +398,22 @@ Deno.serve(async (req) => {
           .not("email", "is", null);
         const to = (recips || []).map((r: { email: string }) => r.email).filter(Boolean);
         if (to.length) {
+          // Aster-branded (Tier 1): this is a platform notification from Aster to
+          // the hiring team, so it carries the Aster logo and footer, not the
+          // company's brand, and links straight to their workspace dashboard.
+          const dashUrl = companySlug ? `https://${companySlug}.hireaster.com/dashboard` : "https://hireaster.com/login";
           const tpl = await loadTemplate(admin, "new_application", companyId, {
             subject: "New application: {{job_title}}",
-            body: "{{candidate_name}} just applied for the {{job_title}} role.\n\nOpen your Aster dashboard to review the application.",
+            body: "{{candidate_name}} just applied for {{job_title}}.\n\nAster has already read the resume and scored it against the position, so it's waiting in your shortlist, ranked and ready to review.",
           });
           await sendEmail({
             to,
             subject: renderTemplate(tpl.subject, tokens),
-            html: companyShell({
-              companyName, logoUrl,
+            html: emailShell({
               heading: "New application received",
               preview: `${fullName} applied for ${roleTitle}.`,
-              bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)),
-              signoff: false,
+              bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)) + button("Open your dashboard", dashUrl),
+              footnote: "You're getting this because you manage hiring for this workspace on Aster.",
             }),
           });
         }
