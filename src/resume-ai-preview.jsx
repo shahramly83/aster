@@ -14042,7 +14042,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             {sentRequest?.jobTitle ? ` · ${sentRequest.jobTitle}` : ""}
           </p>
           <p className="text-xs text-neutral-400 mt-1">
-            The candidate confirmed this time. Paste the meeting link below to send it to everyone.
+            The candidate confirmed this time. Share the meeting link below and everyone gets it.
           </p>
         </div>
         {/* Meeting link: paste your own video-call URL, share it with the candidate
@@ -14050,7 +14050,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
           <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Meeting link</p>
           <p className="text-[11px] mt-1 mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-            Create the video call yourself (Google Meet, Zoom, Teams) and paste the link. Sharing sends it to the candidate and every interviewer, each with their own message.
+            Now that the time is set, create your video call (Google Meet, Zoom or Teams) and paste the link here. Aster sends it to the candidate and each interviewer, with a note written for each.
           </p>
           <div className="flex items-center gap-2">
             <input
