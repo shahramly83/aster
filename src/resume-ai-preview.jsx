@@ -9251,36 +9251,6 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 <button onClick={() => navigate("newJob")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium transition-colors hover:bg-neutral-100" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-2)" }}><Icon name="briefcase" className="w-4 h-4" /> Post job</button>
                 <button onClick={() => navigate("upload")} className="rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium transition-colors hover:bg-neutral-100" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-2)" }}><Icon name="upload" className="w-4 h-4" /> Upload CVs</button>
               </div>
-              {/* recent candidates */}
-              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Recent candidates</p>
-                  <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>{stats.totalCandidates} total</button>
-                </div>
-                {candidates.filter((c) => c.parsed).length === 0 ? (
-                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>No candidates yet. Upload CVs or share an apply link.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
-                      <button key={c.id} onClick={() => goToCandidates(null)} title={c.parsed.name} className={`shrink-0 ${i >= 5 ? "hidden sm:block" : ""}`}>
-                        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={38} />
-                      </button>
-                    ))}
-                    {/* mobile: max 5 + overflow */}
-                    {candidates.filter((c) => c.parsed).length > 5 && (
-                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 5} more candidates`} className="sm:hidden shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
-                        {candidates.filter((c) => c.parsed).length - 5 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 5}`}
-                      </button>
-                    )}
-                    {/* sm+: max 7 + overflow */}
-                    {candidates.filter((c) => c.parsed).length > 7 && (
-                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="hidden sm:flex shrink-0 rounded-full items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
-                        {candidates.filter((c) => c.parsed).length - 7 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 7}`}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
               {/* Plan usage, how much of this month's limits you've used */}
               <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
                 {(() => {
@@ -9335,6 +9305,36 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     </>
                   );
                 })()}
+              </div>
+              {/* recent candidates */}
+              <div className="relative mt-6 pt-5" style={{ borderTop: "1px solid var(--line)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Recent candidates</p>
+                  <button onClick={() => goToCandidates(null)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>{stats.totalCandidates} total</button>
+                </div>
+                {candidates.filter((c) => c.parsed).length === 0 ? (
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>No candidates yet. Upload CVs or share an apply link.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
+                      <button key={c.id} onClick={() => goToCandidates(null)} title={c.parsed.name} className={`shrink-0 ${i >= 5 ? "hidden sm:block" : ""}`}>
+                        <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={38} />
+                      </button>
+                    ))}
+                    {/* mobile: max 5 + overflow */}
+                    {candidates.filter((c) => c.parsed).length > 5 && (
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 5} more candidates`} className="sm:hidden shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
+                        {candidates.filter((c) => c.parsed).length - 5 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 5}`}
+                      </button>
+                    )}
+                    {/* sm+: max 7 + overflow */}
+                    {candidates.filter((c) => c.parsed).length > 7 && (
+                      <button onClick={() => goToCandidates(null)} aria-label={`${candidates.filter((c) => c.parsed).length - 7} more candidates`} className="hidden sm:flex shrink-0 rounded-full items-center justify-center text-[11px] font-semibold hover:opacity-90 transition-opacity" style={{ width: 38, height: 38, background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--line)" }}>
+                        {candidates.filter((c) => c.parsed).length - 7 > 99 ? "99+" : `+${candidates.filter((c) => c.parsed).length - 7}`}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
