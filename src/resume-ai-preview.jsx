@@ -17265,7 +17265,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         {/* Every section is a collapsible accordion. Email templates expand inline
             (no separate page); the rest keep their existing content. */}
         <div className="space-y-3">
-          <SettingsSection icon="doc" title="Email templates" desc="Edit the offer, rejection, interview & other automated emails" defaultOpen>
+          <SettingsSection icon="doc" title="Email templates" desc="Edit the offer, rejection, interview & other automated emails">
             <EmailTemplatesPanel plan={plan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />
           </SettingsSection>
 
