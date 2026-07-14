@@ -110,6 +110,13 @@ Deno.serve(async (req) => {
       "metadata[quantity]": String(qty),
       "payment_intent_data[metadata][company_id]": companyId,
       "payment_intent_data[metadata][kind]": kind,
+      // Produce a real Stripe invoice for the one-time purchase, so the buyer gets
+      // an emailed receipt and it shows in their billing history (one-time payments
+      // are Charges, not Invoices, unless we ask for one).
+      "invoice_creation[enabled]": "true",
+      "invoice_creation[invoice_data][description]": `${PRODUCT_NAME[kind] || "Aster credits"} (${qty})`,
+      "invoice_creation[invoice_data][metadata][company_id]": companyId,
+      "invoice_creation[invoice_data][metadata][kind]": kind,
       success_url: `${base}${path}?credits=success`,
       cancel_url: `${base}${path}?credits=cancel`,
     };
