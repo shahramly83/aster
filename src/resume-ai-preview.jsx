@@ -13422,7 +13422,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
                 </div>
-                <p className="text-xs text-neutral-500 truncate">Full access, including everything a hiring manager can do.</p>
+                <p className="text-xs text-neutral-500">Full access, including everything a hiring manager can do.</p>
               </div>
             </div>
           </div>
@@ -13474,7 +13474,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
                   </div>
-                  <p className="text-xs text-neutral-500 truncate">Waiting for them to accept the email invite. Holds a seat until then.</p>
+                  <p className="text-xs text-neutral-500">Waiting for them to accept the email invite. Holds a seat until then.</p>
                 </div>
               </div>
               <button
