@@ -279,7 +279,7 @@ async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes, offRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
-    supabase.from("candidates").select("id, parsed, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
+    supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, scheduled_at, status, provider, attendees, meeting_link").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
@@ -313,6 +313,10 @@ async function loadWorkspaceData(companyId) {
   const candidates = (candRes.data || []).map((c) => ({
     id: c.id,
     fileName: c.file_name || "resume.pdf",
+    // An unparsed applicant has no `parsed` blob, so the name and email they typed
+    // into the apply form are the only thing we can show them by.
+    fullName: c.full_name || null,
+    email: c.email || null,
     status: c.status || "parsed",
     hasPhoto: !!c.has_photo,
     avatarUrl: c.photo_path ? (urlByPath[c.photo_path] || null) : null,
@@ -19140,8 +19144,11 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
   // Views where the candidate came in through a specific job, so we label it.
   const showApplied = !!(filter && (filter.source === "public_application" || filter.interview));
   let title = "Candidates";
-  // Only parsed candidates are shown, unparsed ones have no name/role to display yet.
-  let base = candidates.filter((c) => c.status === "parsed");
+  // Parsed candidates, plus applicants we filed but could not parse because the
+  // company was out of applicant credits. Those still have the name and email they
+  // typed into the apply form, so there IS something to show, and hiding them would
+  // mean a real person applied and the company never saw it.
+  let base = candidates.filter((c) => c.status === "parsed" || c.status === "unparsed");
 
   if (filter) {
     if (filter.hired) {
@@ -19272,7 +19279,7 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
                   className="group flex items-center gap-4 w-full text-left rounded-2xl bg-white act-shadow card-hover px-4 sm:px-5 py-4 border border-[color:var(--line)]"
                 >
                   <div className="relative shrink-0">
-                    <CandidateAvatar name={c.parsed?.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={52} />
+                    <CandidateAvatar name={c.parsed?.name ?? c.fullName} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={52} />
                     {hired && (
                       <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white" style={{ background: "#16A34A", color: "#fff" }}>
                         <Icon name="check" className="w-3 h-3" />
@@ -19281,7 +19288,12 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-base sm:text-lg font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed?.name ?? c.fileName}</p>
+                      <p className="text-base sm:text-lg font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed?.name ?? c.fullName ?? c.fileName}</p>
+                      {c.status === "unparsed" && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                          <Icon name="shield" className="w-3 h-3" /> Not parsed, out of credits
+                        </span>
+                      )}
                       {hired && (
                         <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>
                           <Icon name="check" className="w-3 h-3" /> Hired
