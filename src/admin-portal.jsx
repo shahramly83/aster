@@ -356,22 +356,63 @@ function Bar({ value, max, tone = "brand" }) {
 // ---------------------------------------------------------------------------
 // Screens
 // ---------------------------------------------------------------------------
+// List price per plan, so MRR is computed from the plan a company is on rather than
+// a stored field the admin RPCs don't return (which read back as $NaN). Enterprise is
+// custom-priced, so it is excluded from the self-serve MRR figure.
+const PLAN_MRR = { Launch: 19, Scale: 129, Elite: 299 };
+
 function Dashboard({ role, companies, tickets, audit, go }) {
   const active = companies.filter((c) => c.status === "active").length;
   const trials = companies.filter((c) => c.status === "trial").length;
-  const mrr = companies.reduce((s, c) => s + c.mrr, 0);
+  // Only active (paying) subscriptions contribute. A yearly plan still bills a
+  // month's worth per month, so the list price is the right per-month figure.
+  const mrr = companies
+    .filter((c) => c.status === "active")
+    .reduce((s, c) => s + (PLAN_MRR[c.plan] || 0), 0);
+  const byPlan = companies.reduce((m, c) => { m[c.plan] = (m[c.plan] || 0) + 1; return m; }, {});
   const openTix = tickets.filter((t) => t.status === "open").length;
+  const canRevenue = role === "billing" || role === "super";
   return (
     <div>
       <SectionHead title="Overview" desc="Platform health across all customer workspaces." />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard icon="building" label="Companies" value={companies.length} sub={`${active} active · ${trials} on trial`} tone="brand" />
-        {can(role, "subscription.change") || role === "billing" || role === "super"
-          ? <StatCard icon="card" label="Monthly recurring revenue" value={money(mrr)} sub="Across active subscriptions" tone="ok" />
-          : <StatCard icon="chart" label="Active jobs" value={companies.reduce((s, c) => s + c.activeJobs, 0)} sub="Across all workspaces" tone="info" />}
+        <StatCard icon="users" label="Total users" value={companies.reduce((s, c) => s + (c.seats || 0), 0)} sub="People across all workspaces" tone="info" />
+        <StatCard icon="jobs" label="Open jobs" value={companies.reduce((s, c) => s + (c.activeJobs || 0), 0)} sub="Live roles across all workspaces" tone="brand" />
+        {canRevenue
+          ? <StatCard icon="card" label="Monthly recurring revenue" value={money(mrr)} sub="Active self-serve plans" tone="ok" />
+          : <StatCard icon="chart" label="Candidates" value={companies.reduce((s, c) => s + (c.candidates || 0), 0)} sub="Across all workspaces" tone="ok" />}
         <StatCard icon="headset" label="Open support tickets" value={openTix} sub={`${tickets.length} total this week`} tone="warn" />
-        <StatCard icon="users" label="Workspace seats" value={companies.reduce((s, c) => s + c.seats, 0)} sub="Provisioned across companies" tone="info" />
       </div>
+
+      {/* Plan mix: how many companies sit on each tier, with a share bar. */}
+      <Card className="mt-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold adm-display text-neutral-900">Plan mix</h3>
+          <button onClick={() => go("subscriptions")} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>Subscriptions <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { k: "Launch", tint: "#6E7BF2" }, { k: "Scale", tint: "#0B2AE0" },
+            { k: "Elite", tint: "#7C3AED" }, { k: "Enterprise", tint: "#0E7490" },
+          ].map(({ k, tint }) => {
+            const n = byPlan[k] || 0;
+            const pctv = companies.length ? Math.round((n / companies.length) * 100) : 0;
+            return (
+              <div key={k}>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>{k}</span>
+                  <span className="text-2xl font-bold tnum adm-display" style={{ color: "var(--ink)" }}>{n}</span>
+                </div>
+                <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "var(--adm-2)" }}>
+                  <div className="h-full rounded-full" style={{ width: `${pctv}%`, background: tint }} />
+                </div>
+                {k !== "Enterprise" && <p className="text-[11px] mt-1.5 tnum" style={{ color: "var(--ink-3)" }}>{money(PLAN_MRR[k])}/mo each</p>}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3 mt-4">
         <div className="lg:col-span-2">

@@ -16120,10 +16120,6 @@ function parseAddress(str) {
 function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, addressParts = EMPTY_ADDRESS, setAddressParts, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
   // The real signed-in email (from the loaded session), not a placeholder.
   const email = profile?.email || "";
-  const [newEmail, setNewEmail] = useState("");
-  const [emailMsg, setEmailMsg] = useState(null);
-  const [emailErr, setEmailErr] = useState(null);
-  const [emailBusy, setEmailBusy] = useState(false);
 
   // Staged (draft) edits, nothing is committed until Save. Cancel reverts.
   const [dLogo, setDLogo] = useState(logoUrl);
@@ -16273,30 +16269,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
   // Change the login email. Supabase sends a confirmation link to the NEW
   // address and only switches once it's clicked; it also rejects an address
   // that already belongs to another account, so there's no duplicate path.
-  const handleEmailSubmit = async () => {
-    setEmailMsg(null); setEmailErr(null);
-    const next = newEmail.trim();
-    if (!next) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { setEmailErr("Enter a valid email address."); return; }
-    if (next.toLowerCase() === email.toLowerCase()) { setEmailErr("That's already your current email."); return; }
-    if (!hasSupabase || !supabase) {
-      // Preview / no backend: keep the mock confirmation.
-      setEmailMsg(`Confirmation sent to ${next}. Your email won't change until you click the link in that message.`);
-      setNewEmail("");
-      return;
-    }
-    setEmailBusy(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ email: next });
-      if (error) throw error;
-      setEmailMsg(`Confirmation sent to ${next}. Your login email won't change until you click the link in that message.`);
-      setNewEmail("");
-    } catch (e) {
-      setEmailErr(e?.message || "Couldn't start the email change. Please try again.");
-    } finally {
-      setEmailBusy(false);
-    }
-  };
 
   const [pwBusy, setPwBusy] = useState(false);
   const handleChangePassword = async () => {
@@ -16546,19 +16518,23 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           <span className="h-px flex-1" style={{ background: "var(--line)" }} />
         </div>
 
-        {/* Email address */}
+        {/* Email address is read-only. It is the login and ties to the workspace
+            owner, so self-service changes cause account-recovery confusion. Changing
+            it is a support action through Aster, done by an admin. */}
         <div className={`${cardClass} mb-5`}>
-          <SectionHead icon="mail" title="Email address" desc={<>Current: <span style={{ color: "var(--ink)" }}>{email}</span></>} />
-          <div className="mt-5 space-y-3">
-            <div>
-              <label htmlFor="pf-new-email" className={labelClass} style={{ color: "var(--ink-2)" }}>New email</label>
-              <input id="pf-new-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
+          <SectionHead icon="mail" title="Email address" desc="This is your sign-in email." />
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{email}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Your login email</p>
             </div>
-            <p className="text-xs text-neutral-500">We'll email a confirmation link to the new address. Your login email stays the same until you click it. An address already in use by another account is rejected.</p>
-            {emailMsg && <p className="text-sm flex items-start gap-1.5" style={{ color: "#166534" }}><Icon name="check" className="w-4 h-4 mt-0.5 shrink-0" /> {emailMsg}</p>}
-            {emailErr && <p className="text-sm flex items-start gap-1.5" style={{ color: "#DC2626" }}><Icon name="close" className="w-4 h-4 mt-0.5 shrink-0" /> {emailErr}</p>}
-            <button onClick={handleEmailSubmit} disabled={emailBusy || !newEmail.trim()} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">{emailBusy ? "Sending…" : "Send confirmation"}</button>
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1 shrink-0" style={{ background: "var(--bg-2, #F1F1F4)", color: "var(--ink-3)" }}>
+              <Icon name="lock" className="w-3 h-3" /> Locked
+            </span>
           </div>
+          <p className="text-xs mt-3" style={{ color: "var(--ink-2)" }}>
+            To change your sign-in email, contact Aster support at <a href="mailto:support@hireaster.com" className="font-medium" style={{ color: "var(--brand)" }}>support@hireaster.com</a>. We change it for you once we've confirmed it's really you.
+          </p>
         </div>
 
         {/* Password */}
@@ -16778,7 +16754,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           {!hasWhatsApp ? (
             <div className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
               <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-                WhatsApp automations are on <span className="font-semibold">Pro</span> and up.
+                WhatsApp automations are on <span className="font-semibold">Elite</span>.
               </p>
               <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
             </div>
