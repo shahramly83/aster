@@ -5,7 +5,14 @@ import { ctxFor, shot, CFG } from "./driver.mjs";
 
 const WS = "https://onlazy.hireaster.com";
 const who = process.argv[2] || "tenant";
-const email = who.includes("@") ? who : (CFG[who]?.email || CFG.tenant?.email || `${who}@onlazy.com`);
+// who can be a full email, "tenant", or a role slug like "interviewer1"/"hiring1".
+// The named accounts live in CFG.interviewers / CFG.managers arrays, keyed by the
+// local-part of their email, so resolve against those rather than a CFG[who] that
+// only exists for the tenant.
+const roster = [CFG.tenant, ...(CFG.managers || []), ...(CFG.interviewers || [])];
+const email = who.includes("@")
+  ? who
+  : (roster.find((p) => p.email.split("@")[0] === who)?.email || CFG.tenant.email);
 const settle = (p, ms = 3500) => p.waitForTimeout(ms);
 const log = (m) => console.log(`  ${m}`);
 
