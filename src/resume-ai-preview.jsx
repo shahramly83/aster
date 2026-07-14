@@ -15203,7 +15203,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm text-neutral-700 leading-relaxed">
-                  Your card, invoice history and cancellation are managed in Stripe&rsquo;s secure billing portal.
+                  Your invoices are below. To change the card on file or cancel, open Stripe&rsquo;s secure billing portal.
                 </p>
                 <p className="text-xs text-neutral-500 mt-1">Card details never touch Aster.</p>
               </div>
@@ -15931,6 +15931,12 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
         logoUrl: nextLogo || null,
       });
       if (!res.ok) { setSaving(false); setSaveErr(res.error ? `Couldn't save: ${res.error}` : "Couldn't save your changes. Please try again."); return; }
+      // Push the legal name, registration no. and address onto the Stripe customer
+      // so they print on the next invoice. Stripe copies these onto an invoice when
+      // it finalizes it, so an address saved today has to reach Stripe today or the
+      // renewal in three weeks still bills the old one. Fire and forget: billing
+      // detail is not worth failing a profile save over.
+      supabase?.functions?.invoke("sync-billing-customer", { body: {} }).catch(() => {});
     } else if (!canPersist) {
       // Mock mode (no backend): keep the data-URL preview as the logo.
       await new Promise((r) => setTimeout(r, 700));

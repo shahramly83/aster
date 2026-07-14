@@ -31,6 +31,51 @@ const PRICE_ENV: Record<string, string> = {
 // prorates the switch.
 const RANK: Record<string, number> = { launch: 1, scale: 2, elite: 3 };
 
+// Stripe prints the "Bill to" block on every invoice from the customer's own
+// name/address/email, so whatever we fail to send simply is not on the receipt.
+// Country must be a 2-letter ISO code; the profile form stores a display name,
+// so map the ones we actually sell into. An unmapped country is dropped rather
+// than sent raw, because Stripe rejects the whole request for a bad code and
+// that would take checkout down with it.
+const ISO2: Record<string, string> = {
+  "malaysia": "MY", "singapore": "SG", "indonesia": "ID", "thailand": "TH",
+  "philippines": "PH", "vietnam": "VN", "brunei": "BN", "india": "IN",
+  "australia": "AU", "new zealand": "NZ", "united kingdom": "GB", "uk": "GB",
+  "united states": "US", "united states of america": "US", "usa": "US",
+  "canada": "CA", "hong kong": "HK", "japan": "JP", "south korea": "KR",
+  "china": "CN", "taiwan": "TW", "united arab emirates": "AE", "uae": "AE",
+  "saudi arabia": "SA", "germany": "DE", "france": "FR", "netherlands": "NL",
+  "ireland": "IE", "spain": "ES", "italy": "IT",
+};
+const iso2 = (c?: string | null): string | null => {
+  const s = String(c || "").trim();
+  if (!s) return null;
+  if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
+  return ISO2[s.toLowerCase()] || null;
+};
+
+// Everything Stripe needs to render a proper invoice header for this company.
+// Used both when minting the customer and to backfill one created before we
+// sent any of this, so an existing bare customer is repaired on the next click.
+function billingParams(co: Record<string, any> | null, email: string): Record<string, string> {
+  const p: Record<string, string> = { email };
+  if (co?.name) p.name = co.name;
+  if (co?.address_street) p["address[line1]"] = co.address_street;
+  if (co?.address_city) p["address[city]"] = co.address_city;
+  if (co?.address_state) p["address[state]"] = co.address_state;
+  if (co?.address_postcode) p["address[postal_code]"] = co.address_postcode;
+  const country = iso2(co?.address_country);
+  if (country) p["address[country]"] = country;
+  // A company registration number is a legal requirement on invoices in most of
+  // the markets we sell into. Stripe renders customer custom fields on the
+  // invoice, which is the only place it can go.
+  if (co?.registration_no) {
+    p["invoice_settings[custom_fields][0][name]"] = "Company No.";
+    p["invoice_settings[custom_fields][0][value]"] = String(co.registration_no).slice(0, 30);
+  }
+  return p;
+}
+
 // Stripe expects application/x-www-form-urlencoded.
 async function stripe(path: string, params: Record<string, string>, secret: string) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
@@ -79,12 +124,16 @@ Deno.serve(async (req) => {
     if (!secret) return json({ error: "billing not configured" }, 503);
     if (!priceId) return json({ error: `missing ${priceEnv}` }, 503);
 
+    // The company details that print on the invoice.
+    const { data: company } = await admin
+      .from("companies")
+      .select("name, registration_no, address_street, address_city, address_state, address_postcode, address_country")
+      .eq("id", companyId).maybeSingle();
+    const billTo = billingParams(company, prof?.email || user.email || "");
+
     // Mint a Stripe customer for this company and remember it.
     const newCustomer = async (): Promise<string | null> => {
-      const cr = await stripe("customers", {
-        email: prof?.email || user.email || "",
-        "metadata[company_id]": companyId,
-      }, secret);
+      const cr = await stripe("customers", { ...billTo, "metadata[company_id]": companyId }, secret);
       if (!cr.ok || !cr.data?.id) { console.error("stripe customer", cr.data); return null; }
       await admin.from("subscriptions").update({ stripe_customer_id: cr.data.id }).eq("company_id", companyId);
       return cr.data.id as string;
@@ -95,6 +144,15 @@ Deno.serve(async (req) => {
       .from("subscriptions")
       .select("stripe_customer_id, stripe_subscription_id, status, plan, cycle")
       .eq("company_id", companyId).maybeSingle();
+
+    // Keep an existing customer's billing details in step with the company profile.
+    // Customers minted before we sent name/address are otherwise stuck with a bare
+    // email forever, and every invoice they get prints without a "Bill to" block.
+    // Best effort: a failure here must not stop them paying.
+    if (subRow?.stripe_customer_id) {
+      const sync = await stripe(`customers/${subRow.stripe_customer_id}`, billTo, secret);
+      if (!sync.ok) console.warn("stripe customer sync", sync.data?.error?.message);
+    }
 
     // ---- Already paying? Then this is a PLAN CHANGE, not a new purchase. ----
     // Sending them through Checkout again would open a SECOND subscription and
