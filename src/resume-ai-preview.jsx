@@ -13369,13 +13369,16 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           {/* Account owner, always a member, can't be removed */}
           {(roleFilter === "all" || roleFilter === "admin") && (
           <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
+            <div className="flex items-start gap-3 min-w-0">
+              <CandidateAvatar name={ownerName || "You"} hasPhoto={!!avatarUrl} src={avatarUrl} size={40} showPhotoDot={false} />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
+                </div>
+                <p className="text-xs text-neutral-500 truncate">Full access, including everything a hiring manager can do.</p>
               </div>
-              <p className="text-xs text-neutral-500 truncate">Full access, including everything a hiring manager can do.</p>
             </div>
           </div>
           )}
@@ -13385,22 +13388,23 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             const pending = iv.status === "pending";
             return (
               <div key={iv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
-                      {pending ? "Invite pending" : "Active"}
-                    </span>
+                <div className="flex items-start gap-3 min-w-0">
+                  <CandidateAvatar name={iv.name} hasPhoto={false} size={40} showPhotoDot={false} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
+                        {pending ? "Invite pending" : "Active"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-500 truncate">{iv.email}</p>
+                    {upcoming > 0 && (
+                      <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
+                        <Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming interview{upcoming > 1 ? "s" : ""}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-xs text-neutral-500 truncate">
-                    {iv.email} · {formatTimezone(iv.timezone)}
-                  </p>
-                  {upcoming > 0 && (
-                    <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
-                      <Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming interview{upcoming > 1 ? "s" : ""}
-                    </p>
-                  )}
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <button
@@ -13417,13 +13421,16 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           {/* Pending invites (no account yet). They hold a seat until accepted. */}
           {pendingInvites.filter((inv) => roleFilter === "all" || inv.role === roleFilter).map((inv) => (
             <div key={inv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-neutral-900 font-medium truncate">{inv.email}</p>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+              <div className="flex items-start gap-3 min-w-0">
+                <CandidateAvatar name={inv.email} hasPhoto={false} size={40} showPhotoDot={false} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-neutral-900 font-medium truncate">{inv.email}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+                  </div>
+                  <p className="text-xs text-neutral-500 truncate">Waiting for them to accept the email invite. Holds a seat until then.</p>
                 </div>
-                <p className="text-xs text-neutral-500 truncate">Waiting for them to accept the email invite. Holds a seat until then.</p>
               </div>
               <button
                 onClick={() => revokeInvite(inv)}
@@ -15824,9 +15831,9 @@ function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, com
         backTo="settings" backLabel="Settings"
         navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications}
       >
-        <div className="max-w-3xl space-y-2">
+        <div className="max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-3">
           {EMAIL_TEMPLATE_DEFS.map((t) => (
-            <button key={t.key} onClick={() => open(t.key)} className={`${cardClass} w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
+            <button key={t.key} onClick={() => open(t.key)} className={`${cardClass} w-full h-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>{t.name}</span>
                 <span className="block text-xs text-neutral-500 truncate">{t.desc}</span>
@@ -16584,14 +16591,19 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
               <label htmlFor="pf-phone" className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
               <input id="pf-phone" type="tel" value={dPhone} onChange={(e) => { setDPhone(e.target.value); setSavedMsg(null); }} placeholder="+60 12 345 6789" autoComplete="tel" className={inputClass} />
             </div>
+            {/* Owner/admin see their sign-in email in the Sign-in section below, so
+                showing it here too was a duplicate. Interviewers have no such card,
+                so they still see it here. */}
+            {isInterviewer(profile?.role) && (
             <div className="sm:col-span-2">
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Email</label>
               <div className="flex items-center gap-2 rounded-xl border px-3.5 py-2.5" style={{ background: "var(--bg)", borderColor: "var(--line-strong)" }} title="The email you sign in with.">
                 <Icon name="mail" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
                 <span className="text-sm truncate" style={{ color: "var(--ink)" }}>{email || "—"}</span>
-                <span className="ml-auto inline-flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> {isInterviewer(profile?.role) ? "Fixed" : "Change below"}</span>
+                <span className="ml-auto inline-flex items-center gap-1 text-xs shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> Fixed</span>
               </div>
             </div>
+            )}
           </div>
           <p className="text-xs text-neutral-500 mt-2.5">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
         </div>
