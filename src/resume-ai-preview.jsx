@@ -11882,8 +11882,6 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const isDanger = danger ?? out;
   return (
     <div className="relative rounded-2xl p-5 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
-      {/* faint brand watermark, same treatment as the plan card */}
-      <svg viewBox="199 244 104 104" aria-hidden="true" className="pointer-events-none absolute -right-10 -top-16 w-[190px] h-[190px] opacity-[0.08]" fill="#fff"><path d={ASTER_MARK_PATH} /></svg>
       <div className="relative flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-1.5">
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85" style={{ letterSpacing: "0.06em" }}>{title}</h3>
