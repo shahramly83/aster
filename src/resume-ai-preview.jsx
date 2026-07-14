@@ -19036,7 +19036,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           limit={limits.aiRunsPerMonth}
           unit="credits used"
           danger={outOfRuns}
-          note={outOfRuns ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning." : `${runsLeft} left this cycle. You'll see the top ${limits.aiMatches} fits with scores.`}
+          note={outOfRuns ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning." : `${runsLeft} left this cycle. ${limits.aiMatches === Infinity ? "You'll see every fit with scores." : `You'll see the top ${limits.aiMatches} fits with scores.`}`}
           onUpgrade={() => navigate("billing")}
           upgradeLabel="Upgrade for more"
         />
