@@ -10795,7 +10795,9 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
     : editing ? "Update the details. Changes go live on the posting right away." : "Add the details, then share the link and rank applicants as they apply.";
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={heading}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      {/* Backdrop does NOT close the modal: a long form shouldn't vanish on a
+          stray outside click. Close only via the X or Cancel. */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
         <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b" style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center gap-3 min-w-0">
@@ -13191,6 +13193,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const atSeatCap = seatsUsed >= seatCap;
   const [showForm, setShowForm] = useState(false);
   const [email, setEmail] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all"); // 'all' | 'admin' | 'interviewer'
   const [inviteRole, setInviteRole] = useState("admin"); // 'admin' (Hiring Manager) | 'interviewer'
   const [banner, setBanner] = useState(null);
   const [sending, setSending] = useState(false);
@@ -13333,8 +13336,19 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
         />
       ) : null}
     >
-        {/* Invite action */}
-        <div className="flex justify-end mb-4">
+        {/* Filter + invite action */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            aria-label="Filter team by role"
+            className="text-sm rounded-xl bg-white border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow"
+            style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+          >
+            <option value="all">All roles</option>
+            <option value="admin">Hiring Managers</option>
+            <option value="interviewer">Interviewers</option>
+          </select>
           {/* Every plan can invite. The only limit is seats, so a full workspace is
               sent to billing rather than shown a locked button. */}
           <button
@@ -13353,6 +13367,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
           {/* Account owner, always a member, can't be removed */}
+          {(roleFilter === "all" || roleFilter === "admin") && (
           <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -13363,8 +13378,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               <p className="text-xs text-neutral-500 truncate">Full access, including everything a hiring manager can do.</p>
             </div>
           </div>
+          )}
 
-          {team.map((iv) => {
+          {team.filter((iv) => roleFilter === "all" || iv.role === roleFilter).map((iv) => {
             const upcoming = scheduledCountFor(iv);
             const pending = iv.status === "pending";
             return (
@@ -13399,7 +13415,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           })}
 
           {/* Pending invites (no account yet). They hold a seat until accepted. */}
-          {pendingInvites.map((inv) => (
+          {pendingInvites.filter((inv) => roleFilter === "all" || inv.role === roleFilter).map((inv) => (
             <div key={inv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -13419,6 +13435,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               </button>
             </div>
           ))}
+          {roleFilter === "interviewer"
+            && team.filter((iv) => iv.role === "interviewer").length === 0
+            && pendingInvites.filter((inv) => inv.role === "interviewer").length === 0 && (
+            <div className="md:col-span-2 rounded-2xl border border-dashed px-5 py-8 text-center" style={{ borderColor: "var(--line-strong)" }}>
+              <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>No interviewers yet</p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Invite one, or switch the filter back to All roles.</p>
+            </div>
+          )}
         </div>
 
       {/* Invite teammate modal */}
@@ -16227,7 +16251,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
 
   const inputClass = "w-full rounded-xl bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
   const labelClass = "block text-xs font-medium mb-1.5";
-  const cardClass = "rounded-2xl bg-[#F4F5F7] p-5 sm:p-6 border border-[color:var(--line)]";
+  const cardClass = "rounded-2xl bg-[color:var(--brand-soft)] p-5 sm:p-6 border border-[color:var(--line)]";
   // Lighter, secondary upload action so the sticky "Save changes" stays the one primary CTA.
   const uploadBtnClass = "text-sm rounded-xl border px-4 py-2 font-medium cursor-pointer inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--brand-soft)]";
   const uploadBtnStyle = { borderColor: "var(--line-strong)", color: "var(--brand)" };
