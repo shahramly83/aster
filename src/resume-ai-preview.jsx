@@ -19219,17 +19219,18 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               )}
             </div>
           )}
-        <div className="flex items-center gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-          {[["strong", "Strong Matches", strongApplicants.length], ["other", "Non-Matches", otherApplicants.length], ["hired", "Hired", hiredApplicants.length]].map(([key, label, n]) => {
+        <div className="flex gap-1 mb-4 p-1 rounded-2xl w-fit max-w-full overflow-x-auto" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+          {[["strong", "Strong Matches", strongApplicants.length, "target"], ["other", "Non-Matches", otherApplicants.length, "users"], ["hired", "Hired", hiredApplicants.length, "check"]].map(([key, label, n, ic]) => {
             const on = applicantTab === key;
             // Step 1 of the tour points at Strong Matches, so glow it like the
             // Step 2 / Step 3 target buttons.
             const pulse = tourStep === 1 && key === "strong";
             return (
               <button key={key} onClick={() => { setApplicantTab(key); setStageFilter("all"); }}
-                className={`text-sm font-medium px-3.5 py-1.5 rounded-lg transition-colors ${pulse ? "tour-pulse" : ""}`}
-                style={{ ...(on ? { background: "#fff", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.08)" } : { color: "var(--ink-3)" }), ...(pulse ? { background: "#fff", boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : {}) }}>
-                {label} <span className="tnum" style={{ color: on ? "var(--brand)" : "var(--ink-3)" }}>{n}</span>
+                className={`shrink-0 inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${pulse ? "tour-pulse" : ""} ${on ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
+                style={{ ...(on ? undefined : { color: "var(--ink-2)" }), ...(pulse ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : {}) }}>
+                <Icon name={ic} className="w-4 h-4" />
+                {label} <span className="tnum" style={{ color: on ? "rgba(255,255,255,0.85)" : "var(--brand)" }}>{n}</span>
               </button>
             );
           })}
