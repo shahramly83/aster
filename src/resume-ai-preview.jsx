@@ -14867,6 +14867,9 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // behind a redirect to the portal.
   const [invoices, setInvoices] = useState([]);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
+  // Stripe's price for the next invoice, which is not the plan's list price when a
+  // proration credit is outstanding.
+  const [upcoming, setUpcoming] = useState(null);
 
   const prices = usePlanPrices();
 
@@ -14953,7 +14956,11 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
     if (!hasSupabase || !hasStripeCustomer) return undefined;
     let alive = true;
     supabase.functions.invoke("list-invoices", { body: {} })
-      .then(({ data }) => { if (alive) setInvoices(Array.isArray(data?.invoices) ? data.invoices : []); })
+      .then(({ data }) => {
+        if (!alive) return;
+        setInvoices(Array.isArray(data?.invoices) ? data.invoices : []);
+        setUpcoming(typeof data?.upcoming?.amount === "number" ? data.upcoming : null);
+      })
       .catch(() => { /* history is a nicety; never block the billing page */ })
       .finally(() => { if (alive) setInvoicesLoading(false); });
     return () => { alive = false; };
@@ -15033,11 +15040,24 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                       : "No active subscription."}
               </p>
             </div>
-            {paidSub && savedPrice && (
+            {paidSub && (savedPrice || upcoming) && (
               <div className="text-right shrink-0">
                 <p className="text-xs text-neutral-500">Next payment</p>
-                <p className="text-sm font-semibold text-neutral-900 tnum">{formatMoney(savedPrice.amount, savedPrice.currency)}</p>
+                {/* Stripe's own figure when we have it, not the sticker price. A plan
+                    change leaves a proration credit on the account, so the next
+                    invoice can be far less than the list price, or nothing at all.
+                    Quoting the list price there promises a charge that never comes. */}
+                <p className="text-sm font-semibold text-neutral-900 tnum">
+                  {upcoming
+                    ? formatMoney(upcoming.amount / 100, upcoming.currency)
+                    : formatMoney(savedPrice.amount, savedPrice.currency)}
+                </p>
                 {renewDate && <p className="text-xs text-neutral-500">{renewDate}</p>}
+                {upcoming?.credit > 0 && (
+                  <p className="text-xs mt-0.5" style={{ color: "#067647" }}>
+                    {formatMoney(upcoming.credit / 100, upcoming.currency)} credit applied
+                  </p>
+                )}
               </div>
             )}
           </div>

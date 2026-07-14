@@ -97,7 +97,40 @@ Deno.serve(async (req) => {
         url: i.hosted_invoice_url || null,              // Stripe-hosted view
       }));
 
-    return json({ ok: true, invoices });
+    // What they will ACTUALLY be charged next, which is not the list price.
+    // A plan change leaves prorations sitting on the account: after an Elite ->
+    // Scale downgrade the next invoice is Scale minus the unused Elite time, which
+    // can be nothing at all. Showing the sticker price there promises a charge that
+    // will not happen, so ask Stripe to price the invoice instead of guessing.
+    let upcoming: Record<string, unknown> | null = null;
+    const { data: subRow } = await admin
+      .from("subscriptions").select("stripe_subscription_id, status").eq("company_id", prof.company_id).maybeSingle();
+    const liveSub = subRow?.stripe_subscription_id;
+    if (liveSub && ["active", "past_due", "trialing"].includes(String(subRow?.status || ""))) {
+      const pv = await fetch("https://api.stripe.com/v1/invoices/create_preview", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ customer: customerId, subscription: liveSub }).toString(),
+      });
+      const p = await pv.json();
+      if (pv.ok) {
+        // Credits show up as negative lines, and Stripe floors amount_due at zero.
+        const credit = (p.lines?.data || [])
+          .filter((l: Record<string, any>) => (l.amount ?? 0) < 0)
+          .reduce((t: number, l: Record<string, any>) => t + Math.abs(l.amount), 0);
+        upcoming = {
+          amount: p.amount_due ?? null,
+          currency: (p.currency || "usd").toUpperCase(),
+          date: p.next_payment_attempt ? p.next_payment_attempt * 1000 : null,
+          credit: credit || 0,
+        };
+      } else {
+        // A preview is a nicety. Never fail the billing page over it.
+        console.warn("stripe upcoming preview", p?.error?.message);
+      }
+    }
+
+    return json({ ok: true, invoices, upcoming });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);
