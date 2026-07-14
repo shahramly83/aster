@@ -136,6 +136,15 @@ async function stripeCheckout(planKey, cycle) {
       try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; } catch { /* non-JSON body */ }
       return reason ? `Checkout error: ${reason}` : "Couldn't start checkout. Try again.";
     }
+    // The upgrade charge needs 3-D Secure. It was attempted off-session against the
+    // saved card, so there was nobody there to authenticate and Stripe left the
+    // invoice open. Stripe's hosted invoice page can run the challenge, so send them
+    // there to finish paying rather than dropping them on a past-due billing screen
+    // with no way out. 3DS is effectively mandatory in Malaysia and the EU.
+    if (data?.requires_action && data?.url) {
+      window.location.assign(data.url);
+      return null;
+    }
     // Plan switched on the existing subscription: no checkout to send them to.
     // Reload so the new plan, limits and billing state come back from the server.
     if (data?.changed || data?.unchanged) {
@@ -14872,6 +14881,10 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // Stripe's price for the next invoice, which is not the plan's list price when a
   // proration credit is outstanding.
   const [upcoming, setUpcoming] = useState(null);
+  // An unpaid invoice, if there is one. Past due is not always a dead card: a 3-D
+  // Secure charge attempted off-session simply had nobody there to approve it, and
+  // the fix is to pay THIS, not to re-enter the same card.
+  const openInvoice = invoices.find((i) => i.status === "open") || null;
 
   const prices = usePlanPrices();
 
@@ -15069,10 +15082,27 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
           {pastDue && (
             <div role="alert" className="mt-4 rounded-xl border p-3 flex items-start gap-2.5" style={{ borderColor: "#FECDCA", background: "#FEF3F2" }}>
               <Icon name="shield" className="w-4 h-4 mt-px shrink-0" style={{ color: "#B42318" }} />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold" style={{ color: "#B42318" }}>Your last payment failed</p>
-                <p className="text-xs mt-0.5" style={{ color: "#912018" }}>Update your card in the billing portal to keep your workspace active.</p>
+                <p className="text-xs mt-0.5" style={{ color: "#912018" }}>
+                  {openInvoice
+                    ? "Settle it to keep your workspace active. Your bank may ask you to confirm the payment."
+                    : "Update your card in the billing portal to keep your workspace active."}
+                </p>
               </div>
+              {/* The banner used to send them to the portal to change their card, but
+                  a card that simply needs 3-D Secure is not a broken card: there is a
+                  real invoice waiting, and Stripe's hosted page is the only thing that
+                  can run the challenge. Take them straight to it. */}
+              {openInvoice?.url && (
+                <a
+                  href={openInvoice.url}
+                  className="shrink-0 self-center inline-flex items-center rounded-lg text-xs font-semibold px-3 py-2 text-white transition-opacity hover:opacity-90"
+                  style={{ background: "#B42318" }}
+                >
+                  Pay {formatMoney(openInvoice.amount, openInvoice.currency)}
+                </a>
+              )}
             </div>
           )}
           {trialDaysLeft > 0 && (

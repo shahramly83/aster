@@ -183,11 +183,36 @@ Deno.serve(async (req) => {
           "metadata[company_id]": companyId,
           "metadata[plan]": plan,
           "metadata[cycle]": c,
+          // We need to know whether the proration charge actually went through.
+          "expand[0]": "latest_invoice.payment_intent",
         }, secret);
         if (!upd.ok) {
           console.error("stripe plan change", upd.data);
           return json({ error: "could not change plan", detail: upd.data?.error?.message || null }, 502);
         }
+
+        // An upgrade bills the difference immediately, and that charge is made
+        // OFF-SESSION against the saved card. A card that needs 3-D Secure cannot
+        // be authenticated with nobody there, so Stripe declines and leaves the
+        // subscription past_due with an open invoice. 3DS is effectively mandatory
+        // in Malaysia and the EU, so without this every plan change on such a card
+        // dead-ends: the customer is billed, not upgraded, and has no way to
+        // authenticate from inside Aster.
+        //
+        // Stripe's hosted invoice page CAN run the 3DS challenge, so hand them
+        // there to finish paying.
+        const inv = upd.data?.latest_invoice;
+        const pi = inv?.payment_intent;
+        const needsAuth = pi && ["requires_action", "requires_confirmation", "requires_payment_method"].includes(String(pi.status));
+        if (needsAuth || (inv && inv.status === "open" && inv.amount_due > 0)) {
+          return json({
+            ok: true, changed: true, requires_action: true,
+            url: inv?.hosted_invoice_url || null,
+            from, to: plan, cycle: c,
+            reason: pi?.status || inv?.status || "unpaid",
+          });
+        }
+
         // The customer.subscription.updated webhook writes plan/cycle/period to the
         // DB, so we don't duplicate that here.
         return json({
