@@ -10802,7 +10802,7 @@ const closingChip = (days) => {
   return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
 };
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {} }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {}, applicantParseUsage = { used: 0, limit: null } }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -11408,6 +11408,27 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>{/* main column */}
 
           <aside className="mt-5 lg:mt-0 space-y-5 lg:sticky lg:top-4 lg:self-start">
+            {(() => {
+              const scrLimit = applicantParseUsage.limit ?? planLimits(plan).parseApplicant;
+              if (scrLimit == null) return null;
+              const scrUsed = applicantParseUsage.used || 0;
+              const scrBlocked = scrLimit !== Infinity && scrUsed >= scrLimit;
+              const scrLeft = scrLimit === Infinity ? null : Math.max(scrLimit - scrUsed, 0);
+              return (
+                <UsageMeter
+                  title="AI Applicant Screening"
+                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets on the 1st."
+                  used={scrUsed}
+                  limit={scrLimit}
+                  unit="screened"
+                  note={scrBlocked
+                    ? `You've used all ${scrLimit} screenings this month. Upgrade for more, or wait for the reset on the 1st.`
+                    : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this month.`}
+                  onManage={() => navigate("billing")}
+                  onUpgrade={scrBlocked ? () => navigate("billing") : undefined}
+                />
+              );
+            })()}
             {jobPostUsage.limit != null && (
               <UsageMeter
                 title="Open roles"
@@ -21680,6 +21701,7 @@ export default function ResumeAIPreview() {
             jobPostBlocked={jobPostBlocked}
             onConsumeJobPost={consumeJobPost}
             onDecideRequest={decideJobRequest}
+            applicantParseUsage={applicantParseUsage}
           />
         )}
         {screen === "search" && (
