@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   try {
     const { code, purpose, trustDevice } = await req.json().catch(() => ({}));
     const kind = purpose === "enable" ? "enable" : "login";
-    if (!/^\d{6}$/.test(String(code || ""))) return json({ ok: false, error: "Enter the 6-digit code." }, 400);
+    if (!/^\d{6}$/.test(String(code || ""))) return json({ ok: false, error: "Enter the 6-digit code." });
 
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -49,14 +49,14 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id).eq("purpose", kind).is("consumed_at", null)
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
 
-    if (!row) return json({ ok: false, error: "No code to check. Send a new one." }, 400);
-    if (new Date(row.expires_at) < new Date()) return json({ ok: false, error: "That code has expired. Send a new one." }, 400);
-    if (row.attempts >= 5) return json({ ok: false, error: "Too many attempts. Send a new code." }, 429);
+    if (!row) return json({ ok: false, error: "No code to check. Send a new one." });
+    if (new Date(row.expires_at) < new Date()) return json({ ok: false, error: "That code has expired. Send a new one." });
+    if (row.attempts >= 5) return json({ ok: false, error: "Too many attempts. Send a new code." });
 
     const ok = (await sha256(`${code}:${user.id}`)) === row.code_hash;
     if (!ok) {
       await admin.from("login_codes").update({ attempts: row.attempts + 1 }).eq("id", row.id);
-      return json({ ok: false, error: "That code is not right." }, 400);
+      return json({ ok: false, error: "That code is not right." });
     }
 
     // Correct: consume it so it can't be replayed.
