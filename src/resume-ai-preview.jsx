@@ -11579,14 +11579,14 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             {jobPostUsage.limit != null && (
               <UsageMeter
                 plan={plan}
-                title="Open roles"
-                hint="Your plan sets how many roles you can have open at once. Publishing a role (or reopening a closed one) takes a slot; closing a role frees one. Drafts don't count."
+                title="Open positions"
+                hint="Your plan sets how many positions you can have open at once. Publishing a position (or reopening a closed one) takes a slot; closing one frees it. Drafts don't count."
                 used={jobPostUsage.used}
                 limit={jobPostUsage.limit}
                 unit="open"
                 note={jobPostBlocked
-                  ? `All ${jobPostUsage.limit} open-role slots are in use. Close a role to post another, or upgrade for more.`
-                  : `${jobPostsLeft} more role${jobPostsLeft === 1 ? "" : "s"} you can open on your ${jobPlanLabel} plan.`}
+                  ? `All ${jobPostUsage.limit} open-position slots are in use. Close a position to post another, or upgrade for more.`
+                  : `${jobPostsLeft} more position${jobPostsLeft === 1 ? "" : "s"} you can open on your ${jobPlanLabel} plan.`}
                 onManage={() => navigate("billing")}
                 onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
               />
