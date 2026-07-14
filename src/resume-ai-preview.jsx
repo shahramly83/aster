@@ -9170,10 +9170,10 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       <div className="flex items-end justify-between gap-1.5 flex-1 min-h-[128px] pt-8">
                         {funnel.map((f) => {
                           const top = f.tone === "flow" && f.value === fmax && f.value > 0;
-                          const bg = f.tone === "win" ? "linear-gradient(180deg, #6EE7A8, #16A34A)"
-                            : f.tone === "exit" ? "linear-gradient(180deg, #FDBAC4, #F26D82)"
+                          const bg = f.tone === "win" ? "linear-gradient(180deg, #8FDCB4, #3FB185)"
+                            : f.tone === "exit" ? "linear-gradient(180deg, #E4CBD3, #BC94A1)"
                             : top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))"
-                            : "linear-gradient(180deg, #B9C7FF, #8DA2F0)";
+                            : "linear-gradient(180deg, #C6D1FA, #9FB2F0)";
                           return (
                             <div key={f.label} className="flex-1 min-w-0 flex flex-col items-center justify-end gap-2 h-full">
                               <div className="relative w-full flex-1 flex items-end">
