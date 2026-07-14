@@ -9540,6 +9540,15 @@ function nameFromFile(fn) {
 // just-bought credits appear without a manual reload.
 function usePurchasedBalance(kind) {
   const [balance, setBalance] = useState(0);
+  // Standalone reader so callers can refresh after spending a credit (a run draws
+  // from this balance server-side, and we want the meter to reflect it live).
+  const reload = () => {
+    if (!hasSupabase) return;
+    supabase.rpc("get_purchased_credits").then(({ data }) => {
+      const row = (data || []).find((r) => r.kind === kind);
+      setBalance(row?.balance || 0);
+    }).catch(() => {});
+  };
   useEffect(() => {
     if (!hasSupabase) return;
     let alive = true, t;
@@ -9554,7 +9563,7 @@ function usePurchasedBalance(kind) {
     }
     return () => { alive = false; if (t) clearTimeout(t); };
   }, [kind]);
-  return balance;
+  return [balance, reload];
 }
 
 // Buy top-up credits for a given kind. Base price per credit varies by kind
@@ -9631,7 +9640,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   const uploadLimit = parseUsage?.limit ?? limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
   const planName = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
-  const purchasedBalance = usePurchasedBalance("resume_screen");
+  const [purchasedBalance] = usePurchasedBalance("resume_screen");
   const [buyOpen, setBuyOpen] = useState(false);
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [uploadTab, setUploadTab] = useState("import"); // "import" | "recent"
@@ -10947,7 +10956,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
-  const purchasedApplicant = usePurchasedBalance("applicant_screen");
+  const [purchasedApplicant] = usePurchasedBalance("applicant_screen");
   const [buyApplicantOpen, setBuyApplicantOpen] = useState(false);
   const [menuJob, setMenuJob] = useState(null); // job id whose action menu is open
   const [detailJob, setDetailJob] = useState(null); // job open in the details modal
@@ -12288,7 +12297,7 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
 }
 
 function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
-  const purchasedAiRank = usePurchasedBalance("ai_rank");
+  const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
   // Ask before spending a credit; truly-out-of-credits goes straight to billing.
@@ -12457,6 +12466,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       const scores = {}, reasons = {};
       data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
       setAiRank({ scores, reasons });
+      reloadPurchasedAiRank?.(); // a run may have drawn from the purchased balance
       syncRuns(data.used); // the server already charged; just mirror its count
     } catch (_e) {
       /* keep the heuristic ranking; no credit charged on failure */
@@ -12540,6 +12550,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       const scores = {}, reasons = {};
       data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
       setAiRank({ scores, reasons });
+      reloadPurchasedAiRank?.(); // a run may have drawn from the purchased balance
       syncRuns(data.used); // the server already charged; mirror its count
       setRanked(true);
     } catch (_e) {
@@ -19362,7 +19373,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
 }
 
 function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {} }) {
-  const purchasedAiRank = usePurchasedBalance("ai_rank");
+  const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   // Match the Candidate Search AI Rank meter's wording exactly (same shared pool).
   const aiRankResetLabel = aiRankResetsAt
@@ -19515,6 +19526,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       setMatchResults(map);
       setMatchOk(true);
       syncRuns(data.used);  // the server already charged; mirror its count
+      reloadPurchasedAiRank?.(); // a run may have drawn from the purchased balance
       // Persist the full set so the ranking survives a reload; interviewers pick
       // up the updated scores on load. Only match_score / match_reasons change —
       // never a candidate's stage — so status changes are preserved.
