@@ -970,6 +970,9 @@ function needsWorkspaceRedirect(sess) {
   // opens one of these links (e.g. while testing) would be bounced to a login
   // screen instead of the page the link points at. Let it run in place.
   if (/^\/(apply|book|offer)\//.test(window.location.pathname || "")) return false;
+  // Email confirmation carries its token in the query string. Forwarding to a
+  // subdomain drops it, and the token is one-shot.
+  if (/^\/auth\/confirm/.test(window.location.pathname || "")) return false;
   if (new URLSearchParams(window.location.search).get("invite")) return false;
   const slug = sess?.companySlug;
   if (!slug) return false;                 // no slug on record: stay on this origin
@@ -14864,6 +14867,75 @@ function StatusBadge({ onTrial, subStatus }) {
 // Shown when someone reaches a screen their role doesn't own. It explains who can
 // do this and sends them somewhere useful, rather than a blank page or a silent
 // redirect that reads like a bug.
+// Confirm an email link WITHOUT letting a robot spend the token.
+//
+// Supabase's own confirmation URL is a GET that consumes the one-time token the
+// moment anything fetches it. Corporate mail security (Defender Safe Links,
+// Proofpoint and friends) prefetches every link in an inbound email to scan it, so
+// the scanner spends the token and the customer, clicking seconds later, is told
+// "Email link is invalid or has expired". We require a work email at signup, which
+// means most of our customers are behind exactly this kind of scanner. It cost us
+// two tokens while testing, inside two minutes each.
+//
+// So the emailed link now points here and carries a token_hash instead. This screen
+// does NOTHING on mount. The token is only spent when a human presses the button.
+// A scanner fetches HTML, finds no side effect, and moves on.
+function ConfirmEmailScreen({ navigate }) {
+  const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const tokenHash = params.get("token_hash") || "";
+  const type = params.get("type") || "signup";
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const confirm = async () => {
+    if (!tokenHash || busy) return;
+    setBusy(true); setErr("");
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) {
+      setBusy(false);
+      setErr(error.message || "That link didn't work. Ask for a new one.");
+      return;
+    }
+    // Recovery lands on the password form; everything else lands in the workspace.
+    window.location.assign(type === "recovery" ? "/reset-password" : "/dashboard");
+  };
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-md text-center">
+        <img src="/aster-logo.png" alt="Aster" className="h-5 w-auto object-contain mx-auto mb-8" />
+        {!tokenHash ? (
+          <>
+            <h1 className="text-xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>This link is incomplete</h1>
+            <p className="text-sm mt-2" style={{ color: "var(--ink-2)" }}>Open the link from your email again, or ask for a new one.</p>
+            <button onClick={() => navigate("login")} className="mt-6 text-sm font-semibold" style={{ color: "var(--brand)" }}>Back to sign in</button>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>
+              {type === "recovery" ? "Reset your password" : "Confirm your email"}
+            </h1>
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              {type === "recovery"
+                ? "Press the button to continue and choose a new password."
+                : "One last step. Press the button below and your workspace is ready."}
+            </p>
+            <button
+              onClick={confirm}
+              disabled={busy}
+              className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold px-4 py-3 brand-gradient text-white hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-wait"
+            >
+              {busy && <span aria-hidden="true" className="w-4 h-4 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff" }} />}
+              {busy ? "Confirming…" : type === "recovery" ? "Continue" : "Confirm my email"}
+            </button>
+            {err && <p role="alert" className="text-[13px] mt-3 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RestrictedScreen({ navigate, title, body }) {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
@@ -19401,6 +19473,7 @@ const SCREEN_TO_PATH = {
   landing: "/",
   login: "/login",
   forgotPassword: "/forgot-password",
+  confirmEmail: "/auth/confirm",
   signup: "/signup",
   dashboard: "/dashboard",
   candidates: "/candidates",
@@ -19438,6 +19511,7 @@ const PATH_TO_SCREEN = {
   "/contact-sales": "contactSales",
   "/login": "login",
   "/forgot-password": "forgotPassword",
+  "/auth/confirm": "confirmEmail",
   "/signup": "signup",
   "/dashboard": "dashboard",
   "/candidates": "candidates",
@@ -19455,7 +19529,7 @@ const PATH_TO_SCREEN = {
   "/schedule": "dashboard", // needs a picked booking -> fall back on refresh
   "/apply": "dashboard",     // needs a picked job -> fall back on refresh
 };
-const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "acceptInvite", "bookInterview", "publicOffer"]);
+const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "confirmEmail", "acceptInvite", "bookInterview", "publicOffer"]);
 
 // Screens that only exist behind a signed-in workspace. A signed-out visitor who
 // deep-links to one of these (W4) must be sent to /login, not shown the app shell
@@ -21056,6 +21130,14 @@ export default function ResumeAIPreview() {
     return (
       <Shell>
         <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />
+      </Shell>
+    );
+  }
+
+  if (screen === "confirmEmail") {
+    return (
+      <Shell>
+        <ConfirmEmailScreen navigate={navigate} />
       </Shell>
     );
   }
