@@ -9140,14 +9140,17 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               );
               const stageCount = (s) => allApplicants.filter((a) => a.baseStage === s).length;
               // Current-stage distribution: each candidate counts in exactly the
-              // stage they're in now. Applied through Hired are the forward steps;
-              // Declined is shown as the drop-off column so the journey ends on an
-              // honest note rather than hiding who turned the offer down.
+              // stage they're in now. "flow" are the forward steps, "win" is Hired,
+              // and "exit" are the drop-offs (Declined = they said no, Rejected =
+              // you said no), coloured apart so progress and exits read differently.
               const funnel = [
-                { label: "Applied", value: stageCount("applied") + stageCount("shortlisted") },
-                { label: "Interview", value: stageCount("interviewing") },
-                { label: "Declined", value: stageCount("declined") },
-                { label: "Hired", value: stageCount("hired") },
+                { label: "Applied", value: stageCount("applied"), tone: "flow" },
+                { label: "Shortlisted", value: stageCount("shortlisted"), tone: "flow" },
+                { label: "Interview", value: stageCount("interviewing"), tone: "flow" },
+                { label: "Offer", value: stageCount("offer"), tone: "flow" },
+                { label: "Hired", value: stageCount("hired"), tone: "win" },
+                { label: "Declined", value: stageCount("declined"), tone: "exit" },
+                { label: "Rejected", value: stageCount("rejected"), tone: "exit" },
               ];
               const fmax = Math.max(...funnel.map((f) => f.value), 1);
               return (
@@ -9163,17 +9166,21 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
-                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Where your candidates are right now, counted in the stage they're currently in from Applied through to Hired.")}
-                      <div className="flex items-end justify-between gap-3 flex-1 min-h-[128px] pt-8">
+                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Every candidate counted in the status they're in right now, across all roles: the forward stages (Applied, Shortlisted, Interview, Offer), Hired, and the two exits, Declined (they said no) and Rejected (you said no).")}
+                      <div className="flex items-end justify-between gap-1.5 flex-1 min-h-[128px] pt-8">
                         {funnel.map((f) => {
-                          const top = f.value === fmax && f.value > 0;
+                          const top = f.tone === "flow" && f.value === fmax && f.value > 0;
+                          const bg = f.tone === "win" ? "linear-gradient(180deg, #6EE7A8, #16A34A)"
+                            : f.tone === "exit" ? "linear-gradient(180deg, #FDBAC4, #F26D82)"
+                            : top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))"
+                            : "linear-gradient(180deg, #B9C7FF, #8DA2F0)";
                           return (
-                            <div key={f.label} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
+                            <div key={f.label} className="flex-1 min-w-0 flex flex-col items-center justify-end gap-2 h-full">
                               <div className="relative w-full flex-1 flex items-end">
                                 <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 -translate-y-full text-xs font-bold font-display tnum" style={{ color: "var(--ink)" }}>{f.value}</span>
-                                <div className="w-full rounded-lg bar-grow-y" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))" : "linear-gradient(180deg, #B9C7FF, #8DA2F0)" }} />
+                                <div className="w-full rounded-lg bar-grow-y" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: bg }} />
                               </div>
-                              <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>{f.label}</span>
+                              <span className="text-[9px] text-center leading-tight" style={{ color: "var(--ink-3)" }}>{f.label}</span>
                             </div>
                           );
                         })}
