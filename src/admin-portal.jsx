@@ -13,7 +13,6 @@
 // ============================================================================
 import { useState, useEffect, useMemo } from "react";
 import { supabase, hasSupabase } from "./lib/supabase";
-import { ASTER_MARK_PATH } from "./lib/logo";
 
 const ADMIN_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -73,16 +72,6 @@ const PATHS = {
 // The real Aster app-icon mark (blue rounded square + white burst), used in the
 // admin header/login in place of the old "A" letter badge. The SVG rounds its
 // own corners, so no extra background/radius is needed on the container.
-function AsterMark({ className = "w-10 h-10" }) {
-  return (
-    <svg viewBox="0 0 128 128" className={className} aria-hidden="true">
-      <rect width="128" height="128" rx="28" fill="#0B2AE0" />
-      <g transform="translate(64 64) scale(0.92) translate(-250.9 -296.1)" fill="#FFFFFF">
-        <path d={ASTER_MARK_PATH} />
-      </g>
-    </svg>
-  );
-}
 function Icon({ name, className = "w-5 h-5" }) {
   const filled = name === "dot";
   return (
@@ -136,11 +125,6 @@ const sectionAllowed = (role, key) => (SECTIONS.find((s) => s.key === key)?.role
 // Candidate PII is masked wherever it could surface. Company (customer) users
 // are account holders and shown normally; candidates are applicants and are not.
 const maskName = (n) => (n || "").split(" ").map((p) => (p.length <= 1 ? p : p[0] + "•".repeat(Math.max(1, p.length - 1)))).join(" ");
-const maskEmail = (e) => {
-  const [u, d] = (e || "").split("@");
-  if (!d) return "•••";
-  return `${(u || "")[0] || "•"}•••@${d[0]}•••${d.slice(d.lastIndexOf("."))}`;
-};
 const money = (n) => "$" + n.toLocaleString("en-US");
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
@@ -153,86 +137,6 @@ const ADMIN_ACCOUNTS = [
   { id: "a3", name: "Dana Osei",    email: "dana@hireaster.com",   role: "billing", title: "Finance Ops" },
 ];
 
-const INIT_COMPANIES = [
-  { id: "c1", name: "Oryx Studio",       plan: "Pro",        status: "active",    seats: 12, activeJobs: 5,  candidates: 1240, region: "MY", owner: "Shah Ramly",    mrr: 149, created: "2025-11-02" },
-  { id: "c2", name: "Grabtech",          plan: "Enterprise", status: "active",    seats: 60, activeJobs: 22, candidates: 8420, region: "SG", owner: "Jia Wei Tan",   mrr: 1200, created: "2025-04-18" },
-  { id: "c3", name: "Fave",              plan: "Pro",        status: "trial",     seats: 8,  activeJobs: 3,  candidates: 410,  region: "MY", owner: "Nadia Aziz",    mrr: 0, created: "2026-06-21" },
-  { id: "c4", name: "Studio Kite",       plan: "Starter",    status: "active",    seats: 4,  activeJobs: 2,  candidates: 220,  region: "MY", owner: "Ivan Lim",      mrr: 49, created: "2026-01-09" },
-  { id: "c5", name: "MDEC",              plan: "Enterprise", status: "active",    seats: 40, activeJobs: 14, candidates: 5100, region: "MY", owner: "Farah Idris",   mrr: 900, created: "2025-08-30" },
-  { id: "c6", name: "Wellfound Asia",    plan: "Pro",        status: "suspended", seats: 10, activeJobs: 0,  candidates: 980,  region: "SG", owner: "Kenji Sato",    mrr: 149, created: "2025-12-14" },
-  { id: "c7", name: "Homebase HR",       plan: "Starter",    status: "trial",     seats: 3,  activeJobs: 1,  candidates: 60,   region: "PH", owner: "Rina Cruz",     mrr: 0, created: "2026-06-28" },
-  { id: "c8", name: "Peoplebox",         plan: "Pro",        status: "active",    seats: 16, activeJobs: 7,  candidates: 2010, region: "IN", owner: "Arjun Mehta",   mrr: 149, created: "2025-10-05" },
-  { id: "c9", name: "Motion Recruit",    plan: "Starter",    status: "churned",   seats: 0,  activeJobs: 0,  candidates: 340,  region: "SG", owner: "Wei Ling Ong",  mrr: 0, created: "2025-05-22" },
-  { id: "c10", name: "Ceipal Labs",      plan: "Enterprise", status: "active",    seats: 28, activeJobs: 11, candidates: 3600, region: "IN", owner: "Sana Kapoor",   mrr: 780, created: "2025-09-12" },
-];
-
-const COMPANY_USERS = [
-  { id: "u1",  companyId: "c1", name: "Shah Ramly",      email: "shah@oryx.studio",     role: "Owner",       status: "active",   lastActive: "2h ago" },
-  { id: "u2",  companyId: "c1", name: "Amira Hassan",    email: "amira@oryx.studio",    role: "Recruiter",   status: "active",   lastActive: "1d ago" },
-  { id: "u3",  companyId: "c1", name: "Daniel Teoh",     email: "daniel@oryx.studio",   role: "Interviewer", status: "invited",  lastActive: "—" },
-  { id: "u4",  companyId: "c2", name: "Jia Wei Tan",     email: "jiawei@grabtech.com",  role: "Owner",       status: "active",   lastActive: "20m ago" },
-  { id: "u5",  companyId: "c2", name: "Lena Koh",        email: "lena@grabtech.com",    role: "Admin",       status: "active",   lastActive: "5h ago" },
-  { id: "u6",  companyId: "c2", name: "Ravi Nair",       email: "ravi@grabtech.com",    role: "Recruiter",   status: "suspended", lastActive: "3d ago" },
-  { id: "u7",  companyId: "c5", name: "Farah Idris",     email: "farah@mdec.my",        role: "Owner",       status: "active",   lastActive: "1h ago" },
-  { id: "u8",  companyId: "c5", name: "Hakim Yusof",     email: "hakim@mdec.my",        role: "Recruiter",   status: "active",   lastActive: "6h ago" },
-  { id: "u9",  companyId: "c8", name: "Arjun Mehta",     email: "arjun@peoplebox.ai",   role: "Owner",       status: "active",   lastActive: "4h ago" },
-  { id: "u10", companyId: "c8", name: "Divya Rao",       email: "divya@peoplebox.ai",   role: "Admin",       status: "invited",  lastActive: "—" },
-  { id: "u11", companyId: "c4", name: "Ivan Lim",        email: "ivan@studiokite.co",   role: "Owner",       status: "active",   lastActive: "2d ago" },
-  { id: "u12", companyId: "c10", name: "Sana Kapoor",    email: "sana@ceipallabs.com",  role: "Owner",       status: "active",   lastActive: "30m ago" },
-  { id: "u13", companyId: "c10", name: "Rohit Verma",    email: "rohit@ceipallabs.com", role: "Interviewer", status: "active",   lastActive: "1d ago" },
-];
-
-const INIT_SUBSCRIPTIONS = INIT_COMPANIES.map((c) => ({
-  companyId: c.id,
-  plan: c.plan,
-  cycle: c.plan === "Enterprise" ? "annual" : "monthly",
-  status: c.status === "trial" ? "trialing" : c.status === "churned" ? "canceled" : c.status === "suspended" ? "past_due" : "active",
-  mrr: c.mrr,
-  seats: c.seats,
-  renews: c.status === "churned" ? "—" : "2026-08-01",
-}));
-
-const INIT_USAGE = INIT_COMPANIES.map((c) => ({
-  companyId: c.id,
-  resumeParsing: [Math.min(c.candidates % 100, 100), 100],
-  aiRuns: [Math.min((c.activeJobs * 3) % 30, 30), 30],
-  activeJobs: [c.activeJobs, c.plan === "Enterprise" ? 50 : c.plan === "Pro" ? 10 : 3],
-  apiCalls: c.candidates * 7,
-}));
-
-// Support tickets. Any candidate reference is masked before it reaches the UI.
-const INIT_TICKETS = [
-  { id: "T-1042", companyId: "c1", subject: "Scheduling link not sending Meet invite", requester: "Amira Hassan", channel: "Email",  priority: "high",   status: "open",     updated: "12m ago", note: "Candidate " + maskName("Nurul Huda") + " did not receive the invite." },
-  { id: "T-1041", companyId: "c2", subject: "SSO login loop for new admins",           requester: "Lena Koh",     channel: "Chat",   priority: "urgent", status: "open",     updated: "40m ago", note: "Affects 3 users on the workspace." },
-  { id: "T-1040", companyId: "c5", subject: "Export of ranked shortlist to CSV fails",  requester: "Hakim Yusof",  channel: "Email",  priority: "normal", status: "pending",  updated: "3h ago",  note: "Reproduced on Chrome; investigating." },
-  { id: "T-1039", companyId: "c8", subject: "Billing invoice address update",           requester: "Arjun Mehta",  channel: "Email",  priority: "low",    status: "pending",  updated: "5h ago",  note: "Routed to billing." },
-  { id: "T-1038", companyId: "c6", subject: "Reactivate suspended workspace",           requester: "Kenji Sato",   channel: "Phone",  priority: "high",   status: "open",     updated: "1d ago",  note: "Payment recovered; awaiting review." },
-  { id: "T-1037", companyId: "c10", subject: "Bulk upload rejects ZIP over 50MB",       requester: "Rohit Verma",  channel: "Chat",   priority: "normal", status: "resolved", updated: "1d ago",  note: "Advised splitting the archive." },
-  { id: "T-1036", companyId: "c4", subject: "Add interviewer seat mid-cycle",           requester: "Ivan Lim",     channel: "Email",  priority: "low",    status: "resolved", updated: "2d ago",  note: "Seat added; prorated." },
-  { id: "T-1035", companyId: "c3", subject: "Trial extension request",                  requester: "Nadia Aziz",   channel: "Email",  priority: "normal", status: "open",     updated: "2d ago",  note: "Evaluating; 7 days remaining." },
-];
-
-const INIT_FLAGS = [
-  { key: "ai_dedup_v2",         label: "AI dedup v2",              desc: "Second-gen deduplication across old and new CVs.", enabled: true,  rollout: 100, env: "prod" },
-  { key: "voice_screening",     label: "Voice screening (beta)",   desc: "AI voice interview for phone-screen replacement.", enabled: false, rollout: 15,  env: "prod" },
-  { key: "career_site_builder", label: "Career site builder",      desc: "Hosted branded careers page and job board.",      enabled: true,  rollout: 100, env: "prod" },
-  { key: "whatsapp_scheduling", label: "WhatsApp scheduling",      desc: "Candidate self-booking over WhatsApp.",           enabled: true,  rollout: 60,  env: "prod" },
-  { key: "advanced_analytics",  label: "Advanced analytics",       desc: "Custom funnel reports and cohort breakdowns.",    enabled: false, rollout: 30,  env: "prod" },
-  { key: "sso_login",           label: "SSO (Google / Microsoft)", desc: "Customer sign-in via Google/Microsoft SSO. Off by default across all plans; enable per the pricing matrix (Enterprise).", enabled: false, rollout: 0,   env: "prod" },
-  { key: "white_label",         label: "White-label branding",     desc: "Custom branding / white-label for Enterprise workspaces. Off by default across all plans.", enabled: false, rollout: 0,   env: "prod" },
-  { key: "sso_scim",            label: "SSO + SCIM provisioning",  desc: "Enterprise SSO directory sync (SCIM). Off by default.", enabled: false, rollout: 0,   env: "prod" },
-  { key: "new_billing_ui",      label: "New billing UI",           desc: "Redesigned in-app billing and invoices.",         enabled: false, rollout: 0,   env: "staging" },
-  { key: "ranked_reasons_v3",   label: "Ranked reasons v3",        desc: "Richer explanations on every match score.",       enabled: false, rollout: 5,   env: "prod" },
-];
-
-const INIT_AUDIT = [
-  { id: 1, actor: "Priya Nair",  role: "super",   action: "Enabled feature flag",      target: "ai_dedup_v2 (prod)",        at: "Jul 6, 2026 · 09:14", ip: "10.2.4.11" },
-  { id: 2, actor: "Dana Osei",   role: "billing", action: "Changed subscription plan", target: "Studio Kite → Pro",         at: "Jul 6, 2026 · 08:52", ip: "10.2.4.31" },
-  { id: 3, actor: "Marcus Lee",  role: "support", action: "Reset user password",       target: "lena@grabtech.com",         at: "Jul 5, 2026 · 17:20", ip: "10.2.4.22" },
-  { id: 4, actor: "Priya Nair",  role: "super",   action: "Suspended company",         target: "Wellfound Asia",            at: "Jul 5, 2026 · 15:03", ip: "10.2.4.11" },
-  { id: 5, actor: "Marcus Lee",  role: "support", action: "Resolved support ticket",   target: "T-1037 (Ceipal Labs)",      at: "Jul 5, 2026 · 11:40", ip: "10.2.4.22" },
-  { id: 6, actor: "Dana Osei",   role: "billing", action: "Viewed subscription",       target: "Grabtech",                  at: "Jul 5, 2026 · 10:12", ip: "10.2.4.31" },
-];
 
 // ---------------------------------------------------------------------------
 // Shared UI
@@ -421,17 +325,21 @@ function Dashboard({ role, companies, tickets, audit, go }) {
               <h3 className="font-semibold adm-display text-neutral-900">Recent admin activity</h3>
               {sectionAllowed(role, "audit") && <button onClick={() => go("audit")} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>Audit log <Icon name="arrowUpRight" className="w-3.5 h-3.5" /></button>}
             </div>
-            <ul className="space-y-3">
-              {audit.slice(0, 5).map((a) => (
-                <li key={a.id} className="flex items-start gap-3">
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white grad text-[11px] font-bold">{a.actor.split(" ").map((x) => x[0]).join("")}</span>
-                  <div className="min-w-0">
-                    <p className="text-sm text-neutral-900"><span className="font-medium">{a.actor}</span> · {a.action} <span style={{ color: "var(--ink-2)" }}>{a.target}</span></p>
-                    <p className="text-xs" style={{ color: "var(--ink-3)" }}>{a.at}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {audit.length === 0 ? (
+              <p className="text-sm py-6 text-center" style={{ color: "var(--ink-3)" }}>No admin actions yet. Changes you make here will show up in this list.</p>
+            ) : (
+              <ul className="space-y-3">
+                {audit.slice(0, 5).map((a) => (
+                  <li key={a.id} className="flex items-start gap-3">
+                    <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white grad text-[11px] font-bold">{a.actor.split(" ").map((x) => x[0]).join("")}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm text-neutral-900"><span className="font-medium">{a.actor}</span> · {a.action} <span style={{ color: "var(--ink-2)" }}>{a.target}</span></p>
+                      <p className="text-xs" style={{ color: "var(--ink-3)" }}>{a.at}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         </div>
         <Card>
@@ -910,9 +818,9 @@ function AdminLogin({ onLogin }) {
     <div className="adm min-h-screen flex items-center justify-center px-4" style={{ background: "radial-gradient(60% 60% at 50% 0%, #EAEEFE 0%, #FAFAFB 60%)" }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-7">
-          <div className="inline-flex items-center gap-2.5 mb-4">
-            <AsterMark className="w-10 h-10" />
-            <span className="adm-display font-bold text-lg text-neutral-900">Aster <span className="txt-grad">Admin</span></span>
+          <div className="inline-flex items-center gap-2 mb-4">
+            <img src="/aster-logo.png" alt="Aster" className="h-6 w-auto object-contain" />
+            <span className="text-[11px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Admin</span>
           </div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "var(--danger-soft)", color: "var(--danger)", border: "1px solid rgba(220,38,38,0.3)" }}>
             <Icon name="lock" className="w-3.5 h-3.5" /> Internal team access only
@@ -959,9 +867,9 @@ function AdminShell({ admin, section, go, onLogout, children }) {
     <div className="adm min-h-screen flex" style={{ background: "var(--bg)" }}>
       {/* Sidebar */}
       <aside className={`adm-side fixed lg:static z-40 top-0 bottom-0 left-0 w-64 shrink-0 flex flex-col transition-transform ${mobileNav ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`} style={{ background: "var(--adm)", borderRight: "1px solid var(--adm-line)" }}>
-        <div className="h-16 flex items-center gap-2.5 px-5 shrink-0" style={{ borderBottom: "1px solid var(--adm-line)" }}>
-          <AsterMark className="w-8 h-8" />
-          <span className="adm-display font-bold text-neutral-900">Aster <span className="txt-grad">Admin</span></span>
+        <div className="h-16 flex items-center gap-2 px-5 shrink-0" style={{ borderBottom: "1px solid var(--adm-line)" }}>
+          <img src="/aster-logo.png" alt="Aster" className="h-5 w-auto object-contain" />
+          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Admin</span>
         </div>
         <div className="px-3 py-2">
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md tracking-wider" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}><Icon name="shield" className="w-3 h-3" /> INTERNAL · PRODUCTION</span>
@@ -1128,13 +1036,13 @@ export default function AdminPortal() {
   const [section, setSection] = useState(SECTIONS.some((s) => s.key === initial) ? initial : "dashboard");
 
   // Live, mutable state so actions feel real and feed the audit log.
-  const [companies, setCompanies] = useState(INIT_COMPANIES);
-  const [subs, setSubs] = useState(INIT_SUBSCRIPTIONS);
-  const [tickets, setTickets] = useState(INIT_TICKETS);
+  const [companies, setCompanies] = useState([]);
+  const [subs, setSubs] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const [flags, setFlags] = useState(INIT_FLAGS);
   const [blocked, setBlocked] = useState([]); // booking_blocked_dates: [{ day, reason }]
-  const [audit, setAudit] = useState(INIT_AUDIT);
-  const usage = INIT_USAGE;
+  const [audit, setAudit] = useState([]);
+  const usage = [];
   const [restoring, setRestoring] = useState(hasSupabase);
 
   useEffect(() => {
@@ -1170,7 +1078,7 @@ export default function AdminPortal() {
   // Replace the seed rows with real data once an admin is authenticated. Each
   // RPC is is_admin()-gated server-side, so a non-admin session simply gets
   // nothing back rather than the mock set.
-  const [users, setUsers] = useState(COMPANY_USERS);
+  const [users, setUsers] = useState([]);
   const reloadAdminData = async () => {
     if (!hasSupabase) return;
     const [{ data: co }, { data: us }] = await Promise.all([
