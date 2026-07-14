@@ -174,11 +174,15 @@ async function signInOn(page, email) {
 }
 
 // Log a given account in from scratch (used after invites are accepted).
-async function login(who) {
+// `origin` overrides the workspace to sign in at. Needed for any account that is
+// not a member of the main test workspace: signing in at onlazy.hireaster.com as
+// someone who belongs to a different workspace just bounces off the login page.
+//   node tests/e2e-run/driver.mjs login trial@onlazy.com https://hireaster.com
+async function login(who, origin) {
   const email = who.includes("@") ? who : CFG[who]?.email || CFG.tenant.email;
   const { ctx, page } = await ctxFor(email);
   console.log(`▶ login: ${email}`);
-  await page.goto(`${wsOrigin()}/login`, { waitUntil: "load" });
+  await page.goto(`${origin || wsOrigin()}/login`, { waitUntil: "load" });
   await settle(page);
   await signInOn(page, email);
   console.log(`  now at: ${page.url()}`);
@@ -676,7 +680,7 @@ const run = {
   invite: () => invite(args[0] ? args : null),
   revoke: () => revoke(...args),
   accept: () => accept(args[0], args[1]),
-  login: () => login(args[0] || "tenant"),
+  login: () => login(args[0] || "tenant", args[1]),
   billing: () => billing(),
   subscribe: () => subscribe(args[0], args[1], args[2]),
   shot: () => shotRoute(args[0], args[1] || "/dashboard"),
