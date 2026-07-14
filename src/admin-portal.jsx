@@ -137,6 +137,22 @@ const ADMIN_ACCOUNTS = [
   { id: "a3", name: "Dana Osei",    email: "dana@hireaster.com",   role: "billing", title: "Finance Ops" },
 ];
 
+// The feature-flag CATALOG: the real list of platform features and their default
+// state. Not mock data, this is config. Live enabled-state loads from platform_flags
+// on login and is merged over these defaults.
+const INIT_FLAGS = [
+  { key: "ai_dedup_v2",         label: "AI dedup v2",              desc: "Second-gen deduplication across old and new CVs.", enabled: true,  rollout: 100, env: "prod" },
+  { key: "voice_screening",     label: "Voice screening (beta)",   desc: "AI voice interview for phone-screen replacement.", enabled: false, rollout: 15,  env: "prod" },
+  { key: "career_site_builder", label: "Career site builder",      desc: "Hosted branded careers page and job board.",      enabled: true,  rollout: 100, env: "prod" },
+  { key: "whatsapp_scheduling", label: "WhatsApp scheduling",      desc: "Candidate self-booking over WhatsApp.",           enabled: true,  rollout: 60,  env: "prod" },
+  { key: "advanced_analytics",  label: "Advanced analytics",       desc: "Custom funnel reports and cohort breakdowns.",    enabled: false, rollout: 30,  env: "prod" },
+  { key: "sso_login",           label: "SSO (Google / Microsoft)", desc: "Customer sign-in via Google/Microsoft SSO. Enterprise.", enabled: false, rollout: 0,   env: "prod" },
+  { key: "white_label",         label: "White-label branding",     desc: "Custom branding / white-label for Enterprise workspaces.", enabled: false, rollout: 0,   env: "prod" },
+  { key: "sso_scim",            label: "SSO + SCIM provisioning",  desc: "Enterprise SSO directory sync (SCIM).",           enabled: false, rollout: 0,   env: "prod" },
+  { key: "new_billing_ui",      label: "New billing UI",           desc: "Redesigned in-app billing and invoices.",         enabled: false, rollout: 0,   env: "staging" },
+  { key: "ranked_reasons_v3",   label: "Ranked reasons v3",        desc: "Richer explanations on every match score.",       enabled: false, rollout: 5,   env: "prod" },
+];
+
 
 // ---------------------------------------------------------------------------
 // Shared UI
