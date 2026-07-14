@@ -7964,7 +7964,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
 }
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
-function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) {
+function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace = false, onSignOut, unreadCount = 0, profile }) {
   // First-run onboarding coach marks (managers only, on the dashboard, per user):
   //   1. Complete your profile, so apply pages show accurate company details.
   //   2. After the profile is saved (ProfileScreen sets the flag and redirects
@@ -7980,7 +7980,11 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
   // Guided setup coach marks: owner (Tenant) only. Invited hiring managers /
   // interviewers join an already set-up workspace, so they skip the first-run tour.
   const ownerUser = isOwner(profile?.role);
-  const onDash = active === "dashboard";
+  // The REAL dashboard screen, not just any screen whose rail icon is the dashboard
+  // (candidate profiles and the candidates list alias to it). And only a genuinely
+  // empty workspace is first-run: once there are jobs, the tour is wrong by
+  // definition, whether they were posted, seeded or restored.
+  const onDash = onDashboard && isFreshWorkspace;
   const profileDone = onboardingDone(profile, "profile", profileKey); // ProfileScreen flips it on save
   const showProfileHint = onDash && ownerUser && !profileDone;
   const showJobsHint = onDash && ownerUser && profileDone && !jobsDismissed;
@@ -8082,7 +8086,7 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
   );
 }
 
-function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profile, unreadCount = 0, activities = [], onOpenNotifications, children }) {
+function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace = false, avatarUrl, onSignOut, logoUrl, profile, unreadCount = 0, activities = [], onOpenNotifications, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -8091,7 +8095,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
         {/* Desktop icon rail: collapsed to 76px, expands to a labelled drawer on hover
             and pushes the content across (in-flow, not an overlay). */}
         <aside className="group hidden md:flex w-[76px] hover:w-[236px] shrink-0 flex-col py-5 rounded-[26px] overflow-hidden sticky top-4 self-start hover:shadow-[0_26px_64px_-30px_rgba(15,27,51,0.32)]" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)", transition: "width 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease" }}>
-          <IconSidebar navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
+          <IconSidebar navigate={navigate} active={active} onDashboard={onDashboard} isFreshWorkspace={isFreshWorkspace} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
         </aside>
 
         {/* Mobile drawer, keeps the labelled nav */}
@@ -8099,7 +8103,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
           <div className="md:hidden fixed inset-0 z-40">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
             <aside className="absolute left-0 top-0 bottom-0 w-72 px-4 py-6 flex flex-col" style={{ background: "#fff", borderRight: "1px solid var(--line)" }}>
-              <SidebarContent navigate={navigate} active={active} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} onNavigate={() => setMobileOpen(false)} />
+              <SidebarContent navigate={navigate} active={active} onDashboard={onDashboard} isFreshWorkspace={isFreshWorkspace} avatarUrl={avatarUrl} onSignOut={onSignOut} logoUrl={logoUrl} profile={profile} unreadCount={unreadCount} onNavigate={() => setMobileOpen(false)} />
             </aside>
           </div>
         )}
@@ -21461,9 +21465,17 @@ export default function ResumeAIPreview() {
 
   return (
     <Shell>
+      {/* The first-run tour must key off the REAL screen and whether the workspace
+          is genuinely new. activeNav aliases candidate profiles and the candidates
+          list to "dashboard" to light the right rail icon, so keying the tour off
+          active fired 'post your first job' over a populated candidate profile. And
+          a workspace that already has jobs is not first-run: seeded, restored or
+          multi-device, it should never see it. */}
       <SidebarLayout
         navigate={navigate}
         active={activeNav}
+        onDashboard={screen === "dashboard"}
+        isFreshWorkspace={jobs.length === 0}
         avatarUrl={avatarUrl}
         onSignOut={handleSignOut}
         logoUrl={logoUrl}

@@ -681,7 +681,12 @@ async function shotRoute(who, route, origin) {
 }
 
 // --- CLI --------------------------------------------------------------------
-const [cmd, ...args] = process.argv.slice(2);
+// Only run the CLI when this file is the entry point. Other scripts (journey.mjs,
+// audits) import ctxFor/shot/CFG from here, and without this guard that import
+// would fire the dispatch below, print "Commands: ..." and exit(1) before the
+// importer ran a single line.
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+const [cmd, ...args] = isMain ? process.argv.slice(2) : [];
 const run = {
   signup: () => signup(args[0], args[1], args[2]),
   confirm: () => confirm(args[0], args[1]),
@@ -696,8 +701,10 @@ const run = {
   buttons: () => listButtons(args[0], args[1] || "/dashboard"),
   payopen: () => payOpenInvoice(),
 };
-if (!run[cmd]) {
-  console.log("Commands: signup | confirm <url> | profile | invite | accept <email> <url> | login <who> | shot <who> <route>");
-  process.exit(1);
+if (isMain) {
+  if (!run[cmd]) {
+    console.log("Commands: signup | confirm <url> | profile | invite | accept <email> <url> | login <who> | shot <who> <route> | buttons | subscribe | payopen");
+    process.exit(1);
+  }
+  await run[cmd]();
 }
-await run[cmd]();
