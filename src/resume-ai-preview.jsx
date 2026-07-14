@@ -16139,26 +16139,8 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
   const [saveErr, setSaveErr] = useState(null);
-  const [dangerConfirm, setDangerConfirm] = useState(false);
-  const [dangerText, setDangerText] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [deleteErr, setDeleteErr] = useState("");
-
-  // Schedule the 30-day soft delete via the edge function, then sign out.
-  const handleDeleteAccount = async () => {
-    setDeleteErr("");
-    if (!hasSupabase || !supabase) { setDeleteErr("Account deletion needs a connected backend."); return; }
-    setDeleting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
-      if (error || data?.error) throw new Error(data?.error || error?.message || "Deletion failed");
-      await supabase.auth.signOut();
-      if (typeof window !== "undefined") window.location.assign("/");
-    } catch (e) {
-      setDeleteErr(e?.message || "Could not delete the workspace. Please try again.");
-      setDeleting(false);
-    }
-  };
+  // Workspace deletion lives in Settings now (DangerZoneCard), so Profile keeps
+  // only identity + sign-in.
 
   // Password / sign-in
   const [curPw, setCurPw] = useState("");
@@ -16607,79 +16589,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
 
         </>)}
 
-        {/* ===== Danger zone ===== — owner/admin only */}
-        {!isInterviewer(profile?.role) && (() => {
-          const dangerTarget = (company || "").trim() || "DELETE";
-          return (
-            <>
-              <div className="flex items-center gap-3 mb-3 mt-7">
-                <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
-                <span className="h-px flex-1" style={{ background: "#FCA5A5" }} />
-              </div>
-              <div className="rounded-2xl overflow-hidden border act-shadow" style={{ borderColor: "#FCA5A5" }}>
-                {/* Header row: icon chip, title, and the trigger, all on one clean line. */}
-                <div className="flex items-center gap-3 p-5 bg-white">
-                  <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#FEF2F2", color: "#DC2626" }}>
-                    <Icon name="trash" className="w-5 h-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete workspace and account</p>
-                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                      Permanently removes {company ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{company}</span> : "your workspace"} and everything in it. This can't be undone.
-                    </p>
-                  </div>
-                  {!dangerConfirm && (
-                    <button onClick={() => setDangerConfirm(true)} className="text-sm rounded-xl px-4 py-2 font-medium shrink-0 transition-colors" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5" }}>Delete…</button>
-                  )}
-                </div>
-
-                {/* Expanded confirm panel, tinted footer so it reads as one unit. */}
-                {dangerConfirm && (
-                  <div className="p-5 border-t" style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }}>
-                    <p className="text-xs font-medium mb-2" style={{ color: "#991B1B" }}>Deleting also erases:</p>
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-xs mb-4" style={{ color: "#7F1D1D" }}>
-                      {[
-                        "Every job posting and career page",
-                        "All candidates, resumes, and match scores",
-                        "All interviewers and their access",
-                        "Interviews, scorecards, and offers",
-                        "Message and email templates",
-                        "Billing history and invoices",
-                      ].map((t) => (
-                        <li key={t} className="flex items-start gap-2">
-                          <Icon name="close" className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#DC2626" }} /> {t}
-                        </li>
-                      ))}
-                    </ul>
-                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "#991B1B" }}>
-                      Type <span className="font-bold">{dangerTarget}</span> to confirm
-                    </label>
-                    <input
-                      value={dangerText}
-                      onChange={(e) => setDangerText(e.target.value)}
-                      placeholder={dangerTarget}
-                      autoComplete="off"
-                      className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-                      style={{ borderColor: "#FCA5A5", color: "var(--ink)" }}
-                    />
-                    {deleteErr && <p className="text-xs mt-2" style={{ color: "#B91C1C" }}>{deleteErr}</p>}
-                    <p className="text-xs mt-2.5" style={{ color: "#B91C1C" }}>You'll be signed out. You have 30 days to restore before everything is permanently erased.</p>
-                    <div className="flex items-center gap-2 mt-3.5">
-                      <button
-                        disabled={deleting || dangerText.trim() !== dangerTarget}
-                        onClick={handleDeleteAccount}
-                        className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                      >
-                        <Icon name="trash" className="w-4 h-4" /> {deleting ? "Deleting…" : "Permanently delete"}
-                      </button>
-                      <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="text-sm rounded-xl border px-4 py-2 bg-white transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "#FCA5A5", color: "var(--ink-2)" }}>Cancel</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          );
-        })()}
 
         {/* Save / Cancel bar */}
         <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border bg-white/95 backdrop-blur px-4 py-3 act-shadow" style={{ borderColor: "var(--line)" }}>
@@ -16697,7 +16606,101 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
   );
 }
 
-function SettingsScreen({ navigate, plan = "launch", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
+// Delete-workspace flow, self-contained (its own confirm state + delete call) so it
+// can live wherever it belongs without threading state through a screen. Now rendered
+// in Settings; moved off Profile, which keeps only identity + sign-in.
+function DangerZoneCard({ company }) {
+  const [dangerConfirm, setDangerConfirm] = useState(false);
+  const [dangerText, setDangerText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
+  const dangerTarget = (company || "").trim() || "DELETE";
+
+  // Schedule the 30-day soft delete via the edge function, then sign out.
+  const handleDeleteAccount = async () => {
+    setDeleteErr("");
+    if (!hasSupabase || !supabase) { setDeleteErr("Account deletion needs a connected backend."); return; }
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Deletion failed");
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined") window.location.assign("/");
+    } catch (e) {
+      setDeleteErr(e?.message || "Could not delete the workspace. Please try again.");
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-3 mb-3 mt-7">
+        <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "#B91C1C", letterSpacing: "0.07em" }}>Danger zone</p>
+        <span className="h-px flex-1" style={{ background: "#FCA5A5" }} />
+      </div>
+      <div className="rounded-2xl overflow-hidden border act-shadow" style={{ borderColor: "#FCA5A5" }}>
+        <div className="flex items-center gap-3 p-5 bg-white">
+          <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#FEF2F2", color: "#DC2626" }}>
+            <Icon name="trash" className="w-5 h-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Delete workspace and account</p>
+            <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              Permanently removes {company ? <span className="font-semibold" style={{ color: "var(--ink)" }}>{company}</span> : "your workspace"} and everything in it. This can't be undone.
+            </p>
+          </div>
+          {!dangerConfirm && (
+            <button onClick={() => setDangerConfirm(true)} className="text-sm rounded-xl px-4 py-2 font-medium shrink-0 transition-colors" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5" }}>Delete…</button>
+          )}
+        </div>
+        {dangerConfirm && (
+          <div className="p-5 border-t" style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }}>
+            <p className="text-xs font-medium mb-2" style={{ color: "#991B1B" }}>Deleting also erases:</p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-xs mb-4" style={{ color: "#7F1D1D" }}>
+              {[
+                "Every job posting and career page",
+                "All candidates, resumes, and match scores",
+                "All interviewers and their access",
+                "Interviews, scorecards, and offers",
+                "Message and email templates",
+                "Billing history and invoices",
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2">
+                  <Icon name="close" className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#DC2626" }} /> {t}
+                </li>
+              ))}
+            </ul>
+            <label className="block text-xs mb-1.5 font-medium" style={{ color: "#991B1B" }}>
+              Type <span className="font-bold">{dangerTarget}</span> to confirm
+            </label>
+            <input
+              value={dangerText}
+              onChange={(e) => setDangerText(e.target.value)}
+              placeholder={dangerTarget}
+              autoComplete="off"
+              className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              style={{ borderColor: "#FCA5A5", color: "var(--ink)" }}
+            />
+            {deleteErr && <p className="text-xs mt-2" style={{ color: "#B91C1C" }}>{deleteErr}</p>}
+            <p className="text-xs mt-2.5" style={{ color: "#B91C1C" }}>You'll be signed out. You have 30 days to restore before everything is permanently erased.</p>
+            <div className="flex items-center gap-2 mt-3.5">
+              <button
+                disabled={deleting || dangerText.trim() !== dangerTarget}
+                onClick={handleDeleteAccount}
+                className="text-sm rounded-xl px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                <Icon name="trash" className="w-4 h-4" /> {deleting ? "Deleting…" : "Permanently delete"}
+              </button>
+              <button onClick={() => { setDangerConfirm(false); setDangerText(""); setDeleteErr(""); }} disabled={deleting} className="text-sm rounded-xl border px-4 py-2 bg-white transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "#FCA5A5", color: "var(--ink-2)" }}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
   const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
@@ -16876,6 +16879,8 @@ function SettingsScreen({ navigate, plan = "launch", profile, setProfile, avatar
               <span className="h-px flex-1" style={{ background: "var(--line)" }} />
             </div>
             <EmailTwoFactorCard profile={profile} />
+            {/* Workspace deletion, owner/admin only. Moved here from Profile. */}
+            <DangerZoneCard company={company} />
           </div>
         )}
 
@@ -21635,6 +21640,7 @@ export default function ResumeAIPreview() {
             setCalendarConnected={setCalendarConnected}
             bookings={bookings}
             plan={effectivePlan}
+            company={company}
             profile={profile}
             setProfile={setProfile}
             avatarUrl={avatarUrl}
