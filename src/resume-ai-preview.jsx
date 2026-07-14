@@ -11557,19 +11557,25 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               const scrUsed = applicantParseUsage.used || 0;
               const scrBlocked = scrLimit !== Infinity && scrUsed >= scrLimit;
               const scrLeft = scrLimit === Infinity ? null : Math.max(scrLimit - scrUsed, 0);
+              // Monthly pool full but purchased top-up still covers inbound applicants.
+              const scrOnPurchased = scrBlocked && purchasedApplicant > 0;
+              const scrOut = scrBlocked && purchasedApplicant <= 0;
               return (
                 <UsageMeter
                   plan={plan}
                   title="AI Applicant Screening"
-                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets on the 1st."
+                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets on the 1st. Buy top-up credits to keep screening once it's used up."
                   used={scrUsed}
                   limit={scrLimit}
                   unit="screened"
-                  note={scrBlocked
-                    ? `You've used all ${scrLimit} screenings this month. Upgrade for more, or wait for the reset on the 1st.`
-                    : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this month.`}
+                  danger={scrOut}
+                  note={scrOut
+                    ? `Out of credits. New applicants aren't screened until you buy more, or your monthly plan resets on the 1st.`
+                    : scrOnPurchased
+                      ? `Your monthly plan is used up. New applicants are now screened with your purchased credits.`
+                      : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this month.`}
                   onManage={() => navigate("billing")}
-                  onUpgrade={scrBlocked ? () => navigate("billing") : undefined}
+                  onUpgrade={scrOut ? () => navigate("billing") : undefined}
                   purchased={scrLimit === Infinity ? null : purchasedApplicant}
                   onBuyCredits={scrLimit === Infinity ? null : () => setBuyApplicantOpen(true)}
                 />
