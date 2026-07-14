@@ -70,8 +70,13 @@ Deno.serve(async (req) => {
     // line that was actually charged.
     const planOf = (lines: Record<string, any>[]): string | null => {
       if (!lines?.length) return null;
-      const charged = lines.filter((l) => (l.amount ?? 0) > 0);
-      const line = charged[charged.length - 1] || lines[0];
+      // Several plan changes in one period stack their prorations onto a single
+      // invoice, so there can be many charged lines. Take the LARGEST, which is the
+      // plan they actually ended up on. Taking the last one labelled an upgrade to
+      // Elite as "Aster Scale" purely because of the order Stripe happened to list.
+      const charged = lines.filter((l) => (l.amount ?? 0) > 0)
+        .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0));
+      const line = charged[0] || lines[0];
       const d = String(line.description || "");
       // "Remaining time on Aster Elite after 14 Jul 2026" -> "Aster Elite (prorated)"
       const m = d.match(/^Remaining time on (.+?) after /i);
