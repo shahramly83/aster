@@ -38,7 +38,9 @@ Deno.serve(async (req) => {
     const { data: prof } = await admin
       .from("profiles").select("company_id, role").eq("id", user.id).maybeSingle();
     if (!prof?.company_id) return json({ error: "no company for user" }, 403);
-    if (!["owner", "admin"].includes(prof.role)) return json({ error: "only an admin can manage billing" }, 403);
+    // Owner only. The portal can change the card and cancel the subscription, and a
+    // hiring manager is 'admin', so admins used to have both.
+    if (prof.role !== "owner") return json({ error: "only the account owner can manage billing" }, 403);
 
     const secret = Deno.env.get("STRIPE_SECRET_KEY");
     if (!secret) return json({ error: "billing not configured" }, 503);

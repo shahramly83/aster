@@ -316,9 +316,15 @@ async function accept(url) {
   await p0.goto(url, { waitUntil: "load" });
   await p0.waitForTimeout(6000);
   const text = await p0.locator("body").innerText().catch(() => "");
+  // The invited email is locked into a disabled input, so it lives in the field's
+  // VALUE, not the page text. innerText never sees it.
+  const values = await p0.locator("input").evaluateAll(
+    (els) => els.map((e) => e.value || e.getAttribute("value") || ""),
+  ).catch(() => []);
+  const haystack = [text, ...values].join("\n");
   await probe.close();
 
-  const found = allPeople().map((x) => x.email).find((e) => text.includes(e));
+  const found = allPeople().map((x) => x.email).find((e) => haystack.includes(e));
   if (!found) {
     console.log("▶ accept: could not read an invited email from that link.");
     console.log("  page said:\n  " + text.split("\n").filter(Boolean).slice(0, 12).join("\n  "));

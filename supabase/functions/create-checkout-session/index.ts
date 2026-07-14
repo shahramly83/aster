@@ -124,7 +124,10 @@ Deno.serve(async (req) => {
       .from("profiles").select("company_id, email, role").eq("id", user.id).maybeSingle();
     const companyId = prof?.company_id;
     if (!companyId) return json({ error: "no company for user" }, 403);
-    if (!["owner", "admin"].includes(prof?.role)) return json({ error: "only an admin can subscribe" }, 403);
+    // Billing belongs to the account owner alone. A hiring manager is 'admin', and
+    // admins used to pass this check: any recruiter could upgrade, downgrade or
+    // CANCEL the company's subscription.
+    if (prof?.role !== "owner") return json({ error: "only the account owner can change the plan" }, 403);
 
     const secret = Deno.env.get("STRIPE_SECRET_KEY");
     const priceId = Deno.env.get(priceEnv);

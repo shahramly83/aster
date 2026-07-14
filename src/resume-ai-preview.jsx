@@ -6923,10 +6923,14 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
           <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>You've been invited as {roleLabel} on Aster. {mode === "create" ? "Create your account to accept, it only takes a minute." : "Sign in to accept."}</p>
 
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+            {/* Every field here was an orphan <label> with no htmlFor and an input
+                with no id, so nothing on this form was reachable by its label: not
+                by a screen reader, not by autofill. This is the page an invited
+                teammate meets first. */}
             <div>
-              <label className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
+              <label htmlFor="jn-email" className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
               <div className="relative">
-                <input type="email" value={invite?.email || ""} readOnly disabled className={`${fieldDark} pr-11`} style={{ ...fieldDarkStyle, background: "var(--bg)", color: "var(--ink-2)", cursor: "not-allowed" }} />
+                <input id="jn-email" type="email" value={invite?.email || ""} readOnly disabled className={`${fieldDark} pr-11`} style={{ ...fieldDarkStyle, background: "var(--bg)", color: "var(--ink-2)", cursor: "not-allowed" }} />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }} aria-hidden="true"><Icon name="lock" className="w-4 h-4" /></span>
               </div>
               <p className="text-[12px] mt-1.5" style={{ color: "var(--ink-3)" }}>Your invite was sent to this address.</p>
@@ -6934,19 +6938,19 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
             {mode === "create" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelDark} style={{ color: "var(--ink)" }}>First name</label>
-                  <input autoFocus value={firstName} onChange={(e) => { setFirstName(e.target.value); setErr(null); }} placeholder="Jane" className={fieldDark} style={fieldDarkStyle} />
+                  <label htmlFor="jn-first" className={labelDark} style={{ color: "var(--ink)" }}>First name</label>
+                  <input id="jn-first" autoComplete="given-name" autoFocus value={firstName} onChange={(e) => { setFirstName(e.target.value); setErr(null); }} placeholder="Jane" className={fieldDark} style={fieldDarkStyle} />
                 </div>
                 <div>
-                  <label className={labelDark} style={{ color: "var(--ink)" }}>Last name</label>
-                  <input value={lastName} onChange={(e) => { setLastName(e.target.value); setErr(null); }} placeholder="Tan" className={fieldDark} style={fieldDarkStyle} />
+                  <label htmlFor="jn-last" className={labelDark} style={{ color: "var(--ink)" }}>Last name</label>
+                  <input id="jn-last" autoComplete="family-name" value={lastName} onChange={(e) => { setLastName(e.target.value); setErr(null); }} placeholder="Tan" className={fieldDark} style={fieldDarkStyle} />
                 </div>
               </div>
             )}
             <div>
-              <label className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
+              <label htmlFor="jn-password" className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
               <div className="relative">
-                <input type={showPassword ? "text" : "password"} autoComplete={mode === "create" ? "new-password" : "current-password"} value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder={mode === "create" ? "Create a password" : "Enter your password"} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
+                <input id="jn-password" type={showPassword ? "text" : "password"} autoComplete={mode === "create" ? "new-password" : "current-password"} value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder={mode === "create" ? "Create a password" : "Enter your password"} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
                 <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
@@ -7890,9 +7894,11 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
       </nav>
 
       <div className="pt-4 mt-4 space-y-1" style={{ borderTop: "1px solid var(--line)" }}>
+        {/* Billing is the owner's alone: the plan, the card, cancellation and every
+            invoice. A hiring manager gets Settings but not Billing. */}
         {(isInterviewer(profile?.role) ? [] : [
           { key: "settings", label: "Settings", icon: "settings" },
-          { key: "billing", label: "Billing", icon: "card" },
+          ...(isOwner(profile?.role) ? [{ key: "billing", label: "Billing", icon: "card" }] : []),
         ]).map((item) => {
           const on = active === item.key;
           return (
@@ -8008,7 +8014,7 @@ function IconSidebar({ navigate, active, onSignOut, unreadCount = 0, profile }) 
       </nav>
       <div className="flex flex-col gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--line)" }}>
         {railBtn({ key: "profile", label: "Profile", icon: "user" })}
-        {!isInterviewer(profile?.role) && railBtn({ key: "billing", label: "Billing", icon: "card" })}
+        {isOwner(profile?.role) && railBtn({ key: "billing", label: "Billing", icon: "card" })}
         {!isInterviewer(profile?.role) && railBtn({ key: "settings", label: "Settings", icon: "settings" })}
         <button
           onClick={onSignOut}
@@ -14855,6 +14861,29 @@ function StatusBadge({ onTrial, subStatus }) {
   return pill("Inactive", "#F1F5F9", "#475569");
 }
 
+// Shown when someone reaches a screen their role doesn't own. It explains who can
+// do this and sends them somewhere useful, rather than a blank page or a silent
+// redirect that reads like a bug.
+function RestrictedScreen({ navigate, title, body }) {
+  return (
+    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="mx-auto w-full max-w-lg text-center py-16">
+        <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)" }}>
+          <Icon name="lock" className="w-5 h-5" style={{ color: "var(--brand)" }} />
+        </div>
+        <h1 className="text-xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>{title}</h1>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>{body}</p>
+        <button
+          onClick={() => navigate("dashboard")}
+          className="mt-6 inline-flex items-center justify-center rounded-xl text-sm font-semibold px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity"
+        >
+          Back to dashboard
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function BillingScreen({ navigate, plan, planCycle = "monthly", company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(null);
   const [confirmEndTrial, setConfirmEndTrial] = useState(false);
@@ -21311,7 +21340,17 @@ export default function ResumeAIPreview() {
             onOpenNotifications={markActivitiesRead}
           />
         )}
-        {screen === "billing" && (
+        {/* Hiding the nav item is not a permission. Anyone can type /billing, so the
+            route itself is gated too, and the edge functions reject a non-owner
+            regardless of what the client does. */}
+        {screen === "billing" && !isOwner(profile?.role) && (
+          <RestrictedScreen
+            navigate={navigate}
+            title="Billing is for the account owner"
+            body="Only the person who owns this workspace can see the plan, invoices and payment method. Ask them if you need a copy of an invoice."
+          />
+        )}
+        {screen === "billing" && isOwner(profile?.role) && (
           <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
