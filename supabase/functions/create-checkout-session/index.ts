@@ -100,7 +100,14 @@ Deno.serve(async (req) => {
 
   try {
     const { plan, cycle, return_url } = await req.json();
-    const c = cycle === "yearly" ? "yearly" : "monthly";
+    // Validate the cycle, do not coerce it. This used to be
+    //   const c = cycle === "yearly" ? "yearly" : "monthly";
+    // so ANY value that was not the literal "yearly" silently became monthly. A
+    // typo, a stale client or a crafted call would then reprice a live yearly
+    // subscription onto the monthly plan and prorate it, without ever being asked.
+    // Unvalidated input must not be allowed to move a customer's billing period.
+    if (cycle !== "monthly" && cycle !== "yearly") return json({ error: "unknown plan or cycle" }, 400);
+    const c = cycle;
     const priceEnv = PRICE_ENV[`${plan}|${c}`];
     if (!priceEnv) return json({ error: "unknown plan or cycle" }, 400);
 

@@ -133,6 +133,18 @@ Deno.serve(async (req) => {
     const { data: row } = await q.maybeSingle();
     companyId = row?.company_id || null;
   }
+
+  // metadata.company_id is a string Stripe hands us; it is not proof the company
+  // exists. Without this check an event naming an unknown company updated zero rows
+  // and still returned 200 ok, so a real event we failed to route looked exactly
+  // like a successful one and nothing was ever retried or investigated.
+  if (companyId) {
+    const { data: exists } = await admin.from("companies").select("id").eq("id", companyId).maybeSingle();
+    if (!exists) {
+      console.error("event names a company that does not exist", { type, companyId, stripeSubId, stripeCustId });
+      companyId = null;
+    }
+  }
   // 200 here meant Stripe never retried. But invoice.paid can arrive BEFORE
   // checkout.session.completed, so the subscriptions row has no stripe ids yet
   // and the fallback lookup finds nothing — a real payment, silently ignored
