@@ -97,7 +97,13 @@ Deno.serve(async (req) => {
     stripeCustId = obj.customer || null;
     planKey = meta.plan || null;
     cycle = meta.cycle || null;
-    periodEnd = obj.current_period_end ? new Date(obj.current_period_end * 1000).toISOString().slice(0, 10) : null;
+    // Stripe moved current_period_end OFF the subscription and onto the
+    // subscription item. Reading only the subscription silently yielded undefined
+    // on every event, so this column was never once written and the billing page
+    // kept showing the trial end date as the renewal date. Prefer the subscription
+    // when it still carries the field, fall back to the item.
+    const periodEndTs = obj.current_period_end ?? obj.items?.data?.[0]?.current_period_end ?? null;
+    periodEnd = periodEndTs ? new Date(periodEndTs * 1000).toISOString().slice(0, 10) : null;
     if (type === "customer.subscription.deleted") status = "canceled";
     else if (["active", "trialing"].includes(obj.status)) status = "active";
     else if (["past_due", "unpaid", "incomplete"].includes(obj.status)) status = "past_due";
