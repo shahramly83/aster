@@ -23,7 +23,7 @@
 
 do $seed$
 declare
-  v_slug     text := 'onlazy';   -- <<<< CHANGE THIS
+  v_slug     text := 'REPLACE_WITH_YOUR_SLUG';   -- <<<< CHANGE THIS
   v_company  uuid;
   v_owner    uuid;
 begin
@@ -216,10 +216,26 @@ begin
 
   alter table public.jobs enable trigger trg_charge_job_post;
 
-  raise notice 'Seeded % jobs, % candidates, % applications into workspace %',
+  -- Assign every non-owner teammate to the OPEN roles. Without a job_assignments
+  -- row an interviewer sees nothing at all: that table, not the interview panel, is
+  -- what RLS reads to decide which jobs and candidates they may look at. Seeding
+  -- jobs without it leaves the interviewer journey untestable.
+  insert into public.job_assignments (job_id, profile_id, company_id, assigned_by)
+  select j.id, p.id, v_company, v_owner
+    from public.jobs j
+    cross join public.profiles p
+   where j.company_id = v_company
+     and j.status = 'open'
+     and p.company_id = v_company
+     and p.status = 'active'
+     and p.role in ('admin', 'interviewer')
+  on conflict (job_id, profile_id) do nothing;
+
+  raise notice 'Seeded % jobs, % candidates, % applications, % assignments into workspace %',
     (select count(*) from public.jobs where company_id = v_company),
     (select count(*) from public.candidates where company_id = v_company),
     (select count(*) from public.applications where company_id = v_company),
+    (select count(*) from public.job_assignments where company_id = v_company),
     v_slug;
 end
 $seed$;
