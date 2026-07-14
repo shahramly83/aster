@@ -84,6 +84,22 @@ Deno.serve(async (req) => {
 
   const meta = obj.metadata || {};
 
+  // One-time credit top-up (buy-credits), not a subscription. metadata.kind marks
+  // it. Grant the purchased credits and stop: none of the subscription sync below
+  // applies, and grant_purchased_credits is itself idempotent on the session id.
+  if (type === "checkout.session.completed" && meta.kind) {
+    const cid = obj.client_reference_id || meta.company_id || null;
+    const qty = parseInt(meta.quantity || "0", 10);
+    if (!cid || !qty) return json({ ok: true, ignored: "credit purchase missing company/qty" });
+    const { data: bal, error: grantErr } = await admin.rpc("grant_purchased_credits", {
+      p_company: cid, p_kind: String(meta.kind), p_qty: qty,
+      p_amount_cents: typeof obj.amount_total === "number" ? obj.amount_total : null,
+      p_currency: obj.currency || null, p_session: obj.id || null,
+    });
+    if (grantErr) { console.error("grant_purchased_credits", grantErr.message); return fail("grant failed", grantErr.message); }
+    return json({ ok: true, kind: meta.kind, quantity: qty, balance: bal });
+  }
+
   if (type === "checkout.session.completed") {
     companyId = obj.client_reference_id || meta.company_id || null;
     stripeSubId = obj.subscription || null;

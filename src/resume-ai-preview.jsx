@@ -9534,6 +9534,65 @@ function nameFromFile(fn) {
   return s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+// Buy top-up screening credits. Price is $1/credit with a plan discount (Launch
+// full, Scale 10% off, Elite 20% off); the buy-credits function re-derives the
+// price server-side, so this is display only. "Pay" opens Stripe Checkout.
+function BuyCreditsModal({ open, onClose, plan = "launch" }) {
+  const [qty, setQty] = useState(50);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  if (!open) return null;
+  const unit = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
+  const disc = ({ launch: 0, scale: 10, elite: 20, enterprise: 20 })[plan] ?? 0;
+  const n = Math.max(0, Math.floor(Number(qty) || 0));
+  const total = n * unit;
+  const buy = async () => {
+    if (n < 1) { setErr("Enter at least 1 credit."); return; }
+    if (!hasSupabase) { setErr("Connect a live workspace to buy credits."); return; }
+    setBusy(true); setErr(null);
+    const { data, error } = await supabase.functions.invoke("buy-credits", { body: { quantity: n, return_url: window.location.origin } });
+    if (error || !data?.url) {
+      let msg = data?.error || "Couldn't start checkout.";
+      try { const d = await error?.context?.json?.(); if (d?.error) msg = d.error; } catch { /* noop */ }
+      setErr(msg); setBusy(false); return;
+    }
+    window.location.assign(data.url);
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Buy screening credits</h3>
+          <button onClick={onClose} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+        </div>
+        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>Top up beyond your monthly plan. Purchased credits are used only after your plan credits run out, and never expire on renewal.</p>
+        <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
+        <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+        <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+          <div className="flex items-center justify-between text-sm">
+            <span style={{ color: "var(--ink-2)" }}>Per credit</span>
+            <span className="tnum font-medium" style={{ color: "var(--ink)" }}>${unit.toFixed(2)}{disc ? <span className="text-[11px] font-semibold ml-1.5" style={{ color: "#166534" }}>{disc}% off</span> : null}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm mt-1.5">
+            <span style={{ color: "var(--ink-2)" }}>Quantity</span>
+            <span className="tnum" style={{ color: "var(--ink)" }}>{n.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+            <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Total</span>
+            <span className="text-lg font-bold font-display tnum" style={{ color: "var(--ink)" }}>${total.toFixed(2)}</span>
+          </div>
+        </div>
+        {err && <p className="text-xs mt-3 rounded-lg px-3 py-2" style={{ color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA" }}>{err}</p>}
+        <div className="flex items-center gap-2 mt-5">
+          <button onClick={buy} disabled={busy || n < 1} className="flex-1 rounded-xl brand-gradient text-white text-sm font-semibold py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50">{busy ? "Starting checkout…" : `Pay $${total.toFixed(2)}`}</button>
+          <button onClick={onClose} className="rounded-xl border px-4 py-2.5 text-sm hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+        </div>
+        <p className="text-[11px] text-neutral-400 mt-3 text-center">Secure one-time payment via Stripe. Credits are added the moment payment clears.</p>
+      </div>
+    </div>
+  );
+}
+
 function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun }) {
   const limits = planLimits(plan);
   // Bulk upload is its own pool (resumeUploads), separate from applicant parsing
@@ -9543,6 +9602,26 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   const uploadLimit = parseUsage?.limit ?? limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
   const planName = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
+  const [purchasedBalance, setPurchasedBalance] = useState(0);
+  const [buyOpen, setBuyOpen] = useState(false);
+  // Purchased top-up balance (used after the monthly pool runs out; never resets).
+  // Refresh on mount, and again shortly after returning from a successful Stripe
+  // checkout so the just-bought credits show without a manual reload.
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let alive = true, t;
+    const load = () => supabase.rpc("get_purchased_credits").then(({ data }) => {
+      if (!alive) return;
+      const row = (data || []).find((r) => r.kind === "resume_screen");
+      setPurchasedBalance(row?.balance || 0);
+    }).catch(() => {});
+    load();
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("credits") === "success") {
+      t = setTimeout(load, 1500); // give the webhook a moment to grant
+      try { window.history.replaceState(null, "", window.location.pathname); } catch { /* noop */ }
+    }
+    return () => { alive = false; if (t) clearTimeout(t); };
+  }, []);
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [uploadTab, setUploadTab] = useState("import"); // "import" | "recent"
   const [files, setFiles] = useState([]);
@@ -10320,7 +10399,10 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                   : `${remaining} resume${remaining === 1 ? "" : "s"} left on your ${planName} plan.`}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
+              purchased={uploadLimit === Infinity ? null : purchasedBalance}
+              onBuyCredits={uploadLimit === Infinity ? null : () => setBuyOpen(true)}
             />
+            <BuyCreditsModal open={buyOpen} onClose={() => setBuyOpen(false)} plan={plan} />
 
             <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4">
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
@@ -11889,7 +11971,7 @@ function FieldLabel({ children, hint }) {
 
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
-function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more", plan = null }) {
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more", plan = null, purchased = null, onBuyCredits = null }) {
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
@@ -11916,6 +11998,18 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       </div>
       {note && <p className="relative text-xs mt-2.5 leading-relaxed" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
       {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
+      {typeof purchased === "number" && purchased > 0 && (
+        <div className="relative mt-3 pt-3 flex items-baseline justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.22)" }}>
+          <span className="text-[11px] text-white/80">Purchased top-up</span>
+          <span className="text-sm font-semibold text-white tnum">+{purchased.toLocaleString()} left</span>
+        </div>
+      )}
+      {onBuyCredits && (
+        <>
+          <button onClick={onBuyCredits} className={`relative w-full rounded-xl text-sm font-semibold py-2.5 transition-colors ${showUpgrade ? "mt-2 bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "mt-3.5 bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
+          <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed">{purchased > 0 ? "Top-up credits are spent after this month's plan pool runs out." : "Top up beyond your plan. Used only after this month's pool runs out; never expire."}</p>
+        </>
+      )}
     </div>
   );
 }

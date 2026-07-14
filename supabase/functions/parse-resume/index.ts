@@ -138,22 +138,18 @@ Deno.serve(async (req) => {
     const companyId = prof?.company_id;
     if (!companyId) return json({ error: "no company for user" }, 403);
 
-    // Enforce the monthly parsing allowance before spending an AI call.
-    const { data: usageRows } = await admin.rpc("resume_parse_usage_for", { p_company: companyId });
-    const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows;
-    const parseLimit = (usage?.monthly_limit ?? null) as number | null; // null = unlimited
-    const parseUsed = (usage?.used ?? 0) as number;
-    if (parseLimit != null && parseUsed >= parseLimit) {
-      return json({ ok: false, error: "limit_reached", used: parseUsed, limit: parseLimit }, 200);
+    // Spend one screening credit before the AI call: the monthly plan pool first,
+    // then any purchased top-up balance (see migration 0086). This is atomic, so a
+    // busy upload can't overspend, and a file that reaches the AI parse is charged
+    // whatever the outcome (parsed, duplicate, or rejected), because the model was
+    // billed to read it. If BOTH pools are empty, nothing is consumed and we block.
+    // Fail-open on an RPC error so a counter hiccup never blocks a legitimate parse.
+    const { data: consumeRows, error: consumeErr } = await admin.rpc("consume_resume_screen_for", { p_company: companyId });
+    if (consumeErr) console.error("consume_resume_screen_for failed", consumeErr);
+    const consumed = Array.isArray(consumeRows) ? consumeRows[0] : consumeRows;
+    if (consumed && consumed.ok === false) {
+      return json({ ok: false, error: "limit_reached", used: consumed.monthly_used ?? 0, limit: consumed.monthly_limit ?? null }, 200);
     }
-
-    // Consume one credit up-front: any file that reaches the AI parse costs a
-    // credit whatever the outcome (parsed, duplicate, or rejected as
-    // not-a-resume / no-email), because the model was billed to read it. Only
-    // files blocked before the AI call (over-limit above, or non-PDF at the
-    // client) are free. Best-effort so a counter hiccup never blocks the parse.
-    try { await admin.rpc("bump_resume_parse_for", { p_company: companyId }); }
-    catch (e) { console.error("bump_resume_parse_for failed", e); }
 
     // Unreadable file: charged above, but there's nothing to parse. No AI call.
     if (unreadable) return json({ ok: false, error: "unreadable" }, 200);
