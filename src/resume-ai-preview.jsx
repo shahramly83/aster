@@ -16838,6 +16838,166 @@ function DangerZoneCard({ company }) {
   );
 }
 
+// WhatsApp Business, wired to the Meta Cloud API through the `whatsapp` edge
+// function. A company pastes its Cloud API Phone number ID + access token (from
+// Meta's API Setup screen); we validate them against the Graph API, store them
+// server-side, and can send the pre-approved hello_world template as a live test.
+// Gated to Elite. All the token handling lives server-side; this component only
+// ever sees connection status and send results.
+function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true }) {
+  const hasWhatsApp = planLimits(plan).whatsapp;
+  const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
+
+  const [loading, setLoading] = useState(hasWhatsApp && hasSupabase);
+  const [conn, setConn] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [pid, setPid] = useState("");
+  const [token, setToken] = useState("");
+  const [waba, setWaba] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [testTo, setTestTo] = useState("");
+  const [testBusy, setTestBusy] = useState(false);
+  const [testMsg, setTestMsg] = useState(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  // One entry point to the edge function. Validation failures come back as a 200
+  // with { ok:false, error }, so those land in `data`; auth/permission failures
+  // are real HTTP errors, whose JSON body we dig out of error.context.
+  const call = async (body) => {
+    if (!hasSupabase) return { error: "Connect a live workspace to use WhatsApp." };
+    const { data, error } = await supabase.functions.invoke("whatsapp", { body });
+    if (error) {
+      try { const d = await error.context.json(); if (d?.error) return { error: d.error }; } catch { /* ignore */ }
+      return { error: error.message || "Something went wrong." };
+    }
+    return data || {};
+  };
+
+  useEffect(() => {
+    let alive = true;
+    if (!hasWhatsApp || !hasSupabase) { setLoading(false); return; }
+    (async () => {
+      const d = await call({ action: "status" });
+      if (alive) { setConn(d?.error ? { connected: false } : d); setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [hasWhatsApp]);
+
+  const connect = async () => {
+    setBusy(true); setErr(null);
+    const d = await call({ action: "connect", phoneNumberId: pid, accessToken: token, wabaId: waba });
+    setBusy(false);
+    if (d.error || d.ok === false) { setErr(d.error || "Couldn't connect. Check the values and try again."); return; }
+    setConn({ connected: true, displayPhone: d.displayPhone, verifiedName: d.verifiedName });
+    setShowForm(false); setPid(""); setToken(""); setWaba("");
+  };
+
+  const sendTest = async () => {
+    setTestBusy(true); setTestMsg(null); setErr(null);
+    const d = await call({ action: "test", to: testTo });
+    setTestBusy(false);
+    if (d.error || d.ok === false) { setErr(d.error || "Test failed."); return; }
+    setTestMsg("Test message sent. Open WhatsApp on that number to confirm.");
+  };
+
+  const disconnect = async () => {
+    setDisconnecting(true); setErr(null);
+    const d = await call({ action: "disconnect" });
+    setDisconnecting(false);
+    if (d.error) { setErr(d.error); return; }
+    setConn({ connected: false }); setTestMsg(null); setShowForm(false);
+  };
+
+  const inputCls = "w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow";
+  const inputStyle = { borderColor: "var(--line-strong)", color: "var(--ink)" };
+
+  return (
+    <div className={cardClass}>
+      <div className="flex items-center gap-2 mb-1">
+        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
+        {!hasWhatsApp && <LockBadge label="Elite" />}
+      </div>
+      <p className="text-sm text-neutral-600 mb-4">
+        Send interview confirmations and reminders over WhatsApp using your own WhatsApp Business number. Messages are billed to your Meta account, not Aster.
+      </p>
+
+      {err && <p role="alert" className="text-xs mb-3 rounded-lg px-3 py-2" style={{ color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA" }}>{err}</p>}
+
+      {!hasWhatsApp ? (
+        <div className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+          <p className="text-sm" style={{ color: "var(--ink-2)" }}>WhatsApp automations are on <span className="font-semibold">Elite</span>.</p>
+          <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
+        </div>
+      ) : loading ? (
+        <p className="text-sm" style={{ color: "var(--ink-3)" }}>Checking connection…</p>
+      ) : conn?.connected ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
+            <div className="min-w-0">
+              <p className="text-sm font-medium" style={{ color: "#166534" }}>Connected{conn.displayPhone ? ` · ${conn.displayPhone}` : ""}</p>
+              <p className="text-xs" style={{ color: "#166534" }}>{conn.verifiedName ? `${conn.verifiedName} · ` : ""}Meta Cloud API</p>
+            </div>
+            {canManage && <button onClick={disconnect} disabled={disconnecting} className="text-xs text-neutral-500 hover:text-red-600 shrink-0 transition-colors disabled:opacity-50">{disconnecting ? "Disconnecting…" : "Disconnect"}</button>}
+          </div>
+
+          {canManage && (
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Send a test message</label>
+              <div className="flex items-center gap-2">
+                <input value={testTo} onChange={(e) => { setTestTo(e.target.value); setTestMsg(null); }} placeholder="60123456789 (with country code)" className={inputCls} style={inputStyle} />
+                <button onClick={sendTest} disabled={testBusy || !testTo.trim()} className="shrink-0 text-xs font-semibold rounded-xl brand-gradient hover:opacity-90 text-white px-4 py-2 transition-opacity disabled:opacity-50">{testBusy ? "Sending…" : "Send test"}</button>
+              </div>
+              {testMsg && <p className="text-xs mt-2" style={{ color: "#166534" }}>{testMsg}</p>}
+              <p className="text-[11px] text-neutral-400 mt-2">Sends the pre-approved <span className="font-mono">hello_world</span> template. In test mode, the number must be added as a recipient in your Meta app first.</p>
+            </div>
+          )}
+          <p className="text-xs text-neutral-400">Each message is billed straight to your Meta account. Aster doesn't charge per message.</p>
+        </div>
+      ) : !canManage ? (
+        <p className="text-sm" style={{ color: "var(--ink-3)" }}>WhatsApp isn't connected yet. Ask an owner or hiring manager to set it up.</p>
+      ) : showForm ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border p-3 text-xs leading-relaxed" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--ink-2)" }}>
+            In your <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer" className="font-medium underline" style={{ color: "var(--brand)" }}>Meta app</a> → WhatsApp → API Setup, copy the <span className="font-medium">Phone number ID</span> and a <span className="font-medium">temporary or permanent access token</span>. Paste them here.
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Phone number ID</label>
+            <input value={pid} onChange={(e) => { setPid(e.target.value); setErr(null); }} placeholder="123456789012345" className={inputCls} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Access token</label>
+            <input type="password" value={token} onChange={(e) => { setToken(e.target.value); setErr(null); }} placeholder="EAAG…" autoComplete="off" className={inputCls} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">WhatsApp Business Account ID <span className="text-neutral-400 font-normal">(optional)</span></label>
+            <input value={waba} onChange={(e) => setWaba(e.target.value)} placeholder="For your reference" className={inputCls} style={inputStyle} />
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={connect} disabled={busy || !pid.trim() || !token.trim()} className="text-sm font-semibold rounded-xl brand-gradient hover:opacity-90 text-white px-4 py-2 transition-opacity disabled:opacity-50">{busy ? "Connecting…" : "Connect"}</button>
+            <button onClick={() => { setShowForm(false); setErr(null); }} className="text-sm rounded-xl px-4 py-2 transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-3)" }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+            <p className="text-xs font-medium text-neutral-700 mb-1.5">Before you connect, you'll need:</p>
+            <ul className="space-y-1">
+              <li className="text-xs flex gap-2" style={{ color: "var(--ink-2)" }}><span style={{ color: "var(--brand)" }}>•</span> A Meta Business account with a WhatsApp app</li>
+              <li className="text-xs flex gap-2" style={{ color: "var(--ink-2)" }}><span style={{ color: "var(--brand)" }}>•</span> A phone number added in that app, <span className="font-medium">not</span> on the WhatsApp consumer app</li>
+              <li className="text-xs flex gap-2" style={{ color: "var(--ink-2)" }}><span style={{ color: "var(--brand)" }}>•</span> Its Phone number ID and an access token from API Setup</li>
+            </ul>
+          </div>
+          <button onClick={() => { setShowForm(true); setErr(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+            Connect WhatsApp Business
+          </button>
+          <p className="text-xs text-neutral-400 mt-2">Your number connects directly to Meta's Cloud API. Messages are billed to your own Meta account.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
   const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -16848,17 +17008,6 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   const NOTIF_DEFAULTS = { applicants: true, interviews: true, digest: true, product: false };
   const notifBase = { ...NOTIF_DEFAULTS, ...(profile?.notifications || {}) };
   const [dNotif, setDNotif] = useState(notifBase);
-
-  // WhatsApp Business, BSP-assisted connection. Included on Professional & up
-  // (not Starter). Self-contained (connecting an integration is an immediate
-  // action, separate from the Save/Cancel form).
-  const hasWhatsApp = planLimits(plan).whatsapp;
-  const [waStatus, setWaStatus] = useState("disconnected"); // disconnected | connecting | pending | connected
-  const [waTemplates, setWaTemplates] = useState({ confirmed: true, received: true, reminder: false });
-  const [waTested, setWaTested] = useState(false);
-  // No WhatsApp Business integration exists. Previously this reported "pending"
-  // forever, which read as "we're working on your request".
-  const connectWhatsApp = () => { setWaStatus("unavailable"); };
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
@@ -16903,96 +17052,8 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
         </button>
 
-        {/* WhatsApp Business (Pro, BSP-assisted, bring-your-own-number) */}
-        <div className={cardClass}>
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
-            {!hasWhatsApp && <LockBadge label="Elite" />}
-          </div>
-          <p className="text-sm text-neutral-600 mb-4">
-            Send interview confirmations and reminders over WhatsApp using your own WhatsApp Business number. Messages are billed to your Meta account, not Aster.
-          </p>
-
-          {!hasWhatsApp ? (
-            <div className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-                WhatsApp automations are on <span className="font-semibold">Elite</span>.
-              </p>
-              <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Upgrade</button>
-            </div>
-          ) : waStatus === "connected" ? (
-            <div className="space-y-3">
-              <div className="rounded-xl border p-3 flex items-center justify-between gap-3" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: "#166534" }}>Connected as +60 12-••• ••89</p>
-                  <p className="text-xs" style={{ color: "#166534" }}>Business verified ✓ · via messaging partner</p>
-                </div>
-                <button onClick={() => { setWaStatus("disconnected"); setWaTested(false); }} className="text-xs text-neutral-500 hover:text-red-600 shrink-0 transition-colors">Disconnect</button>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-neutral-600 mb-2">Message templates</p>
-                <div className="space-y-1.5">
-                  {[
-                    ["confirmed", "Interview confirmed", "Sent when a candidate books a time"],
-                    ["received", "Application received", "Sent when someone applies"],
-                    ["reminder", "Interview reminder, 24h before", "Auto-reminder the day before"],
-                  ].map(([key, name, desc]) => (
-                    <label key={key} className="flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer" style={{ borderColor: "var(--line)" }}>
-                      <input type="checkbox" checked={waTemplates[key]} onChange={(e) => setWaTemplates((t) => ({ ...t, [key]: e.target.checked }))} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-900">{name}</p>
-                        <p className="text-xs text-neutral-500">{desc}</p>
-                      </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button onClick={() => setWaTested(true)} className="text-xs rounded-xl border px-3 py-1.5 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
-                  Send test message
-                </button>
-                {waTested && <span className="text-xs" style={{ color: "#166534" }}>Test message sent to your number ✓</span>}
-              </div>
-              <p className="text-xs text-neutral-400">Each message is billed to your Meta/WhatsApp account by our messaging partner. Aster doesn't charge per message.</p>
-            </div>
-          ) : waStatus === "pending" ? (
-            <div className="rounded-xl border p-4" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
-              <p className="text-sm font-medium mb-1" style={{ color: "#92400E" }}>Verification pending</p>
-              <p className="text-xs mb-3" style={{ color: "#92400E" }}>
-                Your number is registered with our messaging partner. Meta is verifying your business. This usually takes a few hours. We'll email you when it's live.
-              </p>
-              <button onClick={() => setWaStatus("connected")} className="text-xs rounded-lg brand-gradient hover:opacity-90 text-white px-3 py-1.5 transition-colors">
-                Simulate approval (preview)
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <p className="text-xs font-medium text-neutral-700 mb-1.5">Before you connect, you'll need:</p>
-                <ul className="space-y-1">
-                  <li className="text-xs flex gap-2" style={{ color: "var(--ink-2)" }}><span style={{ color: "var(--brand)" }}>•</span> A Meta Business account</li>
-                  <li className="text-xs flex gap-2" style={{ color: "var(--ink-2)" }}><span style={{ color: "var(--brand)" }}>•</span> A phone number <span className="font-medium">not</span> currently on the WhatsApp app</li>
-                </ul>
-              </div>
-              <button
-                onClick={connectWhatsApp}
-                className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50"
-                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
-              >
-                Connect WhatsApp Business
-              </button>
-              {waStatus === "unavailable" && (
-                <p role="status" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A" }}>
-                  WhatsApp reminders aren't available yet. We'll email you when they ship.
-                </p>
-              )}
-              <p className="text-xs text-neutral-400 mt-2">We set you up through our WhatsApp messaging partner. No Meta dashboard wrangling. Messages are billed to your own Meta account.</p>
-            </div>
-          )}
-        </div>
+        {/* WhatsApp Business (Elite) — real Meta Cloud API connection */}
+        <WhatsAppBusinessCard plan={plan} navigate={navigate} canManage={!isInterviewer(profile?.role)} />
 
         {/* Email notifications (moved from Profile). Named explicitly so it's not
             confused with the top-bar activity bell. */}
