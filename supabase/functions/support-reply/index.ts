@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
         bodyHtml: `
           <p style="margin:0 0 14px;">Hi ${esc(firstName)},</p>
           ${paragraphs(message)}
-          <p style="margin:16px 0 0;color:#8B8699;font-size:13px;">Regarding request <strong style="color:#4A4560;">${esc(ticket.id)}</strong>${cleanSubject ? ` — ${esc(cleanSubject)}` : ""}. Reply to this email to continue the conversation.</p>`,
+          <p style="margin:16px 0 0;color:#8B8699;font-size:13px;">Regarding request <strong style="color:#4A4560;">${esc(ticket.id)}</strong>${cleanSubject ? `, ${esc(cleanSubject)}` : ""}. Reply to this email to continue the conversation.</p>`,
         footnote: `${esc(adminRow.full_name || "Aster support")} · Aster support team`,
       }),
     });

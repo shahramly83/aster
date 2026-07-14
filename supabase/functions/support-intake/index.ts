@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
           subject: `We got your request (${id})`,
           replyTo: "support@hireaster.com",
           html: emailShell({
-            heading: "Thanks — we're on it",
+            heading: "Thanks, we're on it",
             preview: `Your support request ${id} has been logged.`,
             bodyHtml: `
               <p style="margin:0 0 14px;">Hi ${esc(firstName)},</p>

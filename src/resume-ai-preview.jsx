@@ -1131,9 +1131,6 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
               <a href={`https://${APEX_ROOT}/login`} className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl brand-gradient text-white text-sm font-semibold px-5 py-2.5 hover:opacity-95 transition-opacity">Go to {APEX_ROOT}/login</a>
             </div>
           ) : (<>
-          {wsBrand?.logoUrl && (
-            <img src={wsBrand.logoUrl} alt={wsBrand.name ? `${wsBrand.name} logo` : "Workspace logo"} className="h-9 object-contain mb-4" style={{ maxWidth: 180 }} />
-          )}
           <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Welcome back</h1>
           <p className="text-sm mt-1.5 mb-6" style={{ color: "var(--ink-2)" }}>{wsBrand?.name ? <>Sign in to <span className="font-semibold" style={{ color: "var(--ink)" }}>{wsBrand.name}</span>.</> : "Sign in to your Aster workspace."}</p>
 
@@ -16043,8 +16040,8 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           <p className="text-xs text-neutral-500 mt-2.5">Shows in the sidebar, on the login screen, and in the mobile header. Wide (landscape) logos work best.</p>
 
           <div className="mt-5">
-            <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
-            <input value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Your company" className={inputClass} />
+            <label htmlFor="pf-company" className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
+            <input id="pf-company" value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Your company" className={inputClass} />
             <p className="text-xs text-neutral-500 mt-1.5">Collected at sign-up and shown across your workspace.</p>
           </div>
 
@@ -16057,28 +16054,28 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           <SectionHead icon="card" title="Billing details" desc="Used on your invoices and receipts. Keep this up to date for accurate billing." />
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Street address</label>
-              <input value={dAddr.street} onChange={(e) => setAddr({ street: e.target.value })} placeholder="Unit / building, street" autoComplete="street-address" className={inputClass} />
+              <label htmlFor="pf-street" className={labelClass} style={{ color: "var(--ink-2)" }}>Street address</label>
+              <input id="pf-street" value={dAddr.street} onChange={(e) => setAddr({ street: e.target.value })} placeholder="Unit / building, street" autoComplete="street-address" className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>City</label>
-              <input value={dAddr.city} onChange={(e) => setAddr({ city: e.target.value })} placeholder="Kuala Lumpur" autoComplete="address-level2" className={inputClass} />
+              <label htmlFor="pf-city" className={labelClass} style={{ color: "var(--ink-2)" }}>City</label>
+              <input id="pf-city" value={dAddr.city} onChange={(e) => setAddr({ city: e.target.value })} placeholder="Kuala Lumpur" autoComplete="address-level2" className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>State / Province</label>
-              <input value={dAddr.state} onChange={(e) => setAddr({ state: e.target.value })} placeholder="Selangor" autoComplete="address-level1" className={inputClass} />
+              <label htmlFor="pf-state" className={labelClass} style={{ color: "var(--ink-2)" }}>State / Province</label>
+              <input id="pf-state" value={dAddr.state} onChange={(e) => setAddr({ state: e.target.value })} placeholder="Selangor" autoComplete="address-level1" className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Postcode</label>
-              <input value={dAddr.postcode} onChange={(e) => setAddr({ postcode: e.target.value })} placeholder="50450" autoComplete="postal-code" className={inputClass} />
+              <label htmlFor="pf-postcode" className={labelClass} style={{ color: "var(--ink-2)" }}>Postcode</label>
+              <input id="pf-postcode" value={dAddr.postcode} onChange={(e) => setAddr({ postcode: e.target.value })} placeholder="50450" autoComplete="postal-code" className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Country</label>
-              <input value={dAddr.country} onChange={(e) => setAddr({ country: e.target.value })} placeholder="Malaysia" autoComplete="country-name" className={inputClass} />
+              <label htmlFor="pf-country" className={labelClass} style={{ color: "var(--ink-2)" }}>Country</label>
+              <input id="pf-country" value={dAddr.country} onChange={(e) => setAddr({ country: e.target.value })} placeholder="Malaysia" autoComplete="country-name" className={inputClass} />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Company registration no.</label>
-              <input value={dRegNo} onChange={(e) => { setDRegNo(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="e.g. 202301012345 (1234567-A)" className={inputClass} />
+              <label htmlFor="pf-regno" className={labelClass} style={{ color: "var(--ink-2)" }}>Company registration no.</label>
+              <input id="pf-regno" value={dRegNo} onChange={(e) => { setDRegNo(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="e.g. 202301012345 (1234567-A)" className={inputClass} />
             </div>
           </div>
         </div>
@@ -16106,12 +16103,12 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>First name</label>
-              <input value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Jane" className={inputClass} />
+              <label htmlFor="pf-first" className={labelClass} style={{ color: "var(--ink-2)" }}>First name</label>
+              <input id="pf-first" value={dFirst} onChange={(e) => { setDFirst(e.target.value); setSavedMsg(null); }} placeholder="Jane" className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Last name</label>
-              <input value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Tan" className={inputClass} />
+              <label htmlFor="pf-last" className={labelClass} style={{ color: "var(--ink-2)" }}>Last name</label>
+              <input id="pf-last" value={dLast} onChange={(e) => { setDLast(e.target.value); setSavedMsg(null); }} placeholder="Tan" className={inputClass} />
             </div>
             <div>
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Role</label>
@@ -16124,8 +16121,8 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
               <p className="text-xs text-neutral-500 mt-1.5">This is your workspace account. Add teammates as hiring managers or interviewers on the <button type="button" onClick={() => navigate("interviewers")} className="font-medium hover:underline" style={{ color: "var(--brand)" }}>Team</button> page.</p>
             </div>
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
-              <input type="tel" value={dPhone} onChange={(e) => { setDPhone(e.target.value); setSavedMsg(null); }} placeholder="+60 12 345 6789" autoComplete="tel" className={inputClass} />
+              <label htmlFor="pf-phone" className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
+              <input id="pf-phone" type="tel" value={dPhone} onChange={(e) => { setDPhone(e.target.value); setSavedMsg(null); }} placeholder="+60 12 345 6789" autoComplete="tel" className={inputClass} />
             </div>
             <div className="sm:col-span-2">
               <label className={labelClass} style={{ color: "var(--ink-2)" }}>Email</label>
