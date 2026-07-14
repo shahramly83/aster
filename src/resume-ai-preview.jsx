@@ -16410,7 +16410,17 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
     setDLogoFile(f);
     const r = new FileReader(); r.onload = () => setDLogo(r.result); r.readAsDataURL(f);
   };
-  const handleAvatarChange = (e) => { const f = e.target.files?.[0]; if (!f) return; setDAvatarFile(f); const r = new FileReader(); r.onload = () => { setDAvatar(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
+  const handleAvatarChange = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (e.target) e.target.value = "";                    // allow re-picking the same file
+    setSavedMsg(null);
+    // Same smart-crop as the logo: trims blank margins so the subject fills the
+    // frame. A full-frame photo has nothing to trim, so it falls back to the original.
+    const trimmed = await smartTrimImage(f).catch(() => null);
+    if (trimmed?.file && trimmed?.dataUrl) { setDAvatarFile(trimmed.file); setDAvatar(trimmed.dataUrl); return; }
+    setDAvatarFile(f);
+    const r = new FileReader(); r.onload = () => setDAvatar(r.result); r.readAsDataURL(f);
+  };
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setSaveErr(null);
