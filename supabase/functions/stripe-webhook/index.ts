@@ -21,6 +21,21 @@ const json = (b: unknown, s = 200) =>
 // stale checkout session created before 0040 must not poison the enum.
 const PLAN_TIERS = new Set(["launch", "scale", "elite", "enterprise"]);
 
+// Display name -> ISO-2, so a billing address edited in Stripe's portal (which
+// returns "MY") can be written back without overwriting the "Malaysia" the
+// profile shows. Kept in step with the map in sync-billing-customer, which does
+// the same translation in the other direction.
+const ISO2: Record<string, string> = {
+  "malaysia": "MY", "singapore": "SG", "indonesia": "ID", "thailand": "TH",
+  "philippines": "PH", "vietnam": "VN", "brunei": "BN", "india": "IN",
+  "australia": "AU", "new zealand": "NZ", "united kingdom": "GB", "uk": "GB",
+  "united states": "US", "united states of america": "US", "usa": "US",
+  "canada": "CA", "hong kong": "HK", "japan": "JP", "south korea": "KR",
+  "china": "CN", "taiwan": "TW", "united arab emirates": "AE", "uae": "AE",
+  "saudi arabia": "SA", "germany": "DE", "france": "FR", "netherlands": "NL",
+  "ireland": "IE", "spain": "ES", "italy": "IT",
+};
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
@@ -65,6 +80,7 @@ Deno.serve(async (req) => {
   let periodEnd: string | null = null;
   let stripeSubId: string | null = null;
   let stripeCustId: string | null = null;
+  let custUpdated = false;
 
   const meta = obj.metadata || {};
 
@@ -94,6 +110,12 @@ Deno.serve(async (req) => {
     stripeSubId = obj.subscription || null;
     stripeCustId = obj.customer || null;
     status = "past_due";
+  } else if (type === "customer.updated") {
+    // The customer edited their billing address in Stripe's portal. Without this
+    // the sync is one-way: Stripe would hold the new address and the Aster profile
+    // would still show the old one, with nothing to say which is right.
+    stripeCustId = obj.id || null;
+    custUpdated = true;
   } else {
     return json({ ok: true, ignored: type });
   }
@@ -112,6 +134,32 @@ Deno.serve(async (req) => {
   // A genuinely orphaned event just retries for 3 days and is then dropped by
   // Stripe, which is the correct end state and is logged either way.
   if (!companyId) { console.error("no company for event", { type, stripeSubId, stripeCustId }); return await fail("no company for event"); }
+
+  // ---- Billing address edited in Stripe's portal: mirror it into the profile. ----
+  // This does not touch the subscription, so it returns before that write.
+  if (custUpdated) {
+    const a = obj.address || null;
+    if (a?.line1) {
+      const { data: co } = await admin
+        .from("companies").select("address_country").eq("id", companyId).maybeSingle();
+      // Stripe stores the country as ISO-2 but the profile shows a display name.
+      // Writing "MY" straight back would turn "Malaysia" into "MY" on the profile,
+      // so keep the name we already have whenever it means the same country.
+      const same = ISO2[String(co?.address_country || "").toLowerCase()] === a.country;
+      const country = same ? co!.address_country : (a.country || co?.address_country || null);
+      await admin.from("companies").update({
+        address_street: a.line1,
+        address_city: a.city || null,
+        address_state: a.state || null,
+        address_postcode: a.postal_code || null,
+        address_country: country,
+      }).eq("id", companyId);
+    }
+    // The values we just wrote are the ones Stripe already holds, and Aster only
+    // pushes to Stripe on a profile save, so this cannot bounce back and loop.
+    await release();
+    return json({ ok: true, company_id: companyId, billing_address: "synced" });
+  }
 
   const planEnum = planKey && PLAN_TIERS.has(planKey) ? planKey : null;
 

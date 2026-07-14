@@ -24,6 +24,8 @@ const EVENTS = [
   "customer.subscription.deleted",
   "invoice.paid",
   "invoice.payment_failed",
+  // Billing address edited in Stripe's portal, mirrored back onto the profile.
+  "customer.updated",
 ];
 
 const api = async (path, body, method = "POST") => {
