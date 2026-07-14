@@ -15574,8 +15574,9 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
           </div>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 items-start">
         {/* Payment method, invoices and cancellation, all handled by Stripe */}
-        <div className={`${cardClass} mb-4`}>
+        <div className={`${cardClass} lg:col-span-2`}>
           <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Payment &amp; invoices</h2>
           {hasStripeCustomer ? (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -15668,7 +15669,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
         </div>
 
         {/* Billed to — company details that appear on invoices */}
-        <div className={`${cardClass} mb-4`}>
+        <div className={`${cardClass} lg:col-span-1`}>
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Billed to</h2>
             <button onClick={() => navigate("profile")} className="text-xs rounded-xl border px-3 py-1.5 shrink-0 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Edit</button>
@@ -15682,6 +15683,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
             <p className="text-xs text-neutral-500 mt-2">Add your company address and registration number in Profile so they appear on every invoice.</p>
           )}
           <p className="text-xs text-neutral-400 mt-3">Any applicable taxes are calculated at checkout and itemised on your Stripe invoice.</p>
+        </div>
         </div>
 
 
