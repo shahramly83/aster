@@ -16219,7 +16219,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
 
   const inputClass = "w-full rounded-xl bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
   const labelClass = "block text-xs font-medium mb-1.5";
-  const cardClass = "rounded-2xl bg-white act-shadow p-5 sm:p-6 border border-[color:var(--line)]";
+  const cardClass = "rounded-2xl bg-[#F4F5F7] p-5 sm:p-6 border border-[color:var(--line)]";
   // Lighter, secondary upload action so the sticky "Save changes" stays the one primary CTA.
   const uploadBtnClass = "text-sm rounded-xl border px-4 py-2 font-medium cursor-pointer inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--brand-soft)]";
   const uploadBtnStyle = { borderColor: "var(--line-strong)", color: "var(--brand)" };
