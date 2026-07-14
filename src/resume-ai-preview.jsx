@@ -8864,7 +8864,7 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, company = "Your workspace" }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   // "Upcoming" excludes interviews whose slot has already passed: once the time
@@ -9196,7 +9196,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 {(() => {
                   const L = planLimits(plan);
                   const items = [
-                    { label: "AI Parsing credits", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
+                    // Two separate pools: what applicants spend, and what bulk CV
+                    // uploads spend. They were one counter, so a busy job advert
+                    // silently used up the customer's upload allowance.
+                    { label: "Applicant parses", used: applicantParseUsage.used, limit: applicantParseUsage.limit ?? L.parseApplicant },
+                    { label: "Bulk upload parses", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
                     { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
                     { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
                   ];
@@ -19996,6 +20000,8 @@ export default function ResumeAIPreview() {
   const jobPostUsage = { used: openJobsCount, limit: jobLimit, resetsAt: null };
   // AI Parsing (bulk upload) credits for the current 30-day cycle.
   const [parseUsage, setParseUsage] = useState({ used: 0, limit: null, resetsAt: null });
+  // Applicant parses are a separate allowance from bulk upload, metered separately.
+  const [applicantParseUsage, setApplicantParseUsage] = useState({ used: 0, limit: null, resetsAt: null });
   // Persistent "Recent imports" log (loaded from import_runs on hydrate).
   const [importHistory, setImportHistory] = useState([]);
   // Save a finished bulk-import run: optimistic prepend, then persist + reconcile id.
@@ -20378,6 +20384,13 @@ export default function ResumeAIPreview() {
         const row = Array.isArray(data) ? data?.[0] : data;
         if (row) setParseUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
       }).catch((e) => console.error("get_resume_parse_usage threw:", e));
+      // Applicant parses (public job applications) for this cycle. A separate pool
+      // from bulk upload above, and the one the pricing page actually sells.
+      supabase.rpc("get_applicant_parse_usage").then(({ data, error }) => {
+        if (error) { console.error("get_applicant_parse_usage failed:", error.message || error); return; }
+        const row = Array.isArray(data) ? data?.[0] : data;
+        if (row) setApplicantParseUsage({ used: Number(row.used) || 0, limit: row.monthly_limit ?? null, resetsAt: row.resets_at || null });
+      }).catch((e) => console.error("get_applicant_parse_usage threw:", e));
       // Persistent "Recent imports" history for the Bulk Upload screen.
       // Skip on a post-import refresh: the just-finished run was already added
       // optimistically + persisted, so reloading here would race it and wipe it.
@@ -21203,6 +21216,7 @@ export default function ResumeAIPreview() {
             hiredIds={hiredIds}
             avatarUrl={avatarUrl}
             parseUsage={parseUsage}
+            applicantParseUsage={applicantParseUsage}
             matchRunsUsed={matchRunsUsed}
             aiInsightsUsed={aiInsightsUsed}
             company={company}

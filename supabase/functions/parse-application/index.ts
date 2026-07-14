@@ -146,6 +146,29 @@ Deno.serve(async (req) => {
     }
     const companyId = job.company_id;
 
+    // --- Applicant parse budget -------------------------------------------------
+    // Public applications spend the APPLICANT pool (100/500/1000), which is what
+    // the pricing page sells. They used to spend the bulk-upload pool instead, and
+    // nothing ever checked a limit, so the allowance we charge for enforced nothing
+    // while applicants quietly ate the customer's CV upload budget.
+    //
+    // Out of credits does NOT reject the candidate. Their application is still
+    // filed and their original CV still stored: a company's billing state is not
+    // the applicant's problem, and silently dropping a real person's application
+    // would be the worst possible failure here. We just skip the AI parse (which is
+    // the part that costs money), file them unparsed, and let the company parse
+    // them after upgrading.
+    let overLimit = false;
+    try {
+      const { data: usageRows } = await admin.rpc("applicant_parse_usage_for", { p_company: companyId });
+      const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows;
+      const limit = (usage?.monthly_limit ?? null) as number | null;  // null = unlimited
+      if (limit !== null && (usage?.used ?? 0) >= limit) overLimit = true;
+    } catch (e) {
+      // Never turn a metering hiccup into a lost application: let it through.
+      console.error("applicant parse usage lookup failed", e);
+    }
+
     // Describe the target role for the fit check (empty when the job has no
     // skills/seniority set, in which case everyone is treated as a fit).
     const d = (job.details || {}) as any;
@@ -163,7 +186,9 @@ Deno.serve(async (req) => {
     // --- Parse the PDF with Claude ---
     // Accept the key under either secret name so an existing "aster" secret works.
     let parsed: Record<string, unknown> = {};
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
+    // Out of applicant credits: skip the parse entirely. Nothing below this point
+    // needs the model, and the whole point of the meter is to stop the spend.
+    const apiKey = overLimit ? null : (Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster"));
     if (apiKey) {
       // Word resumes come in as already-extracted text (no binary to send);
       // PDFs are handed to Claude as a document block so it reads them natively.
@@ -279,7 +304,9 @@ Deno.serve(async (req) => {
       years_experience: (parsed.years_of_experience as number) ?? null,
       skills: parsed.skills,
       file_name: filename ?? null,
-      status: "parsed",
+      // Unparsed = filed, CV stored, but never read by the AI because the company
+      // was out of applicant credits. The company can parse them once they upgrade.
+      status: overLimit ? "unparsed" : "parsed",
       has_photo: false,
       parsed,
     };
@@ -348,9 +375,15 @@ Deno.serve(async (req) => {
       await admin.from("applications").update({ fit, source: (source || "Career Page") }).eq("id", app.id);
     }
 
-    // Every processed application spends one parse credit — including Other
+    // Every parsed application spends one APPLICANT credit — including Other
     // Applicants — because the resume was read and stored for the talent pool.
-    try { await admin.rpc("bump_resume_parse_for", { p_company: companyId }); } catch (e) { console.error("parse charge failed", e); }
+    // It used to charge the bulk-upload pool, which is a different allowance the
+    // customer buys for a different thing. Nothing is charged when we were over the
+    // limit and skipped the parse: we did not do the work, so we do not bill for it.
+    if (!overLimit) {
+      try { await admin.rpc("bump_applicant_parse_for", { p_company: companyId }); }
+      catch (e) { console.error("applicant parse charge failed", e); }
+    }
 
     // --- Lifecycle email on a first-time application (best-effort) ---
     // Only on a first-time application and only if Resend is configured; both
