@@ -71,8 +71,11 @@ for (const fn of ["create-checkout-session", "list-invoices", "stripe-webhook"])
 }
 
 console.log("\n== 5. Webhook signature ==");
+// A fresh id every run. Reusing one meant the SECOND run was rejected as a
+// duplicate by the idempotency guard, which looked like a failure but was the
+// guard doing its job. Replay is tested deliberately below, with a stale timestamp.
 const evt = JSON.stringify({
-  id: "evt_forged_001", type: "customer.subscription.updated",
+  id: `evt_forged_${Date.now()}`, type: "customer.subscription.updated",
   data: { object: { id: "sub_fake", status: "active", metadata: { company_id: "00000000-0000-0000-0000-000000000000", plan: "elite" }, items: { data: [{ current_period_end: 9999999999 }] } } },
 });
 const hook = async (headers, body = evt) => {
