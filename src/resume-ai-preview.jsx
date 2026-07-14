@@ -19116,7 +19116,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // are anchored (absolute) beside their action buttons and scroll with them.
   const workflowRail = !isInterviewer(profile?.role) ? (
     <div className="space-y-4">
-      {!onOtherTab && (
+      {!onOtherTab && applicantTab !== "hired" && (
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4">
           <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
             Rank these applicants with AI
@@ -19163,7 +19163,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           </div>
         </div>
       )}
-      {job && (
+      {job && applicantTab !== "hired" && (
         <JobInterviewersPanel
           jobId={activeJobId}
           team={interviewers}
