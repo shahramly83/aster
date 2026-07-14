@@ -3,6 +3,133 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "how-to-run-an-interview-debrief-that-doesnt-turn-into-groupthink",
+    "title": "How to run an interview debrief that doesn't turn into groupthink",
+    "category": "interviewing",
+    "excerpt": "The debrief is where a good hiring process quietly falls apart. Here's how to collect scores first, argue the evidence, and reach a decision you can defend.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-07-14",
+    "readMins": 6,
+    "tags": [
+      "debrief",
+      "hiring decisions",
+      "structured interviews",
+      "scorecards"
+    ],
+    "body": [
+      {
+        "p": "You've run four solid interviews. Everyone took notes, everyone has an opinion, and now you're in a room (or a video call) trying to decide whether to make an offer. This meeting, the debrief, is where most of the value in a structured process is won or lost."
+      },
+      {
+        "p": "It's also where the process is most fragile. The first person to speak sets the tone. The most senior voice bends the room. A vague \"I liked them\" hardens into consensus before anyone has looked at the actual evidence. A debrief that turns into groupthink doesn't just make worse decisions, it makes you feel confident about them, which is worse."
+      },
+      {
+        "h": "Collect scores before anyone talks"
+      },
+      {
+        "p": "The single highest-leverage rule for a debrief: **every interviewer submits their scores and recommendation before the meeting starts, and before they see anyone else's.**"
+      },
+      {
+        "p": "When people share opinions out loud first, they anchor on each other. Someone hears the hiring manager lean yes and quietly revises their own hesitation into a maybe. You lose the independent signal that made multiple interviewers worthwhile in the first place. Independent judgments, gathered separately and then compared, are the whole point of having a panel."
+      },
+      {
+        "p": "Practically, this means each interviewer writes down, on their own:"
+      },
+      {
+        "ul": [
+          "A score per competency they were assigned (not a single gut number for the whole person)",
+          "A clear recommendation: strong yes, yes, no, strong no. Ban \"maybe\" as a final answer.",
+          "The specific evidence behind each score: what the candidate said or did, not how they made you feel"
+        ]
+      },
+      {
+        "quote": "Independent judgments, gathered separately and then compared, are the whole point of having a panel."
+      },
+      {
+        "h": "Open by surfacing disagreement, not hiding it"
+      },
+      {
+        "p": "Start the meeting by putting all the scores on one screen. If everyone landed in the same place, great, you can move fast. But the interesting debriefs are the split ones, and a split is a feature, not a problem to smooth over."
+      },
+      {
+        "p": "When two people saw the same candidate and reached opposite conclusions, one of three things is true: they weighted different competencies, they saw genuinely different behavior in different interviews, or one of them misread the signal. All three are worth ten minutes of discussion. None of them are resolved by averaging the scores and moving on."
+      },
+      {
+        "p": "Have the strong-no and the strong-yes each walk through their evidence. Not their impression, their evidence. \"He couldn't explain why he chose that database\" is evidence. \"He seemed junior\" is not."
+      },
+      {
+        "h": "Assign competencies so you're not all grading the same thing"
+      },
+      {
+        "p": "A common failure: four interviewers all form a general impression of the candidate and then compare general impressions. You end up with four noisy copies of the same signal and blind spots on everything nobody was watching for."
+      },
+      {
+        "p": "Instead, split the competencies before the interviews. One person probes system design, another digs into collaboration, another owns the practical coding or role-specific task. In the debrief, the person who owned a competency leads on it. Their score carries the most weight there, because they went deepest. This also kills a subtle bias: the tendency to over-index on whoever is most confident rather than whoever actually tested the thing."
+      },
+      {
+        "note": "Decide who owns which competency before the interviews, not after. If nobody was assigned to assess a must-have skill, that's a gap in your loop, and the debrief is where you'll notice it, too late.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Name the biases out loud"
+      },
+      {
+        "p": "You don't need a psychology degree to catch the common distortions. You need to say them out loud when they show up:"
+      },
+      {
+        "ul": [
+          "**Halo effect:** one impressive answer makes everything else sound better. \"She was great at the design question\" quietly becomes \"she'll be great at everything.\"",
+          "**Similarity bias:** we rate people who remind us of ourselves higher. Watch for \"good culture fit\" doing the work of \"reminds me of me.\"",
+          "**Recency:** the last interview of the day looms larger than the first. The scores were written down for exactly this reason.",
+          "**Confirmation:** once someone decides yes, they collect reasons to stay yes and discount the rest."
+        ]
+      },
+      {
+        "p": "A useful habit is to appoint one person as the skeptic for the meeting, rotating each time. Their job is to argue the other side, especially when the room is coasting toward easy agreement. It gives people permission to voice doubt without looking like the difficult one."
+      },
+      {
+        "h": "Tie every point back to the role, not the person"
+      },
+      {
+        "p": "The question is never \"do we like this candidate.\" It's \"can this person do this job, at the level we need, better than the realistic alternatives.\" Keep pulling the conversation back to the scorecard you agreed on at the intake meeting. If a concern doesn't map to a competency the job requires, ask whether it should count at all."
+      },
+      {
+        "p": "This is also where honest calibration matters. \"Strong yes\" should mean something. If a person marks every candidate a yes, their yes carries no information. Talk about your bar as a team, using real past hires as reference points, so the words mean the same thing to everyone."
+      },
+      {
+        "h": "Where AI helps, and where it doesn't"
+      },
+      {
+        "p": "AI is genuinely useful earlier in the funnel: reading every resume, ranking applicants against the role, and getting you to a shortlist in an afternoon instead of two weeks. It's good at the volume work that humans do slowly and inconsistently. **Aster** does exactly that, so your team spends its energy on the candidates worth interviewing."
+      },
+      {
+        "p": "The debrief is different. A hiring decision is a judgment about a specific person doing a specific job with specific people, and it should be owned by the humans who will work with them. Use AI to make sure your notes and scores are captured cleanly and in one place, so nobody is reconstructing an interview from memory a week later. Don't outsource the decision itself. A match score is a starting point for a conversation, not a verdict."
+      },
+      {
+        "h": "End with a decision and a reason"
+      },
+      {
+        "p": "Every debrief should close with a clear outcome and a written reason:"
+      },
+      {
+        "ul": [
+          "Offer, and at what level",
+          "Pass, and the specific gap that drove it",
+          "Hold for another conversation, with the exact question that conversation needs to answer"
+        ]
+      },
+      {
+        "p": "Write it down. Six months from now, when you're reviewing what worked, \"we passed because he couldn't give a concrete example of leading through conflict\" is something you can learn from. \"Vibe was off\" is not."
+      },
+      {
+        "p": "A good debrief feels a little uncomfortable. People disagree, evidence gets challenged, and the easy consensus gets slowed down. That friction is the process working. The goal isn't a room that agrees quickly. It's a decision you'd still stand behind after the person has been on the team for a year."
+      }
+    ]
+  },
+  {
     "slug": "the-intake-meeting-that-makes-the-rest-of-the-hire-easier",
     "title": "The intake meeting that makes the rest of the hire easier",
     "category": "recruiting-ops",
