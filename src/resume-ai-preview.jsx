@@ -15534,38 +15534,60 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               })}
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3 items-stretch">
             {PLANS.filter((p) => p.key !== "enterprise").map((p) => {
               const cycleMatters = p.key !== "enterprise";
               // On a trial nothing is "current" yet: every tier stays buyable,
               // including the Scale tier the trial itself grants.
               const isCurrent = !onTrial && p.key === plan && (!cycleMatters || cycle === planCycle);
+              const isSwitch = !isCurrent && p.key === plan && cycleMatters;   // same tier, other cadence
+              const isDowngrade = !isCurrent && !isSwitch && rank[p.key] < rank[plan];
+              const highlight = p.popular && !isCurrent;   // draw the eye to the recommended tier
+              const label = isCurrent ? "Current plan"
+                : onTrial ? "Subscribe"
+                : isSwitch ? (cycle === "yearly" ? "Switch to yearly" : "Switch to monthly")
+                : isDowngrade ? "Downgrade"
+                : "Upgrade";
+              // Primary (solid) only for a real step up. Downgrade / cadence-switch
+              // are secondary so a step down never out-shouts an upgrade.
+              const solid = !isCurrent && !isSwitch && !isDowngrade;
               return (
                 <div
                   key={p.key}
-                  className="rounded-xl border p-4 flex flex-col"
+                  className="relative rounded-2xl border p-5 flex flex-col transition-shadow"
                   style={{
-                    borderColor: isCurrent ? "var(--brand)" : "var(--line)",
+                    borderColor: isCurrent ? "var(--brand)" : highlight ? "#C7D2FE" : "var(--line)",
                     background: isCurrent ? "var(--brand-soft)" : "#fff",
+                    boxShadow: isCurrent
+                      ? "0 1px 2px rgba(18,19,42,0.04)"
+                      : highlight
+                        ? "0 18px 40px -24px rgba(var(--brand-rgb),0.45)"
+                        : "0 1px 2px rgba(18,19,42,0.04)",
+                    ...(isCurrent || highlight ? { outline: `1px solid ${isCurrent ? "var(--brand)" : "#C7D2FE"}`, outlineOffset: "-2px" } : {}),
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold text-neutral-900">{p.name}</p>
-                    {p.popular && !isCurrent && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-semibold">Popular</span>
-                    )}
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <p className="font-semibold font-display text-[15px]" style={{ color: "var(--ink)" }}>{p.name}</p>
+                    {isCurrent
+                      ? <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand)", color: "#fff" }}>Current</span>
+                      : highlight
+                        ? <span className="text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Most popular</span>
+                        : null}
                   </div>
-                  <p className="text-lg font-bold text-neutral-900 font-display leading-tight tnum">{p.price}</p>
-                  {p.cadence && <p className="text-xs text-neutral-500">{p.cadence}</p>}
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-bold font-display leading-none tnum" style={{ color: "var(--ink)" }}>{p.price}</span>
+                  </div>
+                  {p.cadence && <p className="text-xs text-neutral-500 mt-1.5">{p.cadence}</p>}
                   {cycleMatters && cycle === "yearly" && yearlySaving(p.key) != null && (
-                    <p className="text-[11px] font-medium mb-2" style={{ color: "#166534" }}>save {yearlySaving(p.key)}% billed yearly</p>
+                    <span className="inline-flex w-fit items-center gap-1 text-[11px] font-semibold mt-2 px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Save {yearlySaving(p.key)}% yearly</span>
                   )}
-                  <p className="text-xs text-neutral-500 mb-3 mt-1">{p.blurb}</p>
-                  <ul className="space-y-2 mb-4 flex-1">
+                  <p className="text-xs text-neutral-500 mt-3">{p.blurb}</p>
+                  <div className="h-px my-4" style={{ background: "var(--line)" }} />
+                  <ul className="space-y-2.5 mb-5 flex-1">
                     {p.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-xs text-neutral-600">
-                        <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-white brand-gradient">
-                          <Icon name="check" className="w-2 h-2" />
+                      <li key={f} className="flex items-start gap-2.5 text-[13px]" style={{ color: "var(--ink-2)" }}>
+                        <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full text-white brand-gradient">
+                          <Icon name="check" className="w-2.5 h-2.5" />
                         </span>
                         <span className="leading-snug">{f}</span>
                       </li>
@@ -15574,25 +15596,20 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                   <button
                     onClick={() => choosePlan(p)}
                     disabled={isCurrent}
-                    className={`w-full rounded-xl text-xs font-medium py-2 transition-colors ${
+                    className={`w-full rounded-xl text-sm font-semibold py-2.5 transition-all ${
                       isCurrent
-                        ? "bg-neutral-100 text-neutral-400 cursor-default"
-                        : p.key === "enterprise"
-                          ? "border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50"
-                          : "brand-gradient text-white hover:opacity-90"
+                        ? "cursor-default"
+                        : solid
+                          ? "brand-gradient text-white hover:opacity-90 hover:-translate-y-px"
+                          : "border hover:bg-neutral-50"
                     }`}
+                    style={isCurrent
+                      ? { background: "rgba(255,255,255,0.6)", color: "var(--ink-3)", border: "1px solid var(--line)" }
+                      : solid
+                        ? undefined
+                        : { borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
                   >
-                    {isCurrent
-                      ? "Current plan"
-                      : p.key === "enterprise"
-                        ? "Contact sales"
-                        : onTrial
-                          ? "Subscribe"
-                          : p.key === plan && cycleMatters
-                            ? (cycle === "yearly" ? "Switch to yearly" : "Switch to monthly")
-                            : rank[p.key] < rank[plan]
-                              ? "Downgrade"
-                              : "Upgrade"}
+                    {label}
                   </button>
                 </div>
               );
