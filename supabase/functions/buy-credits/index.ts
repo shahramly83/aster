@@ -116,7 +116,16 @@ Deno.serve(async (req) => {
     if (customerId) params.customer = customerId;
     else params.customer_creation = "always";
 
-    const session = await stripe("checkout/sessions", params, secret);
+    let session = await stripe("checkout/sessions", params, secret);
+    if (!session.ok && customerId) {
+      // The saved customer id can belong to the OTHER Stripe mode (e.g. a live
+      // customer while the key is a test key), or have been deleted. Retry letting
+      // Checkout mint a fresh customer instead of failing the purchase.
+      console.warn("buy-credits: saved customer rejected, retrying without it", session.data?.error?.message);
+      delete params.customer;
+      params.customer_creation = "always";
+      session = await stripe("checkout/sessions", params, secret);
+    }
     if (!session.ok || !session.data?.url) {
       console.error("buy-credits checkout", session.data);
       return json({ error: session.data?.error?.message || "Could not start checkout." }, 502);
