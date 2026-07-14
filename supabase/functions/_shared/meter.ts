@@ -14,8 +14,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export type Meter = "ai_rank" | "ai_insight" | "interview_questions" | "see_why";
 
-const BUMP: Record<Meter, string> = { ai_rank: "bump_ai_rank", ai_insight: "bump_ai_insight", interview_questions: "bump_interview_questions", see_why: "bump_see_why" };
+// ai_rank supports purchased top-up credits: consume_ai_rank spends the monthly
+// pool first, then any purchased 'ai_rank' balance, and reports which via `source`.
+// The other meters have no top-up yet and use the plain bump/refund pair.
+const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "bump_ai_insight", interview_questions: "bump_interview_questions", see_why: "bump_see_why" };
 const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for", see_why: "refund_see_why_for" };
+// Which purchased credit kind backs each meter (only ai_rank, for now).
+const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank" };
 
 export interface Charge {
   ok: boolean;              // false = out of credits, caller must not call the model
@@ -23,6 +28,7 @@ export interface Charge {
   limit?: number | null;
   resetsAt?: string | null;
   companyId?: string;
+  source?: string;          // 'monthly' | 'purchased' — which pool paid (for the refund)
   error?: string;
 }
 
@@ -53,13 +59,23 @@ export async function charge(token: string, meter: Meter): Promise<Charge> {
   const { data: { user } } = await admin.auth.getUser(token);
   const { data: prof } = await admin.from("profiles").select("company_id").eq("id", user?.id ?? "").maybeSingle();
 
-  return { ok: true, used: row.used, limit: row.monthly_limit, resetsAt: row.resets_at, companyId: prof?.company_id };
+  return { ok: true, used: row.used, limit: row.monthly_limit, resetsAt: row.resets_at, companyId: prof?.company_id, source: row.source };
 }
 
-/** Give the credit back when *our* model call failed. Best effort. */
-export async function refund(companyId: string | undefined, meter: Meter): Promise<void> {
+/**
+ * Give the credit back when *our* model call failed. Best effort. Refunds the
+ * pool that actually paid: a purchased credit goes back to the purchased balance,
+ * a monthly credit to the monthly counter.
+ */
+export async function refund(companyId: string | undefined, meter: Meter, source?: string): Promise<void> {
   if (!companyId) return;
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const kind = PURCHASED_KIND[meter];
+  if (source === "purchased" && kind) {
+    const { error } = await admin.rpc("refund_purchased_credit", { p_company: companyId, p_kind: kind });
+    if (error) console.error("refund_purchased_credit failed", error.message);
+    return;
+  }
   const { error } = await admin.rpc(REFUND[meter], { p_company: companyId });
   if (error) console.error(`${REFUND[meter]} failed`, error.message);
 }

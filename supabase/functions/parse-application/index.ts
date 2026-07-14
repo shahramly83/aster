@@ -163,7 +163,14 @@ Deno.serve(async (req) => {
       const { data: usageRows } = await admin.rpc("applicant_parse_usage_for", { p_company: companyId });
       const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows;
       const limit = (usage?.monthly_limit ?? null) as number | null;  // null = unlimited
-      if (limit !== null && (usage?.used ?? 0) >= limit) overLimit = true;
+      if (limit !== null && (usage?.used ?? 0) >= limit) {
+        // Monthly pool is full, but purchased top-up credits keep screening going.
+        // Only over the limit (skip the paid AI parse) when the purchased balance
+        // is also empty. (migration 0087)
+        const { data: pc } = await admin.from("purchased_credits")
+          .select("balance").eq("company_id", companyId).eq("kind", "applicant_screen").maybeSingle();
+        if (!pc || (pc.balance ?? 0) <= 0) overLimit = true;
+      }
     } catch (e) {
       // Never turn a metering hiccup into a lost application: let it through.
       console.error("applicant parse usage lookup failed", e);
@@ -381,8 +388,10 @@ Deno.serve(async (req) => {
     // customer buys for a different thing. Nothing is charged when we were over the
     // limit and skipped the parse: we did not do the work, so we do not bill for it.
     if (!overLimit) {
-      try { await admin.rpc("bump_applicant_parse_for", { p_company: companyId }); }
-      catch (e) { console.error("applicant parse charge failed", e); }
+      // Spend one applicant screening credit: monthly plan pool first, then the
+      // purchased 'applicant_screen' balance (migration 0087).
+      try { await admin.rpc("consume_applicant_screen_for", { p_company: companyId }); }
+      catch (e) { console.error("applicant screen charge failed", e); }
     }
 
     // --- Lifecycle email on a first-time application (best-effort) ---

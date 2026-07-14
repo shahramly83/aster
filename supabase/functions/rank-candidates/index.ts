@@ -65,7 +65,7 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
       body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
     });
     // Our failure, not theirs: hand the credit back.
-    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "ai_rank"); return json({ error: "rank_failed" }, 502); }
+    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "ai_rank", paid.source); return json({ error: "rank_failed" }, 502); }
     const data = await resp.json();
     let text = (data.content || []).map((b: any) => (typeof b.text === "string" ? b.text : "")).join(" ").trim();
     text = text.replace(/```json/gi, "").replace(/```/g, "");

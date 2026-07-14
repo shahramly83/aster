@@ -9534,23 +9534,52 @@ function nameFromFile(fn) {
   return s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-// Buy top-up screening credits. Price is $1/credit with a plan discount (Launch
-// full, Scale 10% off, Elite 20% off); the buy-credits function re-derives the
-// price server-side, so this is display only. "Pay" opens Stripe Checkout.
-function BuyCreditsModal({ open, onClose, plan = "launch" }) {
+// The signed-in company's purchased top-up balance for one credit kind. Refreshes
+// on mount and, when the user returns from a successful Stripe checkout (any screen,
+// since ?credits=success is on the return URL), again after a short beat so the
+// just-bought credits appear without a manual reload.
+function usePurchasedBalance(kind) {
+  const [balance, setBalance] = useState(0);
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let alive = true, t;
+    const load = () => supabase.rpc("get_purchased_credits").then(({ data }) => {
+      if (!alive) return;
+      const row = (data || []).find((r) => r.kind === kind);
+      setBalance(row?.balance || 0);
+    }).catch(() => {});
+    load();
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("credits") === "success") {
+      t = setTimeout(load, 1500);
+    }
+    return () => { alive = false; if (t) clearTimeout(t); };
+  }, [kind]);
+  return balance;
+}
+
+// Buy top-up credits for a given kind. Base price per credit varies by kind
+// (resume/applicant $1, AI Rank $0.40) with a plan discount on top; the
+// buy-credits function re-derives the price server-side, so this is display only.
+function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen" }) {
   const [qty, setQty] = useState(50);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   if (!open) return null;
-  const unit = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
+  const CREDIT = ({
+    resume_screen: { base: 1, title: "Buy screening credits", blurb: "Extra screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
+    applicant_screen: { base: 1, title: "Buy applicant screening credits", blurb: "Extra applicant screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
+    ai_rank: { base: 0.4, title: "Buy AI Rank credits", blurb: "Extra AI Rank credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
+  })[kind] || { base: 1, title: "Buy credits", blurb: "" };
+  const mult = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
   const disc = ({ launch: 0, scale: 10, elite: 20, enterprise: 20 })[plan] ?? 0;
+  const unit = CREDIT.base * mult;
   const n = Math.max(0, Math.floor(Number(qty) || 0));
   const total = n * unit;
   const buy = async () => {
     if (n < 1) { setErr("Enter at least 1 credit."); return; }
     if (!hasSupabase) { setErr("Connect a live workspace to buy credits."); return; }
     setBusy(true); setErr(null);
-    const { data, error } = await supabase.functions.invoke("buy-credits", { body: { quantity: n, return_url: window.location.origin } });
+    const { data, error } = await supabase.functions.invoke("buy-credits", { body: { quantity: n, kind, return_url: window.location.origin, return_path: window.location.pathname } });
     if (error || !data?.url) {
       let msg = data?.error || "Couldn't start checkout.";
       try { const d = await error?.context?.json?.(); if (d?.error) msg = d.error; } catch { /* noop */ }
@@ -9562,10 +9591,10 @@ function BuyCreditsModal({ open, onClose, plan = "launch" }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
       <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
         <div className="flex items-start justify-between gap-3 mb-1">
-          <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Buy screening credits</h3>
+          <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{CREDIT.title}</h3>
           <button onClick={onClose} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
-        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>Extra screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire.</p>
+        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{CREDIT.blurb}</p>
         <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
         <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
         <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -9602,26 +9631,8 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   const uploadLimit = parseUsage?.limit ?? limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
   const planName = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
-  const [purchasedBalance, setPurchasedBalance] = useState(0);
+  const purchasedBalance = usePurchasedBalance("resume_screen");
   const [buyOpen, setBuyOpen] = useState(false);
-  // Purchased top-up balance (used after the monthly pool runs out; never resets).
-  // Refresh on mount, and again shortly after returning from a successful Stripe
-  // checkout so the just-bought credits show without a manual reload.
-  useEffect(() => {
-    if (!hasSupabase) return;
-    let alive = true, t;
-    const load = () => supabase.rpc("get_purchased_credits").then(({ data }) => {
-      if (!alive) return;
-      const row = (data || []).find((r) => r.kind === "resume_screen");
-      setPurchasedBalance(row?.balance || 0);
-    }).catch(() => {});
-    load();
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("credits") === "success") {
-      t = setTimeout(load, 1500); // give the webhook a moment to grant
-      try { window.history.replaceState(null, "", window.location.pathname); } catch { /* noop */ }
-    }
-    return () => { alive = false; if (t) clearTimeout(t); };
-  }, []);
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [uploadTab, setUploadTab] = useState("import"); // "import" | "recent"
   const [files, setFiles] = useState([]);
@@ -10936,6 +10947,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
+  const purchasedApplicant = usePurchasedBalance("applicant_screen");
+  const [buyApplicantOpen, setBuyApplicantOpen] = useState(false);
   const [menuJob, setMenuJob] = useState(null); // job id whose action menu is open
   const [detailJob, setDetailJob] = useState(null); // job open in the details modal
   const [editJob, setEditJob] = useState(null); // job open in the edit modal
@@ -11557,9 +11570,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this month.`}
                   onManage={() => navigate("billing")}
                   onUpgrade={scrBlocked ? () => navigate("billing") : undefined}
+                  purchased={scrLimit === Infinity ? null : purchasedApplicant}
+                  onBuyCredits={scrLimit === Infinity ? null : () => setBuyApplicantOpen(true)}
                 />
               );
             })()}
+            <BuyCreditsModal open={buyApplicantOpen} onClose={() => setBuyApplicantOpen(false)} plan={plan} kind="applicant_screen" />
             {jobPostUsage.limit != null && (
               <UsageMeter
                 plan={plan}
@@ -12266,6 +12282,8 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
 }
 
 function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
+  const purchasedAiRank = usePurchasedBalance("ai_rank");
+  const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
   // Ask before spending a credit; out-of-credits goes straight to billing.
   const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
@@ -12737,6 +12755,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     ? new Date(aiRankResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : "in 30 days";
   const planNote = limits.aiRunsPerMonth !== Infinity ? (
+    <>
     <UsageMeter
       plan={plan}
       title="AI Rank credits this cycle"
@@ -12746,7 +12765,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
         : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current"} plan · resets ${resetLabel}.`}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
+      purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
+      onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
     />
+    <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
+    </>
   ) : null;
 
   const TABS = [
@@ -19327,6 +19350,8 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
 }
 
 function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {} }) {
+  const purchasedAiRank = usePurchasedBalance("ai_rank");
+  const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     // Once a candidate advances to offer or a terminal state, the stage pill is
@@ -19638,8 +19663,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           note={outOfRuns ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning." : `${runsLeft} left this cycle. ${limits.aiMatches === Infinity ? "You'll see every fit with scores." : `You'll see the top ${limits.aiMatches} fits with scores.`}`}
           onUpgrade={() => navigate("billing")}
           upgradeLabel="Upgrade for more"
+          purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
+          onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
         />
       )}
+      <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
     </div>
   ) : null;
 

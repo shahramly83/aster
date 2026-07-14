@@ -32,24 +32,35 @@ async function stripe(path: string, params: Record<string, string>, secret: stri
   return { ok: res.ok, data: await res.json() };
 }
 
-// Per-credit price in cents. Keyed by BOTH the DB plan_tier names (free/growth/pro)
-// and the app-facing names (launch/scale/elite), because companies.plan can hold
-// either depending on when the row was written. Enterprise gets the Elite rate.
-//   Launch $1.00 (no discount) · Scale $0.90 (10% off) · Elite $0.80 (20% off)
-const UNIT_CENTS: Record<string, number> = {
-  free: 100, launch: 100, starter: 100,
-  growth: 90, scale: 90,
-  pro: 80, elite: 80,
-  enterprise: 80,
+// Base per-credit price in cents, by credit kind. The plan discount is applied on
+// top (Launch 0% · Scale 10% · Elite/Enterprise 20%). AI Rank is cheaper to buy.
+const BASE_CENTS: Record<string, number> = {
+  resume_screen: 100,     // $1.00
+  applicant_screen: 100,  // $1.00
+  ai_rank: 40,            // $0.40
 };
-const KIND = "resume_screen";
+// Plan discount multiplier, keyed by BOTH the DB plan_tier names (free/growth/pro)
+// and the app names (launch/scale/elite), since companies.plan can hold either.
+const DISCOUNT_MULT: Record<string, number> = {
+  free: 1, launch: 1, starter: 1,
+  growth: 0.9, scale: 0.9,
+  pro: 0.8, elite: 0.8,
+  enterprise: 0.8,
+};
+const PRODUCT_NAME: Record<string, string> = {
+  resume_screen: "Resume screening credits",
+  applicant_screen: "Applicant screening credits",
+  ai_rank: "AI Rank credits",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   try {
-    const { quantity, return_url } = await req.json().catch(() => ({}));
+    const { quantity, return_url, return_path, kind: kindRaw } = await req.json().catch(() => ({}));
+    const kind = String(kindRaw || "resume_screen");
+    if (!(kind in BASE_CENTS)) return json({ error: "unknown credit kind" }, 400);
     const qty = Math.floor(Number(quantity));
     if (!Number.isFinite(qty) || qty < 1 || qty > 10000) {
       return json({ error: "Enter a quantity between 1 and 10,000." }, 400);
@@ -71,7 +82,8 @@ Deno.serve(async (req) => {
     }
 
     const { data: company } = await admin.from("companies").select("plan").eq("id", companyId).maybeSingle();
-    const unit = UNIT_CENTS[String(company?.plan || "").toLowerCase()] ?? 100;
+    const mult = DISCOUNT_MULT[String(company?.plan || "").toLowerCase()] ?? 1;
+    const unit = Math.max(1, Math.round(BASE_CENTS[kind] * mult));
 
     const secret = Deno.env.get("STRIPE_SECRET_KEY");
     if (!secret) return json({ error: "billing not configured" }, 503);
@@ -82,21 +94,24 @@ Deno.serve(async (req) => {
     const customerId = subRow?.stripe_customer_id || null;
 
     const base = (typeof return_url === "string" && return_url.startsWith("http")) ? return_url.replace(/\/$/, "") : "https://hireaster.com";
+    // Return to the screen the buyer came from (so an AI-Rank purchase from the
+    // Applicants page lands back there, not on /upload). Only same-origin paths.
+    const path = (typeof return_path === "string" && /^\/[A-Za-z0-9/_-]*$/.test(return_path)) ? return_path : "/upload";
 
     const params: Record<string, string> = {
       mode: "payment",
       "line_items[0][price_data][currency]": "usd",
       "line_items[0][price_data][unit_amount]": String(unit),
-      "line_items[0][price_data][product_data][name]": "Resume screening credits",
+      "line_items[0][price_data][product_data][name]": PRODUCT_NAME[kind] || "Aster credits",
       "line_items[0][quantity]": String(qty),
       client_reference_id: companyId,
       "metadata[company_id]": companyId,
-      "metadata[kind]": KIND,
+      "metadata[kind]": kind,
       "metadata[quantity]": String(qty),
       "payment_intent_data[metadata][company_id]": companyId,
-      "payment_intent_data[metadata][kind]": KIND,
-      success_url: `${base}/upload?credits=success`,
-      cancel_url: `${base}/upload?credits=cancel`,
+      "payment_intent_data[metadata][kind]": kind,
+      success_url: `${base}${path}?credits=success`,
+      cancel_url: `${base}${path}?credits=cancel`,
     };
     if (customerId) params.customer = customerId;
     else params.customer_creation = "always";
