@@ -596,7 +596,10 @@ async function shotRoute(who, route) {
   const email = who.includes("@") ? who : CFG[who]?.email || CFG.tenant.email;
   const { ctx, page } = await ctxFor(email);
   await page.goto(`${wsOrigin()}${route}`, { waitUntil: "load" });
-  await settle(page, 4000);
+  // Long enough for the slow panels to arrive. list-invoices previews the upcoming
+  // invoice with Stripe and takes ~2s, and a shot at 4s caught "Loading invoices…"
+  // every time: a screenshot of a spinner proves nothing.
+  await settle(page, 9000);
   console.log(`${email} @ ${route} -> ${page.url()}`);
   // Full page: the fold hides real content (the invoice table sits under it) and
   // a viewport shot would quietly pass a screen that never rendered.
