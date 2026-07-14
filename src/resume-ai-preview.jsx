@@ -9565,7 +9565,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch" }) {
           <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Buy screening credits</h3>
           <button onClick={onClose} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
-        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>Top up beyond your monthly plan. Purchased credits are used only after your plan credits run out, and never expire on renewal.</p>
+        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>Extra screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire.</p>
         <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
         <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
         <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -9640,8 +9640,13 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   // Real parses used this cycle, from the server meter. Refreshed after each
   // import (onImported re-runs hydrateWorkspace, which refetches parse usage).
   const usedThisMonth = parseUsage?.used ?? 0;
-  const remaining = uploadLimit === Infinity ? Infinity : Math.max(0, uploadLimit - usedThisMonth);
-  const outOfQuota = remaining === 0; // no parses left this month
+  const monthlyRemaining = uploadLimit === Infinity ? Infinity : Math.max(0, uploadLimit - usedThisMonth);
+  // Effective allowance = what's left in the monthly pool PLUS any purchased top-up.
+  // Uploads spend the monthly pool first (enforced server-side), and spill into the
+  // purchased balance only once the month is used up. Both empty = truly blocked.
+  const remaining = uploadLimit === Infinity ? Infinity : monthlyRemaining + purchasedBalance;
+  const outOfQuota = remaining === 0;
+  const onPurchased = uploadLimit !== Infinity && monthlyRemaining === 0 && purchasedBalance > 0;
 
   // Simulated batch: a realistic mix so every outcome shows. `person` carries the
   // identity the AI would extract (name/email/phone), used for duplicate detection.
@@ -9957,12 +9962,12 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 <span className="mx-auto mb-4 flex w-14 h-14 items-center justify-center rounded-2xl" style={{ background: "#FEE2E2", color: "#DC2626" }}>
                   <Icon name="lock" className="w-7 h-7" />
                 </span>
-                <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You've used all {uploadLimit} screenings this month</p>
+                <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You're out of screening credits</p>
                 <p className="text-sm mt-1.5 max-w-md mx-auto" style={{ color: "var(--ink-3)" }}>
-                  The {planName} plan includes {uploadLimit} resume screenings a month. Upgrade for a higher limit, or your allowance resets each cycle.
+                  You've used your {uploadLimit} monthly screenings on the {planName} plan, and any credits you bought. Buy more to keep going, or your monthly plan resets on the 1st.
                 </p>
-                <button onClick={() => navigate("billing")} className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
-                  <Icon name="arrowUpRight" className="w-4 h-4" /> Upgrade plan
+                <button onClick={() => setBuyOpen(true)} className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
+                  <Icon name="upload" className="w-4 h-4" /> Buy credits
                 </button>
               </div>
             )}
@@ -10011,7 +10016,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{files.length} file{files.length === 1 ? "" : "s"} ready to screen</p>
                       <p className="text-xs truncate" style={{ color: overLimit ? "#B91C1C" : "var(--ink-3)" }}>
                         {overLimit
-                          ? `Only ${remaining} screening${remaining === 1 ? "" : "s"} left this month`
+                          ? `Only ${remaining} credit${remaining === 1 ? "" : "s"} left (monthly plus purchased)`
                           : zipName
                             ? <>Unpacked from <span className="font-medium" style={{ color: "var(--ink-2)" }}>{zipName}</span></>
                             : "PDF & Word resumes"}
@@ -10023,7 +10028,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
                 <div className="max-h-72 overflow-y-auto px-2 py-1.5">
                   {files.map((f, idx) => {
-                    const over = overLimit && idx >= uploadLimit;
+                    const over = overLimit && remaining !== Infinity && idx >= remaining;
                     const ext = (f.fileName.split(".").pop() || "").toUpperCase();
                     const kb = f.sizeKb || 80 + ((f.fileName.length * 9) % 330); // real size from ZIP, else mock
                     return (
@@ -10054,15 +10059,15 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                   {overLimit && (
                     <div className="mb-3 rounded-xl border p-3.5" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
                       <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
-                        <Icon name="lock" className="w-3.5 h-3.5" /> {outOfQuota ? "No screenings left this month. Upload blocked" : "Over your monthly allowance. Upload blocked"}
+                        <Icon name="lock" className="w-3.5 h-3.5" /> {outOfQuota ? "Out of credits. Upload blocked" : "More resumes than credits. Upload blocked"}
                       </p>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
                         {outOfQuota
-                          ? `You've used all ${uploadLimit} screenings on the ${planName} plan this month. Upgrade to keep going, or your allowance resets on the 1st.`
-                          : <>This batch has {files.length} resume{files.length === 1 ? "" : "s"}, but you have {remaining} left this month. Remove {files.length - remaining} to continue, or upgrade for more.</>}
+                          ? `You've used your monthly plan and any purchased credits. Buy more to keep screening, or your monthly plan resets on the 1st.`
+                          : <>This batch has {files.length} resume{files.length === 1 ? "" : "s"}, but you have {remaining} credit{remaining === 1 ? "" : "s"} left (monthly plus purchased). Remove {files.length - remaining}, or buy more credits.</>}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2.5">
-                        <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Upgrade plan</button>
+                        <button onClick={() => setBuyOpen(true)} className="text-xs brand-gradient text-white font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">Buy credits</button>
                         {!outOfQuota && <button onClick={uploadFirstAllowed} className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Upload first {remaining} instead</button>}
                       </div>
                     </div>
@@ -10395,8 +10400,10 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               note={uploadLimit === Infinity
                 ? `${planName} plan, unlimited screening.`
                 : outOfQuota
-                  ? `You've used all ${uploadLimit} screenings. Resets on the 1st.`
-                  : `${remaining} resume${remaining === 1 ? "" : "s"} left on your ${planName} plan.`}
+                  ? `Out of credits. Buy more to keep screening, or your monthly plan resets on the 1st.`
+                  : onPurchased
+                    ? `Your monthly plan is used up. You're now screening with purchased credits.`
+                    : `${monthlyRemaining} resume${monthlyRemaining === 1 ? "" : "s"} left on your ${planName} plan.`}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
               purchased={uploadLimit === Infinity ? null : purchasedBalance}
@@ -12007,7 +12014,9 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       {onBuyCredits && (
         <>
           <button onClick={onBuyCredits} className={`relative w-full rounded-xl text-sm font-semibold py-2.5 transition-colors ${showUpgrade ? "mt-2 bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "mt-3.5 bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
-          <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed">{purchased > 0 ? "Top-up credits are spent after this month's plan pool runs out." : "Top up beyond your plan. Used only after this month's pool runs out; never expire."}</p>
+          <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed">{purchased > 0
+            ? "Extra credits screen more resumes once your monthly plan runs out. They kick in on their own and never expire."
+            : "Need more than your plan allows? Buy extra credits. They wait in reserve, kick in when your monthly plan runs out, and never expire."}</p>
         </>
       )}
     </div>

@@ -32,8 +32,16 @@ async function stripe(path: string, params: Record<string, string>, secret: stri
   return { ok: res.ok, data: await res.json() };
 }
 
-// Per-credit price in cents, by DB plan_tier. Enterprise gets the Elite rate.
-const UNIT_CENTS: Record<string, number> = { free: 100, growth: 90, pro: 80, enterprise: 80 };
+// Per-credit price in cents. Keyed by BOTH the DB plan_tier names (free/growth/pro)
+// and the app-facing names (launch/scale/elite), because companies.plan can hold
+// either depending on when the row was written. Enterprise gets the Elite rate.
+//   Launch $1.00 (no discount) · Scale $0.90 (10% off) · Elite $0.80 (20% off)
+const UNIT_CENTS: Record<string, number> = {
+  free: 100, launch: 100, starter: 100,
+  growth: 90, scale: 90,
+  pro: 80, elite: 80,
+  enterprise: 80,
+};
 const KIND = "resume_screen";
 
 Deno.serve(async (req) => {
@@ -63,7 +71,7 @@ Deno.serve(async (req) => {
     }
 
     const { data: company } = await admin.from("companies").select("plan").eq("id", companyId).maybeSingle();
-    const unit = UNIT_CENTS[company?.plan || "free"] ?? 100;
+    const unit = UNIT_CENTS[String(company?.plan || "").toLowerCase()] ?? 100;
 
     const secret = Deno.env.get("STRIPE_SECRET_KEY");
     if (!secret) return json({ error: "billing not configured" }, 503);
