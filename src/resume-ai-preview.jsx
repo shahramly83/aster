@@ -20921,6 +20921,7 @@ export default function ResumeAIPreview() {
   // top; Back restores the scroll position of the screen you're returning to.
   // Positions are keyed by stack depth (one entry per screen in the history).
   const scrollByDepth = useRef({});
+  const routeTimer = useRef(null);
   const prevDepthRef = useRef(history.length);
   const prevTopRef = useRef(history[history.length - 1]);
   // Take over scroll from the browser so our forward/back logic isn't overridden.
@@ -21006,6 +21007,16 @@ export default function ResumeAIPreview() {
   const navigate = (target, path) => {
     // Remember where we are before leaving, so Back can restore it.
     if (typeof window !== "undefined" && target !== "newJob") scrollByDepth.current[history.length] = window.scrollY;
+    // Fade-through: snap the splash overlay on to cover the screen swap, then drop
+    // it after the new screen has committed so the header never flashes between
+    // pages. Driven via a DOM attribute (index.html owns the overlay) so it works
+    // no matter which render branch the app takes. Modals aren't a page change.
+    if (typeof window !== "undefined" && target !== "newJob") {
+      const el = document.documentElement;
+      try { el.setAttribute("data-route-transition", ""); } catch { /* noop */ }
+      clearTimeout(routeTimer.current);
+      routeTimer.current = setTimeout(() => { try { el.removeAttribute("data-route-transition"); } catch { /* noop */ } }, 220);
+    }
     if (target === "newJob") {
       // New Job is a modal overlay, not a routed screen.
       setNewJobOpen(true);

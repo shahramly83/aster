@@ -110,12 +110,21 @@
       they still get the full prerendered marketing page (SEO untouched). React
       removes data-app-booting on its first commit, handing off to its own splash. -->
     <style>
-      #aster-boot { display: none; }
-      html[data-app-booting] #root { visibility: hidden; }
-      html[data-app-booting] #aster-boot {
-        display: flex; position: fixed; inset: 0; z-index: 2147483647;
-        align-items: center; justify-content: center; background: #F4F2FA;
+      /* One overlay for both the initial boot splash and client-side route
+         transitions. Always in the DOM at opacity 0 (invisible, click-through); an
+         attribute snaps it opaque to cover a swap, and removing it fades back out so
+         the marketing header / content is never seen mid-transition. */
+      #aster-boot {
+        position: fixed; inset: 0; z-index: 2147483647;
+        display: flex; align-items: center; justify-content: center;
+        background: #F4F2FA; opacity: 0; pointer-events: none;
+        transition: opacity 0.28s ease;
       }
+      html[data-app-booting] #aster-boot,
+      html[data-route-transition] #aster-boot {
+        opacity: 1; pointer-events: auto; transition: none;
+      }
+      html[data-app-booting] #root { visibility: hidden; }
       #aster-boot svg { transform-origin: center; animation: asterBootSpin 1.6s linear infinite; }
       @keyframes asterBootSpin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { #aster-boot svg { animation: none; } }
