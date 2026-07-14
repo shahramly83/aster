@@ -1097,6 +1097,11 @@ export default function AdminPortal() {
   const [restoring, setRestoring] = useState(hasSupabase);
 
   useEffect(() => {
+    // Clear index.html's pre-boot splash. It sets data-app-booting when a session
+    // token is on disk, and only the customer app removed it, so a logged-in admin
+    // hitting /admin sat on the spinner forever. The admin has its own "Loading…"
+    // state, so hand off to that.
+    try { document.documentElement.removeAttribute("data-app-booting"); } catch { /* noop */ }
     const el = document.createElement("style");
     el.textContent = ADMIN_STYLES;
     document.head.appendChild(el);
