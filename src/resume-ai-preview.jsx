@@ -15652,7 +15652,7 @@ const TOKEN_SAMPLES = {
 };
 const fillTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => TOKEN_SAMPLES[k] ?? `{{${k}}}`);
 
-function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, companyId = null, canPersist = false }) {
+function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, companyId = null, canPersist = false, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [templates, setTemplates] = useState(() => Object.fromEntries(EMAIL_TEMPLATE_DEFS.map((t) => [t.key, { subject: t.subject, body: t.body }])));
   const [selected, setSelected] = useState(null); // template key or null (list view)
   const [subject, setSubject] = useState("");
@@ -15717,34 +15717,36 @@ function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, com
   // ---- List view ----
   if (!selected) {
     return (
-      <div className="px-4 sm:px-6 py-8 sm:py-10">
-        <div className="max-w-2xl mx-auto pb-8">
-          <BackLink onClick={() => navigate("settings")}>← Settings</BackLink>
-          <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>Email templates</h1>
-          <p className="text-sm text-neutral-600 mb-5">Edit the wording behind each automated email. Placeholders like <span className="font-mono text-xs bg-neutral-100 px-1 py-0.5 rounded">{"{{candidate_name}}"}</span> are filled in automatically when each email is sent.</p>
-          <div className="space-y-2">
-            {EMAIL_TEMPLATE_DEFS.map((t) => (
-              <button key={t.key} onClick={() => open(t.key)} className={`${cardClass} w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>{t.name}</span>
-                  <span className="block text-xs text-neutral-500 truncate">{t.desc}</span>
-                </span>
-                <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
-              </button>
-            ))}
-          </div>
+      <AccountShell
+        title="Email templates"
+        subtitle={<>Edit the wording behind each automated email. Placeholders like <span className="font-mono text-xs bg-neutral-100 px-1 py-0.5 rounded">{"{{candidate_name}}"}</span> fill in automatically when the email is sent.</>}
+        backTo="settings" backLabel="Settings"
+        navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications}
+      >
+        <div className="max-w-3xl space-y-2">
+          {EMAIL_TEMPLATE_DEFS.map((t) => (
+            <button key={t.key} onClick={() => open(t.key)} className={`${cardClass} w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>{t.name}</span>
+                <span className="block text-xs text-neutral-500 truncate">{t.desc}</span>
+              </span>
+              <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
+            </button>
+          ))}
         </div>
-      </div>
+      </AccountShell>
     );
   }
 
   // ---- Editor view ----
   return (
-    <div className="px-4 sm:px-6 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto pb-8">
+    <AccountShell
+      title={def.name} subtitle={def.desc} hideBack
+      navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications}
+    >
+      <div className="max-w-3xl">
         <BackLink onClick={() => setSelected(null)}>← All templates</BackLink>
-        <h1 className="text-xl sm:text-2xl font-bold font-display mt-2 mb-1" style={{ color: "var(--ink)" }}>{def.name}</h1>
-        <p className="text-sm text-neutral-600 mb-5">{def.desc}</p>
+        <div className="mt-3" />
 
         {savedMsg && (
           <div className="rounded-xl border p-3 mb-4 text-xs" style={{ borderColor: "#BBF7D0", background: "#F0FDF4", color: "#166534" }}>{savedMsg}</div>
@@ -15812,7 +15814,7 @@ function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, com
           {dirty && !saving && <button onClick={() => open(selected)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Reset</button>}
         </div>
       </div>
-    </div>
+    </AccountShell>
   );
 }
 
@@ -21638,7 +21640,7 @@ export default function ResumeAIPreview() {
           <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
-        {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />}
+        {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
         {screen === "jobs" && (
           <JobsScreen
             navigate={navigate}
