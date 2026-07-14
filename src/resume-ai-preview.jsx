@@ -13410,7 +13410,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
           {/* Account owner, always a member, can't be removed */}
           {(roleFilter === "all" || roleFilter === "admin") && (
           <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
