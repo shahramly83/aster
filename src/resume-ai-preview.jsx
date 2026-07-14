@@ -16308,7 +16308,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
 
   const inputClass = "w-full rounded-xl bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
   const labelClass = "block text-xs font-medium mb-1.5";
-  const cardClass = "rounded-2xl bg-[#F3F5FE] p-5 sm:p-6 border border-[color:var(--line)]";
+  const cardClass = "rounded-2xl bg-[#F8FAFF] p-5 sm:p-6 border border-[color:var(--line)]";
   // Lighter, secondary upload action so the sticky "Save changes" stays the one primary CTA.
   const uploadBtnClass = "text-sm rounded-xl border px-4 py-2 font-medium cursor-pointer inline-flex items-center gap-2 transition-colors hover:bg-[color:var(--brand-soft)]";
   const uploadBtnStyle = { borderColor: "var(--line-strong)", color: "var(--brand)" };
@@ -16841,13 +16841,161 @@ function DangerZoneCard({ company }) {
   );
 }
 
+// One collapsible Settings section. The header (icon + title + desc) always shows;
+// the body expands on click. Used to turn the flat Settings list into accordions.
+function SettingsSection({ icon, title, desc, badge = null, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-2xl bg-white act-shadow border border-[color:var(--line)] overflow-hidden">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-3 p-5 text-left hover:bg-neutral-50 transition-colors">
+        <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors" style={{ background: open ? "var(--brand)" : "var(--brand-soft)", color: open ? "#fff" : "var(--brand)" }}>
+          <Icon name={icon} className="w-5 h-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{title}</span>
+            {badge}
+          </span>
+          <span className="block text-xs text-neutral-500 mt-0.5">{desc}</span>
+        </span>
+        <Icon name="chevronDown" className={`w-5 h-5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+      </button>
+      {open && (
+        <div className="px-5 pb-5 pt-4 border-t" style={{ borderColor: "var(--line)" }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The email templates as an inline accordion: each template expands in place to
+// edit its subject + body, instead of navigating to a separate page. Same load /
+// save / preview behaviour as the standalone EmailTemplatesScreen, one open at a time.
+function EmailTemplatesPanel({ plan = "launch", logoUrl, company, companyId = null, canPersist = false }) {
+  const [templates, setTemplates] = useState(() =>
+    Object.fromEntries(EMAIL_TEMPLATE_DEFS.map((t) => [t.key, { subject: t.subject, body: t.body }])));
+  const [openKey, setOpenKey] = useState(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [savedMsg, setSavedMsg] = useState(null);
+  const [saveErr, setSaveErr] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  useEffect(() => {
+    if (!canPersist || !companyId) return;
+    let alive = true;
+    dbListEmailTemplates(companyId).then((rows) => {
+      if (!alive || !rows.length) return;
+      setTemplates((prev) => {
+        const next = { ...prev };
+        for (const r of rows) if (next[r.key]) next[r.key] = { subject: r.subject, body: r.body };
+        return next;
+      });
+    });
+    return () => { alive = false; };
+  }, [companyId, canPersist]);
+
+  const toggle = (key) => {
+    if (openKey === key) { setOpenKey(null); return; }
+    const t = templates[key];
+    setOpenKey(key); setSubject(t.subject); setBody(t.body); setSavedMsg(null); setSaveErr(null); setShowPreview(false);
+  };
+  const def = EMAIL_TEMPLATE_DEFS.find((t) => t.key === openKey);
+  const dirty = openKey && (subject !== templates[openKey].subject || body !== templates[openKey].body);
+  const save = async () => {
+    setSaveErr(null);
+    if (canPersist && companyId) {
+      setSaving(true);
+      const res = await dbSaveEmailTemplate(companyId, openKey, { subject, body });
+      setSaving(false);
+      if (!res.ok) { setSaveErr(res.error || "Couldn't save. Only owners and admins can edit templates."); return; }
+    }
+    setTemplates((prev) => ({ ...prev, [openKey]: { subject, body } }));
+    setSavedMsg("Saved. Future emails of this type will use this wording.");
+  };
+  const insertToken = (tok) => { setBody((b) => `${b}{{${tok}}}`); setSavedMsg(null); };
+  const renderPreviewBody = (text) => {
+    const parts = fillTokens(text).split("{{logo}}");
+    return parts.map((p, i) => (
+      <Fragment key={i}>
+        {p}
+        {i < parts.length - 1 && (logoUrl
+          ? <img src={logoUrl} alt={company || "logo"} style={{ height: 22, display: "inline-block", verticalAlign: "middle", margin: "0 3px" }} />
+          : <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] align-middle" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>logo</span>)}
+      </Fragment>
+    ));
+  };
+
+  return (
+    <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+      {EMAIL_TEMPLATE_DEFS.map((t, idx) => {
+        const on = openKey === t.key;
+        return (
+          <div key={t.key} style={idx > 0 ? { borderTop: "1px solid var(--line)" } : undefined}>
+            <button onClick={() => toggle(t.key)} aria-expanded={on} className="w-full flex items-center gap-3 px-3.5 py-3 text-left hover:bg-neutral-50 transition-colors">
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium" style={{ color: "var(--ink)" }}>{t.name}</span>
+                <span className="block text-xs text-neutral-500 truncate">{t.desc}</span>
+              </span>
+              <Icon name="chevronDown" className={`w-4 h-4 shrink-0 transition-transform ${on ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+            </button>
+            {on && def && (
+              <div className="px-3.5 pb-4" style={{ background: "var(--bg)" }}>
+                {savedMsg && <div className="rounded-lg border p-2.5 mb-3 text-xs" style={{ borderColor: "#BBF7D0", background: "#F0FDF4", color: "#166534" }}>{savedMsg}</div>}
+                {saveErr && <div className="rounded-lg border p-2.5 mb-3 text-xs" style={{ borderColor: "#FECACA", background: "#FEF2F2", color: "#B91C1C" }}>{saveErr}</div>}
+                <label className="block text-xs text-neutral-500 mb-1 pt-1">Subject</label>
+                <input value={subject} onChange={(e) => { setSubject(e.target.value); setSavedMsg(null); }} className="w-full rounded-xl bg-white border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300 mb-4" />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs text-neutral-500">Body</label>
+                  <button onClick={() => setShowPreview((s) => !s)} className="text-xs font-medium" style={{ color: "var(--brand)" }}>{showPreview ? "Edit" : "Preview"}</button>
+                </div>
+                {showPreview ? (
+                  <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
+                    <p className="text-xs text-neutral-400 mb-3">Preview with sample data</p>
+                    <div className="mb-3 pb-3" style={{ borderBottom: "1px solid var(--line)" }}>
+                      {logoUrl ? <img src={logoUrl} alt={company || "Company"} style={{ height: 28, width: "auto", objectFit: "contain" }} /> : <span className="text-base font-bold" style={{ color: "var(--ink)" }}>{company || "Your company"}</span>}
+                    </div>
+                    <p className="text-sm font-semibold text-neutral-900 mb-2">{fillTokens(subject)}</p>
+                    <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{renderPreviewBody(body)}</div>
+                    {!def.toCompany && <p className="text-sm text-neutral-700 mt-4">Best Regards,<br />{company || "Your company"}</p>}
+                  </div>
+                ) : (
+                  <>
+                    <textarea value={body} onChange={(e) => { setBody(e.target.value); setSavedMsg(null); }} rows={10} className="w-full rounded-xl bg-white border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300 resize-y font-mono leading-relaxed" />
+                    <p className="text-[11px] mt-2 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}><Icon name="check" className="w-3 h-3" /> Your logo is shown at the top{def.toCompany ? "" : `, and a “Best Regards, ${company || "your company"}” sign-off at the bottom,`} automatically.</p>
+                    <div className="mt-3">
+                      <p className="text-[11px] text-neutral-500 mb-1.5">Insert a placeholder:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...new Set([...(def.tokens || []), ...COMMON_TOKENS])].map((tok) => (
+                          <button key={tok} onClick={() => insertToken(tok)} className="text-[11px] font-mono rounded-full px-2 py-0.5 border transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--brand)", background: "var(--brand-soft)" }}>{`{{${tok}}}`}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div className="flex items-center gap-2 mt-4">
+                  <button onClick={save} disabled={!dirty || saving} className="text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-medium px-4 py-2 transition-opacity hover:opacity-90">{saving ? "Saving…" : "Save template"}</button>
+                  {dirty && !saving && <button onClick={() => { setSubject(templates[openKey].subject); setBody(templates[openKey].body); setSavedMsg(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Reset</button>}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // WhatsApp Business, wired to the Meta Cloud API through the `whatsapp` edge
 // function. A company pastes its Cloud API Phone number ID + access token (from
 // Meta's API Setup screen); we validate them against the Graph API, store them
 // server-side, and can send the pre-approved hello_world template as a live test.
 // Gated to Elite. All the token handling lives server-side; this component only
-// ever sees connection status and send results.
-function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true }) {
+// ever sees connection status and send results. `bare` drops the outer card +
+// title/description so it can sit inside a SettingsSection accordion.
+function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true, bare = false }) {
   const hasWhatsApp = planLimits(plan).whatsapp;
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
