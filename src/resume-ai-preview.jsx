@@ -12036,10 +12036,10 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       </div>
       {note && <p className="relative text-xs mt-2.5 leading-relaxed" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
       {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
-      {typeof purchased === "number" && purchased > 0 && (
+      {onBuyCredits && typeof purchased === "number" && (
         <div className="relative mt-3 pt-3 flex items-baseline justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.22)" }}>
           <span className="text-[11px] text-white/80">Purchased top-up</span>
-          <span className="text-sm font-semibold text-white tnum">+{purchased.toLocaleString()} left</span>
+          <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "None yet"}</span>
         </div>
       )}
       {onBuyCredits && (
