@@ -12625,6 +12625,13 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   };
   const matchSkeleton = (
     <div className="space-y-2.5">
+      <div className="rounded-2xl border p-4 flex items-center gap-3" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
+        <span className="w-5 h-5 rounded-full shrink-0 animate-spin" style={{ border: "2.5px solid rgba(var(--brand-rgb),0.25)", borderTopColor: "var(--brand)" }} />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold" style={{ color: "var(--brand)" }}>Ranking with AI…</p>
+          <p className="text-xs" style={{ color: "var(--ink-2)" }}>Scoring your candidates{matchJob?.title ? ` against ${matchJob.title}` : ""}. This usually takes a few seconds.</p>
+        </div>
+      </div>
       {[0, 1, 2].map((i) => (
         <div key={i} className="rounded-2xl bg-white border p-4 flex items-center gap-4" style={{ borderColor: "var(--line)" }}>
           <div className="rounded-full bg-neutral-200 animate-pulse shrink-0" style={{ width: 52, height: 52 }} />
@@ -12996,7 +13003,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <div className="flex items-center gap-3">
                   {!ranked && list.length > 0 && (skillTags.length > 0 || industryTags.length > 0) && (
                     <button onClick={() => askAiRank(runAiRank)} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
-                      <Icon name={outOfCredits ? "lock" : "matching"} className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : outOfCredits ? "Out of credits" : "AI Rank"}
+                      {aiRanking
+                        ? <span className="w-3.5 h-3.5 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
+                        : <Icon name={outOfCredits ? "lock" : "matching"} className="w-3.5 h-3.5" />} {aiRanking ? "Ranking…" : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
                   )}
                   <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
@@ -13027,7 +13036,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
-                      <Icon name={outOfCredits ? "lock" : "matching"} className="w-4 h-4" />
+                      {matching
+                        ? <span className="w-4 h-4 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
+                        : <Icon name={outOfCredits ? "lock" : "matching"} className="w-4 h-4" />}
                       {matching ? "Ranking…" : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
                   </div>
@@ -19660,7 +19671,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
               className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
-              <Icon name={!matching && (outOfCredits || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />
+              {matching
+                ? <span className="w-4 h-4 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
+                : <Icon name={(outOfCredits || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />}
               {matching ? "Ranking…" : outOfCredits ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
             </button>
           </div>
