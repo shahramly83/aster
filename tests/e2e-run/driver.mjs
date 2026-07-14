@@ -592,6 +592,50 @@ async function listButtons(who, route) {
   await ctx.close();
 }
 
+// Settle the open invoice from the past-due banner, completing 3-D Secure. This is
+// the recovery path for a plan change whose off-session charge could not be
+// authenticated, so it has to work end to end or the customer stays billed but not
+// upgraded.
+async function payOpenInvoice() {
+  const { ctx, page } = await ctxFor(CFG.tenant.email);
+  await page.goto(`${wsOrigin()}/billing`, { waitUntil: "load" });
+  await settle(page, 9000);
+
+  const pay = page.getByRole("link", { name: /^pay /i }).first();
+  if (!(await pay.count())) {
+    await shot(page, "PAY-no-button");
+    console.log("  ❌ no 'Pay' button on the past-due banner");
+    await ctx.close();
+    return;
+  }
+  console.log(`  found: "${(await pay.innerText()).trim()}"`);
+  await pay.click();
+  await page.waitForURL(/invoice\.stripe\.com|pay\.stripe\.com/, { timeout: 45_000 }).catch(() => {});
+  await settle(page, 6000);
+  await shot(page, "PAY1-hosted-invoice");
+
+  // Stripe's hosted invoice calls it "Confirm payment" when a card is already on
+  // file, not "Pay".
+  const payNow = page.getByRole("button", { name: /confirm payment|pay (this invoice|now)/i }).first();
+  if (await payNow.count()) { await payNow.click(); await settle(page, 8000); }
+
+  // The saved card is already on file, so this should go straight to the challenge.
+  for (const fr of page.frames()) {
+    const done = fr.getByRole("button", { name: /^(complete|authorize)$/i }).first();
+    if (await done.count().catch(() => 0)) {
+      await done.click({ timeout: 15_000 }).catch(() => {});
+      console.log("  ✓ completed the 3DS challenge");
+      break;
+    }
+  }
+  await settle(page, 10_000);
+  await shot(page, "PAY2-after");
+  console.log(`  landed: ${page.url()}`);
+  const body = await page.locator("body").innerText().catch(() => "");
+  console.log(`  ${/paid|thank you|receipt/i.test(body) ? "✅ invoice paid" : "⚠ could not confirm payment from the page"}`);
+  await ctx.close();
+}
+
 async function shotRoute(who, route) {
   const email = who.includes("@") ? who : CFG[who]?.email || CFG.tenant.email;
   const { ctx, page } = await ctxFor(email);
@@ -621,6 +665,7 @@ const run = {
   subscribe: () => subscribe(args[0], args[1], args[2]),
   shot: () => shotRoute(args[0], args[1] || "/dashboard"),
   buttons: () => listButtons(args[0], args[1] || "/dashboard"),
+  payopen: () => payOpenInvoice(),
 };
 if (!run[cmd]) {
   console.log("Commands: signup | confirm <url> | profile | invite | accept <email> <url> | login <who> | shot <who> <route>");
