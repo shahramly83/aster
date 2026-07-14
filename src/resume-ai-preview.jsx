@@ -1210,7 +1210,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBl
               </div>
               <div className="relative">
                 <input id="li-password" name="current-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 inline-flex items-center justify-center rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -1516,7 +1516,7 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
                   <label htmlFor="fp-newpw" className={labelDark} style={{ color: "var(--ink)" }}>New password</label>
                   <div className="relative">
                     <input id="fp-newpw" name="new-password" type={showPw ? "text" : "password"} value={newPw} autoComplete="new-password" placeholder="Create a new password" onChange={(e) => { setNewPw(e.target.value); setPwErr(null); }} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                    <button type="button" onClick={() => setShowPw((s) => !s)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                    <button type="button" onClick={() => setShowPw((s) => !s)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 inline-flex items-center justify-center rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                       <Icon name="eye" className="w-4 h-4" />
                     </button>
                   </div>
@@ -2697,7 +2697,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   key={key}
                   onClick={() => { setProbMode(key); setProbTouched(true); }}
                   aria-pressed={on}
-                  className="relative flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-sm font-medium rounded-full px-4 py-2 transition-colors"
+                  className="relative flex-1 sm:flex-none inline-flex items-center justify-center min-h-[44px] sm:min-h-0 gap-1.5 text-sm font-medium rounded-full px-4 py-2 transition-colors"
                   style={on ? { color: key === "aster" ? "#fff" : "var(--ink)" } : { color: "var(--ink-3)" }}
                 >
                   {on && <span className={`absolute inset-0 rounded-full ${key === "aster" ? "brand-gradient" : ""}`} style={key === "aster" ? { boxShadow: "0 8px 20px -10px rgba(var(--brand-rgb),0.6)" } : { background: "#F1F1F4" }} />}
@@ -3074,7 +3074,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           ))}
         </div>
         <Reveal className="mt-8 text-center">
-          <button onClick={() => goSolution("")} className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <button onClick={() => goSolution("")} className="inline-flex items-center justify-center min-h-[44px] gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
             Explore all solutions <Icon name="arrowUpRight" className="w-4 h-4" />
           </button>
         </Reveal>
@@ -3091,7 +3091,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               const on = cycle === c.key;
               return (
                 <button key={c.key} onClick={() => setCycle(c.key)}
-                  className={`text-sm px-4 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                  className={`text-sm px-4 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors flex items-center justify-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
                   style={on ? { background: "var(--ink)" } : undefined}>
                   {c.label}
                   {c.key === "yearly" && yearlySaving != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>Save {yearlySaving}%</span>}
@@ -3912,7 +3912,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
                   ? <button onMouseEnter={closeMenus} onClick={cta} className="hidden sm:inline-flex ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 brand-gradient text-white shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>
                   : <button onMouseEnter={closeMenus} onClick={cta} className="hidden sm:inline-flex ml-1.5 shrink-0 whitespace-nowrap text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-14px_rgba(15,27,51,0.5)]" style={{ background: "#fff", color: "var(--brand)" }}>Get started</button>)
               : <button onMouseEnter={closeMenus} onClick={cta} className="hidden sm:inline-flex ml-1.5 shrink-0 whitespace-nowrap text-sm brand-gradient text-white font-medium px-3.5 sm:px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">Get started</button>}
-            <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
+            <button onClick={() => setMenuOpen(true)} className="burger md:hidden ml-1 w-11 h-11 flex flex-col items-center justify-center gap-[5px] rounded-xl transition-transform active:scale-90" aria-label="Open menu">
               <span className="burger-bar block h-[2px] w-[18px] rounded-full" style={{ background: navLight ? "var(--ink)" : "#fff" }} /><span className="burger-bar block h-[2px] w-[12px] rounded-full" style={{ background: navLight ? "var(--ink)" : "#fff" }} />
             </button>
           </div>
@@ -5278,7 +5278,7 @@ function StepCard({ s, i }) {
       {(overflows || expanded) && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="relative mt-auto pt-3 self-start text-sm font-semibold inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
+          className="relative mt-auto pt-3 pb-2 min-h-[44px] self-start text-sm font-semibold inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
           style={{ color: "var(--brand)" }}
           aria-expanded={expanded}
         >
@@ -6981,7 +6981,7 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
               <label htmlFor="jn-password" className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
               <div className="relative">
                 <input id="jn-password" type={showPassword ? "text" : "password"} autoComplete={mode === "create" ? "new-password" : "current-password"} value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder={mode === "create" ? "Create a password" : "Enter your password"} className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 inline-flex items-center justify-center rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -7495,7 +7495,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
               <label htmlFor="su-password" className={labelDark} style={{ color: "var(--ink)" }}>Password</label>
               <div className="relative">
                 <input id="su-password" name="new-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setErr(null); }} placeholder="Create a password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 inline-flex items-center justify-center rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -7515,7 +7515,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
               <label htmlFor="su-confirm" className={labelDark} style={{ color: "var(--ink)" }}>Confirm password{reqStar}</label>
               <div className="relative">
                 <input id="su-confirm" name="confirm-password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setErr(null); }} placeholder="Re-enter your password" className={`${fieldDark} pr-11`} style={fieldDarkStyle} />
-                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 inline-flex items-center justify-center rounded-lg transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }}>
                   <Icon name="eye" className="w-4 h-4" />
                 </button>
               </div>
@@ -8107,7 +8107,7 @@ function SidebarLayout({ navigate, active, avatarUrl, onSignOut, logoUrl, profil
         {/* Content, rounded light panel inside the dark frame */}
         <div className="flex-1 min-w-0">
           <div className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-30" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
-            <button onClick={() => setMobileOpen(true)} className="burger w-9 h-9 flex flex-col items-center justify-center gap-[5px] rounded-lg transition-transform active:scale-90" aria-label="Open menu">
+            <button onClick={() => setMobileOpen(true)} className="burger w-11 h-11 flex flex-col items-center justify-center gap-[5px] rounded-lg transition-transform active:scale-90" aria-label="Open menu">
               <span className="burger-bar block h-[2px] w-[18px] rounded-full" style={{ background: "var(--ink-2)" }} />
               <span className="burger-bar block h-[2px] w-[12px] rounded-full" style={{ background: "var(--ink-2)" }} />
             </button>
