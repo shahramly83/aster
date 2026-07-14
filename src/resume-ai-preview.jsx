@@ -19467,8 +19467,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           onStageChange={(stage, emailSent) => setStage(a.candidateId, stage, emailSent)}
                         />
                       )}
-                      <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} aria-label={`View ${c.parsed.name}`} title="View candidate" className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>
-                        <Icon name="eye" className="w-4 h-4" />
+                      <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} aria-label={`View ${c.parsed.name}`} title="View candidate" className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+                        <Icon name="eye" className="w-[18px] h-[18px]" />
                       </button>
                     </div>
                   </div>
