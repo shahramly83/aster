@@ -918,12 +918,21 @@ async function createCompanyAndWelcome(companyName, fullName, slug = null) {
     // Already provisioned (a concurrent path won): the workspace exists, and its
     // welcome was already fired there, so don't send a second one from here.
     if (/already exists/i.test(error.message)) return null;
-    // Their company already has a workspace. They want an invite, not a second
-    // copy of it, so say so by name rather than showing a Postgres error.
+    // Their company already has a workspace. They want an invite, not a second copy
+    // of it. Name the owner: "your company already uses Aster" tells someone they're
+    // blocked without telling them who can unblock them.
     const dup = /domain_in_use:(.*)$/i.exec(error.message || "");
     if (dup) {
-      const co = (dup[1] || "").trim();
-      return { message: `${co || "Your company"} already uses Aster. Ask them to invite you, and you'll join the same workspace.` };
+      const [co, ownerName, ownerEmail] = (dup[1] || "").split("|").map((s) => s.trim());
+      const who = ownerName && ownerEmail ? `${ownerName} (${ownerEmail})`
+        : ownerEmail || ownerName || "whoever set it up";
+      return {
+        domainInUse: true,
+        company: co || "Your company",
+        ownerName: ownerName || "",
+        ownerEmail: ownerEmail || "",
+        message: `${co || "Your company"} already uses Aster. Ask ${who} to invite you and you'll join the same workspace.`,
+      };
     }
     return error;
   }
@@ -14950,6 +14959,64 @@ function ConfirmEmailScreen({ navigate }) {
   );
 }
 
+// Someone signed up whose company already has an Aster workspace. One workspace per
+// company, so they join by invitation. Telling them that and stopping there would
+// leave them stranded: they'd know they were blocked, not who could unblock them.
+// So we name the owner and let them ask, in one press.
+function JoinBlockedScreen({ info, onSignOut }) {
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState("");
+
+  const ask = async () => {
+    setBusy(true); setErr("");
+    const { data, error } = await supabase.functions.invoke("request-workspace-access", { body: {} });
+    setBusy(false);
+    if (error || data?.error) { setErr("Couldn't send the request. Email them directly and they can invite you."); return; }
+    setSent(true);
+  };
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-md text-center">
+        <img src="/aster-logo.png" alt="Aster" className="h-5 w-auto object-contain mx-auto mb-8" />
+        <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>
+          {info.company} is already on Aster
+        </h1>
+        <p className="text-sm mt-3 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+          Your company has one workspace and everyone works in it, so you'll join theirs rather than start a second one.
+        </p>
+
+        {info.ownerEmail && (
+          <div className="mt-5 rounded-2xl border p-4 text-left" style={{ borderColor: "var(--line)", background: "#fff" }}>
+            <p className="text-xs uppercase tracking-wide font-medium" style={{ color: "var(--ink-3)" }}>Who can add you</p>
+            <p className="text-sm font-semibold mt-1" style={{ color: "var(--ink)" }}>{info.ownerName || info.ownerEmail}</p>
+            {info.ownerName && <p className="text-sm" style={{ color: "var(--ink-2)" }}>{info.ownerEmail}</p>}
+          </div>
+        )}
+
+        {sent ? (
+          <p className="mt-5 text-sm rounded-xl px-3 py-2.5" style={{ color: "#067647", background: "#ECFDF3", border: "1px solid #ABEFC6" }}>
+            Asked. {info.ownerName || "They"} will get an email with a button to invite you.
+          </p>
+        ) : (
+          <button
+            onClick={ask}
+            disabled={busy}
+            className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold px-4 py-3 brand-gradient text-white hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-wait"
+          >
+            {busy && <span aria-hidden="true" className="w-4 h-4 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff" }} />}
+            {busy ? "Asking…" : "Ask them to invite me"}
+          </button>
+        )}
+        {err && <p role="alert" className="text-[13px] mt-3 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>}
+
+        <button onClick={onSignOut} className="mt-6 text-sm" style={{ color: "var(--ink-3)" }}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
 function RestrictedScreen({ navigate, title, body }) {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
@@ -20003,6 +20070,9 @@ export default function ResumeAIPreview() {
   // Set when the signed-in owner's workspace is soft-deleted (within the 30-day
   // window). We show the restore screen instead of the app.
   const [deletedInfo, setDeletedInfo] = useState(null);
+  // Signed up, but their company already has a workspace. They need an invite, and
+  // they need to know who from.
+  const [joinBlocked, setJoinBlocked] = useState(null);
   const [activeJobId, setActiveJobId] = useState(() => (typeof window !== "undefined" ? (applicantsJobFromPath(window.location.pathname) || "j1") : "j1"));
   // On Launch, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
@@ -20742,6 +20812,15 @@ export default function ResumeAIPreview() {
             session.user.user_metadata?.full_name || session.user.user_metadata?.name || null,
             session.user.user_metadata?.workspace_slug || null,
           );
+          // Their company already has a workspace. That is not a failure to log and
+          // walk away from: without a screen they land in a blank app with no idea
+          // what happened or who to ask.
+          if (rpcErr?.domainInUse) {
+            if (cancelled) return;
+            setJoinBlocked(rpcErr);
+            setRestoring(false);
+            return;
+          }
           if (rpcErr) console.error("workspace provisioning failed:", rpcErr.message || rpcErr);
           else sess = await loadCustomerSession(session.user.id, email);
         }
@@ -21321,6 +21400,17 @@ export default function ResumeAIPreview() {
     return (
       <Shell>
         <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />
+      </Shell>
+    );
+  }
+
+  if (joinBlocked) {
+    return (
+      <Shell>
+        <JoinBlockedScreen
+          info={joinBlocked}
+          onSignOut={async () => { await supabase.auth.signOut(); window.location.assign("/login"); }}
+        />
       </Shell>
     );
   }

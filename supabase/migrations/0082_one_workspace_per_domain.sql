@@ -70,12 +70,23 @@ begin
 
   -- One workspace per company. If a colleague already has one, this person joins
   -- it by invitation rather than starting a rival copy of it.
+  --
+  -- Name the OWNER, not just the company. "Your company already uses Aster" tells
+  -- someone they are blocked without telling them who can unblock them, which is a
+  -- dead end dressed up as an explanation. They are a verified address on this
+  -- domain, so telling them who owns their own company's workspace is not a leak.
   if v_domain is not null and not public._is_public_email_domain(v_domain) then
-    select c.name into v_existing
-      from public.profiles p
-      join public.companies c on c.id = p.company_id
-     where p.status = 'active'
-       and c.deleted_at is null
+    select c.name || '|' || coalesce(o.full_name, '') || '|' || coalesce(o.email, '')
+      into v_existing
+      from public.companies c
+      join public.profiles p on p.company_id = c.id and p.status = 'active'
+      left join lateral (
+        select p2.full_name, p2.email
+          from public.profiles p2
+         where p2.company_id = c.id and p2.role = 'owner' and p2.status = 'active'
+         limit 1
+      ) o on true
+     where c.deleted_at is null
        and public._email_domain(p.email) = v_domain
      limit 1;
     if v_existing is not null then
