@@ -19364,9 +19364,22 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         {ranked && <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={26} showPhotoDot={false} />}
-                        <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="min-w-0 flex-1 text-left">
-                          <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
-                        </button>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="min-w-0 text-left">
+                            <p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
+                          </button>
+                          {(() => { const on = shortlistedApps.has(a.applicationId); return (
+                            <button
+                              onClick={() => onToggleShortlist(a.applicationId)}
+                              aria-label={on ? "Remove from your shortlist" : "Add to your shortlist"}
+                              title={on ? "Shortlisted by you. Tap to remove." : "Add to your shortlist"}
+                              className="shrink-0 transition-opacity hover:opacity-70"
+                              style={{ color: on ? "#F5B301" : "var(--ink-3)", lineHeight: 0 }}
+                            >
+                              <Icon name="star" className="w-4 h-4" style={on ? { fill: "currentColor" } : undefined} />
+                            </button>
+                          ); })()}
+                        </div>
                         {a.fit === "other" && (
                           <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title={a.fitReason || "Doesn't match this role's requirements; kept in your talent pool."}>Not a match for this role</span>
                         )}
@@ -19390,17 +19403,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
-                      {(() => { const on = shortlistedApps.has(a.applicationId); return (
-                        <button
-                          onClick={() => onToggleShortlist(a.applicationId)}
-                          aria-label={on ? "Remove from your shortlist" : "Add to your shortlist"}
-                          title={on ? "Shortlisted by you. Tap to remove." : "Add to your shortlist"}
-                          className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center border transition-colors hover:bg-neutral-50"
-                          style={on ? { borderColor: "var(--brand)", color: "var(--brand)" } : { borderColor: "var(--line-strong)", color: "var(--ink-3)" }}
-                        >
-                          <Icon name="star" className="w-4 h-4" style={on ? { fill: "currentColor" } : undefined} />
-                        </button>
-                      ); })()}
                       {act && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
