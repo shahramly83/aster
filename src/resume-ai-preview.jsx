@@ -13413,18 +13413,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
           {/* Account owner, always a member, can't be removed */}
           {(roleFilter === "all" || roleFilter === "admin") && (
-          <div className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
-            <div className="flex items-start gap-3 min-w-0">
-              <CandidateAvatar name={ownerName || "You"} hasPhoto={!!avatarUrl} src={avatarUrl} size={40} showPhotoDot={false} />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
-                </div>
-                <p className="text-xs text-neutral-500">Full access, including everything a hiring manager can do.</p>
-              </div>
+          <div className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
+            <CandidateAvatar name={ownerName || "You"} hasPhoto={!!avatarUrl} src={avatarUrl} size={48} showPhotoDot={false} />
+            <p className="mt-3 text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
             </div>
+            <p className="text-xs text-neutral-500 mt-2.5">Full access, including everything a hiring manager can do.</p>
           </div>
           )}
 
@@ -13432,59 +13428,49 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             const upcoming = scheduledCountFor(iv);
             const pending = iv.status === "pending";
             return (
-              <div key={iv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
-                <div className="flex items-start gap-3 min-w-0">
-                  <CandidateAvatar name={iv.name} hasPhoto={false} size={40} showPhotoDot={false} />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
-                        {pending ? "Invite pending" : "Active"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-500 truncate">{iv.email}</p>
-                    {upcoming > 0 && (
-                      <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
-                        <Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming interview{upcoming > 1 ? "s" : ""}
-                      </p>
-                    )}
-                  </div>
+              <div key={iv.id} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
+                <button
+                  onClick={() => setRemoving(iv)}
+                  className="absolute top-4 right-4 text-xs text-neutral-400 hover:text-red-600 transition-colors"
+                >
+                  Remove
+                </button>
+                <CandidateAvatar name={iv.name} hasPhoto={false} size={48} showPhotoDot={false} />
+                <p className="mt-3 text-neutral-900 font-medium truncate pr-16">{iv.name}</p>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
+                    {pending ? "Invite pending" : "Active"}
+                  </span>
                 </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <button
-                    onClick={() => setRemoving(iv)}
-                    className="text-xs text-neutral-400 hover:text-red-600 transition-colors"
-                  >
-                    Remove
-                  </button>
-                </div>
+                <p className="text-xs text-neutral-500 mt-2.5 truncate">{iv.email}</p>
+                {upcoming > 0 && (
+                  <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
+                    <Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming interview{upcoming > 1 ? "s" : ""}
+                  </p>
+                )}
               </div>
             );
           })}
 
           {/* Pending invites (no account yet). They hold a seat until accepted. */}
           {pendingInvites.filter((inv) => roleFilter === "all" || inv.role === roleFilter).map((inv) => (
-            <div key={inv.id} className="flex items-start justify-between gap-3 rounded-2xl bg-white act-shadow px-5 py-4 border border-[color:var(--line)]">
-              <div className="flex items-start gap-3 min-w-0">
-                <CandidateAvatar name={inv.email} hasPhoto={false} size={40} showPhotoDot={false} />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-neutral-900 font-medium truncate">{inv.email}</p>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
-                  </div>
-                  <p className="text-xs text-neutral-500">Waiting for them to accept the email invite. Holds a seat until then.</p>
-                </div>
-              </div>
+            <div key={inv.id} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
               <button
                 onClick={() => revokeInvite(inv)}
                 disabled={revokeBusyId === inv.id}
-                className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40"
+                className="absolute top-4 right-4 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40"
                 style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
               >
                 {revokeBusyId === inv.id ? "Revoking…" : "Revoke"}
               </button>
+              <CandidateAvatar name={inv.email} hasPhoto={false} size={48} showPhotoDot={false} />
+              <p className="mt-3 text-neutral-900 font-medium truncate pr-20">{inv.email}</p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+              </div>
+              <p className="text-xs text-neutral-500 mt-2.5">Waiting for them to accept the email invite. Holds a seat until then.</p>
             </div>
           ))}
           {roleFilter === "interviewer"
