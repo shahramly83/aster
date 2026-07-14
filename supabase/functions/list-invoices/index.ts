@@ -61,6 +61,27 @@ Deno.serve(async (req) => {
       return json({ error: "could not load invoices", detail: data?.error?.message || null }, 502);
     }
 
+    // What the invoice was FOR, in one line.
+    //
+    // A plan change produces two lines: a credit for the old plan's unused time and
+    // a charge for the new one. Taking lines[0] showed "Unused time on Aster Scale"
+    // against a charge of $169.91, which reads as though we billed them for time
+    // they did not use. Describe it by the plan they were moved ONTO, which is the
+    // line that was actually charged.
+    const planOf = (lines: Record<string, any>[]): string | null => {
+      if (!lines?.length) return null;
+      const charged = lines.filter((l) => (l.amount ?? 0) > 0);
+      const line = charged[charged.length - 1] || lines[0];
+      const d = String(line.description || "");
+      // "Remaining time on Aster Elite after 14 Jul 2026" -> "Aster Elite (prorated)"
+      const m = d.match(/^Remaining time on (.+?) after /i);
+      if (m) return `${m[1]} (prorated)`;
+      // "1 × Aster Scale (at $129.00 / month)" -> "Aster Scale"
+      const n = d.match(/^\d+\s*×\s*(.+?)\s*\(at /i);
+      if (n) return n[1];
+      return d || null;
+    };
+
     // Drafts aren't real history yet; don't show them.
     const invoices = (data.data || [])
       .filter((i: Record<string, unknown>) => i.status !== "draft")
@@ -71,7 +92,7 @@ Deno.serve(async (req) => {
         amount: typeof i.amount_paid === "number" && i.amount_paid > 0 ? i.amount_paid : i.amount_due,
         currency: (i.currency || "usd").toUpperCase(),
         status: i.status,                               // paid | open | void | uncollectible
-        plan: i.lines?.data?.[0]?.description || null,  // what it was for
+        plan: planOf(i.lines?.data || []),              // what it was for
         pdf: i.invoice_pdf || null,                     // direct download
         url: i.hosted_invoice_url || null,              // Stripe-hosted view
       }));

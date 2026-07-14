@@ -66,10 +66,10 @@ export async function ctxFor(who) {
   return { ctx, page };
 }
 
-export async function shot(page, name) {
+export async function shot(page, name, full = false) {
   await mkdir(SHOTS, { recursive: true });
   const file = join(SHOTS, `${name}.png`);
-  await page.screenshot({ path: file, fullPage: false });
+  await page.screenshot({ path: file, fullPage: full });
   console.log(`  📸 ${file}`);
   return file;
 }
@@ -544,7 +544,9 @@ async function shotRoute(who, route) {
   await page.goto(`${wsOrigin()}${route}`, { waitUntil: "load" });
   await settle(page, 4000);
   console.log(`${email} @ ${route} -> ${page.url()}`);
-  await shot(page, `route-${key(email)}-${route.replace(/\//g, "_")}`);
+  // Full page: the fold hides real content (the invoice table sits under it) and
+  // a viewport shot would quietly pass a screen that never rendered.
+  await shot(page, `route-${key(email)}-${route.replace(/\//g, "_")}`, true);
   await ctx.close();
 }
 
