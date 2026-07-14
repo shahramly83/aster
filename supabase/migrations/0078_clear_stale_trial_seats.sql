@@ -23,7 +23,9 @@
 -- ---------------------------------------------------------------------------
 -- 1. Clear the stale value everywhere. No workspace has bought add-on seats.
 -- ---------------------------------------------------------------------------
-update public.subscriptions set seats = null where seats is not null;
+-- Zero, not null: the column is NOT NULL, and the gate reads
+-- greatest(plan_base, coalesce(seats, 0)), so 0 says "no add-ons" exactly.
+update public.subscriptions set seats = 0 where seats <> 0;
 
 -- ---------------------------------------------------------------------------
 -- 2. Stop writing it at signup. Identical to 0050 except seats is now null.
@@ -74,10 +76,10 @@ begin
   insert into public.profiles (id, company_id, full_name, email, role, status)
   values (v_uid, v_company_id, coalesce(nullif(trim(p_full_name), ''), v_email), v_email, 'owner', 'active');
 
-  -- seats: null. The plan carries the entitlement; this column is add-ons only.
+  -- seats: 0. The plan carries the entitlement; this column is add-ons only.
   insert into public.subscriptions (company_id, plan, cycle, status, seats, current_period_end)
   values (v_company_id, v_plan, 'monthly',
-          case when v_grant then 'trialing' else 'active' end, null,
+          case when v_grant then 'trialing' else 'active' end, 0,
           case when v_grant then (now() + interval '14 days')::date else current_date end);
 
   -- This business domain has now used its one free trial.
