@@ -9159,7 +9159,12 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your plan</p>
                   <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "launch" ? "Launch" : plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "Enterprise"}</p>
                 </div>
-                <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                {/* Billing is owner-only, so a hiring manager must not be offered a
+                    shortcut into a screen that will just refuse them. They still see
+                    the plan and their credit usage, which they need. */}
+                {isOwner(profile?.role) && (
+                  <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                )}
               </div>
               {/* stylised plan card */}
               <div className="relative mt-4 rounded-2xl p-4 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 20px 40px -20px rgba(var(--brand-rgb),0.7)" }}>
@@ -9234,7 +9239,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
                           <InfoHint dir="up" hint="How much of this month's AI plan you have used across parsing, ranking, insights and interview questions. Limits reset on the 1st." />
                         </div>
-                        <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
+                        {isOwner(profile?.role) && (
+                          <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
+                        )}
                       </div>
                       <div className="space-y-3.5">
                         {items.map((it) => {
