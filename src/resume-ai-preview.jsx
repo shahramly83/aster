@@ -10308,6 +10308,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               column scrolls; self-start lets it shrink below the grid-row height. */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             <UsageMeter
+              plan={plan}
               title="Usage this month"
               hint="Screening is when AI reads a resume and pulls out the candidate's details. Each screened resume counts toward your monthly plan limit."
               used={usedThisMonth} limit={uploadLimit} unit="resumes screened"
@@ -11456,6 +11457,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               const scrLeft = scrLimit === Infinity ? null : Math.max(scrLimit - scrUsed, 0);
               return (
                 <UsageMeter
+                  plan={plan}
                   title="AI Applicant Screening"
                   hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets on the 1st."
                   used={scrUsed}
@@ -11471,6 +11473,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             })()}
             {jobPostUsage.limit != null && (
               <UsageMeter
+                plan={plan}
                 title="Open roles"
                 hint="Your plan sets how many roles you can have open at once. Publishing a role (or reopening a closed one) takes a slot; closing a role frees one. Drafts don't count."
                 used={jobPostUsage.used}
@@ -11886,10 +11889,15 @@ function FieldLabel({ children, hint }) {
 
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
-function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more" }) {
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more", plan = null }) {
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
+  // On the top self-serve plan (Elite) there's nothing to upgrade to, so the
+  // "Upgrade for more" button is dead weight. Enterprise is a sales conversation,
+  // not a self-serve tier. Hide the button in both cases.
+  const atTopPlan = plan === "elite" || plan === "enterprise";
+  const showUpgrade = onUpgrade && !atTopPlan;
   return (
     <div className="relative rounded-2xl p-5 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
       <div className="relative flex items-center justify-between mb-2.5">
@@ -11907,7 +11915,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#FBBF24" : "#fff" }} />
       </div>
       {note && <p className="relative text-xs mt-2.5 leading-relaxed" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
-      {onUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
+      {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
     </div>
   );
 }
@@ -12627,6 +12635,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     : "in 30 days";
   const planNote = limits.aiRunsPerMonth !== Infinity ? (
     <UsageMeter
+      plan={plan}
       title="AI Rank credits this cycle"
       hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
@@ -13326,6 +13335,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       onOpenNotifications={onOpenNotifications}
       rail={seatCap !== Infinity ? (
         <UsageMeter
+          plan={plan}
           title="Team seats"
           hint="Every seat: the tenant, each teammate, and any pending invite. New teammates use your workspace's own login domain."
           used={seatsUsed}
@@ -18547,6 +18557,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             )}
             {!isInterviewer(profile?.role) && !insightsUnlimited && (
               <UsageMeter
+                plan={plan}
                 title="AI insights this month"
                 hint="Each AI Experience Insights run uses one credit. Your plan includes a set number each month."
                 used={aiInsightsUsed} limit={insightsLimit} unit="used"
@@ -19514,6 +19525,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       )}
       {limits.aiRunsPerMonth !== Infinity && (
         <UsageMeter
+          plan={plan}
           title="AI Rank"
           hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
           used={matchRunsUsed}
