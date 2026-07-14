@@ -10440,15 +10440,28 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   );
 }
 
+// Currencies a role's salary can be posted in. Stored as ISO codes; shown with the
+// short label recruiters actually recognise (RM, not MYR).
+const SALARY_CURRENCIES = [
+  { code: "MYR", label: "RM" },
+  { code: "SGD", label: "SGD" },
+  { code: "USD", label: "USD" },
+];
+const salaryCurrencyLabel = (code) =>
+  SALARY_CURRENCIES.find((c) => c.code === code)?.label || code || "RM";
+
 function formatSalary(job) {
   if (!job.salary_min && !job.salary_max) return null;
   const fmt = (n) => n.toLocaleString();
+  // Older roles were saved before currency was a field, so fall back to RM
+  // rather than printing "undefined" in front of the figure.
+  const cur = salaryCurrencyLabel(job.salary_currency);
   if (job.salary_min && job.salary_max) {
     // Same min and max is a single figure, not a range.
-    if (job.salary_min === job.salary_max) return `${job.salary_currency} ${fmt(job.salary_min)}`;
-    return `${job.salary_currency} ${fmt(job.salary_min)}–${fmt(job.salary_max)}`;
+    if (job.salary_min === job.salary_max) return `${cur} ${fmt(job.salary_min)}`;
+    return `${cur} ${fmt(job.salary_min)}–${fmt(job.salary_max)}`;
   }
-  return `${job.salary_currency} ${fmt(job.salary_min ?? job.salary_max)}+`;
+  return `${cur} ${fmt(job.salary_min ?? job.salary_max)}+`;
 }
 
 // Shared job form body, used inside the modal for both creating and editing.
@@ -10484,6 +10497,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   const addJobSkill = () => { addSkills(skillInput); setSkillInput(""); };
   const [salaryMin, setSalaryMin] = useState(initialJob?.salary_min ? String(initialJob.salary_min) : "");
   const [salaryMax, setSalaryMax] = useState(initialJob?.salary_max ? String(initialJob.salary_max) : "");
+  const [salaryCurrency, setSalaryCurrency] = useState(initialJob?.salary_currency || "MYR");
   const [expiresAt, setExpiresAt] = useState(initialJob?.expires_at || ""); // yyyy-mm-dd; blank = never closes
   const [dateOpen, setDateOpen] = useState(false);
   const [dateMenuRef, dateUp] = useDropUp(dateOpen, 340); // flip the calendar up when it'd overflow the modal bottom
@@ -10524,7 +10538,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
       skills: skills,
       salary_min: salaryMin ? Number(salaryMin) : null,
       salary_max: salaryMax ? Number(salaryMax) : null,
-      salary_currency: "MYR",
+      salary_currency: salaryCurrency,
       expires_at: expiresAt || null,
       applicant_screening: screening,
       description: description.trim(),
@@ -10640,13 +10654,21 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
             placeholder={skills.length ? "" : "React, SQL, Data Analysis…"} className="flex-1 min-w-[140px] bg-transparent text-sm px-1 py-1 focus:outline-none" style={{ color: "var(--ink)" }} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-[minmax(0,0.7fr)_1fr_1fr] gap-3">
         <div>
-          <label className={labelClass}>Salary min (MYR)</label>
+          <label className={labelClass}>Currency</label>
+          <select value={salaryCurrency} onChange={(e) => setSalaryCurrency(e.target.value)} className={inputClass}>
+            {SALARY_CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Salary min</label>
           <input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="6000" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>Salary max (MYR)</label>
+          <label className={labelClass}>Salary max</label>
           <input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="9000" className={inputClass} />
         </div>
       </div>
