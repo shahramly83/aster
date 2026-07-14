@@ -15047,15 +15047,17 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                     change leaves a proration credit on the account, so the next
                     invoice can be far less than the list price, or nothing at all.
                     Quoting the list price there promises a charge that never comes. */}
+                {/* formatMoney takes minor units, and Stripe already gives us cents.
+                    Dividing first turned a 298.72 credit into "US$2.99". */}
                 <p className="text-sm font-semibold text-neutral-900 tnum">
                   {upcoming
-                    ? formatMoney(upcoming.amount / 100, upcoming.currency)
+                    ? formatMoney(upcoming.amount, upcoming.currency)
                     : formatMoney(savedPrice.amount, savedPrice.currency)}
                 </p>
                 {renewDate && <p className="text-xs text-neutral-500">{renewDate}</p>}
                 {upcoming?.credit > 0 && (
                   <p className="text-xs mt-0.5" style={{ color: "#067647" }}>
-                    {formatMoney(upcoming.credit / 100, upcoming.currency)} credit applied
+                    {formatMoney(upcoming.credit, upcoming.currency)} credit applied
                   </p>
                 )}
               </div>
