@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the pre-push rebase below has something to rebase onto
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -47,4 +49,17 @@ jobs:
           git config user.email "blog-bot@hireaster.com"
           git add src/generated-posts.js public/sitemap.xml
           git commit -m "Blog: daily article ($(date -u +%Y-%m-%d))"
-          git push
+          # main moves often (the team pushes through the day), so a plain push
+          # races and gets rejected ("fetch first"), silently dropping the article.
+          # Rebase the bot's commit onto the latest main and retry a few times.
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt); rebasing onto latest origin/main…"
+            git pull --rebase origin main || { echo "Rebase hit a conflict; aborting."; git rebase --abort || true; exit 1; }
+            sleep $((attempt * 3))
+          done
+          echo "Could not push the article after 5 attempts."
+          exit 1
