@@ -370,6 +370,19 @@ async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
   await page.goto(`${wsOrigin()}/billing`, { waitUntil: "load" });
   await settle(page, 5000);
 
+  // The saved session does not always survive between runs, and a cancelled
+  // workspace lands here signed out. Sign in rather than failing on a missing
+  // button: the point of this command is the payment, not the login.
+  if (await page.getByRole("button", { name: /^sign in$/i }).count()) {
+    console.log("  (signed out; signing back in)");
+    await signInOn(page, CFG.tenant.email);
+    await settle(page, 6000);
+    // Don't force /billing back on: a cancelled workspace is held on the paywall
+    // and bounced off /billing, so navigating there again just logs us out. Stay
+    // wherever sign-in lands and let the plan buttons be found there.
+    console.log(`  landed on ${page.url()}`);
+  }
+
   // Pick the cycle, then the plan's Subscribe button.
   if (cycle === "yearly") {
     const y = page.getByRole("button", { name: /^yearly/i }).first();
@@ -382,10 +395,16 @@ async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
   const label = plan[0].toUpperCase() + plan.slice(1);
   const card_ = page.locator("div").filter({ hasText: new RegExp(`^${label}`, "i") })
     .filter({ has: page.getByRole("button", { name: CTA }) }).last();
+  // The lapsed/cancelled paywall (DeletedWorkspaceScreen) has no "Subscribe"
+  // button at all: its CTAs are the plan names themselves. Fall back to those so
+  // the resubscribe path is testable.
+  const paywallBtn = page.getByRole("button", { name: new RegExp(`^${label}\\b`, "i") }).first();
   const btn = (await card_.count())
     ? card_.getByRole("button", { name: CTA }).first()
-    : page.getByRole("button", { name: CTA }).first();
-  const cta = (await btn.innerText().catch(() => "")).trim();
+    : (await page.getByRole("button", { name: CTA }).count())
+      ? page.getByRole("button", { name: CTA }).first()
+      : paywallBtn;
+  const cta = (await btn.innerText().catch(() => "")).trim().replace(/\s+/g, " ");
   console.log(`  CTA on ${label}: "${cta}"`);
   await btn.click();
 
@@ -439,22 +458,41 @@ async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
   await page.locator('button[type="submit"], .SubmitButton').first().click();
   console.log("  → submitted payment, waiting for Stripe + webhook…");
 
-  // 3DS pops a challenge frame; accept it.
+  // 3DS pops a challenge, and it lives in an iframe nested inside another iframe.
+  // A frameLocator on the top document never reaches it, so walk every frame on
+  // the page and click COMPLETE wherever it turns up.
   if (variant === "3ds") {
     await settle(page, 8000);
-    const f = page.frameLocator('iframe[name*="stripe"], iframe[title*="Secure"]').last();
-    const done = f.getByRole("button", { name: /complete|authorize/i }).first();
-    await done.click({ timeout: 20_000 }).catch(() => console.log("  (no 3DS button found)"));
+    let clicked = false;
+    for (const fr of page.frames()) {
+      const done = fr.getByRole("button", { name: /^(complete|authorize)$/i }).first();
+      if (await done.count().catch(() => 0)) {
+        await done.click({ timeout: 15_000 }).catch(() => {});
+        clicked = true;
+        console.log("  ✓ completed the 3DS challenge");
+        break;
+      }
+    }
+    if (!clicked) console.log("  ⚠ no 3DS challenge appeared");
   }
 
-  await page.waitForURL(/\/billing/, { timeout: 90_000 }).catch(() => {});
+  await page.waitForURL(/\/billing|\/dashboard/, { timeout: 90_000 }).catch(() => {});
   await settle(page, 8000); // let the webhook land
   console.log(`  landed: ${page.url()}`);
   await shot(page, `P3-after-pay-${plan}`);
 
-  const body = await page.locator("body").innerText();
+  // Judge the payment by where we ended up, not by scanning for the word
+  // "declined". Still sitting on checkout.stripe.com means it did NOT go through;
+  // reading the absence of an error as success reported a 3DS payment as paid when
+  // the challenge had never even been answered.
+  const stillOnStripe = /checkout\.stripe\.com/.test(page.url());
+  const body = await page.locator("body").innerText().catch(() => "");
   const declined = /declin|card was declined|failed/i.test(body);
-  console.log(`  ${declined ? "❌ payment declined (expected for the declined card)" : "✅ payment went through"}`);
+  if (stillOnStripe || declined) {
+    console.log(`  ❌ payment did NOT complete${declined ? " (card declined)" : " (never left Stripe)"}`);
+  } else {
+    console.log("  ✅ payment went through, returned to the app");
+  }
   await ctx.close();
 }
 
@@ -538,6 +576,22 @@ async function billing() {
 }
 
 // Utility: screenshot any route as any account.
+// List every button on a route, with its accessible name and disabled state.
+// When a click times out, this says whether the control is missing, renamed or
+// simply disabled, instead of leaving us guessing at selectors.
+async function listButtons(who, route) {
+  const email = who.includes("@") ? who : CFG[who]?.email || CFG.tenant.email;
+  const { ctx, page } = await ctxFor(email);
+  await page.goto(`${wsOrigin()}${route}`, { waitUntil: "load" });
+  await settle(page, 6000);
+  console.log(`${email} @ ${page.url()}`);
+  for (const b of await page.getByRole("button").all()) {
+    const t = (await b.innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+    console.log(`  [button] "${t}" disabled=${await b.isDisabled().catch(() => "?")}`);
+  }
+  await ctx.close();
+}
+
 async function shotRoute(who, route) {
   const email = who.includes("@") ? who : CFG[who]?.email || CFG.tenant.email;
   const { ctx, page } = await ctxFor(email);
@@ -563,6 +617,7 @@ const run = {
   billing: () => billing(),
   subscribe: () => subscribe(args[0], args[1], args[2]),
   shot: () => shotRoute(args[0], args[1] || "/dashboard"),
+  buttons: () => listButtons(args[0], args[1] || "/dashboard"),
 };
 if (!run[cmd]) {
   console.log("Commands: signup | confirm <url> | profile | invite | accept <email> <url> | login <who> | shot <who> <route>");
