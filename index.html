@@ -123,7 +123,17 @@
     <script>
       (function () {
         try {
-          var authHash = /(?:ws_at=|ws_rt=|access_token=|refresh_token=|type=signup|type=recovery)/.test(window.location.hash || "");
+          var loc = window.location;
+          // Auth signals can arrive in the hash (#access_token, cross-subdomain
+          // #ws_at handoff) OR the query string (email confirm points at
+          // /auth/confirm?token_hash=...&type=signup, OAuth ?code=, ?invite=).
+          // Match both, plus the auth/reset paths themselves, so the splash covers
+          // every route that resolves into the app — never a marketing flash.
+          var q = (loc.hash || "") + (loc.search || "");
+          var authSignal =
+            /(?:ws_at=|ws_rt=|access_token=|refresh_token=|type=signup|type=recovery|token_hash=|[?&]code=|[?&]invite=)/.test(q)
+            || /^\/auth(?:\/|$)/.test(loc.pathname || "")
+            || /^\/reset-password/.test(loc.pathname || "");
           var hasToken = false;
           try {
             var ls = window.localStorage;
@@ -132,7 +142,7 @@
               if (k && k.indexOf("sb-") === 0 && k.indexOf("-auth-token") !== -1 && ls.getItem(k)) { hasToken = true; break; }
             }
           } catch (e) { /* storage blocked (private mode) — treat as signed-out */ }
-          if (hasToken || authHash) document.documentElement.setAttribute("data-app-booting", "");
+          if (hasToken || authSignal) document.documentElement.setAttribute("data-app-booting", "");
         } catch (e) { /* never let the gate break the page */ }
       })();
     </script>
