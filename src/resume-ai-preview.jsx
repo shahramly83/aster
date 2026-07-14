@@ -17064,14 +17064,18 @@ function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true, bar
   const inputStyle = { borderColor: "var(--line-strong)", color: "var(--ink)" };
 
   return (
-    <div className={cardClass}>
-      <div className="flex items-center gap-2 mb-1">
-        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
-        {!hasWhatsApp && <LockBadge label="Elite" />}
-      </div>
-      <p className="text-sm text-neutral-600 mb-4">
-        Send interview confirmations and reminders over WhatsApp using your own WhatsApp Business number. Messages are billed to your Meta account, not Aster.
-      </p>
+    <div className={bare ? "" : cardClass}>
+      {!bare && (
+        <>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">WhatsApp Business</h2>
+            {!hasWhatsApp && <LockBadge label="Elite" />}
+          </div>
+          <p className="text-sm text-neutral-600 mb-4">
+            Send interview confirmations and reminders over WhatsApp using your own WhatsApp Business number. Messages are billed to your Meta account, not Aster.
+          </p>
+        </>
+      )}
 
       {err && <p role="alert" className="text-xs mb-3 rounded-lg px-3 py-2" style={{ color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA" }}>{err}</p>}
 
@@ -17149,7 +17153,7 @@ function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true, bar
   );
 }
 
-function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications }) {
+function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications, companyId = null, canPersist = false, logoUrl = null }) {
   const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
@@ -17191,48 +17195,41 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
       onOpenNotifications={onOpenNotifications}
     >
 
-        {/* Email templates, the wording behind every automated email */}
-        <button onClick={() => navigate("emailTemplates")} className={`${cardClass} mb-4 w-full text-left flex items-center gap-3 hover:bg-neutral-50 transition-colors`}>
-          <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-            <Icon name="doc" className="w-5 h-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold" style={{ color: "var(--ink)" }}>Email templates</span>
-            <span className="block text-xs text-neutral-500">Edit the offer, rejection, interview &amp; other automated emails</span>
-          </span>
-          <Icon name="chevronRight" className="w-5 h-5 text-neutral-300 shrink-0" />
-        </button>
+        {/* Every section is a collapsible accordion. Email templates expand inline
+            (no separate page); the rest keep their existing content. */}
+        <div className="space-y-3">
+          <SettingsSection icon="doc" title="Email templates" desc="Edit the offer, rejection, interview & other automated emails" defaultOpen>
+            <EmailTemplatesPanel plan={plan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />
+          </SettingsSection>
 
-        {/* WhatsApp Business (Elite) — real Meta Cloud API connection */}
-        <WhatsAppBusinessCard plan={plan} navigate={navigate} canManage={!isInterviewer(profile?.role)} />
+          <SettingsSection
+            icon="chat"
+            title="WhatsApp Business"
+            desc="Send interview confirmations & reminders over WhatsApp"
+            badge={!planLimits(plan).whatsapp ? <LockBadge label="Elite" /> : null}
+          >
+            <WhatsAppBusinessCard bare plan={plan} navigate={navigate} canManage={!isInterviewer(profile?.role)} />
+          </SettingsSection>
 
-        {/* Email notifications (moved from Profile). Named explicitly so it's not
-            confused with the top-bar activity bell. */}
-        <div className={`${cardClass} mt-4`}>
-          <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Email notifications</h2>
-          <p className="text-sm text-neutral-600 mb-1">Choose what Aster emails you about. This is separate from the in-app notification bell.</p>
-          <div className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
-            <Toggle on={dNotif.applicants} onChange={(v) => { setDNotif((n) => ({ ...n, applicants: v })); setSavedMsg(null); }} label="New applicants" desc="When someone applies to one of your roles." />
-            <Toggle on={dNotif.interviews} onChange={(v) => { setDNotif((n) => ({ ...n, interviews: v })); setSavedMsg(null); }} label="Interview reminders" desc="Before interviews you're scheduled to run." />
-            <Toggle on={dNotif.digest} onChange={(v) => { setDNotif((n) => ({ ...n, digest: v })); setSavedMsg(null); }} label="Weekly hiring digest" desc="A Monday summary of pipeline activity." />
-            <Toggle on={dNotif.product} onChange={(v) => { setDNotif((n) => ({ ...n, product: v })); setSavedMsg(null); }} label="Product updates" desc="Occasional news about new Aster features." />
-          </div>
-        </div>
-
-        {/* Security: email-code two-factor. Self-contained (its own actions), so it
-            sits outside the Save/Cancel form. Moved here from Profile, which now
-            holds only sign-in identity (email + password). */}
-        {!isInterviewer(profile?.role) && (
-          <div className="mt-4">
-            <div className="flex items-center gap-3 mb-3 mt-2">
-              <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>Security</p>
-              <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+          <SettingsSection icon="bell" title="Email notifications" desc="Choose what Aster emails you about, separate from the in-app bell">
+            <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+              <Toggle on={dNotif.applicants} onChange={(v) => { setDNotif((n) => ({ ...n, applicants: v })); setSavedMsg(null); }} label="New applicants" desc="When someone applies to one of your roles." />
+              <Toggle on={dNotif.interviews} onChange={(v) => { setDNotif((n) => ({ ...n, interviews: v })); setSavedMsg(null); }} label="Interview reminders" desc="Before interviews you're scheduled to run." />
+              <Toggle on={dNotif.digest} onChange={(v) => { setDNotif((n) => ({ ...n, digest: v })); setSavedMsg(null); }} label="Weekly hiring digest" desc="A Monday summary of pipeline activity." />
+              <Toggle on={dNotif.product} onChange={(v) => { setDNotif((n) => ({ ...n, product: v })); setSavedMsg(null); }} label="Product updates" desc="Occasional news about new Aster features." />
             </div>
-            <EmailTwoFactorCard profile={profile} />
-            {/* Workspace deletion, owner/admin only. Moved here from Profile. */}
-            <DangerZoneCard company={company} />
-          </div>
-        )}
+          </SettingsSection>
+
+          {!isInterviewer(profile?.role) && (
+            <SettingsSection icon="lock" title="Security" desc="Two-factor authentication and workspace deletion">
+              <div className="space-y-4">
+                <EmailTwoFactorCard profile={profile} />
+                {/* Workspace deletion, owner/admin only. */}
+                <DangerZoneCard company={company} />
+              </div>
+            </SettingsSection>
+          )}
+        </div>
 
         {/* Save / Cancel bar, sticky within the content column, so it never
             underlaps the sidebar or its Log out button on any screen size. */}
@@ -22001,6 +21998,9 @@ export default function ResumeAIPreview() {
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
+            companyId={companyId}
+            canPersist={canPersist}
+            logoUrl={logoUrl}
           />
         )}
         {/* Hiding the nav item is not a permission. Anyone can type /billing, so the
