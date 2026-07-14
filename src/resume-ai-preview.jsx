@@ -12040,7 +12040,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       {onBuyCredits && typeof purchased === "number" && (
         <div className="relative mt-3 pt-3 flex items-baseline justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.22)" }}>
           <span className="text-[11px] text-white/80">Purchased top-up</span>
-          <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "None yet"}</span>
+          <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "0 left"}</span>
         </div>
       )}
       {onBuyCredits && (
