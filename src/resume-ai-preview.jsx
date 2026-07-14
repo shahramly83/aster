@@ -3243,7 +3243,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 <p className="font-display font-bold leading-none" style={{ color: "var(--ink)", fontSize: "1.6rem" }}>Custom</p>
                 <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Tailored to your team</p>
               </div>
-              <button onClick={() => navigate("contactSales")} className="inline-flex items-center gap-1.5 brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Book a 1:1 demo <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+              {/* justify-center: the parent is a flex column, so on narrow screens
+                  this stretches full width and the label drifts left without it. */}
+              <button onClick={() => navigate("contactSales")} className="inline-flex items-center justify-center gap-1.5 brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Book a 1:1 demo <Icon name="arrowUpRight" className="w-4 h-4" /></button>
             </div>
           </div>
         </Reveal>
