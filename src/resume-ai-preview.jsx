@@ -12302,7 +12302,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
   // Ask before spending a credit; truly-out-of-credits goes straight to billing.
-  const askAiRank = (fn) => { if (outOfCredits) { navigate("billing"); return; } setConfirmRun(() => fn); };
+  const askAiRank = (fn) => { if (outOfCredits) { setBuyAiRankOpen(true); return; } setConfirmRun(() => fn); };
   const limits = planLimits(plan);
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
@@ -12447,7 +12447,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
   const runRoleMatch = async () => {
     if (!matchJob) return;
-    if (outOfCredits) { navigate("billing"); return; }
+    if (outOfCredits) { setBuyAiRankOpen(true); return; }
     setMatching(true);
     setAiRank(null);
     // Heuristic scores as the base / fallback for anyone the AI omits.
@@ -12477,7 +12477,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   };
   const runSkillMatch = () => {
     if (!skillTags.length && !industryTags.length) return; // need at least one criterion
-    if (outOfCredits) { navigate("billing"); return; }
+    if (outOfCredits) { setBuyAiRankOpen(true); return; }
     setMatching(true);
     setTimeout(() => {
       const map = {};
@@ -12536,7 +12536,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // explains why. Falls back to the instant heuristic if the call fails.
   const runAiRank = async () => {
     if (!list.length) return;
-    if (outOfCredits) { navigate("billing"); return; } // out of this month's AI Rank credits
+    if (outOfCredits) { setBuyAiRankOpen(true); return; } // out of this month's AI Rank credits
     if (!hasSupabase) { syncRuns(); setRanked(true); return; } // demo: still count against the plan
     setAiRanking(true);
     try {
@@ -19413,7 +19413,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // when the monthly pool is out falls back to the purchased balance.
   const outOfCredits = outOfRuns && purchasedAiRank <= 0;
   const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
-  const askAiRank = (fn) => { if (outOfCredits) { navigate("billing"); return; } setConfirmRun(() => fn); };
+  const askAiRank = (fn) => { if (outOfCredits) { setBuyAiRankOpen(true); return; } setConfirmRun(() => fn); };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
   // Interviewer pool for this job (who can see these applicants).
@@ -19495,7 +19495,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // rank-candidates function SearchScreen uses, persists the scores, and charges
   // only on success.
   const runMatching = async () => {
-    if (outOfCredits) { navigate("billing"); return; }
+    if (outOfCredits) { setBuyAiRankOpen(true); return; }
     const job = jobs.find((j) => j.id === activeJobId);
     if (!job) return;
     // Only rank ACTIVE applicants: hired candidates are out of the running (but
