@@ -8956,7 +8956,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     applications: allApplicants.length,
     matches: MOCK_MATCHES.j1 ? MOCK_MATCHES.j1.length : 0,
     inInterview: allApplicants.filter((a) => a.baseStage === "interviewing").length,
-    interviewsScheduled: interviews.length,
+    interviewsScheduled: upcomingInterviews.length,
     offersPending: allApplicants.filter((a) => a.baseStage === "offer").length,
     hiresThisMonth: hiredIds.size,
   };
@@ -9139,12 +9139,13 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               );
               const stageCount = (s) => allApplicants.filter((a) => a.baseStage === s).length;
               // Current-stage distribution: each candidate counts in exactly the
-              // stage they're in now, so moving offer -> hired empties Offer and
-              // fills Hired. (Rejected / declined fall out of the funnel entirely.)
+              // stage they're in now. Applied through Hired are the forward steps;
+              // Declined is shown as the drop-off column so the journey ends on an
+              // honest note rather than hiding who turned the offer down.
               const funnel = [
                 { label: "Applied", value: stageCount("applied") + stageCount("shortlisted") },
                 { label: "Interview", value: stageCount("interviewing") },
-                { label: "Offer", value: stageCount("offer") },
+                { label: "Declined", value: stageCount("declined") },
                 { label: "Hired", value: stageCount("hired") },
               ];
               const fmax = Math.max(...funnel.map((f) => f.value), 1);
