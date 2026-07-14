@@ -918,6 +918,13 @@ async function createCompanyAndWelcome(companyName, fullName, slug = null) {
     // Already provisioned (a concurrent path won): the workspace exists, and its
     // welcome was already fired there, so don't send a second one from here.
     if (/already exists/i.test(error.message)) return null;
+    // Their company already has a workspace. They want an invite, not a second
+    // copy of it, so say so by name rather than showing a Postgres error.
+    const dup = /domain_in_use:(.*)$/i.exec(error.message || "");
+    if (dup) {
+      const co = (dup[1] || "").trim();
+      return { message: `${co || "Your company"} already uses Aster. Ask them to invite you, and you'll join the same workspace.` };
+    }
     return error;
   }
   // Only a genuine first-time creation triggers the welcome email.

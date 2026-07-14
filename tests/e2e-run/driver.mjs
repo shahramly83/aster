@@ -376,7 +376,12 @@ async function accept(url) {
 
 // Buy a plan for real, through Stripe Checkout, with a TEST card.
 //   node tests/e2e-run/driver.mjs subscribe scale monthly [declined|3ds]
-async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
+// `who`/`origin` let a workspace other than the main tenant buy a plan, which is
+// how the expired-trial conversion path is tested.
+//   node tests/e2e-run/driver.mjs subscribe scale monthly ok trial@onlazy.com https://onlazytrial.hireaster.com
+async function subscribe(plan = "scale", cycle = "monthly", variant = "ok", who, origin) {
+  const acct = who || CFG.tenant.email;
+  const home = origin || wsOrigin();
   const CARDS = {
     ok: "4242424242424242",
     declined: "4000000000000002",
@@ -384,10 +389,10 @@ async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
   };
   const card = CARDS[variant] || CARDS.ok;
 
-  const { ctx, page } = await ctxFor(CFG.tenant.email);
-  console.log(`▶ subscribe: ${plan}/${cycle} with ${variant} card ${card}`);
+  const { ctx, page } = await ctxFor(acct);
+  console.log(`▶ subscribe: ${plan}/${cycle} with ${variant} card ${card} as ${acct}`);
 
-  await page.goto(`${wsOrigin()}/billing`, { waitUntil: "load" });
+  await page.goto(`${home}/billing`, { waitUntil: "load" });
   await settle(page, 5000);
 
   // The saved session does not always survive between runs, and a cancelled
@@ -395,7 +400,7 @@ async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
   // button: the point of this command is the payment, not the login.
   if (await page.getByRole("button", { name: /^sign in$/i }).count()) {
     console.log("  (signed out; signing back in)");
-    await signInOn(page, CFG.tenant.email);
+    await signInOn(page, acct);
     await settle(page, 6000);
     // Don't force /billing back on: a cancelled workspace is held on the paywall
     // and bounced off /billing, so navigating there again just logs us out. Stay
@@ -656,10 +661,14 @@ async function payOpenInvoice() {
   await ctx.close();
 }
 
-async function shotRoute(who, route) {
+// `origin` targets a workspace other than the main one. Without it every shot goes
+// to onlazy.hireaster.com, which for an account belonging elsewhere just renders
+// that workspace's login page: a screenshot of the wrong thing entirely.
+//   node tests/e2e-run/driver.mjs shot trial@onlazy.com /dashboard https://onlazytrial.hireaster.com
+async function shotRoute(who, route, origin) {
   const email = who.includes("@") ? who : CFG[who]?.email || CFG.tenant.email;
   const { ctx, page } = await ctxFor(email);
-  await page.goto(`${wsOrigin()}${route}`, { waitUntil: "load" });
+  await page.goto(`${origin || wsOrigin()}${route}`, { waitUntil: "load" });
   // Long enough for the slow panels to arrive. list-invoices previews the upcoming
   // invoice with Stripe and takes ~2s, and a shot at 4s caught "Loading invoices…"
   // every time: a screenshot of a spinner proves nothing.
@@ -682,8 +691,8 @@ const run = {
   accept: () => accept(args[0], args[1]),
   login: () => login(args[0] || "tenant", args[1]),
   billing: () => billing(),
-  subscribe: () => subscribe(args[0], args[1], args[2]),
-  shot: () => shotRoute(args[0], args[1] || "/dashboard"),
+  subscribe: () => subscribe(args[0], args[1], args[2], args[3], args[4]),
+  shot: () => shotRoute(args[0], args[1] || "/dashboard", args[2]),
   buttons: () => listButtons(args[0], args[1] || "/dashboard"),
   payopen: () => payOpenInvoice(),
 };
