@@ -16277,6 +16277,63 @@ function parseAddress(str) {
   return { street, city: cityPart || "", state: (rm[1] || "").trim(), postcode: (rm[2] || "").trim(), country };
 }
 
+// Smart-crop a logo on selection: find the real content box (ignoring transparent
+// or near-white margins), crop to it with a little padding, and hand back a tight
+// PNG. Returns null when there's nothing worth trimming (full-bleed art, or the
+// image is already tight), so the caller falls back to the original file.
+async function smartTrimImage(file) {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onerror = () => { try { URL.revokeObjectURL(url); } catch { /* noop */ } resolve(null); };
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth, h = img.naturalHeight;
+          URL.revokeObjectURL(url);
+          if (!w || !h || w * h > 25_000_000) return resolve(null);   // empty or absurdly large
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          const ctx = c.getContext("2d", { willReadFrequently: true });
+          ctx.drawImage(img, 0, 0);
+          const { data } = ctx.getImageData(0, 0, w, h);
+          let minX = w, minY = h, maxX = -1, maxY = -1;
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const i = (y * w + x) * 4;
+              const a = data[i + 3];
+              if (a < 16) continue;                                    // transparent
+              const r = data[i], g = data[i + 1], b = data[i + 2];
+              if (r > 244 && g > 244 && b > 244) continue;             // near-white background
+              if (x < minX) minX = x; if (x > maxX) maxX = x;
+              if (y < minY) minY = y; if (y > maxY) maxY = y;
+            }
+          }
+          if (maxX < minX || maxY < minY) return resolve(null);        // no content found
+          const marginX = Math.min(minX, w - 1 - maxX), marginY = Math.min(minY, h - 1 - maxY);
+          if (marginX <= 2 && marginY <= 2) return resolve(null);      // already tight
+          const pad = Math.round(Math.max(maxX - minX, maxY - minY) * 0.06);
+          const sx = Math.max(0, minX - pad), sy = Math.max(0, minY - pad);
+          const sw = Math.min(w, maxX + pad + 1) - sx, sh = Math.min(h, maxY + pad + 1) - sy;
+          const out = document.createElement("canvas");
+          out.width = sw; out.height = sh;
+          out.getContext("2d").drawImage(c, sx, sy, sw, sh, 0, 0, sw, sh);
+          out.toBlob((blob) => {
+            if (!blob) return resolve(null);
+            const name = (file.name || "logo").replace(/\.[^.]+$/, "") + ".png";
+            const trimmed = new File([blob], name, { type: "image/png" });
+            const reader = new FileReader();
+            reader.onload = () => resolve({ file: trimmed, dataUrl: reader.result });
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          }, "image/png");
+        } catch { resolve(null); }
+      };
+      img.src = url;
+    } catch { resolve(null); }
+  });
+}
+
 function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, setLogoUrl, profile, setProfile, company, setCompany, address = "", setAddress, addressParts = EMPTY_ADDRESS, setAddressParts, regNo = "", setRegNo, companyId = null, canPersist = false, activities = [], onOpenNotifications }) {
   // The real signed-in email (from the loaded session), not a placeholder.
   const email = profile?.email || "";
@@ -16342,7 +16399,17 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
   const completionPct = Math.round((doneCount / completionItems.length) * 100);
 
   // Stage the picked file for upload on Save, and show a data-URL preview now.
-  const handleLogoChange = (e) => { const f = e.target.files?.[0]; if (!f) return; setDLogoFile(f); const r = new FileReader(); r.onload = () => { setDLogo(r.result); setSavedMsg(null); setSaveErr(null); }; r.readAsDataURL(f); };
+  const handleLogoChange = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (e.target) e.target.value = "";                    // allow re-picking the same file
+    setSavedMsg(null); setSaveErr(null);
+    // Auto-trim surrounding whitespace so the logo fills the frame; fall back to
+    // the original if there's nothing meaningful to crop.
+    const trimmed = await smartTrimImage(f).catch(() => null);
+    if (trimmed?.file && trimmed?.dataUrl) { setDLogoFile(trimmed.file); setDLogo(trimmed.dataUrl); return; }
+    setDLogoFile(f);
+    const r = new FileReader(); r.onload = () => setDLogo(r.result); r.readAsDataURL(f);
+  };
   const handleAvatarChange = (e) => { const f = e.target.files?.[0]; if (!f) return; setDAvatarFile(f); const r = new FileReader(); r.onload = () => { setDAvatar(r.result); setSavedMsg(null); }; r.readAsDataURL(f); };
 
   const handleSave = async () => {
