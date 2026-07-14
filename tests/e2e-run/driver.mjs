@@ -79,30 +79,36 @@ const settle = (page, ms = 2500) => page.waitForTimeout(ms);
 // --- Stages -----------------------------------------------------------------
 
 // 1) Sign the tenant up. Stops at the "check your email" state.
-async function signup() {
-  const { ctx, page } = await ctxFor(CFG.tenant.email);
-  console.log(`▶ signup: ${CFG.tenant.email} / ${CFG.company}`);
+// Sign a workspace up. Defaults to the main test tenant; pass a second company to
+// test the free-trial path without disturbing the paid one:
+//   node tests/e2e-run/driver.mjs signup trial@onlazy.com "Onlazy Trial Sdn Bhd" onlazytrial
+async function signup(email, company, slug) {
+  const who = { email: email || CFG.tenant.email, first: CFG.tenant.first, last: CFG.tenant.last };
+  const co = company || CFG.company;
+  const sl = slug || CFG.slug;
+  const { ctx, page } = await ctxFor(who.email);
+  console.log(`▶ signup: ${who.email} / ${co} (${sl})`);
 
   await page.goto(`${CFG.base}/signup`, { waitUntil: "load" });
   await settle(page);
 
-  await page.fill("#su-company", CFG.company);
-  await page.fill("#su-first", CFG.tenant.first);
-  await page.fill("#su-last", CFG.tenant.last);
-  await page.fill("#su-email", CFG.tenant.email);
+  await page.fill("#su-company", co);
+  await page.fill("#su-first", who.first);
+  await page.fill("#su-last", who.last);
+  await page.fill("#su-email", who.email);
   await page.fill("#su-password", CFG.password);
   await page.fill("#su-confirm", CFG.password);
 
   // The slug auto-derives from the company name; force ours so the subdomain
   // is predictable.
-  await page.fill("#su-url", CFG.slug);
+  await page.fill("#su-url", sl);
   await settle(page, 2000); // debounced availability check
 
   await shot(page, "01-signup-filled");
 
   const slugTaken = await page.getByText(/taken|not available|already/i).count();
   if (slugTaken) {
-    console.log(`  ⚠ slug "${CFG.slug}" may be taken — check the screenshot.`);
+    console.log(`  ⚠ slug "${sl}" may be taken — check the screenshot.`);
   }
 
   const cta = page.getByRole("button", { name: /free trial|create account|continue to payment/i }).first();
@@ -123,7 +129,7 @@ async function signup() {
   const err = await page.getByText(/couldn't|could not|error|already/i).count();
   if (sent) {
     console.log("  ✅ Signup accepted. Confirmation email sent.");
-    console.log(`  ⏸  NEXT: paste the link from the email to ${CFG.tenant.email}:`);
+    console.log(`  ⏸  NEXT: paste the link from the email to ${who.email}:`);
     console.log(`      node tests/e2e-run/driver.mjs confirm "<link>"`);
   } else if (err) {
     const text = await page.locator("body").innerText();
@@ -135,10 +141,14 @@ async function signup() {
 }
 
 // 2) Open the emailed confirmation link and land in the workspace.
-async function confirm(url) {
-  if (!url) throw new Error('Pass the link: driver.mjs confirm "<url>"');
-  const { ctx, page } = await ctxFor(CFG.tenant.email);
-  console.log(`▶ confirm: opening the emailed link`);
+// The email defaults to the main tenant, but a second signup must land in ITS OWN
+// browser profile or the two workspaces share a session and stomp each other.
+//   node tests/e2e-run/driver.mjs confirm "<url>" trial@onlazy.com
+async function confirm(url, email) {
+  if (!url) throw new Error('Pass the link: driver.mjs confirm "<url>" [email]');
+  const who = email || CFG.tenant.email;
+  const { ctx, page } = await ctxFor(who);
+  console.log(`▶ confirm: opening the emailed link for ${who}`);
   await page.goto(url, { waitUntil: "load" });
   await settle(page, 8000); // confirm -> provision -> forward to subdomain
   console.log(`  landed on: ${page.url()}`);
@@ -147,7 +157,7 @@ async function confirm(url) {
   // If it dropped us at a login form, sign in to finish.
   if (/\/login/.test(page.url()) && (await page.locator("input[type=email], #li-email").count())) {
     console.log("  → confirmation landed on login; signing in");
-    await signInOn(page, CFG.tenant.email);
+    await signInOn(page, who);
   }
   console.log(`  now at: ${page.url()}`);
   await shot(page, "04-workspace");
@@ -660,8 +670,8 @@ async function shotRoute(who, route) {
 // --- CLI --------------------------------------------------------------------
 const [cmd, ...args] = process.argv.slice(2);
 const run = {
-  signup: () => signup(),
-  confirm: () => confirm(args[0]),
+  signup: () => signup(args[0], args[1], args[2]),
+  confirm: () => confirm(args[0], args[1]),
   profile: () => profile(),
   invite: () => invite(args[0] ? args : null),
   revoke: () => revoke(...args),
