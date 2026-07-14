@@ -9640,7 +9640,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   const uploadLimit = parseUsage?.limit ?? limits.resumeUploads;
   const storesOriginal = limits.storeOriginal;
   const planName = plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : plan === "enterprise" ? "Enterprise" : "Launch";
-  const [purchasedBalance] = usePurchasedBalance("resume_screen");
+  const [purchasedBalance, reloadPurchased] = usePurchasedBalance("resume_screen");
   const [buyOpen, setBuyOpen] = useState(false);
   const [stage, setStage] = useState("idle"); // idle | uploading | parsing | done
   const [uploadTab, setUploadTab] = useState("import"); // "import" | "recent"
@@ -9851,6 +9851,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
     // still reflected. anyCreated is kept only to decide the summary copy.
     void anyCreated;
     if (onImported) onImported();
+    reloadPurchased(); // a batch past the monthly cap draws from the purchased balance
   };
 
   const dupActionFor = (row) => (row.dup?.hired ? "skip" : dupActions[row.fileName] || "skip");
