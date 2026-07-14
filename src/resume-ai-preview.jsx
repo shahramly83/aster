@@ -64,7 +64,14 @@ async function loadCustomerSession(userId, fallbackEmail) {
   // legacy freeform `address` for rows saved before the structured migration.
   const structured = { street: co.address_street || "", city: co.address_city || "", state: co.address_state || "", postcode: co.address_postcode || "", country: co.address_country || "" };
   const addressParts = Object.values(structured).some(Boolean) ? structured : parseAddress(co.address || "");
-  return {
+  // Whether this account uses email-code 2FA. Read on its own so a missing column
+  // (before migration 0084) cannot error the main session query and lock people out.
+  let email2fa = false;
+  try {
+    const { data: f, error: fe } = await supabase.from("profiles").select("email_2fa_enabled").eq("id", userId).maybeSingle();
+    email2fa = !fe && !!f?.email_2fa_enabled;
+  } catch { /* column absent pre-migration: treat as off */ }
+  const sessionResult = {
     userId,
     companyId: data.company_id,
     profile: {
@@ -77,6 +84,10 @@ async function loadCustomerSession(userId, fallbackEmail) {
       notifications: data.notify_prefs || {},
       // Per-user onboarding/tour flags, so a "skip" persists across browsers.
       onboarding: data.onboarding || {},
+      // Read separately and defensively: a missing column (migration not yet
+      // applied) returns an error we ignore rather than breaking the whole session
+      // load and locking everyone out.
+      email2fa,
     },
     avatarPath: data.avatar_path || null,
     calendarProvider: data.calendar_provider || null,
@@ -97,6 +108,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
     addressParts,
     registrationNo: co.registration_no || "",
   };
+  return sessionResult;
 }
 
 // Onboarding/tour flags persist per USER on profiles.onboarding (server), and are
@@ -15804,105 +15816,132 @@ function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, com
   );
 }
 
-// Opt-in TOTP two-factor for customer accounts, powered by Supabase Auth MFA.
-// Users enrol an authenticator app here; LoginScreen then asks for a code (AAL2).
-function MfaCard() {
+// Email-code two-factor: a friendlier alternative to the authenticator app. Turning
+// it on sends a test code first, so a wrong email can't lock you out. Enforced at
+// sign-in by the boot gate below (LoginCodeGate).
+function EmailTwoFactorCard({ profile }) {
   const card = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
-  const input = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
-  const [factor, setFactor] = useState(null);   // verified TOTP factor, or null
-  const [enroll, setEnroll] = useState(null);    // { factorId, qr, secret } during setup
+  const [on, setOn] = useState(!!profile?.email2fa);
+  const [step, setStep] = useState("idle");   // idle | code
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
   const [msg, setMsg] = useState(null);
-  const [loaded, setLoaded] = useState(false);
+  const [err, setErr] = useState(null);
+  const email = profile?.email || "";
 
-  const refresh = async () => {
-    const { data, error } = await supabase.auth.mfa.listFactors();
-    if (!error) setFactor((data?.totp || []).find((f) => f.status === "verified") || null);
-    setLoaded(true);
-  };
-  useEffect(() => { if (hasSupabase) refresh(); else setLoaded(true); }, []);
-
-  const startEnroll = async () => {
+  const startEnable = async () => {
     setErr(null); setMsg(null); setBusy(true);
-    // clear any half-finished (unverified) factor so friendly names don't clash
-    const { data: list } = await supabase.auth.mfa.listFactors();
-    for (const f of (list?.totp || [])) if (f.status !== "verified") await supabase.auth.mfa.unenroll({ factorId: f.id });
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Authenticator" });
+    const { data, error } = await supabase.functions.invoke("send-login-code", { body: { purpose: "enable" } });
     setBusy(false);
-    if (error) { setErr(error.message); return; }
-    setEnroll({ factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
-    setCode("");
+    if (error || data?.error) { setErr("Couldn't send the code. Please try again."); return; }
+    if (data?.sent === false) { setErr("Email isn't set up yet, so a code can't be sent. Contact support."); return; }
+    setStep("code");
+    setMsg(`We sent a 6-digit code to ${email}. Enter it to turn two-factor on.`);
   };
-
-  const confirmEnroll = async () => {
-    if (!enroll) return;
+  const confirmEnable = async () => {
     setErr(null); setBusy(true);
-    const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: enroll.factorId });
-    if (chErr) { setErr(chErr.message); setBusy(false); return; }
-    const { error } = await supabase.auth.mfa.verify({ factorId: enroll.factorId, challengeId: ch.id, code: code.trim() });
+    const { data, error } = await supabase.functions.invoke("verify-login-code", { body: { code: code.trim(), purpose: "enable" } });
     setBusy(false);
-    if (error) { setErr("That code didn't match. Check your app and try again."); return; }
-    setEnroll(null); setCode(""); setMsg("Two-factor authentication is on."); refresh();
+    if (error || !data?.ok) { setErr(data?.error || "That code didn't work. Try again or resend."); return; }
+    setOn(true); setStep("idle"); setCode(""); setMsg("Two-factor is on. You'll enter an emailed code when you sign in from a new device.");
   };
-
   const disable = async () => {
-    if (!factor) return;
     setErr(null); setBusy(true);
-    const { error } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+    const { data, error } = await supabase.functions.invoke("disable-email-2fa", { body: {} });
     setBusy(false);
-    if (error) { setErr(error.message); return; }
-    setMsg("Two-factor authentication turned off."); refresh();
+    if (error || !data?.ok) { setErr("Couldn't turn it off. Please try again."); return; }
+    setOn(false); setStep("idle"); setCode("");
+    if (typeof window !== "undefined") { localStorage.removeItem("aster.2fa.device"); sessionStorage.removeItem("aster.2fa.ok"); }
+    setMsg("Two-factor turned off.");
   };
 
   return (
     <div className={`${card} mt-4`}>
       <div className="flex items-center justify-between gap-3 mb-1">
         <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Two-factor authentication</h2>
-        {loaded && factor && !enroll && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> On</span>}
+        {on && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> On</span>}
       </div>
+      <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+        Add a second step at sign-in. We email a 6-digit code to <span className="font-medium" style={{ color: "var(--ink)" }}>{email}</span>, and you enter it to finish signing in. A device you use is remembered for 30 days.
+      </p>
 
       {!hasSupabase && <p className="text-sm text-neutral-500">Two-factor is available once your workspace is connected to the backend.</p>}
 
-      {hasSupabase && loaded && !factor && !enroll && (
-        <>
-          <p className="text-sm text-neutral-600 mb-3">Add a second step at sign-in with an authenticator app (Google Authenticator, Authy, 1Password).</p>
-          <button onClick={startEnroll} disabled={busy} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50">{busy ? "Setting up…" : "Enable two-factor"}</button>
-        </>
+      {hasSupabase && on && step === "idle" && (
+        <button onClick={disable} disabled={busy} className="rounded-xl border text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-50" style={{ borderColor: "var(--line)", color: "#DC2626" }}>{busy ? "Turning off…" : "Turn off two-factor"}</button>
       )}
-
-      {hasSupabase && enroll && (
-        <div className="space-y-3">
-          <p className="text-sm text-neutral-600">1. Scan this QR code with your authenticator app, or enter the key manually.</p>
-          <div className="flex items-start gap-4 flex-wrap">
-            {typeof enroll.qr === "string" && enroll.qr.trim().startsWith("<svg")
-              ? <div className="w-40 h-40 rounded-lg border p-1 bg-white shrink-0" style={{ borderColor: "var(--line)" }} dangerouslySetInnerHTML={{ __html: enroll.qr }} />
-              : <img src={enroll.qr} alt="Two-factor QR code" className="w-40 h-40 rounded-lg border shrink-0" style={{ borderColor: "var(--line)", background: "#fff" }} />}
-            <div className="min-w-0">
-              <p className="text-xs text-neutral-500 mb-1">Manual key</p>
-              <code className="text-xs break-all rounded-md px-2 py-1 inline-block" style={{ background: "#F1F1F4", color: "var(--ink)" }}>{enroll.secret}</code>
-            </div>
-          </div>
-          <p className="text-sm text-neutral-600">2. Enter the 6-digit code from the app.</p>
-          <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" className={`${input} tracking-[0.3em] font-mono max-w-[180px]`} />
-          {err && <p className="text-sm text-red-600">{err}</p>}
-          <div className="flex items-center gap-3">
-            <button onClick={confirmEnroll} disabled={busy || code.length < 6} className="rounded-xl brand-gradient text-white text-sm font-medium px-4 py-2 transition-opacity hover:opacity-90 disabled:opacity-50">{busy ? "Verifying…" : "Verify & turn on"}</button>
-            <button onClick={() => { setEnroll(null); setErr(null); }} className="text-sm text-neutral-500 hover:text-neutral-800">Cancel</button>
+      {hasSupabase && !on && step === "idle" && (
+        <button onClick={startEnable} disabled={busy} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50">{busy ? "Sending code…" : "Enable two-factor"}</button>
+      )}
+      {hasSupabase && step === "code" && (
+        <div className="flex flex-col gap-3 max-w-xs">
+          <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="123456" aria-label="6-digit code"
+            className="w-full rounded-xl border px-3 py-2.5 text-lg tracking-[0.3em] text-center focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30" style={{ borderColor: "var(--line-strong)" }} />
+          <div className="flex items-center gap-2">
+            <button onClick={confirmEnable} disabled={busy || code.length !== 6} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-40">{busy ? "Checking…" : "Confirm"}</button>
+            <button onClick={startEnable} disabled={busy} className="text-sm font-medium hover:opacity-70" style={{ color: "var(--brand)" }}>Resend</button>
+            <button onClick={() => { setStep("idle"); setCode(""); setMsg(null); setErr(null); }} className="text-sm" style={{ color: "var(--ink-3)" }}>Cancel</button>
           </div>
         </div>
       )}
+      {err && <p className="text-sm mt-3" style={{ color: "#DC2626" }}>{err}</p>}
+      {msg && !err && <p className="text-sm mt-3" style={{ color: "#166534" }}>{msg}</p>}
+    </div>
+  );
+}
 
-      {hasSupabase && loaded && factor && !enroll && (
-        <>
-          <p className="text-sm text-neutral-600 mb-3">You'll be asked for a code from your authenticator app each time you sign in.</p>
-          {err && <p className="text-sm text-red-600 mb-2">{err}</p>}
-          <button onClick={disable} disabled={busy} className="rounded-xl border text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-50" style={{ borderColor: "var(--line)", color: "#DC2626" }}>{busy ? "Turning off…" : "Turn off two-factor"}</button>
-        </>
-      )}
+// Sign-in gate for email-code two-factor. The boot flow shows this when the account
+// has it on and the device is not trusted; a code has already been emailed by then.
+function LoginCodeGate({ email, onDone, onCancel }) {
+  const [code, setCode] = useState("");
+  const [trust, setTrust] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [resent, setResent] = useState(false);
 
-      {msg && !enroll && <p className="text-sm mt-3" style={{ color: "#166534" }}>{msg}</p>}
+  const verify = async () => {
+    setErr(null); setBusy(true);
+    const { data, error } = await supabase.functions.invoke("verify-login-code", { body: { code: code.trim(), purpose: "login", trustDevice: trust } });
+    setBusy(false);
+    if (error || !data?.ok) { setErr(data?.error || "That code didn't work. Check it, or resend."); return; }
+    if (typeof window !== "undefined") {
+      if (data.deviceToken) localStorage.setItem("aster.2fa.device", data.deviceToken);
+      try { sessionStorage.setItem("aster.2fa.ok", "1"); } catch { /* private mode */ }
+    }
+    onDone();
+  };
+  const resend = async () => {
+    setErr(null);
+    const deviceToken = (typeof window !== "undefined" && localStorage.getItem("aster.2fa.device")) || "";
+    await supabase.functions.invoke("send-login-code", { body: { deviceToken, purpose: "login" } });
+    setResent(true); setTimeout(() => setResent(false), 3000);
+  };
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-sm text-center">
+        <img src="/aster-logo.png" alt="Aster" className="h-5 w-auto object-contain mx-auto mb-8" />
+        <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Enter your sign-in code</h1>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+          We emailed a 6-digit code{email ? <> to <span className="font-medium" style={{ color: "var(--ink)" }}>{email}</span></> : ""}. Enter it to finish signing in.
+        </p>
+        <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} autoFocus
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onKeyDown={(e) => { if (e.key === "Enter" && code.length === 6) verify(); }}
+          placeholder="123456" aria-label="6-digit code"
+          className="mt-6 w-full rounded-xl border px-3 py-3 text-2xl tracking-[0.4em] text-center focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30" style={{ borderColor: "var(--line-strong)", background: "#fff" }} />
+        <label className="flex items-center justify-center gap-2 mt-4 text-sm cursor-pointer" style={{ color: "var(--ink-2)" }}>
+          <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className="rounded" /> Trust this device for 30 days
+        </label>
+        <button onClick={verify} disabled={busy || code.length !== 6} className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold px-4 py-3 brand-gradient text-white hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed">{busy ? "Checking…" : "Verify and sign in"}</button>
+        {err && <p role="alert" className="text-[13px] mt-3 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{err}</p>}
+        <div className="mt-5 flex items-center justify-center gap-4 text-sm">
+          <button onClick={resend} className="font-medium hover:opacity-70" style={{ color: "var(--brand)" }}>{resent ? "Code sent" : "Resend code"}</button>
+          <button onClick={onCancel} style={{ color: "var(--ink-3)" }}>Sign out</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -16566,7 +16605,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           </div>
         </div>
 
-        <MfaCard />
         </>)}
 
         {/* ===== Danger zone ===== — owner/admin only */}
@@ -16827,6 +16865,19 @@ function SettingsScreen({ navigate, plan = "launch", profile, setProfile, avatar
             <Toggle on={dNotif.product} onChange={(v) => { setDNotif((n) => ({ ...n, product: v })); setSavedMsg(null); }} label="Product updates" desc="Occasional news about new Aster features." />
           </div>
         </div>
+
+        {/* Security: email-code two-factor. Self-contained (its own actions), so it
+            sits outside the Save/Cancel form. Moved here from Profile, which now
+            holds only sign-in identity (email + password). */}
+        {!isInterviewer(profile?.role) && (
+          <div className="mt-4">
+            <div className="flex items-center gap-3 mb-3 mt-2">
+              <p className="text-xs font-semibold uppercase shrink-0" style={{ color: "var(--brand)", letterSpacing: "0.07em" }}>Security</p>
+              <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+            </div>
+            <EmailTwoFactorCard profile={profile} />
+          </div>
+        )}
 
         {/* Save / Cancel bar, sticky within the content column, so it never
             underlaps the sidebar or its Log out button on any screen size. */}
@@ -20090,6 +20141,9 @@ export default function ResumeAIPreview() {
   // Signed up, but their company already has a workspace. They need an invite, and
   // they need to know who from.
   const [joinBlocked, setJoinBlocked] = useState(null);
+  // Email-code 2FA: the account has it on and this device isn't trusted, so the
+  // workspace is held behind an emailed code. Holds the email to show on the gate.
+  const [pending2fa, setPending2fa] = useState(null);
   const [activeJobId, setActiveJobId] = useState(() => (typeof window !== "undefined" ? (applicantsJobFromPath(window.location.pathname) || "j1") : "j1"));
   // On Launch, only one job stays active; the rest are paused (kept, not
   // deleted). This tracks which one the user chose to keep on downgrade.
@@ -20842,6 +20896,31 @@ export default function ResumeAIPreview() {
           else sess = await loadCustomerSession(session.user.id, email);
         }
         if (cancelled || !sess) return;
+        // Email-code two-factor: hold the workspace behind a one-time code when the
+        // account uses it and this device is not trusted. sessionStorage marks a
+        // pass so a refresh in the same tab does not re-prompt; a trusted device
+        // (checked server-side via send-login-code) counts as a pass and skips the
+        // email. Fails CLOSED: if the code service is unreachable we gate rather than
+        // wave them through, since that is the whole point of a second factor.
+        if (sess.profile?.email2fa) {
+          let verified = false;
+          try { verified = sessionStorage.getItem("aster.2fa.ok") === "1"; } catch { /* private mode */ }
+          if (!verified) {
+            const deviceToken = (typeof window !== "undefined" && localStorage.getItem("aster.2fa.device")) || "";
+            let trusted = false;
+            try {
+              const { data: chk } = await supabase.functions.invoke("send-login-code", { body: { deviceToken, purpose: "login" } });
+              trusted = !!chk?.trusted;
+            } catch { trusted = false; }
+            if (trusted) { try { sessionStorage.setItem("aster.2fa.ok", "1"); } catch { /* */ } }
+            else {
+              if (cancelled) return;
+              setPending2fa(sess.profile.email || email || "");
+              setRestoring(false);
+              return;
+            }
+          }
+        }
         // Multi-tenant: on the apex or a subdomain that isn't this workspace's,
         // forward to the correct <slug>.hireaster.com instead of loading here.
         if (needsWorkspaceRedirect(sess)) { setRedirecting(true); return; }
@@ -21427,6 +21506,18 @@ export default function ResumeAIPreview() {
         <JoinBlockedScreen
           info={joinBlocked}
           onSignOut={async () => { await supabase.auth.signOut(); window.location.assign("/login"); }}
+        />
+      </Shell>
+    );
+  }
+
+  if (pending2fa) {
+    return (
+      <Shell>
+        <LoginCodeGate
+          email={pending2fa}
+          onDone={() => { if (typeof window !== "undefined") window.location.reload(); }}
+          onCancel={async () => { await supabase.auth.signOut(); if (typeof window !== "undefined") window.location.assign("/login"); }}
         />
       </Shell>
     );
