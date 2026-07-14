@@ -11881,23 +11881,25 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
   return (
-    <div className="rounded-2xl bg-white border p-5" style={{ borderColor: "var(--line)" }}>
-      <div className="flex items-center justify-between mb-2.5">
+    <div className="relative rounded-2xl p-5 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
+      {/* faint brand watermark, same treatment as the plan card */}
+      <svg viewBox="199 244 104 104" aria-hidden="true" className="pointer-events-none absolute -right-10 -top-16 w-[190px] h-[190px] opacity-[0.08]" fill="#fff"><path d={ASTER_MARK_PATH} /></svg>
+      <div className="relative flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-1.5">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>{title}</h3>
-          {hint && <InfoHint dir="down" align={hintAlign} hint={hint} />}
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85" style={{ letterSpacing: "0.06em" }}>{title}</h3>
+          {hint && <InfoHint dir="down" align={hintAlign} hint={hint} tone="light" />}
         </div>
-        {onManage && <button onClick={onManage} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>}
+        {onManage && <button onClick={onManage} className="text-xs font-medium text-white/90 hover:text-white transition-colors">Manage</button>}
       </div>
-      <div className="flex items-baseline gap-1.5 mb-2.5">
-        <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: out ? "#DC2626" : "var(--ink)" }}>{used}</span>
-        <span className="text-sm" style={{ color: "var(--ink-3)" }}>/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
+      <div className="relative flex items-baseline gap-1.5 mb-2.5">
+        <span className="text-2xl font-bold font-display tnum leading-none text-white">{used}</span>
+        <span className="text-sm text-white/70">/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
       </div>
-      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+      <div className="relative h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#FBBF24" : "#fff" }} />
       </div>
-      {note && <p className="text-xs mt-2.5 leading-relaxed" style={{ color: isDanger ? "#DC2626" : "var(--ink-3)" }}>{note}</p>}
-      {onUpgrade && <button onClick={onUpgrade} className="mt-3.5 w-full rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold py-2.5 transition-opacity">{out ? "Upgrade plan" : upgradeLabel}</button>}
+      {note && <p className="relative text-xs mt-2.5 leading-relaxed" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
+      {onUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
     </div>
   );
 }
