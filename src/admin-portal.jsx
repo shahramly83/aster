@@ -495,7 +495,7 @@ function Usage({ role, companies, usage }) {
     <div>
       <SectionHead title="Usage monitoring" desc="Aggregate consumption against plan limits. No candidate content is shown." />
       <PrivacyNote>Usage is <strong>aggregate only</strong>. Individual candidate data and resumes are never exposed through monitoring.</PrivacyNote>
-      <TableShell head={["Company", "Resume parsing", "AI match runs", "Active jobs", "API calls (30d)"]}>
+      <TableShell head={["Company", "Resume screening", "AI match runs", "Active jobs", "API calls (30d)"]}>
         {usage.map((u) => (
           <tr key={u.companyId} className="adm-row" style={{ borderBottom: "1px solid var(--line)" }}>
             <Td className="font-semibold text-neutral-900">{cName(u.companyId)}</Td>

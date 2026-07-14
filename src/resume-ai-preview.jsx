@@ -1891,7 +1891,7 @@ function CountUp({ to, duration = 1100, delay = 0, loop = false, hold = 1500, cl
 // cells so the cursor always lands exactly on them; starts when scrolled into view.
 function UploadPreview() {
   const FILES = [
-    ["priya_nair.pdf", "Parsed", "#DCFCE7", "#166534"],
+    ["priya_nair.pdf", "Screened", "#DCFCE7", "#166534"],
     ["siti_r_2026.pdf", "Duplicate", "var(--brand-soft)", "var(--brand)"],
     ["portfolio_scan.pdf", "Review", "#FEF3C7", "#B45309"],
     ["budget_2026.xlsx", "Skipped", "#FEE2E2", "#B91C1C"],
@@ -1935,7 +1935,7 @@ function UploadPreview() {
             ) : (
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-md shrink-0 inline-flex items-center gap-1.5" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}>
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} />
-                Parsing…
+                Screening…
               </span>
             )}
           </div>
@@ -2403,7 +2403,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
 
 
   const features = [
-    { icon: "doc", title: "AI resume parsing", body: "Drop in a CV and get structured skills, experience, and a summary in seconds. No manual data entry." },
+    { icon: "doc", title: "AI resume screening", body: "Drop in a CV and get structured skills, experience, and a summary in seconds. No manual data entry." },
     { icon: "target", title: "Role-fit match score", body: "Every applicant is scored against the role, so the strongest fits rise to the top on their own." },
     { icon: "calendar", title: "Interview scheduling", body: "Connect one workspace calendar and let candidates self-book. Google Meet and Teams links are created for you." },
     { icon: "users", title: "One shared pipeline", body: "Track every candidate from applied to hired, with the whole team on the same board." },
@@ -2426,7 +2426,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
 
   const moreFeatures = [
     { icon: "interview", tag: "Interviews", title: "AI interview questions", body: "Questions written for the role and the person you're meeting, grouped by theme and ready the moment the interview is booked." },
-    { icon: "upload", tag: "Intake", title: "Bulk resume upload", body: "Drop in a stack of PDFs or Word files, or a whole ZIP. Aster parses each one, pulls out the details, and flags anything it can't read for you to check." },
+    { icon: "upload", tag: "Intake", title: "Bulk resume upload", body: "Drop in a stack of PDFs or Word files, or a whole ZIP. Aster screens each one, pulls out the details, and flags anything it can't read for you to check." },
     { icon: "briefcase", tag: "Sourcing", title: "Apply Pages", body: "Every role gets a shareable link for LinkedIn, JobStreet, or your careers site. Each link is source-tracked, so you always know which channel your best applicants come from." },
     { icon: "chat", tag: "Messaging", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
     { icon: "interviewers", tag: "Collaboration", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and video link automatically. Interviewers see only the candidates they're assessing." },
@@ -2439,8 +2439,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       { label: "Seats", free: "1", starter: "30", pro: "100", ent: "Unlimited" },
     ]},
     { group: "AI screening", rows: [
-      { label: "Applicant parsing", free: "100 / mo", starter: "500 / mo", pro: "1,000 / mo", ent: "Unlimited" },
-      { label: "Bulk upload parsing", free: "10 / mo", starter: "50 / mo", pro: "100 / mo", ent: "Unlimited" },
+      { label: "Applicant screening", free: "100 / mo", starter: "500 / mo", pro: "1,000 / mo", ent: "Unlimited" },
+      { label: "Bulk upload screening", free: "10 / mo", starter: "50 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "AI Rank credits", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "AI Insight credits", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
@@ -2462,14 +2462,14 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   // Curated, scannable highlights for the mobile plan cards (keyed by plan.col).
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
-    free: { lead: "Includes", items: ["1 job posting · 1 seat", "100 parses + 5 AI Rank / month", "5 AI Insight credits / month", "Scorecard & 2FA", "Support ticket"] },
-    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 30 seats", "500 parses + 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
-    pro: { lead: "Everything in Scale, plus", items: ["10 jobs · 100 seats", "1,000 parses + 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
+    free: { lead: "Includes", items: ["1 job posting · 1 seat", "100 screenings + 5 AI Rank / month", "5 AI Insight credits / month", "Scorecard & 2FA", "Support ticket"] },
+    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 30 seats", "500 screenings + 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
+    pro: { lead: "Everything in Scale, plus", items: ["10 jobs · 100 seats", "1,000 screenings + 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
 
   const testimonials = [
     { quote: "We went from a shared spreadsheet and 40 open tabs to one ranked list. Our first good hire came two weeks faster.", name: "Sarah Chen", role: "Hiring Lead · Design studio, Singapore", initials: "SC", gender: "women", photo: "/avatars/sarah-chen.jpg" },
-    { quote: "Parsing alone saved my team hours every week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Nurul Aisyah", role: "People Ops · Retail group, Malaysia", initials: "NA", gender: "women", photo: "/avatars/nurul-aisyah.jpg" },
+    { quote: "Screening alone saved my team hours every week. We stopped copy-pasting CVs into a sheet and just started interviewing.", name: "Nurul Aisyah", role: "People Ops · Retail group, Malaysia", initials: "NA", gender: "women", photo: "/avatars/nurul-aisyah.jpg" },
     { quote: "The match score isn't magic, but it's a genuinely good first pass. New reviewers trust the shortlist right away.", name: "Tan Wei Ming", role: "Talent Lead · Tech startup, Malaysia", initials: "TW", gender: "men", photo: "/avatars/tan-wei-ming.jpg" },
   ];
 
@@ -2480,9 +2480,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "General", q: "Who is Aster built for?", a: "Teams that hire regularly, from a founder making their first hires to a people team running dozens of roles at once. If you're drowning in CVs, Aster is for you." },
     { cat: "General", q: "How does the match score work?", a: "Aster reads each resume, compares it against the role's requirements, and gives every applicant a score with the reasons behind it, so the strongest fits rise to the top instead of getting buried on page three." },
     { cat: "General", q: "How accurate is Aster's screening?", a: "The match score is a strong first pass, not a final decision. It surfaces the best-fit candidates with reasons, so your team reviews a shortlist instead of a pile, and you always make the call." },
-    { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster parses and scores them the same way as new applicants, so nothing gets left behind." },
+    { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster screens and scores them the same way as new applicants, so nothing gets left behind." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
-    { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts parsing and scoring right away. There's no setup project to run first." },
+    { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts screening and scoring right away. There's no setup project to run first." },
     { cat: "Billing", q: "Is there a free trial?", a: "Yes. New accounts get a 14-day Scale trial with full access and no card required. Subscribe before it ends to keep your account. If you don't, the account is suspended and deleted after 30 days." },
     { cat: "Billing", q: "How does pricing work?", a: "Every plan starts with a 14-day free trial of Scale, no card required. After that you pick a plan, billed monthly or yearly, based on the features and volume you need. Plans start at Launch, and you only move up when you're hiring at scale." },
     { cat: "Billing", q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
@@ -2503,7 +2503,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "Integrations", q: "Can I share roles on job boards?", a: "Yes. Every role gets an Apply page you can post on LinkedIn, JobStreet, or anywhere. Applicants land straight in your pipeline, tagged by source so you can see which channel performs best." },
     { cat: "Integrations", q: "Can I collect applications from my own website?", a: "Yes. Each role has a shareable Apply page you can link from your careers site or anywhere else, and applicants flow straight into your pipeline. Every apply link is source-tracked, so you always know which channel each applicant came from." },
     { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Elite and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
-    { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box: parsing, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
+    { cat: "Integrations", q: "Do you offer an API or custom integrations?", a: "Aster covers the core hiring workflow out of the box: screening, scoring, scheduling, and reminders. For custom integrations, our team can help on Enterprise plans." },
   ];
 
   // Don't advertise a billing cycle Stripe can't sell: the yearly prices are
@@ -2625,9 +2625,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           {/* Right: the signature, Aster parsing a resume in seconds */}
           <div className="relative rounded-2xl p-5 sm:p-6" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18), 0 2px 8px rgba(15,27,51,0.04)" }}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Parsing resume</p>
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Screening resume</p>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI parsing
+                <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI screening
               </span>
             </div>
 
@@ -2823,7 +2823,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             </div>
           </Reveal>
 
-          {/* 2 · AI resume parsing, light row, visual left */}
+          {/* 2 · AI resume screening, light row, visual left */}
           <Reveal delay={60} className="rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <div className="relative overflow-hidden w-full max-w-sm rounded-2xl p-4 bg-white shadow-soft" style={{ border: "1px solid var(--line)" }}>
@@ -2833,7 +2833,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-neutral-900 truncate">amira_hassan_cv.pdf</p>
-                    <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Parsed · 2 pages</p>
+                    <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>Screened · 2 pages</p>
                   </div>
                   <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>Done</span>
                 </div>
@@ -2852,7 +2852,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="doc" className="w-5 h-5" /></span>
                 <span className="text-[11px] font-semibold uppercase brand-text" style={{ letterSpacing: "0.09em" }}>Intake</span>
               </div>
-              <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>AI resume parsing</h3>
+              <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>AI resume screening</h3>
               <p className="leading-relaxed max-w-md" style={{ color: "var(--ink-2)", fontSize: "0.975rem" }}>
                 Drop in a CV and get structured skills, experience, and a summary in seconds. No copy-pasting into a spreadsheet, no manual data entry.
               </p>
@@ -3443,7 +3443,7 @@ const PRODUCT_PAGES = {
     chips: ["Kanban pipeline", "Stage automation", "Full activity trail"],
     features: [
       { icon: "jobs", title: "Stages that match your process", body: "Applied, shortlisted, interviewing, offer, hired. Move candidates as they progress and everyone sees it instantly." },
-      { icon: "doc", title: "Rich candidate profiles", body: "Parsed resume, AI insights, scorecards, notes and history, all on one unique, shareable profile URL." },
+      { icon: "doc", title: "Rich candidate profiles", body: "Screened resume, AI insights, scorecards, notes and history, all on one unique, shareable profile URL." },
       { icon: "target", title: "Ranked shortlists", body: "Each applicant is scored against the role, so the strongest fits sit at the top the moment they apply." },
       { icon: "eye", title: "Nothing slips", body: "See what came in, who's at which stage, and where things are stalling from a single dashboard." },
     ],
@@ -3452,10 +3452,10 @@ const PRODUCT_PAGES = {
   ai: {
     eyebrow: "Aster Intelligence", icon: "matching",
     title: "AI that reads every resume", accent: "so you don't have to.",
-    subtitle: "Parsing, match scoring, deduplication and candidate insights. Aster does the first pass on every applicant and hands you a ranked shortlist with reasons, not a pile.",
-    chips: ["Resume parsing", "Role-fit scoring", "Automatic dedup"],
+    subtitle: "Screening, match scoring, deduplication and candidate insights. Aster does the first pass on every applicant and hands you a ranked shortlist with reasons, not a pile.",
+    chips: ["Resume screening", "Role-fit scoring", "Automatic dedup"],
     features: [
-      { icon: "doc", title: "Resume parsing", body: "Drop in a CV and get structured skills, experience and a one-line summary in seconds. No manual data entry." },
+      { icon: "doc", title: "Resume screening", body: "Drop in a CV and get structured skills, experience and a one-line summary in seconds. No manual data entry." },
       { icon: "target", title: "Role-fit match score", body: "Every applicant is scored against the role with the reasoning behind it, so the best fits rise on their own." },
       { icon: "matching", title: "Skill & industry matching", body: "Search your database by the skills or industries you need and let AI rank everyone by fit, typos and synonyms included." },
       { icon: "users", title: "Deduplication", body: "One person, one record, even when they've applied twice with an old and a new CV. No more double-counting." },
@@ -3509,7 +3509,7 @@ const PRODUCT_PAGES = {
     features: [
       { icon: "briefcase", title: "Shareable apply pages", body: "Each role gets a clean page you can post on LinkedIn, JobStreet, or your own site, with the details and one apply button." },
       { icon: "link", title: "Your own tenant URL", body: "Your public board lives at jobs.hireaster.com/{slug}, a branded home for every open role your company is hiring for." },
-      { icon: "download", title: "Straight into the pipeline", body: "Applicants flow directly into your ATS, parsed and scored, with nothing to re-enter by hand." },
+      { icon: "download", title: "Straight into the pipeline", body: "Applicants flow directly into your ATS, screened and scored, with nothing to re-enter by hand." },
       { icon: "target", title: "Source-tracked links", body: "Every apply link is tagged, so you always know which channel each applicant came from." },
     ],
     highlight: { title: "The customer-facing output of your hiring", body: "Candidates see a fast, professional page that matches your brand. You see clean, structured applications on the other side.", points: ["Board and pages update the moment a role changes", "Closed roles show a graceful notice, not a dead link", "One tenant URL to share everywhere"] },
@@ -3530,10 +3530,10 @@ const PRODUCT_PAGES = {
   automation: {
     eyebrow: "Automation & Workflows", icon: "settings",
     title: "Put the busywork", accent: "on autopilot.",
-    subtitle: "The repetitive parts of hiring, handled for you: parsing, scoring, confirmations, reminders and stage-based emails. You focus on the people, Aster handles the admin.",
-    chips: ["Auto-parse & score", "Stage emails", "Reminders"],
+    subtitle: "The repetitive parts of hiring, handled for you: screening, scoring, confirmations, reminders and stage-based emails. You focus on the people, Aster handles the admin.",
+    chips: ["Auto-screen & score", "Stage emails", "Reminders"],
     features: [
-      { icon: "doc", title: "Auto-parse & score", body: "Every resume is read, structured and scored against the role the moment it arrives, no clicks needed." },
+      { icon: "doc", title: "Auto-screen & score", body: "Every resume is read, structured and scored against the role the moment it arrives, no clicks needed." },
       { icon: "chat", title: "Templated emails", body: "Application received, interview invite, offer and rejection emails send from editable templates with details filled in." },
       { icon: "calendar", title: "Scheduling flow", body: "Booking, calendar invites and video links are created automatically once a candidate picks a slot." },
       { icon: "bell", title: "Reminders that reduce no-shows", body: "Interview confirmations and reminders go out over email and WhatsApp, where candidates actually reply." },
@@ -3592,10 +3592,10 @@ const SOLUTIONS_PAGES = {
   recruiters: {
     eyebrow: "Solutions for recruiters", icon: "search",
     title: "Screen every applicant,", accent: "read only the best.",
-    subtitle: "Aster does the first pass on every CV. It parses, scores and ranks each one, so you spend the day talking to shortlisted people instead of reading resumes.",
+    subtitle: "Aster does the first pass on every CV. It screens, scores and ranks each one, so you spend the day talking to shortlisted people instead of reading resumes.",
     chips: ["Auto-screening", "Ranked shortlists", "One-click scheduling"],
     features: [
-      { icon: "doc", title: "Every resume, parsed", body: "Skills, experience and a one-line summary pulled from each CV the moment it lands. No manual data entry." },
+      { icon: "doc", title: "Every resume, screened", body: "Skills, experience and a one-line summary pulled from each CV the moment it lands. No manual data entry." },
       { icon: "target", title: "Ranked by role fit", body: "A match score with the reasons puts the strongest candidates on top, so you start from a shortlist." },
       { icon: "calendar", title: "Scheduling without the ping-pong", body: "Send one link and let candidates self-book. The Meet or Teams invite is created for you." },
       { icon: "chat", title: "Reach candidates where they reply", body: "Templated emails and WhatsApp reminders keep candidates warm and cut no-shows." },
@@ -3631,10 +3631,10 @@ const SOLUTIONS_PAGES = {
   "people-ops": {
     eyebrow: "Solutions for People / HR Ops", icon: "users",
     title: "One hiring process,", accent: "every role.",
-    subtitle: "Give every hiring manager the same structured, on-brand workflow: parsing, scoring, scheduling and templated comms, without policing it by hand.",
+    subtitle: "Give every hiring manager the same structured, on-brand workflow: screening, scoring, scheduling and templated comms, without policing it by hand.",
     chips: ["Standardised workflow", "Roles & access", "On-brand comms"],
     features: [
-      { icon: "settings", title: "A process that runs itself", body: "Parsing, scoring, confirmations and reminders happen automatically, the same way every time." },
+      { icon: "settings", title: "A process that runs itself", body: "Screening, scoring, confirmations and reminders happen automatically, the same way every time." },
       { icon: "chat", title: "Every message on-brand", body: "Editable email templates with placeholders for name, role, company and more." },
       { icon: "lock", title: "Access on a need-to-know basis", body: "Interviewers see only their candidates; sensitive data stays controlled." },
       { icon: "shield", title: "Privacy by default", body: "Candidate data is encrypted, exportable and deletable. Yours to govern." },
@@ -3663,7 +3663,7 @@ const SOLUTIONS_PAGES = {
     features: [
       { icon: "target", title: "Start from a shortlist", body: "Every applicant ranked against the role, so you talk to the best first." },
       { icon: "calendar", title: "Book interviews in a click", body: "One link, candidate self-books, invite created. No email tag." },
-      { icon: "doc", title: "Zero data entry", body: "CVs parsed into structured profiles automatically." },
+      { icon: "doc", title: "Zero data entry", body: "CVs screened into structured profiles automatically." },
       { icon: "users", title: "Bring the team in", body: "Add teammates to interviews; everyone works from one board." },
     ],
     highlight: { title: "Move faster than the bigger names", body: "Speed wins early hires. Aster compresses two weeks of screening into an afternoon.", points: ["Set up in minutes, no project needed", "Launch covers your first role", "Scale up only when you do"] },
@@ -3701,7 +3701,7 @@ const SOLUTIONS_PAGES = {
     chips: ["Talent CRM", "Bulk intake", "Source tracking"],
     features: [
       { icon: "search", title: "A searchable talent pool", body: "Find people by skill, role or industry across everyone you've ever collected." },
-      { icon: "upload", title: "Bulk intake", body: "Drop in stacks of CVs or a whole ZIP; every one is parsed and scored." },
+      { icon: "upload", title: "Bulk intake", body: "Drop in stacks of CVs or a whole ZIP; every one is screened and scored." },
       { icon: "matching", title: "Match candidates to roles", body: "AI ranks your pool against each new brief, typos and synonyms included." },
       { icon: "link", title: "Track every source", body: "Source-tagged links show which channels place your best candidates." },
     ],
@@ -3727,7 +3727,7 @@ const SOLUTIONS_PAGES = {
     subtitle: "Certifications, licences and experience matter. Aster surfaces them from every CV and keeps candidate data private and compliant.",
     chips: ["Credential capture", "Private by default", "High-volume intake"],
     features: [
-      { icon: "doc", title: "Certifications, surfaced", body: "Parsing pulls licences, certifications and experience from each resume automatically." },
+      { icon: "doc", title: "Certifications, surfaced", body: "Screening pulls licences, certifications and experience from each resume automatically." },
       { icon: "target", title: "Match on what matters", body: "Rank candidates by the credentials and experience the role requires." },
       { icon: "shield", title: "Privacy and compliance", body: "Candidate data is encrypted, access-controlled, and deletable on request." },
       { icon: "calendar", title: "Fill shifts faster", body: "Self-scheduling and reminders keep clinical pipelines moving." },
@@ -3740,7 +3740,7 @@ const SOLUTIONS_PAGES = {
     subtitle: "Seasonal peaks and high turnover mean lots of applicants, fast. Aster screens the flood, ranks for fit and books interviews so stores stay staffed.",
     chips: ["High-volume screening", "Fast scheduling", "WhatsApp reminders"],
     features: [
-      { icon: "matching", title: "Screen the flood", body: "Every applicant parsed and ranked, so volume never buries the good ones." },
+      { icon: "matching", title: "Screen the flood", body: "Every applicant screened and ranked, so volume never buries the good ones." },
       { icon: "calendar", title: "Book on the spot", body: "Candidates self-book from live availability. Ideal for walk-in-speed hiring." },
       { icon: "chat", title: "Reach candidates on WhatsApp", body: "Confirmations and reminders where hourly candidates actually reply." },
       { icon: "briefcase", title: "Apply links everywhere", body: "Share source-tracked links on socials, in-store QR codes and job boards." },
@@ -3766,7 +3766,7 @@ const SOLUTIONS_PAGES = {
     subtitle: "From line operators to plant engineers, Aster screens high volumes for the certifications and hands-on experience the job needs, then books interviews fast.",
     chips: ["High-volume intake", "Credential matching", "Fast scheduling"],
     features: [
-      { icon: "upload", title: "Bulk intake", body: "Drop in stacks of applications; each is parsed and scored automatically." },
+      { icon: "upload", title: "Bulk intake", body: "Drop in stacks of applications; each is screened and scored automatically." },
       { icon: "target", title: "Match on certifications & skills", body: "Rank candidates by the licences and hands-on experience the role requires." },
       { icon: "calendar", title: "Schedule without the back-and-forth", body: "Self-booking and reminders keep shift-based hiring moving." },
       { icon: "link", title: "Track every channel", body: "Source-tagged links show which boards and referrals deliver." },
@@ -4441,9 +4441,9 @@ function HeroParsePreview() {
   return (
     <div className="w-full max-w-sm rounded-2xl p-5 sm:p-6" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18)" }}>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs" style={{ color: "var(--ink-3)" }}>Parsing resume</p>
+        <p className="text-xs" style={{ color: "var(--ink-3)" }}>Screening resume</p>
         <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-          <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI parsing
+          <span className="live-dot w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> AI screening
         </span>
       </div>
       <div className="relative overflow-hidden rounded-xl p-3.5" style={{ background: "#F7F9FC", border: "1px solid var(--line)" }}>
@@ -4715,7 +4715,7 @@ function SourcingHeroAnim() {
             <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>PDF, Word or ZIP</p>
           </div>
           <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} /> Parsing
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} /> Screening
           </span>
         </div>
         <div className="space-y-2">
@@ -4726,9 +4726,9 @@ function SourcingHeroAnim() {
                 <span className="shrink-0" style={{ color: isDone ? "var(--ink-3)" : "var(--brand)" }}><Icon name="doc" className="w-4 h-4" /></span>
                 <span className="text-[12px] truncate flex-1" style={{ color: "var(--ink-2)" }}>{fn}</span>
                 {isDone ? (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1 shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Parsed</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1 shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Screened</span>
                 ) : (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 shrink-0" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} /> Parsing…</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 shrink-0" style={{ background: "#F1F1F4", color: "var(--ink-3)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--brand)" }} /> Screening…</span>
                 )}
               </div>
             );
@@ -6490,8 +6490,8 @@ const LEGAL = {
     title: "Privacy policy",
     summary: "What personal data Aster collects, why, how long we keep it, and the rights you and your candidates have.",
     sections: [
-      { h: "What we collect", p: "Account and workspace data you provide, and candidate data: resumes and the skills, experience and contact details parsed from them." },
-      { h: "How we use it", p: "To run your hiring: parsing, scoring and ranking candidates, scheduling interviews, and operating your pipeline. We don't sell personal data or use candidate data to train foundation models." },
+      { h: "What we collect", p: "Account and workspace data you provide, and candidate data: resumes and the skills, experience and contact details extracted from them." },
+      { h: "How we use it", p: "To run your hiring: screening, scoring and ranking candidates, scheduling interviews, and operating your pipeline. We don't sell personal data or use candidate data to train foundation models." },
       { h: "Legal bases (GDPR)", p: "We process personal data to perform our contract with you, to meet legitimate interests in operating the service, and with consent where it is required." },
       { h: "Retention", p: "We keep data for as long as your workspace is active. Deleting a candidate or your workspace removes it, with backups ageing out on a fixed cycle." },
       { h: "Your rights", p: "Access, export and deletion are available in-app. To exercise data subject rights or ask a privacy question, contact us." },
@@ -6555,7 +6555,7 @@ const LEGAL = {
     table: [
       { name: "Supabase", purpose: "Database, authentication, and encrypted resume file storage", region: "EU / US" },
       { name: "Vercel", purpose: "Application hosting and content delivery", region: "Global edge" },
-      { name: "Anthropic", purpose: "AI resume parsing, candidate ranking, and experience insights (Claude)", region: "US" },
+      { name: "Anthropic", purpose: "AI resume screening, candidate ranking, and experience insights (Claude)", region: "US" },
       { name: "Google", purpose: "Google Meet and Calendar for interview scheduling, when you connect it", region: "Global" },
       { name: "Microsoft", purpose: "Microsoft Teams for interview scheduling, when you connect it", region: "Global" },
     ],
@@ -6650,7 +6650,7 @@ function LegalScreen({ slug = "privacy", navigate, goProduct, goSolution, goBlog
 // In-app onboarding walkthrough: the first-run path from empty workspace to hire.
 const GETTING_STARTED_STEPS = [
   { icon: "jobs", title: "Post your first job", body: "Create a role and publish it. You get a public apply link to share anywhere, and a career page that hosts it." },
-  { icon: "upload", title: "Add candidates", body: "Upload resumes in bulk, or let applicants come in through the job link. Aster parses each CV into structured skills and experience." },
+  { icon: "upload", title: "Add candidates", body: "Upload resumes in bulk, or let applicants come in through the job link. Aster screens each CV into structured skills and experience." },
   { icon: "target", title: "Run AI Rank", body: "Score every applicant against the role and start from a ranked shortlist instead of a pile. Paid plans show the reasoning behind each score." },
   { icon: "interview", title: "Interview & hire", body: "Send one scheduling link, the candidate self-books, and a Meet or Teams invite is created. Move people through the pipeline as they progress." },
 ];
@@ -9279,7 +9279,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
-                          <InfoHint dir="up" hint="How much of this month's AI plan you have used across parsing, ranking, insights and interview questions. Limits reset on the 1st." />
+                          <InfoHint dir="up" hint="How much of this month's AI plan you have used across screening, ranking, insights and interview questions. Limits reset on the 1st." />
                         </div>
                         {isOwner(profile?.role) && (
                           <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
@@ -9380,11 +9380,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
 // What the parser accepts and how it handles each file, shown beside the dropzone.
 const UPLOAD_ACCEPT = [
   { icon: "doc", title: "PDF, Word, or ZIP", body: <>Upload resumes as PDF (.pdf) or Word (.doc, .docx), or drop a <span className="font-medium" style={{ color: "var(--ink-2)" }}>ZIP</span> and we'll unpack the resumes inside it.</> },
-  { icon: "search", title: "Text-readable files", body: <>Your resume must contain selectable text. Image-only files or scanned documents without readable text can't be parsed automatically.</> },
+  { icon: "search", title: "Text-readable files", body: <>Your resume must contain selectable text. Image-only files or scanned documents without readable text can't be read automatically.</> },
   { icon: "users", title: "Standard resume content", body: (
     <>The document should include basic candidate information: <span className="font-medium" style={{ color: "var(--ink-2)" }}>full name</span>, <span className="font-medium" style={{ color: "var(--ink-2)" }}>contact details</span>, and <span className="font-medium" style={{ color: "var(--ink-2)" }}>work experience, education or skills</span>. Our AI analyzes each file and assigns a confidence score from what it extracts.</>
   ) },
-  { icon: "shield", title: "Manual review when needed", body: <>If our AI can't confidently read a resume, we'll flag it as <span className="font-medium" style={{ color: "#B45309" }}>Needs review</span> so you can check the details before trusting the parsed profile.</> },
+  { icon: "shield", title: "Manual review when needed", body: <>If our AI can't confidently read a resume, we'll flag it as <span className="font-medium" style={{ color: "#B45309" }}>Needs review</span> so you can check the details before trusting the screened profile.</> },
   { icon: "check", title: "Automatic duplicate check", body: <>Each resume is matched against people already in your system, and others in the same batch. A matching <span className="font-medium" style={{ color: "var(--ink-2)" }}>email</span> (or the same <span className="font-medium" style={{ color: "var(--ink-2)" }}>name + phone</span> when there's no email) is treated as a duplicate; a weaker single-field match is flagged for review. Anyone already hired is skipped automatically.</> },
 ];
 
@@ -9673,7 +9673,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
   const runBatch = async () => {
     if (overLimit) return; // guard: plan limit exceeded
-    if (!hasSupabase) { setZipError("Sign in to a workspace to parse resumes."); return; }
+    if (!hasSupabase) { setZipError("Sign in to a workspace to screen resumes."); return; }
     setStage("parsing");
     setRows(files.map((f) => ({ ...f, uploadStatus: "pending", parseStatus: "pending" })));
 
@@ -9826,7 +9826,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   const verdictBadge = (row) => {
     if (row.parseStatus === "pending") return <span className="text-xs text-neutral-400">…</span>;
     if (row.parseStatus === "parsed")
-      return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Parsed ✓</span>;
+      return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Screened ✓</span>;
     if (row.parseStatus === "duplicate")
       return <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", border: "1px solid var(--brand)" }}>Duplicate</span>;
     if (row.parseStatus === "review")
@@ -9878,9 +9878,9 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 <span className="mx-auto mb-4 flex w-14 h-14 items-center justify-center rounded-2xl" style={{ background: "#FEE2E2", color: "#DC2626" }}>
                   <Icon name="lock" className="w-7 h-7" />
                 </span>
-                <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You've used all {uploadLimit} parses this month</p>
+                <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You've used all {uploadLimit} screenings this month</p>
                 <p className="text-sm mt-1.5 max-w-md mx-auto" style={{ color: "var(--ink-3)" }}>
-                  The {planName} plan includes {uploadLimit} resume parses a month. Upgrade for a higher limit, or your allowance resets each cycle.
+                  The {planName} plan includes {uploadLimit} resume screenings a month. Upgrade for a higher limit, or your allowance resets each cycle.
                 </p>
                 <button onClick={() => navigate("billing")} className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="arrowUpRight" className="w-4 h-4" /> Upgrade plan
@@ -9929,10 +9929,10 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       <Icon name={zipName ? "archive" : "doc"} className="w-5 h-5" />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{files.length} file{files.length === 1 ? "" : "s"} ready to parse</p>
+                      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{files.length} file{files.length === 1 ? "" : "s"} ready to screen</p>
                       <p className="text-xs truncate" style={{ color: overLimit ? "#B91C1C" : "var(--ink-3)" }}>
                         {overLimit
-                          ? `Only ${remaining} parse${remaining === 1 ? "" : "s"} left this month`
+                          ? `Only ${remaining} screening${remaining === 1 ? "" : "s"} left this month`
                           : zipName
                             ? <>Unpacked from <span className="font-medium" style={{ color: "var(--ink-2)" }}>{zipName}</span></>
                             : "PDF & Word resumes"}
@@ -9975,11 +9975,11 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                   {overLimit && (
                     <div className="mb-3 rounded-xl border p-3.5" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
                       <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#B91C1C" }}>
-                        <Icon name="lock" className="w-3.5 h-3.5" /> {outOfQuota ? "No parses left this month. Upload blocked" : "Over your monthly allowance. Upload blocked"}
+                        <Icon name="lock" className="w-3.5 h-3.5" /> {outOfQuota ? "No screenings left this month. Upload blocked" : "Over your monthly allowance. Upload blocked"}
                       </p>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
                         {outOfQuota
-                          ? `You've used all ${uploadLimit} parses on the ${planName} plan this month. Upgrade to keep going, or your allowance resets on the 1st.`
+                          ? `You've used all ${uploadLimit} screenings on the ${planName} plan this month. Upgrade to keep going, or your allowance resets on the 1st.`
                           : <>This batch has {files.length} resume{files.length === 1 ? "" : "s"}, but you have {remaining} left this month. Remove {files.length - remaining} to continue, or upgrade for more.</>}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2.5">
@@ -9997,7 +9997,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       disabled={overLimit}
                       className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl brand-gradient disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 transition-opacity hover:opacity-90"
                     >
-                      <Icon name="upload" className="w-4 h-4" /> Upload &amp; Parse{overLimit ? "" : ` ${files.length} resume${files.length === 1 ? "" : "s"}`}
+                      <Icon name="upload" className="w-4 h-4" /> Upload &amp; Screen{overLimit ? "" : ` ${files.length} resume${files.length === 1 ? "" : "s"}`}
                     </button>
                   </div>
                 </div>
@@ -10077,7 +10077,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                   <div className="flex items-center justify-between mb-2.5">
                     <p className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: "var(--ink)" }}>
                       <span className="w-4 h-4 rounded-full border-2 animate-spin shrink-0" style={{ borderColor: "var(--brand-soft)", borderTopColor: "var(--brand)" }} />
-                      Parsing resumes with AI…
+                      Screening resumes with AI…
                     </p>
                     <p className="text-xs tnum" style={{ color: "var(--ink-3)" }}>{processed} / {rows.length}</p>
                   </div>
@@ -10109,7 +10109,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                   {/* Headline, the parsed total (matches the "Parsed ✓" rows) */}
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{s.parsed}</span>
-                    <span className="text-sm" style={{ color: "var(--ink-2)" }}>of {rows.length} resume{rows.length === 1 ? "" : "s"} parsed into new candidates</span>
+                    <span className="text-sm" style={{ color: "var(--ink-2)" }}>of {rows.length} resume{rows.length === 1 ? "" : "s"} screened into new candidates</span>
                   </div>
                   <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
                     {s.duplicates ? `${s.duplicates} duplicate${s.duplicates === 1 ? "" : "s"}` : ""}{s.duplicates && (s.review || s.flagged || s.rejected) ? " · " : ""}{s.review || s.flagged ? `${s.review + s.flagged} to review` : ""}{(s.review || s.flagged) && s.rejected ? " · " : ""}{s.rejected ? `${s.rejected} skipped` : ""}
@@ -10393,7 +10393,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       </div>
                     </div>
                   </div>
-                  <p className="text-[10px] text-center mt-7" style={{ color: "#B8B8C2" }}>Preview reconstructed from the parsed file · body text omitted</p>
+                  <p className="text-[10px] text-center mt-7" style={{ color: "#B8B8C2" }}>Preview reconstructed from the screened file · body text omitted</p>
                 </div>
               </div>
 
@@ -10414,7 +10414,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                     ))}
                     {typeof previewRow.confidence === "number" && (
                       <div>
-                        <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--ink-3)" }}>Parse confidence <InfoHint dir="up" hint="How sure Aster is that it read this resume correctly. Lower scores are flagged for you to check by hand." /></p>
+                        <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--ink-3)" }}>Screening confidence <InfoHint dir="up" hint="How sure Aster is that it read this resume correctly. Lower scores are flagged for you to check by hand." /></p>
                         <p className="text-sm font-semibold" style={{ color: previewRow.confidence >= 0.85 ? "#16A34A" : "#B45309" }}>{Math.round(previewRow.confidence * 100)}%</p>
                       </div>
                     )}
@@ -19236,7 +19236,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         {onOtherTab && (
           <div className="mb-4 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm" style={{ background: "#FFF8EC", border: "1px solid #F5E3BE", color: "#8A6D1F" }}>
             <Icon name="info" className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>These applicants don&apos;t match this role&apos;s requirements, so they aren&apos;t ranked here. Their resume was still read and saved (using a parse credit), so they stay in your talent pool for future roles.</span>
+            <span>These applicants don&apos;t match this role&apos;s requirements, so they aren&apos;t ranked here. Their resume was still read and saved (using a screening credit), so they stay in your talent pool for future roles.</span>
           </div>
         )}
         {/* Stage filter */}
@@ -19492,10 +19492,10 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
       title = "Hired";
       base = candidates.filter((c) => hiredIds.has(c.id));
     } else if (filter.status === "parsed") {
-      title = "Parsed candidates";
+      title = "Screened candidates";
     } else if (filter.status === "pending" || filter.status === "failed") {
       // These statuses aren't parsed, so there's nothing to list here.
-      title = filter.status === "pending" ? "Parsing pending" : "Parse failed";
+      title = filter.status === "pending" ? "Screening pending" : "Screening failed";
       base = [];
     } else if (filter.source === "public_application") {
       title = "New applicants";
@@ -19913,7 +19913,7 @@ const PAGE_META = {
   },
   "/solutions/recruiters": {
     title: "Recruiting Software for Recruiters | Aster",
-    description: "Aster does the first pass on every CV (parsing, scoring and ranking) so recruiters spend the day talking to shortlisted people, not reading resumes.",
+    description: "Aster does the first pass on every CV (screening, scoring and ranking) so recruiters spend the day talking to shortlisted people, not reading resumes.",
   },
   "/solutions/hiring-managers": {
     title: "Hiring Software for Hiring Managers | Aster",
