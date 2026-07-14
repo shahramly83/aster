@@ -19349,9 +19349,13 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {} }) {
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {} }) {
   const purchasedAiRank = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
+  // Match the Candidate Search AI Rank meter's wording exactly (same shared pool).
+  const aiRankResetLabel = aiRankResetsAt
+    ? new Date(aiRankResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : "in 30 days";
   // Real activity signal per applicant, an event worth noticing, not presence.
   const activityFor = (a) => {
     // Once a candidate advances to offer or a terminal state, the stage pill is
@@ -19654,13 +19658,15 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       {limits.aiRunsPerMonth !== Infinity && (
         <UsageMeter
           plan={plan}
-          title="AI Rank"
-          hint="AI scores each applicant against this role from 0 to 100 percent, and on paid plans explains the reasoning behind each score."
+          title="AI Rank credits this cycle"
+          hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
           used={matchRunsUsed}
           limit={limits.aiRunsPerMonth}
           unit="credits used"
           danger={outOfRuns}
-          note={outOfRuns ? "You're out of AI Rank credits this cycle. Upgrade for unlimited runs and the full reasoning." : `${runsLeft} left this cycle. ${limits.aiMatches === Infinity ? "You'll see every fit with scores." : `You'll see the top ${limits.aiMatches} fits with scores.`}`}
+          note={outOfRuns
+            ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${aiRankResetLabel}.`
+            : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current"} plan · resets ${aiRankResetLabel}.`}
           onUpgrade={() => navigate("billing")}
           upgradeLabel="Upgrade for more"
           purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
@@ -22392,6 +22398,7 @@ export default function ResumeAIPreview() {
             plan={effectivePlan}
             matchRunsUsed={matchRunsUsed}
             setMatchRunsUsed={setMatchRunsUsed}
+            aiRankResetsAt={aiRankResetsAt}
             bookings={bookings}
             hiredIds={hiredIds}
             profile={profile}
