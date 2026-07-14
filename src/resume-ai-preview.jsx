@@ -885,7 +885,7 @@ function Shell({ children }) {
 
 function BackLink({ onClick, children }) {
   return (
-    <button onClick={onClick} className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800 transition-colors">
+    <button onClick={onClick} className="inline-flex items-center gap-1 -ml-2 px-2 min-h-[44px] text-sm text-neutral-500 hover:text-neutral-800 transition-colors">
       {children}
     </button>
   );
@@ -8329,7 +8329,7 @@ function NotificationBell({ activities, onOpen, onActivityClick, compact = false
     <div className={`relative ${open ? "z-[120]" : ""}`}>
       <button
         onClick={toggle}
-        className={`relative rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors ${compact ? "w-9 h-9" : "w-12 h-12"}`}
+        className={`relative rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors ${compact ? "w-11 h-11" : "w-12 h-12"}`}
         style={{ background: "#E7E7EE", border: "1px solid var(--line-strong)" }}
         onMouseEnter={(e) => (e.currentTarget.style.background = "#DDDDE6")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "#E7E7EE")}
@@ -11043,6 +11043,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              aria-label="Search roles"
               placeholder="Search roles"
               className="w-full rounded-xl bg-white border pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30 transition-shadow"
               style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
@@ -12622,7 +12623,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--ink-3)" }}><Icon name="search" className="w-5 h-5" /></span>
-              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); setNameOpen(true); }} onFocus={() => setNameOpen(true)} onBlur={() => setTimeout(() => setNameOpen(false), 150)} placeholder="Search by name…"
+              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); setNameOpen(true); }} onFocus={() => setNameOpen(true)} onBlur={() => setTimeout(() => setNameOpen(false), 150)} aria-label="Search candidates by name" placeholder="Search by name…"
                 className="w-full rounded-2xl bg-white border pl-12 pr-10 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 transition-shadow"
                 style={{ borderColor: "var(--line)", color: "var(--ink)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }} />
               {query && <button onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>}
@@ -16525,8 +16526,8 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           <SectionHead icon="mail" title="Email address" desc={<>Current: <span style={{ color: "var(--ink)" }}>{email}</span></>} />
           <div className="mt-5 space-y-3">
             <div>
-              <label className={labelClass} style={{ color: "var(--ink-2)" }}>New email</label>
-              <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
+              <label htmlFor="pf-new-email" className={labelClass} style={{ color: "var(--ink-2)" }}>New email</label>
+              <input id="pf-new-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" autoComplete="email" className={inputClass} />
             </div>
             <p className="text-xs text-neutral-500">We'll email a confirmation link to the new address. Your login email stays the same until you click it. An address already in use by another account is rejected.</p>
             {emailMsg && <p className="text-sm flex items-start gap-1.5" style={{ color: "#166534" }}><Icon name="check" className="w-4 h-4 mt-0.5 shrink-0" /> {emailMsg}</p>}
@@ -16545,7 +16546,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
               { k: "conf", val: confPw, set: setConfPw, ph: "Confirm new password", ac: "new-password" },
             ].map((f) => (
               <div key={f.k} className="relative">
-                <input type={pwShown[f.k] ? "text" : "password"} value={f.val} onChange={(e) => { f.set(e.target.value); setPwMsg(null); }} placeholder={f.ph} autoComplete={f.ac} className={`${inputClass} pr-11`} />
+                <input id={`pw-${f.k}`} aria-label={f.ph} type={pwShown[f.k] ? "text" : "password"} value={f.val} onChange={(e) => { f.set(e.target.value); setPwMsg(null); }} placeholder={f.ph} autoComplete={f.ac} className={`${inputClass} pr-11`} />
                 {f.val && (
                   <button type="button" onClick={() => togglePw(f.k)} aria-label={pwShown[f.k] ? "Hide password" : "Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
                     <Icon name={pwShown[f.k] ? "eyeOff" : "eye"} className="w-4 h-4" />
@@ -18504,13 +18505,13 @@ function GuideBubble({ step, children, primaryLabel, onPrimary, onClose, pointer
             <span key={i} className="h-1 rounded-full transition-all duration-300" style={{ width: i === num - 1 ? 18 : 6, background: i <= num - 1 ? "var(--brand)" : "var(--line-strong)" }} />
           ))}
         </div>
-        <button onClick={onClose} aria-label="Skip tour" className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
+        <button onClick={onClose} aria-label="Skip tour" className="shrink-0 w-11 h-11 -m-3 rounded-md flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
           <Icon name="close" className="w-3.5 h-3.5" />
         </button>
       </div>
       <p className="px-3.5 mt-2 text-[12px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{children}</p>
       <div className="flex items-center justify-between px-3.5 pb-3 pt-3">
-        <button onClick={onClose} className="text-[11px] font-medium transition-colors hover:opacity-70" style={{ color: "var(--ink-3)" }}>Skip tour</button>
+        <button onClick={onClose} className="text-[11px] font-medium min-h-[44px] px-1 transition-colors hover:opacity-70" style={{ color: "var(--ink-3)" }}>Skip tour</button>
         {primaryLabel && (
           <button onClick={onPrimary} className="text-[11px] font-semibold rounded-lg brand-gradient text-white pl-3 pr-2.5 py-1.5 hover:opacity-90 transition-opacity inline-flex items-center gap-1 shadow-[0_6px_14px_-6px_rgba(11,42,224,0.8)]">
             {primaryLabel}
@@ -19455,6 +19456,7 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search candidates by name"
               placeholder="Search candidates by name…"
               className="w-full rounded-xl bg-white border pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[color:var(--brand)]"
               style={{ borderColor: "var(--line)", color: "var(--ink)" }}

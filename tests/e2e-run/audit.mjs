@@ -127,6 +127,25 @@ async function sweep(ctxOpts, who, routes, origin, surface) {
     const page = ctx.pages()[0] || (await ctx.newPage());
     page.setDefaultTimeout(25_000);
 
+    // Sign in first. The saved profile does not reliably carry a session between
+    // browser contexts, and without this the app sweep silently audits the LOGIN
+    // page thirty times over and reports it as clean.
+    if (ctxOpts.email) {
+      await page.goto(`${origin}/login`, { waitUntil: "load" });
+      await page.waitForTimeout(3000);
+      if (await page.getByRole("button", { name: /^sign in$/i }).count()) {
+        await page.getByLabel(/^email$/i).first().fill(ctxOpts.email);
+        await page.getByLabel(/^password$/i).first().fill(PASSWORD);
+        await page.getByRole("button", { name: /^sign in$/i }).first().click();
+        await page.waitForTimeout(8000);
+      }
+      if (/\/login/.test(page.url())) {
+        console.log(`  ✗ [${vp.name}] could not sign in as ${ctxOpts.email}; skipping`);
+        await ctx.close();
+        continue;
+      }
+    }
+
     for (const route of routes) {
       try {
         await page.goto(`${origin}${route}`, { waitUntil: "load" });
@@ -158,7 +177,7 @@ if (which === "marketing" || which === "all") {
 if (which === "app" || which === "all") {
   for (const [email, routes] of Object.entries(APP)) {
     console.log(`\n=== APP as ${email} ===`);
-    await sweep({ dir: join(PROFILES, email.split("@")[0]) }, email.split("@")[0], routes, WS, "app");
+    await sweep({ dir: join(PROFILES, email.split("@")[0]), email }, email.split("@")[0], routes, WS, "app");
   }
 }
 
