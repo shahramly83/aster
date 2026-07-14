@@ -375,15 +375,36 @@ async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
     const y = page.getByRole("button", { name: /^yearly/i }).first();
     if (await y.count()) { await y.click(); await settle(page, 1200); }
   }
+  // The CTA is only "Subscribe" from a trial. Once a plan is live it reads
+  // "Upgrade" or "Downgrade", and clicking it changes the plan in place instead
+  // of opening Checkout, so match every label and handle both outcomes.
+  const CTA = /subscribe|upgrade|downgrade|switch/i;
   const label = plan[0].toUpperCase() + plan.slice(1);
   const card_ = page.locator("div").filter({ hasText: new RegExp(`^${label}`, "i") })
-    .filter({ has: page.getByRole("button", { name: /subscribe/i }) }).last();
+    .filter({ has: page.getByRole("button", { name: CTA }) }).last();
   const btn = (await card_.count())
-    ? card_.getByRole("button", { name: /subscribe/i }).first()
-    : page.getByRole("button", { name: /subscribe/i }).first();
+    ? card_.getByRole("button", { name: CTA }).first()
+    : page.getByRole("button", { name: CTA }).first();
+  const cta = (await btn.innerText().catch(() => "")).trim();
+  console.log(`  CTA on ${label}: "${cta}"`);
   await btn.click();
 
-  await page.waitForURL(/checkout\.stripe\.com/, { timeout: 45_000 }).catch(() => {});
+  await Promise.race([
+    page.waitForURL(/checkout\.stripe\.com/, { timeout: 45_000 }),
+    page.waitForURL(/plan=changed/, { timeout: 45_000 }),
+  ]).catch(() => {});
+
+  // Changing an existing plan never opens Checkout: there is already a card on
+  // file, so Stripe reprices the live subscription and prorates it.
+  if (/plan=changed/.test(page.url())) {
+    await settle(page, 4000);
+    await shot(page, `P-changed-${plan}`);
+    const cur = await page.getByText(/current plan/i).locator("xpath=ancestor::div[1]").innerText().catch(() => "");
+    console.log(`  ✅ plan changed in place (no checkout, prorated)\n${cur.split("\n").map((l) => "     " + l).join("\n")}`);
+    await ctx.close();
+    return;
+  }
+
   if (!/checkout\.stripe\.com/.test(page.url())) {
     await shot(page, `P-no-checkout-${plan}`);
     const err = await page.getByText(/error|could not|couldn't/i).first().innerText().catch(() => "");
