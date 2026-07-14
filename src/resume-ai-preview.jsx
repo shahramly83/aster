@@ -9126,7 +9126,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       <p className="text-2xl font-bold font-display tnum" style={{ color: "var(--ink)" }}>{k.value}</p>
                       {typeof k.delta === "number" && k.delta !== 0 && <span className="text-[11px] font-semibold mb-1" style={{ color: k.delta > 0 ? "#22C55E" : "#EF4444" }}>{k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%</span>}
                     </div>
-                    {k.note && <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>{k.note}</p>}
+                    {k.note && <p className="text-[11px] mt-1 font-medium" style={{ color: k.noteColor || "var(--ink-3)" }}>{k.note}</p>}
                     {k.celebrate && k.value > 0 && <p className="text-sm font-medium mt-3 max-w-[70%]" style={{ color: "var(--ink)" }}>Great job! Keep up the momentum!</p>}
                   </div>
                   {k.celebrate && k.value > 0 && (
@@ -9160,7 +9160,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     {heroCard({ ...kpis[5], dark: true, celebrate: true })}
                     {heroCard(kpis[0])}
                     {heroCard({ label: "Open positions", value: stats.openJobs, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
-                    {heroCard({ label: "Awaiting Review", value: stageCount("applied"), icon: "doc", note: "Status: Applied", onClick: () => goToCandidates({ source: "public_application" }) })}
+                    {heroCard({ label: "Awaiting Review", value: stageCount("applied"), icon: "doc", note: "Status: Applied", noteColor: "var(--brand)", onClick: () => goToCandidates({ source: "public_application" }) })}
                   </div>
 
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
