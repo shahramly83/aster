@@ -9193,7 +9193,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     shortcut into a screen that will just refuse them. They still see
                     the plan and their credit usage, which they need. */}
                 {isOwner(profile?.role) && (
-                  <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-9 h-9 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
+                  <button onClick={() => navigate("billing")} aria-label="Manage plan" className="w-11 h-11 rounded-full flex items-center justify-center brand-gradient text-white shrink-0 hover:opacity-90 transition-opacity"><Icon name="arrowUpRight" className="w-4 h-4" /></button>
                 )}
               </div>
               {/* stylised plan card */}
@@ -10948,7 +10948,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           ref={copyHint ? copyLinkRef : undefined}
           onClick={(e) => { e.stopPropagation(); openLinkModal(job); }}
           aria-label="Copy apply link" title="Copy apply link"
-          className={`inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100 ${copyHint ? "tour-pulse" : ""}`}
+          className={`inline-flex items-center justify-center w-11 h-11 rounded-lg transition-colors hover:bg-neutral-100 ${copyHint ? "tour-pulse" : ""}`}
           style={{ color: copyHint ? "var(--brand)" : "var(--ink-3)" }}
         >
           <Icon name="link" className="w-[18px] h-[18px]" />
@@ -11340,7 +11340,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={safePage === 0}
-                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1 rounded-lg border px-3 min-h-11 text-xs font-medium transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
                 >
                   <Icon name="chevronLeft" className="w-3.5 h-3.5" /> Prev
@@ -11350,7 +11350,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     key={i}
                     onClick={() => setPage(i)}
                     aria-current={safePage === i}
-                    className="w-8 h-8 rounded-lg text-xs font-medium transition-colors"
+                    className="w-11 h-11 rounded-lg text-xs font-medium transition-colors"
                     style={safePage === i
                       ? { background: "var(--ink)", color: "#fff" }
                       : { border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}
@@ -11361,7 +11361,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 <button
                   onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
                   disabled={safePage >= pageCount - 1}
-                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1 rounded-lg border px-3 min-h-11 text-xs font-medium transition-colors hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
                 >
                   Next <Icon name="chevronRight" className="w-3.5 h-3.5" />
@@ -19286,7 +19286,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           onClick={() => onToggleShortlist(a.applicationId)}
                           aria-label={on ? "Remove from your shortlist" : "Add to your shortlist"}
                           title={on ? "Shortlisted by you. Tap to remove." : "Add to your shortlist"}
-                          className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border transition-colors hover:bg-neutral-50"
+                          className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center border transition-colors hover:bg-neutral-50"
                           style={on ? { borderColor: "var(--brand)", color: "var(--brand)" } : { borderColor: "var(--line-strong)", color: "var(--ink-3)" }}
                         >
                           <Icon name="star" className="w-4 h-4" style={on ? { fill: "currentColor" } : undefined} />
