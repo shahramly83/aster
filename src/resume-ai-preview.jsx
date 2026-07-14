@@ -112,10 +112,18 @@ function markOnboardingDone(serverKey, lsKey) {
   if (hasSupabase) { try { supabase.rpc("mark_onboarding", { p_key: serverKey }).catch(() => {}); } catch { /* ignore */ } }
 }
 
-// Redirect to Stripe's hosted Checkout for a plan + cycle. create-checkout-session
-// mints the session; stripe-webhook activates the plan (and clears any soft-delete)
-// once payment lands. Resolves to an error string, or never returns on success.
-// Used by Billing and by the suspended-workspace paywall.
+// Buy a plan, or switch to a different one.
+//
+// First purchase: create-checkout-session mints a Stripe Checkout session and we
+// redirect; stripe-webhook activates the plan once payment lands.
+//
+// Already subscribed: there is nothing to check out. The function switches the
+// price on the live subscription and Stripe prorates it (an upgrade is invoiced
+// immediately, a downgrade credits the unused time against the next invoice), so
+// no redirect happens. Sending an existing subscriber back through Checkout would
+// open a SECOND subscription and bill them for both plans.
+//
+// Resolves to an error string; on a redirect it never returns.
 async function stripeCheckout(planKey, cycle) {
   try {
     const { data, error } = await supabase.functions.invoke("create-checkout-session", {
@@ -127,6 +135,12 @@ async function stripeCheckout(planKey, cycle) {
       let reason = "";
       try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; } catch { /* non-JSON body */ }
       return reason ? `Checkout error: ${reason}` : "Couldn't start checkout. Try again.";
+    }
+    // Plan switched on the existing subscription: no checkout to send them to.
+    // Reload so the new plan, limits and billing state come back from the server.
+    if (data?.changed || data?.unchanged) {
+      window.location.assign("/billing?plan=changed");
+      return null;
     }
     if (!data?.url) return `Checkout error: ${data?.detail || data?.error || "no URL returned"}`;
     window.location.href = data.url;

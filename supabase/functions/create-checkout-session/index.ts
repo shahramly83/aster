@@ -27,12 +27,23 @@ const PRICE_ENV: Record<string, string> = {
   "elite|yearly": "STRIPE_PRICE_ELITE_YEARLY",
 };
 
+// Ranked so we can tell an upgrade from a downgrade, which decides how Stripe
+// prorates the switch.
+const RANK: Record<string, number> = { launch: 1, scale: 2, elite: 3 };
+
 // Stripe expects application/x-www-form-urlencoded.
 async function stripe(path: string, params: Record<string, string>, secret: string) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params).toString(),
+  });
+  const data = await res.json();
+  return { ok: res.ok, data };
+}
+async function stripeGet(path: string, secret: string) {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    headers: { Authorization: `Bearer ${secret}` },
   });
   const data = await res.json();
   return { ok: res.ok, data };
@@ -81,7 +92,53 @@ Deno.serve(async (req) => {
 
     // Reuse the saved customer when we have one.
     const { data: subRow } = await admin
-      .from("subscriptions").select("stripe_customer_id").eq("company_id", companyId).maybeSingle();
+      .from("subscriptions")
+      .select("stripe_customer_id, stripe_subscription_id, status, plan, cycle")
+      .eq("company_id", companyId).maybeSingle();
+
+    // ---- Already paying? Then this is a PLAN CHANGE, not a new purchase. ----
+    // Sending them through Checkout again would open a SECOND subscription and
+    // bill them for both plans at once. Switch the price on the live subscription
+    // instead, and let Stripe prorate it.
+    const liveSub = subRow?.stripe_subscription_id || null;
+    const paying = liveSub && ["active", "past_due", "trialing"].includes(String(subRow?.status || ""));
+    if (paying) {
+      const cur = await stripeGet(`subscriptions/${liveSub}`, secret);
+      const item = cur.ok ? cur.data?.items?.data?.[0] : null;
+
+      // A subscription we can't read (deleted, wrong mode) is not a plan change;
+      // fall through and let them buy a fresh one.
+      if (item?.id) {
+        const already = item.price?.id === priceId;
+        if (already) return json({ ok: true, unchanged: true, plan, cycle: c });
+
+        const from = String(subRow?.plan || "");
+        const isUpgrade = (RANK[plan] ?? 0) > (RANK[from] ?? 0);
+        // Upgrade: bill the difference now, so they pay for what they just got.
+        // Downgrade: no refund, credit the unused time against the next invoice.
+        const proration = isUpgrade ? "always_invoice" : "create_prorations";
+
+        const upd = await stripe(`subscriptions/${liveSub}`, {
+          "items[0][id]": item.id,
+          "items[0][price]": priceId,
+          proration_behavior: proration,
+          "metadata[company_id]": companyId,
+          "metadata[plan]": plan,
+          "metadata[cycle]": c,
+        }, secret);
+        if (!upd.ok) {
+          console.error("stripe plan change", upd.data);
+          return json({ error: "could not change plan", detail: upd.data?.error?.message || null }, 502);
+        }
+        // The customer.subscription.updated webhook writes plan/cycle/period to the
+        // DB, so we don't duplicate that here.
+        return json({
+          ok: true, changed: true, from, to: plan, cycle: c,
+          direction: isUpgrade ? "upgrade" : "downgrade", proration,
+        });
+      }
+    }
+
     let customerId: string | null = subRow?.stripe_customer_id || null;
     if (!customerId) {
       customerId = await newCustomer();
