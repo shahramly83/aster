@@ -19439,7 +19439,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
                         </span>
                       )}
-                      <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
                       {hiredIds.has(a.candidateId) ? (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>
                           <Icon name="check" className="w-3.5 h-3.5" /> Hired
@@ -19456,6 +19455,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           onStageChange={(stage, emailSent) => setStage(a.candidateId, stage, emailSent)}
                         />
                       )}
+                      <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} aria-label={`View ${c.parsed.name}`} title="View candidate" className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>
+                        <Icon name="eye" className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
