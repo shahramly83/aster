@@ -8943,11 +8943,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const allApplicants = Object.values(APPLICANTS_BY_JOB).flat();
   // Hired candidates (a completed hire, the headline win). Global per candidate.
   const hiredCandidates = candidates.filter((c) => hiredIds.has(c.id));
-  // Candidates who are out of the active pipeline: hired or turned down. Excluded
-  // from the "Total Candidates" headline so it reflects who's still in play.
-  const rejectedIds = new Set(allApplicants.filter((a) => a.baseStage === "rejected" || a.baseStage === "declined").map((a) => a.candidateId));
   const stats = {
-    totalCandidates: candidates.filter((c) => !hiredIds.has(c.id) && !rejectedIds.has(c.id)).length,
+    // Talent pool: everyone in the database except those already hired (who are no
+    // longer candidates). Matches the Candidate Search count exactly, so the two
+    // headline candidate numbers always agree.
+    totalCandidates: candidates.filter((c) => !hiredIds.has(c.id)).length,
     parsed: candidates.filter((c) => c.status === "parsed").length,
     pending: candidates.filter((c) => c.status === "pending").length,
     openJobs: jobs.filter((j) => j.status === "open").length,
@@ -8966,19 +8966,16 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   allApplicants.forEach((a) => { const r = rankDay(a.appliedAt); if (r !== null && r >= 0 && r <= 6) appsSeries[6 - r] += 1; });
   const flatSeries = (v) => [v, v, v, v, v, v, v];
 
-  // Previous-period snapshot. In production this comes from historical data;
-  // here it's a seeded baseline so the % change is *computed*, not hardcoded.
-  const prevPeriod = { totalCandidates: 6, openJobs: 2, applications: 4, interviewsScheduled: 1, offersPending: 0, hiresThisMonth: 0 };
-  const pctChange = (cur, prev) => (prev === 0 ? (cur === 0 ? 0 : 100) : Math.round(((cur - prev) / prev) * 100));
-
-  // The six headline KPIs shown as the main stat cards.
+  // The six headline KPIs shown as the main stat cards. No period-over-period delta:
+  // we don't store historical snapshots yet, so any % here would be invented (the old
+  // 'up 517%' came from a hardcoded baseline). Show the real number, not a fake trend.
   const kpis = [
-    { label: "Total Candidates", value: stats.totalCandidates, delta: pctChange(stats.totalCandidates, prevPeriod.totalCandidates), series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => navigate("search") },
-    { label: "Open Positions", value: stats.openJobs, delta: pctChange(stats.openJobs, prevPeriod.openJobs), series: flatSeries(stats.openJobs), icon: "briefcase", onClick: () => goToJobs("open") },
-    { label: "New Applications", value: stats.applications, delta: pctChange(stats.applications, prevPeriod.applications), series: appsSeries, icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) },
-    { label: "Interviews Scheduled", value: stats.interviewsScheduled, delta: pctChange(stats.interviewsScheduled, prevPeriod.interviewsScheduled), series: flatSeries(stats.interviewsScheduled), icon: "calendar", onClick: () => goToCandidates({ interview: true }) },
-    { label: "Offers Pending", value: stats.offersPending, delta: pctChange(stats.offersPending, prevPeriod.offersPending), series: flatSeries(stats.offersPending), icon: "offer", onClick: () => goToJobs(null) },
-    { label: "Total Hires", value: stats.hiresThisMonth, delta: pctChange(stats.hiresThisMonth, prevPeriod.hiresThisMonth), series: flatSeries(stats.hiresThisMonth), icon: "hire", onClick: () => goToCandidates({ hired: true }) },
+    { label: "Total Candidates", value: stats.totalCandidates, series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => navigate("search") },
+    { label: "Open Positions", value: stats.openJobs, series: flatSeries(stats.openJobs), icon: "briefcase", onClick: () => goToJobs("open") },
+    { label: "New Applications", value: stats.applications, series: appsSeries, icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) },
+    { label: "Interviews Scheduled", value: stats.interviewsScheduled, series: flatSeries(stats.interviewsScheduled), icon: "calendar", onClick: () => goToCandidates({ interview: true }) },
+    { label: "Offers Pending", value: stats.offersPending, series: flatSeries(stats.offersPending), icon: "offer", onClick: () => goToJobs(null) },
+    { label: "Total Hires", value: stats.hiresThisMonth, series: flatSeries(stats.hiresThisMonth), icon: "hire", onClick: () => goToCandidates({ hired: true }) },
   ];
 
   const goToCandidates = (filter) => {
@@ -9137,7 +9134,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                     {heroCard({ ...kpis[5], dark: true, celebrate: true })}
                     {heroCard(kpis[0])}
-                    {heroCard({ label: "Total Job Postings", value: jobs.filter((j) => j.status !== "closed").length, icon: "jobs", delta: pctChange(stats.openJobs, prevPeriod.openJobs), onClick: () => goToJobs(null) })}
+                    {heroCard({ label: "Active jobs", value: jobs.filter((j) => j.status !== "closed").length, icon: "jobs", onClick: () => goToJobs(null) })}
                     {heroCard({ label: "New Applicants", value: stageCount("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
                   </div>
 
