@@ -9864,7 +9864,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
           <div className="lg:col-span-2 space-y-5">
         {stage === "idle" && (
           <>
-            {files.length === 0 && importHistory.length > 0 && (
+            {files.length === 0 && (
               <div className="flex items-center gap-1 rounded-xl p-1 border" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
                 {[{ k: "import", label: "Import" }, { k: "recent", label: `Recent imports (${importHistory.length})` }].map((t) => (
                   <button key={t.k} type="button" onClick={() => setUploadTab(t.k)} className="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={uploadTab === t.k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "var(--ink-2)" }}>{t.label}</button>
@@ -10008,16 +10008,23 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
             {/* Recent imports, now its own tab: every past batch, reopenable as
                 a read-only log. */}
-            {uploadTab === "recent" && files.length === 0 && importHistory.length > 0 && (
+            {uploadTab === "recent" && files.length === 0 && (
               <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Recent imports</h2>
                   <span className="text-xs" style={{ color: "var(--ink-3)" }}>{importHistory.length} run{importHistory.length === 1 ? "" : "s"}</span>
                 </div>
+                {importHistory.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <span className="mx-auto mb-3 flex w-12 h-12 items-center justify-center rounded-2xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="clock" className="w-6 h-6" /></span>
+                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No imports yet</p>
+                    <p className="text-xs mt-1 max-w-xs mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Bulk-upload resumes from the Import tab and each run will show up here so you can reopen it.</p>
+                  </div>
+                ) : (
                 <div className="space-y-1">
                   {importHistory.map((run) => {
                     const stats = [
-                      { label: "parsed", count: run.summary.parsed, color: "#16A34A" },
+                      { label: "screened", count: run.summary.parsed, color: "#16A34A" },
                       { label: run.summary.duplicates === 1 ? "duplicate" : "duplicates", count: run.summary.duplicates, color: "var(--brand)" },
                       { label: "possible match", count: run.summary.review, color: "#F59E0B" },
                       { label: "needs review", count: run.summary.flagged, color: "#F59E0B" },
@@ -10047,6 +10054,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                     );
                   })}
                 </div>
+                )}
               </div>
             )}
           </>
