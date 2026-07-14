@@ -13194,6 +13194,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const [showForm, setShowForm] = useState(false);
   const [email, setEmail] = useState("");
   const [roleFilter, setRoleFilter] = useState("all"); // 'all' | 'admin' | 'interviewer'
+  const [roleFilterOpen, setRoleFilterOpen] = useState(false);
   const [inviteRole, setInviteRole] = useState("admin"); // 'admin' (Hiring Manager) | 'interviewer'
   const [banner, setBanner] = useState(null);
   const [sending, setSending] = useState(false);
@@ -13338,17 +13339,61 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     >
         {/* Filter + invite action */}
         <div className="flex items-center justify-between gap-3 mb-4">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            aria-label="Filter team by role"
-            className="text-sm rounded-xl bg-white border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 transition-shadow"
-            style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
-          >
-            <option value="all">All roles</option>
-            <option value="admin">Hiring Managers</option>
-            <option value="interviewer">Interviewers</option>
-          </select>
+          {(() => {
+            const opts = [
+              { key: "all", label: "All roles" },
+              { key: "admin", label: "Hiring Managers" },
+              { key: "interviewer", label: "Interviewers" },
+            ];
+            const countFor = (key) => key === "all"
+              ? 1 + team.length + pendingInvites.length
+              : key === "admin"
+                ? 1 + team.filter((i) => i.role === "admin").length + pendingInvites.filter((i) => i.role === "admin").length
+                : team.filter((i) => i.role === "interviewer").length + pendingInvites.filter((i) => i.role === "interviewer").length;
+            const active = opts.find((o) => o.key === roleFilter) || opts[0];
+            return (
+              <div className="relative">
+                <button
+                  onClick={() => setRoleFilterOpen((o) => !o)}
+                  aria-haspopup="listbox"
+                  aria-expanded={roleFilterOpen}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2 text-sm transition-colors hover:border-neutral-300"
+                  style={{ borderColor: roleFilterOpen ? "var(--brand)" : "var(--line-strong)", color: "var(--ink-2)" }}
+                >
+                  <Icon name="users" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />
+                  <span style={{ color: "var(--ink-3)" }}>Role:</span>
+                  <span className="font-medium" style={{ color: "var(--ink)" }}>{active.label}</span>
+                  <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${roleFilterOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+                </button>
+                {roleFilterOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setRoleFilterOpen(false)} />
+                    <div role="listbox" className="absolute z-40 left-0 top-full mt-1.5 w-56 rounded-xl border bg-white py-1" style={{ borderColor: "var(--line)", boxShadow: "0 18px 40px -18px rgba(18,19,42,0.28)" }}>
+                      {opts.map((o) => {
+                        const on = roleFilter === o.key;
+                        return (
+                          <button
+                            key={o.key}
+                            role="option"
+                            aria-selected={on}
+                            onClick={() => { setRoleFilter(o.key); setRoleFilterOpen(false); }}
+                            className="w-full flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors hover:bg-neutral-50"
+                            style={on ? { background: "var(--brand-soft)" } : undefined}
+                          >
+                            <span className="flex items-center gap-2" style={{ color: on ? "var(--brand)" : "var(--ink-2)", fontWeight: on ? 600 : 400 }}>
+                              {on ? <Icon name="check" className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5" />}
+                              {o.label}
+                            </span>
+                            <span className="text-xs tnum" style={{ color: on ? "var(--brand)" : "var(--ink-3)" }}>{countFor(o.key)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
           {/* Every plan can invite. The only limit is seats, so a full workspace is
               sent to billing rather than shown a locked button. */}
           <button
