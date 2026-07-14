@@ -354,6 +354,89 @@ async function accept(url) {
   await ctx.close();
 }
 
+// Buy a plan for real, through Stripe Checkout, with a TEST card.
+//   node tests/e2e-run/driver.mjs subscribe scale monthly [declined|3ds]
+async function subscribe(plan = "scale", cycle = "monthly", variant = "ok") {
+  const CARDS = {
+    ok: "4242424242424242",
+    declined: "4000000000000002",
+    "3ds": "4000002500003155",
+  };
+  const card = CARDS[variant] || CARDS.ok;
+
+  const { ctx, page } = await ctxFor(CFG.tenant.email);
+  console.log(`▶ subscribe: ${plan}/${cycle} with ${variant} card ${card}`);
+
+  await page.goto(`${wsOrigin()}/billing`, { waitUntil: "load" });
+  await settle(page, 5000);
+
+  // Pick the cycle, then the plan's Subscribe button.
+  if (cycle === "yearly") {
+    const y = page.getByRole("button", { name: /^yearly/i }).first();
+    if (await y.count()) { await y.click(); await settle(page, 1200); }
+  }
+  const label = plan[0].toUpperCase() + plan.slice(1);
+  const card_ = page.locator("div").filter({ hasText: new RegExp(`^${label}`, "i") })
+    .filter({ has: page.getByRole("button", { name: /subscribe/i }) }).last();
+  const btn = (await card_.count())
+    ? card_.getByRole("button", { name: /subscribe/i }).first()
+    : page.getByRole("button", { name: /subscribe/i }).first();
+  await btn.click();
+
+  await page.waitForURL(/checkout\.stripe\.com/, { timeout: 45_000 }).catch(() => {});
+  if (!/checkout\.stripe\.com/.test(page.url())) {
+    await shot(page, `P-no-checkout-${plan}`);
+    const err = await page.getByText(/error|could not|couldn't/i).first().innerText().catch(() => "");
+    console.log(`  ❌ never reached Stripe. ${err}`);
+    await ctx.close();
+    return;
+  }
+  const isTest = /cs_test_/.test(page.url());
+  console.log(`  ${isTest ? "🟢 TEST" : "🔴 LIVE"} session (${page.url().match(/cs_(test|live)_/)?.[0]})`);
+  if (!isTest) { console.log("  ABORT: refusing to enter a card on a LIVE session."); await ctx.close(); return; }
+
+  await settle(page, 6000);
+  await shot(page, `P1-checkout-${plan}`);
+
+  // Stripe hosted Checkout renders its fields on its own domain (no iframes).
+  const fill = async (sel, val) => {
+    const el = page.locator(sel).first();
+    if (await el.count()) { await el.fill(val); return true; }
+    return false;
+  };
+  await fill("#email", CFG.tenant.email);
+  await fill("#cardNumber", card);
+  await fill("#cardExpiry", "12 / 34");
+  await fill("#cardCvc", "123");
+  await fill("#billingName", "Tara Tenant");
+  const country = page.locator("#billingCountry").first();
+  if (await country.count()) await country.selectOption("MY").catch(() => {});
+  await fill("#billingPostalCode", "50250");
+  await settle(page, 1200);
+  await shot(page, `P2-card-filled-${plan}`);
+
+  await page.locator('button[type="submit"], .SubmitButton').first().click();
+  console.log("  → submitted payment, waiting for Stripe + webhook…");
+
+  // 3DS pops a challenge frame; accept it.
+  if (variant === "3ds") {
+    await settle(page, 8000);
+    const f = page.frameLocator('iframe[name*="stripe"], iframe[title*="Secure"]').last();
+    const done = f.getByRole("button", { name: /complete|authorize/i }).first();
+    await done.click({ timeout: 20_000 }).catch(() => console.log("  (no 3DS button found)"));
+  }
+
+  await page.waitForURL(/\/billing/, { timeout: 90_000 }).catch(() => {});
+  await settle(page, 8000); // let the webhook land
+  console.log(`  landed: ${page.url()}`);
+  await shot(page, `P3-after-pay-${plan}`);
+
+  const body = await page.locator("body").innerText();
+  const declined = /declin|card was declined|failed/i.test(body);
+  console.log(`  ${declined ? "❌ payment declined (expected for the declined card)" : "✅ payment went through"}`);
+  await ctx.close();
+}
+
 // Revoke pending invites (by email). Used to undo a wrongly-roled invite.
 async function revoke(...emails) {
   const { ctx, page } = await ctxFor(CFG.tenant.email);
@@ -455,6 +538,7 @@ const run = {
   accept: () => accept(args[0], args[1]),
   login: () => login(args[0] || "tenant"),
   billing: () => billing(),
+  subscribe: () => subscribe(args[0], args[1], args[2]),
   shot: () => shotRoute(args[0], args[1] || "/dashboard"),
 };
 if (!run[cmd]) {

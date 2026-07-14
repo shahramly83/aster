@@ -14863,6 +14863,10 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
   const [cycle, setCycle] = useState(planCycle);
   const [portalBusy, setPortalBusy] = useState(false);
+  // Invoice history, read from Stripe so receipts live in Aster rather than only
+  // behind a redirect to the portal.
+  const [invoices, setInvoices] = useState([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
 
   const prices = usePlanPrices();
 
@@ -14942,7 +14946,25 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // Has ever checked out, so Stripe has a customer and the portal has something
   // to show. A canceled subscriber still needs their invoice history.
   const hasStripeCustomer = !onTrial && ["active", "past_due", "canceled"].includes(subStatus);
-  const rank = { free: 0, starter: 1, professional: 2, enterprise: 3 };
+
+  // Pull the invoice history once there's a Stripe customer to pull it for. State
+  // is only touched once the request settles, never synchronously in the effect.
+  useEffect(() => {
+    if (!hasSupabase || !hasStripeCustomer) return undefined;
+    let alive = true;
+    supabase.functions.invoke("list-invoices", { body: {} })
+      .then(({ data }) => { if (alive) setInvoices(Array.isArray(data?.invoices) ? data.invoices : []); })
+      .catch(() => { /* history is a nicety; never block the billing page */ })
+      .finally(() => { if (alive) setInvoicesLoading(false); });
+    return () => { alive = false; };
+  }, [hasStripeCustomer]);
+
+  // Plan order, used to tell an upgrade from a downgrade. These MUST be the live
+  // tier keys: the old free/starter/professional names made every lookup
+  // undefined, so `rank[a] < rank[b]` was always false and a downgrade button
+  // still read "Upgrade". Keep in step with RANK in create-checkout-session,
+  // which uses the same ordering to decide how Stripe prorates the switch.
+  const rank = { launch: 1, scale: 2, elite: 3, enterprise: 4 };
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
@@ -15200,6 +15222,70 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                 ? "No payment method yet. You'll add a card when you subscribe."
                 : "No payment method on file."}
             </p>
+          )}
+
+          {/* Invoice history, read straight from Stripe so receipts live here
+              rather than only behind a redirect to the portal. */}
+          {hasStripeCustomer && (
+            <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+              {invoicesLoading ? (
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>Loading invoices…</p>
+              ) : invoices.length === 0 ? (
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>No invoices yet. Your first one appears after your next payment.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr className="text-left" style={{ color: "var(--ink-3)" }}>
+                        <th className="font-medium text-xs pb-2 pr-3">Date</th>
+                        <th className="font-medium text-xs pb-2 pr-3">Invoice</th>
+                        <th className="font-medium text-xs pb-2 pr-3">Plan</th>
+                        <th className="font-medium text-xs pb-2 pr-3 tnum">Amount</th>
+                        <th className="font-medium text-xs pb-2 pr-3">Status</th>
+                        <th className="font-medium text-xs pb-2 text-right">Receipt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.map((inv) => {
+                        const paid = inv.status === "paid";
+                        return (
+                          <tr key={inv.id} style={{ borderTop: "1px solid var(--line)" }}>
+                            <td className="py-2.5 pr-3 whitespace-nowrap" style={{ color: "var(--ink-2)" }}>
+                              {inv.created ? new Date(inv.created).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                            </td>
+                            <td className="py-2.5 pr-3 whitespace-nowrap tnum" style={{ color: "var(--ink-3)" }}>{inv.number || "—"}</td>
+                            <td className="py-2.5 pr-3 max-w-[16rem] truncate" style={{ color: "var(--ink-2)" }}>{inv.plan || "—"}</td>
+                            <td className="py-2.5 pr-3 whitespace-nowrap tnum font-medium" style={{ color: "var(--ink)" }}>
+                              {typeof inv.amount === "number" ? `${inv.currency} ${(inv.amount / 100).toFixed(2)}` : "—"}
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
+                                style={paid
+                                  ? { background: "#DCFCE7", color: "#166534" }
+                                  : { background: "#FEF3C7", color: "#92400E" }}>
+                                {paid ? "Paid" : (inv.status || "—")}
+                              </span>
+                            </td>
+                            <td className="py-2.5 text-right whitespace-nowrap">
+                              {inv.pdf ? (
+                                <a href={inv.pdf} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs font-semibold hover:opacity-70 transition-opacity"
+                                  style={{ color: "var(--brand)" }}>
+                                  <Icon name="download" className="w-3.5 h-3.5" /> PDF
+                                </a>
+                              ) : inv.url ? (
+                                <a href={inv.url} target="_blank" rel="noopener noreferrer"
+                                  className="text-xs font-semibold hover:opacity-70" style={{ color: "var(--brand)" }}>View</a>
+                              ) : <span className="text-xs" style={{ color: "var(--ink-3)" }}>—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
