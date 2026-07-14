@@ -44,3 +44,7 @@ tests/fixtures/resume.pdf
 # Live E2E exploration scratch (not committed)
 _live/
 _*.mjs
+
+# E2E run artefacts: browser profiles hold live session tokens; shots are noise.
+tests/e2e-run/.profiles/
+tests/e2e-run/shots/
