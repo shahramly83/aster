@@ -12285,12 +12285,16 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const purchasedAiRank = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
-  // Ask before spending a credit; out-of-credits goes straight to billing.
-  const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
+  // Ask before spending a credit; truly-out-of-credits goes straight to billing.
+  const askAiRank = (fn) => { if (outOfCredits) { navigate("billing"); return; } setConfirmRun(() => fn); };
   const limits = planLimits(plan);
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
+  // outOfRuns = monthly pool empty (drives the meter). The AI Rank ACTION is only
+  // blocked when the purchased top-up is also empty, since a run then falls back to
+  // the purchased balance (server gate). Keep the two distinct.
+  const outOfCredits = outOfRuns && purchasedAiRank <= 0;
   // Seed from the persisted view state so returning from a candidate profile
   // keeps the same tab, filters, page, results and scroll (no reset/refresh).
   const P = (persist && persist.current) || {};
@@ -12427,7 +12431,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
   const runRoleMatch = async () => {
     if (!matchJob) return;
-    if (outOfRuns) { navigate("billing"); return; }
+    if (outOfCredits) { navigate("billing"); return; }
     setMatching(true);
     setAiRank(null);
     // Heuristic scores as the base / fallback for anyone the AI omits.
@@ -12456,7 +12460,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   };
   const runSkillMatch = () => {
     if (!skillTags.length && !industryTags.length) return; // need at least one criterion
-    if (outOfRuns) { navigate("billing"); return; }
+    if (outOfCredits) { navigate("billing"); return; }
     setMatching(true);
     setTimeout(() => {
       const map = {};
@@ -12515,7 +12519,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // explains why. Falls back to the instant heuristic if the call fails.
   const runAiRank = async () => {
     if (!list.length) return;
-    if (outOfRuns) { navigate("billing"); return; } // out of this month's AI Rank credits
+    if (outOfCredits) { navigate("billing"); return; } // out of this month's AI Rank credits
     if (!hasSupabase) { syncRuns(); setRanked(true); return; } // demo: still count against the plan
     setAiRanking(true);
     try {
@@ -12975,7 +12979,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <div className="flex items-center gap-3">
                   {!ranked && list.length > 0 && (skillTags.length > 0 || industryTags.length > 0) && (
                     <button onClick={() => askAiRank(runAiRank)} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
-                      <Icon name={outOfRuns ? "lock" : "matching"} className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
+                      <Icon name={outOfCredits ? "lock" : "matching"} className="w-3.5 h-3.5" /> {aiRanking ? "Ranking…" : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
                   )}
                   <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
@@ -13006,8 +13010,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
-                      <Icon name={outOfRuns ? "lock" : "matching"} className="w-4 h-4" />
-                      {matching ? "Ranking…" : outOfRuns ? "Out of credits" : "AI Rank"}
+                      <Icon name={outOfCredits ? "lock" : "matching"} className="w-4 h-4" />
+                      {matching ? "Ranking…" : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
                   </div>
                   {openJobs.length === 0 && (
@@ -13074,7 +13078,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         title="Run AI Rank?"
         body={limits.aiRunsPerMonth === Infinity
           ? "AI Rank scores your candidates with Claude and explains the fit."
-          : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
+          : outOfRuns
+            ? `This uses 1 of your purchased AI Rank credits (${purchasedAiRank} left). Your monthly plan is used up.`
+            : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
         confirmLabel="Run AI Rank"
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
@@ -19374,8 +19380,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const runLimit = limits.aiRunsPerMonth;
   const runsLeft = Math.max(0, runLimit - matchRunsUsed);
   const outOfRuns = limits.aiRunsPerMonth !== Infinity && runsLeft <= 0;
+  // Block the AI Rank action only when the purchased top-up is also empty; a run
+  // when the monthly pool is out falls back to the purchased balance.
+  const outOfCredits = outOfRuns && purchasedAiRank <= 0;
   const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
-  const askAiRank = (fn) => { if (outOfRuns) { navigate("billing"); return; } setConfirmRun(() => fn); };
+  const askAiRank = (fn) => { if (outOfCredits) { navigate("billing"); return; } setConfirmRun(() => fn); };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
   // Interviewer pool for this job (who can see these applicants).
@@ -19457,7 +19466,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // rank-candidates function SearchScreen uses, persists the scores, and charges
   // only on success.
   const runMatching = async () => {
-    if (outOfRuns) { navigate("billing"); return; }
+    if (outOfCredits) { navigate("billing"); return; }
     const job = jobs.find((j) => j.id === activeJobId);
     if (!job) return;
     // Only rank ACTIVE applicants: hired candidates are out of the running (but
@@ -19555,7 +19564,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
   // eligible candidates). Out-of-credits stays clickable so it can route to
   // billing. During the tour the button is disabled too but styled to look live.
-  const aiRankDisabled = matching || (!outOfRuns && !canRank);
+  const aiRankDisabled = matching || (!outOfCredits && !canRank);
   const onOtherTab = applicantTab === "other";
   const onHiredTab = applicantTab === "hired";
   const tabBase = onHiredTab ? hiredApplicants : onOtherTab ? otherApplicants : strongApplicants;
@@ -19633,8 +19642,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
               className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
-              <Icon name={!matching && (outOfRuns || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />
-              {matching ? "Ranking…" : outOfRuns ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
+              <Icon name={!matching && (outOfCredits || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />
+              {matching ? "Ranking…" : outOfCredits ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
             </button>
           </div>
         </div>
@@ -19977,7 +19986,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         title="Run AI Rank?"
         body={limits.aiRunsPerMonth === Infinity
           ? "AI Rank scores these applicants against the role and explains the fit."
-          : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
+          : outOfRuns
+            ? `This uses 1 of your purchased AI Rank credits (${purchasedAiRank} left). Your monthly plan is used up.`
+            : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
         confirmLabel="Run AI Rank"
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
