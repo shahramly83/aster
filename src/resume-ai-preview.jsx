@@ -12253,7 +12253,10 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   };
 
   // Plan gating: show the top N, blur/lock the rest.
-  const viewLimit = matchScores ? limits.aiMatches : limits.visibleCandidates;
+  // Browse read `visibleCandidates`, which is Infinity on every plan, so the browse
+  // cap never fired and Launch could page through the entire database. The field
+  // that was meant to cap it, browseLimit, was never read by anything.
+  const viewLimit = matchScores ? limits.aiMatches : limits.browseLimit;
   const shownList = list.slice(0, viewLimit);
   const lockedList = list.slice(viewLimit);
 
@@ -12596,7 +12599,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center px-4">
                       <div className="rounded-2xl bg-white/90 backdrop-blur-sm border act-shadow" style={{ borderColor: "var(--line)" }}>
-                        <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more candidate${lockedList.length === 1 ? "" : "s"} hidden`} sub={`Your plan shows the top ${limits.visibleCandidates}. Upgrade to browse everyone.`} />
+                        <UpgradeLock navigate={navigate} compact title={`${lockedList.length} more candidate${lockedList.length === 1 ? "" : "s"} hidden`} sub={`Your plan shows the top ${limits.browseLimit}. Upgrade to browse everyone.`} />
                       </div>
                     </div>
                   </div>
@@ -13020,7 +13023,6 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
 
 function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], setPendingInvites = () => {}, reloadTeam = async () => {}, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
   const limits = planLimits(plan);
-  const canAddInterviewers = limits.canAddInterviewers;
   // The server meters teammates by subscription SEATS, not the plan's interviewer
   // count: every active member (INCLUDING the tenant) plus any pending invite
   // counts toward the cap. Mirror that exactly so this meter and the pre-flight
@@ -13053,7 +13055,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     ).length;
 
   const handleAdd = async () => {
-    if (!canAddInterviewers || !email || sending) return;
+    if (!email || sending) return;
     if (atSeatCap) {
       setBanner(`You've used all ${seatCap} team seat${seatCap === 1 ? "" : "s"} on your plan (the tenant and pending invites count too). Remove one, or upgrade for more.`);
       return;
@@ -13176,22 +13178,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     >
         {/* Invite action */}
         <div className="flex justify-end mb-4">
-          {canAddInterviewers ? (
-            <button
-              onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setShowForm(true); }}
-              className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center gap-1.5"
-            >
-              {atSeatCap ? "Interviewers full, upgrade" : <><Icon name="userPlus" className="w-4 h-4" /> Invite teammate</>}
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate("billing")}
-              className="text-sm rounded-xl border px-4 py-2 flex items-center gap-1.5 transition-colors hover:bg-neutral-50"
-              style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
-            >
-              <Icon name="lock" className="w-3.5 h-3.5" /> Invite teammate <LockBadge />
-            </button>
-          )}
+          {/* Every plan can invite. The only limit is seats, so a full workspace is
+              sent to billing rather than shown a locked button. */}
+          <button
+            onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setShowForm(true); }}
+            className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center gap-1.5"
+          >
+            {atSeatCap ? "Seats full, upgrade" : <><Icon name="userPlus" className="w-4 h-4" /> Invite teammate</>}
+          </button>
         </div>
 
         {banner && (
@@ -13222,8 +13216,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={pending ? { background: "#FEF3C7", color: "#92400E" } : !canAddInterviewers ? { background: "#F1F1F4", color: "var(--ink-3)" } : { background: "#DCFCE7", color: "#166534" }}>
-                      {pending ? "Invite pending" : !canAddInterviewers ? "Access suspended" : "Active"}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
+                      {pending ? "Invite pending" : "Active"}
                     </span>
                   </div>
                   <p className="text-xs text-neutral-500 truncate">
@@ -19134,7 +19128,9 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
     return m;
   }, [jobs]);
   const [hiredMonth, setHiredMonth] = useState("all"); // "all" | "YYYY-MM"
-  const limit = planLimits(plan).visibleCandidates;
+  // Same fault as Browse: this read visibleCandidates (Infinity everywhere), so the
+  // applicant list was never capped and applicantViewLimit was dead config.
+  const limit = planLimits(plan).applicantViewLimit;
 
   const isHiredView = !!(filter && filter.hired);
   // Views where the candidate came in through a specific job, so we label it.
