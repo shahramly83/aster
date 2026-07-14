@@ -11574,7 +11574,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 <UsageMeter
                   plan={plan}
                   title="AI Applicant Screening"
-                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets on the 1st. Buy top-up credits to keep screening once it's used up."
+                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets on the 1st. Buy extra credits to keep screening once it's used up."
                   used={scrUsed}
                   limit={scrLimit}
                   unit="screened"
@@ -12039,7 +12039,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
       {onBuyCredits && typeof purchased === "number" && (
         <div className="relative mt-3 pt-3 flex items-baseline justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.22)" }}>
-          <span className="text-[11px] text-white/80">Purchased top-up</span>
+          <span className="text-[11px] text-white/80">Purchased credits</span>
           <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "0 left"}</span>
         </div>
       )}
