@@ -15052,7 +15052,13 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                     ? `${renewCopy}${renewDate ? ` · renews ${renewDate}` : ""}`
                     : plan === "enterprise"
                       ? "Custom pricing, billed by agreement."
-                      : "No active subscription."}
+                      // Past due is not "no subscription". They have one, we just
+                      // could not collect on it, and telling a paying customer their
+                      // subscription does not exist while we chase them for money is
+                      // both wrong and alarming.
+                      : pastDue
+                        ? "Your subscription is on hold until the payment below is settled."
+                        : "No active subscription."}
               </p>
             </div>
             {paidSub && (savedPrice || upcoming) && (
