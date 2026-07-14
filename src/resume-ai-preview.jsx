@@ -9269,7 +9269,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     // Two separate pools: what applicants spend, and what bulk CV
                     // uploads spend. They were one counter, so a busy job advert
                     // silently used up the customer's upload allowance.
-                    { label: "Applicant parses", used: applicantParseUsage.used, limit: applicantParseUsage.limit ?? L.parseApplicant },
+                    { label: "Applicant Screening", used: applicantParseUsage.used, limit: applicantParseUsage.limit ?? L.parseApplicant },
                     { label: "Bulk upload parses", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
                     { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
                     { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
@@ -15135,14 +15135,14 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
       name: "Launch",
       ...priceCopy("launch", cycle),
       blurb: "For getting started on your first roles.",
-      features: ["1 active job", "100 applicant parses/mo", "5 AI Rank + 5 AI Insight/mo", "Scorecards, 2FA & data export", "Support ticket"],
+      features: ["1 active job", "100 applicant screenings/mo", "5 AI Rank + 5 AI Insight/mo", "Scorecards, 2FA & data export", "Support ticket"],
     },
     {
       key: "scale",
       name: "Scale",
       ...priceCopy("scale", cycle),
       blurb: "For small teams making their first hires.",
-      features: ["5 active jobs", "500 applicant parses/mo", "30 AI Rank + 100 AI Insight/mo", "Stored CVs, meeting & calendar", "Support ticket"],
+      features: ["5 active jobs", "500 applicant screenings/mo", "30 AI Rank + 100 AI Insight/mo", "Stored CVs, meeting & calendar", "Support ticket"],
       popular: true,
     },
     {
@@ -15150,7 +15150,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
       name: "Elite",
       ...priceCopy("elite", cycle),
       blurb: "For growing teams hiring across several roles.",
-      features: ["10 active jobs", "1,000 applicant parses/mo", "100 AI Rank + 300 AI Insight/mo", "WhatsApp reminders", "Priority support"],
+      features: ["10 active jobs", "1,000 applicant screenings/mo", "100 AI Rank + 300 AI Insight/mo", "WhatsApp reminders", "Priority support"],
     },
     {
       key: "enterprise",
