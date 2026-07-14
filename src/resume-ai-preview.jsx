@@ -10301,13 +10301,13 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             <UsageMeter
               title="Usage this month"
-              hint="Parsing is when AI reads a resume and pulls out the candidate's details. Each parsed resume counts toward your monthly plan limit."
-              used={usedThisMonth} limit={uploadLimit} unit="resumes parsed"
+              hint="Screening is when AI reads a resume and pulls out the candidate's details. Each screened resume counts toward your monthly plan limit."
+              used={usedThisMonth} limit={uploadLimit} unit="resumes screened"
               danger={outOfQuota}
               note={uploadLimit === Infinity
-                ? `${planName} plan, unlimited parsing.`
+                ? `${planName} plan, unlimited screening.`
                 : outOfQuota
-                  ? `You've used all ${uploadLimit} parses. Resets on the 1st.`
+                  ? `You've used all ${uploadLimit} screenings. Resets on the 1st.`
                   : `${remaining} resume${remaining === 1 ? "" : "s"} left on your ${planName} plan.`}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
