@@ -60,7 +60,10 @@ Deno.serve(async (req) => {
     const owner = match as Record<string, any>;
     const company = owner.companies;
     const key = Deno.env.get("RESEND_API_KEY");
-    if (!key) return json({ ok: true, emailed: false, owner_email: owner.email, company: company.name });
+    // Never return the owner's address. The caller does not need it, and echoing it
+    // would put back the disclosure this endpoint exists to avoid: it would just be
+    // in the network tab instead of on the page.
+    if (!key) return json({ ok: true, emailed: false, company: company.name });
 
     const asker = (user.user_metadata?.full_name as string) || user.email;
     const teamUrl = `https://${company.slug}.hireaster.com/interviewers`;
@@ -95,7 +98,7 @@ Deno.serve(async (req) => {
     });
     if (!res.ok) console.error("resend", await res.text());
 
-    return json({ ok: true, emailed: res.ok, owner_email: owner.email, company: company.name });
+    return json({ ok: true, emailed: res.ok, company: company.name });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);

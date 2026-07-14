@@ -918,20 +918,20 @@ async function createCompanyAndWelcome(companyName, fullName, slug = null) {
     // Already provisioned (a concurrent path won): the workspace exists, and its
     // welcome was already fired there, so don't send a second one from here.
     if (/already exists/i.test(error.message)) return null;
-    // Their company already has a workspace. They want an invite, not a second copy
-    // of it. Name the owner: "your company already uses Aster" tells someone they're
-    // blocked without telling them who can unblock them.
+    // Their company already has a workspace, so they join it by invitation.
+    //
+    // We do NOT tell them who the owner is. Anyone who can receive mail at a domain
+    // could otherwise sign up, confirm, and have the product hand them the name and
+    // email of whoever runs that company's recruiting: a directory lookup for
+    // exactly the person a phisher wants. The server knows who to email, and
+    // request-workspace-access does the asking. The user never needs to know.
     const dup = /domain_in_use:(.*)$/i.exec(error.message || "");
     if (dup) {
-      const [co, ownerName, ownerEmail] = (dup[1] || "").split("|").map((s) => s.trim());
-      const who = ownerName && ownerEmail ? `${ownerName} (${ownerEmail})`
-        : ownerEmail || ownerName || "whoever set it up";
+      const co = (dup[1] || "").split("|")[0].trim();
       return {
         domainInUse: true,
         company: co || "Your company",
-        ownerName: ownerName || "",
-        ownerEmail: ownerEmail || "",
-        message: `${co || "Your company"} already uses Aster. Ask ${who} to invite you and you'll join the same workspace.`,
+        message: `${co || "Your company"} already uses Aster. Ask a colleague to invite you and you'll join the same workspace.`,
       };
     }
     return error;
@@ -14993,20 +14993,17 @@ function JoinBlockedScreen({ info, onSignOut }) {
           {info.company} is already on Aster
         </h1>
         <p className="text-sm mt-3 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-          Your company has one workspace and everyone works in it, so you'll join theirs rather than start a second one.
+          Your company has one workspace and everyone works in it, so you&rsquo;ll join theirs rather than start a second one.
+          Press below and we&rsquo;ll ask whoever runs it to add you.
         </p>
 
-        {info.ownerEmail && (
-          <div className="mt-5 rounded-2xl border p-4 text-left" style={{ borderColor: "var(--line)", background: "#fff" }}>
-            <p className="text-xs uppercase tracking-wide font-medium" style={{ color: "var(--ink-3)" }}>Who can add you</p>
-            <p className="text-sm font-semibold mt-1" style={{ color: "var(--ink)" }}>{info.ownerName || info.ownerEmail}</p>
-            {info.ownerName && <p className="text-sm" style={{ color: "var(--ink-2)" }}>{info.ownerEmail}</p>}
-          </div>
-        )}
+        {/* No contact card. Naming the owner here would let anyone who can receive
+            mail at a domain sign up and be handed the name and email of whoever runs
+            that company's recruiting. The server knows who to email; they don't. */}
 
         {sent ? (
           <p className="mt-5 text-sm rounded-xl px-3 py-2.5" style={{ color: "#067647", background: "#ECFDF3", border: "1px solid #ABEFC6" }}>
-            Asked. {info.ownerName || "They"} will get an email with a button to invite you.
+            Asked. Whoever runs the workspace will get an email with a button to add you.
           </p>
         ) : (
           <button
