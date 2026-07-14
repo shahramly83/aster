@@ -1011,7 +1011,7 @@ async function consumeHandoffTokens() {
   return true;
 }
 
-function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
+function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBlocked }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -1072,6 +1072,15 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false }) {
       const cn = user.user_metadata?.company_name;
       if (cn) {
         const rpcErr = await createCompanyAndWelcome(cn, user.user_metadata?.full_name || null, user.user_metadata?.workspace_slug || null);
+        // Their company already has a workspace. That is not an error to show in red
+        // on the login form under "Couldn't set up your workspace": nothing went
+        // wrong, and they need somewhere to go, not an apology. Keep them signed in
+        // and hand them the screen that names the owner and offers to ask for them.
+        if (rpcErr?.domainInUse) {
+          onJoinBlocked?.(rpcErr);
+          setBusy(false);
+          return;
+        }
         if (rpcErr) {
           // Surface the real reason instead of a generic dead-end.
           await supabase.auth.signOut();
@@ -21222,7 +21231,7 @@ export default function ResumeAIPreview() {
   if (screen === "login") {
     return (
       <Shell>
-        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />
+        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} onJoinBlocked={setJoinBlocked} />
       </Shell>
     );
   }
@@ -21269,7 +21278,7 @@ export default function ResumeAIPreview() {
       <Shell>
         {invite
           ? <AcceptInviteScreen invite={invite} onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} />
-          : <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />}
+          : <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} onJoinBlocked={setJoinBlocked} />}
       </Shell>
     );
   }
@@ -21399,7 +21408,7 @@ export default function ResumeAIPreview() {
   if (hasSupabase && !userId && WORKSPACE_SCREENS.has(screen)) {
     return (
       <Shell>
-        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} />
+        <LoginScreen onAuthed={applyCustomerSession} navigate={navigate} logoUrl={logoUrl} ssoEnabled={platformFlags.sso_login} onJoinBlocked={setJoinBlocked} />
       </Shell>
     );
   }
