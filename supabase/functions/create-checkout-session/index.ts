@@ -68,24 +68,30 @@ Deno.serve(async (req) => {
     if (!secret) return json({ error: "billing not configured" }, 503);
     if (!priceId) return json({ error: `missing ${priceEnv}` }, 503);
 
-    // Reuse or create the Stripe customer for this company.
-    const { data: subRow } = await admin
-      .from("subscriptions").select("stripe_customer_id").eq("company_id", companyId).maybeSingle();
-    let customerId = subRow?.stripe_customer_id || null;
-    if (!customerId) {
+    // Mint a Stripe customer for this company and remember it.
+    const newCustomer = async (): Promise<string | null> => {
       const cr = await stripe("customers", {
         email: prof?.email || user.email || "",
         "metadata[company_id]": companyId,
       }, secret);
-      if (!cr.ok || !cr.data?.id) { console.error("stripe customer", cr.data); return json({ error: "could not create customer" }, 502); }
-      customerId = cr.data.id;
-      await admin.from("subscriptions").update({ stripe_customer_id: customerId }).eq("company_id", companyId);
+      if (!cr.ok || !cr.data?.id) { console.error("stripe customer", cr.data); return null; }
+      await admin.from("subscriptions").update({ stripe_customer_id: cr.data.id }).eq("company_id", companyId);
+      return cr.data.id as string;
+    };
+
+    // Reuse the saved customer when we have one.
+    const { data: subRow } = await admin
+      .from("subscriptions").select("stripe_customer_id").eq("company_id", companyId).maybeSingle();
+    let customerId: string | null = subRow?.stripe_customer_id || null;
+    if (!customerId) {
+      customerId = await newCustomer();
+      if (!customerId) return json({ error: "could not create customer" }, 502);
     }
 
     const base = (typeof return_url === "string" && return_url.startsWith("http")) ? return_url.replace(/\/$/, "") : "https://hireaster.com";
-    const session = await stripe("checkout/sessions", {
+    const openCheckout = (cust: string) => stripe("checkout/sessions", {
       mode: "subscription",
-      customer: customerId!,
+      customer: cust,
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       "subscription_data[metadata][company_id]": companyId,
@@ -99,6 +105,22 @@ Deno.serve(async (req) => {
       success_url: `${base}/billing?checkout=success`,
       cancel_url: `${base}/billing?checkout=cancel`,
     }, secret);
+
+    let session = await openCheckout(customerId);
+
+    // A saved customer id can stop resolving: it was deleted in Stripe, or it
+    // belongs to the other mode (a live id used with a test key, or vice versa).
+    // Reusing it blindly would brick checkout for this workspace forever, so mint
+    // a fresh customer and try once more instead of dead-ending.
+    const stale = !session.ok && /no such customer/i.test(session.data?.error?.message || "");
+    if (stale) {
+      console.warn(`stripe: stale customer ${customerId} for company ${companyId}; recreating`);
+      const fresh = await newCustomer();
+      if (!fresh) return json({ error: "could not create customer" }, 502);
+      customerId = fresh;
+      session = await openCheckout(customerId);
+    }
+
     if (!session.ok || !session.data?.url) { console.error("stripe session", session.data); return json({ error: "could not start checkout", detail: session.data?.error?.message || null }, 502); }
 
     return json({ ok: true, url: session.data.url });

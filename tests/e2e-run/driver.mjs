@@ -24,6 +24,8 @@ const ROOT = join(__dirname, "..", "..");
 const PROFILES = join(__dirname, ".profiles");
 const SHOTS = join(__dirname, "shots");
 const LOGO = join(ROOT, "tests", "fixtures", "onlazy-logo.png");
+const AVATAR = join(ROOT, "tests", "fixtures", "tara-avatar.png");
+const RESUME = join(ROOT, "tests", "fixtures", "resume.pdf");
 
 // --- The test workspace -----------------------------------------------------
 export const CFG = {
@@ -211,15 +213,22 @@ async function profile() {
   await fill("Last name", /last name/i, /^Tan$/i, CFG.tenant.last);
   await fill("Contact number", /phone|contact number/i, /\+60 12 345 6789/i, "+60 3-2711 8899");
 
-  // Logo upload.
+  // Two separate uploads live on this screen: the COMPANY LOGO and the user's
+  // PROFILE PHOTO. Fill both, and say which is which.
   const fileInputs = page.locator('input[type="file"]');
   const count = await fileInputs.count();
-  if (count) {
-    await fileInputs.first().setInputFiles(LOGO);
-    console.log("  → logo file attached");
-    await settle(page, 2500);
+  console.log(`  file inputs on page: ${count}`);
+  if (count >= 1) {
+    await fileInputs.nth(0).setInputFiles(LOGO);
+    console.log("  ✓ company logo attached");
+    await settle(page, 2000);
+  }
+  if (count >= 2) {
+    await fileInputs.nth(1).setInputFiles(AVATAR);
+    console.log("  ✓ profile photo attached");
+    await settle(page, 2000);
   } else {
-    console.log("  ⚠ no file input found on the profile screen");
+    console.log("  ⚠ no second file input — profile photo could not be set");
   }
 
   const save = page.getByRole("button", { name: /save/i }).first();
@@ -235,44 +244,57 @@ async function profile() {
 }
 
 // 4) Invite the 6 teammates. Stops; you paste each invite link.
-async function invite() {
+async function invite(only) {
   const { ctx, page } = await ctxFor(CFG.tenant.email);
-  console.log("▶ invite: 3 hiring managers + 3 interviewers");
   await page.goto(`${wsOrigin()}/interviewers`, { waitUntil: "load" });
   await settle(page, 4000);
   await shot(page, "07-team-before");
 
-  const invites = [
+  let invites = [
     ...CFG.managers.map((m) => ({ ...m, role: "admin" })),
     ...CFG.interviewers.map((i) => ({ ...i, role: "interviewer" })),
   ];
+  if (only && only.length) invites = invites.filter((p) => only.includes(p.email));
+  console.log(`▶ invite: ${invites.map((i) => `${i.email}(${i.role})`).join(", ")}`);
 
   for (const person of invites) {
     console.log(`  → inviting ${person.email} as ${person.role}`);
-    const btn = page.getByRole("button", { name: /invite teammate/i }).first();
-    if (!(await btn.count())) { console.log("  ❌ no 'Invite teammate' button"); break; }
-    await btn.click();
-    await settle(page, 1200);
 
-    const emailBox = page.getByLabel(/email/i).first();
-    await emailBox.fill(person.email);
+    // The Work email field takes only the LOCAL PART; the workspace domain
+    // (@onlazy.com) is locked on as a suffix, so you can't invite outsiders.
+    const emailBox = page.getByPlaceholder("jane").first();
+    if (!(await emailBox.isVisible().catch(() => false))) {
+      const btn = page.getByRole("button", { name: /invite teammate/i }).first();
+      if (!(await btn.count())) { console.log("  ❌ no 'Invite teammate' button"); break; }
+      await btn.click();
+      await settle(page, 1500);
+    }
+    if (!(await emailBox.isVisible().catch(() => false))) {
+      await shot(page, `invite-FAIL-${key(person.email)}`);
+      console.log(`  ❌ invite form did not open for ${person.email}`);
+      continue;
+    }
+    await emailBox.fill(person.email.split("@")[0]);
 
-    // Role selector: hiring manager (admin) vs interviewer.
-    const roleSel = page.locator("select").first();
-    if (await roleSel.count()) {
-      await roleSel.selectOption(person.role).catch(async () => {
-        // fall back to matching by visible label
-        const label = person.role === "admin" ? /hiring manager/i : /interviewer/i;
-        const opt = page.getByRole("option", { name: label });
-        if (await opt.count()) await roleSel.selectOption({ label: await opt.first().innerText() });
-      });
+    // The role picker is two BUTTONS ("Hiring Manager" / "Interviewer"), each
+    // describing itself. Click the one we want and verify it took.
+    const wanted = person.role === "admin" ? "Hiring Manager" : "Interviewer";
+    const roleBtn = page.getByRole("button", { name: new RegExp(`^${wanted}`, "i") })
+      .filter({ hasText: /full access|assigned interviews/i }).first();
+    if (await roleBtn.count()) {
+      await roleBtn.click();
+      await settle(page, 600);
     } else {
-      const radio = page.getByText(person.role === "admin" ? /hiring manager/i : /interviewer/i).first();
-      if (await radio.count()) await radio.click().catch(() => {});
+      console.log(`  ⚠ role button "${wanted}" not found — invite may default to Hiring Manager`);
     }
 
-    await page.getByRole("button", { name: /send|invite/i }).last().click();
-    await settle(page, 4000);
+    await page.getByRole("button", { name: /^send invite$|^send$/i }).last().click();
+    await settle(page, 4500);
+
+    // Verify what the app says it actually did.
+    const banner = await page.getByText(/invite sent to/i).first().innerText().catch(() => "");
+    const said = /as an interviewer/i.test(banner) ? "interviewer" : /hiring manager/i.test(banner) ? "admin" : "?";
+    console.log(`     ${said === person.role ? "✓" : "❌"} app says: ${banner.trim().slice(0, 90)}`);
   }
 
   await shot(page, "08-team-after-invites");
@@ -283,13 +305,30 @@ async function invite() {
 }
 
 // 5) Accept an invite: open the link, set the password, land in the workspace.
-async function accept(email, url) {
-  if (!email || !url) throw new Error('Usage: driver.mjs accept <email> "<invite url>"');
+async function accept(url) {
+  if (!url) throw new Error('Usage: driver.mjs accept "<invite url>"');
+
+  // The invite page locks the email to whoever was invited, so read it off the
+  // page rather than trusting a hand-typed argument. Open in a throwaway context
+  // first, learn who this is, then continue in that person's own profile.
+  const probe = await chromium.launchPersistentContext(join(PROFILES, "_probe"), { headless: true });
+  const p0 = probe.pages()[0] || (await probe.newPage());
+  await p0.goto(url, { waitUntil: "load" });
+  await p0.waitForTimeout(6000);
+  const text = await p0.locator("body").innerText().catch(() => "");
+  await probe.close();
+
+  const found = allPeople().map((x) => x.email).find((e) => text.includes(e));
+  if (!found) {
+    console.log("▶ accept: could not read an invited email from that link.");
+    console.log("  page said:\n  " + text.split("\n").filter(Boolean).slice(0, 12).join("\n  "));
+    return;
+  }
+  const email = found;
   const person = personFor(email);
-  if (!person) throw new Error(`Unknown account: ${email}`);
 
   const { ctx, page } = await ctxFor(email);
-  console.log(`▶ accept: ${email}`);
+  console.log(`▶ accept: ${email} (${CFG.managers.some((m) => m.email === email) ? "hiring manager" : "interviewer"})`);
   await page.goto(url, { waitUntil: "load" });
   await settle(page, 5000);
   await shot(page, `09-accept-${key(email)}-open`);
@@ -315,6 +354,85 @@ async function accept(email, url) {
   await ctx.close();
 }
 
+// Revoke pending invites (by email). Used to undo a wrongly-roled invite.
+async function revoke(...emails) {
+  const { ctx, page } = await ctxFor(CFG.tenant.email);
+  console.log(`▶ revoke: ${emails.join(", ")}`);
+  await page.goto(`${wsOrigin()}/interviewers`, { waitUntil: "load" });
+  await settle(page, 4000);
+
+  // Re-query each time: the list re-renders after every revoke, so indices move.
+  for (const email of emails) {
+    let clicked = false;
+    const buttons = page.getByRole("button", { name: /^revoke$/i });
+    const n = await buttons.count();
+    for (let i = 0; i < n; i++) {
+      const btn = buttons.nth(i);
+      // Walk up to the card that holds this button and check whose row it is.
+      const card = btn.locator("xpath=ancestor::div[contains(@class,'rounded')][1]");
+      const text = await card.innerText().catch(() => "");
+      if (!text.includes(email)) continue;
+      await btn.click();
+      await settle(page, 1500);
+      // Only confirm INSIDE a dialog. Matching /revoke/ globally would hit another
+      // row's Revoke button and delete the wrong invite.
+      const dialog = page.getByRole("dialog");
+      if (await dialog.count()) {
+        const confirm = dialog.getByRole("button", { name: /revoke|confirm|yes|remove/i }).last();
+        if (await confirm.count()) await confirm.click().catch(() => {});
+      }
+      await settle(page, 3500);
+      console.log(`  ✓ revoked ${email}`);
+      clicked = true;
+      break;
+    }
+    if (!clicked) console.log(`  ✗ no Revoke row matched ${email}`);
+  }
+  await shot(page, "07b-team-after-revoke");
+  await ctx.close();
+}
+
+// Billing probe. SAFE: it opens Stripe Checkout and screenshots it, but never
+// enters card details. The point is to learn whether Stripe is in TEST or LIVE
+// mode before anyone types a card number.
+async function billing() {
+  const { ctx, page } = await ctxFor(CFG.tenant.email);
+  console.log("▶ billing: reading the plan page, then probing Stripe Checkout");
+
+  await page.goto(`${wsOrigin()}/billing`, { waitUntil: "load" });
+  await settle(page, 5000);
+  await shot(page, "B1-billing-page");
+
+  const body = await page.locator("body").innerText();
+  console.log("  --- billing page says ---");
+  console.log("  " + body.split("\n").filter(Boolean).slice(0, 18).join("\n  "));
+
+  // Kick off a real checkout session (creates a Stripe session; charges nothing).
+  const cta = page.getByRole("button", { name: /subscribe|upgrade|choose|start/i }).first();
+  if (!(await cta.count())) {
+    console.log("  ⚠ no subscribe/upgrade button found");
+    await ctx.close();
+    return;
+  }
+  console.log(`  → clicking "${(await cta.innerText()).trim()}"`);
+  await cta.click();
+  await settle(page, 12000);
+
+  const url = page.url();
+  console.log(`  landed on: ${url}`);
+  await shot(page, "B2-after-subscribe");
+
+  if (/checkout\.stripe\.com/.test(url)) {
+    const txt = await page.locator("body").innerText().catch(() => "");
+    const isTest = /test mode/i.test(txt);
+    console.log(`  ✅ reached Stripe Checkout`);
+    console.log(`  ${isTest ? "🟢 TEST MODE — safe to test with card 4242 4242 4242 4242" : "🔴 NO test banner — treat as LIVE. DO NOT enter a real card."}`);
+  } else {
+    console.log("  ⚠ did not reach Stripe Checkout — see screenshot for the error.");
+  }
+  await ctx.close();
+}
+
 // Utility: screenshot any route as any account.
 async function shotRoute(who, route) {
   const email = who.includes("@") ? who : CFG[who]?.email || CFG.tenant.email;
@@ -332,9 +450,11 @@ const run = {
   signup: () => signup(),
   confirm: () => confirm(args[0]),
   profile: () => profile(),
-  invite: () => invite(),
+  invite: () => invite(args[0] ? args : null),
+  revoke: () => revoke(...args),
   accept: () => accept(args[0], args[1]),
   login: () => login(args[0] || "tenant"),
+  billing: () => billing(),
   shot: () => shotRoute(args[0], args[1] || "/dashboard"),
 };
 if (!run[cmd]) {

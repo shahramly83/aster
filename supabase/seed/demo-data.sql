@@ -23,7 +23,7 @@
 
 do $seed$
 declare
-  v_slug     text := 'REPLACE_WITH_YOUR_SLUG';   -- <<<< CHANGE THIS
+  v_slug     text := 'onlazy';   -- <<<< CHANGE THIS
   v_company  uuid;
   v_owner    uuid;
 begin

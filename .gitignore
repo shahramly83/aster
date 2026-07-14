@@ -48,3 +48,6 @@ _*.mjs
 # E2E run artefacts: browser profiles hold live session tokens; shots are noise.
 tests/e2e-run/.profiles/
 tests/e2e-run/shots/
+
+# Stripe test secrets (never commit)
+supabase/.env.stripe

@@ -60,6 +60,16 @@ Deno.serve(async (req) => {
     const data = await res.json();
     if (!res.ok || !data?.url) {
       console.error("stripe portal", data);
+      // The saved customer can stop resolving: deleted in Stripe, or belonging to
+      // the other mode (a live id used with a test key). Drop the dead id so the
+      // next checkout mints a fresh one, and tell them to subscribe rather than
+      // leaking a raw Stripe message.
+      if (/no such customer/i.test(data?.error?.message || "")) {
+        console.warn(`stripe: stale customer ${customerId} for company ${prof.company_id}; clearing`);
+        await admin.from("subscriptions")
+          .update({ stripe_customer_id: null }).eq("company_id", prof.company_id);
+        return json({ error: "no_customer", detail: "Subscribe first to manage billing." }, 409);
+      }
       return json({ error: "could not open billing portal", detail: data?.error?.message || null }, 502);
     }
 
