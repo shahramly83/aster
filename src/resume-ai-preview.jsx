@@ -11596,19 +11596,6 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                           </span>
                         </div>
                         {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
-                        {/* Pipeline as compact coloured dots (one per active stage,
-                            hover for the count) instead of the full bar + legend. */}
-                        {(() => {
-                          const counts = stageCountsFor(job.id);
-                          const active = JOB_STAGES.filter((st) => counts[st.key] > 0);
-                          return active.length ? (
-                            <div className="flex items-center gap-1.5 mt-2">
-                              {active.map((st) => (
-                                <span key={st.key} title={`${counts[st.key]} ${st.label}`} className="w-2 h-2 rounded-full shrink-0" style={{ background: st.color }} />
-                              ))}
-                            </div>
-                          ) : null;
-                        })()}
                       </div>
                     </div>
 
