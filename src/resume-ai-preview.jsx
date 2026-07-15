@@ -20301,10 +20301,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               return (
                 <div
                   key={a.candidateId}
-                  className={`relative rounded-2xl bg-white px-4 sm:px-5 pb-4 border ${isTop ? "pt-9" : "pt-4"}`}
+                  className="relative rounded-2xl bg-white px-4 sm:px-5 py-4 border"
                   style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(var(--brand-rgb),0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}
                 >
-                  {isTop && <span className="absolute top-3 right-4 sm:right-5 z-10 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold shadow-[0_6px_16px_-6px_rgba(var(--brand-rgb),0.7)]">Top match</span>}
                   <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
                     <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="shrink-0" aria-label={`View ${c.parsed.name}`}>
@@ -20330,6 +20329,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                               <Icon name="star" className="w-4 h-4" style={on ? { fill: "currentColor" } : undefined} />
                             </button>
                           ); })()}
+                          {isTop && <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Top match</span>}
                           {act && (
                             <span className="shrink-0 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
                               {act.label}
