@@ -11623,13 +11623,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
                           <Icon name="users" className="w-4 h-4" />
                         </span>
-                        <span className="text-sm leading-tight text-left" style={{ color: "var(--ink-2)" }}>
-                          <span className="font-bold tnum group-hover/app:underline" style={{ color: "var(--ink)" }}>{n}</span> applicant{n === 1 ? "" : "s"}
-                        </span>
+                        <span className="text-sm leading-tight text-left font-bold tnum group-hover/app:underline" style={{ color: "var(--ink)" }}>{n}</span>
                       </button>
                       <span className="inline-flex items-center gap-1.5 text-sm shrink-0" style={{ color: "var(--ink-2)" }} title={`${job.viewStats?.total || 0} apply-page views`}>
                         <Icon name="eye" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />
-                        <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span> view{(job.viewStats?.total || 0) === 1 ? "" : "s"}
+                        <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span>
                       </span>
                     </div>
                     {jobMenu(job, true, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
