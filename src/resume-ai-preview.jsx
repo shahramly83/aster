@@ -10554,17 +10554,15 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             <UsageMeter
               plan={plan}
-              title="Resume screening credits this cycle"
+              title="Resume screening"
               hint="Each resume Aster screens uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
               used={usedThisMonth} limit={uploadLimit} unit="credits used"
               danger={outOfQuota}
               note={uploadLimit === Infinity
                 ? `${planName} plan, unlimited screening.`
-                : outOfQuota
+                : monthlyRemaining === 0
                   ? `You've used all ${uploadLimit} credits. Resets ${uploadResetLabel}.`
-                  : onPurchased
-                    ? `Your monthly plan is used up. You're now screening with purchased credits.`
-                    : `${monthlyRemaining} credit${monthlyRemaining === 1 ? "" : "s"} left this cycle. Resets ${uploadResetLabel}.`}
+                  : `${monthlyRemaining} credit${monthlyRemaining === 1 ? "" : "s"} left this cycle. Resets ${uploadResetLabel}.`}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
               purchased={uploadLimit === Infinity ? null : purchasedBalance}
@@ -11753,17 +11751,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               return (
                 <UsageMeter
                   plan={plan}
-                  title="Applicant screening credits this cycle"
+                  title="Applicant screening"
                   hint="Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
                   used={scrUsed}
                   limit={scrLimit}
                   unit="credits used"
                   danger={scrOut}
-                  note={scrOut
+                  note={scrBlocked
                     ? `You've used all ${scrLimit} credits. Resets ${scrResetLabel}.`
-                    : scrOnPurchased
-                      ? `Your monthly plan is used up. New applicants now use your purchased credits.`
-                      : `${scrLeft} credit${scrLeft === 1 ? "" : "s"} left this cycle. Resets ${scrResetLabel}.`}
+                    : `${scrLeft} credit${scrLeft === 1 ? "" : "s"} left this cycle. Resets ${scrResetLabel}.`}
                   onManage={() => navigate("billing")}
                   onUpgrade={scrOut ? () => navigate("billing") : undefined}
                   purchased={scrLimit === Infinity ? null : purchasedApplicant}
@@ -12256,9 +12252,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       {onBuyCredits && (
         <>
           <button onClick={onBuyCredits} className={`relative w-full rounded-xl text-sm font-semibold py-2.5 transition-colors ${showUpgrade ? "mt-2 bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "mt-3.5 bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
-          <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed text-center">{purchased > 0
-            ? "Extra credits screen more resumes once your monthly plan runs out. They kick in on their own and never expire."
-            : "Need more than your plan allows?"}</p>
+          <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed text-center">Top up anytime, they never expire.</p>
         </>
       )}
     </div>
@@ -12998,7 +12992,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     <>
     <UsageMeter
       plan={plan}
-      title="AI Rank credits this cycle"
+      title="AI Rank"
       hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
@@ -19063,15 +19057,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {!isInterviewer(profile?.role) && !insightsUnlimited && (
               <UsageMeter
                 plan={plan}
-                title="AI Insight credits this cycle"
+                title="AI Insight"
                 hint="Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
                 used={aiInsightsUsed} limit={insightsLimit} unit="credits used"
                 danger={outOfInsightCredits}
-                note={outOfInsightCredits
+                note={outOfInsights
                   ? `You've used all ${insightsLimit} credits.${insightResetLabel ? ` Resets ${insightResetLabel}.` : ""}`
-                  : insightsOnPurchased
-                    ? "Your monthly plan is used up. Insights now use your purchased credits."
-                    : `${insightsLeft} credit${insightsLeft === 1 ? "" : "s"} left this cycle.${insightResetLabel ? ` Resets ${insightResetLabel}.` : ""}`}
+                  : `${insightsLeft} credit${insightsLeft === 1 ? "" : "s"} left this cycle.${insightResetLabel ? ` Resets ${insightResetLabel}.` : ""}`}
                 onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
                 purchased={purchasedAiInsight} onBuyCredits={() => setBuyInsightOpen(true)}
               />
@@ -20048,7 +20040,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       {limits.aiRunsPerMonth !== Infinity && (
         <UsageMeter
           plan={plan}
-          title="AI Rank credits this cycle"
+          title="AI Rank"
           hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
           used={matchRunsUsed}
           limit={limits.aiRunsPerMonth}
