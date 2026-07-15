@@ -18102,6 +18102,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // blocked (and only then do we push to buy) when BOTH are empty.
   const [purchasedAiInsight, reloadPurchasedAiInsight] = usePurchasedBalance("ai_insight");
   const [buyInsightOpen, setBuyInsightOpen] = useState(false);
+  const [insightErr, setInsightErr] = useState(null);
   const outOfInsightCredits = outOfInsights && purchasedAiInsight <= 0;
   const insightsOnPurchased = outOfInsights && purchasedAiInsight > 0;
   const [showOffer, setShowOffer] = useState(false);
@@ -18177,6 +18178,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const handleGenerate = async () => {
     if (!candidate || generating) return;
     if (outOfInsightCredits && !insights) { setBuyInsightOpen(true); return; }
+    setInsightErr(null);
 
     const save = (result) => { if (setInsightsCache) setInsightsCache((prev) => ({ ...prev, [candidate.id]: result })); };
     // analyze-experience charges the credit itself now (0046). Only mirror.
@@ -18214,7 +18216,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       syncInsights(body.used); // the server already charged; mirror its count
       reloadPurchasedAiInsight(); // may have drawn from the purchased balance
     } catch (_e) {
-      save(deriveInsights(candidate)); // still show a result; the server refunded the credit
+      // Surface the failure instead of silently showing a local (non-AI, uncharged,
+      // unsaved) read that looks real. No credit was spent, so the user can retry.
+      setInsightErr("AI Insight didn't run. No credit was used. Please try again in a moment.");
     } finally {
       setGenerating(false);
     }
@@ -18262,6 +18266,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 : <Icon name="matching" className="w-4 h-4" />}
               {generating ? INSIGHT_STEPS[insightStep] : "Generate AI insights"}
             </button>
+            {insightErr && <p role="alert" className="text-xs mt-2.5 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{insightErr}</p>}
           </>
         )
       ) : (
