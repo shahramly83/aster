@@ -10167,7 +10167,6 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 <span className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient group-hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="upload" className="w-4 h-4" /> Browse files
                 </span>
-                <span className="block text-xs mt-3" style={{ color: "var(--ink-3)" }}>Drop files in or click to browse. Each resume is read by AI and added to your candidate pool.</span>
               </button>
             )}
             {files.length === 0 && !outOfQuota && (
