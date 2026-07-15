@@ -12080,7 +12080,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       {onBuyCredits && (
         <>
           <button onClick={onBuyCredits} className={`relative w-full rounded-xl text-sm font-semibold py-2.5 transition-colors ${showUpgrade ? "mt-2 bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "mt-3.5 bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
-          <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed">{purchased > 0
+          <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed text-center">{purchased > 0
             ? "Extra credits screen more resumes once your monthly plan runs out. They kick in on their own and never expire."
             : "Need more than your plan allows?"}</p>
         </>
