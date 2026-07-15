@@ -22668,7 +22668,15 @@ export default function ResumeAIPreview() {
             onPreviewBooking={handlePreviewBooking}
             contextJobId={viewCandidateJobId}
             initialStage={viewCandidateStage}
-            booking={activeCandidate ? bookings[activeCandidate.id] : null}
+            // Bookings are stored per candidate; only surface it under the role it
+            // belongs to, so the same candidate viewed under a different position
+            // doesn't inherit another role's interview.
+            booking={(() => {
+              const b = activeCandidate ? bookings[activeCandidate.id] : null;
+              if (!b) return null;
+              const bJob = b.jobId ?? b.request?.jobId ?? null;
+              return (bJob == null || viewCandidateJobId == null || bJob === viewCandidateJobId) ? b : null;
+            })()}
             allBookings={bookings}
             onInviteSent={markInviteSent}
             provider={defaultProvider}
