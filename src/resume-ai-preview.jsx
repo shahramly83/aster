@@ -10110,7 +10110,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
         <div className="mt-2">
           <TopBar
             title="Bulk Resume Upload"
-            subtitle="Upload multiple PDF or Word resumes and let our AI extract candidate profiles automatically."
+            subtitle="Drop in resumes and let AI build the candidate profiles."
             activities={activities}
             onOpenNotifications={onOpenNotifications}
             avatarUrl={avatarUrl}
@@ -10162,7 +10162,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 </span>
                 <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{dragOver ? "Drop to add these files" : "Drag & drop resumes or a ZIP here"}</span>
                 <span className="block text-sm mt-1.5" style={{ color: "var(--ink-3)" }}>
-                  PDF or Word (.docx), or a ZIP of them{uploadLimit !== Infinity ? ` · up to ${uploadLimit} a month` : ""}
+                  PDF, Word, or a ZIP of up to 100{uploadLimit !== Infinity ? ` · ${uploadLimit} a month` : ""}
                 </span>
                 <span className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient group-hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="upload" className="w-4 h-4" /> Browse files
@@ -10170,14 +10170,11 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               </button>
             )}
             {files.length === 0 && !outOfQuota && (
-              <div className="text-center mt-3">
+              <>
                 <input ref={resumeInputRef} type="file" multiple accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.zip,application/zip,application/x-zip-compressed" onChange={handleResumeInput} className="hidden" />
                 <input ref={zipInputRef} type="file" accept=".zip,application/zip,application/x-zip-compressed" onChange={handleZipFile} className="hidden" />
-                <button onClick={() => zipInputRef.current?.click()} className="inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-                  <Icon name="archive" className="w-3.5 h-3.5" /> Have a whole batch? Import a ZIP
-                </button>
-                {zipError && <p className="text-xs mt-2" style={{ color: "#DC2626" }}>{zipError}</p>}
-              </div>
+                {zipError && <p className="text-xs mt-3 text-center" style={{ color: "#DC2626" }}>{zipError}</p>}
+              </>
             )}
             {files.length > 0 && (
               /* Files selected, review the batch, then parse */
