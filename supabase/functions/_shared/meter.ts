@@ -22,6 +22,10 @@ const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "c
 const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for", see_why: "refund_see_why_for" };
 // Which purchased credit kind backs each meter.
 const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank", ai_insight: "ai_insight" };
+// Legacy monthly-only meter to fall back to if the top-up-aware consume_* RPC
+// isn't deployed yet (partial migration). Keeps the feature working; it just
+// won't draw from purchased credits until the migration lands.
+const LEGACY_BUMP: Partial<Record<Meter, string>> = { ai_rank: "bump_ai_rank", ai_insight: "bump_ai_insight" };
 
 export interface Charge {
   ok: boolean;              // false = out of credits, caller must not call the model
@@ -44,7 +48,14 @@ export async function charge(token: string, meter: Meter): Promise<Charge> {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
 
-  const { data, error } = await asUser.rpc(BUMP[meter]);
+  let { data, error } = await asUser.rpc(BUMP[meter]);
+  // 42883 = undefined_function, 42501 = insufficient_privilege: the new consume_*
+  // RPC isn't deployed/granted yet. Fall back to the legacy monthly meter so the
+  // feature keeps working (monthly-only) instead of failing closed.
+  if (error && (error.code === "42883" || error.code === "42501") && LEGACY_BUMP[meter]) {
+    console.warn(`${BUMP[meter]} unavailable (${error.code}); falling back to ${LEGACY_BUMP[meter]}`);
+    ({ data, error } = await asUser.rpc(LEGACY_BUMP[meter]!));
+  }
   if (error) {
     console.error(`${BUMP[meter]} failed`, error.message);
     // Fail CLOSED. A metering outage must not become a free-AI outage.
