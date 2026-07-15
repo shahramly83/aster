@@ -9217,7 +9217,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   )}
                 </button>
               );
-              const stageCount = (s) => allApplicants.filter((a) => a.baseStage === s).length;
+              // Count UNIQUE candidates per stage, not application rows: someone who
+              // applied to several roles would otherwise be counted once per role
+              // (why "Hired" read higher than Total Hires). A candidate's stage is
+              // uniform across their applications, so dedupe by candidate id.
+              const stageCount = (s) => new Set(allApplicants.filter((a) => a.baseStage === s).map((a) => a.candidateId)).size;
               // Current-stage distribution: each candidate counts in exactly the
               // stage they're in now. "flow" are the forward steps, "win" is Hired,
               // and "exit" are the drop-offs (Declined = they said no, Rejected =
@@ -9382,14 +9386,21 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                           );
                         })}
                       </div>
-                      {anyReached && (
-                        <div className="mt-4">
-                          <p className="text-xs mb-2" style={{ color: "#DC2626" }}>You&rsquo;ve hit a plan limit. Upgrade to keep going.</p>
-                          <button onClick={() => navigate("billing")} className="w-full brand-gradient text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.9)]">
-                            <Icon name="arrowUpRight" className="w-4 h-4" /> Upgrade plan
-                          </button>
-                        </div>
-                      )}
+                      {anyReached && (() => {
+                        // On the top self-serve plan (Elite) there's nothing to
+                        // upgrade to, so top up with credits instead of "Upgrade".
+                        const atTopPlan = plan === "elite" || plan === "enterprise";
+                        return (
+                          <div className="mt-4">
+                            <p className="text-xs mb-2" style={{ color: "#DC2626" }}>
+                              {atTopPlan ? "You’ve used this cycle’s plan credits. Buy extra credits to keep going." : "You’ve hit a plan limit. Upgrade to keep going."}
+                            </p>
+                            <button onClick={() => navigate("billing")} className="w-full brand-gradient text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.9)]">
+                              <Icon name="arrowUpRight" className="w-4 h-4" /> {atTopPlan ? "Buy credits" : "Upgrade plan"}
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </>
                   );
                 })()}
