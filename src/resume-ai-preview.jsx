@@ -20304,7 +20304,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               return (
                 <div
                   key={a.candidateId}
-                  className="relative rounded-2xl bg-white px-4 sm:px-5 py-4 border"
+                  className={`relative rounded-2xl bg-white px-4 sm:px-5 pb-4 border ${isTop ? "pt-9" : "pt-4"}`}
                   style={{ borderColor: isTop ? "var(--brand)" : "var(--line)", boxShadow: isTop ? "0 18px 44px -22px rgba(var(--brand-rgb),0.45)" : "0 1px 2px rgba(18,19,42,0.04)" }}
                 >
                   {isTop && <span className="absolute top-3 right-4 sm:right-5 z-10 text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold shadow-[0_6px_16px_-6px_rgba(var(--brand-rgb),0.7)]">Top match</span>}
@@ -20333,6 +20333,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                               <Icon name="star" className="w-4 h-4" style={on ? { fill: "currentColor" } : undefined} />
                             </button>
                           ); })()}
+                          {act && (
+                            <span className="shrink-0 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
+                              {act.label}
+                            </span>
+                          )}
                         </div>
                         {a.fit === "other" && (
                           <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title={a.fitReason || "Doesn't match this role's requirements; kept in your talent pool."}>Not a match for this role</span>
@@ -20354,11 +20359,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
-                      {act && (
-                        <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
-                          {act.label}
-                        </span>
-                      )}
                       {hiredIds.has(a.candidateId) ? (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>
                           <Icon name="check" className="w-3.5 h-3.5" /> Hired
