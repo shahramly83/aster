@@ -11809,10 +11809,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 hint="Your plan sets how many positions you can have open at once. Publishing a position (or reopening a closed one) takes a slot; closing one frees it. Drafts don't count."
                 used={jobPostUsage.used}
                 limit={jobPostUsage.limit}
-                unit="open"
+                unit=""
                 note={jobPostBlocked
-                  ? `All ${jobPostUsage.limit} open-position slots are in use. Close a position to post another, or upgrade for more.`
-                  : `${jobPostsLeft} more position${jobPostsLeft === 1 ? "" : "s"} you can open on your ${jobPlanLabel} plan.`}
+                  ? `All ${jobPostUsage.limit} open-position slots are in use. Close a position to post another.`
+                  : undefined}
                 onManage={() => navigate("billing")}
                 onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
               />
