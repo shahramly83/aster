@@ -518,16 +518,20 @@ const stageForCandidate = (candidateId, jobId = null) => {
   return null;
 };
 
-// Pipeline stage breakdown for a job (active stages; rejected are excluded).
+// Pipeline stage breakdown for a job. Includes the two exits (Declined, Rejected)
+// so the segments and legend add up to the headline applicant count, every
+// applicant is accounted for somewhere.
 const JOB_STAGES = [
   { key: "applied", label: "Applied", color: "var(--brand)" },
   { key: "shortlisted", label: "Shortlisted", color: "#93C5FD" },
   { key: "interviewing", label: "Interview", color: "#6366F1" },
   { key: "offer", label: "Offer", color: "#F59E0B" },
   { key: "hired", label: "Hired", color: "#16A34A" },
+  { key: "declined", label: "Declined", color: "#9CA3AF" },
+  { key: "rejected", label: "Rejected", color: "#F87171" },
 ];
 const stageCountsFor = (jobId) => {
-  const c = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0 };
+  const c = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, declined: 0, rejected: 0 };
   (APPLICANTS_BY_JOB[jobId] || []).forEach((a) => { if (c[a.baseStage] != null) c[a.baseStage]++; });
   return c;
 };
