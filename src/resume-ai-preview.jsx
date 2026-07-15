@@ -11695,17 +11695,17 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               return (
                 <UsageMeter
                   plan={plan}
-                  title="AI Applicant Screening"
-                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
+                  title="Applicant screening credits this cycle"
+                  hint="Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
                   used={scrUsed}
                   limit={scrLimit}
-                  unit="screened"
+                  unit="credits used"
                   danger={scrOut}
                   note={scrOut
-                    ? <span className="inline-flex items-center gap-1">Out of credits <InfoHint dir="up" align="left" tone="light" hint={`New applicants aren't screened until you buy more, or your monthly plan resets ${scrResetLabel}.`} /></span>
+                    ? `You've used all ${scrLimit} credits. Resets ${scrResetLabel}.`
                     : scrOnPurchased
-                      ? `Your monthly plan is used up. New applicants are now screened with your purchased credits.`
-                      : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this cycle · resets ${scrResetLabel}.`}
+                      ? `Your monthly plan is used up. New applicants now use your purchased credits.`
+                      : `${scrLeft} credit${scrLeft === 1 ? "" : "s"} left this cycle. Resets ${scrResetLabel}.`}
                   onManage={() => navigate("billing")}
                   onUpgrade={scrOut ? () => navigate("billing") : undefined}
                   purchased={scrLimit === Infinity ? null : purchasedApplicant}
@@ -12928,7 +12928,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
       note={outOfRuns
         ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
-        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current"} plan · resets ${resetLabel}.`}
+        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left this cycle. Resets ${resetLabel}.`}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
       purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
       onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
@@ -15233,7 +15233,7 @@ This is what a candidate sees. A public page, no login, reached only through the
             Centered on the success screen to line up with the centered confirmation. */}
         <div className={`flex items-center gap-3 ${stage === "done" ? "justify-center mb-8" : "mb-6"}`}>
           {logoUrl ? (
-            <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className={`object-contain ${stage === "done" ? "h-16" : "h-11"}`} style={{ maxWidth: stage === "done" ? 260 : 200 }} />
+            <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className={`object-contain ${stage === "done" ? "h-16" : "h-14"}`} style={{ maxWidth: stage === "done" ? 260 : 240 }} />
           ) : (
             <>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-5 h-5" /></div>
@@ -19898,7 +19898,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           danger={outOfRuns}
           note={outOfRuns
             ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${aiRankResetLabel}.`
-            : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left on your ${plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "current"} plan · resets ${aiRankResetLabel}.`}
+            : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left this cycle. Resets ${aiRankResetLabel}.`}
           onUpgrade={() => navigate("billing")}
           upgradeLabel="Upgrade for more"
           purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
