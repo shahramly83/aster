@@ -11596,6 +11596,19 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                           </span>
                         </div>
                         {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
+                        {/* Pipeline as compact coloured dots (one per active stage,
+                            hover for the count) instead of the full bar + legend. */}
+                        {(() => {
+                          const counts = stageCountsFor(job.id);
+                          const active = JOB_STAGES.filter((st) => counts[st.key] > 0);
+                          return active.length ? (
+                            <div className="flex items-center gap-1.5 mt-2">
+                              {active.map((st) => (
+                                <span key={st.key} title={`${counts[st.key]} ${st.label}`} className="w-2 h-2 rounded-full shrink-0" style={{ background: st.color }} />
+                              ))}
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
 
@@ -11608,12 +11621,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       </div>
                     )}
 
-                    {/* Description hidden on the card to keep it compact; full text is
-                        on the job details / apply page. Posted date moved to the
-                        bottom of the card. */}
-                    <div className="mt-4 flex-1 flex flex-col justify-end">
-                      <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
-                    </div>
+                    {/* Description + full pipeline legend hidden for a compact card;
+                        the pipeline now shows as coloured dots next to the title. */}
+                    <div className="mt-4 flex-1" />
                   </button>
 
                   <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
@@ -11631,7 +11641,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     </div>
                     {jobMenu(job, true, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
                   </div>
-                  {job.posted_at && <p className="text-[11px] mt-2.5 text-right" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
+                  {job.posted_at && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
                 </div>
               );
             })}
