@@ -9012,6 +9012,20 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
+// Candidates Journey bar fills. The four forward stages step through a blue→violet
+// ramp so the funnel reads as one progression (not a flat block); Hired pops in
+// emerald; the two exits stay distinct, slate for Declined (they said no) and rose
+// for Rejected (you said no), so wins and losses never blur together.
+const JOURNEY_BAR_GRAD = {
+  Applied:     "linear-gradient(180deg,#7C93FF,#4361EE)",
+  Shortlisted: "linear-gradient(180deg,#8E93FF,#5D62F0)",
+  Interview:   "linear-gradient(180deg,#A98BFA,#7C50F0)",
+  Offer:       "linear-gradient(180deg,#C6A0FB,#9B54F2)",
+  Hired:       "linear-gradient(180deg,#34D399,#0FA971)",
+  Declined:    "linear-gradient(180deg,#CBD5E1,#94A3B8)",
+  Rejected:    "linear-gradient(180deg,#FDA4AF,#F4436A)",
+};
+
 function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
@@ -9252,11 +9266,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Every candidate counted in the status they're in right now, across all roles: the forward stages (Applied, Shortlisted, Interview, Offer), Hired, and the two exits, Declined (they said no) and Rejected (you said no).")}
                       <div className="flex items-end justify-between gap-1.5 flex-1 min-h-[128px] pt-8">
                         {funnel.map((f) => {
-                          const top = f.tone === "flow" && f.value === fmax && f.value > 0;
-                          const bg = f.tone === "win" ? "linear-gradient(180deg, #8FDCB4, #3FB185)"
-                            : f.tone === "exit" ? "linear-gradient(180deg, #E4CBD3, #BC94A1)"
-                            : top ? "linear-gradient(180deg, var(--brand-0), var(--brand-2))"
-                            : "linear-gradient(180deg, #C6D1FA, #9FB2F0)";
+                          const bg = JOURNEY_BAR_GRAD[f.label] || "linear-gradient(180deg,#C6D1FA,#9FB2F0)";
                           return (
                             <div key={f.label} className="flex-1 min-w-0 flex flex-col items-center justify-end gap-2 h-full">
                               <div className="relative w-full flex-1 flex items-end">
