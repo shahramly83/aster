@@ -15142,7 +15142,7 @@ This is what a candidate sees. A public page, no login, reached only through the
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>You're in</h1>
             <p className="text-sm mb-1" style={{ color: "var(--ink-2)" }}>
-              Aster has read your resume and added you as an applicant for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
+              We've read your resume and added you as an applicant for <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span>.
             </p>
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>
               The team reviews every applicant and will be in touch if there's a fit. Look out for a confirmation in your inbox.
@@ -15216,7 +15216,7 @@ This is what a candidate sees. A public page, no login, reached only through the
                 <div className="rounded-2xl bg-white border p-5 act-shadow" style={{ borderColor: "var(--line)" }}>
                   <h2 className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>Apply for this role</h2>
                   <p className="text-sm mt-2 mb-4 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                    No forms to fill in. Upload your resume and Aster reads your name, contact details and experience straight from it.
+                    No forms to fill in. Upload your resume and we&apos;ll read your name, contact details and experience straight from it.
                   </p>
 
                   <div className="space-y-3">
@@ -15227,7 +15227,7 @@ This is what a candidate sees. A public page, no login, reached only through the
                         {file ? (
                           <span className="block text-sm font-medium break-all" style={{ color: "var(--ink)" }}>{file.name}</span>
                         ) : (
-                          <span className="block text-sm" style={{ color: "var(--ink-3)" }}>Tap to upload your resume<br /><span className="text-xs">PDF or Word (.docx)</span></span>
+                          <span className="block text-sm" style={{ color: "var(--ink-3)" }}>Upload your resume<br /><span className="text-xs">PDF or Word (.docx)</span></span>
                         )}
                       </label>
                       <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Make sure your resume includes your email so the team can reach you.</p>
@@ -15247,7 +15247,7 @@ This is what a candidate sees. A public page, no login, reached only through the
 
                   {stage === "processing" && (
                     <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-                      This isn't stuck. Aster is reading your resume and looking up the companies you've worked at. It can take up to a minute, so please keep this page open.
+                      This isn't stuck. We're reading your resume and looking up the companies you've worked at. It can take up to a minute, so please keep this page open.
                     </p>
                   )}
 
