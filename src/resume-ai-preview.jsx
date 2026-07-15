@@ -7109,19 +7109,19 @@ function BookInterviewScreen({ data, done, onConfirm }) {
   return (
     <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
-        <div className="mb-5 flex items-center gap-3">
+        <div className={`mb-5 flex items-center gap-3 ${isDone ? "justify-center" : ""}`}>
           {logoUrl
-            ? <img src={logoUrl} alt={company} style={{ height: 32, maxWidth: 160, objectFit: "contain" }} />
-            : <span className="text-lg font-bold" style={{ color: "var(--ink)" }}>{company}</span>}
+            ? <img src={logoUrl} alt={company} style={{ height: isDone ? 56 : 32, maxWidth: isDone ? 240 : 160, objectFit: "contain" }} />
+            : <span className={`font-bold ${isDone ? "text-xl" : "text-lg"}`} style={{ color: "var(--ink)" }}>{company}</span>}
         </div>
         {isDone ? (
-          <>
-            <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
               <Icon name="check" className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
-            <p className="text-sm" style={{ color: "var(--ink-2)" }}>Your interview for the {jobTitle} role is booked for <strong>{fmt(confirmedStart || data.scheduled_at)}</strong>. {company} will email you the details and meeting link before the call.</p>
-          </>
+            <h1 className="text-xl font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>Your interview for the {jobTitle} role is booked for <strong>{fmt(confirmedStart || data.scheduled_at)}</strong>. {company} will email you the details and meeting link before the call.</p>
+          </div>
         ) : (
           <>
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Pick a time for your interview</h1>
