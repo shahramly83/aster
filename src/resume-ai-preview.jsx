@@ -10162,7 +10162,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 </span>
                 <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{dragOver ? "Drop to add these files" : "Drag & drop resumes or a ZIP here"}</span>
                 <span className="block text-sm mt-1.5" style={{ color: "var(--ink-3)" }}>
-                  PDF, Word, or a ZIP of up to 100{uploadLimit !== Infinity ? ` · ${uploadLimit} a month` : ""}
+                  PDF, Word, or a ZIP of up to 100
                 </span>
                 <span className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient group-hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="upload" className="w-4 h-4" /> Browse files
