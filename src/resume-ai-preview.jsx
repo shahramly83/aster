@@ -15786,8 +15786,13 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               <p className="text-sm text-neutral-500 mt-0.5">
                 {onTrial
                   ? `Full Scale access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. Subscribe before it ends, or your account is suspended.`
-                  : paidSub && renewCopy
-                    ? `${renewCopy}${renewDate ? ` · renews ${renewDate}` : ""}`
+                  // An active subscriber always gets an "active" message, even when
+                  // the price couldn't be loaded (Stripe prices not configured yet),
+                  // so the badge and the copy never contradict each other.
+                  : paidSub
+                    ? (renewCopy
+                        ? `${renewCopy}${renewDate ? ` · renews ${renewDate}` : ""}`
+                        : `Your ${current.name} subscription is active${renewDate ? `, renews ${renewDate}` : ""}.`)
                     : plan === "enterprise"
                       ? "Custom pricing, billed by agreement."
                       // Past due is not "no subscription". They have one, we just
