@@ -10573,6 +10573,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               hint="Each resume Aster screens uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
               used={usedThisMonth} limit={uploadLimit} unit=""
               danger={outOfQuota}
+              resetLabel={uploadLimit === Infinity ? null : uploadResetLabel}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
               purchased={uploadLimit === Infinity ? null : purchasedBalance}
@@ -11789,6 +11790,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   limit={scrLimit}
                   unit=""
                   danger={scrOut}
+                  resetLabel={scrResetLabel}
                   onManage={() => navigate("billing")}
                   onUpgrade={scrOut ? () => navigate("billing") : undefined}
                   purchased={scrLimit === Infinity ? null : purchasedApplicant}
@@ -12246,7 +12248,7 @@ function FieldLabel({ children, hint }) {
 
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
-function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more", plan = null, purchased = null, onBuyCredits = null }) {
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
@@ -12257,10 +12259,15 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const showUpgrade = onUpgrade && !atTopPlan;
   return (
     <div className="relative rounded-2xl p-5" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
-      <div className="relative mb-2.5">
+      <div className="relative flex items-start justify-between gap-3 mb-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85 leading-snug" style={{ letterSpacing: "0.06em" }}>
           {title}{hint && <> <InfoHint dir="down" align={hintAlign} hint={hint} tone="light" /></>}
         </h3>
+        {resetLabel && (
+          <span className="shrink-0 text-white/70 hover:text-white transition-colors cursor-help" title={`Resets on ${resetLabel}`} aria-label={`Resets on ${resetLabel}`}>
+            <Icon name="calendar" className="w-4 h-4" />
+          </span>
+        )}
       </div>
       <div className="relative flex items-baseline gap-1.5 mb-2.5">
         <span className="text-2xl font-bold font-display tnum leading-none text-white">{used}</span>
@@ -13021,6 +13028,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
       used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit=""
       danger={outOfRuns}
+      resetLabel={resetLabel}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
       purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
       onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
@@ -19084,6 +19092,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 hint="Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
                 used={aiInsightsUsed} limit={insightsLimit} unit=""
                 danger={outOfInsightCredits}
+                resetLabel={insightResetLabel}
                 onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
                 purchased={purchasedAiInsight} onBuyCredits={() => setBuyInsightOpen(true)}
               />
@@ -20066,6 +20075,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           limit={limits.aiRunsPerMonth}
           unit=""
           danger={outOfRuns}
+          resetLabel={aiRankResetLabel}
           onUpgrade={() => navigate("billing")}
           upgradeLabel="Upgrade for more"
           purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
