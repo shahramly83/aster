@@ -38,22 +38,35 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   try {
+    // Opt-in diagnostics: POST {"debug":true} to see, per plan, whether the price
+    // secret is set and whether Stripe accepted the id (and its error otherwise).
+    // None of this is secret (env var NAMES, public price ids, Stripe error text);
+    // the SECRET KEY itself is never echoed, only its mode (test/live).
+    const body = await req.json().catch(() => ({}));
+    const debug = body?.debug === true;
+
     const secret = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!secret) return json({ error: "billing not configured" }, 503);
+    if (!secret) {
+      return json(debug
+        ? { ok: false, error: "STRIPE_SECRET_KEY is not set", key_mode: "unset" }
+        : { error: "billing not configured" }, debug ? 200 : 503);
+    }
+    const keyMode = secret.startsWith("sk_live_") ? "live" : secret.startsWith("sk_test_") ? "test" : "unknown";
 
-    const entries = Object.entries(PRICE_ENV)
-      .map(([key, envName]) => [key, Deno.env.get(envName)] as const)
-      .filter(([, id]) => !!id);
-
-    const results = await Promise.all(entries.map(async ([key, id]) => {
+    const diagnostics: Array<Record<string, unknown>> = [];
+    const results = await Promise.all(Object.entries(PRICE_ENV).map(async ([key, envName]) => {
+      const id = Deno.env.get(envName);
+      if (!id) { if (debug) diagnostics.push({ key, env: envName, set: false }); return null; }
       const res = await fetch(`https://api.stripe.com/v1/prices/${id}`, {
         headers: { Authorization: `Bearer ${secret}` },
       });
       const p = await res.json();
       if (!res.ok || typeof p?.unit_amount !== "number") {
         console.error("stripe price", id, p?.error?.message);
+        if (debug) diagnostics.push({ key, env: envName, set: true, id, ok: false, error: p?.error?.message || `http ${res.status}` });
         return null; // a misconfigured id shouldn't take the whole screen down
       }
+      if (debug) diagnostics.push({ key, env: envName, set: true, id, ok: true, amount: p.unit_amount, currency: p.currency });
       return [key, {
         // Not a secret (it travels in the Checkout URL), and echoing it makes
         // "which price is this env var actually pointing at?" answerable.
@@ -66,12 +79,11 @@ Deno.serve(async (req) => {
       }] as const;
     }));
 
+    const prices = Object.fromEntries(results.filter(Boolean) as [string, unknown][]);
+    if (debug) return json({ ok: true, key_mode: keyMode, count: Object.keys(prices).length, diagnostics, prices });
+
     // Prices change rarely; let the CDN and browser hold them for a few minutes.
-    return json(
-      { ok: true, prices: Object.fromEntries(results.filter(Boolean) as [string, unknown][]) },
-      200,
-      { "Cache-Control": "public, max-age=300, s-maxage=300" },
-    );
+    return json({ ok: true, prices }, 200, { "Cache-Control": "public, max-age=300, s-maxage=300" });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);
