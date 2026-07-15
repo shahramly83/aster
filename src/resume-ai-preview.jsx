@@ -11599,13 +11599,14 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {chips.map((c) => (
-                        <span key={c} className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }}>{c}</span>
-                      ))}
-                      {salary && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: color.tile, color: color.ink }}>{salary}</span>}
-                      {closing && <span className="text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1" style={closing.style}><Icon name="clock" className="w-3 h-3" /> {closing.label}</span>}
-                    </div>
+                    {/* Meta chips (location, type, seniority, salary) dropped for a
+                        compact management card; they still show on the job details
+                        modal and the public apply page. Keep only the closing alert. */}
+                    {closing && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1" style={closing.style}><Icon name="clock" className="w-3 h-3" /> {closing.label}</span>
+                      </div>
+                    )}
 
                     {job.posted_at && <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
 
