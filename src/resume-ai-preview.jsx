@@ -11013,7 +11013,7 @@ const closingChip = (days) => {
   return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
 };
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {}, applicantParseUsage = { used: 0, limit: null } }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {}, onCloseJob = () => {}, applicantParseUsage = { used: 0, limit: null } }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -11067,11 +11067,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
   const [confirmDeleteJob, setConfirmDeleteJob] = useState(null); // draft pending deletion
   const [limitPrompt, setLimitPrompt] = useState(false);          // reopen/publish blocked at limit
+  const [confirmClose, setConfirmClose] = useState(null);         // open role pending close
 
-  const toggleStatus = (jobId) => {
-    const job = jobs.find((j) => j.id === jobId);
-    if (!job) return;
-    const next = job.status === "open" ? "closed" : "open";
+  const applyStatus = (jobId, fromStatus) => {
+    const next = fromStatus === "open" ? "closed" : "open";
     // Reopening a closed role (or publishing a draft) makes it live and spends a
     // job credit for the cycle, block when this cycle's credits are used up.
     if (next === "open" && jobPostBlocked) { setLimitPrompt(true); return; }
@@ -11083,12 +11082,29 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         // stale meter, a second tab). Roll the optimistic flip back rather than
         // showing a role as live when the database says it is not.
         if (res?.error === "limit_reached") {
-          setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: job.status } : j)));
+          setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: fromStatus } : j)));
           setLimitPrompt(true);
         }
       }
       if (next === "open" && onConsumeJobPost) onConsumeJobPost();
     })();
+  };
+
+  const toggleStatus = (jobId) => {
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
+    // Closing an open role clears its pipeline (rejects all but hired), so confirm
+    // first. Reopening / publishing goes straight through.
+    if (job.status === "open") { setConfirmClose(job); return; }
+    applyStatus(jobId, job.status);
+  };
+
+  const doCloseJob = () => {
+    if (!confirmClose) return;
+    const job = confirmClose;
+    setConfirmClose(null);
+    applyStatus(job.id, "open");
+    onCloseJob(job.id); // reject every applicant except hired; profiles stay in the database
   };
 
   // Only drafts can be deleted (published/closed roles keep their record).
@@ -11879,6 +11895,17 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         confirmLabel="Delete draft"
         onConfirm={() => { deleteJob(confirmDeleteJob); setConfirmDeleteJob(null); }}
         onClose={() => setConfirmDeleteJob(null)}
+      />
+
+      {/* Closing a role clears its pipeline, so spell out the consequences. */}
+      <ConfirmDialog
+        open={!!confirmClose}
+        tone="danger"
+        title="Close this role?"
+        body={`Closing "${confirmClose?.title || "this role"}" frees an open-role slot and rejects every applicant except those you've hired. Rejected and hired candidates leave this posting but stay in your candidate database, so you can still find and reuse them. Reopening later starts with a fresh, empty pipeline.`}
+        confirmLabel="Close role"
+        onConfirm={doCloseJob}
+        onClose={() => setConfirmClose(null)}
       />
 
       {/* Reopening/publishing blocked: all open-role slots are in use */}
@@ -21927,6 +21954,18 @@ export default function ResumeAIPreview() {
     }
   };
 
+  // Closing a role clears its pipeline: every applicant except hired ones is
+  // rejected. Their profiles stay in the candidate database (searchable, reusable),
+  // they just leave this job's active pipeline, so reopening starts fresh. Hired
+  // candidates keep their status. No rejection emails are sent for a bulk close.
+  const closeJobRejectAll = (jobId) => {
+    const list = APPLICANTS_BY_JOB[jobId] || [];
+    list.forEach((a) => {
+      const cur = stageOverrides[a.candidateId] ?? a.baseStage;
+      if (cur !== "hired" && cur !== "rejected") setCandidateStage(a.candidateId, "rejected", { notify: false });
+    });
+  };
+
   // Delete a candidate for good. Applications and scorecards cascade via FK; a DB
   // trigger prunes any industry no other profile still has. Optimistically drop
   // them locally so lists update at once, then persist + resync from the DB.
@@ -22453,6 +22492,7 @@ export default function ResumeAIPreview() {
             jobPostBlocked={jobPostBlocked}
             onConsumeJobPost={consumeJobPost}
             onDecideRequest={decideJobRequest}
+            onCloseJob={closeJobRejectAll}
             applicantParseUsage={applicantParseUsage}
           />
         )}
