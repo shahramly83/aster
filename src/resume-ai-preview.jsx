@@ -9018,18 +9018,17 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-// Candidates Journey bar fills. Modern = restraint: the four forward stages share
-// ONE brand-blue hue, deepening as candidates advance, so the funnel reads as a
-// cohesive progression. Colour is spent only on outcomes, emerald Hired, slate
-// Declined, rose Rejected, so the three results are the bars that stand out.
+// Candidates Journey bar fills. Monochrome: every bar uses the same soft slate-grey
+// gradient (as requested), for a clean, restrained look.
+const JOURNEY_GREY = "linear-gradient(180deg,#CBD5E1,#94A3B8)";
 const JOURNEY_BAR_GRAD = {
-  Applied:     "linear-gradient(180deg,#7089F6,#4A67F0)",
-  Shortlisted: "linear-gradient(180deg,#6377F2,#3F58E9)",
-  Interview:   "linear-gradient(180deg,#556AEC,#3349DE)",
-  Offer:       "linear-gradient(180deg,#4A5CE6,#2C3ED2)",
-  Hired:       "linear-gradient(180deg,#34D399,#0FA971)",
-  Declined:    "linear-gradient(180deg,#CBD5E1,#94A3B8)",
-  Rejected:    "linear-gradient(180deg,#FB7185,#F43F5E)",
+  Applied:     JOURNEY_GREY,
+  Shortlisted: JOURNEY_GREY,
+  Interview:   JOURNEY_GREY,
+  Offer:       JOURNEY_GREY,
+  Hired:       JOURNEY_GREY,
+  Declined:    JOURNEY_GREY,
+  Rejected:    JOURNEY_GREY,
 };
 
 function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, company = "Your workspace" }) {
