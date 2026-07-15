@@ -11642,10 +11642,16 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span>
                       </span>
                     </div>
-                    {/* Copy apply link, bottom-right. */}
-                    {jobCopyLink(job, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
+                    {/* Bottom-right: posted-date calendar (label on hover) + copy link. */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {job.posted_at && (
+                        <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg" style={{ color: "var(--ink-3)" }} title={postedAgoLabel(job.posted_at)} aria-label={postedAgoLabel(job.posted_at)}>
+                          <Icon name="calendar" className="w-[18px] h-[18px]" />
+                        </span>
+                      )}
+                      {jobCopyLink(job, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
+                    </div>
                   </div>
-                  {job.posted_at && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
                 </div>
               );
             })}
