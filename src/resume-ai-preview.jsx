@@ -14898,12 +14898,12 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
             <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
               <Icon name="clock" className="w-5 h-5" style={{ color: "var(--ink-3)" }} />
             </div>
-            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Applications paused</h1>
+            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>No longer accepting applications</h1>
             <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              The <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> position{company ? <> at <span className="font-medium" style={{ color: "var(--ink)" }}>{company}</span></> : ""} isn&apos;t taking applications right now.
+              The <span className="font-medium" style={{ color: "var(--ink)" }}>{job.title}</span> position{company ? <> at <span className="font-medium" style={{ color: "var(--ink)" }}>{company}</span></> : ""} has closed to new applications.
             </p>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-              Check back soon, it may reopen.
+              Thank you for your interest.
             </p>
           </div>
         </div>
