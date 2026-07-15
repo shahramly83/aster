@@ -12836,7 +12836,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
           {role && <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{role}</p>}
-          <div className="flex flex-wrap gap-1.5 mt-2">{c.parsed.skills.slice(0, 4).map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
+          <div className="flex flex-wrap gap-1.5 mt-2">{c.parsed.skills.slice(0, 4).map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>{s}</span>)}</div>
         </div>
         <span className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors group-hover:text-neutral-700" style={{ border: "1px solid var(--line)", color: "var(--ink-3)" }}>
           <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
