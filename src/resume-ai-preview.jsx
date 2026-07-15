@@ -20184,12 +20184,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           })}
         </div>
         </div>
-        {onOtherTab && (
-          <div className="mb-4 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm" style={{ background: "#FFF8EC", border: "1px solid #F5E3BE", color: "#8A6D1F" }}>
-            <Icon name="info" className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>These applicants don&apos;t match this role&apos;s requirements, so they aren&apos;t ranked here. Their resume was still read and saved (using a screening credit), so they stay in your talent pool for future roles.</span>
-          </div>
-        )}
         {/* Stage filter */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <p className="text-sm text-neutral-500">
