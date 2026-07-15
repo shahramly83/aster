@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -537,8 +537,20 @@ const stageCountsFor = (jobId) => {
 };
 
 // Compact stacked pipeline bar + per-stage counts, shown on a job card.
-function JobPipelineBar({ jobId }) {
+function JobPipelineBar({ jobId, closed = false }) {
   const counts = stageCountsFor(jobId);
+  // A closed role rejected everyone except hires, so the funnel no longer applies:
+  // show just the hire outcome.
+  if (closed) {
+    const hired = counts.hired;
+    return (
+      <p className="text-xs inline-flex items-center gap-1.5" style={{ color: hired ? "#16A34A" : "var(--ink-3)" }}>
+        {hired > 0
+          ? <><Icon name="check" className="w-3.5 h-3.5" /> <span className="tnum font-semibold">{hired}</span> hired</>
+          : "Closed, no hire made"}
+      </p>
+    );
+  }
   const total = JOB_STAGES.reduce((s, st) => s + counts[st.key], 0);
   if (total === 0) return <p className="text-xs" style={{ color: "var(--ink-3)" }}>No one in the pipeline yet.</p>;
   const active = JOB_STAGES.filter((st) => counts[st.key] > 0);
@@ -11023,7 +11035,7 @@ const closingChip = (days) => {
   return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
 };
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {}, onCloseJob = () => {}, applicantParseUsage = { used: 0, limit: null } }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {}, onCloseJob = () => {}, onReopenJob = () => {}, applicantParseUsage = { used: 0, limit: null } }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -11094,9 +11106,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         if (res?.error === "limit_reached") {
           setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: fromStatus } : j)));
           setLimitPrompt(true);
+          return;
         }
       }
-      if (next === "open" && onConsumeJobPost) onConsumeJobPost();
+      if (next === "open") {
+        if (onConsumeJobPost) onConsumeJobPost();
+        // Reopening a CLOSED role starts fresh: drop its old applicants (they stay
+        // in the candidate database). Publishing a draft has none to clear.
+        if (fromStatus === "closed") onReopenJob(jobId);
+      }
     })();
   };
 
@@ -11517,7 +11535,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
                     <p className="text-sm mt-3 leading-relaxed line-clamp-2" style={{ color: "var(--ink-2)" }}>{job.description}</p>
                     <div className="mt-4 flex-1 flex flex-col justify-end">
-                      <JobPipelineBar jobId={job.id} />
+                      <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
                     </div>
                   </button>
 
@@ -21984,6 +22002,15 @@ export default function ResumeAIPreview() {
     });
   };
 
+  // Reopening a closed role starts fresh: remove its applications so it reopens
+  // with zero applicants. Candidates stay in the database. Clear locally for an
+  // instant 0, delete server-side, then re-hydrate to reconcile.
+  const reopenJobFresh = (jobId) => {
+    APPLICANTS_BY_JOB[jobId] = [];
+    setJobs((prev) => [...prev]); // nudge a re-render so the count/pipeline show 0 now
+    if (canPersist) dbClearJobApplicants(companyId, jobId).then(() => { if (companyId) hydrateWorkspace(companyId); });
+  };
+
   // Delete a candidate for good. Applications and scorecards cascade via FK; a DB
   // trigger prunes any industry no other profile still has. Optimistically drop
   // them locally so lists update at once, then persist + resync from the DB.
@@ -22511,6 +22538,7 @@ export default function ResumeAIPreview() {
             onConsumeJobPost={consumeJobPost}
             onDecideRequest={decideJobRequest}
             onCloseJob={closeJobRejectAll}
+            onReopenJob={reopenJobFresh}
             applicantParseUsage={applicantParseUsage}
           />
         )}

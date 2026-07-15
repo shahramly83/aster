@@ -97,6 +97,16 @@ export async function dbDeleteJob(jobId) {
   if (error) console.error("dbDeleteJob", error.message);
 }
 
+// Reopening a closed role starts a fresh pipeline: remove its applications so the
+// reopened role has zero applicants. The candidates themselves are untouched (they
+// stay in the candidate database, searchable and reusable), only the job link
+// (the application row) is deleted. RLS scopes it to the caller's company.
+export async function dbClearJobApplicants(companyId, jobId) {
+  if (!hasSupabase || !companyId || !jobId) return;
+  const { error } = await supabase.from("applications").delete().eq("company_id", companyId).eq("job_id", jobId);
+  if (error) console.error("dbClearJobApplicants", error.message);
+}
+
 // The app models pipeline stage per candidate (not per application), so a stage
 // change updates every application that candidate has in this workspace.
 export async function dbSetCandidateStage(companyId, candidateId, stage) {
