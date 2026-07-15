@@ -20351,9 +20351,6 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           <span className="font-semibold">Why:</span> {a.fitReason}
                         </p>
                       )}
-                      {chips.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
-                      )}
                     </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
