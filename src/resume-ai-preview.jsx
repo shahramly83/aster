@@ -11614,7 +11614,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   unit="screened"
                   danger={scrOut}
                   note={scrOut
-                    ? `Out of credits. New applicants aren't screened until you buy more, or your monthly plan resets ${scrResetLabel}.`
+                    ? <span className="inline-flex items-center gap-1">Out of credits <InfoHint dir="up" align="left" tone="light" hint={`New applicants aren't screened until you buy more, or your monthly plan resets ${scrResetLabel}.`} /></span>
                     : scrOnPurchased
                       ? `Your monthly plan is used up. New applicants are now screened with your purchased credits.`
                       : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this cycle · resets ${scrResetLabel}.`}
@@ -12054,7 +12054,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const atTopPlan = plan === "elite" || plan === "enterprise";
   const showUpgrade = onUpgrade && !atTopPlan;
   return (
-    <div className="relative rounded-2xl p-5 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
+    <div className="relative rounded-2xl p-5" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
       <div className="relative flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-1.5">
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85" style={{ letterSpacing: "0.06em" }}>{title}</h3>
@@ -12082,7 +12082,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
           <button onClick={onBuyCredits} className={`relative w-full rounded-xl text-sm font-semibold py-2.5 transition-colors ${showUpgrade ? "mt-2 bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "mt-3.5 bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
           <p className="relative text-[11px] mt-2 text-white/70 leading-relaxed">{purchased > 0
             ? "Extra credits screen more resumes once your monthly plan runs out. They kick in on their own and never expire."
-            : "Need more than your plan allows? Buy extra credits. They wait in reserve, kick in when your monthly plan runs out, and never expire."}</p>
+            : "Need more than your plan allows?"}</p>
         </>
       )}
     </div>
