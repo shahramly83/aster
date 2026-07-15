@@ -9569,30 +9569,40 @@ function usePurchasedBalance(kind) {
 // Buy top-up credits for a given kind. Base price per credit varies by kind
 // (resume/applicant $1, AI Rank $0.40) with a plan discount on top; the
 // buy-credits function re-derives the price server-side, so this is display only.
+// The four buyable credit kinds, with their base per-credit price (USD).
+const CREDIT_KINDS = [
+  { k: "resume_screen", base: 1, label: "Resume screening", sub: "Bulk resume uploads" },
+  { k: "applicant_screen", base: 1, label: "Applicant screening", sub: "Inbound applications" },
+  { k: "ai_rank", base: 0.4, label: "AI Rank", sub: "Rank & shortlist" },
+  { k: "ai_insight", base: 0.4, label: "AI Insight", sub: "Candidate deep-dive" },
+];
+
 function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen", pickKind = false }) {
+  // Single-kind (from a meter's Buy button): one input, default 50. pickKind (from
+  // Billing): a quantity per kind, default 0, one combined checkout.
   const [qty, setQty] = useState(50);
+  const [qtys, setQtys] = useState({});   // { kind: number } for the basket
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const [pickedKind, setPickedKind] = useState(kind);
   if (!open) return null;
-  // From a meter the kind is fixed; from Billing (pickKind) the buyer chooses it.
-  const activeKind = pickKind ? pickedKind : kind;
-  const CREDIT = ({
-    resume_screen: { base: 1, title: "Buy screening credits", blurb: "Extra screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
-    applicant_screen: { base: 1, title: "Buy applicant screening credits", blurb: "Extra applicant screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
-    ai_rank: { base: 0.4, title: "Buy AI Rank credits", blurb: "Extra AI Rank credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
-    ai_insight: { base: 0.4, title: "Buy AI Insight credits", blurb: "Extra AI Insight credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
-  })[activeKind] || { base: 1, title: "Buy credits", blurb: "" };
   const mult = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
   const disc = ({ launch: 0, scale: 10, elite: 20, enterprise: 20 })[plan] ?? 0;
-  const unit = CREDIT.base * mult;
-  const n = Math.max(0, Math.floor(Number(qty) || 0));
-  const total = n * unit;
+  const unitOf = (base) => base * mult;
+  const meta = CREDIT_KINDS.find((c) => c.k === kind) || CREDIT_KINDS[0];
+
+  // Basket lines with quantities, priced. In single mode it's just the one kind.
+  const lines = (pickKind ? CREDIT_KINDS : [meta]).map((c) => {
+    const q = pickKind ? Math.max(0, Math.floor(Number(qtys[c.k]) || 0)) : Math.max(0, Math.floor(Number(qty) || 0));
+    return { ...c, q, unit: unitOf(c.base), amount: unitOf(c.base) * q };
+  });
+  const items = lines.filter((l) => l.q > 0);
+  const total = items.reduce((s, l) => s + l.amount, 0);
+
   const buy = async () => {
-    if (n < 1) { setErr("Enter at least 1 credit."); return; }
+    if (!items.length) { setErr("Enter at least 1 credit."); return; }
     if (!hasSupabase) { setErr("Connect a live workspace to buy credits."); return; }
     setBusy(true); setErr(null);
-    const { data, error } = await supabase.functions.invoke("buy-credits", { body: { quantity: n, kind: activeKind, return_url: window.location.origin, return_path: window.location.pathname } });
+    const { data, error } = await supabase.functions.invoke("buy-credits", { body: { items: items.map((l) => ({ kind: l.k, quantity: l.q })), return_url: window.location.origin, return_path: window.location.pathname } });
     if (error || !data?.url) {
       let msg = data?.error || "Couldn't start checkout.";
       try { const d = await error?.context?.json?.(); if (d?.error) msg = d.error; } catch { /* noop */ }
@@ -9600,50 +9610,56 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
     }
     window.location.assign(data.url);
   };
+
+  const title = pickKind ? "Buy credits" : `Buy ${meta.label.toLowerCase()} credits`;
+  const blurb = pickKind
+    ? "Extra credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire."
+    : `Extra ${meta.label.toLowerCase()} credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire.`;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between gap-3 mb-1">
-          <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{CREDIT.title}</h3>
+          <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
           <button onClick={onClose} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
-        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{CREDIT.blurb}</p>
-        {pickKind && (
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Which credits?</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {[
-                ["resume_screen", "Resume screening", "Bulk resume uploads"],
-                ["applicant_screen", "Applicant screening", "Inbound applications"],
-                ["ai_rank", "AI Rank", "Rank & shortlist"],
-                ["ai_insight", "AI Insight", "Candidate deep-dive"],
-              ].map(([k, lbl, sub]) => {
-                const on = pickedKind === k;
-                return (
-                  <button key={k} onClick={() => { setPickedKind(k); setErr(null); }}
-                    className="text-left rounded-xl px-3 py-2 transition-colors border"
-                    style={on
-                      ? { background: "#fff", borderColor: "var(--brand)", boxShadow: "0 0 0 1px var(--brand) inset" }
-                      : { background: "var(--bg)", borderColor: "var(--line)" }}>
-                    <span className="block text-xs font-semibold" style={{ color: on ? "var(--brand)" : "var(--ink)" }}>{lbl}</span>
-                    <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</span>
-                  </button>
-                );
-              })}
+        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{blurb}</p>
+
+        {pickKind ? (
+          <>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many of each?</label>
+            <div className="space-y-2">
+              {lines.map((l) => (
+                <div key={l.k} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: l.q > 0 ? "var(--brand)" : "var(--line)", background: "var(--bg)" }}>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-semibold" style={{ color: "var(--ink)" }}>{l.label}</span>
+                    <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · ${l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""}</span>
+                  </div>
+                  <input type="number" min="0" inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
+                    onChange={(e) => { const v = e.target.value; setQtys((s) => ({ ...s, [l.k]: v })); setErr(null); }}
+                    className="w-20 rounded-lg bg-white border px-2 py-1.5 text-sm text-right tnum focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+                </div>
+              ))}
             </div>
-          </div>
+          </>
+        ) : (
+          <>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
+            <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+          </>
         )}
-        <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
-        <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+
         <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-          <div className="flex items-center justify-between text-sm">
-            <span style={{ color: "var(--ink-2)" }}>Per credit</span>
-            <span className="tnum font-medium" style={{ color: "var(--ink)" }}>${unit.toFixed(2)}{disc ? <span className="text-[11px] font-semibold ml-1.5" style={{ color: "#166534" }}>{disc}% off</span> : null}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm mt-1.5">
-            <span style={{ color: "var(--ink-2)" }}>Quantity</span>
-            <span className="tnum" style={{ color: "var(--ink)" }}>{n.toLocaleString()}</span>
-          </div>
+          {items.length === 0 ? (
+            <p className="text-xs text-center py-1" style={{ color: "var(--ink-3)" }}>Enter a quantity to see your total.</p>
+          ) : (
+            items.map((l) => (
+              <div key={l.k} className="flex items-center justify-between text-sm mb-1.5">
+                <span style={{ color: "var(--ink-2)" }}>{pickKind ? l.label : "Quantity"} <span className="tnum" style={{ color: "var(--ink-3)" }}>× {l.q.toLocaleString()}</span></span>
+                <span className="tnum font-medium" style={{ color: "var(--ink)" }}>${l.amount.toFixed(2)}</span>
+              </div>
+            ))
+          )}
           <div className="flex items-center justify-between mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
             <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Total</span>
             <span className="text-lg font-bold font-display tnum" style={{ color: "var(--ink)" }}>${total.toFixed(2)}</span>
@@ -9651,7 +9667,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
         </div>
         {err && <p className="text-xs mt-3 rounded-lg px-3 py-2" style={{ color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA" }}>{err}</p>}
         <div className="flex items-center gap-2 mt-5">
-          <button onClick={buy} disabled={busy || n < 1} className="flex-1 rounded-xl brand-gradient text-white text-sm font-semibold py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50">{busy ? "Starting checkout…" : `Pay $${total.toFixed(2)}`}</button>
+          <button onClick={buy} disabled={busy || !items.length} className="flex-1 rounded-xl brand-gradient text-white text-sm font-semibold py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50">{busy ? "Starting checkout…" : `Pay $${total.toFixed(2)}`}</button>
           <button onClick={onClose} className="rounded-xl border px-4 py-2.5 text-sm hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
         </div>
         <p className="text-[11px] text-neutral-400 mt-3 text-center">Secure one-time payment via Stripe. Credits are added the moment payment clears.</p>

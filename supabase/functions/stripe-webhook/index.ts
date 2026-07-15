@@ -84,20 +84,40 @@ Deno.serve(async (req) => {
 
   const meta = obj.metadata || {};
 
-  // One-time credit top-up (buy-credits), not a subscription. metadata.kind marks
-  // it. Grant the purchased credits and stop: none of the subscription sync below
-  // applies, and grant_purchased_credits is itself idempotent on the session id.
-  if (type === "checkout.session.completed" && meta.kind) {
+  // One-time credit top-up (buy-credits), not a subscription. A basket lives in
+  // metadata.items ([{k:kind, q:qty, c:cents}]); a single kind also carries the flat
+  // metadata.kind/quantity. Grant each line and stop: none of the subscription sync
+  // below applies. Idempotency is per (session, kind): grant_purchased_credits keys
+  // on the session id, so we suffix it with the kind to let one checkout credit
+  // several kinds without the second colliding with the first.
+  const buyItems: Array<{ k: string; q: number; c: number | null }> = [];
+  if (type === "checkout.session.completed") {
+    if (meta.items) {
+      try {
+        for (const it of JSON.parse(meta.items)) {
+          const q = parseInt(String(it?.q ?? "0"), 10);
+          if (it?.k && q > 0) buyItems.push({ k: String(it.k), q, c: typeof it?.c === "number" ? it.c : null });
+        }
+      } catch (e) { console.error("bad metadata.items", (e as Error).message); }
+    } else if (meta.kind) {
+      const q = parseInt(meta.quantity || "0", 10);
+      if (q > 0) buyItems.push({ k: String(meta.kind), q, c: typeof obj.amount_total === "number" ? obj.amount_total : null });
+    }
+  }
+  if (buyItems.length) {
     const cid = obj.client_reference_id || meta.company_id || null;
-    const qty = parseInt(meta.quantity || "0", 10);
-    if (!cid || !qty) return json({ ok: true, ignored: "credit purchase missing company/qty" });
-    const { data: bal, error: grantErr } = await admin.rpc("grant_purchased_credits", {
-      p_company: cid, p_kind: String(meta.kind), p_qty: qty,
-      p_amount_cents: typeof obj.amount_total === "number" ? obj.amount_total : null,
-      p_currency: obj.currency || null, p_session: obj.id || null,
-    });
-    if (grantErr) { console.error("grant_purchased_credits", grantErr.message); return fail("grant failed", grantErr.message); }
-    return json({ ok: true, kind: meta.kind, quantity: qty, balance: bal });
+    if (!cid) return json({ ok: true, ignored: "credit purchase missing company" });
+    const results: Record<string, number> = {};
+    for (const it of buyItems) {
+      const { data: bal, error: grantErr } = await admin.rpc("grant_purchased_credits", {
+        p_company: cid, p_kind: it.k, p_qty: it.q,
+        p_amount_cents: it.c, p_currency: obj.currency || null,
+        p_session: `${obj.id}:${it.k}`,
+      });
+      if (grantErr) { console.error("grant_purchased_credits", it.k, grantErr.message); return fail("grant failed", grantErr.message); }
+      results[it.k] = bal as number;
+    }
+    return json({ ok: true, granted: results });
   }
 
   if (type === "checkout.session.completed") {
