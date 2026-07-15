@@ -9012,18 +9012,18 @@ function UpgradeLock({ navigate, title = "Upgrade to unlock", sub, compact = fal
   );
 }
 
-// Candidates Journey bar fills. The four forward stages step through a blue→violet
-// ramp so the funnel reads as one progression (not a flat block); Hired pops in
-// emerald; the two exits stay distinct, slate for Declined (they said no) and rose
-// for Rejected (you said no), so wins and losses never blur together.
+// Candidates Journey bar fills. Modern = restraint: the four forward stages share
+// ONE brand-blue hue, deepening as candidates advance, so the funnel reads as a
+// cohesive progression. Colour is spent only on outcomes, emerald Hired, slate
+// Declined, rose Rejected, so the three results are the bars that stand out.
 const JOURNEY_BAR_GRAD = {
-  Applied:     "linear-gradient(180deg,#7C93FF,#4361EE)",
-  Shortlisted: "linear-gradient(180deg,#8E93FF,#5D62F0)",
-  Interview:   "linear-gradient(180deg,#A98BFA,#7C50F0)",
-  Offer:       "linear-gradient(180deg,#C6A0FB,#9B54F2)",
+  Applied:     "linear-gradient(180deg,#7089F6,#4A67F0)",
+  Shortlisted: "linear-gradient(180deg,#6377F2,#3F58E9)",
+  Interview:   "linear-gradient(180deg,#556AEC,#3349DE)",
+  Offer:       "linear-gradient(180deg,#4A5CE6,#2C3ED2)",
   Hired:       "linear-gradient(180deg,#34D399,#0FA971)",
   Declined:    "linear-gradient(180deg,#CBD5E1,#94A3B8)",
-  Rejected:    "linear-gradient(180deg,#FDA4AF,#F4436A)",
+  Rejected:    "linear-gradient(180deg,#FB7185,#F43F5E)",
 };
 
 function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, company = "Your workspace" }) {
