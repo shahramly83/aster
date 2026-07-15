@@ -176,6 +176,13 @@ Deno.serve(async (req) => {
       console.error("applicant parse usage lookup failed", e);
     }
 
+    // Out of screening credits (monthly pool AND purchased top-up both empty): the
+    // company has chosen to stop taking applications until they buy more. Reject
+    // here so nothing is stored — the applicant sees "position closed", the company
+    // sees "Unpublished, out of credits". (A metering hiccup above leaves overLimit
+    // false, so a genuine outage never closes a role.)
+    if (overLimit) return json({ error: "not_accepting", closed: true }, 409);
+
     // Describe the target role for the fit check (empty when the job has no
     // skills/seniority set, in which case everyone is treated as a fit).
     const d = (job.details || {}) as any;

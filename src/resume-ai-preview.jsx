@@ -10995,9 +10995,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   // A just-posted job is prepended (newest first); jump back to page 1 so it's visible.
   useEffect(() => { setPage(0); }, [jobs.length]);
   const limits = planLimits(plan);
-  // Job posting is a concurrent open-role cap (see jobPostUsage), enforced at
-  // publish/reopen time, so nothing is auto-paused here.
-  const pausedIds = new Set();
+  // When the workspace is out of AI Applicant Screening credits (monthly pool AND
+  // purchased top-up both empty), open roles stop taking applications: the public
+  // apply page shows a plain "closed", and these roles read as "Unpublished, out
+  // of credits" here. Derived live from the balance, so buying credits reopens
+  // every role at once with no per-job change.
+  const applicantScrLimit = applicantParseUsage.limit ?? planLimits(plan).parseApplicant;
+  const outOfApplicantCredits = applicantScrLimit != null && applicantScrLimit !== Infinity
+    && (applicantParseUsage.used || 0) >= applicantScrLimit && purchasedApplicant <= 0;
+  const pausedIds = new Set(outOfApplicantCredits ? jobs.filter((j) => j.status === "open").map((j) => j.id) : []);
   // Link-source modal: which job we're generating a link for, and the source tag.
   const [linkJob, setLinkJob] = useState(null); // job object or null
   const [linkSource, setLinkSource] = useState("");
@@ -11369,7 +11375,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               const badge = job.approvalStatus === "pending"
                 ? { bg: "#EEF2FF", color: "#3730A3", dot: "#6366F1", label: "requested" }
                 : paused
-                ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "paused" }
+                ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "unpublished" }
                 : job.status === "open"
                   ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
                   : job.status === "draft"
@@ -11383,7 +11389,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   {paused && (
                     <div className="flex items-center justify-between gap-2 mb-3 rounded-lg px-2.5 py-1.5" style={{ background: "#FEF3C7" }}>
                       <span className="text-[11px] font-medium inline-flex items-center gap-1" style={{ color: "#92400E" }}>
-                        <Icon name="lock" className="w-3 h-3" /> Paused, over your plan's job limit
+                        <Icon name="lock" className="w-3 h-3" /> Unpublished, out of screening credits
                       </span>
                       <button onClick={() => navigate("billing")} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
                     </div>
@@ -11471,7 +11477,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       const paused = pausedIds.has(job.id);
                       const n = applicantCountFor(job.id);
                       const badge = paused
-                        ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "paused" }
+                        ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "unpublished" }
                         : job.status === "open"
                           ? { bg: "#ECFDF3", color: "#15803D", dot: "#22C55E", label: "open" }
                           : job.status === "draft"
@@ -14828,9 +14834,9 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
           {!isPublic && (
           <div className="mt-6 rounded-xl border p-3 mb-6 flex items-center justify-between gap-3" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
             <p className="text-xs" style={{ color: "#92400E" }}>
-              Admin view: this role is paused because you're over your plan's job limit. Candidates who open the link see the message below, and applications stay closed until you reactivate.
+              Admin view: this role is unpublished because you're out of AI Applicant Screening credits. Candidates who open the link see the message below. Buy credits to start taking applications again.
             </p>
-            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Reactivate</button>
+            <button onClick={() => navigate("jobs")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Buy credits</button>
           </div>
           )}
           <div className="text-center max-w-sm mx-auto mt-8">
@@ -21059,7 +21065,9 @@ export default function ResumeAIPreview() {
       const row = Array.isArray(data) ? data[0] : data;
       if (error || !row) { setPublicApply({ id, status: "notfound" }); return; }
       const job = { id: row.id, title: row.title, status: row.status, expires_at: row.expires_at, ...(row.details || {}) };
-      setPublicApply({ id, status: "ok", job, company: row.company_name || "", logoUrl: row.logo_url || null });
+      // accepting=false when the company is out of screening credits (0088). Old
+      // RPC (pre-0088) returns undefined, so default to accepting.
+      setPublicApply({ id, status: "ok", job, company: row.company_name || "", logoUrl: row.logo_url || null, accepting: row.accepting !== false });
       // Record the visit: unique per browser per day, tagged with ?source=.
       let source = null, vid = null;
       try { source = new URLSearchParams(window.location.search).get("source"); } catch { /* ignore */ }
@@ -22099,7 +22107,7 @@ export default function ResumeAIPreview() {
       return (
         <Shell>
           <div className="min-h-dvh" style={{ background: "var(--bg)" }}>
-            <ApplyScreen navigate={navigate} job={p.job} isPublic company={p.company} logoUrl={p.logoUrl || null} onApplied={() => {}} />
+            <ApplyScreen navigate={navigate} job={p.job} paused={p.accepting === false} isPublic company={p.company} logoUrl={p.logoUrl || null} onApplied={() => {}} />
           </div>
         </Shell>
       );
