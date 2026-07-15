@@ -21127,7 +21127,7 @@ export default function ResumeAIPreview() {
   const [applicantParseUsage, setApplicantParseUsage] = useState({ used: 0, limit: null, resetsAt: null });
   // Purchased applicant-screening top-up, so the admin apply preview can mirror the
   // real "out of credits" pause the public page shows.
-  const [purchasedApplicantBal] = usePurchasedBalance("applicant_screen");
+  const [purchasedApplicantBal, reloadPurchasedApplicantBal] = usePurchasedBalance("applicant_screen");
   // Persistent "Recent imports" log (loaded from import_runs on hydrate).
   const [importHistory, setImportHistory] = useState([]);
   // Save a finished bulk-import run: optimistic prepend, then persist + reconcile id.
@@ -21523,6 +21523,10 @@ export default function ResumeAIPreview() {
         const row = Array.isArray(data) ? data?.[0] : data;
         if (row && typeof row.used === "number") setAiInsightsUsed(row.used);
       }).catch((e) => console.error("get_ai_insight_usage threw:", e));
+      // Applicant screening top-up gets spent server-side as inbound applicants
+      // arrive, so refresh it on every hydrate; otherwise the apply-page pause can
+      // read a stale (pre-spend) balance and keep the page open when it shouldn't.
+      reloadPurchasedApplicantBal();
       // Job posting is a concurrent open-role limit now, derived from the jobs
       // list on the client, so there's no per-cycle usage to load here.
       // AI Parsing (bulk upload) credits for this cycle.
@@ -22332,7 +22336,7 @@ export default function ResumeAIPreview() {
     // Mirror the real public-page pause: when the workspace is out of applicant
     // screening credits (monthly pool AND purchased top-up both empty), the apply
     // page closes. The admin preview should show the same, not a live form.
-    const _apScrLimit = applicantParseUsage.limit ?? planLimits(plan).parseApplicant;
+    const _apScrLimit = applicantParseUsage.limit ?? planLimits(effectivePlan).parseApplicant;
     const applyPaused = _apScrLimit != null && _apScrLimit !== Infinity
       && (applicantParseUsage.used || 0) >= _apScrLimit && (purchasedApplicantBal || 0) <= 0;
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
