@@ -608,13 +608,13 @@ function JobPipelineBar({ jobId, closed = false }) {
           <div key={st.key} title={`${counts[st.key]} ${st.label}`} style={{ width: `${(counts[st.key] / total) * 100}%`, background: st.color, borderRadius: 9999 }} />
         ))}
       </div>
-      {/* Dot + count only, so the whole legend stays on one line however many
-          stages are active; the stage name shows on hover. */}
-      <div className="flex items-center gap-2.5 mt-2 overflow-hidden">
+      {/* Keep the labels but on ONE line: no wrap, and scroll horizontally if a
+          very narrow card can't fit every stage. */}
+      <div className="flex items-center flex-nowrap gap-x-2.5 mt-2 overflow-x-auto no-scrollbar">
         {active.map((st) => (
-          <span key={st.key} title={`${counts[st.key]} ${st.label}`} className="inline-flex items-center gap-1 text-[11px] shrink-0" style={{ color: "var(--ink-2)" }}>
+          <span key={st.key} className="inline-flex items-center gap-1 text-[11px] shrink-0 whitespace-nowrap" style={{ color: "var(--ink-2)" }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
-            <span className="tnum font-semibold">{counts[st.key]}</span>
+            <span className="tnum font-semibold">{counts[st.key]}</span> {st.label}
           </span>
         ))}
       </div>
@@ -11314,20 +11314,25 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
   // Shared actions, used by both the card grid and the list/table view: a direct
   // Copy link button (opens the source modal) sits next to the ⋯ overflow menu.
-  const jobMenu = (job, up = false, copyHint = false) => (
-    <div className="flex items-center gap-1 shrink-0">
-      {job.status === "open" && (
-        <button
-          ref={copyHint ? copyLinkRef : undefined}
-          onClick={(e) => { e.stopPropagation(); openLinkModal(job); }}
-          aria-label="Copy apply link" title="Copy apply link"
-          className={`inline-flex items-center justify-center w-11 h-11 rounded-lg transition-colors hover:bg-neutral-100 ${copyHint ? "tour-pulse" : ""}`}
-          style={{ color: copyHint ? "var(--brand)" : "var(--ink-3)" }}
-        >
-          <Icon name="link" className="w-[18px] h-[18px]" />
-        </button>
-      )}
-      <div className="relative">
+  // Copy-apply-link button (open roles only), placed on its own so the card can
+  // put it bottom-right while the overflow menu sits top-right.
+  const jobCopyLink = (job, copyHint = false) => (
+    job.status === "open" ? (
+      <button
+        ref={copyHint ? copyLinkRef : undefined}
+        onClick={(e) => { e.stopPropagation(); openLinkModal(job); }}
+        aria-label="Copy apply link" title="Copy apply link"
+        className={`inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-neutral-100 ${copyHint ? "tour-pulse" : ""}`}
+        style={{ color: copyHint ? "var(--brand)" : "var(--ink-3)" }}
+      >
+        <Icon name="link" className="w-[18px] h-[18px]" />
+      </button>
+    ) : null
+  );
+
+  // The ⋯ overflow menu on its own.
+  const jobOverflowMenu = (job, up = false) => (
+    <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setMenuJob(menuJob === job.id ? null : job.id); }}
         aria-haspopup="menu" aria-expanded={menuJob === job.id} aria-label="More job actions"
@@ -11357,7 +11362,14 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           </div>
         </>
       )}
-      </div>
+    </div>
+  );
+
+  // Combined (copy link + ⋯), used by the list/table view.
+  const jobMenu = (job, up = false, copyHint = false) => (
+    <div className="flex items-center gap-1 shrink-0">
+      {jobCopyLink(job, copyHint)}
+      {jobOverflowMenu(job, up)}
     </div>
   );
 
@@ -11585,36 +11597,37 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     </div>
                   )}
 
-                  <button onClick={() => setDetailJob(job)} className="group/card text-left w-full flex flex-col flex-1" title="View job details">
-                    <div className="flex items-start gap-3">
-                      <span className="flex w-11 h-11 items-center justify-center rounded-xl shrink-0" style={{ background: color.tile, color: color.ink }}>
-                        <Icon name="jobs" className="w-5 h-5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold font-display leading-snug min-w-0 group-hover/card:underline decoration-1 underline-offset-2" style={{ color: "var(--ink)" }}>{job.title}</h3>
-                          {/* Status shown as just a coloured dot next to the title
-                              (green open · grey closed · amber draft/unpublished …);
-                              the label is on hover. */}
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: badge.dot }} title={badge.label} aria-label={badge.label} />
+                  <div className="flex items-start gap-2">
+                    <button onClick={() => setDetailJob(job)} className="group/card text-left flex-1 min-w-0" title="View job details">
+                      <div className="flex items-start gap-3">
+                        <span className="flex w-11 h-11 items-center justify-center rounded-xl shrink-0" style={{ background: color.tile, color: color.ink }}>
+                          <Icon name="jobs" className="w-5 h-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold font-display leading-snug min-w-0 group-hover/card:underline decoration-1 underline-offset-2" style={{ color: "var(--ink)" }}>{job.title}</h3>
+                            {/* Status shown as just a coloured dot next to the title
+                                (green open · grey closed · amber draft/unpublished …);
+                                the label is on hover. */}
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: badge.dot }} title={badge.label} aria-label={badge.label} />
+                          </div>
+                          {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
                         </div>
-                        {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
                       </div>
-                    </div>
+                    </button>
+                    {/* Overflow menu at the top-right of the card. */}
+                    {jobOverflowMenu(job)}
+                  </div>
 
-                    {/* Meta chips (location, type, seniority, salary) dropped for a
-                        compact management card; they still show on the job details
-                        modal and the public apply page. Keep only the closing alert. */}
-                    {closing && (
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1" style={closing.style}><Icon name="clock" className="w-3 h-3" /> {closing.label}</span>
-                      </div>
-                    )}
-
-                    {/* Description hidden for a compact card. */}
-                    <div className="mt-4 flex-1 flex flex-col justify-end">
-                      <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
+                  {closing && (
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1" style={closing.style}><Icon name="clock" className="w-3 h-3" /> {closing.label}</span>
                     </div>
+                  )}
+
+                  {/* Pipeline, full width (still opens details on click). */}
+                  <button onClick={() => setDetailJob(job)} className="mt-4 flex-1 flex flex-col justify-end text-left w-full" title="View job details">
+                    <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
                   </button>
 
                   <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
@@ -11630,7 +11643,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{job.viewStats?.total || 0}</span>
                       </span>
                     </div>
-                    {jobMenu(job, true, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
+                    {/* Copy apply link, bottom-right. */}
+                    {jobCopyLink(job, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
                   </div>
                   {job.posted_at && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
                 </div>
