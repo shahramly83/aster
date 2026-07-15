@@ -20355,8 +20355,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                     </div>
                     <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
                       {act && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: act.color }} /> {act.label}
+                        <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>
+                          {act.label}
                         </span>
                       )}
                       {hiredIds.has(a.candidateId) ? (
