@@ -11621,9 +11621,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       </div>
                     )}
 
-                    {/* Description + full pipeline legend hidden for a compact card;
-                        the pipeline now shows as coloured dots next to the title. */}
-                    <div className="mt-4 flex-1" />
+                    {/* Description hidden for a compact card. */}
+                    <div className="mt-4 flex-1 flex flex-col justify-end">
+                      <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
+                    </div>
                   </button>
 
                   <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
