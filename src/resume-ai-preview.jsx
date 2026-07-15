@@ -18221,7 +18221,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     ? new Date(cycleResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : null;
   const [showOffer, setShowOffer] = useState(false);
-  const [pendingDecision, setPendingDecision] = useState(null); // 'offer' | 'reject' awaiting skip-scorecards confirm
+  const [pendingDecision, setPendingDecision] = useState(null); // 'offer' awaiting skip-scorecards confirm
+  const [confirmReject, setConfirmReject] = useState(false);     // reject double-confirm (sends an email)
   // Database-view invite: pick an open role, draft a re-engagement email, and
   // send it to the candidate's profile email. If they apply, they drop their
   // latest resume and move into the hiring workflow.
@@ -18405,9 +18406,18 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         open={!!pendingDecision}
         title="Decide without scorecards?"
         body={`No interviewer has submitted a scorecard for this interview, so this decision won't be backed by scored feedback. You can collect scorecards in step 2 first, or continue anyway.`}
-        confirmLabel={pendingDecision === "offer" ? "Continue to offer" : "Reject anyway"}
-        onConfirm={() => { const d = pendingDecision; setPendingDecision(null); if (d === "offer") setShowOffer(true); else if (d === "reject") onSetStage && onSetStage("rejected"); }}
+        confirmLabel="Continue to offer"
+        onConfirm={() => { setPendingDecision(null); setShowOffer(true); }}
         onClose={() => setPendingDecision(null)}
+      />
+      <ConfirmDialog
+        open={confirmReject}
+        tone="danger"
+        title={`Reject ${firstName}?`}
+        body={`A rejection email will be sent to ${firstName}${candidate?.parsed?.email ? ` (${candidate.parsed.email})` : ""}, letting them know they weren't selected${jobs.find((j) => j.id === contextJobId)?.title ? ` for the ${jobs.find((j) => j.id === contextJobId).title} role` : ""}. They'll move out of your active pipeline into your candidate database.`}
+        confirmLabel="Reject and send email"
+        onConfirm={() => { setConfirmReject(false); onSetStage && onSetStage("rejected"); }}
+        onClose={() => setConfirmReject(false)}
       />
     </div>
   );
@@ -18988,7 +18998,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <button onClick={() => (!anyScored && !scorecardsSkipped ? setPendingDecision("offer") : setShowOffer(true))} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
                       Make an offer →
                     </button>
-                    <button onClick={() => (!anyScored && !scorecardsSkipped ? setPendingDecision("reject") : onSetStage && onSetStage("rejected"))} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                    <button onClick={() => setConfirmReject(true)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-rose-50" style={{ borderColor: "var(--line-strong)", color: "#B42318" }}>
                       Reject
                     </button>
                   </div>
