@@ -20106,7 +20106,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       title={`Applicants${job ? `: ${job.title}` : ""}`}
       subtitle={isInterviewer(profile?.role)
         ? "Candidates who applied for this role. Open a profile to review them and request an interview."
-        : "Candidates who applied directly through the public job link. Tap the stage pill to move them through the pipeline or reject with a reviewed email."}
+        : undefined}
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
