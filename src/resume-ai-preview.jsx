@@ -608,11 +608,13 @@ function JobPipelineBar({ jobId, closed = false }) {
           <div key={st.key} title={`${counts[st.key]} ${st.label}`} style={{ width: `${(counts[st.key] / total) * 100}%`, background: st.color, borderRadius: 9999 }} />
         ))}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+      {/* Dot + count only, so the whole legend stays on one line however many
+          stages are active; the stage name shows on hover. */}
+      <div className="flex items-center gap-2.5 mt-2 overflow-hidden">
         {active.map((st) => (
-          <span key={st.key} className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--ink-2)" }}>
+          <span key={st.key} title={`${counts[st.key]} ${st.label}`} className="inline-flex items-center gap-1 text-[11px] shrink-0" style={{ color: "var(--ink-2)" }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
-            <span className="tnum font-semibold">{counts[st.key]}</span> {st.label}
+            <span className="tnum font-semibold">{counts[st.key]}</span>
           </span>
         ))}
       </div>
