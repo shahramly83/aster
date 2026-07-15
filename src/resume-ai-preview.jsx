@@ -9279,7 +9279,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     // uploads spend. They were one counter, so a busy job advert
                     // silently used up the customer's upload allowance.
                     { label: "Applicant Screening", used: applicantParseUsage.used, limit: applicantParseUsage.limit ?? L.parseApplicant },
-                    { label: "Bulk upload parses", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
+                    { label: "Bulk upload screening", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
                     { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
                     { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
                   ];
@@ -9289,7 +9289,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
-                          <InfoHint dir="up" hint="How much of this month's AI plan you have used across screening, ranking, insights and interview questions. Limits reset on the 1st." />
+                          <InfoHint dir="up" hint="How much of this cycle's AI plan you have used across screening, ranking, insights and interview questions. Limits reset on your 30-day cycle from signup." />
                         </div>
                         {isOwner(profile?.role) && (
                           <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
