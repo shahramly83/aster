@@ -12873,7 +12873,6 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
           {role && <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{role}</p>}
-          <div className="flex flex-wrap gap-1.5 mt-2">{c.parsed.skills.slice(0, 4).map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>{s}</span>)}</div>
         </div>
         <span className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors group-hover:text-neutral-700" style={{ border: "1px solid var(--line)", color: "var(--ink-3)" }}>
           <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
@@ -13156,13 +13155,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 </div>
               )}
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-4 mb-3">
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-                <span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{q ? ` · matching "${query}"` : " in your database"}
-                {pageCount > 1 && <span style={{ color: "var(--ink-3)" }}> · {pageStart + 1}–{Math.min(pageStart + PER_PAGE, shownList.length)} shown</span>}
-              </p>
-              {q && <button onClick={() => { setQuery(""); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>}
-            </div>
+            {q && (
+              <div className="flex items-center justify-end mt-4 mb-3">
+                <button onClick={() => { setQuery(""); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>
+              </div>
+            )}
             {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name.` : "Your database is empty.") : (<>
               <div className="grid sm:grid-cols-2 gap-3">
                 {browseItems.map((c) => browseCard(c))}
