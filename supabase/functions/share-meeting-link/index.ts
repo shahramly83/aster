@@ -22,8 +22,12 @@ function json(body: unknown, status = 200) {
 function fmtWhen(iso: string | null): string {
   if (!iso) return "the scheduled time";
   try {
+    // Render in the company's local time (the interview was scheduled in it), not
+    // Deno's default UTC, so the email matches the in-app panel. Label the zone so
+    // a recipient elsewhere isn't misled.
     return new Date(iso).toLocaleString("en-US", {
       weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
+      timeZone: "Asia/Kuala_Lumpur", timeZoneName: "short",
     });
   } catch { return "the scheduled time"; }
 }

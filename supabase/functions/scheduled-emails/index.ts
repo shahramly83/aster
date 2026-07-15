@@ -17,13 +17,13 @@ import { sendEmail, emailShell, companyShell, loadTemplate, renderTemplate, para
 
 const SITE = "https://hireaster.com";
 
-// Human-readable slot label. The candidate's timezone is unknown here, so render
-// in UTC with the zone shown (same convention as confirm-booking).
+// Human-readable slot label. Render in the company's local time (same convention
+// as confirm-booking) so reminders match the time shown in the app.
 function fmtWhen(iso: string): string {
   try {
     return new Intl.DateTimeFormat("en-US", {
       weekday: "short", day: "numeric", month: "short",
-      hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short",
+      hour: "numeric", minute: "2-digit", timeZone: "Asia/Kuala_Lumpur", timeZoneName: "short",
     }).format(new Date(iso));
   } catch { return iso; }
 }

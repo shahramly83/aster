@@ -20,13 +20,14 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
 
-// Human-readable slot label. Timezone is unknown for an anonymous candidate, so
-// render in UTC with the zone shown, rather than guessing.
+// Human-readable slot label. Render in the company's local time (the time the
+// interview was scheduled in) with the zone shown, so it matches the in-app panel
+// instead of showing a confusing UTC time.
 function fmt(iso: string): string {
   try {
     return new Intl.DateTimeFormat("en-US", {
       weekday: "short", day: "numeric", month: "short", year: "numeric",
-      hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short",
+      hour: "numeric", minute: "2-digit", timeZone: "Asia/Kuala_Lumpur", timeZoneName: "short",
     }).format(new Date(iso));
   } catch { return iso; }
 }
