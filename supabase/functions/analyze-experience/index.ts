@@ -88,14 +88,14 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: MODEL, max_tokens: 1200, messages: [{ role: "user", content: `${PROMPT}\n\nResume (JSON):\n${JSON.stringify(resume)}` }] }),
     });
-    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "ai_insight"); return json({ error: "analyze_failed" }, 502); }
+    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "ai_insight", paid.source); return json({ error: "analyze_failed" }, 502); }
     const data = await resp.json();
     let text = (data.content || []).map((b: any) => (typeof b.text === "string" ? b.text : "")).join(" ").trim();
     text = text.replace(/```json/gi, "").replace(/```/g, "");
     const s = text.indexOf("{"), e = text.lastIndexOf("}");
     let raw: any = null;
     if (s >= 0 && e > s) { try { raw = JSON.parse(text.slice(s, e + 1)); } catch (err) { console.error("json parse", err); } }
-    if (!raw || typeof raw !== "object") { await refund(paid.companyId, "ai_insight"); return json({ error: "analyze_failed" }, 502); }
+    if (!raw || typeof raw !== "object") { await refund(paid.companyId, "ai_insight", paid.source); return json({ error: "analyze_failed" }, 502); }
 
     // Normalise/clamp into the exact shape the UI renders, so a stray model
     // field or missing key can never break InsightsDisplay.

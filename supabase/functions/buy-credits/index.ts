@@ -38,6 +38,7 @@ const BASE_CENTS: Record<string, number> = {
   resume_screen: 100,     // $1.00
   applicant_screen: 100,  // $1.00
   ai_rank: 40,            // $0.40
+  ai_insight: 40,         // $0.40
 };
 // Plan discount multiplier, keyed by BOTH the DB plan_tier names (free/growth/pro)
 // and the app names (launch/scale/elite), since companies.plan can hold either.
@@ -51,6 +52,7 @@ const PRODUCT_NAME: Record<string, string> = {
   resume_screen: "Resume screening credits",
   applicant_screen: "Applicant screening credits",
   ai_rank: "AI Rank credits",
+  ai_insight: "AI Insight credits",
 };
 
 Deno.serve(async (req) => {

@@ -9581,6 +9581,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
     resume_screen: { base: 1, title: "Buy screening credits", blurb: "Extra screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
     applicant_screen: { base: 1, title: "Buy applicant screening credits", blurb: "Extra applicant screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
     ai_rank: { base: 0.4, title: "Buy AI Rank credits", blurb: "Extra AI Rank credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
+    ai_insight: { base: 0.4, title: "Buy AI Insight credits", blurb: "Extra AI Insight credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
   })[activeKind] || { base: 1, title: "Buy credits", blurb: "" };
   const mult = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
   const disc = ({ launch: 0, scale: 10, elite: 20, enterprise: 20 })[plan] ?? 0;
@@ -9615,6 +9616,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
                 ["resume_screen", "Resume screening", "Bulk resume uploads"],
                 ["applicant_screen", "Applicant screening", "Inbound applications"],
                 ["ai_rank", "AI Rank", "Rank & shortlist"],
+                ["ai_insight", "AI Insight", "Candidate deep-dive"],
               ].map(([k, lbl, sub]) => {
                 const on = pickedKind === k;
                 return (
@@ -17983,6 +17985,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const insightsUnlimited = insightsLimit === Infinity;
   const insightsLeft = Math.max(0, insightsLimit - aiInsightsUsed);
   const outOfInsights = !insightsUnlimited && insightsLeft <= 0;
+  // Purchased AI Insight top-up: monthly pool first, then this balance. Only truly
+  // blocked (and only then do we push to buy) when BOTH are empty.
+  const [purchasedAiInsight, reloadPurchasedAiInsight] = usePurchasedBalance("ai_insight");
+  const [buyInsightOpen, setBuyInsightOpen] = useState(false);
+  const outOfInsightCredits = outOfInsights && purchasedAiInsight <= 0;
+  const insightsOnPurchased = outOfInsights && purchasedAiInsight > 0;
   const [showOffer, setShowOffer] = useState(false);
   // Database-view invite: pick an open role, draft a re-engagement email, and
   // send it to the candidate's profile email. If they apply, they drop their
@@ -18055,7 +18063,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // a successful run (never on failure), like AI Rank.
   const handleGenerate = async () => {
     if (!candidate || generating) return;
-    if (outOfInsights && !insights) { navigate("billing"); return; }
+    if (outOfInsightCredits && !insights) { setBuyInsightOpen(true); return; }
 
     const save = (result) => { if (setInsightsCache) setInsightsCache((prev) => ({ ...prev, [candidate.id]: result })); };
     // analyze-experience charges the credit itself now (0046). Only mirror.
@@ -18085,12 +18093,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       if (error) { try { body = await error.context?.json?.(); } catch { /* non-JSON */ } }
       if (body?.error === "limit_reached") {
         if (typeof body.used === "number") setAiInsightsUsed?.(body.used);
-        navigate("billing");
+        setBuyInsightOpen(true); // both monthly and purchased are empty
         return;
       }
       if (error || body?.error || !body?.insights) throw new Error(body?.error || "analyze failed");
       save(body.insights);
       syncInsights(body.used); // the server already charged; mirror its count
+      reloadPurchasedAiInsight(); // may have drawn from the purchased balance
     } catch (_e) {
       save(deriveInsights(candidate)); // still show a result; the server refunded the credit
     } finally {
@@ -18122,13 +18131,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       </div>
 
       {!insights ? (
-        outOfInsights ? (
+        outOfInsightCredits ? (
           <div className="rounded-xl bg-white border p-4 flex items-start gap-3" style={{ borderColor: "var(--line)" }}>
             <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-4 h-4" /></span>
             <div className="min-w-0">
               <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
-              <p className="text-xs mt-0.5 mb-2.5" style={{ color: "var(--ink-3)" }}>You've used all {insightsLimit} AI insight runs on your plan this month. Upgrade for more, or they reset on the 1st.</p>
-              <button onClick={() => navigate("billing")} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Upgrade for more</button>
+              <p className="text-xs mt-0.5 mb-2.5" style={{ color: "var(--ink-3)" }}>You've used all {insightsLimit} AI insight runs on your plan this month. Buy extra credits, or they reset on your 30-day cycle.</p>
+              <button onClick={() => setBuyInsightOpen(true)} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Buy credits</button>
             </div>
           </div>
         ) : (
@@ -18142,8 +18151,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       ) : (
         <div className="rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
           <InsightsDisplay insights={insights} />
-          <button onClick={() => (outOfInsights ? navigate("billing") : setConfirmRegenInsight(true))} disabled={generating} className="mt-3 text-xs font-medium disabled:opacity-50 hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
-            <Icon name="refresh" className="w-3 h-3" /> {generating ? "Re-analyzing…" : outOfInsights ? "No AI insight runs left this month" : "Regenerate"}
+          <button onClick={() => (outOfInsightCredits ? setBuyInsightOpen(true) : setConfirmRegenInsight(true))} disabled={generating} className="mt-3 text-xs font-medium disabled:opacity-50 hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
+            <Icon name="refresh" className="w-3 h-3" /> {generating ? "Re-analyzing…" : outOfInsightCredits ? "Buy AI Insight credits" : "Regenerate"}
           </button>
         </div>
       )}
@@ -18158,6 +18167,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         onConfirm={() => { setConfirmRegenInsight(false); handleGenerate(); }}
         onClose={() => setConfirmRegenInsight(false)}
       />
+      <BuyCreditsModal open={buyInsightOpen} onClose={() => { setBuyInsightOpen(false); reloadPurchasedAiInsight(); }} plan={plan} kind="ai_insight" />
     </div>
   );
 
@@ -18778,10 +18788,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 title="AI insights this month"
                 hint="Each AI Experience Insights run uses one credit. Your plan includes a set number each month."
                 used={aiInsightsUsed} limit={insightsLimit} unit="used"
-                note={outOfInsights
-                  ? `You've used all ${insightsLimit} AI insight runs. Resets on your 30-day cycle.`
-                  : `${insightsLeft} insight run${insightsLeft === 1 ? "" : "s"} left this month.`}
+                danger={outOfInsightCredits}
+                note={outOfInsightCredits
+                  ? "Out of credits"
+                  : insightsOnPurchased
+                    ? "Your monthly plan is used up. Insights now run on your purchased credits."
+                    : `${insightsLeft} insight run${insightsLeft === 1 ? "" : "s"} left this month.`}
                 onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
+                purchased={purchasedAiInsight} onBuyCredits={() => setBuyInsightOpen(true)}
               />
             )}
             {quickFacts}

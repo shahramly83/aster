@@ -14,13 +14,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export type Meter = "ai_rank" | "ai_insight" | "interview_questions" | "see_why";
 
-// ai_rank supports purchased top-up credits: consume_ai_rank spends the monthly
-// pool first, then any purchased 'ai_rank' balance, and reports which via `source`.
-// The other meters have no top-up yet and use the plain bump/refund pair.
-const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "bump_ai_insight", interview_questions: "bump_interview_questions", see_why: "bump_see_why" };
+// ai_rank and ai_insight support purchased top-up credits: consume_* spends the
+// monthly pool first, then any purchased balance of the matching kind, and reports
+// which via `source`. The other meters have no top-up yet and use the plain
+// bump/refund pair.
+const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "consume_ai_insight", interview_questions: "bump_interview_questions", see_why: "bump_see_why" };
 const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for", see_why: "refund_see_why_for" };
-// Which purchased credit kind backs each meter (only ai_rank, for now).
-const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank" };
+// Which purchased credit kind backs each meter.
+const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank", ai_insight: "ai_insight" };
 
 export interface Charge {
   ok: boolean;              // false = out of credits, caller must not call the model
