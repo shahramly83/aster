@@ -11609,7 +11609,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
                     {job.posted_at && <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
 
-                    <p className="text-sm mt-3 leading-relaxed line-clamp-2" style={{ color: "var(--ink-2)" }}>{job.description}</p>
+                    {/* Description hidden on the card to keep it compact; full text is
+                        on the job details / apply page. */}
                     <div className="mt-4 flex-1 flex flex-col justify-end">
                       <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
                     </div>
