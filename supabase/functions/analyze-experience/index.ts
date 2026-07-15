@@ -128,6 +128,17 @@ Deno.serve(async (req) => {
       },
     };
 
+    // Persist so it survives a refresh: the credit was spent, so the read is kept
+    // and shown for good. Scoped to the paying company (a spoofed id can only ever
+    // touch a candidate the caller's own company owns).
+    const candidateId = typeof candidate?.id === "string" ? candidate.id : null;
+    if (candidateId && paid.companyId) {
+      const { error: saveErr } = await admin.from("candidates")
+        .update({ experience_insights: insights })
+        .eq("id", candidateId).eq("company_id", paid.companyId);
+      if (saveErr) console.error("save experience_insights", saveErr.message);
+    }
+
     return json({ insights, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {
     console.error(e);

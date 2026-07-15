@@ -300,7 +300,7 @@ async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes, offRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
-    supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
+    supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, experience_insights, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, scheduled_at, status, provider, attendees, meeting_link").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
@@ -443,11 +443,16 @@ async function loadWorkspaceData(companyId) {
   const interviewQuestions = {};
   for (const q of iqRes.data || []) interviewQuestions[`${q.candidate_id}:${q.job_id}`] = Array.isArray(q.questions) ? q.questions : [];
 
+  // Stored AI Experience Insights, keyed by candidate id, so a generated read is
+  // shown for good (the credit was already spent) instead of a session-only cache.
+  const experienceInsights = {};
+  for (const c of candRes.data || []) if (c.experience_insights) experienceInsights[c.id] = c.experience_insights;
+
   // Offers, keyed by candidate: their current status (sent | accepted | declined).
   const offers = {};
   for (const o of offRes.data || []) offers[o.candidate_id] = { status: o.status };
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions, offers };
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions, experienceInsights, offers };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -14825,6 +14830,15 @@ const PROCESSING_STEPS = [
   "Almost there…",
 ];
 
+// Rotating status while an AI read runs, so a slow model call never looks frozen.
+const INSIGHT_STEPS = [
+  "Reading the resume…",
+  "Mapping roles and tenure…",
+  "Estimating total and leadership experience…",
+  "Checking for employment gaps…",
+  "Almost there…",
+];
+
 function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied, logoUrl = null, company = "", isPublic = false }) {
   // A tiny helper: the "admin preview" back link only makes sense inside the app.
   // On the real public page (isPublic) there's nothing to go back to.
@@ -17994,7 +18008,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // shows the saved result without spending another credit.
   const insights = candidate ? (insightsCache[candidate.id] ?? null) : null;
   const [generating, setGenerating] = useState(false);
-  const [confirmRegenInsight, setConfirmRegenInsight] = useState(false); // Regenerate confirm
+  // Rotating status while the AI read runs, so a slow call never looks frozen.
+  const [insightStep, setInsightStep] = useState(0);
+  useEffect(() => {
+    if (!generating) { setInsightStep(0); return; }
+    const id = setInterval(() => setInsightStep((i) => Math.min(i + 1, INSIGHT_STEPS.length - 1)), 2600);
+    return () => clearInterval(id);
+  }, [generating]);
   const [showPdf, setShowPdf] = useState(false);
   // AI Experience Insights are metered per plan, like AI match runs.
   const insightsLimit = planLimits(plan).aiInsightsPerMonth;
@@ -18159,30 +18179,22 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         ) : (
           <>
             <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>Run a deeper AI read of this resume: total and leadership experience, domain exposure, employer tenure, and any employment gaps.</p>
-            <button onClick={handleGenerate} disabled={generating} className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
-              <Icon name="matching" className="w-4 h-4" /> {generating ? "Analyzing…" : "Generate AI insights"}
+            <button onClick={handleGenerate} disabled={generating} className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-90 text-white text-sm font-semibold px-4 py-2.5 inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
+              {generating
+                ? <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />
+                : <Icon name="matching" className="w-4 h-4" />}
+              {generating ? INSIGHT_STEPS[insightStep] : "Generate AI insights"}
             </button>
           </>
         )
       ) : (
+        // Once generated, the read is stored and shown for good (the credit was
+        // already spent), so there's no regenerate: a resume doesn't change.
         <div className="rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
           <InsightsDisplay insights={insights} />
-          <button onClick={() => (outOfInsightCredits ? setBuyInsightOpen(true) : setConfirmRegenInsight(true))} disabled={generating} className="mt-3 text-xs font-medium disabled:opacity-50 hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
-            <Icon name="refresh" className="w-3 h-3" /> {generating ? "Re-analyzing…" : outOfInsightCredits ? "Buy AI Insight credits" : "Regenerate"}
-          </button>
         </div>
       )}
 
-      <ConfirmDialog
-        open={confirmRegenInsight}
-        title="Regenerate AI Insight?"
-        body={insightsUnlimited
-          ? "This runs a fresh analysis, replacing the cached result."
-          : `This runs a fresh analysis and uses 1 AI Insight credit, replacing the cached result. You have ${insightsLeft} left this cycle.`}
-        confirmLabel={insightsUnlimited ? "Regenerate" : "Use 1 credit"}
-        onConfirm={() => { setConfirmRegenInsight(false); handleGenerate(); }}
-        onClose={() => setConfirmRegenInsight(false)}
-      />
       <BuyCreditsModal open={buyInsightOpen} onClose={() => { setBuyInsightOpen(false); reloadPurchasedAiInsight(); }} plan={plan} kind="ai_insight" />
     </div>
   );
@@ -21446,6 +21458,9 @@ export default function ResumeAIPreview() {
     setJobAssignments(data.jobAssignments || []);
     setScheduleRequests(data.scheduleRequests || []);
     setInterviewQuestions(data.interviewQuestions || {});
+    // Merge stored AI Insights over anything generated this session, so a refresh
+    // keeps every read that already cost a credit.
+    setInsightsCache((prev) => ({ ...prev, ...(data.experienceInsights || {}) }));
     setOffers(data.offers || {});
     setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
