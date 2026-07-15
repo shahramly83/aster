@@ -12152,11 +12152,29 @@ function InfoHint({ hint, align = "left", dir = "up", tone = "dark" }) {
   const enter = down
     ? "-translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0"
     : "translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0";
+  const tipRef = useRef(null);
+  const [shift, setShift] = useState(0);
+  // Keep the tooltip inside the window: when it opens, measure it and nudge it
+  // horizontally (via margin, so the entrance transform isn't disturbed) so
+  // neither edge is clipped, whatever corner of the screen the icon sits in.
+  const clamp = () => {
+    const el = tipRef.current;
+    if (!el || typeof window === "undefined") return;
+    const prev = el.style.marginLeft;
+    el.style.marginLeft = "0px";
+    const r = el.getBoundingClientRect();
+    el.style.marginLeft = prev;
+    const pad = 8;
+    let s = 0;
+    if (r.left < pad) s = pad - r.left;
+    else if (r.right > window.innerWidth - pad) s = (window.innerWidth - pad) - r.right;
+    setShift(Math.round(s));
+  };
   return (
-    <span tabIndex={0} className="relative group inline-flex items-center align-middle outline-none" style={{ color: tone === "light" ? "rgba(255,255,255,0.72)" : "var(--ink)" }}>
+    <span tabIndex={0} onMouseEnter={clamp} onFocus={clamp} className="relative group inline-flex items-center align-middle outline-none" style={{ color: tone === "light" ? "rgba(255,255,255,0.72)" : "var(--ink)" }}>
       <Icon name="info" className="w-3.5 h-3.5 cursor-help" />
-      <span className={`pointer-events-none absolute ${pos} w-60 rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 ${enter} group-hover:opacity-100 group-focus:opacity-100 transition-all duration-150 z-30`}
-        style={{ background: "var(--ink)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>{hint}</span>
+      <span ref={tipRef} className={`pointer-events-none absolute ${pos} w-60 max-w-[calc(100vw-1rem)] rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 ${enter} group-hover:opacity-100 group-focus:opacity-100 transition-all duration-150 z-30`}
+        style={{ marginLeft: shift, background: "var(--ink)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>{hint}</span>
     </span>
   );
 }
@@ -14775,9 +14793,13 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           {/* Offline-confirm guardrail: HR checks the times with the panel first,
               so whatever the candidate picks is final (no back-and-forth). */}
           {slots.length > 0 && (
-            <label className="flex items-start gap-2 mb-3 cursor-pointer select-none">
-              <input type="checkbox" checked={confirmedOffline} onChange={(e) => setConfirmedOffline(e.target.checked)} className="mt-0.5 accent-[color:var(--brand)] w-4 h-4 shrink-0" />
-              <span className="text-xs text-neutral-600 leading-relaxed">I've checked these times with the interviewers who'll attend. The candidate only sees times the panel can make, so whichever they pick is final.</span>
+            <label className="flex items-start gap-2.5 mb-3 cursor-pointer select-none group">
+              <span className="mt-0.5 shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors group-hover:border-[color:var(--brand)]"
+                style={confirmedOffline ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "var(--line-strong)" }}>
+                {confirmedOffline && <Icon name="check" className="w-3.5 h-3.5" style={{ color: "#fff" }} />}
+              </span>
+              <input type="checkbox" checked={confirmedOffline} onChange={(e) => setConfirmedOffline(e.target.checked)} className="sr-only" />
+              <span className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>I've checked these times with the interviewers who'll attend. The candidate only sees times the panel can make, so whichever they pick is final.</span>
             </label>
           )}
 
@@ -14814,13 +14836,12 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
 function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, company = "" }) {
   const [stage, setStage] = useState("picking"); // picking | confirming | confirmed
   const [confirmedSlot, setConfirmedSlot] = useState(null);
-  const meetingLink = "https://meet.google.com/abc-defg-hij";
 
   // Company branding for this public page: the uploaded logo, else a mark + name.
   const companyHeader = (
     <div className="flex items-center gap-3 mb-6">
       {logoUrl ? (
-        <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-10 object-contain" style={{ maxWidth: 200 }} />
+        <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-14 object-contain" style={{ maxWidth: 240 }} />
       ) : (
         <>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-5 h-5" /></div>
@@ -14857,24 +14878,16 @@ function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, co
       <div className="px-4 sm:px-6 py-8 sm:py-10">
         <div className="max-w-2xl mx-auto">
           <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
-          <div className="mt-6">{companyHeader}</div>
-          <div className="text-center max-w-sm mx-auto mt-10">
+          <div className="mt-6 flex justify-center">{companyHeader}</div>
+          <div className="text-center max-w-sm mx-auto mt-8">
             <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-emerald-600 text-xl">✓</span>
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
             <p className="text-sm text-neutral-600 mb-3">{formatSlotRange(confirmedSlot.start, confirmedSlot.end)}</p>
-            <p className="text-sm text-neutral-600 mb-4">
+            <p className="text-sm text-neutral-600">
               A calendar invite has been sent to your email with the video call link.
             </p>
-            <a
-              href={meetingLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 transition-colors"
-            >
-              Meeting link
-            </a>
           </div>
         </div>
       </div>
@@ -18112,7 +18125,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [] }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null }) {
   // The caller may not hand us a stage (e.g. an interviewer opening a profile
   // from "Your Interviews"), or hands a stale snapshot. Prefer the true stage
   // from the loaded pipeline so the header/pill never wrongly reads "Applied"
@@ -18144,6 +18157,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [insightErr, setInsightErr] = useState(null);
   const outOfInsightCredits = outOfInsights && purchasedAiInsight <= 0;
   const insightsOnPurchased = outOfInsights && purchasedAiInsight > 0;
+  // All plan meters share one 30-day cycle from signup, so the AI Rank reset date
+  // (passed as cycleResetsAt) is the AI Insight reset date too.
+  const insightResetLabel = cycleResetsAt
+    ? new Date(cycleResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : null;
   const [showOffer, setShowOffer] = useState(false);
   // Database-view invite: pick an open role, draft a re-engagement email, and
   // send it to the candidate's profile email. If they apply, they drop their
@@ -18934,15 +18952,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {!isInterviewer(profile?.role) && !insightsUnlimited && (
               <UsageMeter
                 plan={plan}
-                title="AI insights this month"
-                hint="Each AI Experience Insights run uses one credit. Your plan includes a set number each month."
-                used={aiInsightsUsed} limit={insightsLimit} unit="used"
+                title="AI Insight credits this cycle"
+                hint="Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
+                used={aiInsightsUsed} limit={insightsLimit} unit="credits used"
                 danger={outOfInsightCredits}
                 note={outOfInsightCredits
-                  ? "Out of credits"
+                  ? `You've used all ${insightsLimit} credits.${insightResetLabel ? ` Resets ${insightResetLabel}.` : ""}`
                   : insightsOnPurchased
-                    ? "Your monthly plan is used up. Insights now run on your purchased credits."
-                    : `${insightsLeft} insight run${insightsLeft === 1 ? "" : "s"} left this month.`}
+                    ? "Your monthly plan is used up. Insights now use your purchased credits."
+                    : `${insightsLeft} credit${insightsLeft === 1 ? "" : "s"} left this cycle.${insightResetLabel ? ` Resets ${insightResetLabel}.` : ""}`}
                 onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
                 purchased={purchasedAiInsight} onBuyCredits={() => setBuyInsightOpen(true)}
               />
@@ -22275,7 +22293,7 @@ export default function ResumeAIPreview() {
           <SchedulePickerScreen
             navigate={navigate}
             request={previewRequest}
-            logoUrl={logoUrl}
+            logoUrl={companyLogoUrl}
             company={company}
             onConfirm={(slot) => previewRequest && confirmBooking(previewRequest.candidateId, slot)}
           />
@@ -22666,6 +22684,7 @@ export default function ResumeAIPreview() {
             hiredIds={hiredIds}
             profile={profile}
             currentUserId={userId}
+            cycleResetsAt={aiRankResetsAt}
             scheduleRequests={scheduleRequests}
             onRequestScheduling={requestScheduling}
             savedQuestions={activeCandidate && viewCandidateJobId ? (interviewQuestions[`${activeCandidate.id}:${viewCandidateJobId}`] || null) : null}
