@@ -19059,7 +19059,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     </button>
                   </div>
                   <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
-                    Current stage: <span className="font-medium">{stage === "interviewing" ? "Interview Scheduled" : stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
+                    Current stage: <span className="font-medium">{stage === "interviewing" ? "Interview" : stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
                   </p>
                 </>
               )}
@@ -19257,7 +19257,7 @@ const STAGE_ORDER = ["applied", "shortlisted", "interviewing", "offer", "hired",
 const STAGE_LABELS = {
   applied: "Applied",
   shortlisted: "Shortlisted",
-  interviewing: "Interview Scheduled",
+  interviewing: "Interview",
   offer: "Offer",
   hired: "Hired",
   declined: "Declined",
