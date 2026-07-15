@@ -10329,7 +10329,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Viewing a past import</p>
                   <p className="text-xs" style={{ color: "var(--ink-2)" }}>{viewingPast} · read-only</p>
                 </div>
-                <button onClick={resetUpload} className="inline-flex items-center gap-1 text-xs font-semibold shrink-0 rounded-lg px-3 py-2 bg-white hover:bg-neutral-50 transition-colors" style={{ border: "1px solid var(--line-strong)", color: "var(--ink)" }}><Icon name="chevronLeft" className="w-3.5 h-3.5" /> Back</button>
+                <button onClick={resetUpload} aria-label="Close" title="Close" className="inline-flex items-center justify-center shrink-0 rounded-lg w-9 h-9 bg-white hover:bg-neutral-50 transition-colors" style={{ border: "1px solid var(--line-strong)", color: "var(--ink)" }}><Icon name="close" className="w-4 h-4" /></button>
               </div>
             )}
             {/* While parsing, a live progress panel: a continuously spinning
@@ -12245,6 +12245,34 @@ function FieldLabel({ children, hint }) {
   );
 }
 
+// The calendar chip at the top-right of a usage meter. Hovering shows the reset
+// date. The tooltip opens downward and to the LEFT (into the card) and is clamped
+// to the viewport, so it never runs off the right edge of the screen.
+function ResetBadge({ label }) {
+  const tipRef = useRef(null);
+  const [shift, setShift] = useState(0);
+  const clamp = () => {
+    const el = tipRef.current;
+    if (!el || typeof window === "undefined") return;
+    const prev = el.style.marginLeft;
+    el.style.marginLeft = "0px";
+    const r = el.getBoundingClientRect();
+    el.style.marginLeft = prev;
+    const pad = 8;
+    let s = 0;
+    if (r.left < pad) s = pad - r.left;
+    else if (r.right > window.innerWidth - pad) s = (window.innerWidth - pad) - r.right;
+    setShift(Math.round(s));
+  };
+  return (
+    <span tabIndex={0} onMouseEnter={clamp} onFocus={clamp} className="relative group shrink-0 inline-flex items-center text-white/70 hover:text-white transition-colors outline-none cursor-help" aria-label={`Resets on ${label}`}>
+      <Icon name="calendar" className="w-4 h-4" />
+      <span ref={tipRef} className="pointer-events-none absolute right-0 top-full mt-2 whitespace-nowrap max-w-[calc(100vw-1rem)] rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 -translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-150 z-30"
+        style={{ marginLeft: shift, background: "var(--ink)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>Resets on {label}</span>
+    </span>
+  );
+}
+
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
 function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
@@ -12260,13 +12288,9 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
     <div className="relative rounded-2xl p-5" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
       <div className="relative flex items-start justify-between gap-3 mb-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85 leading-snug" style={{ letterSpacing: "0.06em" }}>
-          {title}{hint && <> <InfoHint dir="down" align={hintAlign} hint={hint} tone="light" /></>}
+          {title}
         </h3>
-        {resetLabel && (
-          <span className="shrink-0 text-white/70 hover:text-white transition-colors cursor-help" title={`Resets on ${resetLabel}`} aria-label={`Resets on ${resetLabel}`}>
-            <Icon name="calendar" className="w-4 h-4" />
-          </span>
-        )}
+        {resetLabel && <ResetBadge label={resetLabel} />}
       </div>
       <div className="relative flex items-baseline gap-1.5 mb-2.5">
         <span className="text-2xl font-bold font-display tnum leading-none text-white">{used}</span>
@@ -12278,7 +12302,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       {note && <p className="relative text-xs mt-2.5 leading-relaxed text-center" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
       {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
       {onBuyCredits && typeof purchased === "number" && (
-        <div className="relative mt-3 pt-3 flex items-baseline justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.22)" }}>
+        <div className="relative mt-3 flex items-baseline justify-between">
           <span className="text-[11px] text-white/80">Purchased credits</span>
           <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "0 left"}</span>
         </div>
