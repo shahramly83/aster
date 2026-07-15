@@ -11471,7 +11471,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               const salary = formatSalary(job);
               const chips = [job.location, job.employment_type?.replace("_", "-"), job.remote_type, job.seniority_level].filter(Boolean);
               const paused = pausedIds.has(job.id);
-              const n = applicantCountFor(job.id);
+              // A closed role rejected everyone but hires, so its headline count
+              // reflects the hire(s), not the full historical applicant total.
+              const n = job.status === "closed" ? stageCountsFor(job.id).hired : applicantCountFor(job.id);
               const badge = job.approvalStatus === "pending"
                 ? { bg: "#EEF2FF", color: "#3730A3", dot: "#6366F1", label: "requested" }
                 : paused
@@ -11575,7 +11577,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     {pageJobs.map((job) => {
                       const salary = formatSalary(job);
                       const paused = pausedIds.has(job.id);
-                      const n = applicantCountFor(job.id);
+                      // A closed role rejected everyone but hires, so its headline count
+              // reflects the hire(s), not the full historical applicant total.
+              const n = job.status === "closed" ? stageCountsFor(job.id).hired : applicantCountFor(job.id);
                       const badge = paused
                         ? { bg: "#FEF3C7", color: "#92400E", dot: "#D97706", label: "unpublished" }
                         : job.status === "open"
