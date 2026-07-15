@@ -10525,17 +10525,17 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             <UsageMeter
               plan={plan}
-              title="Usage this month"
-              hint="Screening is when AI reads a resume and pulls out the candidate's details. Each screened resume counts toward your monthly plan limit."
-              used={usedThisMonth} limit={uploadLimit} unit="resumes screened"
+              title="Resume screening credits this cycle"
+              hint="Each resume Aster screens uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
+              used={usedThisMonth} limit={uploadLimit} unit="credits used"
               danger={outOfQuota}
               note={uploadLimit === Infinity
                 ? `${planName} plan, unlimited screening.`
                 : outOfQuota
-                  ? `Out of credits. Buy more to keep screening, or your monthly plan resets ${uploadResetLabel}.`
+                  ? `You've used all ${uploadLimit} credits. Resets ${uploadResetLabel}.`
                   : onPurchased
                     ? `Your monthly plan is used up. You're now screening with purchased credits.`
-                    : `${monthlyRemaining} resume${monthlyRemaining === 1 ? "" : "s"} left on your ${planName} plan.`}
+                    : `${monthlyRemaining} credit${monthlyRemaining === 1 ? "" : "s"} left this cycle. Resets ${uploadResetLabel}.`}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
               purchased={uploadLimit === Infinity ? null : purchasedBalance}
