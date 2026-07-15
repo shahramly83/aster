@@ -20084,7 +20084,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           </button>
                           {(() => { const on = shortlistedApps.has(a.applicationId); return (
                             <button
-                              onClick={() => onToggleShortlist(a.applicationId)}
+                              onClick={() => onToggleShortlist(a.applicationId, a.candidateId)}
                               aria-label={on ? "Remove from your shortlist" : "Add to your shortlist"}
                               title={on ? "Shortlisted by you. Tap to remove." : "Add to your shortlist"}
                               className="shrink-0 transition-opacity hover:opacity-70"
@@ -21448,11 +21448,19 @@ export default function ResumeAIPreview() {
   }, [companyId, userId]);
 
   // Star / unstar a candidate for the signed-in user (optimistic; persisted).
-  const toggleShortlist = (applicationId) => {
+  // Starring also advances the pipeline Applied -> Shortlisted so the star and the
+  // stage stay in sync. Un-starring moves it back only if it is still at
+  // Shortlisted, so it never drags a candidate back from Interview/Offer/Hired.
+  const toggleShortlist = (applicationId, candidateId = null) => {
     if (!applicationId) return;
     const on = !shortlistedApps.has(applicationId);
     setShortlistedApps((prev) => { const next = new Set(prev); if (on) next.add(applicationId); else next.delete(applicationId); return next; });
     if (canPersist) dbSetShortlist(companyId, userId, applicationId, on);
+    if (candidateId) {
+      const cur = stageOverrides[candidateId] ?? stageForCandidate(candidateId);
+      if (on && cur === "applied") setCandidateStage(candidateId, "shortlisted", { notify: false });
+      else if (!on && cur === "shortlisted") setCandidateStage(candidateId, "applied", { notify: false });
+    }
   };
 
   const hydrateWorkspace = async (companyId, opts = {}) => {
