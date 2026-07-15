@@ -11411,7 +11411,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       <span className="text-[11px] font-medium inline-flex items-center gap-1" style={{ color: "#92400E" }}>
                         <Icon name="lock" className="w-3 h-3" /> Unpublished, out of screening credits
                       </span>
-                      <button onClick={() => setBuyApplicantOpen(true)} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
+                      <button onClick={() => navigate("billing")} className="text-[11px] font-semibold shrink-0" style={{ color: "var(--brand)" }}>Reactivate</button>
                     </div>
                   )}
                   {job.approvalStatus === "pending" && (
