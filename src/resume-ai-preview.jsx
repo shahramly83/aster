@@ -13325,7 +13325,7 @@ const INTERVIEW_STAGE_META = {
   confirmed:          { label: "Confirmed",          bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
   scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
-  completed:          { label: "Interview done",     bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
+  completed:          { label: "Interview complete",     bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
   offer:              { label: "Offer",              bg: "#F5F3FF", color: "#6D28D9", dot: "#8B5CF6" },
   hired:              { label: "Hired",              bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   rejected:           { label: "Not selected",       bg: "#FEF2F2", color: "#B42318", dot: "#DC2626" },
@@ -14029,7 +14029,7 @@ function scheduledInterviewsFrom(bookings, candidates) {
 
 // Every candidate with a live interview (times sent OR a confirmed slot),
 // tagged with the viewer's process stage. Interviewers get scorecard-aware
-// stages; managers see "Interview done" once the slot is in the past.
+// stages; managers see "Interview complete" once the slot is in the past.
 function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUserId = null, forInterviewer = false) {
   const now = Date.now();
   const rows = Object.entries(bookings || {})
@@ -18862,7 +18862,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <div className="mt-2">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Team scorecards</span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview done · {interviewWhen}</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview complete · {interviewWhen}</span>
             </div>
             {soloInterview ? (
               <div className="mb-3 rounded-xl border px-4 py-2.5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -18898,7 +18898,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <div className="mt-6">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Your scorecard</span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview done · {interviewWhen}</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview complete · {interviewWhen}</span>
             </div>
             <ScorecardPanel
               scorecards={scorecards}
