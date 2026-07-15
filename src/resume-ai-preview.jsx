@@ -11211,6 +11211,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const SOURCE_PRESETS = ["LinkedIn", "Career Page", "Referral", "JobStreet", "Facebook", "WhatsApp"];
   const q = search.trim().toLowerCase();
   const jobIndex = new Map(jobs.map((j, i) => [j.id, i])); // 0 = most recently added
+  const statusRank = (j) => (j.status === "open" ? 0 : j.status === "draft" ? 1 : 2);
   const sortCmp = (a, b) => {
     if (sortBy === "applicants") return applicantCountFor(b.id) - applicantCountFor(a.id);
     if (sortBy === "oldest") return jobIndex.get(b.id) - jobIndex.get(a.id);
@@ -11223,8 +11224,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       const textOk = !q || j.title.toLowerCase().includes(q) || (j.department || "").toLowerCase().includes(q);
       return statusOk && textOk;
     })
-    // Open roles always stay above closed; the chosen sort orders within each group.
-    .sort((a, b) => ((a.status === "closed" ? 1 : 0) - (b.status === "closed" ? 1 : 0)) || sortCmp(a, b));
+    // Open roles always sit at the top, then drafts, then closed; the chosen sort
+    // orders within each group.
+    .sort((a, b) => (statusRank(a) - statusRank(b)) || sortCmp(a, b));
   const SORT_LABELS = { newest: "Newest", applicants: "Most applicants", oldest: "Oldest", az: "A–Z" };
   const openCount = jobs.filter((j) => j.status === "open").length;
   const closedCount = jobs.filter((j) => j.status === "closed").length;
