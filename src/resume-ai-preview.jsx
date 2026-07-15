@@ -9610,9 +9610,9 @@ const CREDIT_KINDS = [
 ];
 
 function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen", pickKind = false }) {
-  // Single-kind (from a meter's Buy button): one input, default 50. pickKind (from
-  // Billing): a quantity per kind, default 0, one combined checkout.
-  const [qty, setQty] = useState(50);
+  // Single-kind (from a meter's Buy button): one input. pickKind (from Billing): a
+  // quantity per kind. Both start empty (0) so the buyer types the amount they want.
+  const [qty, setQty] = useState("");
   const [qtys, setQtys] = useState({});   // { kind: number } for the basket
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -9677,7 +9677,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
         ) : (
           <>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
-            <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+            <input type="number" min="1" value={qty} placeholder="0" onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
           </>
         )}
 
