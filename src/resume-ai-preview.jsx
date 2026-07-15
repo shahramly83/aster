@@ -302,7 +302,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
-    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, scheduled_at, status, provider, attendees, meeting_link").eq("company_id", companyId),
+    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
@@ -410,17 +410,46 @@ async function loadWorkspaceData(companyId) {
 
   const bookings = {};
   for (const iv of ivRes.data || []) {
-    if (iv.status !== "scheduled" || !iv.scheduled_at) continue;
-    const start = new Date(iv.scheduled_at);
-    bookings[iv.candidate_id] = {
-      status: "scheduled",
-      jobId: iv.job_id,
-      confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
-      provider: iv.provider || "google",
-      attendees: Array.isArray(iv.attendees) ? iv.attendees : [],
-      meetingLink: iv.meeting_link || null,
-      request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer" },
-    };
+    const attendees = Array.isArray(iv.attendees) ? iv.attendees : [];
+    if (iv.status === "scheduled" && iv.scheduled_at) {
+      const start = new Date(iv.scheduled_at);
+      bookings[iv.candidate_id] = {
+        status: "scheduled",
+        jobId: iv.job_id,
+        confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
+        provider: iv.provider || "google",
+        attendees,
+        meetingLink: iv.meeting_link || null,
+        request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer" },
+      };
+      continue;
+    }
+    // A proposed (not-yet-confirmed) interview: rebuild the "sent" booking so the
+    // scheduling panel keeps showing the times the HM offered after a reload.
+    // Scheduled always wins if both exist for a candidate.
+    if (iv.status === "sent" && bookings[iv.candidate_id]?.status !== "scheduled") {
+      const proposed = Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [];
+      if (!proposed.length) continue;
+      const durMin = Math.max(1, Math.round((new Date(proposed[0].end) - new Date(proposed[0].start)) / 60000)) || 30;
+      bookings[iv.candidate_id] = {
+        status: "sent",
+        jobId: iv.job_id,
+        confirmedSlot: null,
+        provider: iv.provider || "google",
+        request: {
+          candidateId: iv.candidate_id,
+          candidateName: candNameById[iv.candidate_id] || null,
+          status: "sent",
+          jobId: iv.job_id,
+          jobTitle: jobTitle[iv.job_id] || "Interview",
+          interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer",
+          interviewerEmail: iv.interviewer_email || null,
+          proposed_slots: proposed,
+          slot_duration_minutes: durMin,
+          attendees,
+        },
+      };
+    }
   }
 
   const scorecards = {};
