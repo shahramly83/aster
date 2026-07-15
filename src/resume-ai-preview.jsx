@@ -11079,7 +11079,10 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
 // Soft brand tint for open roles; closed roles go grey to read as inactive.
 const JOB_CARD_BRAND = { bg: "#F5F8FF", tile: "var(--brand-soft)", ink: "var(--brand)", line: "#DCE4FB" };
 const JOB_CARD_GREY = { bg: "#F7F7F9", tile: "#ECECEF", ink: "#56566A", line: "var(--line-strong)" };
-const colorForJob = (job) => (job.status === "open" ? JOB_CARD_BRAND : JOB_CARD_GREY);
+// Drafts get a light-yellow card so an unpublished work-in-progress reads apart
+// from live (blue) and closed (grey) roles at a glance.
+const JOB_CARD_YELLOW = { bg: "#FFFBEB", tile: "#FEF3C7", ink: "#B45309", line: "#FDE68A" };
+const colorForJob = (job) => (job.status === "open" ? JOB_CARD_BRAND : job.status === "draft" ? JOB_CARD_YELLOW : JOB_CARD_GREY);
 
 // Plain-spoken "Posted …" recency for a job card. Null when no post date.
 const postedAgoLabel = (iso) => {
