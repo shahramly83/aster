@@ -80,10 +80,14 @@ Deno.serve(async (req) => {
     const { data: job } = iv.job_id
       ? await admin.from("jobs").select("title").eq("id", iv.job_id).maybeSingle()
       : { data: null };
-    const { data: comp } = await admin.from("companies").select("name, logo_url, timezone").eq("id", companyId).maybeSingle();
+    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", companyId).maybeSingle();
+    // Timezone loaded SEPARATELY so a missing column (0091 not deployed) can't null
+    // out the whole company row and drop the name/logo from the email.
+    let tz = "Asia/Kuala_Lumpur";
+    try { const { data: tzr } = await admin.from("companies").select("timezone").eq("id", companyId).maybeSingle(); if (tzr?.timezone) tz = tzr.timezone; } catch { /* pre-0091 */ }
     const companyName = comp?.name || "the hiring team";
     const roleTitle = job?.title || "the role";
-    const whenStr = fmtWhen(iv.scheduled_at, comp?.timezone || "Asia/Kuala_Lumpur");
+    const whenStr = fmtWhen(iv.scheduled_at, tz);
     const candidateName = cand?.full_name || "there";
     const linkHtml = `<p style="margin:16px 0;"><a href="${esc(link)}" style="color:#0B2AE0;font-weight:600;word-break:break-all;">${esc(link)}</a></p>`;
 

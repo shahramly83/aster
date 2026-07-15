@@ -129,13 +129,15 @@ async function runInterviewReminder(admin: Admin): Promise<number> {
     .lte("scheduled_at", windowEnd);
   let sent = 0;
   for (const iv of (ivs || []) as { id: string; company_id: string; candidate_id: string; job_id: string | null; scheduled_at: string; attendees: { email?: string }[] | null }[]) {
-    const { data: comp } = await admin.from("companies").select("name, logo_url, timezone").eq("id", iv.company_id).maybeSingle();
+    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", iv.company_id).maybeSingle();
+    let tz = "Asia/Kuala_Lumpur";
+    try { const { data: tzr } = await admin.from("companies").select("timezone").eq("id", iv.company_id).maybeSingle(); if (tzr?.timezone) tz = tzr.timezone; } catch { /* pre-0091 */ }
     const companyName = comp?.name || "the hiring team";
     const logoUrl = comp?.logo_url || null;
     let jobTitle = "the role";
     if (iv.job_id) { const { data: job } = await admin.from("jobs").select("title").eq("id", iv.job_id).maybeSingle(); jobTitle = job?.title || jobTitle; }
     const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
-    const dateTime = fmtWhen(iv.scheduled_at, comp?.timezone || "Asia/Kuala_Lumpur");
+    const dateTime = fmtWhen(iv.scheduled_at, tz);
 
     // 1) Candidate reminder (company-branded).
     if (cand?.email) {

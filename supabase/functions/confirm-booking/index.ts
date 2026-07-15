@@ -67,7 +67,11 @@ Deno.serve(async (req) => {
     }
 
     // Gather tokens for the two emails.
-    const { data: comp } = await admin.from("companies").select("name, logo_url, timezone").eq("id", iv.company_id).maybeSingle();
+    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", iv.company_id).maybeSingle();
+    // Timezone loaded SEPARATELY so a missing column (0091 not deployed) can't null
+    // out the whole company row and drop the name/logo from the email.
+    let tz = "Asia/Kuala_Lumpur";
+    try { const { data: tzr } = await admin.from("companies").select("timezone").eq("id", iv.company_id).maybeSingle(); if (tzr?.timezone) tz = tzr.timezone; } catch { /* pre-0091 */ }
     const companyName = comp?.name || "the hiring team";
     const logoUrl = comp?.logo_url || null;
     let jobTitle = "the role";
@@ -76,7 +80,7 @@ Deno.serve(async (req) => {
       jobTitle = job?.title || jobTitle;
     }
     const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
-    const dateTime = fmt(String(start), comp?.timezone || "Asia/Kuala_Lumpur");
+    const dateTime = fmt(String(start), tz);
 
     // A calendar invite (.ics) so both sides can add the interview to their own
     // calendar straight from the email. End time from the chosen slot, else +60m.
