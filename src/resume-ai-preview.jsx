@@ -9610,14 +9610,21 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
         {pickKind && (
           <div className="mb-4">
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Which credits?</label>
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-              {[["resume_screen", "Resume"], ["applicant_screen", "Applicant"], ["ai_rank", "AI Rank"]].map(([k, lbl]) => {
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                ["resume_screen", "Resume screening", "Bulk resume uploads"],
+                ["applicant_screen", "Applicant screening", "Inbound applications"],
+                ["ai_rank", "AI Rank", "Rank & shortlist"],
+              ].map(([k, lbl, sub]) => {
                 const on = pickedKind === k;
                 return (
                   <button key={k} onClick={() => { setPickedKind(k); setErr(null); }}
-                    className="flex-1 text-xs font-semibold rounded-lg py-1.5 transition-colors"
-                    style={on ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "var(--ink-2)" }}>
-                    {lbl}
+                    className="text-left rounded-xl px-3 py-2 transition-colors border"
+                    style={on
+                      ? { background: "#fff", borderColor: "var(--brand)", boxShadow: "0 0 0 1px var(--brand) inset" }
+                      : { background: "var(--bg)", borderColor: "var(--line)" }}>
+                    <span className="block text-xs font-semibold" style={{ color: on ? "var(--brand)" : "var(--ink)" }}>{lbl}</span>
+                    <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</span>
                   </button>
                 );
               })}
@@ -20983,6 +20990,9 @@ export default function ResumeAIPreview() {
   const [parseUsage, setParseUsage] = useState({ used: 0, limit: null, resetsAt: null });
   // Applicant parses are a separate allowance from bulk upload, metered separately.
   const [applicantParseUsage, setApplicantParseUsage] = useState({ used: 0, limit: null, resetsAt: null });
+  // Purchased applicant-screening top-up, so the admin apply preview can mirror the
+  // real "out of credits" pause the public page shows.
+  const [purchasedApplicantBal] = usePurchasedBalance("applicant_screen");
   // Persistent "Recent imports" log (loaded from import_runs on hydrate).
   const [importHistory, setImportHistory] = useState([]);
   // Save a finished bulk-import run: optimistic prepend, then persist + reconcile id.
@@ -22152,7 +22162,12 @@ export default function ResumeAIPreview() {
     // current (a job toggled closed after opening the preview reflects at once).
     const liveApplyJob = jobs.find((j) => j.id === previewApplyJob.id) || previewApplyJob;
     const _applyLimits = planLimits(plan);
-    const applyPaused = false; // job posting is metered per cycle now, not by a concurrent cap that pauses roles
+    // Mirror the real public-page pause: when the workspace is out of applicant
+    // screening credits (monthly pool AND purchased top-up both empty), the apply
+    // page closes. The admin preview should show the same, not a live form.
+    const _apScrLimit = applicantParseUsage.limit ?? planLimits(plan).parseApplicant;
+    const applyPaused = _apScrLimit != null && _apScrLimit !== Infinity
+      && (applicantParseUsage.used || 0) >= _apScrLimit && (purchasedApplicantBal || 0) <= 0;
     const hiredEmails = new Set(MOCK_CANDIDATES.filter((c) => hiredIds.has(c.id) && c.parsed?.email).map((c) => c.parsed.email.toLowerCase()));
     return (
       <Shell>
