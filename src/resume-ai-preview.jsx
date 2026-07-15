@@ -11589,11 +11589,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                         <Icon name="jobs" className="w-5 h-5" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
                           <h3 className="font-semibold font-display leading-snug min-w-0 group-hover/card:underline decoration-1 underline-offset-2" style={{ color: "var(--ink)" }}>{job.title}</h3>
-                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0" style={{ background: badge.bg, color: badge.color }}>
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} /> {badge.label}
-                          </span>
+                          {/* Status shown as just a coloured dot next to the title
+                              (green open · grey closed · amber draft/unpublished …);
+                              the label is on hover. */}
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: badge.dot }} title={badge.label} aria-label={badge.label} />
                         </div>
                         {job.department && <p className="text-xs mt-0.5 font-medium" style={{ color: color.ink }}>{job.department}</p>}
                       </div>
