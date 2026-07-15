@@ -12424,6 +12424,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const [ranked, setRanked] = useState(false);
   const [aiRank, setAiRank] = useState(null);       // { scores:{id:0..1}, reasons:{id:string} } from Claude
   const [aiRanking, setAiRanking] = useState(false); // request in flight
+  const rankStatus = useRotatingStep(aiRanking || matching, RANK_STEPS);
   // Any change to the filter criteria drops back to the plain (un-ranked) view.
   useEffect(() => { setRanked(false); setAiRank(null); }, [skillTags, industryTags, expLevels, tab]);
 
@@ -12699,7 +12700,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       <div className="rounded-2xl border p-4 flex items-center gap-3" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
         <span className="w-5 h-5 rounded-full shrink-0 animate-spin" style={{ border: "2.5px solid rgba(var(--brand-rgb),0.25)", borderTopColor: "var(--brand)" }} />
         <div className="min-w-0">
-          <p className="text-sm font-semibold" style={{ color: "var(--brand)" }}>Ranking with AI…</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--brand)" }}>{rankStatus}</p>
           <p className="text-xs" style={{ color: "var(--ink-2)" }}>Scoring your candidates{matchJob?.title ? ` against ${matchJob.title}` : ""}. This usually takes a few seconds.</p>
         </div>
       </div>
@@ -13076,7 +13077,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     <button onClick={() => askAiRank(runAiRank)} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
                       {aiRanking
                         ? <span className="w-3.5 h-3.5 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
-                        : <Icon name={outOfCredits ? "lock" : "matching"} className="w-3.5 h-3.5" />} {aiRanking ? "Ranking…" : outOfCredits ? "Out of credits" : "AI Rank"}
+                        : <Icon name={outOfCredits ? "lock" : "matching"} className="w-3.5 h-3.5" />} {aiRanking ? rankStatus : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
                   )}
                   <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
@@ -13110,7 +13111,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                       {matching
                         ? <span className="w-4 h-4 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
                         : <Icon name={outOfCredits ? "lock" : "matching"} className="w-4 h-4" />}
-                      {matching ? "Ranking…" : outOfCredits ? "Out of credits" : "AI Rank"}
+                      {matching ? rankStatus : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
                   </div>
                   {openJobs.length === 0 && (
@@ -14838,6 +14839,27 @@ const INSIGHT_STEPS = [
   "Checking for employment gaps…",
   "Almost there…",
 ];
+
+// Rotating status while AI Rank scores a pool of candidates against a role.
+const RANK_STEPS = [
+  "Reading each resume…",
+  "Scoring against the role…",
+  "Comparing candidates…",
+  "Ranking by fit…",
+  "Almost there…",
+];
+
+// Advance through `steps` on an interval while `active`, resetting when it ends.
+// A tiny shared helper for the "this isn't frozen" progress captions.
+function useRotatingStep(active, steps, ms = 2600) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (!active) { setStep(0); return; }
+    const id = setInterval(() => setStep((i) => Math.min(i + 1, steps.length - 1)), ms);
+    return () => clearInterval(id);
+  }, [active, steps, ms]);
+  return steps[step];
+}
 
 function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), onApplied, logoUrl = null, company = "", isPublic = false }) {
   // A tiny helper: the "admin preview" back link only makes sense inside the app.
@@ -19566,6 +19588,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const [filterMenuRef, filterUp] = useDropUp(filterOpen, 260);
   // Inline AI matching, ranks these applicants against the job.
   const [matching, setMatching] = useState(false);
+  const rankStatus = useRotatingStep(matching, RANK_STEPS);
   const [matchErr, setMatchErr] = useState(null);
   // Seed from any AI Rank scores already saved for this job (persisted last run),
   // so a candidate that was ranked before never gets re-ranked (or re-charged).
@@ -19771,9 +19794,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
             >
               {matching
-                ? <span className="w-4 h-4 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
+                ? <span className="w-4 h-4 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
                 : <Icon name={(outOfCredits || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />}
-              {matching ? "Ranking…" : outOfCredits ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
+              {matching ? rankStatus : outOfCredits ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
             </button>
           </div>
         </div>
