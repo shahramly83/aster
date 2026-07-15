@@ -12069,7 +12069,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       <div className="relative h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#FBBF24" : "#fff" }} />
       </div>
-      {note && <p className="relative text-xs mt-2.5 leading-relaxed" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
+      {note && <p className="relative text-xs mt-2.5 leading-relaxed text-center" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
       {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
       {onBuyCredits && typeof purchased === "number" && (
         <div className="relative mt-3 pt-3 flex items-baseline justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.22)" }}>
