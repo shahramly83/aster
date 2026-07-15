@@ -10571,13 +10571,8 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               plan={plan}
               title="Resume screening"
               hint="Each resume Aster screens uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
-              used={usedThisMonth} limit={uploadLimit} unit="credits used"
+              used={usedThisMonth} limit={uploadLimit} unit=""
               danger={outOfQuota}
-              note={uploadLimit === Infinity
-                ? `${planName} plan, unlimited screening.`
-                : monthlyRemaining === 0
-                  ? `You've used all ${uploadLimit} credits. Resets ${uploadResetLabel}.`
-                  : `${monthlyRemaining} credit${monthlyRemaining === 1 ? "" : "s"} left this cycle. Resets ${uploadResetLabel}.`}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
               purchased={uploadLimit === Infinity ? null : purchasedBalance}
@@ -11789,11 +11784,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   hint="Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
                   used={scrUsed}
                   limit={scrLimit}
-                  unit="credits used"
+                  unit=""
                   danger={scrOut}
-                  note={scrBlocked
-                    ? `You've used all ${scrLimit} credits. Resets ${scrResetLabel}.`
-                    : `${scrLeft} credit${scrLeft === 1 ? "" : "s"} left this cycle. Resets ${scrResetLabel}.`}
                   onManage={() => navigate("billing")}
                   onUpgrade={scrOut ? () => navigate("billing") : undefined}
                   purchased={scrLimit === Infinity ? null : purchasedApplicant}
@@ -13024,10 +13016,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       plan={plan}
       title="AI Rank"
       hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
-      used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit="credits used"
-      note={outOfRuns
-        ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${resetLabel}.`
-        : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left this cycle. Resets ${resetLabel}.`}
+      used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit=""
+      danger={outOfRuns}
       onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
       purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
       onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
@@ -19089,11 +19079,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 plan={plan}
                 title="AI Insight"
                 hint="Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
-                used={aiInsightsUsed} limit={insightsLimit} unit="credits used"
+                used={aiInsightsUsed} limit={insightsLimit} unit=""
                 danger={outOfInsightCredits}
-                note={outOfInsights
-                  ? `You've used all ${insightsLimit} credits.${insightResetLabel ? ` Resets ${insightResetLabel}.` : ""}`
-                  : `${insightsLeft} credit${insightsLeft === 1 ? "" : "s"} left this cycle.${insightResetLabel ? ` Resets ${insightResetLabel}.` : ""}`}
                 onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
                 purchased={purchasedAiInsight} onBuyCredits={() => setBuyInsightOpen(true)}
               />
@@ -20074,11 +20061,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
           used={matchRunsUsed}
           limit={limits.aiRunsPerMonth}
-          unit="credits used"
+          unit=""
           danger={outOfRuns}
-          note={outOfRuns
-            ? `You've used all ${limits.aiRunsPerMonth} credits. Resets ${aiRankResetLabel}.`
-            : `${runsLeft} credit${runsLeft === 1 ? "" : "s"} left this cycle. Resets ${aiRankResetLabel}.`}
           onUpgrade={() => navigate("billing")}
           upgradeLabel="Upgrade for more"
           purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
