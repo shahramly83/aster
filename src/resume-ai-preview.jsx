@@ -11135,9 +11135,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     onCloseJob(job.id); // reject every applicant except hired; profiles stay in the database
   };
 
-  // Only drafts can be deleted (published/closed roles keep their record).
+  // Drafts and closed roles can be deleted outright. A closed role's applications
+  // cascade away (candidates themselves stay in the database). An open role must
+  // be closed first. Deletion is confirmed via setConfirmDeleteJob.
   const deleteJob = (job) => {
-    if (!job || job.status !== "draft") return;
+    if (!job || (job.status !== "draft" && job.status !== "closed")) return;
     setJobs(jobs.filter((j) => j.id !== job.id));
     if (canPersist) dbDeleteJob(job.id);
   };
@@ -11273,9 +11275,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
               <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : job.status === "draft" ? "Publish role" : "Reopen this role"}
             </button>
-            {job.status === "draft" && (
+            {(job.status === "draft" || job.status === "closed") && (
               <button role="menuitem" onClick={() => { setMenuJob(null); setConfirmDeleteJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-rose-50" style={{ color: "#B91C1C" }}>
-                <Icon name="trash" className="w-4 h-4" /> Delete draft
+                <Icon name="trash" className="w-4 h-4" /> {job.status === "draft" ? "Delete draft" : "Delete role"}
               </button>
             )}
           </div>
@@ -11922,9 +11924,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       <ConfirmDialog
         open={!!confirmDeleteJob}
         tone="danger"
-        title="Delete this draft?"
-        body={`"${confirmDeleteJob?.title || "This draft"}" will be removed. Drafts aren't published and have no applicants, so nothing else is affected.`}
-        confirmLabel="Delete draft"
+        title={confirmDeleteJob?.status === "closed" ? "Delete this role?" : "Delete this draft?"}
+        body={confirmDeleteJob?.status === "closed"
+          ? `"${confirmDeleteJob?.title || "This role"}" and its application history will be removed for good. The candidates themselves stay in your database, only this posting and its links go. This can't be undone.`
+          : `"${confirmDeleteJob?.title || "This draft"}" will be removed. Drafts aren't published and have no applicants, so nothing else is affected.`}
+        confirmLabel={confirmDeleteJob?.status === "closed" ? "Delete role" : "Delete draft"}
         onConfirm={() => { deleteJob(confirmDeleteJob); setConfirmDeleteJob(null); }}
         onClose={() => setConfirmDeleteJob(null)}
       />
