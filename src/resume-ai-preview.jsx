@@ -885,6 +885,11 @@ html { scroll-behavior: smooth; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Hide the up/down spinner on number inputs that opt in via .no-spin */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.no-spin { -moz-appearance: textfield; appearance: textfield; }
+
 `;
 
 function Shell({ children }) {
@@ -9637,7 +9642,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
                   </div>
                   <input type="number" min="0" inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
                     onChange={(e) => { const v = e.target.value; setQtys((s) => ({ ...s, [l.k]: v })); setErr(null); }}
-                    className="w-20 rounded-lg bg-white border px-2 py-1.5 text-sm text-right tnum focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+                    className="no-spin w-20 rounded-lg bg-white border px-2 py-1.5 text-sm text-right tnum focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
                 </div>
               ))}
             </div>
@@ -9645,7 +9650,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
         ) : (
           <>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
-            <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+            <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
           </>
         )}
 
