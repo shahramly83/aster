@@ -15129,9 +15129,9 @@ This is what a candidate sees. A public page, no login, reached only through the
 
         {/* Company header, the company's logo when uploaded, else a mark + name.
             Centered on the success screen to line up with the centered confirmation. */}
-        <div className={`flex items-center gap-3 mb-6 ${stage === "done" ? "justify-center" : ""}`}>
+        <div className={`flex items-center gap-3 ${stage === "done" ? "justify-center mb-8" : "mb-6"}`}>
           {logoUrl ? (
-            <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-10 object-contain" style={{ maxWidth: 200 }} />
+            <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className={`object-contain ${stage === "done" ? "h-16" : "h-11"}`} style={{ maxWidth: stage === "done" ? 260 : 200 }} />
           ) : (
             <>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-5 h-5" /></div>
