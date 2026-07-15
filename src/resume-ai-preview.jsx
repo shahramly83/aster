@@ -18220,6 +18220,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     ? new Date(cycleResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : null;
   const [showOffer, setShowOffer] = useState(false);
+  const [pendingDecision, setPendingDecision] = useState(null); // 'offer' | 'reject' awaiting skip-scorecards confirm
   // Database-view invite: pick an open role, draft a re-engagement email, and
   // send it to the candidate's profile email. If they apply, they drop their
   // latest resume and move into the hiring workflow.
@@ -18266,10 +18267,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const allScored = attendedInterviewers.length === 0 || scoredCount >= attendedInterviewers.length;
   const scorecardsUnlocked = interviewPast;
   const decisionUnlocked = interviewPast && allScored;
-  // Which step is active. Opens on the furthest-unlocked step; the hiring manager
-  // can then click any unlocked step. (A step that unlocks later just becomes
-  // clickable, no auto-jump, so we don't fight the user's navigation.)
-  const [ivStep, setIvStep] = useState(() => (decisionUnlocked ? 3 : scorecardsUnlocked ? 2 : 1));
+  // Which step opens first. After the interview we land on Scorecards (step 2) so
+  // the panel's feedback is reviewed BEFORE the decision, never auto-jump straight
+  // to Decision (that read as silently skipping scorecards). Decision stays
+  // clickable when unlocked; deciding with no scorecards asks for confirmation.
+  const [ivStep, setIvStep] = useState(() => (scorecardsUnlocked ? 2 : 1));
 
   if (!candidate) {
     return (
@@ -18392,6 +18394,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       )}
 
       <BuyCreditsModal open={buyInsightOpen} onClose={() => { setBuyInsightOpen(false); reloadPurchasedAiInsight(); }} plan={plan} kind="ai_insight" />
+      <ConfirmDialog
+        open={!!pendingDecision}
+        title="Decide without scorecards?"
+        body={`No interviewer has submitted a scorecard for this interview, so this decision won't be backed by scored feedback. You can collect scorecards in step 2 first, or continue anyway.`}
+        confirmLabel={pendingDecision === "offer" ? "Continue to offer" : "Reject anyway"}
+        onConfirm={() => { const d = pendingDecision; setPendingDecision(null); if (d === "offer") setShowOffer(true); else if (d === "reject") onSetStage && onSetStage("rejected"); }}
+        onClose={() => setPendingDecision(null)}
+      />
     </div>
   );
 
@@ -18951,13 +18961,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               ) : (
                 <>
                   <p className="text-sm text-neutral-600 mb-3">
-                    Once your team has scored the interview, move {firstName} to the next step.
+                    {scoredCount > 0
+                      ? `Your team scored the interview. Move ${firstName} to the next step.`
+                      : `No scorecards have been submitted for this interview. Collect them in step 2, or decide without them.`}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setShowOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
+                    <button onClick={() => (scoredCount === 0 ? setPendingDecision("offer") : setShowOffer(true))} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
                       Make an offer →
                     </button>
-                    <button onClick={() => onSetStage && onSetStage("rejected")} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                    <button onClick={() => (scoredCount === 0 ? setPendingDecision("reject") : onSetStage && onSetStage("rejected"))} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
                       Reject
                     </button>
                   </div>
