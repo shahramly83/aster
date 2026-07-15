@@ -12203,12 +12203,11 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const showUpgrade = onUpgrade && !atTopPlan;
   return (
     <div className="relative rounded-2xl p-5" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
-      <div className="relative flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85" style={{ letterSpacing: "0.06em" }}>{title}</h3>
-          {hint && <InfoHint dir="down" align={hintAlign} hint={hint} tone="light" />}
-        </div>
-        {onManage && <button onClick={onManage} className="text-xs font-medium text-white/90 hover:text-white transition-colors">Manage</button>}
+      <div className="relative flex items-start justify-between gap-3 mb-2.5">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85 leading-snug" style={{ letterSpacing: "0.06em" }}>
+          {title}{hint && <> <InfoHint dir="down" align={hintAlign} hint={hint} tone="light" /></>}
+        </h3>
+        {onManage && <button onClick={onManage} className="text-xs font-medium text-white/90 hover:text-white transition-colors shrink-0">Manage</button>}
       </div>
       <div className="relative flex items-baseline gap-1.5 mb-2.5">
         <span className="text-2xl font-bold font-display tnum leading-none text-white">{used}</span>

@@ -217,17 +217,16 @@ begin
 
   alter table public.jobs enable trigger trg_charge_job_post;
 
-  -- Assign every non-owner teammate to the OPEN roles. Without a job_assignments
-  -- row an interviewer sees nothing at all: that table, not the interview panel, is
-  -- what RLS reads to decide which jobs and candidates they may look at. Seeding
-  -- jobs without it leaves the interviewer journey untestable.
+  -- Assign teammates to a SINGLE open role only, so the interviewer journey is
+  -- testable without pre-populating every job's interviewer panel. Each job is
+  -- meant to have its own interviewers, chosen per role, so the rest start empty.
+  -- (job_assignments, not the interview panel, is what RLS reads to decide which
+  -- jobs/candidates an interviewer may see, so at least one role needs it.)
   insert into public.job_assignments (job_id, profile_id, company_id, assigned_by)
   select j.id, p.id, v_company, v_owner
-    from public.jobs j
+    from (select id from public.jobs where company_id = v_company and status = 'open' order by created_at asc limit 1) j
     cross join public.profiles p
-   where j.company_id = v_company
-     and j.status = 'open'
-     and p.company_id = v_company
+   where p.company_id = v_company
      and p.status = 'active'
      and p.role in ('admin', 'interviewer')
   on conflict (job_id, profile_id) do nothing;
