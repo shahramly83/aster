@@ -933,6 +933,10 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 /* Smooth in-page scrolling for nav/footer anchor links (sections offset via scroll-mt-*) */
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* Always reserve the scrollbar gutter so the page never shifts sideways when the
+   scrollbar appears/disappears (e.g. minimise/restore, tab refocus, content that
+   grows past the viewport). This is what caused the "shaking". */
+html { scrollbar-gutter: stable; }
 /* Footer links: subtle hover to white with a tiny nudge */
 .footer-link { color: var(--ink-2); transition: color .18s ease; position: relative; }
 .footer-link:hover { color: var(--brand); }
