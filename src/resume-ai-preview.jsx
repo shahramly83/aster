@@ -12997,7 +12997,6 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         const yrs = c.parsed.years_of_experience;
         const role = c.parsed.experience?.[0]?.title;
         const descriptor = [seniorityFromYears(yrs), yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
-        const chips = (c.parsed.skills || []).slice(0, 4);
         return (
           <div key={c.id} className="rounded-2xl bg-white px-4 sm:px-5 py-4 border" style={{ borderColor: "var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,0.04)" }}>
             <div className="flex items-center gap-4">
@@ -13007,9 +13006,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               <div className="min-w-0 flex-1">
                 <button onClick={() => onViewCandidate(c.id)} className="text-left"><p className="text-sm font-semibold truncate hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p></button>
                 <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</p>
-                <div className="flex flex-wrap gap-1.5 mt-2">{chips.map((s) => <span key={s} className="text-[11px] rounded-full px-2 py-0.5 font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s}</span>)}</div>
               </div>
-              <button onClick={() => onViewCandidate(c.id)} className="shrink-0 text-xs font-semibold rounded-xl px-3.5 py-2 transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>View</button>
+              <button onClick={() => onViewCandidate(c.id)} aria-label={`View ${c.parsed.name}`} title="View candidate" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line)", color: "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-4 h-4" /></button>
             </div>
           </div>
         );
@@ -20372,8 +20370,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           onStageChange={(stage, emailSent) => setStage(a.candidateId, stage, emailSent)}
                         />
                       )}
-                      <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} aria-label={`View ${c.parsed.name}`} title="View candidate" className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
-                        <Icon name="eye" className="w-[18px] h-[18px]" />
+                      <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} aria-label={`View ${c.parsed.name}`} title="View candidate" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line)", color: "var(--ink-3)" }}>
+                        <Icon name="arrowUpRight" className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
