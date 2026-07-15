@@ -9569,16 +9569,19 @@ function usePurchasedBalance(kind) {
 // Buy top-up credits for a given kind. Base price per credit varies by kind
 // (resume/applicant $1, AI Rank $0.40) with a plan discount on top; the
 // buy-credits function re-derives the price server-side, so this is display only.
-function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen" }) {
+function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen", pickKind = false }) {
   const [qty, setQty] = useState(50);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [pickedKind, setPickedKind] = useState(kind);
   if (!open) return null;
+  // From a meter the kind is fixed; from Billing (pickKind) the buyer chooses it.
+  const activeKind = pickKind ? pickedKind : kind;
   const CREDIT = ({
     resume_screen: { base: 1, title: "Buy screening credits", blurb: "Extra screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
     applicant_screen: { base: 1, title: "Buy applicant screening credits", blurb: "Extra applicant screening credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
     ai_rank: { base: 0.4, title: "Buy AI Rank credits", blurb: "Extra AI Rank credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire." },
-  })[kind] || { base: 1, title: "Buy credits", blurb: "" };
+  })[activeKind] || { base: 1, title: "Buy credits", blurb: "" };
   const mult = ({ launch: 1, scale: 0.9, elite: 0.8, enterprise: 0.8 })[plan] ?? 1;
   const disc = ({ launch: 0, scale: 10, elite: 20, enterprise: 20 })[plan] ?? 0;
   const unit = CREDIT.base * mult;
@@ -9588,7 +9591,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
     if (n < 1) { setErr("Enter at least 1 credit."); return; }
     if (!hasSupabase) { setErr("Connect a live workspace to buy credits."); return; }
     setBusy(true); setErr(null);
-    const { data, error } = await supabase.functions.invoke("buy-credits", { body: { quantity: n, kind, return_url: window.location.origin, return_path: window.location.pathname } });
+    const { data, error } = await supabase.functions.invoke("buy-credits", { body: { quantity: n, kind: activeKind, return_url: window.location.origin, return_path: window.location.pathname } });
     if (error || !data?.url) {
       let msg = data?.error || "Couldn't start checkout.";
       try { const d = await error?.context?.json?.(); if (d?.error) msg = d.error; } catch { /* noop */ }
@@ -9604,6 +9607,23 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
           <button onClick={onClose} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
         </div>
         <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{CREDIT.blurb}</p>
+        {pickKind && (
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Which credits?</label>
+            <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+              {[["resume_screen", "Resume"], ["applicant_screen", "Applicant"], ["ai_rank", "AI Rank"]].map(([k, lbl]) => {
+                const on = pickedKind === k;
+                return (
+                  <button key={k} onClick={() => { setPickedKind(k); setErr(null); }}
+                    className="flex-1 text-xs font-semibold rounded-lg py-1.5 transition-colors"
+                    style={on ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "var(--ink-2)" }}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
         <input type="number" min="1" value={qty} onChange={(e) => { setQty(e.target.value); setErr(null); }} className="w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
         <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -14836,7 +14856,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
             <p className="text-xs" style={{ color: "#92400E" }}>
               Admin view: this role is unpublished because you're out of AI Applicant Screening credits. Candidates who open the link see the message below. Buy credits to start taking applications again.
             </p>
-            <button onClick={() => navigate("jobs")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Buy credits</button>
+            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3 py-1.5 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Buy credits</button>
           </div>
           )}
           <div className="text-center max-w-sm mx-auto mt-8">
@@ -15407,6 +15427,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   };
   // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
   const [cycle, setCycle] = useState(planCycle);
+  const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
   // Invoice history, read from Stripe so receipts live in Aster rather than only
   // behind a redirect to the portal.
@@ -15764,28 +15785,42 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                       </li>
                     ))}
                   </ul>
+                  {isCurrent ? (
+                    // On the current plan there's nothing to upgrade to, so pair the
+                    // "Current plan" state with a "Buy credits" action (top-ups).
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setBuyCreditsOpen(true)}
+                        className="flex-1 rounded-xl text-sm font-semibold py-2.5 brand-gradient text-white hover:opacity-90 hover:-translate-y-px transition-all"
+                      >
+                        Buy credits
+                      </button>
+                      <button
+                        disabled
+                        className="flex-1 rounded-xl text-sm font-semibold py-2.5 cursor-default"
+                        style={{ background: "rgba(0,0,0,0.04)", color: "var(--ink-3)", border: "1px solid var(--line)" }}
+                      >
+                        Current plan
+                      </button>
+                    </div>
+                  ) : (
                   <button
                     onClick={() => choosePlan(p)}
-                    disabled={isCurrent}
                     className={`w-full rounded-xl text-sm font-semibold py-2.5 transition-all ${
-                      isCurrent
-                        ? "cursor-default"
-                        : solid
-                          ? "brand-gradient text-white hover:opacity-90 hover:-translate-y-px"
-                          : "border hover:bg-neutral-50"
+                      solid
+                        ? "brand-gradient text-white hover:opacity-90 hover:-translate-y-px"
+                        : "border hover:bg-neutral-50"
                     }`}
-                    style={isCurrent
-                      ? { background: "rgba(255,255,255,0.6)", color: "var(--ink-3)", border: "1px solid var(--line)" }
-                      : solid
-                        ? undefined
-                        : { borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
+                    style={solid ? undefined : { borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
                   >
                     {label}
                   </button>
+                  )}
                 </div>
               );
             })}
           </div>
+          <BuyCreditsModal open={buyCreditsOpen} onClose={() => setBuyCreditsOpen(false)} plan={plan} pickKind />
 
           {/* Enterprise, highlighted separately */}
           <div className="mt-3 rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-4" style={{ borderColor: "#E6D3FF", background: "var(--brand-soft)" }}>
