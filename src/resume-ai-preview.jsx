@@ -11608,10 +11608,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       </div>
                     )}
 
-                    {job.posted_at && <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
-
                     {/* Description hidden on the card to keep it compact; full text is
-                        on the job details / apply page. */}
+                        on the job details / apply page. Posted date moved to the
+                        bottom of the card. */}
                     <div className="mt-4 flex-1 flex flex-col justify-end">
                       <JobPipelineBar jobId={job.id} closed={job.status === "closed"} />
                     </div>
@@ -11632,6 +11631,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     </div>
                     {jobMenu(job, true, jobsTourOn && jobsTourStep === "copylink" && !linkJob && job.id === firstOpenJobId)}
                   </div>
+                  {job.posted_at && <p className="text-[11px] mt-2.5 text-right" style={{ color: "var(--ink-3)" }}>{postedAgoLabel(job.posted_at)}</p>}
                 </div>
               );
             })}
