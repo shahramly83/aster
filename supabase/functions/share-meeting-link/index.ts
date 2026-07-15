@@ -19,7 +19,7 @@ const CORS = {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
-function fmtWhen(iso: string | null): string {
+function fmtWhen(iso: string | null, tz: string): string {
   if (!iso) return "the scheduled time";
   try {
     // Render in the company's local time (the interview was scheduled in it), not
@@ -27,9 +27,17 @@ function fmtWhen(iso: string | null): string {
     // a recipient elsewhere isn't misled.
     return new Date(iso).toLocaleString("en-US", {
       weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
-      timeZone: "Asia/Kuala_Lumpur", timeZoneName: "short",
+      timeZone: tz || "Asia/Kuala_Lumpur", timeZoneName: "short",
     });
-  } catch { return "the scheduled time"; }
+  } catch {
+    // A bad/unknown IANA zone would throw; fall back to the app default.
+    try {
+      return new Date(iso).toLocaleString("en-US", {
+        weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", timeZoneName: "short",
+      });
+    } catch { return "the scheduled time"; }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -72,10 +80,10 @@ Deno.serve(async (req) => {
     const { data: job } = iv.job_id
       ? await admin.from("jobs").select("title").eq("id", iv.job_id).maybeSingle()
       : { data: null };
-    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", companyId).maybeSingle();
+    const { data: comp } = await admin.from("companies").select("name, logo_url, timezone").eq("id", companyId).maybeSingle();
     const companyName = comp?.name || "the hiring team";
     const roleTitle = job?.title || "the role";
-    const whenStr = fmtWhen(iv.scheduled_at);
+    const whenStr = fmtWhen(iv.scheduled_at, comp?.timezone || "Asia/Kuala_Lumpur");
     const candidateName = cand?.full_name || "there";
     const linkHtml = `<p style="margin:16px 0;"><a href="${esc(link)}" style="color:#0B2AE0;font-weight:600;word-break:break-all;">${esc(link)}</a></p>`;
 

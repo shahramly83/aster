@@ -71,6 +71,13 @@ async function loadCustomerSession(userId, fallbackEmail) {
     const { data: f, error: fe } = await supabase.from("profiles").select("email_2fa_enabled").eq("id", userId).maybeSingle();
     email2fa = !fe && !!f?.email_2fa_enabled;
   } catch { /* column absent pre-migration: treat as off */ }
+  // Company timezone (0091). Read defensively so a missing column can't break the
+  // whole session load; default to the app's original assumption.
+  let companyTimezone = "Asia/Kuala_Lumpur";
+  try {
+    const { data: tzRow, error: tzErr } = await supabase.from("companies").select("timezone").eq("id", data.company_id).maybeSingle();
+    if (!tzErr && tzRow?.timezone) companyTimezone = tzRow.timezone;
+  } catch { /* column absent pre-0091: keep default */ }
   const sessionResult = {
     userId,
     companyId: data.company_id,
@@ -107,6 +114,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
     address: co.address || "",
     addressParts,
     registrationNo: co.registration_no || "",
+    companyTimezone,
   };
   return sessionResult;
 }
@@ -13944,14 +13952,22 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   );
 }
 
+// The active company timezone for rendering interview times, so the in-app views
+// agree with the emails (which render in company.timezone). Set once the session
+// loads; null falls back to the viewer's local zone. A module-level value keeps
+// every slot formatter consistent without threading a prop through every screen.
+let ACTIVE_TZ = null;
+function setActiveTimezone(tz) { ACTIVE_TZ = tz || null; }
+const withTz = (opts) => (ACTIVE_TZ ? { ...opts, timeZone: ACTIVE_TZ } : opts);
+
 function formatSlotDisplay(iso) {
-  return new Date(iso).toLocaleString("en-US", {
+  return new Date(iso).toLocaleString("en-US", withTz({
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  });
+  }));
 }
 
 // Turn a raw IANA timezone id ("Asia/Kuala_Lumpur") into a readable label with
@@ -13971,8 +13987,8 @@ function formatTimezone(tz) {
 function formatSlotRange(startIso, endIso) {
   if (!endIso) return formatSlotDisplay(startIso);
   const s = new Date(startIso), e = new Date(endIso);
-  const day = s.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  const t = (d) => d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" });
+  const day = s.toLocaleString("en-US", withTz({ weekday: "short", month: "short", day: "numeric" }));
+  const t = (d) => d.toLocaleString("en-US", withTz({ hour: "numeric", minute: "2-digit" }));
   return `${day}, ${t(s)} - ${t(e)}`;
 }
 
@@ -21142,6 +21158,10 @@ export default function ResumeAIPreview() {
   // joined `companyAddress` string above is derived from it for invoices.
   const [companyAddressParts, setCompanyAddressParts] = useState({ ...EMPTY_ADDRESS });
   const [companyRegNo, setCompanyRegNo] = useState("");
+  // The company's IANA timezone (0091). Every interview time renders through this
+  // so the in-app panel and the emails always agree, whatever zone the viewer is in.
+  const [companyTimezone, setCompanyTimezone] = useState("Asia/Kuala_Lumpur");
+  useEffect(() => { setActiveTimezone(companyTimezone); }, [companyTimezone]);
   const [plan, setPlan] = useState("scale");
   const [planCycle, setPlanCycle] = useState("monthly");
   // Both hydrated from subscriptions on sign-in: days left when status is
@@ -21498,6 +21518,7 @@ export default function ResumeAIPreview() {
       setCompanyAddress(sess.address || "");
       setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
       setCompanyRegNo(sess.registrationNo || "");
+      if (sess.companyTimezone) setCompanyTimezone(sess.companyTimezone);
       if (sess.plan) setPlan(sess.plan);
       setPlanCycle(sess.planCycle || "monthly");
       setTrialDaysLeft(sess.trialDaysLeft || 0);
@@ -21824,6 +21845,7 @@ export default function ResumeAIPreview() {
         setCompanyAddress(sess.address || "");
         setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
         setCompanyRegNo(sess.registrationNo || "");
+        if (sess.companyTimezone) setCompanyTimezone(sess.companyTimezone);
         if (sess.plan) setPlan(sess.plan);
         setPlanCycle(sess.planCycle || "monthly");
         setTrialDaysLeft(sess.trialDaysLeft || 0);

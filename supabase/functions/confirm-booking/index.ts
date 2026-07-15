@@ -23,13 +23,17 @@ function json(body: unknown, status = 200) {
 // Human-readable slot label. Render in the company's local time (the time the
 // interview was scheduled in) with the zone shown, so it matches the in-app panel
 // instead of showing a confusing UTC time.
-function fmt(iso: string): string {
+function fmt(iso: string, tz = "Asia/Kuala_Lumpur"): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    weekday: "short", day: "numeric", month: "short", year: "numeric",
+    hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  };
   try {
-    return new Intl.DateTimeFormat("en-US", {
-      weekday: "short", day: "numeric", month: "short", year: "numeric",
-      hour: "numeric", minute: "2-digit", timeZone: "Asia/Kuala_Lumpur", timeZoneName: "short",
-    }).format(new Date(iso));
-  } catch { return iso; }
+    return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: tz }).format(new Date(iso));
+  } catch {
+    try { return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "Asia/Kuala_Lumpur" }).format(new Date(iso)); }
+    catch { return iso; }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -63,7 +67,7 @@ Deno.serve(async (req) => {
     }
 
     // Gather tokens for the two emails.
-    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", iv.company_id).maybeSingle();
+    const { data: comp } = await admin.from("companies").select("name, logo_url, timezone").eq("id", iv.company_id).maybeSingle();
     const companyName = comp?.name || "the hiring team";
     const logoUrl = comp?.logo_url || null;
     let jobTitle = "the role";
@@ -72,7 +76,7 @@ Deno.serve(async (req) => {
       jobTitle = job?.title || jobTitle;
     }
     const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
-    const dateTime = fmt(String(start));
+    const dateTime = fmt(String(start), comp?.timezone || "Asia/Kuala_Lumpur");
 
     // 1) Candidate confirmation.
     if (cand?.email) {

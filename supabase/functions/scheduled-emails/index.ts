@@ -19,13 +19,17 @@ const SITE = "https://hireaster.com";
 
 // Human-readable slot label. Render in the company's local time (same convention
 // as confirm-booking) so reminders match the time shown in the app.
-function fmtWhen(iso: string): string {
+function fmtWhen(iso: string, tz = "Asia/Kuala_Lumpur"): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    weekday: "short", day: "numeric", month: "short",
+    hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  };
   try {
-    return new Intl.DateTimeFormat("en-US", {
-      weekday: "short", day: "numeric", month: "short",
-      hour: "numeric", minute: "2-digit", timeZone: "Asia/Kuala_Lumpur", timeZoneName: "short",
-    }).format(new Date(iso));
-  } catch { return iso; }
+    return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: tz }).format(new Date(iso));
+  } catch {
+    try { return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "Asia/Kuala_Lumpur" }).format(new Date(iso)); }
+    catch { return iso; }
+  }
 }
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -125,13 +129,13 @@ async function runInterviewReminder(admin: Admin): Promise<number> {
     .lte("scheduled_at", windowEnd);
   let sent = 0;
   for (const iv of (ivs || []) as { id: string; company_id: string; candidate_id: string; job_id: string | null; scheduled_at: string; attendees: { email?: string }[] | null }[]) {
-    const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", iv.company_id).maybeSingle();
+    const { data: comp } = await admin.from("companies").select("name, logo_url, timezone").eq("id", iv.company_id).maybeSingle();
     const companyName = comp?.name || "the hiring team";
     const logoUrl = comp?.logo_url || null;
     let jobTitle = "the role";
     if (iv.job_id) { const { data: job } = await admin.from("jobs").select("title").eq("id", iv.job_id).maybeSingle(); jobTitle = job?.title || jobTitle; }
     const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
-    const dateTime = fmtWhen(iv.scheduled_at);
+    const dateTime = fmtWhen(iv.scheduled_at, comp?.timezone || "Asia/Kuala_Lumpur");
 
     // 1) Candidate reminder (company-branded).
     if (cand?.email) {
