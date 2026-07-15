@@ -300,7 +300,7 @@ async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes, offRes] = await Promise.all([
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
-    supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, experience_insights, created_at").eq("company_id", companyId),
+    supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, scheduled_at, status, provider, attendees, meeting_link").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
@@ -445,8 +445,14 @@ async function loadWorkspaceData(companyId) {
 
   // Stored AI Experience Insights, keyed by candidate id, so a generated read is
   // shown for good (the credit was already spent) instead of a session-only cache.
+  // Loaded SEPARATELY and fault-tolerantly: before migration 0090 the column
+  // doesn't exist, and folding it into the main candidates SELECT would fail that
+  // whole query, dropping every candidate (lists empty while counts still show).
   const experienceInsights = {};
-  for (const c of candRes.data || []) if (c.experience_insights) experienceInsights[c.id] = c.experience_insights;
+  try {
+    const { data: eiRows } = await supabase.from("candidates").select("id, experience_insights").eq("company_id", companyId);
+    for (const r of eiRows || []) if (r.experience_insights) experienceInsights[r.id] = r.experience_insights;
+  } catch { /* column missing / offline: no stored insights, candidates still load */ }
 
   // Offers, keyed by candidate: their current status (sent | accepted | declined).
   const offers = {};
