@@ -223,6 +223,20 @@ export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = 
 // Replace the whole interview panel (used when the hiring manager substitutes an
 // interviewer who's dropped out). Writes the attendees jsonb of the candidate's
 // scheduled interview. RLS (interviews_admin) allows owner/admin to update.
+// Confirm a proposed interview to a chosen slot: flip the candidate's most recent
+// 'sent' interview to 'scheduled' and stamp the time. Used when the interview is
+// confirmed from inside the app (the public /book page uses the confirm-booking
+// edge function instead). RLS (interviews_admin) allows owner/admin to update.
+export async function dbConfirmBooking(companyId, candidateId, startIso) {
+  if (!hasSupabase || !companyId || !candidateId || !startIso) return;
+  const { data } = await supabase
+    .from("interviews").select("id").eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "sent")
+    .limit(1).maybeSingle();
+  if (!data) return;
+  const { error } = await supabase.from("interviews").update({ status: "scheduled", scheduled_at: startIso }).eq("id", data.id);
+  if (error) console.error("dbConfirmBooking", error.message);
+}
+
 export async function dbSetInterviewAttendees(companyId, candidateId, attendees = []) {
   if (!hasSupabase || !companyId || !candidateId) return;
   const { data } = await supabase
