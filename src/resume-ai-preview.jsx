@@ -9660,6 +9660,10 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   // Real parses used this cycle, from the server meter. Refreshed after each
   // import (onImported re-runs hydrateWorkspace, which refetches parse usage).
   const usedThisMonth = parseUsage?.used ?? 0;
+  // Credits reset on a 30-day cycle from signup, not the 1st of the month.
+  const uploadResetLabel = parseUsage?.resetsAt
+    ? new Date(parseUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : "next cycle";
   const monthlyRemaining = uploadLimit === Infinity ? Infinity : Math.max(0, uploadLimit - usedThisMonth);
   // Effective allowance = what's left in the monthly pool PLUS any purchased top-up.
   // Uploads spend the monthly pool first (enforced server-side), and spill into the
@@ -9985,7 +9989,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 </span>
                 <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You're out of screening credits</p>
                 <p className="text-sm mt-1.5 max-w-md mx-auto" style={{ color: "var(--ink-3)" }}>
-                  You've used your {uploadLimit} monthly screenings on the {planName} plan, and any credits you bought. Buy more to keep going, or your monthly plan resets on the 1st.
+                  You've used your {uploadLimit} monthly screenings on the {planName} plan, and any credits you bought. Buy more to keep going, or your monthly plan resets {uploadResetLabel}.
                 </p>
                 <button onClick={() => setBuyOpen(true)} className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="upload" className="w-4 h-4" /> Buy credits
@@ -10084,7 +10088,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       </p>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
                         {outOfQuota
-                          ? `You've used your monthly plan and any purchased credits. Buy more to keep screening, or your monthly plan resets on the 1st.`
+                          ? `You've used your monthly plan and any purchased credits. Buy more to keep screening, or your monthly plan resets ${uploadResetLabel}.`
                           : <>This batch has {files.length} resume{files.length === 1 ? "" : "s"}, but you have {remaining} credit{remaining === 1 ? "" : "s"} left (monthly plus purchased). Remove {files.length - remaining}, or buy more credits.</>}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2.5">
@@ -10421,7 +10425,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
               note={uploadLimit === Infinity
                 ? `${planName} plan, unlimited screening.`
                 : outOfQuota
-                  ? `Out of credits. Buy more to keep screening, or your monthly plan resets on the 1st.`
+                  ? `Out of credits. Buy more to keep screening, or your monthly plan resets ${uploadResetLabel}.`
                   : onPurchased
                     ? `Your monthly plan is used up. You're now screening with purchased credits.`
                     : `${monthlyRemaining} resume${monthlyRemaining === 1 ? "" : "s"} left on your ${planName} plan.`}
@@ -11570,20 +11574,24 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               // Monthly pool full but purchased top-up still covers inbound applicants.
               const scrOnPurchased = scrBlocked && purchasedApplicant > 0;
               const scrOut = scrBlocked && purchasedApplicant <= 0;
+              // Credits reset on a 30-day cycle from signup, not the 1st of the month.
+              const scrResetLabel = applicantParseUsage.resetsAt
+                ? new Date(applicantParseUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+                : "next cycle";
               return (
                 <UsageMeter
                   plan={plan}
                   title="AI Applicant Screening"
-                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets on the 1st. Buy extra credits to keep screening once it's used up."
+                  hint="Every applicant Aster screens against one of your roles uses one screening credit. Your plan includes a monthly pool that resets every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
                   used={scrUsed}
                   limit={scrLimit}
                   unit="screened"
                   danger={scrOut}
                   note={scrOut
-                    ? `Out of credits. New applicants aren't screened until you buy more, or your monthly plan resets on the 1st.`
+                    ? `Out of credits. New applicants aren't screened until you buy more, or your monthly plan resets ${scrResetLabel}.`
                     : scrOnPurchased
                       ? `Your monthly plan is used up. New applicants are now screened with your purchased credits.`
-                      : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this month.`}
+                      : `${scrLeft} applicant screening${scrLeft === 1 ? "" : "s"} left this cycle · resets ${scrResetLabel}.`}
                   onManage={() => navigate("billing")}
                   onUpgrade={scrOut ? () => navigate("billing") : undefined}
                   purchased={scrLimit === Infinity ? null : purchasedApplicant}
@@ -18723,7 +18731,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 hint="Each AI Experience Insights run uses one credit. Your plan includes a set number each month."
                 used={aiInsightsUsed} limit={insightsLimit} unit="used"
                 note={outOfInsights
-                  ? `You've used all ${insightsLimit} AI insight runs. Resets on the 1st.`
+                  ? `You've used all ${insightsLimit} AI insight runs. Resets on your 30-day cycle.`
                   : `${insightsLeft} insight run${insightsLeft === 1 ? "" : "s"} left this month.`}
                 onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
               />
