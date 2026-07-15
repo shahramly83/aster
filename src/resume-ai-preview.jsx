@@ -416,30 +416,40 @@ async function loadWorkspaceData(companyId) {
   // doesn't depend on a live candidates-array lookup when it's rendered.
   const candNameById = Object.fromEntries(candidates.map((c) => [c.id, c.parsed?.name || null]));
 
+  // Bookings live in two maps: `bookings` keyed by candidate (one per person, used
+  // by the dashboard/interview lists) and `bookingsByJob` keyed `${candidate}:${job}`
+  // so a candidate interviewing for SEVERAL roles keeps a separate booking per role
+  // (the profile scheduling panel reads this one). Scheduled always beats a pending
+  // 'sent' invite for the same key.
   const bookings = {};
+  const bookingsByJob = {};
+  const putBooking = (candId, jobId, b) => {
+    const cjKey = `${candId}:${jobId || ""}`;
+    if (bookingsByJob[cjKey]?.status !== "scheduled") bookingsByJob[cjKey] = b;
+    if (bookings[candId]?.status !== "scheduled") bookings[candId] = b;
+  };
   for (const iv of ivRes.data || []) {
     const attendees = Array.isArray(iv.attendees) ? iv.attendees : [];
     if (iv.status === "scheduled" && iv.scheduled_at) {
       const start = new Date(iv.scheduled_at);
-      bookings[iv.candidate_id] = {
+      putBooking(iv.candidate_id, iv.job_id, {
         status: "scheduled",
         jobId: iv.job_id,
         confirmedSlot: { start: start.toISOString(), end: new Date(start.getTime() + 30 * 60000).toISOString() },
         provider: iv.provider || "google",
         attendees,
         meetingLink: iv.meeting_link || null,
-        request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer" },
-      };
+        request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobId: iv.job_id, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer" },
+      });
       continue;
     }
     // A proposed (not-yet-confirmed) interview: rebuild the "sent" booking so the
     // scheduling panel keeps showing the times the HM offered after a reload.
-    // Scheduled always wins if both exist for a candidate.
-    if (iv.status === "sent" && bookings[iv.candidate_id]?.status !== "scheduled") {
+    if (iv.status === "sent") {
       const proposed = Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [];
       if (!proposed.length) continue;
       const durMin = Math.max(1, Math.round((new Date(proposed[0].end) - new Date(proposed[0].start)) / 60000)) || 30;
-      bookings[iv.candidate_id] = {
+      putBooking(iv.candidate_id, iv.job_id, {
         status: "sent",
         jobId: iv.job_id,
         confirmedSlot: null,
@@ -456,7 +466,7 @@ async function loadWorkspaceData(companyId) {
           slot_duration_minutes: durMin,
           attendees,
         },
-      };
+      });
     }
   }
 
@@ -495,7 +505,7 @@ async function loadWorkspaceData(companyId) {
   const offers = {};
   for (const o of offRes.data || []) offers[o.candidate_id] = { status: o.status };
 
-  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions, experienceInsights, offers };
+  return { jobs, candidates, applicantsByJob, matchesByJob, bookings, bookingsByJob, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions, experienceInsights, offers };
 }
 
 // ---------- Mock data (stands in for Supabase + Claude + Voyage in this preview) ----------
@@ -18168,7 +18178,11 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null }) {
+  // The interview belongs to a specific (candidate, job). Prefer the per-job
+  // booking for the role being viewed; fall back to the candidate-level prop (which
+  // covers a just-scheduled interview before the next hydrate).
+  const booking = (contextJobId ? bookingsByJob[`${candidate?.id}:${contextJobId}`] : null) || bookingProp;
   // The caller may not hand us a stage (e.g. an interviewer opening a profile
   // from "Your Interviews"), or hands a stale snapshot. Prefer the true stage
   // from the loaded pipeline so the header/pill never wrongly reads "Applied"
@@ -21277,6 +21291,9 @@ export default function ResumeAIPreview() {
   // Empty by default (no mock): real confirmed interviews hydrate from Supabase
   // via setBookings on login, and new ones the user books appear alongside.
   const [bookings, setBookings] = useState({});
+  // Per (candidate, job) bookings, so a candidate interviewing for several roles
+  // shows the right interview under each role (not just one shared across all).
+  const [bookingsByJob, setBookingsByJob] = useState({});
   // Stage overrides applied after the initial mock stage, keyed by candidate id.
   // Lets actions elsewhere (like a confirmed booking) advance the pipeline stage.
   const [stageOverrides, setStageOverrides] = useState({});
@@ -21652,6 +21669,7 @@ export default function ResumeAIPreview() {
     // fall back to the first job when the current id isn't a real one.
     setActiveJobId((cur) => (data.jobs.some((j) => j.id === cur) ? cur : (data.jobs[0]?.id || cur)));
     setBookings(data.bookings);
+    setBookingsByJob(data.bookingsByJob || {});
     setScorecards(data.scorecards);
     if (data.interviewers?.length) setInterviewers(data.interviewers);
     setPendingInvites(data.pendingInvites || []);
@@ -22042,6 +22060,14 @@ export default function ResumeAIPreview() {
         provider: prev[candidateId]?.provider || defaultProvider,
       },
     }));
+    // Keep the per-(candidate, job) map in sync so the profile panel reflects it
+    // immediately (the interview belongs to whichever job it was set up under).
+    setBookingsByJob((prev) => {
+      const jid = bookings[candidateId]?.jobId ?? "";
+      const key = `${candidateId}:${jid}`;
+      const existing = prev[key] || bookings[candidateId] || {};
+      return { ...prev, [key]: { ...existing, status: "scheduled", confirmedSlot: slot, provider: existing.provider || defaultProvider } };
+    });
     // Persist the confirmation so it survives a reload (the public /book page does
     // this via the confirm-booking function; in-app we update the row directly).
     if (canPersist && slot?.start) dbConfirmBooking(companyId, candidateId, slot.start);
@@ -22058,10 +22084,9 @@ export default function ResumeAIPreview() {
   // HR sent the invite (times proposed, awaiting candidate). On a live workspace,
   // persist the interview-invite row and email the candidate a link to /book/<token>.
   const markInviteSent = (candidateId, request) => {
-    setBookings((prev) => ({
-      ...prev,
-      [candidateId]: { status: "sent", jobId: request.jobId || null, request, confirmedSlot: null, provider: defaultProvider },
-    }));
+    const sentBooking = { status: "sent", jobId: request.jobId || null, request, confirmedSlot: null, provider: defaultProvider };
+    setBookings((prev) => ({ ...prev, [candidateId]: sentBooking }));
+    setBookingsByJob((prev) => ({ ...prev, [`${candidateId}:${request.jobId || ""}`]: sentBooking }));
     if (canPersist) {
       dbCreateInterviewInvite(companyId, {
         candidateId,
@@ -22726,6 +22751,7 @@ export default function ResumeAIPreview() {
               const bJob = b.jobId ?? b.request?.jobId ?? null;
               return (bJob == null || viewCandidateJobId == null || bJob === viewCandidateJobId) ? b : null;
             })()}
+            bookingsByJob={bookingsByJob}
             allBookings={bookings}
             onInviteSent={markInviteSent}
             provider={defaultProvider}
