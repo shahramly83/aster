@@ -15625,6 +15625,18 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   const openInvoice = invoices.find((i) => i.status === "open") || null;
 
   const prices = usePlanPrices();
+  // Prices loaded but empty = Stripe price secrets missing or mode-mismatched.
+  const pricesEmpty = prices && Object.keys(prices).length === 0;
+  const [priceDiag, setPriceDiag] = useState(null); // owner-only diagnostics
+  const [diagBusy, setDiagBusy] = useState(false);
+  const runPriceDiag = async () => {
+    setDiagBusy(true); setPriceDiag(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("get-plan-prices", { body: { debug: true } });
+      setPriceDiag(error ? { error: error.message || "call failed" } : data);
+    } catch (e) { setPriceDiag({ error: String(e?.message || e) }); }
+    setDiagBusy(false);
+  };
 
   // Stripe stores yearly plans as one yearly charge. The cards show a per-month
   // equivalent so the two cycles compare like for like, with the real total below.
@@ -15914,6 +15926,17 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               })}
             </div>
           </div>
+          {pricesEmpty && isOwner(profile?.role) && (
+            <div className="mb-4 rounded-xl border px-3 py-2.5" style={{ borderColor: "#FCD34D", background: "#FFFBEB" }}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs" style={{ color: "#92400E" }}>Prices aren&apos;t loading from Stripe. This is a config issue (the price secrets are unset, or don&apos;t match your key&apos;s test/live mode), not the plan itself.</p>
+                <button onClick={runPriceDiag} disabled={diagBusy} className="text-xs font-semibold shrink-0 rounded-lg px-3 py-1.5 bg-white border hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>{diagBusy ? "Checking…" : "Diagnose"}</button>
+              </div>
+              {priceDiag && (
+                <pre className="mt-2 text-[10px] leading-snug overflow-x-auto rounded-lg p-2" style={{ background: "#1f2937", color: "#e5e7eb" }}>{JSON.stringify(priceDiag, null, 2)}</pre>
+              )}
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-3 items-stretch">
             {PLANS.filter((p) => p.key !== "enterprise").map((p) => {
               const cycleMatters = p.key !== "enterprise";
