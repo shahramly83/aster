@@ -9,7 +9,7 @@
 // Secrets: RESEND_API_KEY (optional — sends are skipped if unset)
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, companyShell, emailShell, esc } from "../_shared/email.ts";
+import { sendEmail, companyShell, emailShell, esc, icsAttachment } from "../_shared/email.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +87,20 @@ Deno.serve(async (req) => {
     const candidateName = cand?.full_name || "there";
     const linkHtml = `<p style="margin:16px 0;"><a href="${esc(link)}" style="color:#0B2AE0;font-weight:600;word-break:break-all;">${esc(link)}</a></p>`;
 
+    // A calendar invite (.ics) with the meeting link as the location, so anyone
+    // who gets this email can add the interview to their calendar in one tap.
+    const startIso = iv.scheduled_at ? new Date(iv.scheduled_at).toISOString() : null;
+    const ics = startIso ? icsAttachment({
+      uid: `${iv.id}@hireaster.com`,
+      startIso,
+      endIso: new Date(new Date(startIso).getTime() + 60 * 60000).toISOString(),
+      title: `Interview: ${roleTitle} at ${companyName}`,
+      description: `Interview for the ${roleTitle} role at ${companyName}.\nVideo call: ${link}`,
+      location: link,
+      organizerName: companyName,
+    }) : null;
+    const attachments = ics ? [ics] : undefined;
+
     let candidateSent = false;
     const results: string[] = [];
 
@@ -103,8 +117,9 @@ Deno.serve(async (req) => {
             `<p>Hi ${esc(candidateName.split(" ")[0] || "there")},</p>` +
             `<p>Your interview for the <strong>${esc(roleTitle)}</strong> role is confirmed for <strong>${esc(whenStr)}</strong>. Join the video call here at that time:</p>` +
             linkHtml +
-            `<p>Please join a couple of minutes early to check your camera and mic. See you then.</p>`,
+            `<p>Add it to your calendar with the attached invite, and please join a couple of minutes early to check your camera and mic. See you then.</p>`,
         }),
+        attachments,
       });
       candidateSent = true;
       results.push("candidate");
@@ -129,9 +144,10 @@ Deno.serve(async (req) => {
             `<p>Hi ${esc((a?.name || "there").split(" ")[0] || "there")},</p>` +
             `<p>You're interviewing <strong>${esc(candidateName)}</strong> for the <strong>${esc(roleTitle)}</strong> role on <strong>${esc(whenStr)}</strong>. Join the panel here:</p>` +
             linkHtml +
-            `<p>Your scorecard for this candidate is ready in Aster once the interview is done.</p>`,
+            `<p>The attached calendar invite adds it to your calendar. Your scorecard for this candidate is ready in Aster once the interview is done.</p>`,
           footnote: "You're getting this because you're on this interview panel on Aster.",
         }),
+        attachments,
       });
       results.push("panel");
     }

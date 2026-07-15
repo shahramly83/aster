@@ -22,6 +22,12 @@ const SITE = "https://hireaster.com";
 const DEFAULT_FROM = "Aster <notifications@hireaster.com>";
 const DEFAULT_REPLY_TO = "support@hireaster.com";
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;       // base64-encoded content
+  contentType?: string;  // e.g. "text/calendar; method=REQUEST"
+}
+
 export interface SendEmailInput {
   to: string | string[];
   subject: string;
@@ -29,6 +35,7 @@ export interface SendEmailInput {
   text?: string;         // plain-text fallback; derived from html if omitted
   replyTo?: string;      // overrides EMAIL_REPLY_TO for this message
   from?: string;         // overrides EMAIL_FROM for this message
+  attachments?: EmailAttachment[];  // e.g. a calendar (.ics) invite
 }
 
 export interface SendEmailResult {
@@ -197,6 +204,37 @@ export function button(label: string, href: string): string {
     </td></tr></table>`;
 }
 
+// Build a calendar invite (.ics) the recipient can add to Google/Outlook/Apple
+// Calendar straight from the email. Times are UTC (the stored scheduled_at is),
+// which every calendar client renders in the viewer's own zone. Returns a ready
+// EmailAttachment, or null if the inputs are unusable.
+export function icsAttachment(opts: {
+  uid: string; startIso: string; endIso: string; title: string;
+  description?: string; location?: string; organizerName?: string; organizerEmail?: string;
+}): EmailAttachment | null {
+  try {
+    const dt = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+    const escI = (s: string) => String(s || "").replace(/([,;\\])/g, "\\$1").replace(/\r?\n/g, "\\n");
+    const now = dt(new Date().toISOString());
+    const lines = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Aster//Interview//EN", "CALSCALE:GREGORIAN", "METHOD:REQUEST",
+      "BEGIN:VEVENT",
+      `UID:${opts.uid}`, `DTSTAMP:${now}`, `DTSTART:${dt(opts.startIso)}`, `DTEND:${dt(opts.endIso)}`,
+      `SUMMARY:${escI(opts.title)}`,
+      opts.description ? `DESCRIPTION:${escI(opts.description)}` : "",
+      opts.location ? `LOCATION:${escI(opts.location)}` : "",
+      opts.organizerEmail ? `ORGANIZER;CN=${escI(opts.organizerName || opts.organizerEmail)}:mailto:${opts.organizerEmail}` : "",
+      "STATUS:CONFIRMED", "END:VEVENT", "END:VCALENDAR",
+    ].filter(Boolean);
+    const ics = lines.join("\r\n");
+    const content = btoa(String.fromCharCode(...new TextEncoder().encode(ics)));
+    return { filename: "interview.ics", content, contentType: "text/calendar; method=REQUEST; charset=UTF-8" };
+  } catch (e) {
+    console.error("[email] icsAttachment failed", e);
+    return null;
+  }
+}
+
 // Send one email. Never throws — returns a result object the caller can log.
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const key = Deno.env.get("RESEND_API_KEY");
@@ -219,6 +257,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         subject: input.subject,
         html: input.html,
         text,
+        ...(input.attachments?.length
+          ? { attachments: input.attachments.map((a) => ({ filename: a.filename, content: a.content, content_type: a.contentType })) }
+          : {}),
       }),
     });
     if (!resp.ok) {

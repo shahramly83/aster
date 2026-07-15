@@ -9,7 +9,7 @@
 // Secrets: RESEND_API_KEY (optional — skipped if unset)
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs, icsAttachment } from "../_shared/email.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -78,6 +78,20 @@ Deno.serve(async (req) => {
     const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
     const dateTime = fmt(String(start), comp?.timezone || "Asia/Kuala_Lumpur");
 
+    // A calendar invite (.ics) so both sides can add the interview to their own
+    // calendar straight from the email. End time from the chosen slot, else +60m.
+    const endIso = (match && (match as { end?: string }).end)
+      ? String((match as { end?: string }).end)
+      : new Date(new Date(String(start)).getTime() + 60 * 60000).toISOString();
+    const ics = icsAttachment({
+      uid: `${iv.id}@hireaster.com`,
+      startIso: String(start), endIso,
+      title: `Interview: ${jobTitle} at ${companyName}`,
+      description: `Interview for the ${jobTitle} role at ${companyName}.`,
+      organizerName: companyName,
+    });
+    const attachments = ics ? [ics] : undefined;
+
     // 1) Candidate confirmation.
     if (cand?.email) {
       try {
@@ -90,6 +104,7 @@ Deno.serve(async (req) => {
           to: cand.email,
           subject: renderTemplate(tpl.subject, tokens),
           html: companyShell({ companyName, logoUrl, heading: "Your interview is confirmed", preview: `Confirmed for ${dateTime}.`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)) }),
+          attachments,
         });
       } catch (e) { console.error("candidate confirmation email failed", e); }
     }
@@ -113,7 +128,7 @@ Deno.serve(async (req) => {
         const subject = renderTemplate(tpl.subject, tokens);
         const html = companyShell({ companyName, logoUrl, heading: "Interview scheduled", preview: `${cand?.full_name || "A candidate"} confirmed ${dateTime}.`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)), signoff: false });
         // Best-effort per recipient: one failure must not drop the rest.
-        await Promise.all([...recipients].map((to) => sendEmail({ to, subject, html }).catch((e) => console.error("interviewer email failed", to, e))));
+        await Promise.all([...recipients].map((to) => sendEmail({ to, subject, html, attachments }).catch((e) => console.error("interviewer email failed", to, e))));
       } catch (e) { console.error("interviewer emails failed", e); }
     }
 
