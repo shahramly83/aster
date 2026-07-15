@@ -10160,7 +10160,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 <span className="mx-auto mb-4 flex w-16 h-16 items-center justify-center rounded-2xl transition-transform group-hover:scale-105" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                   <Icon name="upload" className="w-8 h-8" />
                 </span>
-                <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{dragOver ? "Drop to add these files" : "Drag & drop resumes or a ZIP here"}</span>
+                <span className="block text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{dragOver ? "Drop to add these files" : "Upload"}</span>
                 <span className="block text-sm mt-1.5" style={{ color: "var(--ink-3)" }}>
                   PDF, Word, or a ZIP of up to 100
                 </span>
