@@ -9940,6 +9940,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
     setResultFilter("all");
     setViewingPast(run.label);
     setStage("done");
+    setUploadTab("import"); // show the reopened run in the main (Import) view
   };
   // Back to a fresh, empty upload screen. The run was already saved when it
   // finished (see the save-on-done effect), so navigating away never loses it.
@@ -10021,16 +10022,16 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 items-start">
           {/* Main workspace, dropzone while idle, results while parsing */}
           <div className="lg:col-span-2 space-y-5">
-        {stage === "idle" && (
+        {/* Import / Recent imports tabs: always visible so the user can jump back
+            to past runs even mid-import or on the results screen. */}
+        <div className="flex items-center gap-1 rounded-xl p-1 border" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
+          {[{ k: "import", label: "Import" }, { k: "recent", label: `Recent imports (${importHistory.length})` }].map((t) => (
+            <button key={t.k} type="button" onClick={() => setUploadTab(t.k)} className="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={uploadTab === t.k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "var(--ink-2)" }}>{t.label}</button>
+          ))}
+        </div>
+        {stage === "idle" && uploadTab === "import" && (
           <>
-            {files.length === 0 && (
-              <div className="flex items-center gap-1 rounded-xl p-1 border" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
-                {[{ k: "import", label: "Import" }, { k: "recent", label: `Recent imports (${importHistory.length})` }].map((t) => (
-                  <button key={t.k} type="button" onClick={() => setUploadTab(t.k)} className="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors" style={uploadTab === t.k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "var(--ink-2)" }}>{t.label}</button>
-                ))}
-              </div>
-            )}
-            {uploadTab === "import" && (<>
+            {(<>
             {files.length === 0 && outOfQuota && (
               /* Out of monthly parses, blocking state in place of the dropzone */
               <div className="rounded-2xl border bg-white act-shadow p-8 text-center" style={{ borderColor: "#FECACA" }}>
@@ -10164,62 +10165,62 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
             )}
 
             </>)}
-
-            {/* Recent imports, now its own tab: every past batch, reopenable as
-                a read-only log. */}
-            {uploadTab === "recent" && files.length === 0 && (
-              <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Recent imports</h2>
-                  <span className="text-xs" style={{ color: "var(--ink-3)" }}>{importHistory.length} run{importHistory.length === 1 ? "" : "s"}</span>
-                </div>
-                {importHistory.length === 0 ? (
-                  <div className="py-10 text-center">
-                    <span className="mx-auto mb-3 flex w-12 h-12 items-center justify-center rounded-2xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="clock" className="w-6 h-6" /></span>
-                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No imports yet</p>
-                    <p className="text-xs mt-1 max-w-xs mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Bulk-upload resumes from the Import tab and each run will show up here so you can reopen it.</p>
-                  </div>
-                ) : (
-                <div className="space-y-1">
-                  {importHistory.map((run) => {
-                    const stats = [
-                      { label: "screened", count: run.summary.parsed, color: "#16A34A" },
-                      { label: run.summary.duplicates === 1 ? "duplicate" : "duplicates", count: run.summary.duplicates, color: "var(--brand)" },
-                      { label: "possible match", count: run.summary.review, color: "#F59E0B" },
-                      { label: "needs review", count: run.summary.flagged, color: "#F59E0B" },
-                      { label: "skipped", count: run.summary.rejected, color: "#DC2626" },
-                    ].filter((st) => st.count > 0);
-                    return (
-                      <button key={run.id} onClick={() => reopenRun(run)} className="group w-full text-left rounded-xl p-2.5 transition-colors hover:bg-neutral-50">
-                        <div className="flex items-center gap-3">
-                          <span className="flex w-9 h-9 items-center justify-center rounded-lg shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                            <Icon name="clock" className="w-4 h-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{run.fileCount} file{run.fileCount === 1 ? "" : "s"} imported</p>
-                            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{run.label}</p>
-                          </div>
-                          <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-neutral-300 group-hover:text-neutral-500 transition-colors" />
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-12">
-                          {stats.map((st) => (
-                            <span key={st.label} className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-2)" }}>
-                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
-                              <span className="tnum font-medium">{st.count}</span> {st.label}
-                            </span>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                )}
-              </div>
-            )}
           </>
         )}
 
-        {stage !== "idle" && (
+        {/* Recent imports: past batches, reopenable as a read-only log. Its own tab,
+            shown whenever the Recent tab is active regardless of the import stage. */}
+        {uploadTab === "recent" && (
+          <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Recent imports</h2>
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{importHistory.length} run{importHistory.length === 1 ? "" : "s"}</span>
+            </div>
+            {importHistory.length === 0 ? (
+              <div className="py-10 text-center">
+                <span className="mx-auto mb-3 flex w-12 h-12 items-center justify-center rounded-2xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="clock" className="w-6 h-6" /></span>
+                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No imports yet</p>
+                <p className="text-xs mt-1 max-w-xs mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Bulk-upload resumes from the Import tab and each run will show up here so you can reopen it.</p>
+              </div>
+            ) : (
+            <div className="space-y-1">
+              {importHistory.map((run) => {
+                const stats = [
+                  { label: "screened", count: run.summary.parsed, color: "#16A34A" },
+                  { label: run.summary.duplicates === 1 ? "duplicate" : "duplicates", count: run.summary.duplicates, color: "var(--brand)" },
+                  { label: "possible match", count: run.summary.review, color: "#F59E0B" },
+                  { label: "needs review", count: run.summary.flagged, color: "#F59E0B" },
+                  { label: "skipped", count: run.summary.rejected, color: "#DC2626" },
+                ].filter((st) => st.count > 0);
+                return (
+                  <button key={run.id} onClick={() => reopenRun(run)} className="group w-full text-left rounded-xl p-2.5 transition-colors hover:bg-neutral-50">
+                    <div className="flex items-center gap-3">
+                      <span className="flex w-9 h-9 items-center justify-center rounded-lg shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                        <Icon name="clock" className="w-4 h-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{run.fileCount} file{run.fileCount === 1 ? "" : "s"} imported</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{run.label}</p>
+                      </div>
+                      <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-neutral-300 group-hover:text-neutral-500 transition-colors" />
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-12">
+                      {stats.map((st) => (
+                        <span key={st.label} className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-2)" }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
+                          <span className="tnum font-medium">{st.count}</span> {st.label}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            )}
+          </div>
+        )}
+
+        {stage !== "idle" && uploadTab === "import" && (
           <div className="space-y-4">
             {/* Reopened past run, read-only banner */}
             {viewingPast && (
