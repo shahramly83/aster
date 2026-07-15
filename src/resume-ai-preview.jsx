@@ -14885,18 +14885,12 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
           </div>
           )}
           <div className="text-center max-w-sm mx-auto mt-8">
-            <div className="flex items-center justify-center gap-2.5 mb-8">
+            <div className="flex items-center justify-center mb-10">
               {logoUrl ? (
-                <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-9 object-contain" style={{ maxWidth: 180 }} />
+                <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-16 object-contain" style={{ maxWidth: 260 }} />
               ) : (
-                <>
-                  <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
-                  {company && <span className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{company}</span>}
-                </>
+                company && <span className="text-xl font-semibold font-display" style={{ color: "var(--ink)" }}>{company}</span>
               )}
-            </div>
-            <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4">
-              <Icon name="clock" className="w-5 h-5" style={{ color: "var(--ink-3)" }} />
             </div>
             <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>No longer accepting applications</h1>
             <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
