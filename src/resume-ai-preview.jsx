@@ -13692,6 +13692,9 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
   const assigned = jobs.filter((j) => myJobIds.has(j.id) && j.status === "open" && (j.approvalStatus ?? "approved") === "approved");
   // Roles I've requested, any status.
   const myRequests = jobs.filter((j) => j.requestedBy && j.requestedBy === currentUserId);
+  // A requester can open their own request to review the details they submitted,
+  // even while it's still pending approval.
+  const [viewReq, setViewReq] = useState(null);
 
   return (
     <AccountShell title="Open Positions" navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
@@ -13738,16 +13741,57 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
             {myRequests.map((j) => {
               const st = REQUEST_STATUS[j.approvalStatus] || REQUEST_STATUS.pending;
               return (
-                <div key={j.id} className="rounded-2xl bg-white act-shadow border p-4 flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
+                <button key={j.id} onClick={() => setViewReq(j)} className="w-full text-left rounded-2xl bg-white act-shadow border p-4 flex items-center gap-3 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)" }}>
                   <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
                     <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>{j.department || j.location || "Role request"}{j.approvalStatus === "approved" ? (j.status === "open" ? " · approved and live" : " · approved, publishing when a slot frees") : ""}</p>
                   </div>
                   <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: st.bg, color: st.color }}>{st.label}</span>
-                </div>
+                  <Icon name="chevronRight" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
+                </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Read-only view of a position the interviewer requested (their own draft),
+          so they can review what they submitted even while it's pending approval. */}
+      {viewReq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setViewReq(null)}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 act-shadow max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>{viewReq.title}</h3>
+                <p className="text-sm mt-0.5" style={{ color: "var(--ink-3)" }}>{[viewReq.department, viewReq.location].filter(Boolean).join(" · ") || "Position request"}</p>
+              </div>
+              <button onClick={() => setViewReq(null)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+            </div>
+            {(() => { const st = REQUEST_STATUS[viewReq.approvalStatus] || REQUEST_STATUS.pending; return (
+              <span className="inline-flex mt-3 text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+            ); })()}
+            {viewReq.description && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--ink-3)" }}>Description</p>
+                <p className="text-sm whitespace-pre-line leading-relaxed" style={{ color: "var(--ink-2)" }}>{viewReq.description}</p>
+              </div>
+            )}
+            {Array.isArray(viewReq.requirements) && viewReq.requirements.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--ink-3)" }}>Requirements</p>
+                <ul className="text-sm space-y-1" style={{ color: "var(--ink-2)" }}>
+                  {viewReq.requirements.map((r, i) => <li key={i} className="flex gap-2"><span style={{ color: "var(--brand)" }}>&bull;</span><span>{r}</span></li>)}
+                </ul>
+              </div>
+            )}
+            <p className="text-xs mt-5" style={{ color: "var(--ink-3)" }}>
+              {viewReq.approvalStatus === "approved"
+                ? "Approved. It goes live when a job slot is free, and you'll be able to review its applicants here."
+                : viewReq.approvalStatus === "rejected"
+                  ? "This request wasn't approved."
+                  : "Waiting for a hiring manager to review and publish this position."}
+            </p>
           </div>
         </div>
       )}
