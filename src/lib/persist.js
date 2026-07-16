@@ -163,6 +163,15 @@ export async function dbUpdateCompany(companyId, { name, address = {}, registrat
   return { ok: true };
 }
 
+// Reset a reopened role's apply-page view analytics to zero (0096). Admin-gated
+// server-side. Best-effort: a failure just leaves the old view count.
+export async function dbClearJobViews(jobId) {
+  if (!hasSupabase || !jobId) return { ok: false };
+  const { error } = await supabase.rpc("clear_job_views", { p_job_id: jobId });
+  if (error) { console.error("dbClearJobViews", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 // Persist the workspace's billing currency preference (0095). Owner-only, enforced
 // server-side by set_company_currency. Governs fresh checkouts + credit top-ups.
 export async function dbSetCompanyCurrency(currency) {

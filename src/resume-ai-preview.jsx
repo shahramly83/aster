@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -22524,8 +22524,13 @@ export default function ResumeAIPreview() {
   // instant 0, delete server-side, then re-hydrate to reconcile.
   const reopenJobFresh = (jobId) => {
     APPLICANTS_BY_JOB[jobId] = [];
-    setJobs((prev) => [...prev]); // nudge a re-render so the count/pipeline show 0 now
-    if (canPersist) dbClearJobApplicants(companyId, jobId).then(() => { if (companyId) hydrateWorkspace(companyId); });
+    // Reopening starts fresh, so zero the apply-page view count too (optimistically
+    // here, then clear the rows server-side).
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, viewStats: { total: 0, uniques: 0, sources: {} } } : j)));
+    if (canPersist) {
+      dbClearJobViews(jobId);
+      dbClearJobApplicants(companyId, jobId).then(() => { if (companyId) hydrateWorkspace(companyId); });
+    }
   };
 
   // Delete a candidate for good. Applications and scorecards cascade via FK; a DB
