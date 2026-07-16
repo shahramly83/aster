@@ -13719,7 +13719,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const roleTagStyle = (label) => {
     const l = String(label || "").toLowerCase();
     if (l.includes("tenant")) return { background: "var(--brand-soft)", color: "var(--brand)" }; // blue
-    if (l.includes("interviewer")) return { background: "#CCFBF1", color: "#0F766E" };   // teal
+    if (l.includes("interviewer")) return { background: "#EDE9FE", color: "#6D28D9" };   // purple (distinct from the green Active pill)
     return { background: "var(--brand-soft)", color: "var(--brand)" };                    // hiring manager (blue)
   };
   const ownerCounted = interviewers.some((iv) => iv.role === "owner");
@@ -13966,62 +13966,70 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
           )}
 
-          {team.filter((iv) => roleFilter === "all" || iv.role === roleFilter).map((iv) => {
-            const upcoming = scheduledCountFor(iv);
-            const pending = iv.status === "pending";
-            return (
-              <div key={iv.id} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
+          {/* Everyone except the Tenant (rendered above), ordered Hiring Managers
+              then Interviewers, active before pending within a role. The same order
+              applies to pending invites, so a waiting Hiring Manager still sorts
+              ahead of any Interviewer. */}
+          {[
+            ...team.map((iv) => ({ ...iv, _kind: "active" })),
+            ...pendingInvites.map((inv) => ({ ...inv, _kind: "pending" })),
+          ]
+            .filter((m) => roleFilter === "all" || m.role === roleFilter)
+            .sort((a, b) => {
+              const rank = (r) => (r === "admin" ? 0 : 1);   // Hiring Manager before Interviewer
+              if (rank(a.role) !== rank(b.role)) return rank(a.role) - rank(b.role);
+              if (a._kind !== b._kind) return a._kind === "active" ? -1 : 1; // active before pending
+              return 0;
+            })
+            .map((m) => m._kind === "active" ? (
+              <div key={`t-${m.id}`} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
                 <button
-                  onClick={() => setRemoving(iv)}
+                  onClick={() => setRemoving(m)}
                   className="absolute top-4 right-4 text-xs text-neutral-400 hover:text-red-600 transition-colors"
                 >
                   Remove
                 </button>
                 <div className="flex items-center gap-3 pr-16">
-                  <CandidateAvatar name={iv.name} hasPhoto={false} size={48} showPhotoDot={false} />
+                  <CandidateAvatar name={m.name} hasPhoto={false} size={48} showPhotoDot={false} />
                   <div className="min-w-0">
-                    <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
+                    <p className="text-neutral-900 font-medium truncate">{m.name}</p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[iv.role] || "Interviewer")}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
-                        {pending ? "Invite pending" : "Active"}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[m.role] || "Interviewer")}>{ROLE_LABELS[m.role] || "Interviewer"}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={m.status === "pending" ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
+                        {m.status === "pending" ? "Invite pending" : "Active"}
                       </span>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-neutral-500 mt-2.5 truncate pl-[60px]">{iv.email}</p>
-                {upcoming > 0 && (
+                <p className="text-xs text-neutral-500 mt-2.5 truncate pl-[60px]">{m.email}</p>
+                {scheduledCountFor(m) > 0 && (
                   <p className="text-[11px] mt-2 pl-[60px] flex items-center gap-1" style={{ color: "var(--brand)" }}>
-                    <Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming interview{upcoming > 1 ? "s" : ""}
+                    <Icon name="calendar" className="w-3 h-3" /> {scheduledCountFor(m)} upcoming interview{scheduledCountFor(m) > 1 ? "s" : ""}
                   </p>
                 )}
               </div>
-            );
-          })}
-
-          {/* Pending invites (no account yet). They hold a seat until accepted. */}
-          {pendingInvites.filter((inv) => roleFilter === "all" || inv.role === roleFilter).map((inv) => (
-            <div key={inv.id} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
-              <button
-                onClick={() => revokeInvite(inv)}
-                disabled={revokeBusyId === inv.id}
-                className="absolute top-4 right-4 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40"
-                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
-              >
-                {revokeBusyId === inv.id ? "Revoking…" : "Revoke"}
-              </button>
-              <div className="flex items-center gap-3 pr-20">
-                <CandidateAvatar name={inv.email} hasPhoto={false} size={48} showPhotoDot={false} />
-                <div className="min-w-0">
-                  <p className="text-neutral-900 font-medium truncate">{inv.email}</p>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[inv.role] || "Interviewer")}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+            ) : (
+              <div key={`p-${m.id}`} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
+                <button
+                  onClick={() => revokeInvite(m)}
+                  disabled={revokeBusyId === m.id}
+                  className="absolute top-4 right-4 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40"
+                  style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
+                >
+                  {revokeBusyId === m.id ? "Revoking…" : "Revoke"}
+                </button>
+                <div className="flex items-center gap-3 pr-20">
+                  <CandidateAvatar name={m.email} hasPhoto={false} size={48} showPhotoDot={false} />
+                  <div className="min-w-0">
+                    <p className="text-neutral-900 font-medium truncate">{m.email}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[m.role] || "Interviewer")}>{ROLE_LABELS[m.role] || "Interviewer"}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
           {roleFilter === "interviewer"
             && team.filter((iv) => iv.role === "interviewer").length === 0
             && pendingInvites.filter((inv) => inv.role === "interviewer").length === 0 && (
