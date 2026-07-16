@@ -18003,8 +18003,8 @@ function InsightsDisplay({ insights }) {
         </div>
         {ea.career_progression && (
           <div className="mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
-            <span className="shrink-0 mt-0.5" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-4 h-4" /></span>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{ea.career_progression}</p>
+            <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>{ea.career_progression}</p>
           </div>
         )}
         {ea.employment_gaps.length > 0 ? (
