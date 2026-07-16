@@ -74,6 +74,65 @@ export async function charge(token: string, meter: Meter): Promise<Charge> {
   return { ok: true, used: row.used, limit: row.monthly_limit, resetsAt: row.resets_at, companyId: prof?.company_id, source: row.source };
 }
 
+export interface UnitCharge {
+  ok: boolean;
+  monthlyCharged?: number;    // how many of the N came from the monthly pool
+  purchasedCharged?: number;  // how many from purchased top-up
+  used?: number;
+  limit?: number | null;
+  resetsAt?: string | null;
+  available?: number;         // when !ok: credits the workspace CAN afford (partial run / top-up)
+  companyId?: string;
+  error?: string;
+}
+
+/**
+ * Charge N AI-Rank credits atomically (monthly pool first, then purchased),
+ * returning the split so a failed model call can refund exactly what it took.
+ * When the workspace can't afford N, NOTHING is charged and `available` says how
+ * many it could afford. Falls back to the 1-credit consume_ai_rank if the per-N
+ * RPC (migration 0097) isn't deployed yet, so AI Rank never fails closed.
+ */
+export async function chargeAiRankUnits(token: string, units: number): Promise<UnitCharge> {
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const companyId = await (async () => {
+    const { data: { user } } = await admin.auth.getUser(token);
+    const { data: prof } = await admin.from("profiles").select("company_id").eq("id", user?.id ?? "").maybeSingle();
+    return prof?.company_id as string | undefined;
+  })();
+
+  const { data, error } = await asUser.rpc("consume_ai_rank_units", { p_units: units });
+  // Per-N RPC not deployed yet → charge a single flat credit so the feature works.
+  if (error && (error.code === "42883" || error.code === "42501")) {
+    const one = await charge(token, "ai_rank");
+    if (!one.ok) return { ok: false, error: one.error, used: one.used, limit: one.limit, resetsAt: one.resetsAt, available: 0, companyId };
+    return { ok: true, monthlyCharged: one.source === "purchased" ? 0 : 1, purchasedCharged: one.source === "purchased" ? 1 : 0, used: one.used, limit: one.limit, resetsAt: one.resetsAt, companyId };
+  }
+  if (error) { console.error("consume_ai_rank_units failed", error.message); return { ok: false, error: "metering_unavailable", companyId }; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return { ok: false, error: "metering_unavailable", companyId };
+  if (!row.charged) return { ok: false, available: row.available, used: row.used, limit: row.monthly_limit, resetsAt: row.resets_at, error: "limit_reached", companyId };
+  return { ok: true, monthlyCharged: row.monthly_charged, purchasedCharged: row.purchased_charged, used: row.used, limit: row.monthly_limit, resetsAt: row.resets_at, available: row.available, companyId };
+}
+
+/** Refund an exact monthly/purchased split when the model call failed. */
+export async function refundAiRankUnits(companyId: string | undefined, monthly = 0, purchased = 0): Promise<void> {
+  if (!companyId || (monthly <= 0 && purchased <= 0)) return;
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { error } = await admin.rpc("refund_ai_rank_units", { p_company: companyId, p_monthly: monthly, p_purchased: purchased });
+  if (error && (error.code === "42883" || error.code === "42501")) {
+    // Per-N refund RPC absent (pre-0097): fall back to the single-credit refunds.
+    for (let i = 0; i < monthly; i++) await admin.rpc("refund_ai_rank_for", { p_company: companyId });
+    for (let i = 0; i < purchased; i++) await admin.rpc("refund_purchased_credit", { p_company: companyId, p_kind: "ai_rank" });
+    return;
+  }
+  if (error) console.error("refund_ai_rank_units failed", error.message);
+}
+
 /**
  * Give the credit back when *our* model call failed. Best effort. Refunds the
  * pool that actually paid: a purchased credit goes back to the purchased balance,

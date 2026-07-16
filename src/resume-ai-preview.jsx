@@ -19950,11 +19950,13 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState(null);
   const assigned = team.filter((m) => assignedIds.has(m.id));
-  // You can assign anyone on the team EXCEPT yourself (you already have access to
-  // every job you manage). Also drop anyone already assigned or with a still-
-  // pending invite (they can't be assigned until they accept).
+  // Only INTERVIEWERS can be assigned to a job. Hiring managers (admins) and the
+  // tenant already see every job and its applicants, so assigning them here is
+  // meaningless — this panel is purely for scoping job-restricted interviewers in.
+  // Also drop anyone already assigned or with a still-pending invite (they can't
+  // be assigned until they accept).
   const addable = team.filter((m) =>
-    !assignedIds.has(m.id) && !m.pending && m.id !== currentUserId);
+    m.role === "interviewer" && !assignedIds.has(m.id) && !m.pending && m.id !== currentUserId);
   // No one left to assign and none assigned: show the invite empty state so a
   // manager can bring an interviewer onto the team without leaving this screen.
   const needsTeam = canManage && addable.length === 0 && assigned.length === 0;
@@ -20127,6 +20129,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // when the monthly pool is out falls back to the purchased balance.
   const outOfCredits = outOfRuns && purchasedAiRank <= 0;
   const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
+  const [partialPrompt, setPartialPrompt] = useState(null); // { needed, available, count } when short on credits
   const askAiRank = (fn) => { if (outOfCredits) { setBuyAiRankOpen(true); return; } setConfirmRun(() => fn); };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
@@ -20209,17 +20212,23 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // credit, watched a spinner, and got nothing. Now it calls the same
   // rank-candidates function SearchScreen uses, persists the scores, and charges
   // only on success.
-  const runMatching = async () => {
-    if (outOfCredits) { setBuyAiRankOpen(true); return; }
+  // maxUnits (a partial run) caps the batch to that many credits' worth of the
+  // most-recent applicants when the workspace can't afford the whole pool.
+  const runMatching = async (maxUnits = null) => {
+    if (outOfCredits && !maxUnits) { setBuyAiRankOpen(true); return; }
     const job = jobs.find((j) => j.id === activeJobId);
     if (!job) return;
     // Only rank ACTIVE applicants: hired candidates are out of the running (but
     // stay visible in the list). AI Rank needs at least 2 of them to compare.
-    const activePool = applicants
+    let activePool = applicants
       .filter((a) => !hiredIds.has(a.candidateId) && (a.fit !== "other" || a.stage === "shortlisted"))
       .map((a) => MOCK_CANDIDATES.find((c) => c.id === a.candidateId))
-      .filter((c) => c && c.parsed);
+      .filter((c) => c && c.parsed)
+      .slice(0, 40);
+    // Partial run: keep only the first maxUnits*10 (the pool is newest-first).
+    if (maxUnits) activePool = activePool.slice(0, Math.max(2, maxUnits * 10));
     if (activePool.length < 2) { setMatchErr("AI Rank becomes available when at least 2 candidates are ready to rank."); return; }
+    const units = Math.max(1, Math.ceil(activePool.length / 10)); // 1 credit / 10 applicants
 
     setMatching(true);
     setMatchErr(null);
@@ -20227,14 +20236,20 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     try {
       if (!hasSupabase) { setMatching(false); return; }  // demo build: nothing to rank against
       // Re-rank EVERY active candidate on each run (including ones ranked before),
-      // so scores stay consistent as the pool changes. Each run costs 1 credit.
-      const payload = activePool.slice(0, 40).map((c) => ({
+      // so scores stay consistent as the pool changes.
+      const payload = activePool.map((c) => ({
         id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
         years: c.parsed?.years_of_experience ?? null,
         skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
       }));
       const roleInfo = { title: job.title, description: job.description || "", requirements: job.requirements || [] };
-      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload } });
+      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units } });
+      // Not enough credits for the whole run: offer a partial run or a top-up.
+      if (data?.error === "limit_reached") {
+        setMatching(false);
+        setPartialPrompt({ needed: units, available: Math.max(0, Number(data.available) || 0), count: payload.length });
+        return;
+      }
       if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
 
       // Merge new scores onto the existing ones so prior results are preserved.
@@ -20306,6 +20321,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // ranking: active (not hired/rejected) Strong Matches, the count shown on the
   // tab. Every run re-ranks the pool and spends 1 credit (re-run is intentional).
   const canRank = strongApplicants.length >= 2;
+  // AI Rank is priced 1 credit per 10 applicants (round up). The rankable pool is
+  // the active, parsed candidates a run scores (capped at 40 like runMatching), so
+  // the cost preview and the actual charge always agree.
+  const rankablePool = applicants
+    .filter((a) => !hiredIds.has(a.candidateId) && (a.fit !== "other" || a.stage === "shortlisted"))
+    .filter((a) => { const c = MOCK_CANDIDATES.find((x) => x.id === a.candidateId); return c && c.parsed; });
+  const rankCount = Math.min(rankablePool.length, 40);
+  const rankUnits = Math.max(1, Math.ceil(rankCount / 10));
   // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
   // eligible candidates). Out-of-credits stays clickable so it can route to
   // billing. During the tour the button is disabled too but styled to look live.
@@ -20710,13 +20733,28 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         open={!!confirmRun}
         title="Run AI Rank?"
         body={limits.aiRunsPerMonth === Infinity
-          ? "AI Rank scores these applicants against the role and explains the fit."
-          : outOfRuns
-            ? `This uses 1 of your purchased AI Rank credits (${purchasedAiRank} left). Your monthly plan is used up.`
-            : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
-        confirmLabel="Run AI Rank"
+          ? `AI Rank scores ${rankCount} applicant${rankCount === 1 ? "" : "s"} against the role and explains the fit.`
+          : `Ranks ${rankCount} applicant${rankCount === 1 ? "" : "s"} and uses ${rankUnits} credit${rankUnits === 1 ? "" : "s"} (1 per 10 applicants). ${outOfRuns ? `${purchasedAiRank} purchased credit${purchasedAiRank === 1 ? "" : "s"} left.` : `You have ${runsLeft} left this cycle${purchasedAiRank > 0 ? ` + ${purchasedAiRank} purchased` : ""}.`}`}
+        confirmLabel={`Run AI Rank · ${rankUnits} credit${rankUnits === 1 ? "" : "s"}`}
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
+      />
+      {/* Not enough credits for the whole pool: offer a partial run of what's
+          affordable, or a top-up. */}
+      <ConfirmDialog
+        open={!!partialPrompt}
+        title="Not enough AI Rank credits"
+        body={partialPrompt
+          ? (partialPrompt.available > 0
+              ? `Ranking all ${partialPrompt.count} applicants needs ${partialPrompt.needed} credits, but you have ${partialPrompt.available}. You can rank the ${Math.min(partialPrompt.available * 10, partialPrompt.count)} most recent now, or buy more credits.`
+              : `Ranking these applicants needs ${partialPrompt.needed} credits and you're out. Buy more to run it.`)
+          : ""}
+        confirmLabel={partialPrompt?.available > 0 ? `Rank ${partialPrompt ? Math.min(partialPrompt.available * 10, partialPrompt.count) : 0} now` : "Buy credits"}
+        onConfirm={() => {
+          const p = partialPrompt; setPartialPrompt(null);
+          if (p?.available > 0) runMatching(p.available); else setBuyAiRankOpen(true);
+        }}
+        onClose={() => setPartialPrompt(null)}
       />
     </AccountShell>
   );
