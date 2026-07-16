@@ -7706,15 +7706,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                   <span className="text-[11px] font-medium w-11 text-right" style={{ color: pwColor }}>{pwLabel}</span>
                 </div>
               )}
-              {/* Live requirement checks: turn green as each rule is satisfied. */}
-              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                {[["8+ characters", password.length >= 8], ["a letter and a number", /[A-Za-z]/.test(password) && /\d/.test(password)]].map(([label, ok]) => (
-                  <span key={label} className="inline-flex items-center gap-1" style={{ color: ok ? "#166534" : "var(--ink-3)" }}>
-                    {ok ? <Icon name="check" className="w-3 h-3" /> : <span className="w-2.5 h-2.5 rounded-full border shrink-0" style={{ borderColor: "var(--line-strong)" }} />}
-                    {label}
-                  </span>
-                ))}
-              </div>
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-2)" }}>At least 8 characters, with a letter and a number.</p>
             </div>
             <div>
               <label htmlFor="su-confirm" className={labelDark} style={{ color: "var(--ink)" }}>Confirm password{reqStar}</label>
@@ -16021,7 +16013,6 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   return (
     <AccountShell
       title="Billing & plan"
-      subtitle={`Manage the plan, payment method, and invoices for ${company || "your workspace"}.`}
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
@@ -16051,9 +16042,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                   // the price couldn't be loaded (Stripe prices not configured yet),
                   // so the badge and the copy never contradict each other.
                   : paidSub
-                    ? (renewCopy
-                        ? `${renewCopy}${renewDate ? ` · renews ${renewDate}` : ""}`
-                        : `Your ${current.name} subscription is active${renewDate ? `, renews ${renewDate}` : ""}.`)
+                    ? ""
                     : plan === "enterprise"
                       ? "Custom pricing, billed by agreement."
                       // Past due is not "no subscription". They have one, we just
@@ -17500,20 +17489,33 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
 
         {/* Password */}
         <div className={cardClass}>
-          <SectionHead icon="lock" title="Password" desc="At least 8 characters, with a letter and a number." />
+          <SectionHead icon="lock" title="Password" />
           <div className="mt-5 space-y-3">
             {[
               { k: "cur", val: curPw, set: setCurPw, ph: "Current password", ac: "current-password" },
               { k: "new", val: newPw, set: setNewPw, ph: "New password", ac: "new-password" },
               { k: "conf", val: confPw, set: setConfPw, ph: "Confirm new password", ac: "new-password" },
             ].map((f) => (
-              <div key={f.k} className="relative">
+              <div key={f.k}>
+              <div className="relative">
                 <input id={`pw-${f.k}`} aria-label={f.ph} type={pwShown[f.k] ? "text" : "password"} value={f.val} onChange={(e) => { f.set(e.target.value); setPwMsg(null); }} placeholder={f.ph} autoComplete={f.ac} className={`${inputClass} pr-11`} />
                 {f.val && (
                   <button type="button" onClick={() => togglePw(f.k)} aria-label={pwShown[f.k] ? "Hide password" : "Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
                     <Icon name={pwShown[f.k] ? "eyeOff" : "eye"} className="w-4 h-4" />
                   </button>
                 )}
+              </div>
+              {/* Live requirement checks under the NEW password as it's typed. */}
+              {f.k === "new" && f.val && (
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                  {[["8+ characters", newPw.length >= 8], ["a letter and a number", /[A-Za-z]/.test(newPw) && /\d/.test(newPw)]].map(([label, ok]) => (
+                    <span key={label} className="inline-flex items-center gap-1" style={{ color: ok ? "#166534" : "var(--ink-3)" }}>
+                      {ok ? <Icon name="check" className="w-3 h-3" /> : <span className="w-2.5 h-2.5 rounded-full border shrink-0" style={{ borderColor: "var(--line-strong)" }} />}
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
               </div>
             ))}
             {pwMsg && <p className="text-sm" style={{ color: pwMsg.type === "ok" ? "#166534" : "#DC2626" }}>{pwMsg.text}</p>}
