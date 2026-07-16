@@ -17943,14 +17943,14 @@ function fmtMonths(months) {
 function InsightTile({ label, value, sub, accent }) {
   return (
     <div
-      className="rounded-xl px-4 py-3.5 flex flex-col"
+      className="rounded-lg px-3 py-2 flex flex-col"
       style={accent
-        ? { background: "linear-gradient(180deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03))", border: "1px solid rgba(var(--brand-rgb),0.22)", boxShadow: "0 1px 2px rgba(18,19,42,0.05)" }
-        : { background: "#fff", border: "1px solid var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,0.05)" }}
+        ? { background: "linear-gradient(180deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03))", border: "1px solid rgba(var(--brand-rgb),0.22)" }
+        : { background: "#fff", border: "1px solid var(--line)" }}
     >
       <p className="text-[11px] font-medium truncate" style={{ color: accent ? "var(--brand)" : "var(--ink-3)" }}>{label}</p>
-      <p className="text-[22px] font-bold font-display leading-none tnum mt-2" style={{ color: accent ? "var(--brand)" : "var(--ink)" }}>{value}</p>
-      {sub && <p className="text-[11px] mt-1.5 truncate" style={{ color: "var(--ink-3)" }}>{sub}</p>}
+      <p className="text-base font-bold font-display leading-none tnum mt-1" style={{ color: accent ? "var(--brand)" : "var(--ink)" }}>{value}</p>
+      {sub && <p className="text-[11px] mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>{sub}</p>}
     </div>
   );
 }
@@ -17958,7 +17958,7 @@ function InsightTile({ label, value, sub, accent }) {
 // reads at a glance, on the same elevated white card as the metric tiles.
 function InsightFlag({ label, yes }) {
   return (
-    <div className="rounded-xl px-4 py-3.5 flex items-center justify-between gap-2" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,0.05)" }}>
+    <div className="rounded-lg px-3 py-2 flex items-center justify-between gap-2" style={{ background: "#fff", border: "1px solid var(--line)" }}>
       <span className="text-[11px] font-medium min-w-0 truncate" style={{ color: "var(--ink-3)" }}>{label}</span>
       <span className="text-[11px] font-semibold inline-flex items-center gap-1 shrink-0 pl-1.5 pr-2 py-0.5 rounded-full" style={yes ? { background: "#DCFCE7", color: "#166534" } : { background: "#F1F1F4", color: "var(--ink-3)" }}>
         <Icon name={yes ? "check" : "close"} className="w-3 h-3" /> {yes ? "Yes" : "No"}
@@ -17969,29 +17969,29 @@ function InsightFlag({ label, yes }) {
 function InsightsDisplay({ insights }) {
   const ei = insights.experience_insights;
   const ea = insights.employment_analysis;
-  const heading = (t) => <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{t}</h3>;
+  const heading = (t) => <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{t}</h3>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         {heading("Experience insights")}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <InsightTile label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
           <InsightTile label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
           {ei.domain_experience.map((d) => (
             <InsightTile key={d.domain} label={`${d.domain}`} value={fmtYears(d.years)} />
           ))}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
           <InsightFlag label="Startup" yes={ei.startup_experience} />
           <InsightFlag label="Enterprise" yes={ei.enterprise_experience} />
           <InsightFlag label="Remote work" yes={ei.remote_work_mentioned} />
         </div>
       </div>
 
-      <div className="pt-4" style={{ borderTop: "1px solid var(--line)" }}>
+      <div className="pt-3" style={{ borderTop: "1px solid var(--line)" }}>
         {heading("Employment analysis")}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <InsightTile label="Employers" value={String(ea.number_of_employers)} />
           <InsightTile label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
           {ea.longest_tenure && (
@@ -17999,9 +17999,9 @@ function InsightsDisplay({ insights }) {
           )}
         </div>
         {ea.career_progression && (
-          <div className="mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
+          <div className="mt-2 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
             <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>{ea.career_progression}</p>
+            <p className="text-xs leading-snug" style={{ color: "var(--ink-2)" }}>{ea.career_progression}</p>
           </div>
         )}
         {ea.employment_gaps.length > 0 ? (
@@ -18507,8 +18507,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // Reworked AI Experience Insights card, plan-metered (meter lives in sidebar).
   // HR/hiring-manager only: interviewers reviewing a candidate don't run credits.
   const aiInsightsCard = isInterviewer(profile?.role) ? null : (
-    <div className="rounded-2xl p-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
-      <div className="flex items-start justify-between gap-3 mb-2.5">
+    <div className="rounded-2xl p-4 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
+      <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
           <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>AI Experience Insights</h2>
@@ -18541,7 +18541,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       ) : (
         // Once generated, the read is stored and shown for good (the credit was
         // already spent), so there's no regenerate: a resume doesn't change.
-        <div className="rounded-xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+        <div className="rounded-xl bg-white border p-3.5" style={{ borderColor: "var(--line)" }}>
           <InsightsDisplay insights={insights} />
         </div>
       )}
