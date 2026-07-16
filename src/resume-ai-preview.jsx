@@ -17277,7 +17277,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
   return (
     <AccountShell
       title="Profile"
-      subtitle="Your company branding, personal details, and sign-in."
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
@@ -17364,7 +17363,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
         {/* Billing details — its own card so it reads as a distinct section */}
         {!isInterviewer(profile?.role) && (
         <div className={`${cardClass} mb-5`}>
-          <SectionHead icon="card" title="Billing details" desc="Used on your invoices and receipts. Keep this up to date for accurate billing." />
+          <SectionHead icon="card" title="Billing details" />
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label htmlFor="pf-street" className={labelClass} style={{ color: "var(--ink-2)" }}>Street address</label>
@@ -17396,7 +17395,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
 
         {/* Personal details */}
         <div className={`${cardClass} mb-5`}>
-          <SectionHead icon="user" title="Personal details" desc="How you appear in the dashboard greeting and sidebar." />
+          <SectionHead icon="user" title="Personal details" />
           <div className="mt-5 flex items-center gap-4 mb-5">
             {dAvatar ? (
               <img src={dAvatar} alt="Your photo" className="w-16 h-16 rounded-full object-cover" style={{ border: "1px solid var(--line-strong)" }} />
@@ -17481,7 +17480,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
             owner, so self-service changes cause account-recovery confusion. Changing
             it is a support action through Aster, done by an admin. */}
         <div className={`${cardClass} mb-5`}>
-          <SectionHead icon="mail" title="Email address" desc="This is your sign-in email." hint="To change your sign-in email, contact Aster support at support@hireaster.com. We change it for you once we've confirmed it's really you." />
+          <SectionHead icon="mail" title="Email address" hint="To change your sign-in email, contact Aster support at support@hireaster.com. We change it for you once we've confirmed it's really you." />
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
             <div className="min-w-0">
               <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{email}</p>
