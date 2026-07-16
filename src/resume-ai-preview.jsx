@@ -9410,10 +9410,10 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                             <div key={it.label}>
                               <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-xs" style={{ color: "var(--ink-2)" }}>{it.label}</span>
-                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#DC2626" : "var(--ink)" }}>{unlimited ? `${it.used} · Unlimited` : `${Math.min(it.used, it.limit)} / ${it.limit}`}</span>
+                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#B45309" : "var(--ink)" }}>{unlimited ? `${it.used} · Unlimited` : `${Math.min(it.used, it.limit)} / ${it.limit}`}</span>
                               </div>
                               <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-                                <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
+                                <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#FBBF24" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
                               </div>
                             </div>
                           );
@@ -9425,9 +9425,6 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                         const atTopPlan = plan === "elite" || plan === "enterprise";
                         return (
                           <div className="mt-4">
-                            <p className="text-xs mb-2" style={{ color: "#DC2626" }}>
-                              {atTopPlan ? "You’ve used this cycle’s plan credits. Buy extra credits to keep going." : "You’ve hit a plan limit. Upgrade to keep going."}
-                            </p>
                             <button onClick={() => navigate("billing")} className="w-full brand-gradient text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.9)]">
                               <Icon name="arrowUpRight" className="w-4 h-4" /> {atTopPlan ? "Buy credits" : "Upgrade plan"}
                             </button>
