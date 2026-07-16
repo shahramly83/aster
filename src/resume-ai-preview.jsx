@@ -13875,7 +13875,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 </div>
               </div>
             </div>
-            <p className="text-xs text-neutral-500 mt-2.5">Full access, including everything a hiring manager can do.</p>
           </div>
           )}
 
