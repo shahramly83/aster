@@ -8033,11 +8033,11 @@ const isInterviewer = (role) => String(role || "").toLowerCase() === "interviewe
 const isOwner = (role) => String(role || "").toLowerCase() === "tenant";
 const INTERVIEWER_ALLOWED = new Set(["interviews", "openRoles", "applicants", "candidateProfile", "profile"]);
 const INTERVIEWER_NAV = [
+  { key: "openRoles", label: "Open Positions", icon: "briefcase" },
   { key: "interviews", label: "Interviews", icon: "interviewers" },
-  { key: "openRoles", label: "Open Roles", icon: "briefcase" },
 ];
 const navItemsForRole = (role) => (isInterviewer(role) ? INTERVIEWER_NAV : NAV_ITEMS);
-const homeForRole = (role) => (isInterviewer(role) ? "interviews" : "dashboard");
+const homeForRole = (role) => (isInterviewer(role) ? "openRoles" : "dashboard");
 
 function SidebarProfile({ avatarUrl, navigate, profile }) {
   const realName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
@@ -13694,14 +13694,14 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
   const myRequests = jobs.filter((j) => j.requestedBy && j.requestedBy === currentUserId);
 
   return (
-    <AccountShell title="Open Roles" navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
+    <AccountShell title="Open Positions" navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
       <div className="mb-7 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ borderColor: "#CBD6F7", background: "var(--brand-soft)" }}>
         <div className="min-w-0">
           <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Need to hire for something?</h2>
-          <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Draft the role and send it to your hiring manager to review and publish.</p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Draft the position and send it to your hiring manager to review and publish.</p>
         </div>
         <button onClick={onRequestRole} className="shrink-0 inline-flex items-center gap-1.5 rounded-xl brand-gradient text-white text-sm font-semibold px-4 py-2.5 hover:opacity-90 transition-opacity shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">
-          <Icon name="plus" className="w-4 h-4" /> Request a new role
+          <Icon name="plus" className="w-4 h-4" /> Request a new position
         </button>
       </div>
 
@@ -13733,7 +13733,7 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
       {myRequests.length > 0 && (
         <div>
           <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Your requests</h2>
-          <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Roles you've asked to open, and where each one stands.</p>
+          <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Positions you've asked to open, and where each one stands.</p>
           <div className="space-y-2">
             {myRequests.map((j) => {
               const st = REQUEST_STATUS[j.approvalStatus] || REQUEST_STATUS.pending;
