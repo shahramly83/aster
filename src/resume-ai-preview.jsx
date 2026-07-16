@@ -13852,6 +13852,11 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   return (
     <AccountShell
       title="Team"
+      subtitle={
+        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
+          <Icon name="users" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {1 + team.length + pendingInvites.length} member{1 + team.length + pendingInvites.length === 1 ? "" : "s"}
+        </span>
+      }
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
@@ -13871,11 +13876,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
         />
       ) : null}
     >
-        {/* Total members, as a green-dot pill under the title. */}
-        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium mb-4" style={{ background: "#ECFDF5", color: "#15803D" }}>
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
-          {1 + team.length + pendingInvites.length} {1 + team.length + pendingInvites.length === 1 ? "member" : "members"}
-        </span>
         {/* Filter + invite action */}
         <div className="flex items-center justify-between gap-3 mb-4">
           {(() => {
@@ -20287,7 +20287,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       title={`Applicants${job ? `: ${job.title}` : ""}`}
       subtitle={isInterviewer(profile?.role)
         ? "Candidates who applied for this role. Open a profile to review them and request an interview."
-        : undefined}
+        : (job ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#ECFDF3", color: "#15803D" }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> {strongApplicants.length + otherApplicants.length + hiredApplicants.length} candidate{strongApplicants.length + otherApplicants.length + hiredApplicants.length === 1 ? "" : "s"}
+          </span>
+        ) : undefined)}
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
@@ -20333,7 +20337,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             )}
           </div>
         )}
-        {/* Strong Matches / Other Applicants tabs */}
+        {/* Strong Matches / Other Applicants tabs, with AI Rank on the right */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="relative inline-block">
           {tourStep === 1 && (
             <div className="absolute top-full left-2 mt-2 z-30">
@@ -20348,7 +20353,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               )}
             </div>
           )}
-        <div className="flex gap-1 mb-4 p-1 rounded-2xl w-fit max-w-full overflow-x-auto" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+        <div className="flex gap-1 p-1 rounded-2xl w-fit max-w-full overflow-x-auto" style={{ background: "#fff", border: "1px solid var(--line)" }}>
           {[["strong", "Strong Matches", strongApplicants.length, "target"], ["other", "Non-Matches", otherApplicants.length, "users"], ["hired", "Hired", hiredApplicants.length, "check"]].map(([key, label, n, ic]) => {
             const on = applicantTab === key;
             // Step 1 of the tour points at Strong Matches, so glow it like the
@@ -20365,15 +20370,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           })}
         </div>
         </div>
+        {aiRankInlineBtn}
+        </div>
         {/* Stage filter */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: "#ECFDF5", color: "#15803D" }}>
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
-            {shownApps.length} {shownApps.length === 1 ? "candidate" : "candidates"}
-            {shortlistOnly ? " · shortlisted" : stageFilter !== "all" ? ` · ${STAGE_LABELS[stageFilter]}` : ""}
-          </span>
+        <div className="flex items-center justify-end gap-3 mb-4">
           <div className="flex items-center gap-2">
-          {aiRankInlineBtn}
           <button
             onClick={() => setShortlistOnly((v) => !v)}
             title="Show only the candidates you've shortlisted"
