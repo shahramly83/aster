@@ -13402,7 +13402,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             )}
             {!matchScores ? (candidates.length === 0
                 ? emptyState("Your database is empty", "Skills and industries are drawn from your candidates' profiles. Import resumes first, then filter by skill, industry or experience level.", "matching")
-                : emptyState("Find your best fit candidates", "Add a skill, industry, or experience level above.", "matching"))
+                : emptyState("Find your best fit candidates", "", null))
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
           </>
@@ -15218,6 +15218,7 @@ function ApplyScreen({ navigate, job, paused = false, hiredEmails = new Set(), o
   const [fileError, setFileError] = useState(null);
   const [stage, setStage] = useState("form"); // form | processing | done
   const [submitErr, setSubmitErr] = useState(null);
+  const [hp, setHp] = useState(""); // honeypot: real applicants never fill this; bots do
   const [procStep, setProcStep] = useState(0);
 
   // Advance the status line while processing (holds on the last one).
@@ -15461,10 +15462,10 @@ This is what a candidate sees if they open the link after the role has closed.
         // resume_text is what Claude parses; original_base64 is the untouched .docx
         // so the recruiter can download the real file (not a reconstruction).
         const original_base64 = await fileToBase64(file);
-        body = { job_id: job.id, resume_text: text, original_base64, original_ext: "docx", filename: file?.name || null, source: applySource };
+        body = { job_id: job.id, resume_text: text, original_base64, original_ext: "docx", filename: file?.name || null, source: applySource, website: hp };
       } else {
         const resume_base64 = await fileToBase64(file);
-        body = { job_id: job.id, resume_base64, filename: file?.name || null, source: applySource };
+        body = { job_id: job.id, resume_base64, filename: file?.name || null, source: applySource, website: hp };
       }
       const { data, error } = await supabase.functions.invoke("parse-application", { body });
       // On a non-2xx status, invoke returns `error` and the JSON body (with our
@@ -15625,6 +15626,16 @@ This is what a candidate sees. A public page, no login, reached only through the
                   </div>
 
                   {submitErr && <p className="text-xs text-rose-600 mt-4 text-center">{submitErr}</p>}
+
+                  {/* Honeypot: hidden from real applicants (off-screen, not focusable),
+                      so only form-filling bots put a value here. The server drops any
+                      submission with it filled, before spending a credit on the parse.
+                      Off-screen rather than display:none, which some bots skip. */}
+                  <input
+                    type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true"
+                    value={hp} onChange={(e) => setHp(e.target.value)}
+                    style={{ position: "absolute", left: "-9999px", top: 0, width: 1, height: 1, opacity: 0 }}
+                  />
 
                   <button
                     onClick={handleSubmit}

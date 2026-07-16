@@ -126,8 +126,13 @@ Deno.serve(async (req) => {
     // PDFs arrive as resume_base64 (Claude reads the PDF directly). Word (.docx)
     // resumes arrive as resume_text: the client extracts the document text, since
     // Claude can't read a .docx binary. Exactly one of the two is present.
-    const { job_id, name, email, resume_base64, resume_text, original_base64, original_ext, filename, source } = await req.json();
+    const { job_id, name, email, resume_base64, resume_text, original_base64, original_ext, filename, source, website } = await req.json();
     if (!job_id || (!resume_base64 && !resume_text)) return json({ error: "job_id and a resume (resume_base64 or resume_text) are required" }, 400);
+    // Honeypot: `website` is a hidden field a real applicant never sees or fills.
+    // Any value means an automated submission, so drop it BEFORE the credit charge
+    // and AI parse, but answer 200 as if it succeeded so the bot doesn't learn it
+    // was filtered (and doesn't retry with the field cleared).
+    if (typeof website === "string" && website.trim() !== "") return json({ ok: true, filtered: true }, 200);
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
