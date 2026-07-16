@@ -17222,7 +17222,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
               )}
             </div>
           </div>
-          <p className="text-xs text-neutral-500 mt-2.5">Shows in the sidebar, on the login screen, and in the mobile header. Wide (landscape) logos work best.</p>
 
           <div className="mt-5">
             <label htmlFor="pf-company" className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
