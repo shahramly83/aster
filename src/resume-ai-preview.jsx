@@ -248,6 +248,18 @@ function formatMoney(amount, currency, opts = {}) {
   }
 }
 
+// Tiny inline-SVG currency flags for the USD/RM/SGD toggle. SVG (not emoji) so they
+// render identically on every OS, including Windows where flag emoji fall back to
+// letters. Simplified but recognisable at ~16px.
+function CurrencyFlag({ code }) {
+  const flags = {
+    usd: (<svg viewBox="0 0 20 14" className="w-full h-full"><rect width="20" height="14" fill="#B22234" /><rect y="2" width="20" height="2" fill="#fff" /><rect y="6" width="20" height="2" fill="#fff" /><rect y="10" width="20" height="2" fill="#fff" /><rect width="9" height="8" fill="#3C3B6E" /></svg>),
+    myr: (<svg viewBox="0 0 20 14" className="w-full h-full"><rect width="20" height="14" fill="#CC0001" /><rect y="2" width="20" height="2" fill="#fff" /><rect y="6" width="20" height="2" fill="#fff" /><rect y="10" width="20" height="2" fill="#fff" /><rect width="10" height="8" fill="#010066" /><circle cx="4" cy="4" r="2" fill="#FFCC00" /><circle cx="4.9" cy="4" r="1.6" fill="#010066" /><circle cx="7" cy="4" r="0.8" fill="#FFCC00" /></svg>),
+    sgd: (<svg viewBox="0 0 20 14" className="w-full h-full"><rect width="20" height="14" fill="#fff" /><rect width="20" height="7" fill="#EF3340" /><circle cx="4.6" cy="3.5" r="2.2" fill="#fff" /><circle cx="5.5" cy="3.5" r="1.8" fill="#EF3340" /><circle cx="7.4" cy="3.5" r="0.5" fill="#fff" /></svg>),
+  };
+  return <span className="inline-block w-4 h-[11px] rounded-[2px] overflow-hidden shrink-0 align-middle" style={{ boxShadow: "0 0 0 1px rgba(0,0,0,0.06)" }}>{flags[code] || null}</span>;
+}
+
 // Live Stripe amounts keyed "<plan>|<cycle>", fetched once per page load and
 // shared by every screen that quotes a price. A single source of truth: the app
 // can never advertise an amount different from the one the card is charged.
@@ -3216,7 +3228,21 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
           <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Any applicable taxes are shown at checkout.</p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 max-w-md mx-auto">
+          {/* Currency (with flags) on the LEFT */}
+          <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+            {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
+              const on = curSel === c.key;
+              return (
+                <button key={c.key} onClick={() => setCurSel(c.key)}
+                  className={`text-sm px-3.5 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors inline-flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                  style={on ? { background: "var(--ink)" } : undefined}>
+                  <CurrencyFlag code={c.key} /> {c.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* Monthly / Yearly on the RIGHT */}
           <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
             {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
               const on = cycle === c.key;
@@ -3226,19 +3252,6 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                   style={on ? { background: "var(--ink)" } : undefined}>
                   {c.label}
                   {c.key === "yearly" && yearlySaving != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>Save {yearlySaving}%</span>}
-                </button>
-              );
-            })}
-          </div>
-          {/* Currency toggle: shows and bills in the chosen currency. */}
-          <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
-            {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
-              const on = curSel === c.key;
-              return (
-                <button key={c.key} onClick={() => setCurSel(c.key)}
-                  className={`text-sm px-4 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
-                  style={on ? { background: "var(--ink)" } : undefined}>
-                  {c.label}
                 </button>
               );
             })}
@@ -16100,7 +16113,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
                 const on = curSel === c.key;
                 return (
-                  <button key={c.key} onClick={() => setCurSel(c.key)} className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`} style={on ? { background: "var(--ink)" } : undefined}>{c.label}</button>
+                  <button key={c.key} onClick={() => setCurSel(c.key)} className={`text-xs px-3 py-1 rounded-full font-medium transition-colors inline-flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`} style={on ? { background: "var(--ink)" } : undefined}><CurrencyFlag code={c.key} /> {c.label}</button>
                 );
               })}
             </div>
