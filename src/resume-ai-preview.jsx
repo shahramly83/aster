@@ -14281,7 +14281,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
         <div className="flex items-start gap-2 mt-2">
           <Icon name="clock" className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
           <p className="text-sm text-neutral-500">
-            Available once the interview is scheduled. Book a time above and tailored questions for {p.name} will appear here.
+            Available once the interview is scheduled.
           </p>
         </div>
       </div>
@@ -14723,11 +14723,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
 
   return (
     <div className="rounded-2xl tool-card px-5 py-4">
-      <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>
-        {fixedJob ? `Scheduling for the ${fixedJob.title} role. ` : ""}
-        You run this interview as the hiring manager. Offer the candidate a few times and they pick one.
-      </p>
-
       {bookingStatus === "scheduled" ? (
         <>
         <div className="rounded-xl bg-white border border-emerald-200 px-4 py-3">
@@ -14841,7 +14836,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             <div className="min-w-0">
               <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No interview requested yet</p>
               <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                An interviewer assigned to this role reviews {candFirst} and requests an interview, and it shows up here for you to schedule. You can also set one up now without waiting.
+                An interviewer's request will show up here, or schedule one now.
               </p>
               <button type="button" onClick={() => setSelfSchedule(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}>
                 <Icon name="calendar" className="w-4 h-4" /> Schedule on my own
