@@ -16958,11 +16958,11 @@ function Toggle({ on, onChange, label, desc }) {
 function SectionHead({ icon, title, desc, tone, hint }) {
   const t = tone || { bg: "var(--brand-soft)", fg: "var(--brand)" };
   return (
-    <div className="flex items-start gap-3">
+    <div className={`flex gap-3 ${desc ? "items-start" : "items-center"}`}>
       <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.bg, color: t.fg }}>
         <Icon name={icon} className="w-[18px] h-[18px]" />
       </span>
-      <div className="min-w-0 pt-0.5">
+      <div className={`min-w-0 ${desc ? "pt-0.5" : ""}`}>
         <h2 className="text-[15px] font-semibold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}{hint && <> <InfoHint dir="down" hint={hint} /></>}</h2>
         {desc && <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{desc}</p>}
       </div>
