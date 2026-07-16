@@ -20765,7 +20765,12 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
         <div className="mt-1">
           <TopBar
             title={title}
-            subtitle={`${filtered.length} ${isHiredView ? "hire" : "candidate"}${filtered.length === 1 ? "" : "s"}${isHiredView && hiredMonth !== "all" ? ` in ${monthLabel(hiredMonth)}` : ""}`}
+            subtitle={isHiredView ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#ECFDF3", color: "#15803D" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} />
+                {filtered.length} hire{filtered.length === 1 ? "" : "s"}{hiredMonth !== "all" ? ` in ${monthLabel(hiredMonth)}` : ""}
+              </span>
+            ) : `${filtered.length} candidate${filtered.length === 1 ? "" : "s"}`}
             activities={activities}
             onOpenNotifications={onOpenNotifications}
             avatarUrl={avatarUrl}
