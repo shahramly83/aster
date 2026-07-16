@@ -20766,8 +20766,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         open={!!confirmRun}
         title="Run AI Rank?"
         body={limits.aiRunsPerMonth === Infinity
-          ? `AI Rank scores ${rankCount} applicant${rankCount === 1 ? "" : "s"} against the role and explains the fit.`
-          : `Ranks ${rankCount} applicant${rankCount === 1 ? "" : "s"} and uses ${rankUnits} credit${rankUnits === 1 ? "" : "s"} (1 per 10 applicants). ${outOfRuns ? `${purchasedAiRank} purchased credit${purchasedAiRank === 1 ? "" : "s"} left.` : `You have ${runsLeft} left this cycle${purchasedAiRank > 0 ? ` + ${purchasedAiRank} purchased` : ""}.`}`}
+          ? `Scores your ${rankCount} applicant${rankCount === 1 ? "" : "s"} against this role and explains each fit.`
+          : `Scores your ${rankCount} applicant${rankCount === 1 ? "" : "s"} against this role. Costs ${rankUnits} credit${rankUnits === 1 ? "" : "s"}, at 1 per 10 applicants. ${outOfRuns
+              ? `Taken from your ${purchasedAiRank.toLocaleString()} purchased credit${purchasedAiRank === 1 ? "" : "s"}, since this cycle's plan credits are used up.`
+              : `You have ${runsLeft} left this cycle${purchasedAiRank > 0 ? `, plus ${purchasedAiRank.toLocaleString()} purchased` : ""}.`}`}
         confirmLabel={`Run AI Rank · ${rankUnits} credit${rankUnits === 1 ? "" : "s"}`}
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
