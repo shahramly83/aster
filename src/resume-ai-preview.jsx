@@ -13345,7 +13345,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </div>
             )}
             {matching ? matchSkeleton
-              : !matchScores ? emptyState("Show the best candidate", openJobs.length === 0 ? "Create an open role under Job Postings to match against." : "Select an open role above, then run the AI match.", null)
+              : !matchScores ? emptyState("Show the best candidate", openJobs.length === 0 ? "Create an open role under Job Postings to match against." : "", null)
               : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
               : rankedList}
             {matchScores && matchJob && list.length > 0 && (
