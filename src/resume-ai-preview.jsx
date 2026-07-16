@@ -2556,7 +2556,6 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
     ]},
     { group: "Interviews", rows: [
-      { label: "Meeting & calendar sync", free: false, starter: true, pro: true, ent: true },
       { label: "AI interview questions", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
       { label: "Collaborative scorecards", free: true, starter: true, pro: true, ent: true },
       { label: "WhatsApp Business reminders", free: false, starter: false, pro: true, ent: true },
@@ -2573,7 +2572,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
     free: { lead: "Includes", items: ["1 job posting · 1 seat", "100 screenings + 5 AI Rank / month", "5 AI Insight credits / month", "Scorecard & 2FA", "Support ticket"] },
-    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 30 seats", "500 screenings + 30 AI Rank / month", "100 AI Insight credits / month", "Store CVs & meeting/calendar sync", "Support ticket"] },
+    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 30 seats", "500 screenings + 30 AI Rank / month", "100 AI Insight credits / month", "Store & download original CVs", "Support ticket"] },
     pro: { lead: "Everything in Scale, plus", items: ["10 jobs · 100 seats", "1,000 screenings + 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
 
@@ -15796,7 +15795,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
       name: "Scale",
       ...priceCopy("scale", cycle),
       blurb: "For small teams making their first hires.",
-      features: ["5 active jobs", "500 applicant screenings/mo", "30 AI Rank + 100 AI Insight/mo", "Stored CVs, meeting & calendar", "Support ticket"],
+      features: ["5 active jobs", "500 applicant screenings/mo", "30 AI Rank + 100 AI Insight/mo", "Store & download original CVs", "Support ticket"],
       popular: true,
     },
     {

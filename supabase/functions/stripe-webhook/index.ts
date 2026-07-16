@@ -44,6 +44,45 @@ function priceIndex(): Record<string, { plan: string; cycle: string }> {
   return m;
 }
 
+// Concurrent open-role allowance per plan (must match the app's limits).
+const JOB_LIMITS: Record<string, number> = { launch: 1, scale: 5, elite: 10, enterprise: 100000 };
+
+// A downgrade lowers how many roles can be open at once. NON-destructively bring
+// the company back within its new limit: UNPUBLISH the excess open roles to drafts.
+// Nothing is deleted and no candidate is rejected or emailed — the roles' pipelines
+// and candidates are preserved, and re-publishing (or upgrading) restores them.
+// Keep the roles with the most hires/activity; unpublish the emptiest first.
+async function enforceJobLimit(admin: any, companyId: string, plan: string) {
+  const limit = JOB_LIMITS[plan] ?? 100000;
+  const { data: openJobs } = await admin.from("jobs")
+    .select("id, created_at").eq("company_id", companyId).eq("status", "open");
+  const jobs = (openJobs || []) as Array<{ id: string; created_at: string }>;
+  if (jobs.length <= limit) return;
+
+  const ids = jobs.map((j) => j.id);
+  const { data: apps } = await admin.from("applications").select("job_id, stage").in("job_id", ids);
+  const stat: Record<string, { total: number; hired: number }> = {};
+  for (const a of (apps || []) as Array<{ job_id: string; stage: string }>) {
+    const s = stat[a.job_id] || { total: 0, hired: 0 };
+    s.total++; if (a.stage === "hired") s.hired++;
+    stat[a.job_id] = s;
+  }
+  // Sort so the roles we KEEP come first: most hires, then most candidates, then
+  // longest-standing (oldest created_at). The tail past `limit` gets unpublished.
+  const ranked = jobs.slice().sort((a, b) => {
+    const sa = stat[a.id] || { total: 0, hired: 0 }, sb = stat[b.id] || { total: 0, hired: 0 };
+    if (sb.hired !== sa.hired) return sb.hired - sa.hired;
+    if (sb.total !== sa.total) return sb.total - sa.total;
+    return String(a.created_at).localeCompare(String(b.created_at));
+  });
+  const toUnpublish = ranked.slice(limit).map((j) => j.id);
+  if (toUnpublish.length) {
+    const { error } = await admin.from("jobs").update({ status: "draft" }).in("id", toUnpublish);
+    if (error) console.error("enforceJobLimit unpublish", error.message);
+    else console.log("downgrade: unpublished excess open roles", { companyId, plan, limit, unpublished: toUnpublish.length });
+  }
+}
+
 // Display name -> ISO-2, so a billing address edited in Stripe's portal (which
 // returns "MY") can be written back without overwriting the "Malaysia" the
 // profile shows. Kept in step with the map in sync-billing-customer, which does
@@ -280,6 +319,10 @@ Deno.serve(async (req) => {
     if (planEnum) companyUpdate.plan = planEnum;
     const { error } = await admin.from("companies").update(companyUpdate).eq("id", companyId);
     if (error) { console.error("companies activate", error.message, companyUpdate); return await fail("company update failed", error.message); }
+    // After a plan write, bring open roles within the new plan's job-post limit by
+    // unpublishing the excess to drafts (non-destructive; candidates preserved).
+    // Best-effort: a hiccup here must not fail the payment webhook.
+    if (planEnum) { try { await enforceJobLimit(admin, companyId, planEnum); } catch (e) { console.error("enforceJobLimit", e); } }
   } else if (status === "canceled") {
     // Setting status alone revoked nothing: companies.status is read by no policy,
     // and the tenancy layer keys off deleted_at. A cancelled customer kept full

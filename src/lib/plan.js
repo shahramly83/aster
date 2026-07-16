@@ -15,8 +15,12 @@ export const PLAN_LIMITS = {
     maxJobs: 1, seats: 1,
     parseApplicant: 100, resumeUploads: 10,               // resumeUploads = AI Parsing (Bulk upload)
     aiRunsPerMonth: 5, aiInsightsPerMonth: 5, interviewQuestionsPerMonth: 5,
-    aiMatches: 3,
-    applicantViewLimit: 10, browseLimit: 10, skillsIndustriesLimit: 10,
+    // Plans differ ONLY by job-post quantity (maxJobs) and the AI/screening credit
+    // allowances above. Everything a customer can SEE (AI Rank result depth, the
+    // candidate database, applicant lists, skill/industry filters) is unlimited on
+    // every plan, Launch included.
+    aiMatches: Infinity,
+    applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: false, scorecards: true, matchToRole: true, databaseAiRank: true,
     twoFactor: true, whatsapp: false, meetingCalendar: false, dataExport: true,
     supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
