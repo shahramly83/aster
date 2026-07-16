@@ -3264,28 +3264,25 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
           <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Any applicable taxes are shown at checkout.</p>
-          {/* Monthly / Yearly, centered */}
-          <div className="mt-6 flex justify-center">
-          <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
-            {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
-              const on = cycle === c.key;
-              return (
-                <button key={c.key} onClick={() => setCycle(c.key)}
-                  className={`text-sm px-4 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors flex items-center justify-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
-                  style={on ? { background: "var(--ink)" } : undefined}>
-                  {c.label}
-                  {c.key === "yearly" && yearlySaving != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>Save {yearlySaving}%</span>}
-                </button>
-              );
-            })}
-          </div>
+          {/* Currency (left) + Monthly/Yearly (centered), on one inline row */}
+          <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="justify-self-start"><CurrencyDropdown value={curSel} onChange={setCurSel} /></div>
+            <div className={`justify-self-center inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
+              {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
+                const on = cycle === c.key;
+                return (
+                  <button key={c.key} onClick={() => setCycle(c.key)}
+                    className={`text-sm px-4 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors flex items-center justify-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                    style={on ? { background: "var(--ink)" } : undefined}>
+                    {c.label}
+                    {c.key === "yearly" && yearlySaving != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: on ? "rgba(255,255,255,0.2)" : "#DCFCE7", color: on ? "#fff" : "#166534" }}>Save {yearlySaving}%</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div />
           </div>
         </Reveal>
-
-        {/* Currency dropdown, aligned to the LEFT above the plan cards */}
-        <div className="mb-5 flex justify-start">
-          <CurrencyDropdown value={curSel} onChange={setCurSel} />
-        </div>
 
         {/* ---------- Mobile / tablet: swipeable plan carousel ---------- */}
         <div className="lg:hidden mt-6">
@@ -14896,7 +14893,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
               <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 An interviewer's request will show up here, or schedule one now.
               </p>
-              <button type="button" onClick={() => setSelfSchedule(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium rounded-xl px-3.5 py-2 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}>
+              <button type="button" onClick={() => setSelfSchedule(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
                 <Icon name="calendar" className="w-4 h-4" /> Schedule on my own
               </button>
             </div>
@@ -15900,6 +15897,12 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // (canceled, or never subscribed) the tier is stale, so no plan card should read
   // "Current" and every card should invite a fresh "Subscribe".
   const hasActivePlan = paidSub || pastDue;
+  // Currency can only be chosen on a FRESH subscribe. Stripe won't switch the
+  // currency of a live subscription, so a plan change always bills in the currency
+  // the subscription was created with. Showing an interactive currency toggle to an
+  // existing subscriber is misleading (it would silently keep their old currency),
+  // so we only offer it when there's no live subscription to be locked to.
+  const canPickCurrency = !onTrial && !["active", "past_due", "trialing"].includes(String(subStatus));
   // Has ever checked out, so Stripe has a customer and the portal has something
   // to show. A canceled subscriber still needs their invoice history.
   const hasStripeCustomer = !onTrial && ["active", "past_due", "canceled"].includes(subStatus);
@@ -16113,9 +16116,9 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
 
         {/* Plan picker */}
         <div className={`${cardClass} mb-4`}>
-          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-            <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Change plan</h2>
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="mb-3">
+            <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3 text-center">Change plan</h2>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
             <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
               {[
                 { key: "monthly", label: "Monthly" },
@@ -16137,6 +16140,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                 );
               })}
             </div>
+            {canPickCurrency && (
             <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
               {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
                 const on = curSel === c.key;
@@ -16145,6 +16149,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                 );
               })}
             </div>
+            )}
             </div>
           </div>
           {pricesEmpty && isOwner(profile?.role) && (
