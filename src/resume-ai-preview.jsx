@@ -20120,7 +20120,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               : !canRank
                 ? "AI Rank becomes available when at least 2 candidates are ready to rank."
                 : matchResults
-                  ? "Ranked by fit. Re-run to re-score everyone (uses 1 credit)."
+                  ? "Ranked by fit."
                   : "Score every candidate against this role and see who fits best."}
           </p>
           {matchOk && !matchErr && (
