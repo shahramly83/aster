@@ -15777,25 +15777,33 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
 
   // Stripe stores yearly plans as one yearly charge. The cards show a per-month
   // equivalent so the two cycles compare like for like, with the real total below.
+  const [curSel, setCurSel] = useState("usd");   // display/billing currency for the plan cards
+  // Amount + currency for the selected display currency, falling back to the
+  // Price's base currency when that currency isn't configured on the Price.
+  const inCur = (p) => (p && p.currencies && p.currencies[curSel] != null)
+    ? { amount: p.currencies[curSel], currency: curSel }
+    : (p ? { amount: p.amount, currency: p.currency } : { amount: 0, currency: "usd" });
   const priceFor = (planKey, forCycle) => prices?.[`${planKey}|${forCycle}`] || null;
-  const monthlyEquivalent = (p) => (p.interval === "year" ? Math.round(p.amount / 12) : p.amount);
+  const monthlyEquivalent = (p) => { const a = inCur(p); return p.interval === "year" ? Math.round(a.amount / 12) : a.amount; };
   const priceCopy = (planKey, forCycle) => {
     if (!prices) return { price: "—", cadence: " " };            // loading, hold the space
     const p = priceFor(planKey, forCycle) || priceFor(planKey, "monthly");
     if (!p) return { price: "—", cadence: "pricing unavailable" };
+    const a = inCur(p);
     return p.interval === "year"
-      ? { price: formatMoney(monthlyEquivalent(p), p.currency), cadence: `per month, ${formatMoney(p.amount, p.currency)} billed yearly` }
-      : { price: formatMoney(p.amount, p.currency), cadence: "per month" };
+      ? { price: formatMoney(monthlyEquivalent(p), a.currency), cadence: `per month, ${formatMoney(a.amount, a.currency)} billed yearly` }
+      : { price: formatMoney(a.amount, a.currency), cadence: "per month" };
   };
 
   // The real yearly discount, derived rather than asserted. Null when either
   // cycle is unconfigured, the currencies differ, or yearly isn't actually cheaper.
   const yearlySaving = (planKey) => {
     const m = priceFor(planKey, "monthly"), y = priceFor(planKey, "yearly");
-    if (!m || !y || m.currency !== y.currency) return null;
-    const full = m.amount * 12;
-    if (y.amount >= full) return null;
-    return Math.round((1 - y.amount / full) * 100);
+    if (!m || !y) return null;
+    const ma = inCur(m), ya = inCur(y);
+    const full = ma.amount * 12;
+    if (ya.amount >= full) return null;
+    return Math.round((1 - ya.amount / full) * 100);
   };
 
   // Hide the yearly option entirely when no yearly Stripe price is configured.
@@ -15886,7 +15894,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
     if (changeBusy) return;                       // gate: one change at a time
     setChangeBusy(true);
     setMsg("Opening secure checkout…");
-    const err = await stripeCheckout(planKey, chosenCycle);
+    const err = await stripeCheckout(planKey, chosenCycle, curSel);
     // On success stripeCheckout redirects/reloads, so we only land here on error.
     if (err) { setMsg(err); setChangeBusy(false); }
   };
@@ -16067,6 +16075,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
         <div className={`${cardClass} mb-4`}>
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Change plan</h2>
+            <div className="flex items-center gap-2 flex-wrap">
             <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
               {[
                 { key: "monthly", label: "Monthly" },
@@ -16087,6 +16096,15 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                   </button>
                 );
               })}
+            </div>
+            <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+              {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
+                const on = curSel === c.key;
+                return (
+                  <button key={c.key} onClick={() => setCurSel(c.key)} className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`} style={on ? { background: "var(--ink)" } : undefined}>{c.label}</button>
+                );
+              })}
+            </div>
             </div>
           </div>
           {pricesEmpty && isOwner(profile?.role) && (
