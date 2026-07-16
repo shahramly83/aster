@@ -97,8 +97,9 @@ Deno.serve(async (req) => {
     const prices = Object.fromEntries(results.flat() as [string, unknown][]);
     if (debug) return json({ ok: true, key_mode: keyMode, count: Object.keys(prices).length, diagnostics, prices });
 
-    // Prices change rarely; let the CDN and browser hold them for a few minutes.
-    return json({ ok: true, prices }, 200, { "Cache-Control": "public, max-age=300, s-maxage=300" });
+    // Short cache: prices change rarely, but a longer hold made currency/price edits
+    // in Stripe take minutes to appear. 30s keeps it snappy without hammering Stripe.
+    return json({ ok: true, prices }, 200, { "Cache-Control": "public, max-age=30, s-maxage=30" });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);
