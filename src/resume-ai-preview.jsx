@@ -19778,7 +19778,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
             Interviewers on this job
             <InfoHint dir="down" hint="Interviewers unlock after you run AI Rank, so they open a ranked shortlist instead of a raw pile of applications." />
           </h3>
-          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{locked ? "Complete Step 1 (AI Rank) first, so interviewers get a prepared, ranked list. This unlocks automatically once ranking is done." : needsTeam ? "You have no interviewers on your team yet. Add one on the Team page to assign them here." : "They can see these applicants and request interviews. You and other hiring managers always have access."}</p>
+          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{locked ? "Complete Step 1 (AI Rank) first, so interviewers get a prepared, ranked list. This unlocks automatically once ranking is done." : needsTeam ? "You have no interviewers on your team yet. Add one on the Team page to assign them here." : ""}</p>
         </div>
         {canManage && !needsTeam && (
           <div className="relative shrink-0" ref={addMenuRef}>
