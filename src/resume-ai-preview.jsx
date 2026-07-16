@@ -12855,9 +12855,9 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     return (rankedMeta?.skills || []).filter((w) => cand.has(String(w).toLowerCase()));
   };
 
-  const runRoleMatch = async () => {
+  const runRoleMatch = async (maxUnits = null) => {
     if (!matchJob) return;
-    if (outOfCredits) { setBuyAiRankOpen(true); return; }
+    if (outOfCredits && !maxUnits) { setBuyAiRankOpen(true); return; }
     setMatching(true);
     setAiRank(null);
     // Heuristic scores as the base / fallback for anyone the AI omits.
@@ -12867,12 +12867,18 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     setRankedMeta({ mode: "role", label: matchJob.title, jobId: matchJob.id });
     try {
       if (!hasSupabase) { syncRuns(); return; } // demo: heuristic only, bump locally
-      const payload = pool.slice(0, 40).map((c) => ({
+      // Priced 1 credit per 50 candidates. Cap one run at 50 (a partial run trims to
+      // maxUnits*50 of the pool).
+      let ranking = pool.slice(0, 50);
+      if (maxUnits) ranking = ranking.slice(0, Math.max(1, maxUnits * 50));
+      const payload = ranking.map((c) => ({
         id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
         years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
       }));
+      const units = Math.max(1, Math.ceil(payload.length / 50));
       const roleInfo = { title: matchJob.title, description: matchJob.description || "", requirements: matchJob.requirements || [] };
-      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload } });
+      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units } });
+      if (data?.error === "limit_reached") { setMatching(false); setBuyAiRankOpen(true); return; }
       if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
       const scores = {}, reasons = {};
       data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
@@ -12950,13 +12956,15 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
     if (!hasSupabase) { syncRuns(); setRanked(true); return; } // demo: still count against the plan
     setAiRanking(true);
     try {
-      const payload = list.slice(0, 40).map((c) => ({
+      const payload = list.slice(0, 50).map((c) => ({
         id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
         years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
       }));
+      const units = Math.max(1, Math.ceil(payload.length / 50)); // 1 credit / 50 candidates
       const { data, error } = await supabase.functions.invoke("rank-candidates", {
-        body: { skills: skillTags, industries: industryTags, candidates: payload },
+        body: { skills: skillTags, industries: industryTags, candidates: payload, units },
       });
+      if (data?.error === "limit_reached") { setAiRanking(false); setBuyAiRankOpen(true); return; }
       if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
       const scores = {}, reasons = {};
       data.ranked.forEach((r) => { if (r && r.id) { scores[r.id] = (Number(r.score) || 0) / 100; reasons[r.id] = r.reason || ""; } });
@@ -13513,8 +13521,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         body={limits.aiRunsPerMonth === Infinity
           ? "AI Rank scores your candidates with Claude and explains the fit."
           : outOfRuns
-            ? `This uses 1 of your purchased AI Rank credits (${purchasedAiRank} left). Your monthly plan is used up.`
-            : `This uses 1 of your AI Rank credits. You have ${runsLeft} left this cycle.`}
+            ? `This uses 1 AI Rank credit (1 per 50 candidates), drawn from your purchased balance (${purchasedAiRank} left). Your monthly plan is used up.`
+            : `This uses 1 AI Rank credit (1 per 50 candidates). You have ${runsLeft} left this cycle${purchasedAiRank > 0 ? ` + ${purchasedAiRank} purchased` : ""}.`}
         confirmLabel="Run AI Rank"
         onConfirm={() => { const f = confirmRun; setConfirmRun(null); if (typeof f === "function") f(); }}
         onClose={() => setConfirmRun(null)}
