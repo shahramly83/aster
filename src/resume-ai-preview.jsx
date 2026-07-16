@@ -13764,7 +13764,13 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const [sending, setSending] = useState(false);
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
 
-  const ownerName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim();
+  // The Tenant card must show the workspace's REAL owner, taken from the team list
+  // (role === 'owner'), NOT whoever is viewing. A hiring manager opening this page
+  // must still see the actual Tenant, never themselves mislabelled as Tenant.
+  const owner = interviewers.find((iv) => iv.role === "owner") || null;
+  const ownerIsYou = owner ? owner.id === profile?.id : true;
+  const ownerName = owner?.name || `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim();
+  const ownerEmail = owner?.email || (ownerIsYou ? profile?.email : "") || "";
   // The workspace's email domain, derived from the signed-in owner/admin. New
   // teammates must use the same domain (enforced in handleAdd + shown as a hint).
   const tenantDomain = (profile?.email || "").split("@")[1]?.toLowerCase() || "";
@@ -13984,15 +13990,15 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           {(roleFilter === "all" || roleFilter === "admin") && (
           <div className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
             <div className="flex items-center gap-3">
-              <CandidateAvatar name={ownerName || "You"} hasPhoto={!!avatarUrl} src={avatarUrl} size={48} showPhotoDot={false} />
+              <CandidateAvatar name={ownerName || "You"} hasPhoto={ownerIsYou && !!avatarUrl} src={ownerIsYou ? avatarUrl : null} size={48} showPhotoDot={false} />
               <div className="min-w-0">
                 <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle("Tenant")}>Tenant · You</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle("Hiring Manager")}>Hiring Manager</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle("Tenant")}>Tenant{ownerIsYou ? " · You" : ""}</span>
                 </div>
               </div>
             </div>
+            {ownerEmail && <p className="text-xs text-neutral-500 mt-2.5 truncate pl-[60px]">{ownerEmail}</p>}
           </div>
           )}
 
