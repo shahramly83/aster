@@ -20318,23 +20318,41 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       ) : null)
     : null;
 
-  const workflowRail = !isInterviewer(profile?.role) && limits.aiRunsPerMonth !== Infinity ? (
+  const workflowRail = !isInterviewer(profile?.role) ? (
     <div className="space-y-4">
-      <UsageMeter
-        plan={plan}
-        title="AI Rank"
-        hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
-        used={matchRunsUsed}
-        limit={limits.aiRunsPerMonth}
-        unit=""
-        danger={outOfRuns}
-        resetLabel={aiRankResetLabel}
-        onUpgrade={() => navigate("billing")}
-        upgradeLabel="Upgrade for more"
-        purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
-        onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
-      />
+      {limits.aiRunsPerMonth !== Infinity && (
+        <UsageMeter
+          plan={plan}
+          title="AI Rank"
+          hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
+          used={matchRunsUsed}
+          limit={limits.aiRunsPerMonth}
+          unit=""
+          danger={outOfRuns}
+          resetLabel={aiRankResetLabel}
+          onUpgrade={() => navigate("billing")}
+          upgradeLabel="Upgrade for more"
+          purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
+          onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
+        />
+      )}
       <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
+      {/* Assign interviewers to this role, in the right sidebar. Available anytime
+          (no longer gated behind AI Rank). */}
+      {job && applicantTab !== "hired" && (
+        <JobInterviewersPanel
+          jobId={activeJobId}
+          team={interviewers}
+          assignedIds={assignedIds}
+          canManage={canManageInterviewers}
+          currentUserId={profile?.id}
+          onAssign={onAssignInterviewer}
+          onUnassign={onUnassignInterviewer}
+          locked={false}
+          navigate={navigate}
+          reloadTeam={reloadTeam}
+        />
+      )}
     </div>
   ) : null;
 
