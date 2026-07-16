@@ -20431,9 +20431,15 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       ) : null)
     : null;
 
-  const workflowRail = !isInterviewer(profile?.role) ? (
+  // The AI Rank meter shows for everyone (interviewers run it too), but billing
+  // actions (buy/upgrade) stay manager-only. The assign-interviewers panel is
+  // manager-only. Enterprise (unlimited) interviewers get no rail at all.
+  const railIsInterviewer = isInterviewer(profile?.role);
+  const railHasMeter = limits.aiRunsPerMonth !== Infinity;
+  const railHasPanel = !railIsInterviewer && job && applicantTab !== "hired";
+  const workflowRail = (railHasMeter || railHasPanel) ? (
     <div className="space-y-4">
-      {limits.aiRunsPerMonth !== Infinity && (
+      {railHasMeter && (
         <UsageMeter
           plan={plan}
           title="AI Rank"
@@ -20443,16 +20449,14 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           unit=""
           danger={outOfRuns}
           resetLabel={aiRankResetLabel}
-          onUpgrade={() => navigate("billing")}
+          onUpgrade={railIsInterviewer ? undefined : () => navigate("billing")}
           upgradeLabel="Upgrade for more"
-          purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
-          onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
+          purchased={railIsInterviewer ? null : purchasedAiRank}
+          onBuyCredits={railIsInterviewer ? null : () => setBuyAiRankOpen(true)}
         />
       )}
-      <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
-      {/* Assign interviewers to this role, in the right sidebar. Available anytime
-          (no longer gated behind AI Rank). */}
-      {job && applicantTab !== "hired" && (
+      {!railIsInterviewer && <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />}
+      {railHasPanel && (
         <JobInterviewersPanel
           jobId={activeJobId}
           team={interviewers}
@@ -20484,8 +20488,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       avatarUrl={avatarUrl}
       activities={activities}
       onOpenNotifications={onOpenNotifications}
-      backTo={isInterviewer(profile?.role) ? "interviews" : "jobs"}
-      backLabel={isInterviewer(profile?.role) ? "Interviews" : "Jobs"}
+      backTo={isInterviewer(profile?.role) ? "openRoles" : "jobs"}
+      backLabel={isInterviewer(profile?.role) ? "Open Positions" : "Jobs"}
       rail={workflowRail}
     >
 
