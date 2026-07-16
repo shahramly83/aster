@@ -13427,7 +13427,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </div>
             )}
             {matching ? matchSkeleton
-              : !matchScores ? emptyState("Find your best-fit candidates", openJobs.length === 0 ? "Create an open position under Job Postings to match against." : "", null)
+              : !matchScores ? emptyState("Find your best fit candidates", openJobs.length === 0 ? "Create an open position under Job Postings to match against." : "", null)
               : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
               : rankedList}
             {matchScores && matchJob && list.length > 0 && (
@@ -16331,7 +16331,8 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               <p className="text-xs text-neutral-600 leading-relaxed">Everything in Elite, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
             </div>
             <a
-              href="mailto:support@hireaster.com?subject=Enterprise%20plan%20enquiry"
+              href="https://help.hireaster.com/"
+              target="_blank" rel="noopener noreferrer"
               className="shrink-0 inline-flex items-center gap-1.5 rounded-xl text-xs font-semibold px-4 py-2 bg-white border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50 transition-colors"
             >
               <Icon name="mail" className="w-3.5 h-3.5" /> Email us
@@ -17981,7 +17982,20 @@ function BillingCurrencyCard({ currency, onChange, canPersist }) {
           {saving ? "Saving…" : err ? err : saved ? "Saved." : ""}
         </p>
       </div>
-      <div className="shrink-0"><CurrencyDropdown value={currency} onChange={pick} /></div>
+      {/* Inline pills (not a popover): the Settings accordion is overflow-hidden,
+          which would clip an absolute dropdown so only the selected code showed. */}
+      <div className="shrink-0 inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+        {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
+          const on = currency === c.key;
+          return (
+            <button key={c.key} type="button" onClick={() => pick(c.key)}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors inline-flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+              style={on ? { background: "var(--ink)" } : undefined}>
+              <CurrencyFlag code={c.key} /> {c.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
