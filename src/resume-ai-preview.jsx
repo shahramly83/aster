@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -383,7 +383,7 @@ function applyWorkspaceData({ jobs, candidates, applicantsByJob, matchesByJob })
 async function loadWorkspaceData(companyId) {
   if (!hasSupabase || !companyId) return null;
   const [jobsRes, candRes, appRes, ivRes, scRes, viewsRes, srRes, iqRes, offRes] = await Promise.all([
-    supabase.from("jobs").select("id, title, status, details, created_at, expires_at").eq("company_id", companyId),
+    supabase.from("jobs").select("id, title, status, details, created_at, expires_at, ai_ranked_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots").eq("company_id", companyId),
@@ -403,7 +403,7 @@ async function loadWorkspaceData(companyId) {
   const viewsByJob = {};
   (viewsRes?.data || []).forEach((r) => { viewsByJob[r.job_id] = { total: Number(r.total) || 0, uniques: Number(r.uniques) || 0, sources: r.sources || {} }; });
 
-  const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}), posted_at: j.created_at, expires_at: j.expires_at || null, viewStats: viewsByJob[j.id] || { total: 0, uniques: 0, sources: {} } }));
+  const jobs = jobRows.map((j) => ({ id: j.id, title: j.title, status: j.status, ...(j.details || {}), posted_at: j.created_at, expires_at: j.expires_at || null, aiRankedAt: j.ai_ranked_at || null, viewStats: viewsByJob[j.id] || { total: 0, uniques: 0, sources: {} } }));
   const jobTitle = Object.fromEntries(jobs.map((j) => [j.id, j.title]));
 
   // Resume PDFs and profile photos live in the private resumes bucket; mint
@@ -20138,6 +20138,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const outOfCredits = outOfRuns && purchasedAiRank <= 0;
   const [confirmRun, setConfirmRun] = useState(null); // AI Rank confirmation
   const [partialPrompt, setPartialPrompt] = useState(null); // { needed, available, count } when short on credits
+  const [rankedAtLocal, setRankedAtLocal] = useState(null); // optimistic "ranked at" after a run, so the lock applies at once
+  const [rankInfo, setRankInfo] = useState(null); // popup reason when AI Rank can't run (clicked, not just hovered)
   const askAiRank = (fn) => { if (outOfCredits) { setBuyAiRankOpen(true); return; } setConfirmRun(() => fn); };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
@@ -20281,6 +20283,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       // up the updated scores on load. Only match_score / match_reasons change —
       // never a candidate's stage — so status changes are preserved.
       dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
+      // Lock AI Rank for this job (everyone) until a new candidate applies. Stamp
+      // locally at once so the button locks immediately, and server-side to persist.
+      setRankedAtLocal(new Date().toISOString());
+      dbStampJobRanked(activeJobId);
     } catch (e) {
       console.error("runMatching", e);
       setMatchErr("Couldn't rank these applicants. No credit was used.");
@@ -20337,10 +20343,16 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     .filter((a) => { const c = MOCK_CANDIDATES.find((x) => x.id === a.candidateId); return c && c.parsed; });
   const rankCount = Math.min(rankablePool.length, 40);
   const rankUnits = Math.max(1, Math.ceil(rankCount / 10));
+  // Per-job lock: once a job is ranked, AI Rank is locked for EVERYONE (interviewers,
+  // managers, tenant) until a genuinely new candidate applies — an application newer
+  // than the last rank. rankedAtLocal makes the lock apply the instant a run finishes.
+  const effRankedAt = [job?.aiRankedAt, rankedAtLocal].filter(Boolean).sort().slice(-1)[0] || null;
+  const hasNewSinceRank = effRankedAt ? applicants.some((a) => a.appliedAtIso && a.appliedAtIso > effRankedAt) : true;
+  const rankLocked = !!effRankedAt && !hasNewSinceRank;
   // True when the AI Rank button can't be pressed (mid-run, or fewer than 2
   // eligible candidates). Out-of-credits stays clickable so it can route to
   // billing. During the tour the button is disabled too but styled to look live.
-  const aiRankDisabled = matching || (!outOfCredits && !canRank);
+  const aiRankDisabled = matching || rankLocked || (!outOfCredits && !canRank);
   const onOtherTab = applicantTab === "other";
   const onHiredTab = applicantTab === "hired";
   const tabBase = onHiredTab ? hiredApplicants : onOtherTab ? otherApplicants : strongApplicants;
@@ -20375,7 +20387,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // AI Rank is now a compact button at the top-right of the applicants list (the
   // "left card") rather than a right-rail card. Interviewer assignment is no longer
   // managed on this screen (it's handled when a role is published). Managers only.
-  const showRankBtn = !isInterviewer(profile?.role) && !onOtherTab && applicantTab !== "hired";
+  // Interviewers can trigger AI Rank too now (it meters the workspace pool), so the
+  // button shows for everyone on the Strong Matches view, not just managers.
+  const showRankBtn = !onOtherTab && applicantTab !== "hired";
   const aiRankInlineBtn = showRankBtn ? (
     <div className="relative shrink-0">
       {tourStep === 2 && (
@@ -20386,9 +20400,16 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         </div>
       )}
       <button
-        onClick={() => askAiRank(runMatching)}
-        disabled={aiRankDisabled || tourStep === 2}
-        title={tourStep === 2 ? "Step 2: Run AI Rank." : !canRank && !outOfRuns ? "AI Rank becomes available when at least 2 candidates are ready." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+        onClick={() => {
+          if (matching || tourStep === 2) return;
+          // Clickable even when it can't run, so a click explains WHY in a popup
+          // (a disabled button with only a hover tip is easy to miss).
+          if (!canRank) { setRankInfo("AI Rank needs at least 2 candidates to rank. Once two or more applicants are ready, you can score them against this role."); return; }
+          if (rankLocked) { setRankInfo("These applicants are already ranked. AI Rank unlocks again the moment a new candidate applies, so you're not charged to re-rank an unchanged list."); return; }
+          askAiRank(() => runMatching());
+        }}
+        disabled={matching || tourStep === 2}
+        title={tourStep === 2 ? "Step 2: Run AI Rank." : rankLocked ? "Already ranked. AI Rank unlocks again once a new candidate applies." : !canRank ? "AI Rank needs at least 2 candidates." : matchResults ? `Re-ranks every candidate and uses ${rankUnits} AI Rank credit${rankUnits === 1 ? "" : "s"}.` : `Scores every candidate against this role and uses ${rankUnits} AI Rank credit${rankUnits === 1 ? "" : "s"}.`}
         // During Step 2 the button stays disabled but LOOKS enabled (opacity:1 +
         // pulse ring marks it as the tour target); advance via the bubble's button.
         style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
@@ -20396,8 +20417,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       >
         {matching
           ? <span className="w-4 h-4 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
-          : <Icon name={(outOfCredits || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />}
-        {matching ? rankStatus : outOfCredits ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
+          : <Icon name={(outOfCredits || rankLocked || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />}
+        {matching ? rankStatus : outOfCredits ? "Out of credits" : rankLocked ? "Ranked" : matchResults ? "Re-run AI Rank" : "AI Rank"}
       </button>
     </div>
   ) : null;
@@ -20763,6 +20784,16 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           if (p?.available > 0) runMatching(p.available); else setBuyAiRankOpen(true);
         }}
         onClose={() => setPartialPrompt(null)}
+      />
+      {/* Why AI Rank can't run right now (shown when the button is clicked, since a
+          disabled button + hover tip is easy to miss). */}
+      <ConfirmDialog
+        open={!!rankInfo}
+        title="AI Rank"
+        body={rankInfo || ""}
+        confirmLabel="Got it"
+        onConfirm={() => setRankInfo(null)}
+        onClose={() => setRankInfo(null)}
       />
     </AccountShell>
   );
@@ -21799,7 +21830,7 @@ export default function ResumeAIPreview() {
       : x)));
     if (canPersist) {
       const clean = { ...j, approvalStatus };
-      delete clean.posted_at; delete clean.viewStats; // derived on load, not stored in details
+      delete clean.posted_at; delete clean.viewStats; delete clean.aiRankedAt; // derived on load, not stored in details
       dbUpdateJob(jobId, clean);
       if (publishNow) {
         // dbSetJobStatus runs trg_charge_job_post, which enforces the open-role

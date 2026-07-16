@@ -178,6 +178,15 @@ export async function dbUpdateCompany(companyId, { name, address = {}, registrat
   return { ok: true };
 }
 
+// Stamp a job as just AI-Ranked (0098), so the run locks for everyone until a new
+// candidate applies. Server-gated to admins or an interviewer assigned to the job.
+export async function dbStampJobRanked(jobId) {
+  if (!hasSupabase || !jobId) return { ok: false };
+  const { error } = await supabase.rpc("stamp_job_ranked", { p_job_id: jobId });
+  if (error) { console.error("dbStampJobRanked", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 // Reset a reopened role's apply-page view analytics to zero (0096). Admin-gated
 // server-side. Best-effort: a failure just leaves the old view count.
 export async function dbClearJobViews(jobId) {
@@ -485,12 +494,23 @@ export async function dbUpdateMyProfile({ fullName, phone, avatarPath, notifyPre
 // int type and the loader's `match_score > 1 ? /100 : score` normalisation.
 export async function dbSaveMatchScores(companyId, jobId, results = []) {
   if (!hasSupabase || !companyId || !jobId || !results.length) return;
-  await Promise.all(results.map(({ candidateId, score, rationale }) =>
-    supabase.from("applications")
-      .update({ match_score: Math.round((Number(score) || 0) * 100), match_reasons: rationale || null })
-      .eq("company_id", companyId).eq("job_id", jobId).eq("candidate_id", candidateId)
-      .then(({ error }) => { if (error) console.error("dbSaveMatchScores", error.message); })
-  ));
+  // Route through the definer RPC (0098) so an assigned INTERVIEWER's run persists
+  // too — applications RLS is read-only for them. Falls back to a direct update
+  // (admins only) if the RPC isn't deployed yet.
+  const p_scores = results.map(({ candidateId, score, rationale }) => ({
+    candidate_id: candidateId, score: Math.round((Number(score) || 0) * 100), reasons: rationale || null,
+  }));
+  const { error } = await supabase.rpc("save_match_scores", { p_job_id: jobId, p_scores });
+  if (error && (error.code === "42883" || error.code === "PGRST202")) {
+    await Promise.all(results.map(({ candidateId, score, rationale }) =>
+      supabase.from("applications")
+        .update({ match_score: Math.round((Number(score) || 0) * 100), match_reasons: rationale || null })
+        .eq("company_id", companyId).eq("job_id", jobId).eq("candidate_id", candidateId)
+        .then(({ error: e }) => { if (e) console.error("dbSaveMatchScores", e.message); })
+    ));
+    return;
+  }
+  if (error) console.error("dbSaveMatchScores", error.message);
 }
 
 // Persist a "Why this fit" (See Why) explanation on the application, so it
