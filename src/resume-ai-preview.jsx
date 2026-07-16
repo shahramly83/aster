@@ -7706,7 +7706,15 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                   <span className="text-[11px] font-medium w-11 text-right" style={{ color: pwColor }}>{pwLabel}</span>
                 </div>
               )}
-              <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-2)" }}>At least 8 characters, with a letter and a number.</p>
+              {/* Live requirement checks: turn green as each rule is satisfied. */}
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                {[["8+ characters", password.length >= 8], ["a letter and a number", /[A-Za-z]/.test(password) && /\d/.test(password)]].map(([label, ok]) => (
+                  <span key={label} className="inline-flex items-center gap-1" style={{ color: ok ? "#166534" : "var(--ink-3)" }}>
+                    {ok ? <Icon name="check" className="w-3 h-3" /> : <span className="w-2.5 h-2.5 rounded-full border shrink-0" style={{ borderColor: "var(--line-strong)" }} />}
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
             <div>
               <label htmlFor="su-confirm" className={labelDark} style={{ color: "var(--ink)" }}>Confirm password{reqStar}</label>
