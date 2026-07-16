@@ -11271,6 +11271,15 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     applyStatus(jobId, job.status);
   };
 
+  // Unpublish an open role back to a DRAFT. Unlike closing, this is non-destructive:
+  // the pipeline and applicants stay intact, it just goes offline and frees its
+  // open-role slot (openJobsCount only counts "open"). Re-publishing later spends a
+  // slot again. No confirm needed since nothing is cleared.
+  const saveAsDraft = (jobId) => {
+    setJobs(jobs.map((j) => (j.id === jobId ? { ...j, status: "draft" } : j)));
+    if (canPersist) dbSetJobStatus(jobId, "draft");
+  };
+
   const doCloseJob = () => {
     if (!confirmClose) return;
     const job = confirmClose;
@@ -11426,6 +11435,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
               <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : job.status === "draft" ? "Publish role" : "Reopen this role"}
             </button>
+            {job.status === "open" && (
+              <button role="menuitem" onClick={() => { setMenuJob(null); saveAsDraft(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
+                <Icon name="archive" className="w-4 h-4" /> Save as draft
+              </button>
+            )}
             {(job.status === "draft" || job.status === "closed") && (
               <button role="menuitem" onClick={() => { setMenuJob(null); setConfirmDeleteJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-rose-50" style={{ color: "#B91C1C" }}>
                 <Icon name="trash" className="w-4 h-4" /> {job.status === "draft" ? "Delete draft" : "Delete role"}
