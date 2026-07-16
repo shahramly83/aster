@@ -2489,7 +2489,7 @@ function SchedulingPreview() {
   );
 }
 
-function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
+function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupCurrency, setSignupTrial }) {
   const prices = usePlanPrices();
   const [cycle, setCycle] = useState("monthly");
   const [curSel, setCurSel] = useState("myr");   // display currency; RM default
@@ -2560,6 +2560,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const goSignup = (planKey, trial = false) => {
     setSignupPlan && setSignupPlan(planKey);
     setSignupCycle && setSignupCycle(cycle);
+    setSignupCurrency && setSignupCurrency(curSel);
     setSignupTrial && setSignupTrial(trial);
     navigate("signup");
   };
@@ -7325,7 +7326,7 @@ function OfferScreen({ data, done, onRespond }) {
   );
 }
 
-function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "elite", signupCycle = "monthly", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft, ssoEnabled = false }) {
+function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, signupPlan = "elite", signupCycle = "monthly", signupCurrency = "myr", signupTrial = true, setPlan, setPlanCycle, setTrialDaysLeft, ssoEnabled = false }) {
   const prices = usePlanPrices();
   const [companyName, setCompanyName] = useState("");
   const [workspaceUrl, setWorkspaceUrl] = useState(""); // dashboard subdomain slug
@@ -7373,9 +7374,14 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     const forCycle = signupCycle;
     const p = prices?.[`${key}|${forCycle}`];
     if (!p) return prices == null ? "…" : null;
+    // Show the amount in the currency picked on the pricing table, falling back to
+    // the Price's base currency when that currency isn't configured on the Price.
+    const hasCur = p.currencies && p.currencies[signupCurrency] != null;
+    const amt = hasCur ? p.currencies[signupCurrency] : p.amount;
+    const cur = hasCur ? signupCurrency : p.currency;
     return p.interval === "year"
-      ? `${formatMoney(Math.round(p.amount / 12), p.currency)}/mo · billed yearly`
-      : `${formatMoney(p.amount, p.currency)}/month`;
+      ? `${formatMoney(Math.round(amt / 12), cur)}/mo · billed yearly`
+      : `${formatMoney(amt, cur)}/month`;
   };
   const shownPrice = signupTrial ? priceOf("scale") : priceOf(signupPlan);
 
@@ -15741,7 +15747,7 @@ function RestrictedScreen({ navigate, title, body }) {
   );
 }
 
-function BillingScreen({ navigate, plan, planCycle = "monthly", company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
+function BillingScreen({ navigate, plan, planCycle = "monthly", company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(() => {
     // A plan change reloads onto ?plan=changed|scheduled; surface a one-line
     // confirmation from the fresh page load.
@@ -15814,7 +15820,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
 
   // Stripe stores yearly plans as one yearly charge. The cards show a per-month
   // equivalent so the two cycles compare like for like, with the real total below.
-  const [curSel, setCurSel] = useState("usd");   // display/billing currency for the plan cards
+  const [curSel, setCurSel] = useState(["usd", "myr", "sgd"].includes(initialCurrency) ? initialCurrency : "usd");   // display/billing currency; seeded from the plan the visitor picked at sign-up
   // Amount + currency for the selected display currency, falling back to the
   // Price's base currency when that currency isn't configured on the Price.
   const inCur = (p) => (p && p.currencies && p.currencies[curSel] != null)
@@ -21514,6 +21520,10 @@ export default function ResumeAIPreview() {
   // Plan a visitor picked on the marketing site, carried into sign-up.
   const [signupPlan, setSignupPlan] = useState("elite");
   const [signupCycle, setSignupCycle] = useState("monthly");
+  // The currency the visitor picked on the marketing pricing table, carried through
+  // sign-up and into checkout so the price they saw is the price they're billed.
+  // RM default matches the pricing table's default.
+  const [signupCurrency, setSignupCurrency] = useState("myr");
   // true = arrived via a generic "start trial" CTA (14-day Growth trial);
   // false = picked a specific plan on the pricing table (pay / free forever).
   const [signupTrial, setSignupTrial] = useState(true);
@@ -22484,7 +22494,7 @@ export default function ResumeAIPreview() {
     return (
       <Shell>
         {marketingChat}
-        <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupTrial={setSignupTrial} />
+        <LandingScreen navigate={navigate} goProduct={goProduct} goSolution={goSolution} goBlog={goBlog} goGlossary={goGlossary} goCompare={goCompare} logoUrl={logoUrl} setSignupPlan={setSignupPlan} setSignupCycle={setSignupCycle} setSignupCurrency={setSignupCurrency} setSignupTrial={setSignupTrial} />
       </Shell>
     );
   }
@@ -22605,6 +22615,7 @@ export default function ResumeAIPreview() {
           setProfile={setProfile}
           signupPlan={signupPlan}
           signupCycle={signupCycle}
+          signupCurrency={signupCurrency}
           signupTrial={signupTrial}
           setPlan={setPlan}
           setPlanCycle={setPlanCycle}
@@ -22917,7 +22928,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "billing" && isOwner(profile?.role) && (
-          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={signupCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
