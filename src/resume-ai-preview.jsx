@@ -13378,7 +13378,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             )}
             {!matchScores ? (candidates.length === 0
                 ? emptyState("Your database is empty", "Skills and industries are drawn from your candidates' profiles. Import resumes first, then filter by skill, industry or experience level.", "matching")
-                : emptyState("Search by skills or industry", "Add a skill, industry, or experience level above and matching candidates appear here instantly.", "matching"))
+                : emptyState("Find your best fit candidates", "Add a skill, industry, or experience level above.", "matching"))
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
           </>
