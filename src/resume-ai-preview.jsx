@@ -17302,7 +17302,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
                 </span>
                 <span className="ml-auto inline-flex items-center gap-1 text-xs" style={{ color: "var(--ink-3)" }}><Icon name="lock" className="w-3.5 h-3.5" /> Fixed</span>
               </div>
-              <p className="text-xs text-neutral-500 mt-1.5">This is your workspace account. Add teammates as hiring managers or interviewers on the <button type="button" onClick={() => navigate("interviewers")} className="font-medium hover:underline" style={{ color: "var(--brand)" }}>Team</button> page.</p>
             </div>
             <div>
               <label htmlFor="pf-phone" className={labelClass} style={{ color: "var(--ink-2)" }}>Contact number</label>
@@ -17322,7 +17321,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
             </div>
             )}
           </div>
-          <p className="text-xs text-neutral-500 mt-2.5">Your first name shows in the dashboard greeting; full name and role show in the sidebar.</p>
         </div>
 
         {/* Interviewer self-service: reset password by email (the full sign-in panel
