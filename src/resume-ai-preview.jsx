@@ -9336,6 +9336,28 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 </div>
               );
             })()}
+
+            {/* Top Roles + Application Source, in the left column right under the chart */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
+              <div className={cardClass}>
+                {sectionHead(
+                  "Top Roles",
+                  roleTotal > 0 ? (
+                    <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
+                  ) : null
+                )}
+                {donutBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
+              </div>
+              <div className={cardClass}>
+                {sectionHead(
+                  "Application Source",
+                  sourceSegments.length > 5 ? (
+                    <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : "Show all"} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
+                  ) : null
+                )}
+                {donutBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
+              </div>
+            </div>
           </div>
 
           {/* Right dark panel, plan card + quick actions + recent candidates */}
@@ -9469,28 +9491,6 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           </div>
         </div>
 
-        {/* Two donut charts, 50/50 on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-          <div className={cardClass}>
-            {sectionHead(
-              "Top Roles",
-              roleTotal > 0 ? (
-                <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
-              ) : null
-            )}
-            {donutBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
-          </div>
-
-          <div className={cardClass}>
-            {sectionHead(
-              "Application Source",
-              sourceSegments.length > 5 ? (
-                <button onClick={() => setShowAllSources((v) => !v)} className="text-xs font-medium hover:opacity-70 transition-opacity inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>{showAllSources ? "Show less" : "Show all"} <span className="transition-transform" style={{ transform: showAllSources ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-5 h-5" /></span></button>
-              ) : null
-            )}
-            {donutBody(shownSources, shownSourceTotal, "No applications yet.", "Where your candidates come from will appear here.")}
-          </div>
-        </div>
       </div>
     </div>
   );
