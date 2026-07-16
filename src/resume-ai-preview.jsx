@@ -13861,7 +13861,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
           {/* Account owner, always a member, can't be removed */}
           {(roleFilter === "all" || roleFilter === "admin") && (
           <div className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
