@@ -20330,17 +20330,21 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
       if (!Object.keys(map).length) throw new Error("no scores returned");
 
       setMatchResults(map);
-      setMatchOk(true);
       syncRuns(data.used);  // the server already charged; mirror its count
       reloadPurchasedAiRank?.(); // a run may have drawn from the purchased balance
-      // Persist the full set so the ranking survives a reload; interviewers pick
-      // up the updated scores on load. Only match_score / match_reasons change —
-      // never a candidate's stage — so status changes are preserved.
-      dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
-      // Lock AI Rank for this job (everyone) until a new candidate applies. Stamp
-      // locally at once so the button locks immediately, and server-side to persist.
-      setRankedAtLocal(new Date().toISOString());
-      dbStampJobRanked(activeJobId);
+      // Persist the full set so the ranking survives a reload; interviewers pick up
+      // the scores on load. AWAIT it: if the write fails we must NOT show "synced"
+      // and must NOT lock the job, or the run is trapped (locked, no saved scores).
+      const saved = await dbSaveMatchScores(companyId, activeJobId, Object.entries(map).map(([candidateId, v]) => ({ candidateId, ...v })));
+      if (!saved?.ok) {
+        setMatchErr(`Ranked, but the scores couldn't be saved: ${saved?.error || "unknown error"}. The job was not locked, so you can try again.`);
+      } else {
+        setMatchOk(true);
+        // Lock AI Rank for this job (everyone) until a new candidate applies. Only
+        // after a confirmed save, so a failed save never leaves it locked+unscored.
+        setRankedAtLocal(new Date().toISOString());
+        dbStampJobRanked(activeJobId);
+      }
     } catch (e) {
       console.error("runMatching", e);
       setMatchErr("Couldn't rank these applicants. No credit was used.");
