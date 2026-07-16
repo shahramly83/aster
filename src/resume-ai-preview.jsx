@@ -10297,11 +10297,11 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
             <div className="space-y-1">
               {importHistory.map((run) => {
                 const stats = [
-                  { label: "screened", count: run.summary.parsed, color: "#16A34A" },
-                  { label: run.summary.duplicates === 1 ? "duplicate" : "duplicates", count: run.summary.duplicates, color: "var(--brand)" },
-                  { label: "possible match", count: run.summary.review, color: "#F59E0B" },
-                  { label: "needs review", count: run.summary.flagged, color: "#F59E0B" },
-                  { label: "skipped", count: run.summary.rejected, color: "#DC2626" },
+                  { label: "screened", count: run.summary.parsed, color: "#166534", bg: "#DCFCE7" },
+                  { label: run.summary.duplicates === 1 ? "duplicate" : "duplicates", count: run.summary.duplicates, color: "var(--brand)", bg: "var(--brand-soft)" },
+                  { label: "possible match", count: run.summary.review, color: "#92400E", bg: "#FEF3C7" },
+                  { label: "needs review", count: run.summary.flagged, color: "#92400E", bg: "#FEF3C7" },
+                  { label: "skipped", count: run.summary.rejected, color: "#B91C1C", bg: "#FEE2E2" },
                 ].filter((st) => st.count > 0);
                 return (
                   <button key={run.id} onClick={() => reopenRun(run)} className="group w-full text-left rounded-xl p-2.5 transition-colors hover:bg-neutral-50">
@@ -10315,11 +10315,10 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       </div>
                       <Icon name="chevronRight" className="w-4 h-4 shrink-0 text-neutral-300 group-hover:text-neutral-500 transition-colors" />
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-12">
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-12">
                       {stats.map((st) => (
-                        <span key={st.label} className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-2)" }}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
-                          <span className="tnum font-medium">{st.count}</span> {st.label}
+                        <span key={st.label} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
+                          <span className="tnum">{st.count}</span> {st.label}
                         </span>
                       ))}
                     </div>
