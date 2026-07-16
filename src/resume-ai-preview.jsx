@@ -14805,22 +14805,20 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         )}
         </>
       ) : bookingStatus === "sent" ? (
-        <div className="rounded-xl bg-white border border-neutral-200 px-4 py-3">
-          <p className="text-xs text-neutral-500 mb-1">Sent these times ({sentRequest.proposed_slots.length}):</p>
-          <div className="flex flex-wrap gap-2 mb-2">
+        <div className="rounded-xl bg-white border border-neutral-200 px-3.5 py-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs font-medium inline-flex items-center gap-1.5" style={{ color: "#B45309" }}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#F59E0B" }} /> Invite sent · waiting for a pick
+            </span>
+            <button onClick={() => onPreviewBooking(sentRequest)} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Preview →</button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             {sentRequest.proposed_slots.map((slot) => (
-              <span key={slot.start} className="text-xs rounded-full bg-neutral-100 border border-neutral-200 px-3 py-1 text-neutral-700">
+              <span key={slot.start} className="text-[11px] rounded-full bg-neutral-100 border border-neutral-200 px-2.5 py-0.5 text-neutral-700">
                 {formatSlotRange(slot.start, slot.end)}
               </span>
             ))}
           </div>
-          <p className="text-sm text-amber-600">Invite sent, waiting for the candidate to pick a time.</p>
-          <button
-            onClick={() => onPreviewBooking(sentRequest)}
-            className="text-sm text-indigo-600 hover:text-indigo-700 mt-1"
-          >
-            Preview the candidate's booking page →
-          </button>
         </div>
       ) : !fixedJob && openJobs.length === 0 ? (
         <p className="text-sm text-neutral-500">No open jobs to schedule against.</p>
