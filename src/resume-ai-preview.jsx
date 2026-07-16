@@ -15822,6 +15822,10 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // Every tier is paid now (Launch included), so a live subscription is defined by
   // subscriptions.status, not by the tier. A trial has the Scale tier but no card.
   const paidSub = !onTrial && subStatus === "active" && plan !== "enterprise";
+  // Whether the stored plan tier reflects a LIVE subscription. Without a live sub
+  // (canceled, or never subscribed) the tier is stale, so no plan card should read
+  // "Current" and every card should invite a fresh "Subscribe".
+  const hasActivePlan = paidSub || pastDue;
   // Has ever checked out, so Stripe has a customer and the portal has something
   // to show. A canceled subscriber still needs their invoice history.
   const hasStripeCustomer = !onTrial && ["active", "past_due", "canceled"].includes(subStatus);
@@ -16075,9 +16079,12 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               const cycleMatters = p.key !== "enterprise";
               // On a trial nothing is "current" yet: every tier stays buyable,
               // including the Scale tier the trial itself grants.
-              const isCurrent = !onTrial && p.key === plan && (!cycleMatters || cycle === planCycle);
-              const isSwitch = !isCurrent && p.key === plan && cycleMatters;   // same tier, other cadence
-              const isDowngrade = !isCurrent && !isSwitch && rank[p.key] < rank[plan];
+              // Only mark a card "Current" when there's a live subscription on that
+              // tier. With no live sub, the stored tier is stale, so nothing is
+              // "current" and every card is a fresh subscribe.
+              const isCurrent = hasActivePlan && p.key === plan && (!cycleMatters || cycle === planCycle);
+              const isSwitch = hasActivePlan && !isCurrent && p.key === plan && cycleMatters;   // same tier, other cadence
+              const isDowngrade = hasActivePlan && !isCurrent && !isSwitch && rank[p.key] < rank[plan];
               const highlight = p.popular && !isCurrent;   // draw the eye to the recommended tier
               // This exact plan+cycle is the one already scheduled to take effect at
               // period end. Mark it so the button reads "Scheduled" instead of
@@ -16085,7 +16092,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               const isScheduledTarget = !!pendingChange && p.key === pendingChange.plan && cycle === pendingChange.cycle;
               const label = isCurrent ? "Current plan"
                 : isScheduledTarget ? "Scheduled"
-                : onTrial ? "Subscribe"
+                : (onTrial || !hasActivePlan) ? "Subscribe"
                 : isSwitch ? (cycle === "yearly" ? "Switch to yearly" : "Switch to monthly")
                 : isDowngrade ? "Downgrade"
                 : "Upgrade";
