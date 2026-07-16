@@ -12886,9 +12886,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   // ---- Shared render helpers ----
   const emptyState = (title, sub, icon = "search") => (
     <div className="rounded-2xl border bg-white py-12 px-6 text-center" style={{ borderColor: "var(--line)" }}>
-      <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-        <Icon name={icon} className="w-5 h-5" />
-      </div>
+      {icon && (
+        <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <Icon name={icon} className="w-5 h-5" />
+        </div>
+      )}
       <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{title}</p>
       {sub && <p className="text-xs mt-1 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>{sub}</p>}
     </div>
@@ -13311,7 +13313,6 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     Match to an open role
                     <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the role you pick, so you can invite the best fits to apply." />
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Pick a role and AI Rank scores every candidate against it. Each run uses one credit. Open a profile to review, then invite the strongest to apply.</p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
@@ -13344,7 +13345,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </div>
             )}
             {matching ? matchSkeleton
-              : !matchScores ? emptyState("Rank candidates for a role", openJobs.length === 0 ? "Create an open role under Job Postings to match against." : "Select an open role above, then run the AI match.", "briefcase")
+              : !matchScores ? emptyState("Show the best candidate", openJobs.length === 0 ? "Create an open role under Job Postings to match against." : "Select an open role above, then run the AI match.", null)
               : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
               : rankedList}
             {matchScores && matchJob && list.length > 0 && (
