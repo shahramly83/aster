@@ -3,6 +3,136 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "write-a-job-post-your-ai-screener-can-actually-rank-against",
+    "title": "Write a job post your AI screener can actually rank against",
+    "category": "ai-hiring",
+    "excerpt": "An AI ranks resumes against the role you describe. Vague postings produce vague scores. Here's how to write one that sorts a pile into a real shortlist.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-07-16",
+    "readMins": 6,
+    "tags": [
+      "job descriptions",
+      "resume screening",
+      "match scores",
+      "hiring managers"
+    ],
+    "body": [
+      {
+        "p": "Most advice about job posts is written for the candidate: sell the role, list the perks, keep it short. That still matters. But if an AI screener is reading every application and ranking it against the role, your posting is doing a second job now. It's the spec the model matches against."
+      },
+      {
+        "p": "A ranking is only as good as the description it's scoring. Feed an AI a wishlist of twenty \"must-haves\" and a paragraph of culture adjectives, and you get a shortlist that reflects noise as much as fit. Feed it a clear picture of the work and what separates a strong hire from an average one, and the ranking starts to look like the shortlist you'd have built by hand, just faster."
+      },
+      {
+        "h": "What the AI is actually reading"
+      },
+      {
+        "p": "An AI screener doesn't know your team. It knows what you wrote. When it ranks a candidate against \"the role,\" the role is the text of your posting plus whatever structured criteria you've added on top. So the parts of a job post that used to be filler (the responsibilities nobody reads, the requirements copied from the last opening) are now load-bearing."
+      },
+      {
+        "p": "That changes what a good posting looks like. You still write for humans first. But you write with the knowledge that every phrase is a signal, and that **vague inputs produce vague scores**. \"Strong communication skills\" tells a model almost nothing. \"Writes customer-facing docs and can explain a technical tradeoff to a non-technical stakeholder\" is something it can look for evidence of."
+      },
+      {
+        "h": "Separate the must-haves from the nice-to-haves"
+      },
+      {
+        "p": "The single biggest lever is honest prioritization. Every hiring manager, under pressure, lists everything they'd love in a candidate. An AI takes that list at face value. If ten requirements are all weighted the same, someone who nails the two that matter and misses two that don't will get buried under a generalist who scrapes a pass on all ten."
+      },
+      {
+        "p": "Before you post, split your requirements into three buckets:"
+      },
+      {
+        "ul": [
+          "Non-negotiable: the person genuinely cannot do the job without this. Be strict. Most roles have two to four of these.",
+          "Strongly preferred: real advantages that would move a candidate up, but that a great person could learn.",
+          "Nice to have: you'd mention it in an offer conversation, not screen on it."
+        ]
+      },
+      {
+        "p": "Then cut the third bucket from the requirements section entirely, or clearly mark it. When the criteria you give the AI mirror this hierarchy, the ranking sorts on what actually matters instead of averaging everything into mush."
+      },
+      {
+        "quote": "A ranking is only as good as the description it's scoring. Vague inputs produce vague scores."
+      },
+      {
+        "h": "Describe the work, not the ideal person"
+      },
+      {
+        "p": "\"5+ years of experience, self-starter, team player, passionate about our mission\" describes a person you're imagining. It gives a screener almost nothing to match against, because it doesn't say what the person does all day."
+      },
+      {
+        "p": "Describe the work instead. What will this person ship in their first quarter? What decisions will they own? What tools and systems will they touch? Concrete responsibilities give the AI something to find evidence of in a resume, and they help candidates self-select, which quietly improves the pile before anything gets ranked."
+      },
+      {
+        "p": "Compare these two lines for the same role:"
+      },
+      {
+        "ul": [
+          "Weak: \"Manage the marketing calendar and support campaigns.\"",
+          "Strong: \"Own the content calendar across email and social, run two to three campaigns a quarter end to end, and report on what worked to the founder.\""
+        ]
+      },
+      {
+        "p": "The second version tells a model what seniority, what scope, and what evidence counts. It also tells a candidate whether this is the job they want."
+      },
+      {
+        "h": "Name your proxies, don't hide them"
+      },
+      {
+        "p": "Every requirement is a proxy for something you actually care about. \"Degree in computer science\" is a proxy for \"can reason about systems.\" \"3 years at a startup\" is a proxy for \"comfortable with ambiguity and scope changes.\" The problem is that proxies leak. Plenty of great engineers don't have the degree, and plenty of startup veterans hate ambiguity."
+      },
+      {
+        "p": "When you can, write the thing you care about, not the proxy. If you want someone comfortable with ambiguity, say so and describe what that looks like in the role. A good screener can then look for signals of it across a resume rather than filtering hard on one credential. This is also where you reduce bias: proxies like school name and company pedigree carry a lot of it, and the more you lean on the underlying skill, the less you inherit."
+      },
+      {
+        "note": "A degree, a company name, and a years-of-experience number are proxies for something you actually want. Write the underlying skill wherever you can, and let the screener find evidence of it.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Be careful with years of experience"
+      },
+      {
+        "p": "\"5+ years\" is the most overused and least useful requirement in most postings. It's easy to game, easy to misread, and it filters out career changers and fast learners who'd be excellent. An AI will honor it literally if you make it a hard rule, so use it deliberately."
+      },
+      {
+        "p": "If tenure genuinely matters, tie it to a capability: \"enough experience to have owned a release cycle end to end\" is more honest than a raw number. If you keep the number, treat it as a preference, not a gate, so a strong candidate with four years and the right work doesn't get dropped for an arbitrary threshold."
+      },
+      {
+        "h": "Calibrate against a few real resumes"
+      },
+      {
+        "p": "The fastest way to test a posting is to run it against people you already have opinions about. Take three or four past applicants (or current team members' old resumes) and see how the AI ranks them against your draft. If someone you know is strong scores low, your description is missing something they clearly have. If someone weak scores high, a requirement is too loose or you're rewarding the wrong signal."
+      },
+      {
+        "p": "This is the same discipline you'd use for a structured interview scorecard: decide what \"good\" looks like before you start judging, then check that your criteria actually catch it. A few minutes of calibration up front saves you from a shortlist full of the wrong near-misses."
+      },
+      {
+        "h": "A quick checklist before you post"
+      },
+      {
+        "ul": [
+          "Two to four true non-negotiables, not ten.",
+          "Requirements split into must-have and nice-to-have, with the nice-to-haves clearly subordinate.",
+          "Responsibilities written as concrete work and outcomes, not adjectives.",
+          "Proxies (degree, pedigree, years) replaced with the underlying skill wherever possible.",
+          "A quick calibration run against a few resumes you already have a read on."
+        ]
+      },
+      {
+        "h": "The payoff"
+      },
+      {
+        "p": "None of this is extra work so much as front-loaded work. You're making the decisions you'd otherwise make one resume at a time, and writing them down once so the screening happens against a clear standard. The AI reads every application the same way, in the order the criteria imply, without getting tired on resume number forty."
+      },
+      {
+        "p": "The result isn't a magic shortlist. It's a ranking you can trust enough to start from, with the reasons attached, so your first human read is on the ten people most likely to be right instead of the whole pile. That's the whole point: **start from a shortlist, not a pile.** The clearer your posting, the better that shortlist looks."
+      }
+    ]
+  },
+  {
     "slug": "how-to-run-an-interview-debrief-that-doesnt-turn-into-groupthink",
     "title": "How to run an interview debrief that doesn't turn into groupthink",
     "category": "interviewing",
