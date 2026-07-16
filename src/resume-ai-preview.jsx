@@ -2571,9 +2571,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   // Curated, scannable highlights for the mobile plan cards (keyed by plan.col).
   // The full matrix lives in the desktop comparison table.
   const planHighlights = {
-    free: { lead: "Includes", items: ["1 job posting · 1 seat", "100 screenings + 5 AI Rank / month", "5 AI Insight credits / month", "Scorecard & 2FA", "Support ticket"] },
-    starter: { lead: "Everything in Launch, plus", items: ["5 jobs · 30 seats", "500 screenings + 30 AI Rank / month", "100 AI Insight credits / month", "Store & download original CVs", "Support ticket"] },
-    pro: { lead: "Everything in Scale, plus", items: ["10 jobs · 100 seats", "1,000 screenings + 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
+    free: { lead: "Includes", items: ["1 job posting · unlimited seats", "100 screenings + 5 AI Rank / month", "5 AI Insight credits / month", "Scorecard & 2FA", "Support ticket"] },
+    starter: { lead: "Everything in Launch, plus", items: ["5 job postings", "500 screenings + 30 AI Rank / month", "100 AI Insight credits / month", "Store & download original CVs", "Support ticket"] },
+    pro: { lead: "Everything in Scale, plus", items: ["10 job postings", "1,000 screenings + 100 AI Rank / month", "300 AI Insight credits / month", "WhatsApp Business reminders", "Priority support"] },
   };
 
   const testimonials = [
@@ -2597,11 +2597,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "Billing", q: "Do prices include tax?", a: "Prices are shown before tax. Any applicable tax (VAT, GST, or sales tax) is calculated at checkout based on your billing country, and a tax invoice is issued for every payment." },
     { cat: "Billing", q: "Can I change or cancel anytime?", a: "Yes. Upgrade, downgrade, or cancel from Billing whenever you like. Changes take effect at the end of the current period, with no lock-in, and nothing is deleted if you downgrade." },
     { cat: "Billing", q: "What happens when my trial ends?", a: "Subscribe before day 14 and everything carries on uninterrupted. If you don't, the workspace is suspended, though nothing is deleted: your candidates, jobs, and remaining credits are kept for 30 days, and subscribing any time in that window brings it all back." },
-    { cat: "Billing", q: "Do you charge per team member?", a: "Scale and Elite include a set of seats, and you can add more as your team grows. Enterprise offers white label. There are no hidden per-action fees." },
+    { cat: "Billing", q: "Do you charge per team member?", a: "No. Every plan includes unlimited team members at no extra cost, and there are no per-seat or hidden per-action fees. Plans differ only by how many jobs you can have open and your monthly AI credits." },
     { cat: "Billing", q: "What payment methods do you accept?", a: "All major credit and debit cards, through a secure hosted checkout, so raw card numbers never touch the app. An invoice is issued for every payment, and you can download them any time from Billing." },
     { cat: "Security", q: "Is my candidate data secure?", a: "Candidate data is encrypted in transit and at rest, with access limited to your workspace. You can export or delete it at any time." },
     { cat: "Security", q: "Where is my data stored, and can I delete it?", a: "Your data lives in your workspace, encrypted in transit and at rest. You can export everything or permanently delete it at any time. It stays yours." },
-    { cat: "Security", q: "Who on my team can see candidate data?", a: "You control access with seats and roles. Interviewers only see the candidates they're assessing, so sensitive information stays on a need-to-know basis." },
+    { cat: "Security", q: "Who on my team can see candidate data?", a: "You control access with roles. Interviewers only see the candidates they're assessing, so sensitive information stays on a need-to-know basis." },
     { cat: "Security", q: "Does Aster help with candidate privacy?", a: "Yes. Candidate data is only used to assess people for the roles you're hiring for, and you can honour a deletion or export request in a couple of clicks." },
     { cat: "Security", q: "Is candidate data used to train AI models?", a: "No. Your candidates' data is used only to screen and rank them for your roles. It isn't used to train shared models or shared with other companies." },
     { cat: "Security", q: "Do you support SSO and audit logs?", a: "Yes, on Enterprise. Single sign-on and audit logs give larger teams centralised access control and a full record of who did what." },

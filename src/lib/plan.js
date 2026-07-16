@@ -12,7 +12,7 @@ export const PLAN_TIER_ALIASES = { free: "launch", growth: "scale", pro: "elite"
 
 export const PLAN_LIMITS = {
   launch: {
-    maxJobs: 1, seats: 1,
+    maxJobs: 1, seats: Infinity,
     parseApplicant: 100, resumeUploads: 10,               // resumeUploads = AI Parsing (Bulk upload)
     aiRunsPerMonth: 5, aiInsightsPerMonth: 5, interviewQuestionsPerMonth: 5,
     // Plans differ ONLY by job-post quantity (maxJobs) and the AI/screening credit
@@ -26,7 +26,7 @@ export const PLAN_LIMITS = {
     supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
   },
   scale: {
-    maxJobs: 5, seats: 30,
+    maxJobs: 5, seats: Infinity,
     parseApplicant: 500, resumeUploads: 50,
     aiRunsPerMonth: 30, aiInsightsPerMonth: 100, interviewQuestionsPerMonth: 100,
     aiMatches: 10,
@@ -36,7 +36,7 @@ export const PLAN_LIMITS = {
     supportTier: "ticket", sso: false, auditLogs: false, whiteLabel: false, retentionDays: 365,
   },
   elite: {
-    maxJobs: 10, seats: 100,
+    maxJobs: 10, seats: Infinity,
     parseApplicant: 1000, resumeUploads: 100,
     aiRunsPerMonth: 100, aiInsightsPerMonth: 300, interviewQuestionsPerMonth: 300,
     aiMatches: Infinity,
