@@ -18823,13 +18823,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           {parsed.salary_expectation ? (
             <p className="text-sm text-neutral-900">{parsed.salary_expectation}</p>
           ) : (
-            <div className="flex items-start gap-2">
-              <span className="text-amber-600 text-sm shrink-0">⚠</span>
-              <p className="text-sm text-amber-700">
-                Not stated in resume. AI could not find a salary expectation, please confirm
-                directly with the candidate.
-              </p>
-            </div>
+            <p className="text-sm" style={{ color: "var(--ink-3)" }}>Not stated</p>
           )}
         </div>
 
