@@ -260,6 +260,42 @@ function CurrencyFlag({ code }) {
   return <span className="inline-block w-4 h-[11px] rounded-[2px] overflow-hidden shrink-0 align-middle" style={{ boxShadow: "0 0 0 1px rgba(0,0,0,0.06)" }}>{flags[code] || null}</span>;
 }
 
+// Compact currency dropdown (flag + code) for the pricing pages.
+function CurrencyDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const opts = [{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }];
+  const sel = opts.find((o) => o.key === value) || opts[0];
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}
+        className="inline-flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
+        <CurrencyFlag code={sel.key} /> {sel.label}
+        <span className="transition-transform" style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none" }}><Icon name="chevronDown" className="w-4 h-4" /></span>
+      </button>
+      {open && (
+        <div role="listbox" className="absolute z-30 left-0 mt-1.5 w-32 rounded-xl bg-white border p-1" style={{ borderColor: "var(--line)", boxShadow: "0 18px 40px -18px rgba(18,19,42,0.28)" }}>
+          {opts.map((o) => (
+            <button key={o.key} type="button" role="option" aria-selected={o.key === value} onClick={() => { onChange(o.key); setOpen(false); }}
+              className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm hover:bg-neutral-50 transition-colors"
+              style={o.key === value ? { background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--ink)" }}>
+              <CurrencyFlag code={o.key} /> {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Live Stripe amounts keyed "<plan>|<cycle>", fetched once per page load and
 // shared by every screen that quotes a price. A single source of truth: the app
 // can never advertise an amount different from the one the card is charged.
@@ -2456,7 +2492,7 @@ function SchedulingPreview() {
 function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
   const prices = usePlanPrices();
   const [cycle, setCycle] = useState("monthly");
-  const [curSel, setCurSel] = useState("usd");   // display/billing currency toggle
+  const [curSel, setCurSel] = useState("myr");   // display currency; RM default
   // Amount + currency for the selected display currency, falling back to the
   // Price's base currency when that currency isn't configured on the Price.
   const inCur = (p) => (p && p.currencies && p.currencies[curSel] != null)
@@ -3228,21 +3264,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
           <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Any applicable taxes are shown at checkout.</p>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 max-w-md mx-auto">
-          {/* Currency (with flags) on the LEFT */}
-          <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
-            {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
-              const on = curSel === c.key;
-              return (
-                <button key={c.key} onClick={() => setCurSel(c.key)}
-                  className={`text-sm px-3.5 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors inline-flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
-                  style={on ? { background: "var(--ink)" } : undefined}>
-                  <CurrencyFlag code={c.key} /> {c.label}
-                </button>
-              );
-            })}
-          </div>
-          {/* Monthly / Yearly on the RIGHT */}
+          {/* Monthly / Yearly, centered */}
+          <div className="mt-6 flex justify-center">
           <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
             {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
               const on = cycle === c.key;
@@ -3258,6 +3281,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </div>
           </div>
         </Reveal>
+
+        {/* Currency dropdown, aligned to the LEFT above the plan cards */}
+        <div className="mb-5 flex justify-start">
+          <CurrencyDropdown value={curSel} onChange={setCurSel} />
+        </div>
 
         {/* ---------- Mobile / tablet: swipeable plan carousel ---------- */}
         <div className="lg:hidden mt-6">
