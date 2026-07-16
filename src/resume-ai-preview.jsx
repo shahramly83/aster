@@ -158,10 +158,10 @@ function markOnboardingDone(serverKey, lsKey) {
 // open a SECOND subscription and bill them for both plans.
 //
 // Resolves to an error string; on a redirect it never returns.
-async function stripeCheckout(planKey, cycle) {
+async function stripeCheckout(planKey, cycle, currency) {
   try {
     const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-      body: { plan: planKey, cycle, return_url: window.location.origin },
+      body: { plan: planKey, cycle, return_url: window.location.origin, currency },
     });
     if (error) {
       // Supabase wraps a non-2xx in a FunctionsHttpError; the real reason (e.g.
@@ -2444,6 +2444,12 @@ function SchedulingPreview() {
 function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupTrial }) {
   const prices = usePlanPrices();
   const [cycle, setCycle] = useState("monthly");
+  const [curSel, setCurSel] = useState("usd");   // display/billing currency toggle
+  // Amount + currency for the selected display currency, falling back to the
+  // Price's base currency when that currency isn't configured on the Price.
+  const inCur = (p) => (p && p.currencies && p.currencies[curSel] != null)
+    ? { amount: p.currencies[curSel], currency: curSel }
+    : { amount: p?.amount, currency: p?.currency };
   const [faqOpenQ, setFaqOpenQ] = useState("What is Aster?");
   const [faqCat, setFaqCat] = useState("General");
   const [probMode, setProbMode] = useState("problem"); // "problem" | "aster", before/after toggle
@@ -2635,14 +2641,16 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     // Never say "Let's talk" here: these are self-serve plans, and a missing Stripe
     // price is our misconfiguration, not a hint that pricing is bespoke.
     if (!p) return { price: "—", sub: prices == null ? " " : "pricing unavailable", note: null };
-    if (p.interval !== "year") return { price: formatMoney(p.amount, p.currency, { whole: true }), sub: "/month", note: null };
+    const a = inCur(p);
+    if (p.interval !== "year") return { price: formatMoney(a.amount, a.currency, { whole: true }), sub: "/month", note: null };
     const monthly = prices?.[`${key}|monthly`];
-    const saving = monthly && monthly.currency === p.currency && p.amount < monthly.amount * 12
-      ? Math.round((1 - p.amount / (monthly.amount * 12)) * 100) : null;
+    const m = monthly ? inCur(monthly) : null;
+    const saving = m && a.amount < m.amount * 12
+      ? Math.round((1 - a.amount / (m.amount * 12)) * 100) : null;
     return {
-      price: formatMoney(Math.round(p.amount / 12), p.currency, { whole: true }),
+      price: formatMoney(Math.round(a.amount / 12), a.currency, { whole: true }),
       sub: "/mo, billed yearly",
-      note: `${formatMoney(p.amount, p.currency, { whole: true })}/yr${saving ? ` · save ${saving}%` : ""}`,
+      note: `${formatMoney(a.amount, a.currency, { whole: true })}/yr${saving ? ` · save ${saving}%` : ""}`,
     };
   };
 
@@ -3220,6 +3228,22 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 </button>
               );
             })}
+          </div>
+          {/* Currency toggle: shows and bills in the chosen currency (each Stripe
+              Price carries USD/RM/SGD amounts). */}
+          <div className="mt-3 flex justify-center">
+            <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+              {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
+                const on = curSel === c.key;
+                return (
+                  <button key={c.key} onClick={() => setCurSel(c.key)}
+                    className={`text-sm px-3.5 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                    style={on ? { background: "var(--ink)" } : undefined}>
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </Reveal>
 

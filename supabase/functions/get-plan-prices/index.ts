@@ -57,7 +57,10 @@ Deno.serve(async (req) => {
     const results = await Promise.all(Object.entries(PRICE_ENV).map(async ([key, envName]) => {
       const id = Deno.env.get(envName);
       if (!id) { if (debug) diagnostics.push({ key, env: envName, set: false }); return null; }
-      const res = await fetch(`https://api.stripe.com/v1/prices/${id}`, {
+      // expand currency_options so we get the per-currency amounts (MYR, SGD, …)
+      // configured on the Price, not just its base currency. Multi-currency toggle
+      // reads these; a Price with none configured just returns its base currency.
+      const res = await fetch(`https://api.stripe.com/v1/prices/${id}?expand[]=currency_options`, {
         headers: { Authorization: `Bearer ${secret}` },
       });
       const p = await res.json();
@@ -66,7 +69,13 @@ Deno.serve(async (req) => {
         if (debug) diagnostics.push({ key, env: envName, set: true, id, ok: false, error: p?.error?.message || `http ${res.status}` });
         return null; // a misconfigured id shouldn't take the whole screen down
       }
-      if (debug) diagnostics.push({ key, env: envName, set: true, id, ok: true, amount: p.unit_amount, currency: p.currency });
+      // Normalise currency_options into a simple { currency: minorUnitAmount } map,
+      // always including the base currency.
+      const currencies: Record<string, number> = { [p.currency]: p.unit_amount };
+      for (const [cur, opt] of Object.entries((p.currency_options || {}) as Record<string, { unit_amount?: number }>)) {
+        if (typeof opt?.unit_amount === "number") currencies[cur] = opt.unit_amount;
+      }
+      if (debug) diagnostics.push({ key, env: envName, set: true, id, ok: true, amount: p.unit_amount, currency: p.currency, currencies: Object.keys(currencies) });
       return [key, {
         // Not a secret (it travels in the Checkout URL), and echoing it makes
         // "which price is this env var actually pointing at?" answerable.
@@ -74,6 +83,7 @@ Deno.serve(async (req) => {
         active: p.active !== false,
         amount: p.unit_amount,
         currency: p.currency,
+        currencies,
         interval: p.recurring?.interval || "month",
         interval_count: p.recurring?.interval_count || 1,
       }] as const;

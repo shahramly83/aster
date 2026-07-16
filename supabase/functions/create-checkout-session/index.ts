@@ -99,7 +99,13 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   try {
-    const { plan, cycle, return_url } = await req.json();
+    const { plan, cycle, return_url, currency } = await req.json();
+    // Optional display/billing currency for a NEW subscription. Must match a
+    // currency_option configured on the Price; anything else is ignored and the
+    // Price's base currency is used. A plan change keeps the existing subscription's
+    // currency (Stripe won't switch it), so this only applies to fresh checkouts.
+    const cur = ["usd", "myr", "sgd"].includes(String(currency || "").toLowerCase())
+      ? String(currency).toLowerCase() : null;
     // Validate the cycle, do not coerce it. This used to be
     //   const c = cycle === "yearly" ? "yearly" : "monthly";
     // so ANY value that was not the literal "yearly" silently became monthly. A
@@ -422,6 +428,9 @@ Deno.serve(async (req) => {
     const openCheckout = (cust: string) => stripe("checkout/sessions", {
       mode: "subscription",
       customer: cust,
+      // Multi-currency: charge in the chosen currency (Stripe picks the matching
+      // currency_option on the Price). Omit to use the Price's base currency.
+      ...(cur ? { currency: cur } : {}),
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       "subscription_data[metadata][company_id]": companyId,
