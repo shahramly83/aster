@@ -13081,7 +13081,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const TABS = [
     { key: "browse", short: "By name", full: "Browse by name", icon: "users" },
     { key: "skills", short: "Skills", full: "Skills & industry", icon: "matching" },
-    { key: "role", short: "Position", full: "Match to a position", icon: "briefcase" },
+    { key: "role", short: "Matches", full: "Matches", icon: "briefcase" },
   ];
   // Popular skills across job families (not just engineering), each exists in
   // the candidate pool so a quick-add always returns real matches.
@@ -13632,6 +13632,14 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   // match what invite_teammate enforces (otherwise the UI shows room that isn't).
   const team = interviewers.filter((iv) => iv.role !== "owner");
   const seatCap = limits.seats;
+  // Distinct colours per role tag so Tenant / Hiring Manager / Interviewer read at a
+  // glance (kept clear of the green "Active" and amber "Invite pending" pills).
+  const roleTagStyle = (label) => {
+    const l = String(label || "").toLowerCase();
+    if (l.includes("tenant")) return { background: "#EDE9FE", color: "#6D28D9" };        // purple
+    if (l.includes("interviewer")) return { background: "#CCFBF1", color: "#0F766E" };   // teal
+    return { background: "var(--brand-soft)", color: "var(--brand)" };                    // hiring manager (blue)
+  };
   const ownerCounted = interviewers.some((iv) => iv.role === "owner");
   const seatsUsed = (ownerCounted ? interviewers.length : interviewers.length + 1) + pendingInvites.length;
   const atSeatCap = seatsUsed >= seatCap;
@@ -13864,8 +13872,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               <div className="min-w-0">
                 <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle("Tenant")}>Tenant · You</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle("Hiring Manager")}>Hiring Manager</span>
                 </div>
               </div>
             </div>
@@ -13888,7 +13896,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   <div className="min-w-0">
                     <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[iv.role] || "Interviewer")}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
                         {pending ? "Invite pending" : "Active"}
                       </span>
@@ -13921,7 +13929,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 <div className="min-w-0">
                   <p className="text-neutral-900 font-medium truncate">{inv.email}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[inv.role] || "Interviewer")}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
                   </div>
                 </div>
