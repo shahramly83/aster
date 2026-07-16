@@ -17335,7 +17335,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
         {/* Company details — owner/admin only (interviewers manage no company info) */}
         {!isInterviewer(profile?.role) && (
         <div className={`${cardClass} mb-5`}>
-          <SectionHead icon="briefcase" title="Company details" desc="Branding that appears across your workspace and on invoices." />
+          <SectionHead icon="briefcase" title="Company details" />
 
           <div className="mt-5">
             <label htmlFor="pf-company" className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
