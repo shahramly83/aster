@@ -13322,7 +13322,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Match by skills or industry</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both. Matching candidates appear instantly.</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both.</p>
                   <div className="mt-3 grid sm:grid-cols-2 gap-3">
                     <div>
                       <FieldLabel hint="Every skill Aster has read from your candidates' resumes. Start typing to find one.">Skills</FieldLabel>
