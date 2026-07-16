@@ -20788,7 +20788,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           <Icon name="check" className="w-3.5 h-3.5" /> Hired
                         </span>
                       ) : isInterviewer(profile?.role) ? (
-                        <StageBadge stage={a.stage} />
+                        // Blind review: interviewers don't see the manager's pipeline
+                        // stage ("Shortlisted", etc.), so their assessment stays
+                        // independent. They still open the profile and request an
+                        // interview; the stage is just hidden from their card.
+                        null
                       ) : (
                         <StageControl
                           stage={a.stage}
