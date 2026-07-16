@@ -59,3 +59,5 @@ export const PLAN_LIMITS = {
 // Fail closed. An unrecognised tier falls back to the most restrictive plan,
 // never the most generous one, or a stray plan string quietly grants Elite.
 export const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.launch;
+
+/* deploy nudge: interviewer meter + Open Positions nav (see git log e41e4b9) */
