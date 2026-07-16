@@ -14804,8 +14804,8 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
       ) : bookingStatus === "sent" ? (
         <div className="rounded-xl bg-white border border-neutral-200 px-3.5 py-3">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-medium inline-flex items-center gap-1.5" style={{ color: "#B45309" }}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#F59E0B" }} /> Invite sent · waiting for a pick
+            <span className="text-xs font-medium inline-flex items-center gap-1.5" style={{ color: "#16A34A" }}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} /> Invite sent · waiting for a pick
             </span>
             <button onClick={() => onPreviewBooking(sentRequest)} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Preview →</button>
           </div>
@@ -18522,8 +18522,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <div className="rounded-xl bg-white border p-4 flex items-start gap-3" style={{ borderColor: "var(--line)" }}>
             <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-4 h-4" /></span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
-              <p className="text-xs mt-0.5 mb-2.5" style={{ color: "var(--ink-3)" }}>You've used all {insightsLimit} AI insight runs on your plan this month. Buy extra credits, or they reset on your 30-day cycle.</p>
+              <p className="text-sm font-semibold mb-2.5" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
               <button onClick={() => setBuyInsightOpen(true)} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Buy credits</button>
             </div>
           </div>
