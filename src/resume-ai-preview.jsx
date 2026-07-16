@@ -12451,7 +12451,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
       </div>
       {note && <p className="relative text-xs mt-2.5 leading-relaxed text-center" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
       {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
-      {onBuyCredits && typeof purchased === "number" && (
+      {typeof purchased === "number" && (
         <div className="relative mt-3 flex items-baseline justify-between">
           <span className="text-[11px] text-white/80">Purchased credits</span>
           <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "0 left"}</span>
@@ -20451,7 +20451,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           resetLabel={aiRankResetLabel}
           onUpgrade={railIsInterviewer ? undefined : () => navigate("billing")}
           upgradeLabel="Upgrade for more"
-          purchased={railIsInterviewer ? null : purchasedAiRank}
+          purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
           onBuyCredits={railIsInterviewer ? null : () => setBuyAiRankOpen(true)}
         />
       )}
@@ -23065,7 +23065,9 @@ export default function ResumeAIPreview() {
   // interviewer the only primary item is "Interviews", so their candidate views
   // and interviews all light it up.
   const activeNav = isInterviewer(profile?.role)
-    ? "interviews"
+    // Interviewers now have two nav items (Open Positions + Interviews); highlight
+    // the one matching the current screen instead of always "interviews".
+    ? (screen === "interviews" ? "interviews" : "openRoles")
     : screen === "candidateProfile" || screen === "candidates"
       ? "dashboard"
       : screen === "applicants"
