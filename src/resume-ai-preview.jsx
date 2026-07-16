@@ -16829,7 +16829,7 @@ function Toggle({ on, onChange, label, desc }) {
 // Icon-anchored header for a settings panel: a soft brand chip, a title, and an
 // optional one-line description. Gives each card a clear visual anchor so the
 // page reads as a set of purposeful sections, not a flat stack of form fields.
-function SectionHead({ icon, title, desc, tone }) {
+function SectionHead({ icon, title, desc, tone, hint }) {
   const t = tone || { bg: "var(--brand-soft)", fg: "var(--brand)" };
   return (
     <div className="flex items-start gap-3">
@@ -16837,7 +16837,7 @@ function SectionHead({ icon, title, desc, tone }) {
         <Icon name={icon} className="w-[18px] h-[18px]" />
       </span>
       <div className="min-w-0 pt-0.5">
-        <h2 className="text-[15px] font-semibold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h2>
+        <h2 className="text-[15px] font-semibold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}{hint && <> <InfoHint dir="down" hint={hint} /></>}</h2>
         {desc && <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>{desc}</p>}
       </div>
     </div>
@@ -17352,7 +17352,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
             owner, so self-service changes cause account-recovery confusion. Changing
             it is a support action through Aster, done by an admin. */}
         <div className={`${cardClass} mb-5`}>
-          <SectionHead icon="mail" title="Email address" desc="This is your sign-in email." />
+          <SectionHead icon="mail" title="Email address" desc="This is your sign-in email." hint="To change your sign-in email, contact Aster support at support@hireaster.com. We change it for you once we've confirmed it's really you." />
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
             <div className="min-w-0">
               <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{email}</p>
@@ -17362,9 +17362,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
               <Icon name="lock" className="w-3 h-3" /> Locked
             </span>
           </div>
-          <p className="text-xs mt-3" style={{ color: "var(--ink-2)" }}>
-            To change your sign-in email, contact Aster support at <a href="mailto:support@hireaster.com" className="font-medium" style={{ color: "var(--brand)" }}>support@hireaster.com</a>. We change it for you once we've confirmed it's really you.
-          </p>
         </div>
 
         {/* Password */}
