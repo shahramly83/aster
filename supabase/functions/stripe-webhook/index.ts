@@ -326,13 +326,20 @@ Deno.serve(async (req) => {
     const { error } = await admin.from("companies").update(companyUpdate).eq("id", companyId);
     if (error) { console.error("companies activate", error.message, companyUpdate); return await fail("company update failed", error.message); }
 
-    // Plan actually changed (e.g. a deferred downgrade taking effect at period end,
-    // or an upgrade). Two pieces of housekeeping, both best-effort so a hiccup can't
-    // fail the payment webhook:
-    //   1. Reset the metered allowance so the new plan starts fresh (no "1000/100").
+    // Plan actually changed (a deferred downgrade taking effect at period end, or an
+    // upgrade). Housekeeping, best-effort so a hiccup can't fail the payment webhook:
+    //   1. Metered allowance. UPGRADES CARRY the current usage into the higher plan
+    //      for the rest of the cycle: the limit rises, the used count stays, so no
+    //      one can upgrade to escape a used-up allowance and get a fresh pool (cost
+    //      control). Only a TIER DOWNGRADE resets to fresh, and since downgrades are
+    //      deferred to period end that reset lands on a clean cycle boundary.
     //   2. Unpublish open roles beyond the new plan's job limit (non-destructive).
     if (planEnum && planEnum !== prevPlan) {
-      try { await admin.rpc("reset_current_usage", { p_company: companyId }); } catch (e) { console.error("reset_current_usage", e); }
+      const RANK: Record<string, number> = { launch: 1, scale: 2, elite: 3 };
+      const isDowngrade = (RANK[planEnum] ?? 0) < (RANK[prevPlan] ?? 0);
+      if (isDowngrade) {
+        try { await admin.rpc("reset_current_usage", { p_company: companyId }); } catch (e) { console.error("reset_current_usage", e); }
+      }
       try { await enforceJobLimit(admin, companyId, planEnum); } catch (e) { console.error("enforceJobLimit", e); }
     }
   } else if (status === "canceled") {
