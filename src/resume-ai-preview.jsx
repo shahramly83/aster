@@ -22569,8 +22569,11 @@ export default function ResumeAIPreview() {
     // here, then clear the rows server-side).
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, viewStats: { total: 0, uniques: 0, sources: {} } } : j)));
     if (canPersist) {
-      dbClearJobViews(jobId);
-      dbClearJobApplicants(companyId, jobId).then(() => { if (companyId) hydrateWorkspace(companyId); });
+      // Await BOTH clears before re-hydrating, otherwise get_job_view_stats can
+      // re-read the not-yet-deleted view rows and the count snaps back to its old
+      // value right after we zeroed it.
+      Promise.all([dbClearJobViews(jobId), dbClearJobApplicants(companyId, jobId)])
+        .then(() => { if (companyId) hydrateWorkspace(companyId); });
     }
   };
 
