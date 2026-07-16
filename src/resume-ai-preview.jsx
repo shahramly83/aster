@@ -11432,9 +11432,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             <button role="menuitem" onClick={() => { setMenuJob(null); setEditJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
               <Icon name="settings" className="w-4 h-4" /> Edit role
             </button>
-            <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: job.status === "open" ? "#B91C1C" : "var(--ink-2)" }}>
-              <Icon name={job.status === "open" ? "close" : "check"} className="w-4 h-4" /> {job.status === "open" ? "Close this role" : job.status === "draft" ? "Publish role" : "Reopen this role"}
-            </button>
+            {job.status !== "open" && (
+              <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
+                <Icon name="check" className="w-4 h-4" /> {job.status === "draft" ? "Publish role" : "Reopen this role"}
+              </button>
+            )}
             {job.status === "open" && (
               <button role="menuitem" onClick={() => { setMenuJob(null); saveAsDraft(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-neutral-50" style={{ color: "var(--ink-2)" }}>
                 <Icon name="archive" className="w-4 h-4" /> Save as draft
@@ -11443,6 +11445,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             {(job.status === "draft" || job.status === "closed") && (
               <button role="menuitem" onClick={() => { setMenuJob(null); setConfirmDeleteJob(job); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-rose-50" style={{ color: "#B91C1C" }}>
                 <Icon name="trash" className="w-4 h-4" /> {job.status === "draft" ? "Delete draft" : "Delete role"}
+              </button>
+            )}
+            {job.status === "open" && (
+              <button role="menuitem" onClick={() => { setMenuJob(null); toggleStatus(job.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-rose-50" style={{ color: "#B91C1C" }}>
+                <Icon name="close" className="w-4 h-4" /> Close this role
               </button>
             )}
           </div>
@@ -11602,9 +11609,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
           <div className="relative order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0">
             <button
-              onClick={() => navigate(jobPostBlocked ? "billing" : "newJob")}
-              title={jobPostBlocked ? `All ${jobPostUsage.limit} open-position slots are in use. Upgrade to post another.` : undefined}
-              className={`w-full inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 transition-all ${jobPostBlocked ? "text-white opacity-90 hover:opacity-100" : `brand-gradient text-white hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 ${showPostCta ? "tour-pulse" : ""}`}`}
+              onClick={jobPostBlocked ? undefined : () => navigate("newJob")}
+              aria-disabled={jobPostBlocked || undefined}
+              className={`w-full inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 transition-all ${jobPostBlocked ? "text-white cursor-default" : `brand-gradient text-white hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 ${showPostCta ? "tour-pulse" : ""}`}`}
               style={jobPostBlocked ? { background: "var(--ink-3)" } : { boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}
             >
               <Icon name={jobPostBlocked ? "lock" : "jobs"} className="w-4 h-4" /> Post a job
@@ -13845,7 +13852,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   return (
     <AccountShell
       title="Team"
-      subtitle="Invite hiring managers and interviewers. Each teammate gets their own login; interviewers see only the interviews assigned to them."
       navigate={navigate}
       profile={profile}
       avatarUrl={avatarUrl}
@@ -13865,6 +13871,11 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
         />
       ) : null}
     >
+        {/* Total members, as a green-dot pill under the title. */}
+        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium mb-4" style={{ background: "#ECFDF5", color: "#15803D" }}>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
+          {1 + team.length + pendingInvites.length} {1 + team.length + pendingInvites.length === 1 ? "member" : "members"}
+        </span>
         {/* Filter + invite action */}
         <div className="flex items-center justify-between gap-3 mb-4">
           {(() => {
@@ -20205,92 +20216,60 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   // Free can view every applicant now; only AI-match depth is gated.
   const shownApps = shortlistOnly ? filtered.filter((a) => shortlistedApps.has(a.applicationId)) : filtered;
 
-  // The Hiring Manager's workflow cards now live in the right sidebar; the left
-  // column shows only the applicant tabs + list. Step 2 / Step 3 guidance bubbles
-  // are anchored (absolute) beside their action buttons and scroll with them.
-  const workflowRail = !isInterviewer(profile?.role) ? (
-    <div className="space-y-4">
-      {!onOtherTab && applicantTab !== "hired" && (
-        <div className="rounded-2xl border border-[color:var(--line)] bg-white p-4">
-          <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
-            Rank these applicants with AI
-            <InfoHint dir="down" hint="Scores each applicant against this role and unlocks the interviewer step. Each run uses 1 credit." />
-          </p>
-          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-            {visible.length === 0
-              ? "No applicants yet. Matching becomes available once someone applies."
-              : !canRank
-                ? "AI Rank becomes available when at least 2 candidates are ready to rank."
-                : matchResults
-                  ? ""
-                  : "Score every candidate against this role and see who fits best."}
-          </p>
-          {matchOk && !matchErr && (
-            <p className="text-xs mt-2 rounded-lg px-3 py-2 inline-flex items-start gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5 mt-px shrink-0" /> Rankings updated and synced. Interviewers now see the latest list.</p>
-          )}
-          {matchErr && (
-            <p role="alert" className="text-xs mt-2 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
-          )}
-          <div className="relative mt-3">
-            {tourStep === 2 && (
-              <div className="absolute top-1/2 right-full -translate-y-1/2 mr-3 z-30">
-                <GuideBubble step="Step 2" pointer="right" primaryLabel="Next" onPrimary={() => setTourStep(3)} onClose={endTour}>
-                  Run AI Rank to score your candidates. Rerun it whenever new candidates apply.
-                </GuideBubble>
-              </div>
-            )}
-            <button
-              onClick={() => askAiRank(runMatching)}
-              disabled={aiRankDisabled || tourStep === 2}
-              title={tourStep === 2 ? "Step 2: Run AI Rank. AI Rank becomes available when at least 2 candidates are ready." : !canRank && !outOfRuns ? "AI Rank becomes available when at least 2 candidates are ready." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
-              // During Step 2 the button stays disabled (a click never runs AI Rank
-              // or jumps the tour) but LOOKS enabled: opacity:1 overrides the
-              // disabled dim and the pulse ring marks it as the target. Advance
-              // with the bubble's Next button. Outside the tour it dims normally
-              // when there aren't 2 applicants yet.
-              style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
-              className={`w-full rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 flex items-center justify-center gap-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
-            >
-              {matching
-                ? <span className="w-4 h-4 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
-                : <Icon name={(outOfCredits || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />}
-              {matching ? rankStatus : outOfCredits ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
-            </button>
-          </div>
+  // AI Rank is now a compact button at the top-right of the applicants list (the
+  // "left card") rather than a right-rail card. Interviewer assignment is no longer
+  // managed on this screen (it's handled when a role is published). Managers only.
+  const showRankBtn = !isInterviewer(profile?.role) && !onOtherTab && applicantTab !== "hired";
+  const aiRankInlineBtn = showRankBtn ? (
+    <div className="relative shrink-0">
+      {tourStep === 2 && (
+        <div className="absolute top-full right-0 mt-2 z-30">
+          <GuideBubble step="Step 2" total={2} pointer="up" arrowAlign="right" primaryLabel="Got it" onPrimary={endTour} onClose={endTour}>
+            Run AI Rank to score your candidates. Re-run it whenever new candidates apply.
+          </GuideBubble>
         </div>
       )}
-      {job && applicantTab !== "hired" && (
-        <JobInterviewersPanel
-          jobId={activeJobId}
-          team={interviewers}
-          assignedIds={assignedIds}
-          canManage={canManageInterviewers}
-          currentUserId={profile?.id}
-          onAssign={onAssignInterviewer}
-          onUnassign={onUnassignInterviewer}
-          locked={!step2Enabled}
-          showStep3={tourStep === 3}
-          onStep3Close={endTour}
-          navigate={navigate}
-          reloadTeam={reloadTeam}
-        />
-      )}
-      {limits.aiRunsPerMonth !== Infinity && (
-        <UsageMeter
-          plan={plan}
-          title="AI Rank"
-          hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
-          used={matchRunsUsed}
-          limit={limits.aiRunsPerMonth}
-          unit=""
-          danger={outOfRuns}
-          resetLabel={aiRankResetLabel}
-          onUpgrade={() => navigate("billing")}
-          upgradeLabel="Upgrade for more"
-          purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
-          onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
-        />
-      )}
+      <button
+        onClick={() => askAiRank(runMatching)}
+        disabled={aiRankDisabled || tourStep === 2}
+        title={tourStep === 2 ? "Step 2: Run AI Rank." : !canRank && !outOfRuns ? "AI Rank becomes available when at least 2 candidates are ready." : matchResults ? "Re-runs the ranking for every candidate and uses 1 AI Rank credit." : "Scores every candidate against this role and uses 1 AI Rank credit."}
+        // During Step 2 the button stays disabled but LOOKS enabled (opacity:1 +
+        // pulse ring marks it as the tour target); advance via the bubble's button.
+        style={tourStep === 2 ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)", opacity: 1 } : undefined}
+        className={`inline-flex items-center gap-1.5 rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-3.5 py-2 transition-opacity ${tourStep === 2 ? "tour-pulse" : ""}`}
+      >
+        {matching
+          ? <span className="w-4 h-4 rounded-full animate-spin shrink-0" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
+          : <Icon name={(outOfCredits || (!canRank && tourStep !== 2)) ? "lock" : "target"} className="w-4 h-4" />}
+        {matching ? rankStatus : outOfCredits ? "Out of credits" : matchResults ? "Re-run AI Rank" : "AI Rank"}
+      </button>
+    </div>
+  ) : null;
+  // Post-run confirmation / error, shown under the list header near the button.
+  const rankNotice = showRankBtn && !matching
+    ? ((matchOk && !matchErr) ? (
+        <p className="text-xs mb-3 rounded-lg px-3 py-2 inline-flex items-start gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5 mt-px shrink-0" /> Rankings updated and synced.</p>
+      ) : matchErr ? (
+        <p role="alert" className="text-xs mb-3 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{matchErr}</p>
+      ) : null)
+    : null;
+
+  const workflowRail = !isInterviewer(profile?.role) && limits.aiRunsPerMonth !== Infinity ? (
+    <div className="space-y-4">
+      <UsageMeter
+        plan={plan}
+        title="AI Rank"
+        hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
+        used={matchRunsUsed}
+        limit={limits.aiRunsPerMonth}
+        unit=""
+        danger={outOfRuns}
+        resetLabel={aiRankResetLabel}
+        onUpgrade={() => navigate("billing")}
+        upgradeLabel="Upgrade for more"
+        purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
+        onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
+      />
       <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
     </div>
   ) : null;
@@ -20380,11 +20359,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         </div>
         {/* Stage filter */}
         <div className="flex items-center justify-between gap-3 mb-4">
-          <p className="text-sm text-neutral-500">
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: "#ECFDF5", color: "#15803D" }}>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} />
             {shownApps.length} {shownApps.length === 1 ? "candidate" : "candidates"}
             {shortlistOnly ? " · shortlisted" : stageFilter !== "all" ? ` · ${STAGE_LABELS[stageFilter]}` : ""}
-          </p>
+          </span>
           <div className="flex items-center gap-2">
+          {aiRankInlineBtn}
           <button
             onClick={() => setShortlistOnly((v) => !v)}
             title="Show only the candidates you've shortlisted"
@@ -20425,7 +20406,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           </div>
           </div>
         </div>
-
+        {rankNotice}
         {shownApps.length === 0 ? (
           shortlistOnly ? (
             <div className="rounded-2xl bg-white border border-dashed px-6 py-10 text-center" style={{ borderColor: "var(--line-strong)" }}>
