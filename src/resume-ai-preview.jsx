@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -20140,6 +20140,16 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const [partialPrompt, setPartialPrompt] = useState(null); // { needed, available, count } when short on credits
   const [rankedAtLocal, setRankedAtLocal] = useState(null); // optimistic "ranked at" after a run, so the lock applies at once
   const [rankInfo, setRankInfo] = useState(null); // popup reason when AI Rank can't run (clicked, not just hovered)
+  // Manager-only: the whole panel's shortlists for this job, keyed by application id,
+  // so a card can show "Shortlisted by Rahim, Ivan". Interviewers never load this —
+  // they only ever see their own star (no anchoring bias). Refreshes on job change.
+  const [teamShortlists, setTeamShortlists] = useState({});
+  useEffect(() => {
+    if (!hasSupabase || isInterviewer(profile?.role) || !activeJobId) { setTeamShortlists({}); return undefined; }
+    let alive = true;
+    dbListJobShortlists(activeJobId).then((m) => { if (alive) setTeamShortlists(m || {}); });
+    return () => { alive = false; };
+  }, [activeJobId, profile?.role]);
   const askAiRank = (fn) => { if (outOfCredits) { setBuyAiRankOpen(true); return; } setConfirmRun(() => fn); };
   const job = jobs.find((j) => j.id === activeJobId);
   const jobTitle = job?.title ?? "the role";
@@ -20715,6 +20725,12 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         )}
                       </div>
                       <p className="text-xs truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor} · applied {a.appliedAt}</p>
+                      {/* Manager-only: who on the panel shortlisted this candidate. */}
+                      {!isInterviewer(profile?.role) && teamShortlists[a.applicationId]?.length > 0 && (
+                        <p className="text-[11px] mt-1 inline-flex items-center gap-1" style={{ color: "#B45309" }}>
+                          <Icon name="star" className="w-3 h-3 shrink-0" style={{ fill: "currentColor" }} /> Shortlisted by {teamShortlists[a.applicationId].join(", ")}
+                        </p>
+                      )}
                       {a.fit === "other" && a.fitReason && (
                         <p className="text-xs mt-1.5 leading-relaxed rounded-lg px-2.5 py-1.5" style={{ background: "#FEF9F0", color: "#9A6B14", border: "1px solid #F6E6C8" }}>
                           <span className="font-semibold">Why:</span> {a.fitReason}

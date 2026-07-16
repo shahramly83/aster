@@ -178,6 +178,18 @@ export async function dbUpdateCompany(companyId, { name, address = {}, registrat
   return { ok: true };
 }
 
+// Manager-only: the whole panel's shortlists for a job, keyed by application id
+// (0099). Returns { [applicationId]: ["Rahim Ghazali", "Ivan Reviewer"] }. Admins
+// only server-side; interviewers never see each other's picks.
+export async function dbListJobShortlists(jobId) {
+  if (!hasSupabase || !jobId) return {};
+  const { data, error } = await supabase.rpc("get_job_shortlists", { p_job_id: jobId });
+  if (error) { console.error("dbListJobShortlists", error.message); return {}; }
+  const map = {};
+  (data || []).forEach((r) => { (map[r.application_id] ||= []).push(r.name || "Interviewer"); });
+  return map;
+}
+
 // Stamp a job as just AI-Ranked (0098), so the run locks for everyone until a new
 // candidate applies. Server-gated to admins or an interviewer assigned to the job.
 export async function dbStampJobRanked(jobId) {
