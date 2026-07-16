@@ -10044,10 +10044,12 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
           unreadReason = f.reason || "Only PDF and Word (.docx) resumes are supported.";
         } else if (/\.docx$/i.test(f.fileName)) {
           const text = await extractDocxText(await f.blob.arrayBuffer());
-          if (text) { body = { resume_text: text, filename: f.fileName }; }
+          // defer_duplicate: on a match the server returns the parsed row WITHOUT
+          // overwriting, so the user's Skip/Update choice below actually decides.
+          if (text) { body = { resume_text: text, filename: f.fileName, defer_duplicate: true }; }
           else { body = { unreadable: true, filename: f.fileName }; unreadReason = "Couldn't read this Word file. Export it to PDF and re-upload."; }
         } else {
-          body = { resume_base64: await fileToBase64(f.blob), filename: f.fileName };
+          body = { resume_base64: await fileToBase64(f.blob), filename: f.fileName, defer_duplicate: true };
         }
         const { data, error } = await supabase.functions.invoke("parse-resume", { body });
         if (error || !data) { update({ parseStatus: "flagged", reason: "Couldn't parse this file. Try again." }); continue; }
@@ -10068,8 +10070,10 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
         const email = (person.email || "").toLowerCase();
         const dupInBatch = !!email && seenEmails.has(email);
         if (email) seenEmails.add(email);
-        // The server upserts by email, so was_existing means it matched a
-        // candidate already in the pool; dupInBatch means two files in this batch.
+        // was_existing means it matched a candidate already in the pool (the server
+        // did NOT overwrite it, thanks to defer_duplicate); dupInBatch means two
+        // files in this batch. candidate_row/id let "Update existing" apply the
+        // already-parsed data later without re-parsing (no extra credit).
         const isDuplicate = !!data.was_existing || dupInBatch;
         anyCreated = true;
         if (!isDuplicate) addedCount++;
@@ -10077,6 +10081,8 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
           person,
           confidence: undefined,
           parseStatus: isDuplicate ? "duplicate" : "parsed",
+          candidateRow: data.candidate_row || null,
+          candidateId: data.candidate_id || null,
           dup: isDuplicate
             ? { matchName: person.name, on: "email", inBatch: dupInBatch && !data.was_existing, hired: false, verdict: "duplicate" }
             : null,
@@ -10098,12 +10104,30 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
 
   const dupActionFor = (row) => (row.dup?.hired ? "skip" : dupActions[row.fileName] || "skip");
 
+  const [applyingDup, setApplyingDup] = useState({}); // fileName -> true while an "Update existing" is applying
+  // Apply a deferred duplicate the user chose to update: re-send the already-parsed
+  // row (plus the original file, so the stored PDF + photo refresh too) to
+  // parse-resume in apply_update mode. No re-parse and NO extra credit. Skip does
+  // nothing (the existing profile was never touched).
+  const applyDupUpdate = async (row) => {
+    if (!row?.candidateRow || !row?.candidateId) return;
+    setApplyingDup((p) => ({ ...p, [row.fileName]: true }));
+    try {
+      const body = { apply_update: true, candidate_id: row.candidateId, candidate_row: row.candidateRow, filename: row.fileName };
+      if (row.blob && !/\.docx$/i.test(row.fileName)) body.resume_base64 = await fileToBase64(row.blob);
+      await supabase.functions.invoke("parse-resume", { body });
+      if (onImported) onImported();
+    } catch (e) { console.error("apply duplicate update", e); }
+    setApplyingDup((p) => ({ ...p, [row.fileName]: false }));
+  };
+
   // Bulk-resolve every still-open duplicate at once, the key to handling a big
   // batch (e.g. 100 files) without clicking through each duplicate individually.
   const openDuplicates = rows.filter((r) => r.parseStatus === "duplicate" && !r.dup?.hired && !resolved[r.fileName]);
   const bulkResolveDuplicates = (action) => {
     setDupActions((prev) => { const n = { ...prev }; openDuplicates.forEach((r) => { n[r.fileName] = action; }); return n; });
     setResolved((prev) => { const n = { ...prev }; openDuplicates.forEach((r) => { n[r.fileName] = action; }); return n; });
+    if (action === "update") openDuplicates.forEach((r) => applyDupUpdate(r));
   };
 
   // Left-edge accent so a long list is scannable by outcome at a glance.
@@ -10571,7 +10595,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                           return (
                             <button
                               key={opt.key}
-                              onClick={() => { setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key })); setResolved((prev) => ({ ...prev, [row.fileName]: opt.key })); }}
+                              onClick={() => { setDupActions((prev) => ({ ...prev, [row.fileName]: opt.key })); setResolved((prev) => ({ ...prev, [row.fileName]: opt.key })); if (opt.key === "update") applyDupUpdate(row); }}
                               className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
                               style={on ? { background: "var(--brand)" } : undefined}
                             >
@@ -10584,7 +10608,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                     {!row.dup.hired && (
                       <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>
                         {dupActionFor(row) === "update"
-                          ? "The existing profile will be refreshed with this resume. Pipeline stage and history are kept."
+                          ? (applyingDup[row.fileName] ? "Updating the existing profile…" : "Updated the existing profile with this resume. Pipeline stage and history are kept.")
                           : "Kept the existing profile. No duplicate created."}
                       </p>
                     )}
@@ -16027,15 +16051,15 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
         )}
 
         {/* Current plan */}
-        <div className={`${cardClass} mb-4`} style={{ background: "var(--brand)", borderColor: "var(--brand)" }}>
+        <div className={`${cardClass} mb-4`}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.8)" }}>Current plan</h2>
+                <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Current plan</h2>
                 <StatusBadge onTrial={onTrial} subStatus={subStatus} />
               </div>
-              <p className="text-2xl font-bold text-white font-display">{onTrial ? "Scale (trial)" : current.name}</p>
-              <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.85)" }}>
+              <p className="text-2xl font-bold text-neutral-900 font-display">{onTrial ? "Scale (trial)" : current.name}</p>
+              <p className="text-sm text-neutral-500 mt-0.5">
                 {onTrial
                   ? `Full Scale access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. Subscribe before it ends, or your account is suspended.`
                   // An active subscriber always gets an "active" message, even when
@@ -16056,21 +16080,21 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
             </div>
             {paidSub && (savedPrice || upcoming) && (
               <div className="text-right shrink-0">
-                <p className="text-xs" style={{ color: "rgba(255,255,255,0.8)" }}>Next payment</p>
+                <p className="text-xs text-neutral-500">Next payment</p>
                 {/* Stripe's own figure when we have it, not the sticker price. A plan
                     change leaves a proration credit on the account, so the next
                     invoice can be far less than the list price, or nothing at all.
                     Quoting the list price there promises a charge that never comes. */}
                 {/* formatMoney takes minor units, and Stripe already gives us cents.
                     Dividing first turned a 298.72 credit into "US$2.99". */}
-                <p className="text-sm font-semibold text-white tnum">
+                <p className="text-sm font-semibold text-neutral-900 tnum">
                   {upcoming
                     ? formatMoney(upcoming.amount, upcoming.currency)
                     : formatMoney(savedPrice.amount, savedPrice.currency)}
                 </p>
-                {renewDate && <p className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>{renewDate}</p>}
+                {renewDate && <p className="text-xs text-neutral-500">{renewDate}</p>}
                 {upcoming?.credit > 0 && (
-                  <p className="text-xs mt-0.5" style={{ color: "#86EFAC" }}>
+                  <p className="text-xs mt-0.5" style={{ color: "#067647" }}>
                     {formatMoney(upcoming.credit, upcoming.currency)} credit applied
                   </p>
                 )}
