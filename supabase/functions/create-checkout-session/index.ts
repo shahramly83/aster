@@ -327,13 +327,16 @@ Deno.serve(async (req) => {
       const p0Price = phase0?.items?.[0]?.price || item.price?.id;
       const p0Start = phase0?.start_date;
       const p0End = phase0?.end_date ?? periodEnd;
+      // Phase 0 = current plan until the period ends (echoed back unchanged so
+      // Stripe accepts the already-started phase). Phase 1 = the new plan, open
+      // ended so it just renews normally on the lower plan. end_behavior=release so
+      // the subscription isn't left permanently managed by the schedule.
       const schedParams: Record<string, string> = {
         end_behavior: "release",
         "phases[0][items][0][price]": String(p0Price),
         "phases[0][items][0][quantity]": "1",
         "phases[1][items][0][price]": priceId,
         "phases[1][items][0][quantity]": "1",
-        "phases[1][iterations]": "1",
       };
       if (p0Start) schedParams["phases[0][start_date]"] = String(p0Start);
       if (p0End) schedParams["phases[0][end_date]"] = String(p0End);
