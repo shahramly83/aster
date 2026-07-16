@@ -43,6 +43,21 @@ export async function dbSaveImportRun(companyId, userId, run) {
   return { ...(data.run || {}), id: data.id };
 }
 
+// Update an existing import run in place (same DB row), so a duplicate resolution
+// the user makes AFTER the batch finished persists across a reload instead of
+// resetting to the default. Keyed by the row's DB id.
+export async function dbUpdateImportRun(id, run) {
+  if (!hasSupabase || !id) return null;
+  const { data, error } = await supabase
+    .from("import_runs")
+    .update({ file_count: run.fileCount || 0, run })
+    .eq("id", id)
+    .select("id, run")
+    .single();
+  if (error) { console.error("dbUpdateImportRun", error.message); return null; }
+  return { ...(data.run || {}), id: data.id };
+}
+
 // Load recent import runs for the company (newest first), mapped to UI run shape.
 export async function dbListImportRuns(companyId, limit = 50) {
   if (!hasSupabase || !companyId) return [];

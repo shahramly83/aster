@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -9869,7 +9869,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   );
 }
 
-function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun }) {
+function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun, onUpdateRun }) {
   const limits = planLimits(plan);
   // Bulk upload is its own pool (resumeUploads), separate from applicant parsing
   // (parseApplicant) which is metered server-side as inbound applicants arrive.
@@ -10179,21 +10179,40 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   // Save each finished batch to Recent imports the moment it completes, so it
   // persists no matter how the user leaves the screen (back button or sidebar).
   const savedRunRef = useRef(false);
-  useEffect(() => {
-    if (stage !== "done") { savedRunRef.current = false; return; }
-    if (viewingPast || !rows.length || savedRunRef.current) return;
-    savedRunRef.current = true;
+  const savedRunMetaRef = useRef(null); // { id, label } assigned once, kept stable across re-saves
+  const savedRunDbIdRef = useRef(null); // the DB row id, so resolution edits update in place
+  // Build the run object from current state (rows + resolution), reusing the stable
+  // client id + label so a re-save targets the same history entry.
+  const buildRun = () => {
     const s = summary();
-    const now = new Date();
-    const label = `${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
-    const run = {
-      id: `imp-${now.getTime()}`, label, fileCount: rows.length,
-      summary: { parsed: s.parsed, duplicates: s.duplicates, review: s.review, flagged: s.flagged, rejected: s.rejected },
+    const meta = savedRunMetaRef.current;
+    return {
+      id: meta.id, label: meta.label, fileCount: rows.length,
+      summary: { parsed: s.parsed, duplicates: s.duplicates, review: s.review, flagged: s.flagged, rejected: s.rejected, updated: s.updated },
       resolved: { ...resolved }, dupActions: { ...dupActions }, rows,
     };
-    if (onSaveRun) onSaveRun(run);
+  };
+  useEffect(() => {
+    if (stage !== "done") { savedRunRef.current = false; savedRunMetaRef.current = null; savedRunDbIdRef.current = null; return; }
+    if (viewingPast || !rows.length || savedRunRef.current) return;
+    savedRunRef.current = true;
+    const now = new Date();
+    savedRunMetaRef.current = {
+      id: `imp-${now.getTime()}`,
+      label: `${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`,
+    };
+    // Remember the DB id the save returns, so a later resolution updates the same row.
+    Promise.resolve(onSaveRun?.(buildRun())).then((saved) => { savedRunDbIdRef.current = saved?.id || null; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
+  // The batch is saved once BEFORE duplicates are resolved, so re-persist whenever a
+  // Skip/Update choice changes — otherwise a reload restores the run with the default
+  // (unresolved) actions and the "Updated" state is lost.
+  useEffect(() => {
+    if (stage !== "done" || viewingPast || !savedRunRef.current || !savedRunDbIdRef.current) return;
+    onUpdateRun?.(savedRunDbIdRef.current, buildRun());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved, dupActions]);
 
   const verdictBadge = (row) => {
     if (row.parseStatus === "pending") return <span className="text-xs text-neutral-400">…</span>;
@@ -13546,7 +13565,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
         : `${interviews.length} candidate${interviews.length > 1 ? "s" : ""} in your interview pipeline.`
       : `${interviews.length} interview${interviews.length > 1 ? "s" : ""} on the calendar.`
     : forInterviewer
-      ? "Candidates you're interviewing show up here, from invite through scorecard."
+      ? ""
       : "Interviews a candidate has confirmed appear here.";
 
   return (
@@ -13577,15 +13596,12 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
 
       {interviews.length === 0 ? (
         <div className="rounded-2xl bg-white act-shadow border px-6 py-14 sm:py-20 text-center" style={{ borderColor: "var(--line)" }}>
-          <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-            <Icon name="calendar" className="w-7 h-7" />
-          </div>
           <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>No interviews scheduled yet</p>
-          <p className="text-sm mt-2 max-w-md mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
-            {forInterviewer
-              ? "When a hiring manager assigns you to an interview and the candidate confirms a time, it shows up here with the role and their details."
-              : "Send a candidate an interview invite. Once they pick a time, it shows up here with the position and their details."}
-          </p>
+          {!forInterviewer && (
+            <p className="text-sm mt-2 max-w-md mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              Send a candidate an interview invite. Once they pick a time, it shows up here with the position and their details.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -13670,7 +13686,7 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
   const myRequests = jobs.filter((j) => j.requestedBy && j.requestedBy === currentUserId);
 
   return (
-    <AccountShell title="Open Roles" subtitle="Roles you're interviewing for, plus any you've asked to open." navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
+    <AccountShell title="Open Roles" navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
       <div className="mb-7 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ borderColor: "#CBD6F7", background: "var(--brand-soft)" }}>
         <div className="min-w-0">
           <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Need to hire for something?</h2>
@@ -13683,14 +13699,9 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
 
       <div className="mb-8">
         <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Assigned to you</h2>
-        <p className="text-xs mt-1 mb-3" style={{ color: "var(--ink-3)" }}>Open a role to review its applicants and request an interview.</p>
         {assigned.length === 0 ? (
-          <div className="rounded-2xl bg-white border border-dashed px-6 py-12 text-center" style={{ borderColor: "var(--line-strong)" }}>
-            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3.5" style={{ background: "var(--brand-soft)" }}>
-              <Icon name="briefcase" className="w-6 h-6" style={{ color: "var(--brand)" }} />
-            </div>
-            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No roles assigned yet</p>
-            <p className="text-xs mt-1 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Your hiring manager assigns interviewers per role. Once you&apos;re added to one, it shows up here with its applicants ready to review.</p>
+          <div className="rounded-2xl bg-white border border-dashed px-6 py-12 text-center mt-3" style={{ borderColor: "var(--line-strong)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No any position assigned yet</p>
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
@@ -15604,10 +15615,7 @@ This is what a candidate sees. A public page, no login, reached only through the
               {/* Right: sticky apply card */}
               <aside className="lg:sticky lg:top-6">
                 <div className="rounded-2xl bg-white border p-5 act-shadow" style={{ borderColor: "var(--line)" }}>
-                  <h2 className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>Apply for this role</h2>
-                  <p className="text-sm mt-2 mb-4 leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                    No forms to fill in. Upload your resume and we&apos;ll read your name, contact details and experience straight from it.
-                  </p>
+                  <h2 className="text-base font-semibold font-display mb-4" style={{ color: "var(--ink)" }}>Apply for this role</h2>
 
                   <div className="space-y-3">
                     <div>
@@ -15620,7 +15628,6 @@ This is what a candidate sees. A public page, no login, reached only through the
                           <span className="block text-sm" style={{ color: "var(--ink-3)" }}>Upload your resume<br /><span className="text-xs">PDF or Word (.docx)</span></span>
                         )}
                       </label>
-                      <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>Make sure your resume includes your email so the team can reach you.</p>
                       {fileError && <p className="text-xs text-rose-600 mt-1.5">{fileError}</p>}
                     </div>
                   </div>
@@ -21642,11 +21649,21 @@ export default function ResumeAIPreview() {
   // Persistent "Recent imports" log (loaded from import_runs on hydrate).
   const [importHistory, setImportHistory] = useState([]);
   // Save a finished bulk-import run: optimistic prepend, then persist + reconcile id.
+  // Returns the saved run (with its DB id) so the uploader can update it in place
+  // when the user resolves duplicates afterwards.
   const saveImportRun = async (run) => {
     setImportHistory((h) => [run, ...h]);
-    if (!hasSupabase || !companyId) return;
+    if (!hasSupabase || !companyId) return run;
     const saved = await dbSaveImportRun(companyId, userId, run);
     if (saved) setImportHistory((h) => h.map((r) => (r === run ? saved : r)));
+    return saved || run;
+  };
+  // Re-persist a run in place after the user resolves its duplicates (Skip/Update),
+  // so the choice survives a reload instead of resetting to the default.
+  const updateImportRun = async (id, run) => {
+    const merged = { ...run, id };
+    setImportHistory((h) => h.map((r) => (r.id === id ? merged : r)));
+    if (hasSupabase && companyId) await dbUpdateImportRun(id, merged);
   };
   // Blocked from publishing when the workspace is already at its open-role limit.
   const jobPostBlocked = jobLimit != null && openJobsCount >= jobLimit;
@@ -23083,7 +23100,7 @@ export default function ResumeAIPreview() {
         {screen === "billing" && isOwner(profile?.role) && (
           <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
-        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
+        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
         {screen === "jobs" && (
           <JobsScreen
