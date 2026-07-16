@@ -18682,8 +18682,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm" style={{ color: "var(--ink-3)" }}>
               {parsed.email && <span>{parsed.email}</span>}
               {parsed.phone && <span>{parsed.phone}</span>}
-              {parsed.location && <span>{parsed.location}</span>}
-              {parsed.years_of_experience != null && <span>{parsed.years_of_experience} yrs experience</span>}
             </div>
             {(parsed.linkedin_url || parsed.portfolio_url) && (
               <div className="flex items-center gap-3 mt-2">
