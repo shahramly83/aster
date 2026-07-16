@@ -13087,7 +13087,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const TABS = [
     { key: "browse", short: "By name", full: "Browse by name", icon: "users" },
     { key: "skills", short: "Skills", full: "Skills & industry", icon: "matching" },
-    { key: "role", short: "Role", full: "Match to a role", icon: "briefcase" },
+    { key: "role", short: "Position", full: "Match to a position", icon: "briefcase" },
   ];
   // Popular skills across job families (not just engineering), each exists in
   // the candidate pool so a quick-add always returns real matches.
@@ -13105,7 +13105,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const SEARCH_HELP = [
     { icon: "users", title: "Browse by name", body: "Search your talent pool by name. As you type, matching people show up in a dropdown you can open straight away." },
     { icon: "matching", title: "Match by skills or industry", body: "Filter by the skills and industries Aster read from your candidates' resumes, plus experience level. Matches appear instantly. Run AI Rank when you want each fit scored and explained (one credit)." },
-    { icon: "briefcase", title: "Match to a role", body: "Pick an open role and AI Rank scores every candidate against it, so you can invite the strongest to apply (one credit)." },
+    { icon: "briefcase", title: "Match to a position", body: "Pick an open position and AI Rank scores every candidate against it, so you can invite the strongest to apply." },
     { icon: "link", title: "Invite to apply", body: "Found someone good? Send them the job's application page. Even an older profile might still be keen." },
   ];
 
@@ -13128,7 +13128,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                   <Icon name="users" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {availableCount} candidate{availableCount === 1 ? "" : "s"}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#ECFDF3", color: "#15803D" }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> {openJobs.length} open {openJobs.length === 1 ? "role" : "roles"}
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> {openJobs.length} open {openJobs.length === 1 ? "position" : "positions"}
                 </span>
               </span>
             }
@@ -13310,8 +13310,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="briefcase" className="w-4 h-4" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
-                    Match to an open role
-                    <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the role you pick, so you can invite the best fits to apply." />
+                    Match to an open position
+                    <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the position you pick, so you can invite the best fits to apply." />
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
@@ -13345,7 +13345,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </div>
             )}
             {matching ? matchSkeleton
-              : !matchScores ? emptyState("Show the best candidate", openJobs.length === 0 ? "Create an open role under Job Postings to match against." : "", null)
+              : !matchScores ? emptyState("Show the best candidate", openJobs.length === 0 ? "Create an open position under Job Postings to match against." : "", null)
               : list.length === 0 ? emptyState("No one left to invite", matchJob ? `Everyone in your database has already applied to ${matchJob.title}.` : "No candidates to rank.", "briefcase")
               : rankedList}
             {matchScores && matchJob && list.length > 0 && (
