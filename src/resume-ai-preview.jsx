@@ -152,8 +152,12 @@ async function stripeCheckout(planKey, cycle) {
     if (error) {
       // Supabase wraps a non-2xx in a FunctionsHttpError; the real reason (e.g.
       // a Stripe "No such price") is only in the response body.
-      let reason = "";
-      try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; } catch { /* non-JSON body */ }
+      let reason = "", code = "";
+      try { const body = await error.context?.json?.(); reason = body?.detail || body?.error || ""; code = body?.error || ""; } catch { /* non-JSON body */ }
+      // Billing-safety refusals (we blocked a duplicate/unreadable subscription to
+      // avoid double-billing). These are not "checkout errors" — show the plain,
+      // already-user-facing message so the owner knows exactly what to do next.
+      if (code === "subscription_desynced" || code === "subscription_unreadable") return reason;
       return reason ? `Checkout error: ${reason}` : "Couldn't start checkout. Try again.";
     }
     // The upgrade charge needs 3-D Secure. It was attempted off-session against the

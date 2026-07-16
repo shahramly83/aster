@@ -174,9 +174,24 @@ Deno.serve(async (req) => {
       const cur = await stripeGet(`subscriptions/${liveSub}`, secret);
       const item = cur.ok ? cur.data?.items?.data?.[0] : null;
 
-      // A subscription we can't read (deleted, wrong mode) is not a plan change;
-      // fall through and let them buy a fresh one.
-      if (item?.id) {
+      // The DB says this company has an ACTIVE paid subscription. If Stripe won't
+      // return it with the current key, do NOT fall through to opening a fresh
+      // Checkout: that mints a SECOND live subscription and bills the customer
+      // twice (exactly what the block above is meant to prevent). An unreadable
+      // subscription here is almost always a mode mismatch (a test-mode sub id
+      // under a live key, or vice versa) or a subscription deleted out from under
+      // us while the DB still reads "active". Both are data/config faults for an
+      // admin to reconcile, not a reason to charge again. Refuse and surface it.
+      if (!item?.id) {
+        console.error("plan change: DB shows active sub but Stripe can't read it", {
+          companyId, liveSub, status: subRow?.status, error: cur.data?.error?.message || null,
+        });
+        return json({
+          error: "subscription_unreadable",
+          detail: "We couldn't load your current subscription to switch plans. This usually means the billing key and the subscription are in different Stripe modes. Please contact support before subscribing again, so you aren't billed twice.",
+        }, 409);
+      }
+      {
         const already = item.price?.id === priceId;
         if (already) return json({ ok: true, unchanged: true, plan, cycle: c });
 
@@ -236,6 +251,37 @@ Deno.serve(async (req) => {
     if (!customerId) {
       customerId = await newCustomer();
       if (!customerId) return json({ error: "could not create customer" }, 502);
+    }
+
+    // ---- Duplicate-subscription safeguard. ----
+    // We only get here when the DB did NOT show a live subscription to switch. But
+    // the DB can drift out of step with Stripe: a webhook that never landed, or a
+    // subscription created under a Stripe mode the previous key couldn't read. If
+    // Stripe already holds a live subscription for THIS customer, opening a fresh
+    // Checkout mints a SECOND one and bills the customer twice — every such pair
+    // then stacks prorations into a runaway credit balance (this is how a downgrade
+    // can show a credit larger than a whole year of the plan). So before opening
+    // Checkout, ask Stripe directly. If a live subscription exists, adopt it back
+    // into the DB and ask the caller to retry — the retry then takes the normal
+    // plan-change path with the row back in sync.
+    const existing = await stripeGet(`subscriptions?customer=${customerId}&status=all&limit=20`, secret);
+    const liveExisting = (existing.ok ? (existing.data?.data as Array<Record<string, any>>) : [])
+      ?.find((s) => ["active", "trialing", "past_due"].includes(String(s?.status)));
+    if (liveExisting?.id) {
+      const m = (liveExisting.metadata || {}) as Record<string, string>;
+      const reUpd: Record<string, unknown> = {
+        stripe_subscription_id: liveExisting.id,
+        stripe_customer_id: customerId,
+        status: liveExisting.status === "past_due" ? "past_due" : "active",
+      };
+      if (m.plan && RANK[m.plan]) reUpd.plan = m.plan;
+      if (m.cycle === "monthly" || m.cycle === "yearly") reUpd.cycle = m.cycle;
+      await admin.from("subscriptions").update(reUpd).eq("company_id", companyId);
+      console.error("reconciled orphaned Stripe subscription; refused to open a duplicate", { companyId, subId: liveExisting.id, status: liveExisting.status });
+      return json({
+        error: "subscription_desynced",
+        detail: "We found a subscription that wasn't linked to your account and reconnected it. Please try changing your plan again.",
+      }, 409);
     }
 
     const base = (typeof return_url === "string" && return_url.startsWith("http")) ? return_url.replace(/\/$/, "") : "https://hireaster.com";
