@@ -13534,6 +13534,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 // Where a candidate sits in the interview process, as a labelled pill. Semantic
 // status colours (amber = waiting on someone, green = done, blue = your action).
 const INTERVIEW_STAGE_META = {
+  requested:          { label: "Awaiting scheduling", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
   awaiting_candidate: { label: "Awaiting candidate", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
   confirmed:          { label: "Confirmed",          bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
@@ -13544,7 +13545,7 @@ const INTERVIEW_STAGE_META = {
   rejected:           { label: "Not selected",       bg: "#FEF2F2", color: "#B42318", dot: "#DC2626" },
 };
 // Priority orders the list so the cards that need action sit at the top.
-const INTERVIEW_STAGE_ORDER = { awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4, offer: 5, hired: 6, rejected: 7 };
+const INTERVIEW_STAGE_ORDER = { requested: -1, awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4, offer: 5, hired: 6, rejected: 7 };
 // The candidate's dominant pipeline stage (from the loaded pipeline), if it has
 // moved beyond the interview itself. Once they're at offer, hired or turned down,
 // that trumps the interview-process status ("Scored"/"Confirmed"/etc.) everywhere,
@@ -13557,9 +13558,14 @@ const candidateOutcome = (candidateId) => {
   return null;
 };
 
-function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, currentUserId = null, scorecards = {} }) {
+function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, currentUserId = null, scorecards = {}, scheduleRequests = [], interviewers = [] }) {
   const forInterviewer = isInterviewer(role);
-  const interviews = interviewPipelineFrom(bookings, candidates, scorecards, currentUserId, forInterviewer);
+  const booked = interviewPipelineFrom(bookings, candidates, scorecards, currentUserId, forInterviewer);
+  // Pending interview requests (raised, not yet scheduled) sit at the top, so a
+  // candidate stays visible from "requested" through the whole process.
+  const bookedIds = new Set(booked.map((iv) => iv.candidateId));
+  const pending = pendingRequestsFrom(scheduleRequests, candidates, jobs, interviewers, currentUserId, forInterviewer, bookedIds);
+  const interviews = [...pending, ...booked];
 
   const jobForTitle = (title) => jobs.find((j) => j.title === title);
   // How many still need this interviewer's scorecard — surfaced in the subtitle.
@@ -13649,6 +13655,10 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                             <Icon name="clock" className="w-3 h-3" /> {iv.time}
                           </span>
                         </>
+                      ) : iv.stage === "requested" ? (
+                        <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
+                          <Icon name="userPlus" className="w-3 h-3" /> {iv.requestedByMe ? "Requested by you" : `Requested by ${iv.requestedByName}`}, awaiting the hiring manager to schedule
+                        </span>
                       ) : (
                         <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
                           <Icon name="clock" className="w-3 h-3" /> Times sent, waiting for the candidate to pick
@@ -14355,6 +14365,39 @@ function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUse
       return a.start ? -1 : b.start ? 1 : 0;
     });
   return rows;
+}
+
+// Interview REQUESTS an interviewer raised that a manager hasn't scheduled yet.
+// They aren't bookings, so interviewPipelineFrom misses them and the candidate
+// "disappears" after requesting. Surface them as `requested` pending cards, visible
+// to the whole panel: the requester sees "Requested by you", everyone else (other
+// interviewers on the job + managers/tenant) sees "Requested by <interviewer>". The
+// data is scoped server-side (RLS): interviewers get their assigned-job requests,
+// managers get all. Skipped if the candidate already has a booking.
+function pendingRequestsFrom(scheduleRequests = [], candidates = [], jobs = [], interviewers = [], currentUserId = null, forInterviewer = false, bookedIds = new Set()) {
+  const nameFor = (id) => interviewers.find((iv) => iv.id === id)?.name || "an interviewer";
+  const appLookup = {}; // application_id -> { candidateId, jobId }
+  Object.entries(APPLICANTS_BY_JOB || {}).forEach(([jobId, list]) => {
+    (list || []).forEach((a) => { if (a.applicationId) appLookup[a.applicationId] = { candidateId: a.candidateId, jobId }; });
+  });
+  const seen = new Set();
+  const out = [];
+  for (const req of scheduleRequests) {
+    const loc = appLookup[req.application_id];
+    if (!loc || bookedIds.has(loc.candidateId) || seen.has(loc.candidateId)) continue;
+    seen.add(loc.candidateId);
+    const cand = candidates.find((c) => c.id === loc.candidateId);
+    out.push({
+      candidateId: loc.candidateId,
+      candidateName: cand?.parsed?.name || cand?.name || "Candidate",
+      jobTitle: jobs.find((j) => j.id === loc.jobId)?.title || "Interview",
+      stage: "requested",
+      start: null, month: null, day: null, time: null, dateLine: null,
+      requestedByMe: req.requested_by === currentUserId,
+      requestedByName: nameFor(req.requested_by),
+    });
+  }
+  return out;
 }
 
 function buildQuestionPool(p, roleTitle) {
@@ -23297,6 +23340,8 @@ export default function ResumeAIPreview() {
             currentUserId={userId}
             setActiveJobId={setActiveJobId}
             scorecards={scorecards}
+            scheduleRequests={scheduleRequests}
+            interviewers={interviewers}
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
