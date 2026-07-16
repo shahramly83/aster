@@ -9280,7 +9280,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     {heroCard({ ...kpis[5], green: true })}
                     {heroCard(kpis[0])}
                     {heroCard({ label: "Open positions", value: stats.openJobs, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
-                    {heroCard({ label: "Awaiting Review", value: stageCount("applied"), icon: "doc", note: "Status: Applied", noteColor: "var(--brand)", onClick: () => goToCandidates({ source: "public_application" }) })}
+                    {heroCard({ label: "Awaiting Review", value: stageCount("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
                   </div>
 
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
