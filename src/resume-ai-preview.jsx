@@ -3216,7 +3216,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
           <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Any applicable taxes are shown at checkout.</p>
-          <div className={`inline-flex rounded-full border p-0.5 mt-6 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+          <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
             {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
               const on = cycle === c.key;
               return (
@@ -3229,21 +3230,19 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               );
             })}
           </div>
-          {/* Currency toggle: shows and bills in the chosen currency (each Stripe
-              Price carries USD/RM/SGD amounts). */}
-          <div className="mt-3 flex justify-center">
-            <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
-              {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
-                const on = curSel === c.key;
-                return (
-                  <button key={c.key} onClick={() => setCurSel(c.key)}
-                    className={`text-sm px-3.5 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
-                    style={on ? { background: "var(--ink)" } : undefined}>
-                    {c.label}
-                  </button>
-                );
-              })}
-            </div>
+          {/* Currency toggle: shows and bills in the chosen currency. */}
+          <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+            {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
+              const on = curSel === c.key;
+              return (
+                <button key={c.key} onClick={() => setCurSel(c.key)}
+                  className={`text-sm px-4 py-1.5 min-h-[44px] sm:min-h-0 rounded-full font-medium transition-colors ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+                  style={on ? { background: "var(--ink)" } : undefined}>
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
           </div>
         </Reveal>
 
