@@ -23,14 +23,14 @@ const CORS = {
 const json = (b: unknown, s = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, ...extra, "Content-Type": "application/json" } });
 
-// Must stay in sync with create-checkout-session's PRICE_ENV.
-const PRICE_ENV: Record<string, string> = {
-  "launch|monthly": "STRIPE_PRICE_LAUNCH_MONTHLY",
-  "launch|yearly": "STRIPE_PRICE_LAUNCH_YEARLY",
-  "scale|monthly": "STRIPE_PRICE_SCALE_MONTHLY",
-  "scale|yearly": "STRIPE_PRICE_SCALE_YEARLY",
-  "elite|monthly": "STRIPE_PRICE_ELITE_MONTHLY",
-  "elite|yearly": "STRIPE_PRICE_ELITE_YEARLY",
+// One PRODUCT per plan. Each product carries its own prices, one per currency and
+// interval (USD monthly, MYR monthly, USD yearly, …). We list a product's prices
+// and group them by cycle + currency, so adding a currency in Stripe needs no code
+// or secret change. Must stay in sync with create-checkout-session's PRODUCT_ENV.
+const PRODUCT_ENV: Record<string, string> = {
+  launch: "STRIPE_PRODUCT_LAUNCH",
+  scale: "STRIPE_PRODUCT_SCALE",
+  elite: "STRIPE_PRODUCT_ELITE",
 };
 
 Deno.serve(async (req) => {
@@ -54,42 +54,47 @@ Deno.serve(async (req) => {
     const keyMode = secret.startsWith("sk_live_") ? "live" : secret.startsWith("sk_test_") ? "test" : "unknown";
 
     const diagnostics: Array<Record<string, unknown>> = [];
-    const results = await Promise.all(Object.entries(PRICE_ENV).map(async ([key, envName]) => {
-      const id = Deno.env.get(envName);
-      if (!id) { if (debug) diagnostics.push({ key, env: envName, set: false }); return null; }
-      // expand currency_options so we get the per-currency amounts (MYR, SGD, …)
-      // configured on the Price, not just its base currency. Multi-currency toggle
-      // reads these; a Price with none configured just returns its base currency.
-      const res = await fetch(`https://api.stripe.com/v1/prices/${id}?expand[]=currency_options`, {
+    // For each plan's product, list its active recurring prices and group by
+    // cycle (monthly/yearly) then currency, so `launch|monthly` ends up with a
+    // { usd, myr, sgd } amount map drawn from however many single-currency prices
+    // the product has. Returns an array of [key, value] entries per product.
+    const results = await Promise.all(Object.entries(PRODUCT_ENV).map(async ([plan, envName]) => {
+      const prodId = Deno.env.get(envName);
+      if (!prodId) { if (debug) diagnostics.push({ plan, env: envName, set: false }); return []; }
+      const res = await fetch(`https://api.stripe.com/v1/prices?product=${prodId}&active=true&limit=100`, {
         headers: { Authorization: `Bearer ${secret}` },
       });
-      const p = await res.json();
-      if (!res.ok || typeof p?.unit_amount !== "number") {
-        console.error("stripe price", id, p?.error?.message);
-        if (debug) diagnostics.push({ key, env: envName, set: true, id, ok: false, error: p?.error?.message || `http ${res.status}` });
-        return null; // a misconfigured id shouldn't take the whole screen down
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data?.data)) {
+        console.error("stripe prices", prodId, data?.error?.message);
+        if (debug) diagnostics.push({ plan, env: envName, set: true, product: prodId, ok: false, error: data?.error?.message || `http ${res.status}` });
+        return [];
       }
-      // Normalise currency_options into a simple { currency: minorUnitAmount } map,
-      // always including the base currency.
-      const currencies: Record<string, number> = { [p.currency]: p.unit_amount };
-      for (const [cur, opt] of Object.entries((p.currency_options || {}) as Record<string, { unit_amount?: number }>)) {
-        if (typeof opt?.unit_amount === "number") currencies[cur] = opt.unit_amount;
+      // group[cycle] = { currencies: {usd: amt, ...}, interval, interval_count }
+      const group: Record<string, { currencies: Record<string, number>; interval: string; interval_count: number }> = {};
+      for (const p of data.data as Array<Record<string, any>>) {
+        if (!p.recurring || typeof p.unit_amount !== "number") continue;   // skip one-off prices
+        const cycle = p.recurring.interval === "year" ? "yearly" : "monthly";
+        const g = group[cycle] || (group[cycle] = { currencies: {}, interval: p.recurring.interval, interval_count: p.recurring.interval_count || 1 });
+        // First price wins per currency (avoid an old archived duplicate flipping it).
+        if (g.currencies[p.currency] == null) g.currencies[p.currency] = p.unit_amount;
       }
-      if (debug) diagnostics.push({ key, env: envName, set: true, id, ok: true, amount: p.unit_amount, currency: p.currency, currencies: Object.keys(currencies) });
-      return [key, {
-        // Not a secret (it travels in the Checkout URL), and echoing it makes
-        // "which price is this env var actually pointing at?" answerable.
-        id: p.id,
-        active: p.active !== false,
-        amount: p.unit_amount,
-        currency: p.currency,
-        currencies,
-        interval: p.recurring?.interval || "month",
-        interval_count: p.recurring?.interval_count || 1,
-      }] as const;
+      if (debug) diagnostics.push({ plan, env: envName, set: true, product: prodId, ok: true, cycles: Object.fromEntries(Object.entries(group).map(([c, g]) => [c, Object.keys(g.currencies)])) });
+      return Object.entries(group).map(([cycle, g]) => {
+        // Base currency for the headline amount: prefer USD, else the first one.
+        const baseCur = g.currencies.usd != null ? "usd" : Object.keys(g.currencies)[0];
+        return [`${plan}|${cycle}`, {
+          active: true,
+          amount: g.currencies[baseCur],
+          currency: baseCur,
+          currencies: g.currencies,
+          interval: g.interval,
+          interval_count: g.interval_count,
+        }] as const;
+      });
     }));
 
-    const prices = Object.fromEntries(results.filter(Boolean) as [string, unknown][]);
+    const prices = Object.fromEntries(results.flat() as [string, unknown][]);
     if (debug) return json({ ok: true, key_mode: keyMode, count: Object.keys(prices).length, diagnostics, prices });
 
     // Prices change rarely; let the CDN and browser hold them for a few minutes.

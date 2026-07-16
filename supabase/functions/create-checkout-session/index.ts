@@ -18,13 +18,14 @@ const CORS = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const PRICE_ENV: Record<string, string> = {
-  "launch|monthly": "STRIPE_PRICE_LAUNCH_MONTHLY",
-  "launch|yearly": "STRIPE_PRICE_LAUNCH_YEARLY",
-  "scale|monthly": "STRIPE_PRICE_SCALE_MONTHLY",
-  "scale|yearly": "STRIPE_PRICE_SCALE_YEARLY",
-  "elite|monthly": "STRIPE_PRICE_ELITE_MONTHLY",
-  "elite|yearly": "STRIPE_PRICE_ELITE_YEARLY",
+// One PRODUCT per plan. Each product holds its own prices (one per currency and
+// interval); we pick the price matching the wanted interval + currency at runtime,
+// so adding a currency in Stripe needs no code/secret change. Keep in sync with
+// get-plan-prices' PRODUCT_ENV.
+const PRODUCT_ENV: Record<string, string> = {
+  launch: "STRIPE_PRODUCT_LAUNCH",
+  scale: "STRIPE_PRODUCT_SCALE",
+  elite: "STRIPE_PRODUCT_ELITE",
 };
 
 // Ranked so we can tell an upgrade from a downgrade, which decides how Stripe
@@ -94,6 +95,21 @@ async function stripeGet(path: string, secret: string) {
   return { ok: res.ok, data };
 }
 
+// The active recurring price id for a plan's product matching the interval and
+// currency. Falls back to the USD price for that interval when the requested
+// currency has no price. Null when the product/price isn't configured.
+async function resolvePriceId(secret: string, plan: string, cycle: string, currency: string): Promise<string | null> {
+  const prodId = Deno.env.get(PRODUCT_ENV[plan] || "");
+  if (!prodId) return null;
+  const res = await stripeGet(`prices?product=${prodId}&active=true&limit=100`, secret);
+  if (!res.ok || !Array.isArray(res.data?.data)) return null;
+  const wantInterval = cycle === "yearly" ? "year" : "month";
+  const list = res.data.data as Array<Record<string, any>>;
+  const pick = (curr: string) => list.find((p) => p.recurring?.interval === wantInterval && p.currency === curr && p.active !== false);
+  const chosen = pick(currency) || pick("usd");
+  return chosen ? chosen.id : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -114,8 +130,7 @@ Deno.serve(async (req) => {
     // Unvalidated input must not be allowed to move a customer's billing period.
     if (cycle !== "monthly" && cycle !== "yearly") return json({ error: "unknown plan or cycle" }, 400);
     const c = cycle;
-    const priceEnv = PRICE_ENV[`${plan}|${c}`];
-    if (!priceEnv) return json({ error: "unknown plan or cycle" }, 400);
+    if (!PRODUCT_ENV[plan]) return json({ error: "unknown plan or cycle" }, 400);
 
     const authHeader = req.headers.get("Authorization") || "";
     const userClient = createClient(
@@ -136,9 +151,12 @@ Deno.serve(async (req) => {
     if (prof?.role !== "owner") return json({ error: "only the account owner can change the plan" }, 403);
 
     const secret = Deno.env.get("STRIPE_SECRET_KEY");
-    const priceId = Deno.env.get(priceEnv);
     if (!secret) return json({ error: "billing not configured" }, 503);
-    if (!priceId) return json({ error: `missing ${priceEnv}` }, 503);
+    // The price to use for a NEW subscription: this plan/cycle in the chosen
+    // currency (falls back to USD). A plan change re-resolves in the existing
+    // subscription's currency below, since Stripe won't switch a sub's currency.
+    let priceId = await resolvePriceId(secret, plan, c, cur || "usd");
+    if (!priceId) return json({ error: "no price configured for this plan/currency" }, 503);
 
     // The company details that print on the invoice.
     const { data: company } = await admin
@@ -199,6 +217,11 @@ Deno.serve(async (req) => {
       }
       const subObj = cur.data;
       const trialing = String(subObj?.status) === "trialing";
+      // A plan change stays in the subscription's own currency (Stripe won't switch
+      // it), so re-resolve the target price in that currency, not the toggle's.
+      const subCur = item.price?.currency || "usd";
+      const inSubCur = await resolvePriceId(secret, plan, c, subCur);
+      if (inSubCur) priceId = inSubCur;
       const already = item.price?.id === priceId;
       const from = String(subRow?.plan || "");
       const fromCycle = subRow?.cycle === "yearly" ? "yearly" : "monthly";
@@ -428,9 +451,8 @@ Deno.serve(async (req) => {
     const openCheckout = (cust: string) => stripe("checkout/sessions", {
       mode: "subscription",
       customer: cust,
-      // Multi-currency: charge in the chosen currency (Stripe picks the matching
-      // currency_option on the Price). Omit to use the Price's base currency.
-      ...(cur ? { currency: cur } : {}),
+      // priceId is already the currency-specific price for this plan/cycle, so the
+      // session's currency follows the price; no session-level currency needed.
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       "subscription_data[metadata][company_id]": companyId,

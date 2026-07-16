@@ -25,21 +25,19 @@ const PLAN_TIERS = new Set(["launch", "scale", "elite", "enterprise"]);
 // derive the plan from the ACTUAL price on the item, not from metadata: a held
 // upgrade (pending_if_incomplete) sets metadata.plan immediately but leaves the
 // item on the old price until the invoice is paid, and a scheduled downgrade phase
-// carries no metadata at all. Reading the price id keeps the DB plan honest in both
-// cases. Same env names as create-checkout-session.
-const PRICE_ENV: Record<string, string> = {
-  "launch|monthly": "STRIPE_PRICE_LAUNCH_MONTHLY",
-  "launch|yearly": "STRIPE_PRICE_LAUNCH_YEARLY",
-  "scale|monthly": "STRIPE_PRICE_SCALE_MONTHLY",
-  "scale|yearly": "STRIPE_PRICE_SCALE_YEARLY",
-  "elite|monthly": "STRIPE_PRICE_ELITE_MONTHLY",
-  "elite|yearly": "STRIPE_PRICE_ELITE_YEARLY",
+// carries no metadata at all. Reading the price's PRODUCT keeps the DB plan honest
+// in both cases, regardless of which currency price is on the item. Same product
+// env names as create-checkout-session.
+const PRODUCT_ENV: Record<string, string> = {
+  launch: "STRIPE_PRODUCT_LAUNCH",
+  scale: "STRIPE_PRODUCT_SCALE",
+  elite: "STRIPE_PRODUCT_ELITE",
 };
-function priceIndex(): Record<string, { plan: string; cycle: string }> {
-  const m: Record<string, { plan: string; cycle: string }> = {};
-  for (const [key, env] of Object.entries(PRICE_ENV)) {
+function productToPlan(): Record<string, string> {
+  const m: Record<string, string> = {};
+  for (const [plan, env] of Object.entries(PRODUCT_ENV)) {
     const id = Deno.env.get(env);
-    if (id) { const [plan, cycle] = key.split("|"); m[id] = { plan, cycle }; }
+    if (id) m[id] = plan;
   }
   return m;
 }
@@ -195,11 +193,14 @@ Deno.serve(async (req) => {
     stripeCustId = obj.customer || null;
     // Prefer the ACTUAL live price on the item over metadata, so a held upgrade
     // (item still on the old price until paid) and a scheduled-downgrade phase (no
-    // metadata) both write the plan the customer is really on right now.
-    const livePriceId = obj.items?.data?.[0]?.price?.id || null;
-    const mapped = livePriceId ? priceIndex()[livePriceId] : null;
-    planKey = mapped?.plan || meta.plan || null;
-    cycle = mapped?.cycle || meta.cycle || null;
+    // metadata) both write the plan the customer is really on right now. Map by the
+    // price's PRODUCT (works for any currency), and cycle from its interval.
+    const livePrice = obj.items?.data?.[0]?.price || null;
+    const mappedPlan = livePrice?.product ? productToPlan()[String(livePrice.product)] : null;
+    const mappedCycle = livePrice?.recurring?.interval === "year" ? "yearly"
+      : livePrice?.recurring?.interval === "month" ? "monthly" : null;
+    planKey = mappedPlan || meta.plan || null;
+    cycle = mappedCycle || meta.cycle || null;
     // Stripe moved current_period_end OFF the subscription and onto the
     // subscription item. Reading only the subscription silently yielded undefined
     // on every event, so this column was never once written and the billing page
