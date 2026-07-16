@@ -21,6 +21,29 @@ const json = (b: unknown, s = 200) =>
 // stale checkout session created before 0040 must not poison the enum.
 const PLAN_TIERS = new Set(["launch", "scale", "elite", "enterprise"]);
 
+// Map a live Stripe price id back to {plan, cycle}. On subscription events we
+// derive the plan from the ACTUAL price on the item, not from metadata: a held
+// upgrade (pending_if_incomplete) sets metadata.plan immediately but leaves the
+// item on the old price until the invoice is paid, and a scheduled downgrade phase
+// carries no metadata at all. Reading the price id keeps the DB plan honest in both
+// cases. Same env names as create-checkout-session.
+const PRICE_ENV: Record<string, string> = {
+  "launch|monthly": "STRIPE_PRICE_LAUNCH_MONTHLY",
+  "launch|yearly": "STRIPE_PRICE_LAUNCH_YEARLY",
+  "scale|monthly": "STRIPE_PRICE_SCALE_MONTHLY",
+  "scale|yearly": "STRIPE_PRICE_SCALE_YEARLY",
+  "elite|monthly": "STRIPE_PRICE_ELITE_MONTHLY",
+  "elite|yearly": "STRIPE_PRICE_ELITE_YEARLY",
+};
+function priceIndex(): Record<string, { plan: string; cycle: string }> {
+  const m: Record<string, { plan: string; cycle: string }> = {};
+  for (const [key, env] of Object.entries(PRICE_ENV)) {
+    const id = Deno.env.get(env);
+    if (id) { const [plan, cycle] = key.split("|"); m[id] = { plan, cycle }; }
+  }
+  return m;
+}
+
 // Display name -> ISO-2, so a billing address edited in Stripe's portal (which
 // returns "MY") can be written back without overwriting the "Malaysia" the
 // profile shows. Kept in step with the map in sync-billing-customer, which does
@@ -131,8 +154,13 @@ Deno.serve(async (req) => {
     companyId = meta.company_id || null;
     stripeSubId = obj.id || null;
     stripeCustId = obj.customer || null;
-    planKey = meta.plan || null;
-    cycle = meta.cycle || null;
+    // Prefer the ACTUAL live price on the item over metadata, so a held upgrade
+    // (item still on the old price until paid) and a scheduled-downgrade phase (no
+    // metadata) both write the plan the customer is really on right now.
+    const livePriceId = obj.items?.data?.[0]?.price?.id || null;
+    const mapped = livePriceId ? priceIndex()[livePriceId] : null;
+    planKey = mapped?.plan || meta.plan || null;
+    cycle = mapped?.cycle || meta.cycle || null;
     // Stripe moved current_period_end OFF the subscription and onto the
     // subscription item. Reading only the subscription silently yielded undefined
     // on every event, so this column was never once written and the billing page
@@ -224,6 +252,18 @@ Deno.serve(async (req) => {
   if (planEnum) subUpdate.plan = planEnum;
   if (cycle) subUpdate.cycle = cycle;
   if (periodEnd) subUpdate.current_period_end = periodEnd;
+  // A subscription event with no schedule attached has no pending scheduled change:
+  // either it never had one, or the schedule just released at period end (this
+  // event IS the switch). Clear the pending-change bookkeeping so the "Changing to
+  // X on DATE" banner disappears exactly when the change actually takes effect (and
+  // on cancel). While a downgrade is still pending, obj.schedule is set, so we leave
+  // the fields alone.
+  if (type.startsWith("customer.subscription.") && !obj.schedule) {
+    subUpdate.scheduled_plan = null;
+    subUpdate.scheduled_cycle = null;
+    subUpdate.scheduled_effective = null;
+    subUpdate.stripe_schedule_id = null;
+  }
   // Every write below used to have its error discarded, and the function returned
   // 200 regardless. Stripe treats 2xx as "handled" and never retries, so a failed
   // write — an unknown plan_tier label, a transient outage — silently dropped a

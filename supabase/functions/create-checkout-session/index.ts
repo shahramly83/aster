@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
     // Reuse the saved customer when we have one.
     const { data: subRow } = await admin
       .from("subscriptions")
-      .select("stripe_customer_id, stripe_subscription_id, status, plan, cycle")
+      .select("stripe_customer_id, stripe_subscription_id, status, plan, cycle, stripe_schedule_id")
       .eq("company_id", companyId).maybeSingle();
 
     // Keep an existing customer's billing details in step with the company profile.
@@ -191,60 +191,156 @@ Deno.serve(async (req) => {
           detail: "We couldn't load your current subscription to switch plans. This usually means the billing key and the subscription are in different Stripe modes. Please contact support before subscribing again, so you aren't billed twice.",
         }, 409);
       }
-      {
-        const already = item.price?.id === priceId;
-        if (already) return json({ ok: true, unchanged: true, plan, cycle: c });
+      const subObj = cur.data;
+      const trialing = String(subObj?.status) === "trialing";
+      const already = item.price?.id === priceId;
+      const from = String(subRow?.plan || "");
+      const fromCycle = subRow?.cycle === "yearly" ? "yearly" : "monthly";
+      const existingScheduleId = subRow?.stripe_schedule_id || null;
 
-        const from = String(subRow?.plan || "");
-        const isUpgrade = (RANK[plan] ?? 0) > (RANK[from] ?? 0);
-        // Upgrade: bill the difference now, so they pay for what they just got.
-        // Downgrade: no refund, credit the unused time against the next invoice.
-        const proration = isUpgrade ? "always_invoice" : "create_prorations";
+      // Release any pending downgrade schedule and clear the DB bookkeeping. Called
+      // when the customer re-selects their current plan (cancel the downgrade) or
+      // upgrades (an immediate change supersedes a scheduled one).
+      const clearSchedule = async () => {
+        if (existingScheduleId) {
+          const rel = await stripe(`subscription_schedules/${existingScheduleId}/release`, {}, secret);
+          if (!rel.ok) console.warn("schedule release", rel.data?.error?.message);
+        }
+        await admin.from("subscriptions").update({
+          scheduled_plan: null, scheduled_cycle: null, scheduled_effective: null, stripe_schedule_id: null,
+        }).eq("company_id", companyId);
+      };
 
-        const upd = await stripe(`subscriptions/${liveSub}`, {
+      // Re-selecting the plan they're already on cancels any pending downgrade and
+      // does nothing else. This is also how the "Cancel scheduled change" button works.
+      if (already) {
+        await clearSchedule();
+        return json({ ok: true, unchanged: true, plan, cycle: c });
+      }
+
+      // Direction. Upgrade = pay more / bigger commitment => apply NOW and charge.
+      // Downgrade = pay less / smaller commitment => DEFER to the end of the paid
+      // period. A tier rise is always an upgrade; at the same tier, monthly->yearly
+      // is an upgrade and yearly->monthly is a downgrade.
+      const tierUp = (RANK[plan] ?? 0) > (RANK[from] ?? 0);
+      const tierDown = (RANK[plan] ?? 0) < (RANK[from] ?? 0);
+      const cycleUp = fromCycle === "monthly" && c === "yearly";
+      const isUpgrade = tierUp || (!tierDown && cycleUp);
+      // A trial has nothing paid to protect, so every change applies immediately.
+      const immediate = trialing || isUpgrade;
+
+      if (immediate) {
+        // An immediate change supersedes any scheduled downgrade.
+        await clearSchedule();
+
+        const params: Record<string, string> = {
           "items[0][id]": item.id,
           "items[0][price]": priceId,
-          proration_behavior: proration,
           "metadata[company_id]": companyId,
           "metadata[plan]": plan,
           "metadata[cycle]": c,
-          // We need to know whether the proration charge actually went through.
           "expand[0]": "latest_invoice.payment_intent",
-        }, secret);
+        };
+        if (trialing) {
+          // Mid-trial: no money moves. Just swap which plan converts at trial end.
+          params.proration_behavior = "none";
+        } else {
+          // Paid upgrade: bill the prorated difference now, and HOLD the upgrade
+          // until that balance is actually paid. pending_if_incomplete leaves the
+          // customer on their OLD plan with an open invoice if the card needs 3-D
+          // Secure or declines, instead of upgrading them unpaid. The webhook
+          // applies the new plan only once payment lands.
+          params.proration_behavior = "always_invoice";
+          params.payment_behavior = "pending_if_incomplete";
+          // A cycle change (e.g. monthly -> yearly) starts a fresh term now, so
+          // reset the billing anchor; otherwise they keep the old renewal date.
+          if (fromCycle !== c) params.billing_cycle_anchor = "now";
+        }
+
+        const upd = await stripe(`subscriptions/${liveSub}`, params, secret);
         if (!upd.ok) {
           console.error("stripe plan change", upd.data);
           return json({ error: "could not change plan", detail: upd.data?.error?.message || null }, 502);
         }
 
-        // An upgrade bills the difference immediately, and that charge is made
-        // OFF-SESSION against the saved card. A card that needs 3-D Secure cannot
-        // be authenticated with nobody there, so Stripe declines and leaves the
-        // subscription past_due with an open invoice. 3DS is effectively mandatory
-        // in Malaysia and the EU, so without this every plan change on such a card
-        // dead-ends: the customer is billed, not upgraded, and has no way to
-        // authenticate from inside Aster.
-        //
-        // Stripe's hosted invoice page CAN run the 3DS challenge, so hand them
-        // there to finish paying.
+        if (trialing) return json({ ok: true, changed: true, trial: true, from, to: plan, cycle: c });
+
+        // Held upgrade: the charge needs the card (3-D Secure or a retry). The plan
+        // has NOT switched yet (pending update); send them to Stripe's hosted
+        // invoice to authenticate/pay. The webhook flips the plan once it's paid.
         const inv = upd.data?.latest_invoice;
         const pi = inv?.payment_intent;
         const needsAuth = pi && ["requires_action", "requires_confirmation", "requires_payment_method"].includes(String(pi.status));
-        if (needsAuth || (inv && inv.status === "open" && inv.amount_due > 0)) {
+        if (needsAuth || upd.data?.pending_update || (inv && inv.status === "open" && inv.amount_due > 0)) {
           return json({
-            ok: true, changed: true, requires_action: true,
+            ok: true, requires_action: true, held: true,
             url: inv?.hosted_invoice_url || null,
-            from, to: plan, cycle: c,
-            reason: pi?.status || inv?.status || "unpaid",
+            from, to: plan, cycle: c, reason: pi?.status || inv?.status || "unpaid",
           });
         }
-
-        // The customer.subscription.updated webhook writes plan/cycle/period to the
-        // DB, so we don't duplicate that here.
-        return json({
-          ok: true, changed: true, from, to: plan, cycle: c,
-          direction: isUpgrade ? "upgrade" : "downgrade", proration,
-        });
+        // Paid straight through. The webhook writes plan/cycle/period.
+        return json({ ok: true, changed: true, direction: "upgrade", from, to: plan, cycle: c });
       }
+
+      // ---- Downgrade: DEFER to the end of the paid period via a subscription
+      // schedule. Nothing is charged or credited now. Phase 0 keeps the current
+      // plan until the period ends; phase 1 switches to the new plan and bills it
+      // normally (a full new-cycle charge, no proration). end_behavior=release lets
+      // it renew normally on the new plan afterwards. This is what keeps a yearly
+      // customer on full features until their year is actually up.
+      const periodEnd = item.current_period_end ?? subObj?.current_period_end ?? null;
+
+      // Reuse an existing schedule (the customer is changing a pending downgrade),
+      // else create one from the live subscription.
+      let scheduleId = existingScheduleId;
+      let phase0: Record<string, any> | null = null;
+      if (scheduleId) {
+        const sc = await stripeGet(`subscription_schedules/${scheduleId}`, secret);
+        if (sc.ok && !["released", "canceled"].includes(String(sc.data?.status))) {
+          phase0 = sc.data?.phases?.[0] || null;
+        } else {
+          scheduleId = null; // stale/ended; make a fresh one
+        }
+      }
+      if (!scheduleId) {
+        const created = await stripe("subscription_schedules", { from_subscription: liveSub }, secret);
+        if (!created.ok || !created.data?.id) {
+          console.error("schedule create", created.data);
+          return json({ error: "could not schedule the change", detail: created.data?.error?.message || null }, 502);
+        }
+        scheduleId = created.data.id;
+        phase0 = created.data?.phases?.[0] || null;
+      }
+
+      const p0Price = phase0?.items?.[0]?.price || item.price?.id;
+      const p0Start = phase0?.start_date;
+      const p0End = phase0?.end_date ?? periodEnd;
+      const schedParams: Record<string, string> = {
+        end_behavior: "release",
+        "phases[0][items][0][price]": String(p0Price),
+        "phases[0][items][0][quantity]": "1",
+        "phases[1][items][0][price]": priceId,
+        "phases[1][items][0][quantity]": "1",
+        "phases[1][iterations]": "1",
+      };
+      if (p0Start) schedParams["phases[0][start_date]"] = String(p0Start);
+      if (p0End) schedParams["phases[0][end_date]"] = String(p0End);
+
+      const schedUpd = await stripe(`subscription_schedules/${scheduleId}`, schedParams, secret);
+      if (!schedUpd.ok) {
+        console.error("schedule update", schedUpd.data);
+        return json({ error: "could not schedule the change", detail: schedUpd.data?.error?.message || null }, 502);
+      }
+
+      const effective = p0End ? new Date(Number(p0End) * 1000).toISOString().slice(0, 10) : null;
+      await admin.from("subscriptions").update({
+        scheduled_plan: plan,
+        scheduled_cycle: c,
+        scheduled_effective: effective,
+        stripe_schedule_id: scheduleId,
+      }).eq("company_id", companyId);
+
+      return json({ ok: true, scheduled: true, effective, from, to: plan, cycle: c });
     }
 
     let customerId: string | null = subRow?.stripe_customer_id || null;

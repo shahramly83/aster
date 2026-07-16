@@ -78,6 +78,15 @@ async function loadCustomerSession(userId, fallbackEmail) {
     const { data: tzRow, error: tzErr } = await supabase.from("companies").select("timezone").eq("id", data.company_id).maybeSingle();
     if (!tzErr && tzRow?.timezone) companyTimezone = tzRow.timezone;
   } catch { /* column absent pre-0091: keep default */ }
+  // Deferred plan change (0092). Read on its own so the new columns can't error the
+  // main session query and lock people out before the migration is applied.
+  let scheduledChange = { plan: null, cycle: null, effective: null };
+  try {
+    const { data: schedRow, error: schedErr } = await supabase
+      .from("subscriptions").select("scheduled_plan, scheduled_cycle, scheduled_effective")
+      .eq("company_id", data.company_id).maybeSingle();
+    if (!schedErr && schedRow) scheduledChange = { plan: schedRow.scheduled_plan || null, cycle: schedRow.scheduled_cycle || null, effective: schedRow.scheduled_effective || null };
+  } catch { /* columns absent pre-0092: no pending change */ }
   const sessionResult = {
     userId,
     companyId: data.company_id,
@@ -108,6 +117,11 @@ async function loadCustomerSession(userId, fallbackEmail) {
     activitiesSeenAt: data.activities_seen_at || null,
     subStatus: sub.status || null,
     planCycle: sub.cycle === "yearly" ? "yearly" : "monthly",
+    // A deferred downgrade waiting to take effect at period end (0092), loaded
+    // defensively above so a pre-migration client still boots.
+    scheduledPlan: scheduledChange.plan,
+    scheduledCycle: scheduledChange.cycle,
+    scheduledEffective: scheduledChange.effective,
     renewsAt: sub.current_period_end || null,
     trialDaysLeft: sub.status === "trialing" ? daysUntil(sub.current_period_end) : 0,
     logoUrl: co.logo_url || null,
@@ -167,6 +181,12 @@ async function stripeCheckout(planKey, cycle) {
     // with no way out. 3DS is effectively mandatory in Malaysia and the EU.
     if (data?.requires_action && data?.url) {
       window.location.assign(data.url);
+      return null;
+    }
+    // Downgrade scheduled for period end: nothing charged, no checkout. Reload so
+    // the "Changing to X on DATE" banner and pending state come back from the server.
+    if (data?.scheduled) {
+      window.location.assign("/billing?plan=scheduled");
       return null;
     }
     // Plan switched on the existing subscription: no checkout to send them to.
@@ -15657,14 +15677,36 @@ function RestrictedScreen({ navigate, title, body }) {
   );
 }
 
-function BillingScreen({ navigate, plan, planCycle = "monthly", company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
-  const [msg, setMsg] = useState(null);
+function BillingScreen({ navigate, plan, planCycle = "monthly", company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
+  const [msg, setMsg] = useState(() => {
+    // A plan change reloads onto ?plan=changed|scheduled; surface a one-line
+    // confirmation from the fresh page load.
+    if (typeof window === "undefined") return null;
+    const p = new URLSearchParams(window.location.search).get("plan");
+    if (p === "scheduled") return "Plan change scheduled. You keep your current plan and full access until it takes effect, and nothing is charged until then.";
+    if (p === "changed") return "Your plan has been updated.";
+    return null;
+  });
   const [confirmEndTrial, setConfirmEndTrial] = useState(false);
   const [endingTrial, setEndingTrial] = useState(false);
   // subscriptions.current_period_end, e.g. "8 Aug 2026". Blank when unknown.
   const renewDate = renewsAt
     ? new Date(`${renewsAt}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : "";
+
+  // A deferred downgrade waiting to take effect at period end (0092). While it's
+  // pending the customer keeps their current plan and full features; the switch
+  // happens on `date`. Cancelling it re-selects the current plan (releases the
+  // Stripe schedule server-side).
+  const PLAN_LABEL = { launch: "Launch", scale: "Scale", elite: "Elite", enterprise: "Enterprise" };
+  const pendingChange = scheduledPlan ? {
+    plan: scheduledPlan,
+    name: PLAN_LABEL[scheduledPlan] || scheduledPlan,
+    cycle: scheduledCycle === "yearly" ? "yearly" : "monthly",
+    date: scheduledEffective
+      ? new Date(`${scheduledEffective}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+      : null,
+  } : null;
 
   // On success the page reloads onto the suspended paywall, so we never clear
   // `endingTrial` — the spinner stays put rather than flashing back to idle.
@@ -15677,6 +15719,9 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   const [cycle, setCycle] = useState(planCycle);
   const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
+  // Gate every plan-change button while one request is in flight, so a double-click
+  // can't fire two conflicting changes at once.
+  const [changeBusy, setChangeBusy] = useState(false);
   // Invoice history, read from Stripe so receipts live in Aster rather than only
   // behind a redirect to the portal.
   const [invoices, setInvoices] = useState([]);
@@ -15807,9 +15852,12 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
 
   const startCheckout = async (planKey, chosenCycle) => {
     if (!hasSupabase) { setMsg("Sign in to a live workspace to subscribe."); return; }
+    if (changeBusy) return;                       // gate: one change at a time
+    setChangeBusy(true);
     setMsg("Opening secure checkout…");
     const err = await stripeCheckout(planKey, chosenCycle);
-    if (err) setMsg(err);
+    // On success stripeCheckout redirects/reloads, so we only land here on error.
+    if (err) { setMsg(err); setChangeBusy(false); }
   };
 
   // Invoices, the saved card and cancellation all live in Stripe's hosted portal,
@@ -15931,6 +15979,25 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               )}
             </div>
           )}
+          {pendingChange && paidSub && (
+            <div className="mt-4 rounded-xl border p-3 flex items-start gap-2.5" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
+              <Icon name="calendar" className="w-4 h-4 mt-px shrink-0" style={{ color: "#B45309" }} />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold" style={{ color: "#92400E" }}>Scheduled plan change</p>
+                <p className="text-xs mt-0.5" style={{ color: "#92400E" }}>
+                  You keep {current.name} with full access until {pendingChange.date || "your current period ends"}, then move to {pendingChange.name} ({pendingChange.cycle}). Nothing is charged until then.
+                </p>
+              </div>
+              <button
+                onClick={() => startCheckout(plan, planCycle)}
+                disabled={changeBusy}
+                className="shrink-0 self-center text-xs font-semibold rounded-lg px-3 py-2 bg-white border hover:bg-neutral-50 transition-colors disabled:opacity-60"
+                style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
+              >
+                Cancel change
+              </button>
+            </div>
+          )}
           {trialDaysLeft > 0 && (
             <button
               onClick={() => setConfirmEndTrial(true)}
@@ -16011,7 +16078,12 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               const isSwitch = !isCurrent && p.key === plan && cycleMatters;   // same tier, other cadence
               const isDowngrade = !isCurrent && !isSwitch && rank[p.key] < rank[plan];
               const highlight = p.popular && !isCurrent;   // draw the eye to the recommended tier
+              // This exact plan+cycle is the one already scheduled to take effect at
+              // period end. Mark it so the button reads "Scheduled" instead of
+              // inviting the same change again.
+              const isScheduledTarget = !!pendingChange && p.key === pendingChange.plan && cycle === pendingChange.cycle;
               const label = isCurrent ? "Current plan"
+                : isScheduledTarget ? "Scheduled"
                 : onTrial ? "Subscribe"
                 : isSwitch ? (cycle === "yearly" ? "Switch to yearly" : "Switch to monthly")
                 : isDowngrade ? "Downgrade"
@@ -16079,10 +16151,21 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                         Current plan
                       </button>
                     </div>
+                  ) : isScheduledTarget ? (
+                    // Already scheduled to switch to this plan+cycle at period end.
+                    // Cancel it from the banner above; re-picking it here is a no-op.
+                    <button
+                      disabled
+                      className="w-full rounded-xl text-sm font-semibold py-2.5 cursor-default"
+                      style={{ background: "rgba(0,0,0,0.04)", color: "var(--ink-3)", border: "1px solid var(--line)" }}
+                    >
+                      Scheduled{pendingChange?.date ? ` · ${pendingChange.date}` : ""}
+                    </button>
                   ) : (
                   <button
                     onClick={() => choosePlan(p)}
-                    className={`w-full rounded-xl text-sm font-semibold py-2.5 transition-all ${
+                    disabled={changeBusy}
+                    className={`w-full rounded-xl text-sm font-semibold py-2.5 transition-all disabled:opacity-60 ${
                       solid
                         ? "brand-gradient text-white hover:opacity-90 hover:-translate-y-px"
                         : "border hover:bg-neutral-50"
@@ -21294,6 +21377,10 @@ export default function ResumeAIPreview() {
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const [renewsAt, setRenewsAt] = useState(null);
   const [subStatus, setSubStatus] = useState(null); // subscriptions.status
+  // A deferred downgrade scheduled to take effect at period end (0092).
+  const [scheduledPlan, setScheduledPlan] = useState(null);
+  const [scheduledCycle, setScheduledCycle] = useState(null);
+  const [scheduledEffective, setScheduledEffective] = useState(null);
   const trialActive = trialDaysLeft > 0;
   // A live trial grants Scale-level access whatever tier the row carries.
   const effectivePlan = trialActive && plan === "launch" ? "scale" : plan;
@@ -21652,6 +21739,9 @@ export default function ResumeAIPreview() {
       setTrialDaysLeft(sess.trialDaysLeft || 0);
       setRenewsAt(sess.renewsAt || null);
       setSubStatus(sess.subStatus || null);
+      setScheduledPlan(sess.scheduledPlan || null);
+      setScheduledCycle(sess.scheduledCycle || null);
+      setScheduledEffective(sess.scheduledEffective || null);
       setActivitiesSeenAt(sess.activitiesSeenAt || null);
       if (sess.calendarProvider) setProvider(sess.calendarProvider);
       if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
@@ -21980,6 +22070,9 @@ export default function ResumeAIPreview() {
         setTrialDaysLeft(sess.trialDaysLeft || 0);
         setRenewsAt(sess.renewsAt || null);
         setSubStatus(sess.subStatus || null);
+        setScheduledPlan(sess.scheduledPlan || null);
+        setScheduledCycle(sess.scheduledCycle || null);
+        setScheduledEffective(sess.scheduledEffective || null);
         setActivitiesSeenAt(sess.activitiesSeenAt || null);
         if (sess.calendarProvider) setProvider(sess.calendarProvider);
         if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
@@ -22738,7 +22831,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "billing" && isOwner(profile?.role) && (
-          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
