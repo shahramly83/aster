@@ -16212,12 +16212,10 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               <p className="text-xs text-neutral-600 leading-relaxed">Everything in Elite, plus SSO &amp; audit logs, a dedicated success manager, and custom SLAs &amp; onboarding.</p>
             </div>
             <a
-              href="/contact-sales"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="mailto:support@hireaster.com?subject=Enterprise%20plan%20enquiry"
               className="shrink-0 inline-flex items-center gap-1.5 rounded-xl text-xs font-semibold px-4 py-2 bg-white border border-[color:var(--line)] text-neutral-800 hover:bg-neutral-50 transition-colors"
             >
-              Book a call <Icon name="arrowUpRight" className="w-3.5 h-3.5" />
+              <Icon name="mail" className="w-3.5 h-3.5" /> Email us
             </a>
           </div>
         </div>
