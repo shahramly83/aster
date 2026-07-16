@@ -13696,7 +13696,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   // glance (kept clear of the green "Active" and amber "Invite pending" pills).
   const roleTagStyle = (label) => {
     const l = String(label || "").toLowerCase();
-    if (l.includes("tenant")) return { background: "#EDE9FE", color: "#6D28D9" };        // purple
+    if (l.includes("tenant")) return { background: "var(--brand-soft)", color: "var(--brand)" }; // blue
     if (l.includes("interviewer")) return { background: "#CCFBF1", color: "#0F766E" };   // teal
     return { background: "var(--brand-soft)", color: "var(--brand)" };                    // hiring manager (blue)
   };
