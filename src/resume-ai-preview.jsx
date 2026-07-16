@@ -11588,11 +11588,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
           <div className="relative order-first sm:order-none w-full sm:w-auto sm:ml-auto shrink-0">
             <button
-              onClick={() => navigate("newJob")}
-              className={`w-full inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 ${showPostCta ? "tour-pulse" : ""}`}
-              style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}
+              onClick={() => navigate(jobPostBlocked ? "billing" : "newJob")}
+              title={jobPostBlocked ? `All ${jobPostUsage.limit} open-position slots are in use. Upgrade to post another.` : undefined}
+              className={`w-full inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 transition-all ${jobPostBlocked ? "text-white opacity-90 hover:opacity-100" : `brand-gradient text-white hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 ${showPostCta ? "tour-pulse" : ""}`}`}
+              style={jobPostBlocked ? { background: "var(--ink-3)" } : { boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}
             >
-              <Icon name="jobs" className="w-4 h-4" /> Post a job
+              <Icon name={jobPostBlocked ? "lock" : "jobs"} className="w-4 h-4" /> Post a job
             </button>
             {showPostCta && (
               <div className="absolute top-full right-0 mt-2.5 z-40">
