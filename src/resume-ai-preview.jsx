@@ -12300,6 +12300,10 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
+  // Never render more used than the limit. Right after a downgrade the old plan's
+  // usage can exceed the new (lower) limit for an instant before the reset lands;
+  // "1000 / 100" reads as broken, so clamp the shown number to the cap.
+  const shownUsed = limit === Infinity ? used : Math.min(used, limit);
   // On the top self-serve plan (Elite) there's nothing to upgrade to, so the
   // "Upgrade for more" button is dead weight. Enterprise is a sales conversation,
   // not a self-serve tier. Hide the button in both cases.
@@ -12314,7 +12318,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
         {resetLabel && <ResetBadge label={resetLabel} />}
       </div>
       <div className="relative flex items-baseline gap-1.5 mb-2.5">
-        <span className="text-2xl font-bold font-display tnum leading-none text-white">{used}</span>
+        <span className="text-2xl font-bold font-display tnum leading-none text-white">{shownUsed}</span>
         <span className="text-sm text-white/70">/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
       </div>
       <div className="relative h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>

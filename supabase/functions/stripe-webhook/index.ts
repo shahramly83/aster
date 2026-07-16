@@ -315,14 +315,25 @@ Deno.serve(async (req) => {
   }
 
   if (status === "active") {
+    // Read the current plan first so we only run downgrade/upgrade housekeeping on
+    // an ACTUAL plan change, not on every renewal or metadata-only event.
+    const { data: coRow } = await admin.from("companies").select("plan").eq("id", companyId).maybeSingle();
+    const prevPlan = coRow?.plan || null;
+
     const companyUpdate: Record<string, unknown> = { status: "active", deleted_at: null, purge_after: null };
     if (planEnum) companyUpdate.plan = planEnum;
     const { error } = await admin.from("companies").update(companyUpdate).eq("id", companyId);
     if (error) { console.error("companies activate", error.message, companyUpdate); return await fail("company update failed", error.message); }
-    // After a plan write, bring open roles within the new plan's job-post limit by
-    // unpublishing the excess to drafts (non-destructive; candidates preserved).
-    // Best-effort: a hiccup here must not fail the payment webhook.
-    if (planEnum) { try { await enforceJobLimit(admin, companyId, planEnum); } catch (e) { console.error("enforceJobLimit", e); } }
+
+    // Plan actually changed (e.g. a deferred downgrade taking effect at period end,
+    // or an upgrade). Two pieces of housekeeping, both best-effort so a hiccup can't
+    // fail the payment webhook:
+    //   1. Reset the metered allowance so the new plan starts fresh (no "1000/100").
+    //   2. Unpublish open roles beyond the new plan's job limit (non-destructive).
+    if (planEnum && planEnum !== prevPlan) {
+      try { await admin.rpc("reset_current_usage", { p_company: companyId }); } catch (e) { console.error("reset_current_usage", e); }
+      try { await enforceJobLimit(admin, companyId, planEnum); } catch (e) { console.error("enforceJobLimit", e); }
+    }
   } else if (status === "canceled") {
     // Setting status alone revoked nothing: companies.status is read by no policy,
     // and the tenancy layer keys off deleted_at. A cancelled customer kept full
