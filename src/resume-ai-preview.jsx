@@ -9449,7 +9449,6 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               <div className="relative flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your plan</p>
-                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>{plan === "launch" ? "Launch" : plan === "scale" ? "Scale" : plan === "elite" ? "Elite" : "Enterprise"}</p>
                 </div>
                 {/* Billing is owner-only, so a hiring manager must not be offered a
                     shortcut into a screen that will just refuse them. They still see
@@ -9530,7 +9529,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                         return (
                           <div className="mt-4">
                             <button onClick={() => navigate("billing")} className="w-full brand-gradient text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.9)]">
-                              <Icon name="arrowUpRight" className="w-4 h-4" /> {atTopPlan ? "Buy credits" : "Upgrade plan"}
+                              {atTopPlan ? "Buy credits" : "Upgrade plan"}
                             </button>
                           </div>
                         );
@@ -16351,9 +16350,9 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 items-start">
+        <div className="flex flex-col gap-4 mb-4">
         {/* Payment method, invoices and cancellation, all handled by Stripe */}
-        <div className={`${cardClass} lg:col-span-2`}>
+        <div className={`${cardClass} order-2`}>
           <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3">Payment &amp; invoices</h2>
           {hasStripeCustomer ? (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -16446,7 +16445,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
         </div>
 
         {/* Billed to — company details that appear on invoices */}
-        <div className={`${cardClass} lg:col-span-1`}>
+        <div className={`${cardClass} order-1`}>
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Billed to</h2>
             <button onClick={() => navigate("profile")} className="text-xs rounded-xl border px-3 py-1.5 shrink-0 hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Edit</button>
