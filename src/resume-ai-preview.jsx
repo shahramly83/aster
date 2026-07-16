@@ -9237,27 +9237,21 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           <div className="order-3 lg:order-1 lg:col-span-2 flex flex-col min-w-0">
             {(() => {
               const heroCard = (k) => (
-                <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark ? "act-shadow" : "border act-shadow"}`} style={k.dark ? { background: "var(--brand-soft)", border: "1px solid #CBD8F5" } : { background: "#fff", borderColor: "var(--line)" }}>
-                  <div className="flex items-start justify-between">
-                    <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={k.dark ? { background: "var(--brand)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
-                    <span aria-hidden="true" className="mt-0.5 opacity-60" style={{ color: "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></span>
-                  </div>
-                  <div className="mt-4 relative z-10">
-                    <p className="text-sm" style={{ color: "var(--ink-2)" }}>{k.label}</p>
-                    <div className="flex items-end gap-2 mt-0.5">
-                      <p className="text-2xl font-bold font-display tnum" style={{ color: "var(--ink)" }}>{k.value}</p>
-                      {typeof k.delta === "number" && k.delta !== 0 && <span className="text-[11px] font-semibold mb-1" style={{ color: k.delta > 0 ? "#22C55E" : "#EF4444" }}>{k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%</span>}
+                <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark || k.green ? "act-shadow" : "border act-shadow"}`} style={k.green ? { background: "#ECFDF5", border: "1px solid #A7F3D0" } : k.dark ? { background: "var(--brand-soft)", border: "1px solid #CBD8F5" } : { background: "#fff", borderColor: "var(--line)" }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={k.green ? { background: "#16A34A", color: "#fff" } : k.dark ? { background: "var(--brand)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
+                      <div className="min-w-0">
+                        <p className="text-sm truncate" style={{ color: "var(--ink-2)" }}>{k.label}</p>
+                        <div className="flex items-end gap-2">
+                          <p className="text-2xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{k.value}</p>
+                          {typeof k.delta === "number" && k.delta !== 0 && <span className="text-[11px] font-semibold" style={{ color: k.delta > 0 ? "#22C55E" : "#EF4444" }}>{k.delta > 0 ? "▲" : "▼"} {Math.abs(k.delta)}%</span>}
+                        </div>
+                      </div>
                     </div>
-                    {k.note && <p className="text-[11px] mt-1 font-medium" style={{ color: k.noteColor || "var(--ink-3)" }}>{k.note}</p>}
-                    {k.celebrate && k.value > 0 && <p className="text-sm font-medium mt-3 max-w-[70%]" style={{ color: "var(--ink)" }}>Great job! Keep up the momentum!</p>}
+                    <span aria-hidden="true" className="mt-0.5 opacity-60 shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></span>
                   </div>
-                  {k.celebrate && k.value > 0 && (
-                    <span aria-hidden="true" className="firework pointer-events-none absolute" style={{ right: "3.25rem", top: "3.25rem" }}>
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => (
-                        <i key={i} style={{ "--a": `${i * 30}deg`, background: ["#D65BFF", "#5A78F8", "#FBBF24", "#22C55E", "#F472B6", "#38BDF8"][i % 6] }} />
-                      ))}
-                    </span>
-                  )}
+                  {k.note && <p className="text-[11px] mt-3 font-medium" style={{ color: k.noteColor || "var(--ink-3)" }}>{k.note}</p>}
                 </button>
               );
               // Count UNIQUE candidates per stage, not application rows: someone who
@@ -9283,7 +9277,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 <div className="flex-1 flex flex-col gap-4 md:gap-5">
                   {/* Stats, 2×2: Total Candidates | New Applications · Total Job Postings | Total Hires */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                    {heroCard({ ...kpis[5], dark: true, celebrate: true })}
+                    {heroCard({ ...kpis[5], green: true })}
                     {heroCard(kpis[0])}
                     {heroCard({ label: "Open positions", value: stats.openJobs, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
                     {heroCard({ label: "Awaiting Review", value: stageCount("applied"), icon: "doc", note: "Status: Applied", noteColor: "var(--brand)", onClick: () => goToCandidates({ source: "public_application" }) })}
