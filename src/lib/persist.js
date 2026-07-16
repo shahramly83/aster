@@ -505,7 +505,11 @@ export async function dbUpdateMyProfile({ fullName, phone, avatarPath, notifyPre
 // an empty set. `score` is 0..1 here and stored as 0..100, matching the column's
 // int type and the loader's `match_score > 1 ? /100 : score` normalisation.
 export async function dbSaveMatchScores(companyId, jobId, results = []) {
-  if (!hasSupabase || !companyId || !jobId || !results.length) return;
+  // NOTE: no companyId guard here. The RPC resolves the company from the caller's
+  // JWT, so it must run even when the caller (an interviewer) has no companyId prop
+  // handy. Guarding on companyId used to silently skip the save for interviewers,
+  // so their AI Rank locked the job but never persisted the scores.
+  if (!hasSupabase || !jobId || !results.length) return;
   // Route through the definer RPC (0098) so an assigned INTERVIEWER's run persists
   // too — applications RLS is read-only for them. Falls back to a direct update
   // (admins only) if the RPC isn't deployed yet.
@@ -514,6 +518,7 @@ export async function dbSaveMatchScores(companyId, jobId, results = []) {
   }));
   const { error } = await supabase.rpc("save_match_scores", { p_job_id: jobId, p_scores });
   if (error && (error.code === "42883" || error.code === "PGRST202")) {
+    if (!companyId) { console.error("dbSaveMatchScores: RPC missing and no companyId for fallback"); return; }
     await Promise.all(results.map(({ candidateId, score, rationale }) =>
       supabase.from("applications")
         .update({ match_score: Math.round((Number(score) || 0) * 100), match_reasons: rationale || null })
