@@ -10389,9 +10389,6 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                     <span className="text-3xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{s.parsed}</span>
                     <span className="text-sm" style={{ color: "var(--ink-2)" }}>of {rows.length} resume{rows.length === 1 ? "" : "s"} screened into new candidates</span>
                   </div>
-                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>
-                    {s.duplicates ? `${s.duplicates} duplicate${s.duplicates === 1 ? "" : "s"}` : ""}{s.duplicates && (s.review || s.flagged || s.rejected) ? " · " : ""}{s.review || s.flagged ? `${s.review + s.flagged} to review` : ""}{(s.review || s.flagged) && s.rejected ? " · " : ""}{s.rejected ? `${s.rejected} skipped` : ""}
-                  </p>
 
                   {/* Tabs */}
                   <div className="flex gap-0.5 mt-4 -mb-px overflow-x-auto border-b" style={{ borderColor: "var(--line)" }}>
