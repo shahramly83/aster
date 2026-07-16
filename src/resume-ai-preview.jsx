@@ -17213,6 +17213,11 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
         <div className={`${cardClass} mb-5`}>
           <SectionHead icon="briefcase" title="Company details" desc="Branding that appears across your workspace and on invoices." />
 
+          <div className="mt-5">
+            <label htmlFor="pf-company" className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
+            <input id="pf-company" value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Your company" className={inputClass} />
+          </div>
+
           {/* Logo uploader */}
           <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-4">
             <div
@@ -17233,11 +17238,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
                 <button onClick={() => { setDLogo(null); setDLogoFile(null); setSavedMsg(null); setSaveErr(null); }} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Remove</button>
               )}
             </div>
-          </div>
-
-          <div className="mt-5">
-            <label htmlFor="pf-company" className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
-            <input id="pf-company" value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Your company" className={inputClass} />
           </div>
 
         </div>
