@@ -196,15 +196,25 @@ Deno.serve(async (req) => {
       const already = item.price?.id === priceId;
       const from = String(subRow?.plan || "");
       const fromCycle = subRow?.cycle === "yearly" ? "yearly" : "monthly";
-      const existingScheduleId = subRow?.stripe_schedule_id || null;
+      // The schedule the LIVE subscription is actually attached to is the source of
+      // truth, not the DB. They drift (a write that didn't land, a manual change in
+      // Stripe), and acting on a stale DB value tries to create a second schedule,
+      // which Stripe rejects ("already attached to a schedule"). Prefer the live id.
+      const attachedScheduleId = typeof subObj?.schedule === "string"
+        ? subObj.schedule
+        : (subObj?.schedule?.id || null);
+      const knownScheduleId = attachedScheduleId || subRow?.stripe_schedule_id || null;
 
-      // Release any pending downgrade schedule and clear the DB bookkeeping. Called
+      // Release the subscription's schedule and clear the DB bookkeeping. Called
       // when the customer re-selects their current plan (cancel the downgrade) or
-      // upgrades (an immediate change supersedes a scheduled one).
+      // upgrades (an immediate change supersedes a scheduled one). Releasing is also
+      // REQUIRED before Stripe will let us modify the subscription's items.
       const clearSchedule = async () => {
-        if (existingScheduleId) {
-          const rel = await stripe(`subscription_schedules/${existingScheduleId}/release`, {}, secret);
-          if (!rel.ok) console.warn("schedule release", rel.data?.error?.message);
+        if (knownScheduleId) {
+          const rel = await stripe(`subscription_schedules/${knownScheduleId}/release`, {}, secret);
+          if (!rel.ok && !/released|canceled|completed/i.test(rel.data?.error?.message || "")) {
+            console.warn("schedule release", rel.data?.error?.message);
+          }
         }
         await admin.from("subscriptions").update({
           scheduled_plan: null, scheduled_cycle: null, scheduled_effective: null, stripe_schedule_id: null,
@@ -290,13 +300,15 @@ Deno.serve(async (req) => {
       // customer on full features until their year is actually up.
       const periodEnd = item.current_period_end ?? subObj?.current_period_end ?? null;
 
-      // Reuse an existing schedule (the customer is changing a pending downgrade),
-      // else create one from the live subscription.
-      let scheduleId = existingScheduleId;
+      // Reuse the schedule the subscription is already attached to (the customer is
+      // changing a pending downgrade), else create one from the live subscription.
+      // knownScheduleId prefers the LIVE attachment over the DB, so a drifted DB
+      // can't make us try to create a duplicate schedule (Stripe rejects that).
+      let scheduleId = knownScheduleId;
       let phase0: Record<string, any> | null = null;
       if (scheduleId) {
         const sc = await stripeGet(`subscription_schedules/${scheduleId}`, secret);
-        if (sc.ok && !["released", "canceled"].includes(String(sc.data?.status))) {
+        if (sc.ok && !["released", "canceled", "completed"].includes(String(sc.data?.status))) {
           phase0 = sc.data?.phases?.[0] || null;
         } else {
           scheduleId = null; // stale/ended; make a fresh one
