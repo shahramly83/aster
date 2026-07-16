@@ -163,6 +163,15 @@ export async function dbUpdateCompany(companyId, { name, address = {}, registrat
   return { ok: true };
 }
 
+// Persist the workspace's billing currency preference (0095). Owner-only, enforced
+// server-side by set_company_currency. Governs fresh checkouts + credit top-ups.
+export async function dbSetCompanyCurrency(currency) {
+  if (!hasSupabase) return { ok: false };
+  const { error } = await supabase.rpc("set_company_currency", { p_currency: currency });
+  if (error) { console.error("dbSetCompanyCurrency", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
 // Read this company's email-template overrides (Tier 2). Returns rows keyed by
 // template `key`; an empty list means the app falls back to the code defaults.
 export async function dbListEmailTemplates(companyId) {

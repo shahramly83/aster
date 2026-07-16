@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -45,7 +45,7 @@ async function loadCustomerSession(userId, fallbackEmail) {
   if (!hasSupabase) return null;
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, onboarding, companies ( name, slug, plan, logo_url, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
+    .select("company_id, full_name, role, phone, avatar_path, notify_prefs, calendar_provider, activities_seen_at, onboarding, companies ( name, slug, plan, logo_url, preferred_currency, address, address_street, address_city, address_state, address_postcode, address_country, registration_no, subscriptions ( status, cycle, current_period_end ) )")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -125,6 +125,9 @@ async function loadCustomerSession(userId, fallbackEmail) {
     renewsAt: sub.current_period_end || null,
     trialDaysLeft: sub.status === "trialing" ? daysUntil(sub.current_period_end) : 0,
     logoUrl: co.logo_url || null,
+    // Workspace billing currency (0095), RM default. Seeds the billing/checkout
+    // currency and the Settings selector.
+    preferredCurrency: ["usd", "myr", "sgd"].includes(co.preferred_currency) ? co.preferred_currency : "myr",
     address: co.address || "",
     addressParts,
     registrationNo: co.registration_no || "",
@@ -7485,6 +7488,11 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
       return;
     }
 
+    // Persist the currency picked on the pricing table as the workspace's billing
+    // currency, so the first checkout and every top-up bill in it (and Settings
+    // shows it). Best-effort: a failure just leaves the RM default.
+    if (signupCurrency && signupCurrency !== "myr") { try { await dbSetCompanyCurrency(signupCurrency); } catch { /* keep default */ } }
+
     setPlanCycle && setPlanCycle(signupCycle);
     const sess = await loadCustomerSession(data.user.id, em);
     onAuthed && onAuthed(sess, isPaid ? "billing" : "dashboard");
@@ -9377,7 +9385,6 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                       {upcomingInterviews.length === 0 ? (
                         <div className="py-10 text-center flex-1 flex flex-col justify-center">
                           <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
-                          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Once a candidate confirms a time, it shows up here.</p>
                         </div>
                       ) : (
                         <div className="space-y-1 flex-1">
@@ -17936,7 +17943,42 @@ function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true, bar
   );
 }
 
-function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications, companyId = null, canPersist = false, logoUrl = null }) {
+// Owner-only billing-currency picker (0095). Saves the moment a currency is chosen
+// (no shared Save bar) so the change is obviously applied. Governs fresh checkouts
+// and credit top-ups; a live subscription keeps the currency it started with, which
+// the copy makes explicit so no one expects a mid-subscription switch.
+function BillingCurrencyCard({ currency, onChange, canPersist }) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState(null);
+  const pick = async (cur) => {
+    if (cur === currency) return;
+    const prev = currency;
+    onChange(cur);                          // optimistic
+    setErr(null); setSaved(false);
+    if (!canPersist) return;
+    setSaving(true);
+    const res = await dbSetCompanyCurrency(cur);
+    setSaving(false);
+    if (res?.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    else { onChange(prev); setErr(res?.error || "Couldn't save. Try again."); }   // roll back
+  };
+  return (
+    <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="min-w-0">
+        <p className="text-sm" style={{ color: "var(--ink-2)" }}>
+          New subscriptions and credit top-ups are billed in this currency. An active subscription keeps the currency it was started with.
+        </p>
+        <p className="text-xs mt-1" style={{ color: err ? "#B42318" : saved ? "#166534" : "var(--ink-3)" }}>
+          {saving ? "Saving…" : err ? err : saved ? "Saved." : ""}
+        </p>
+      </div>
+      <div className="shrink-0"><CurrencyDropdown value={currency} onChange={pick} /></div>
+    </div>
+  );
+}
+
+function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications, companyId = null, canPersist = false, logoUrl = null, preferredCurrency = "myr", setPreferredCurrency = () => {} }) {
   const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(null);
@@ -17993,6 +18035,12 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           >
             <WhatsAppBusinessCard bare plan={plan} navigate={navigate} canManage={!isInterviewer(profile?.role)} />
           </SettingsSection>
+
+          {isOwner(profile?.role) && (
+            <SettingsSection icon="card" title="Billing currency" desc="The currency your subscription and credit purchases are billed in">
+              <BillingCurrencyCard currency={preferredCurrency} onChange={setPreferredCurrency} canPersist={canPersist} />
+            </SettingsSection>
+          )}
 
           <SettingsSection icon="bell" title="Email notifications" desc="Choose what Aster emails you about, separate from the in-app bell">
             <div className="divide-y" style={{ borderColor: "var(--line)" }}>
@@ -21463,6 +21511,9 @@ export default function ResumeAIPreview() {
   // joined `companyAddress` string above is derived from it for invoices.
   const [companyAddressParts, setCompanyAddressParts] = useState({ ...EMPTY_ADDRESS });
   const [companyRegNo, setCompanyRegNo] = useState("");
+  // Workspace billing currency preference (0095), RM default. Seeds the billing
+  // screen + checkout, and is editable by the owner in Settings.
+  const [preferredCurrency, setPreferredCurrency] = useState("myr");
   // The company's IANA timezone (0091). Every interview time renders through this
   // so the in-app panel and the emails always agree, whatever zone the viewer is in.
   const [companyTimezone, setCompanyTimezone] = useState("Asia/Kuala_Lumpur");
@@ -21834,6 +21885,7 @@ export default function ResumeAIPreview() {
       setCompanyAddress(sess.address || "");
       setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
       setCompanyRegNo(sess.registrationNo || "");
+      setPreferredCurrency(sess.preferredCurrency || "myr");
       if (sess.companyTimezone) setCompanyTimezone(sess.companyTimezone);
       if (sess.plan) setPlan(sess.plan);
       setPlanCycle(sess.planCycle || "monthly");
@@ -22165,6 +22217,7 @@ export default function ResumeAIPreview() {
         setCompanyAddress(sess.address || "");
         setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
         setCompanyRegNo(sess.registrationNo || "");
+        setPreferredCurrency(sess.preferredCurrency || "myr");
         if (sess.companyTimezone) setCompanyTimezone(sess.companyTimezone);
         if (sess.plan) setPlan(sess.plan);
         setPlanCycle(sess.planCycle || "monthly");
@@ -22920,6 +22973,8 @@ export default function ResumeAIPreview() {
             companyId={companyId}
             canPersist={canPersist}
             logoUrl={logoUrl}
+            preferredCurrency={preferredCurrency}
+            setPreferredCurrency={setPreferredCurrency}
           />
         )}
         {/* Hiding the nav item is not a permission. Anyone can type /billing, so the
@@ -22933,7 +22988,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "billing" && isOwner(profile?.role) && (
-          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={signupCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
