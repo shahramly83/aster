@@ -105,6 +105,32 @@ async function pickFaceIndex(apiKey: string, imgs: Uint8Array[]): Promise<number
   } catch (e) { console.error("face pick failed", e); return -1; }
 }
 
+// Store the resume PDF privately and pull the applicant's photo, then point the
+// candidate row at both. Shared by a fresh parse and by an "Update existing" apply
+// (which re-sends the same file), so a deferred update refreshes the file + photo
+// exactly like a first import. Best-effort: a storage hiccup never fails the write.
+async function storeResumeAssets(admin: any, apiKey: string, companyId: string, candidateId: string, resume_base64: string) {
+  const pdfBytes = Uint8Array.from(atob(resume_base64), (c) => c.charCodeAt(0));
+  try {
+    const path = `${companyId}/${candidateId}.pdf`;
+    await admin.storage.from("resumes").upload(path, pdfBytes, { contentType: "application/pdf", upsert: true });
+    await admin.from("candidates").update({ resume_path: path }).eq("id", candidateId);
+  } catch (e) {
+    console.error("resume upload failed", e);
+  }
+  try {
+    const imgs = extractPhotos(pdfBytes);
+    const idx = await pickFaceIndex(apiKey, imgs);
+    if (idx >= 0 && imgs[idx]) {
+      const photoPath = `${companyId}/${candidateId}_photo.jpg`;
+      await admin.storage.from("resumes").upload(photoPath, imgs[idx], { contentType: "image/jpeg", upsert: true });
+      await admin.from("candidates").update({ photo_path: photoPath, has_photo: true }).eq("id", candidateId);
+    }
+  } catch (e) {
+    console.error("photo extract failed", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -116,8 +142,15 @@ Deno.serve(async (req) => {
     // `unreadable` marks a file the client couldn't turn into text (wrong type or
     // a Word doc it couldn't read). It still costs a credit (1 file = 1 credit)
     // but never hits the AI.
-    const { resume_base64, resume_text, filename, unreadable } = await req.json();
-    if (!resume_base64 && !resume_text && !unreadable) return json({ error: "resume_base64, resume_text or unreadable is required" }, 400);
+    const { resume_base64, resume_text, filename, unreadable, defer_duplicate, apply_update, candidate_id: reqCandidateId, candidate_row: reqCandidateRow } = await req.json();
+    // apply_update replays a deferred duplicate the user chose to "Update existing":
+    // no AI, no charge, just overwrite the matched candidate with the parsed data we
+    // already returned. Everything else is a normal parse and needs a file.
+    if (apply_update) {
+      if (!reqCandidateId || !reqCandidateRow) return json({ error: "candidate_id and candidate_row are required for apply_update" }, 400);
+    } else if (!resume_base64 && !resume_text && !unreadable) {
+      return json({ error: "resume_base64, resume_text or unreadable is required" }, 400);
+    }
 
     // --- Identify the caller and their company (this authorises the writes) ---
     const authHeader = req.headers.get("Authorization") || "";
@@ -137,6 +170,24 @@ Deno.serve(async (req) => {
       .from("profiles").select("company_id").eq("id", user.id).maybeSingle();
     const companyId = prof?.company_id;
     if (!companyId) return json({ error: "no company for user" }, 403);
+
+    // ---- Apply a deferred duplicate (user chose "Update existing"). ----
+    // NO AI parse and NO credit charge: the parse was already paid for when the
+    // duplicate was first detected. Overwrite the matched candidate (which must
+    // belong to the caller's company) with the already-parsed row, and refresh the
+    // stored PDF + photo from the re-sent file. This is the only path that honours
+    // the user's choice, since a normal parse now DEFERS instead of overwriting.
+    if (apply_update) {
+      const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster") || "";
+      const { data: own } = await admin
+        .from("candidates").select("id").eq("id", reqCandidateId).eq("company_id", companyId).maybeSingle();
+      if (!own?.id) return json({ error: "candidate not found" }, 404);
+      const row: Record<string, unknown> = { ...reqCandidateRow, company_id: companyId, status: "parsed" };
+      delete row.id;
+      await admin.from("candidates").update(row).eq("id", reqCandidateId).eq("company_id", companyId);
+      if (resume_base64) await storeResumeAssets(admin, apiKey, companyId, String(reqCandidateId), resume_base64);
+      return json({ ok: true, updated: true, candidate_id: reqCandidateId });
+    }
 
     // Spend one screening credit before the AI call: the monthly plan pool first,
     // then any purchased top-up balance (see migration 0086). This is atomic, so a
@@ -268,6 +319,19 @@ Deno.serve(async (req) => {
       parsed: parsedOut,
     };
     if (candidateId) {
+      // Duplicate. With defer_duplicate the caller (bulk upload) lets the user pick
+      // Skip vs Update existing in the UI, so DON'T overwrite here. Return the parsed
+      // row so "Update existing" can apply it later via apply_update (no re-parse, no
+      // extra credit); Skip just discards it. Without the flag, keep the old
+      // overwrite-on-duplicate behaviour for any other caller.
+      if (defer_duplicate) {
+        return json({
+          ok: true, was_existing: true, deferred: true,
+          candidate_id: candidateId,
+          candidate_row: candidateRow,
+          person: { name: fullName, email: finalEmail, phone: parsedOut.phone },
+        });
+      }
       await admin.from("candidates").update(candidateRow).eq("id", candidateId);
     } else {
       const { data: ins, error: insErr } = await admin
@@ -278,31 +342,7 @@ Deno.serve(async (req) => {
 
     // PDF path only: store the file privately and pull the applicant's photo.
     // Word docs come in as extracted text, so there's no PDF to store or scan.
-    if (resume_base64) {
-      const pdfBytes = Uint8Array.from(atob(resume_base64), (c) => c.charCodeAt(0));
-
-      // --- Store the PDF privately at resumes/{company}/{candidate}.pdf ---
-      try {
-        const path = `${companyId}/${candidateId}.pdf`;
-        await admin.storage.from("resumes").upload(path, pdfBytes, { contentType: "application/pdf", upsert: true });
-        await admin.from("candidates").update({ resume_path: path }).eq("id", candidateId);
-      } catch (e) {
-        console.error("resume upload failed", e); // non-fatal
-      }
-
-      // --- Best-effort: pull the applicant's photo out of the resume ---
-      try {
-        const imgs = extractPhotos(pdfBytes);
-        const idx = await pickFaceIndex(apiKey, imgs);
-        if (idx >= 0 && imgs[idx]) {
-          const photoPath = `${companyId}/${candidateId}_photo.jpg`;
-          await admin.storage.from("resumes").upload(photoPath, imgs[idx], { contentType: "image/jpeg", upsert: true });
-          await admin.from("candidates").update({ photo_path: photoPath, has_photo: true }).eq("id", candidateId);
-        }
-      } catch (e) {
-        console.error("photo extract failed", e); // non-fatal
-      }
-    }
+    if (resume_base64) await storeResumeAssets(admin, apiKey, companyId, String(candidateId), resume_base64);
 
     return json({
       ok: true,

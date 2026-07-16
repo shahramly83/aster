@@ -13724,7 +13724,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   // glance (kept clear of the green "Active" and amber "Invite pending" pills).
   const roleTagStyle = (label) => {
     const l = String(label || "").toLowerCase();
-    if (l.includes("tenant")) return { background: "var(--brand-soft)", color: "var(--brand)" }; // blue
+    if (l.includes("tenant")) return { background: "var(--brand)", color: "#fff" }; // solid blue
     if (l.includes("interviewer")) return { background: "#EDE9FE", color: "#6D28D9" };   // purple (distinct from the green Active pill)
     return { background: "var(--brand-soft)", color: "var(--brand)" };                    // hiring manager (blue)
   };
@@ -16027,7 +16027,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
         )}
 
         {/* Current plan */}
-        <div className={`${cardClass} mb-4`}>
+        <div className={`${cardClass} mb-4`} style={{ background: "var(--brand-soft)", borderColor: "var(--brand)" }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
