@@ -13933,7 +13933,6 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-neutral-500 mt-2.5">Waiting for them to accept the email invite. Holds a seat until then.</p>
             </div>
           ))}
           {roleFilter === "interviewer"
