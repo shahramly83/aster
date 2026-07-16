@@ -9416,7 +9416,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                             <div key={it.label}>
                               <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-xs" style={{ color: "var(--ink-2)" }}>{it.label}</span>
-                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#DC2626" : "var(--ink)" }}>{unlimited ? `${it.used} · Unlimited` : `${it.used} / ${it.limit}`}</span>
+                                <span className="text-xs font-medium tnum" style={{ color: reached ? "#DC2626" : "var(--ink)" }}>{unlimited ? `${it.used} · Unlimited` : `${Math.min(it.used, it.limit)} / ${it.limit}`}</span>
                               </div>
                               <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
                                 <div className="h-full rounded-full bar-grow-x" style={{ width: `${Math.max(pct, 4)}%`, background: reached ? "#EF4444" : "linear-gradient(90deg, var(--brand-0), var(--brand-2))" }} />
@@ -13865,11 +13865,15 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           {/* Account owner, always a member, can't be removed */}
           {(roleFilter === "all" || roleFilter === "admin") && (
           <div className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
-            <CandidateAvatar name={ownerName || "You"} hasPhoto={!!avatarUrl} src={avatarUrl} size={48} showPhotoDot={false} />
-            <p className="mt-3 text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
-            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
+            <div className="flex items-center gap-3">
+              <CandidateAvatar name={ownerName || "You"} hasPhoto={!!avatarUrl} src={avatarUrl} size={48} showPhotoDot={false} />
+              <div className="min-w-0">
+                <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Tenant · You</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>Hiring Manager</span>
+                </div>
+              </div>
             </div>
             <p className="text-xs text-neutral-500 mt-2.5">Full access, including everything a hiring manager can do.</p>
           </div>
@@ -13886,13 +13890,17 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 >
                   Remove
                 </button>
-                <CandidateAvatar name={iv.name} hasPhoto={false} size={48} showPhotoDot={false} />
-                <p className="mt-3 text-neutral-900 font-medium truncate pr-16">{iv.name}</p>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
-                    {pending ? "Invite pending" : "Active"}
-                  </span>
+                <div className="flex items-center gap-3 pr-16">
+                  <CandidateAvatar name={iv.name} hasPhoto={false} size={48} showPhotoDot={false} />
+                  <div className="min-w-0">
+                    <p className="text-neutral-900 font-medium truncate">{iv.name}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={pending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
+                        {pending ? "Invite pending" : "Active"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <p className="text-xs text-neutral-500 mt-2.5 truncate">{iv.email}</p>
                 {upcoming > 0 && (
@@ -13915,11 +13923,15 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               >
                 {revokeBusyId === inv.id ? "Revoking…" : "Revoke"}
               </button>
-              <CandidateAvatar name={inv.email} hasPhoto={false} size={48} showPhotoDot={false} />
-              <p className="mt-3 text-neutral-900 font-medium truncate pr-20">{inv.email}</p>
-              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+              <div className="flex items-center gap-3 pr-20">
+                <CandidateAvatar name={inv.email} hasPhoto={false} size={48} showPhotoDot={false} />
+                <div className="min-w-0">
+                  <p className="text-neutral-900 font-medium truncate">{inv.email}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{ROLE_LABELS[inv.role] || "Interviewer"}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
+                  </div>
+                </div>
               </div>
               <p className="text-xs text-neutral-500 mt-2.5">Waiting for them to accept the email invite. Holds a seat until then.</p>
             </div>
@@ -17226,7 +17238,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           <div className="mt-5">
             <label htmlFor="pf-company" className={labelClass} style={{ color: "var(--ink-2)" }}>Company name</label>
             <input id="pf-company" value={dCompany} onChange={(e) => { setDCompany(e.target.value); setSavedMsg(null); setSaveErr(null); }} placeholder="Your company" className={inputClass} />
-            <p className="text-xs text-neutral-500 mt-1.5">Collected at sign-up and shown across your workspace.</p>
           </div>
 
         </div>
@@ -17356,7 +17367,6 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
             <div className="min-w-0">
               <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{email}</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Your login email</p>
             </div>
             <span className="text-[11px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1 shrink-0" style={{ background: "var(--bg-2, #F1F1F4)", color: "var(--ink-3)" }}>
               <Icon name="lock" className="w-3 h-3" /> Locked
