@@ -13246,7 +13246,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                       <FieldLabel hint="Every skill Aster has read from your candidates' resumes. Start typing to find one.">Skills</FieldLabel>
                       <TokenAutocomplete tags={skillTags} setTags={setSkillTags} options={skillSuggestions} placeholder="Search skills…" onChange={invalidate} aliases={{}} freeSolo />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                        {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8).map((s) => (
+                        {POPULAR_SKILLS.filter((s) => !skillTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 4).map((s) => (
                           <button key={s} onClick={() => addSkill(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
@@ -13255,7 +13255,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                       <FieldLabel hint="Every industry Aster has read from your candidates' resumes. Start typing to find one.">Industry</FieldLabel>
                       <TokenAutocomplete tags={industryTags} setTags={setIndustryTags} options={industryOptions} placeholder="Search industries…" onChange={invalidate} aliases={{}} freeSolo={false} />
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                        {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8).map((s) => (
+                        {POPULAR_INDUSTRIES.filter((s) => !industryTags.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 4).map((s) => (
                           <button key={s} onClick={() => addIndustry(s)} className="text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors hover:bg-neutral-50" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-2)" }}>+ {s}</button>
                         ))}
                       </div>
@@ -13901,9 +13901,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-neutral-500 mt-2.5 truncate">{iv.email}</p>
+                <p className="text-xs text-neutral-500 mt-2.5 truncate pl-[60px]">{iv.email}</p>
                 {upcoming > 0 && (
-                  <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--brand)" }}>
+                  <p className="text-[11px] mt-2 pl-[60px] flex items-center gap-1" style={{ color: "var(--brand)" }}>
                     <Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming interview{upcoming > 1 ? "s" : ""}
                   </p>
                 )}
