@@ -16027,15 +16027,15 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
         )}
 
         {/* Current plan */}
-        <div className={`${cardClass} mb-4`} style={{ background: "var(--brand-soft)", borderColor: "var(--brand)" }}>
+        <div className={`${cardClass} mb-4`} style={{ background: "var(--brand)", borderColor: "var(--brand)" }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Current plan</h2>
+                <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.8)" }}>Current plan</h2>
                 <StatusBadge onTrial={onTrial} subStatus={subStatus} />
               </div>
-              <p className="text-2xl font-bold text-neutral-900 font-display">{onTrial ? "Scale (trial)" : current.name}</p>
-              <p className="text-sm text-neutral-500 mt-0.5">
+              <p className="text-2xl font-bold text-white font-display">{onTrial ? "Scale (trial)" : current.name}</p>
+              <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.85)" }}>
                 {onTrial
                   ? `Full Scale access: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left. Subscribe before it ends, or your account is suspended.`
                   // An active subscriber always gets an "active" message, even when
@@ -16056,21 +16056,21 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
             </div>
             {paidSub && (savedPrice || upcoming) && (
               <div className="text-right shrink-0">
-                <p className="text-xs text-neutral-500">Next payment</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.8)" }}>Next payment</p>
                 {/* Stripe's own figure when we have it, not the sticker price. A plan
                     change leaves a proration credit on the account, so the next
                     invoice can be far less than the list price, or nothing at all.
                     Quoting the list price there promises a charge that never comes. */}
                 {/* formatMoney takes minor units, and Stripe already gives us cents.
                     Dividing first turned a 298.72 credit into "US$2.99". */}
-                <p className="text-sm font-semibold text-neutral-900 tnum">
+                <p className="text-sm font-semibold text-white tnum">
                   {upcoming
                     ? formatMoney(upcoming.amount, upcoming.currency)
                     : formatMoney(savedPrice.amount, savedPrice.currency)}
                 </p>
-                {renewDate && <p className="text-xs text-neutral-500">{renewDate}</p>}
+                {renewDate && <p className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>{renewDate}</p>}
                 {upcoming?.credit > 0 && (
-                  <p className="text-xs mt-0.5" style={{ color: "#067647" }}>
+                  <p className="text-xs mt-0.5" style={{ color: "#86EFAC" }}>
                     {formatMoney(upcoming.credit, upcoming.currency)} credit applied
                   </p>
                 )}
@@ -16160,7 +16160,6 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
         {/* Plan picker */}
         <div className={`${cardClass} mb-4`}>
           <div className="mb-3">
-            <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-3 text-center">Change plan</h2>
             <div className="flex items-center justify-center gap-2 flex-wrap">
             <div className={`inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
               {[
