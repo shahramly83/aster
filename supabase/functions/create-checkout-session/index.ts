@@ -306,7 +306,12 @@ Deno.serve(async (req) => {
             from, to: plan, cycle: c, reason: pi?.status || inv?.status || "unpaid",
           });
         }
-        // Paid straight through. The webhook writes plan/cycle/period.
+        // Paid straight through. Write the new plan NOW so a reload reflects it
+        // immediately; the webhook still lands and reconciles (period end etc.).
+        // Without this the page reloads before the webhook syncs and shows the OLD
+        // plan until the next refresh, which reads as "the upgrade didn't work".
+        await admin.from("subscriptions").update({ plan, cycle: c, status: "active" }).eq("company_id", companyId);
+        await admin.from("companies").update({ plan }).eq("id", companyId);
         return json({ ok: true, changed: true, direction: "upgrade", from, to: plan, cycle: c });
       }
 
