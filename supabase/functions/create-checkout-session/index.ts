@@ -275,16 +275,34 @@ Deno.serve(async (req) => {
 
         if (trialing) return json({ ok: true, changed: true, trial: true, from, to: plan, cycle: c });
 
-        // Held upgrade: the charge needs the card (3-D Secure or a retry). The plan
-        // has NOT switched yet (pending update); send them to Stripe's hosted
-        // invoice to authenticate/pay. The webhook flips the plan once it's paid.
+        // Held upgrade: the balance still needs paying (3-D Secure, a retry, or the
+        // off-session charge didn't clear). The plan has NOT switched yet (pending
+        // update); send them to Stripe's hosted invoice to pay. The webhook flips
+        // the plan once payment lands.
         const inv = upd.data?.latest_invoice;
         const pi = inv?.payment_intent;
         const needsAuth = pi && ["requires_action", "requires_confirmation", "requires_payment_method"].includes(String(pi.status));
-        if (needsAuth || upd.data?.pending_update || (inv && inv.status === "open" && inv.amount_due > 0)) {
+        if (needsAuth || upd.data?.pending_update || (inv && inv.status !== "paid" && (inv.amount_due ?? 0) > 0)) {
+          // Guarantee a payment page. A just-created invoice can still be a draft
+          // with no hosted url; finalize it so there is always a link to pay at.
+          let payUrl = inv?.hosted_invoice_url || null;
+          if (!payUrl && inv?.id) {
+            let fin = await stripe(`invoices/${inv.id}/finalize`, {}, secret);
+            // Already finalized is not an error for us: re-fetch to read its url.
+            if (!fin.ok && /already been finalized|not.*draft/i.test(fin.data?.error?.message || "")) {
+              fin = await stripeGet(`invoices/${inv.id}`, secret);
+            }
+            payUrl = fin.ok ? (fin.data?.hosted_invoice_url || null) : null;
+          }
+          if (!payUrl) {
+            // No page to send them to means we can't collect safely; surface it
+            // rather than leaving a silent half-applied upgrade.
+            console.error("held upgrade: no hosted invoice url", { companyId, invoice: inv?.id, status: inv?.status });
+            return json({ error: "could not open a payment page for the upgrade. Please try again or contact support." }, 502);
+          }
           return json({
             ok: true, requires_action: true, held: true,
-            url: inv?.hosted_invoice_url || null,
+            url: payUrl,
             from, to: plan, cycle: c, reason: pi?.status || inv?.status || "unpaid",
           });
         }

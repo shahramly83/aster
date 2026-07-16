@@ -174,14 +174,15 @@ async function stripeCheckout(planKey, cycle) {
       if (code === "subscription_desynced" || code === "subscription_unreadable") return reason;
       return reason ? `Checkout error: ${reason}` : "Couldn't start checkout. Try again.";
     }
-    // The upgrade charge needs 3-D Secure. It was attempted off-session against the
-    // saved card, so there was nobody there to authenticate and Stripe left the
-    // invoice open. Stripe's hosted invoice page can run the challenge, so send them
-    // there to finish paying rather than dropping them on a past-due billing screen
-    // with no way out. 3DS is effectively mandatory in Malaysia and the EU.
-    if (data?.requires_action && data?.url) {
-      window.location.assign(data.url);
-      return null;
+    // A held upgrade needs the balance paid (3-D Secure, a retry, or an off-session
+    // charge that didn't clear). The plan has NOT switched; send them to Stripe's
+    // hosted invoice to pay, and the webhook applies the upgrade once it clears.
+    // 3DS is effectively mandatory in Malaysia and the EU, so this is the norm.
+    if (data?.requires_action) {
+      if (data.url) { window.location.assign(data.url); return null; }
+      // Held but no page to pay at: don't leave them on a silent half-applied
+      // upgrade; tell them plainly.
+      return "We couldn't open the payment page to finish your upgrade. Please try again, or contact support.";
     }
     // Downgrade scheduled for period end: nothing charged, no checkout. Reload so
     // the "Changing to X on DATE" banner and pending state come back from the server.
