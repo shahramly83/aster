@@ -18687,7 +18687,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr" }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "" }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -19530,6 +19530,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             jobTitle={(jobs.find((j) => j.id === contextJobId) || {}).title || "the role"}
             hasEmail={hasEmail}
             defaultCurrency={preferredCurrency}
+            companyName={companyName}
             onClose={() => setShowOffer(false)}
             onSend={(emailSent, terms, message) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, message); }}
           />
@@ -19735,11 +19736,12 @@ function buildRejectionDraft(name, jobTitle) {
   };
 }
 
-function buildOfferDraft(name, jobTitle) {
+function buildOfferDraft(name, jobTitle, companyName = "") {
   const first = (name || "there").split(" ")[0];
+  const signOff = companyName || "The Hiring Team";
   return {
     subject: `You've been selected for the ${jobTitle} role`,
-    body: `Dear ${first},\n\nCongratulations! Following your interview, we're delighted to offer you the ${jobTitle} role. The terms are set out below.\n\nPlease review the offer and sign to accept. If you have any questions before signing, just reply to this email and our HR team will be glad to help.\n\nWe're excited about the possibility of you joining the team.\n\nWarm regards,\nThe Hiring Team`,
+    body: `Dear ${first},\n\nCongratulations! Following your interview, we're delighted to offer you the ${jobTitle} role. The full terms of your offer are set out below.\n\nPlease review and sign to accept. If you have any questions before signing, just reply to this email and we'll be glad to help.\n\nWe look forward to welcoming you to the team.\n\nWarm regards,\n${signOff}`,
   };
 }
 
@@ -19855,8 +19857,8 @@ const EMPLOYMENT_TYPES = [
   { key: "internship", label: "Internship" },
 ];
 
-function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", onClose, onSend }) {
-  const initial = buildOfferDraft(candidateName, jobTitle);
+function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", onClose, onSend }) {
+  const initial = buildOfferDraft(candidateName, jobTitle, companyName);
   const [subject, setSubject] = useState(initial.subject);
   const [body, setBody] = useState(initial.body);
   const [sending, setSending] = useState(false);
@@ -23610,6 +23612,7 @@ export default function ResumeAIPreview() {
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             preferredCurrency={preferredCurrency}
+            companyName={company}
             onSendOffer={(emailSent, terms, message) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
