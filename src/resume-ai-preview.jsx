@@ -19306,8 +19306,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         )}
 
         {contextJobId && profileTab === "interview" && (<>
-        {isClosed && (
-          <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: isHired ? "#BBF7D0" : "var(--line)", background: isHired ? "#F0FDF4" : "var(--bg)" }}>
+        {isClosed && !isHired && (
+          <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
             {isHired ? (
               <>
                 <div className="flex items-center gap-2 mb-1">
@@ -19338,7 +19338,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         )}
 
-        {!isClosed && (<>
+        {(!isClosed || isHired) && (<>
         {/* Hiring manager runs the interview as one stepped card, locked a step at
             a time: schedule, collect the interviewers' scorecards, then decide. */}
         {isManagerView && (
@@ -19514,16 +19514,16 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
               {stage === "hired" ? (
                 <div className="mt-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold" style={{ color: "#166534" }}>✓ Hired</span>
-                    <span className="text-xs text-neutral-500">{firstName} accepted the offer.</span>
+                  <div className="rounded-xl border p-3" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
+                    <p className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: "#166534" }}><Icon name="check" className="w-4 h-4" /> Hired</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#166534" }}>{firstName} signed the offer and has joined the team.</p>
+                    {offerSigned && (
+                      <button onClick={downloadSignedOffer} disabled={offerDl} className="mt-3 text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "#BBF7D0", color: "#166534" }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        {offerDl ? "Preparing…" : "Download signed offer letter"}
+                      </button>
+                    )}
                   </div>
-                  {offerSigned && (
-                    <button onClick={downloadSignedOffer} disabled={offerDl} className="mt-3 text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      {offerDl ? "Preparing…" : "Download signed letter"}
-                    </button>
-                  )}
                 </div>
               ) : stage === "rejected" ? (
                 <div className="flex items-center justify-between gap-3 mt-2">
