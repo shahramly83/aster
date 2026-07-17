@@ -14975,38 +14975,9 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             The candidate confirmed this time. Share the meeting link below and everyone gets it.
           </p>
         </div>
-        {/* Meeting link: paste your own video-call URL, share it with the candidate
-            and the panel (each gets their own message, the same link). */}
-        <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Meeting link</p>
-          <p className="text-[11px] mt-1 mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-            Now that the time is set, create your video call (Google Meet, Zoom or Teams) and paste the link here. Aster sends it to the candidate and each interviewer, with a note written for each.
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="url"
-              value={linkInput}
-              onChange={(e) => { setLinkInput(e.target.value); setLinkShared(false); setShareErr(null); }}
-              placeholder="https://meet.google.com/…"
-              className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
-              style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
-            />
-            <button
-              onClick={shareMeetingLink}
-              disabled={!validLink || sharing}
-              className="shrink-0 text-sm font-semibold rounded-lg px-3.5 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-            >
-              {sharing ? "Sharing…" : linkShared ? "Re-share" : "Share"}
-            </button>
-          </div>
-          {shareErr && <p className="text-[11px] mt-2 text-rose-600">{shareErr}</p>}
-          {linkShared && !shareErr && (
-            <p className="text-[11px] mt-2 inline-flex items-center gap-1.5" style={{ color: "#166534" }}>
-              <Icon name="check" className="w-3.5 h-3.5" /> Shared with the candidate and the panel.
-            </p>
-          )}
-        </div>
-        {/* Panel + drop-out substitution: swap an interviewer who can't attend. */}
+        {/* Panel + drop-out substitution: swap an interviewer who can't attend.
+            Shown above the meeting link so the HM confirms who's on the panel
+            before creating the call and sharing the link out to them. */}
         {onSubstitute && Array.isArray(booking.attendees) && booking.attendees.some((a) => a.id !== hmId) && (
           <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <p className="text-xs font-medium mb-2 uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Interview panel</p>
@@ -15043,6 +15014,37 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             <p className="text-[11px] mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>Someone can't make it? Swap them out. The new interviewer picks up the scorecard.</p>
           </div>
         )}
+        {/* Meeting link: paste your own video-call URL, share it with the candidate
+            and the panel (each gets their own message, the same link). */}
+        <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Meeting link</p>
+          <p className="text-[11px] mt-1 mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+            Now that the time is set, create your video call (Google Meet, Zoom or Teams) and paste the link here. Aster sends it to the candidate and each interviewer, with a note written for each.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="url"
+              value={linkInput}
+              onChange={(e) => { setLinkInput(e.target.value); setLinkShared(false); setShareErr(null); }}
+              placeholder="https://meet.google.com/…"
+              className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
+              style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
+            />
+            <button
+              onClick={shareMeetingLink}
+              disabled={!validLink || sharing}
+              className="shrink-0 text-sm font-semibold rounded-lg px-3.5 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            >
+              {sharing ? "Sharing…" : linkShared ? "Re-share" : "Share"}
+            </button>
+          </div>
+          {shareErr && <p className="text-[11px] mt-2 text-rose-600">{shareErr}</p>}
+          {linkShared && !shareErr && (
+            <p className="text-[11px] mt-2 inline-flex items-center gap-1.5" style={{ color: "#166534" }}>
+              <Icon name="check" className="w-3.5 h-3.5" /> Shared with the candidate and the panel.
+            </p>
+          )}
+        </div>
         </>
       ) : bookingStatus === "sent" ? (
         <div className="rounded-xl bg-white border border-neutral-200 px-3.5 py-3">

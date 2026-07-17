@@ -122,6 +122,23 @@ Deno.serve(async (req) => {
       if (e) recipients.add(e);
     }
     if (iv.interviewer_email) recipients.add(String(iv.interviewer_email).trim().toLowerCase());
+    // Also include everyone CURRENTLY on the job's interviewer panel. The attendees
+    // snapshot is frozen when the invite is sent, so interviewers assigned to the
+    // job afterwards aren't in it. Union them in here so the whole panel is notified.
+    if (iv.job_id) {
+      try {
+        const { data: asg } = await admin.from("job_assignments")
+          .select("profile_id").eq("company_id", iv.company_id).eq("job_id", iv.job_id);
+        const ids = (asg || []).map((a: { profile_id?: string }) => a.profile_id).filter(Boolean);
+        if (ids.length) {
+          const { data: profs } = await admin.from("profiles").select("email").in("id", ids);
+          for (const p of profs || []) {
+            const e = (p && typeof p.email === "string") ? p.email.trim().toLowerCase() : "";
+            if (e) recipients.add(e);
+          }
+        }
+      } catch (e) { console.error("job panel recipients lookup failed", e); }
+    }
     if (recipients.size) {
       try {
         const tpl = await loadTemplate(admin, "interview_scheduled", iv.company_id, {
