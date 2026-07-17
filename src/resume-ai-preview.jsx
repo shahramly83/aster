@@ -1585,9 +1585,9 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
       // The error is deliberately swallowed: surfacing it would reveal whether an
       // account exists for this address. Supabase rate-limits the endpoint itself.
       try {
-        await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/forgot-password`,
-        });
+        // Send via Resend (the same module as every other Aster email) for
+        // reliable delivery, instead of Supabase's built-in auth email.
+        await supabase.functions.invoke("send-password-reset", { body: { email: email.trim(), redirect: window.location.origin } });
       } catch { /* same reason */ }
     }
     setBusy(false);
@@ -13671,6 +13671,20 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   // How many still need this interviewer's scorecard — surfaced in the subtitle.
   const needsAction = interviews.filter((iv) => iv.stage === "awaiting_score").length;
 
+  // Order the list with the furthest-along outcomes first (Hired, Offer, ...) and
+  // let the user filter by stage.
+  const STAGE_PRIORITY = { hired: 0, offer: 1, scored: 2, completed: 3, awaiting_score: 4, confirmed: 5, awaiting_candidate: 6, requested: 7, rejected: 8 };
+  const [ivFilter, setIvFilter] = useState("all");
+  const stageCounts = interviews.reduce((m, iv) => { m[iv.stage] = (m[iv.stage] || 0) + 1; return m; }, {});
+  const presentStages = Object.keys(stageCounts).sort((a, b) => (STAGE_PRIORITY[a] ?? 9) - (STAGE_PRIORITY[b] ?? 9));
+  const shown = interviews
+    .filter((iv) => ivFilter === "all" || iv.stage === ivFilter)
+    .slice()
+    .sort((a, b) => {
+      const pa = STAGE_PRIORITY[a.stage] ?? 9, pb = STAGE_PRIORITY[b.stage] ?? 9;
+      return pa !== pb ? pa - pb : (new Date(b.start || 0) - new Date(a.start || 0));
+    });
+
   const title = forInterviewer ? "Your Interviews" : "Scheduled Interviews";
   const subtitle = interviews.length > 0
     ? forInterviewer
@@ -13718,8 +13732,22 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
           )}
         </div>
       ) : (
-        <div className="space-y-3">
-            {interviews.map((iv) => {
+        <>
+          {/* Stage filters */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[{ k: "all", label: "All", n: interviews.length }, ...presentStages.map((s) => ({ k: s, label: INTERVIEW_STAGE_META[s]?.label || s, n: stageCounts[s] }))].map((f) => {
+              const on = ivFilter === f.k;
+              return (
+                <button key={f.k} type="button" onClick={() => setIvFilter(f.k)}
+                  className="text-xs font-medium rounded-full px-3 py-1.5 border transition-colors inline-flex items-center gap-1.5"
+                  style={on ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : { color: "var(--ink-2)", borderColor: "var(--line)", background: "#fff" }}>
+                  {f.label} <span className="tnum" style={{ opacity: 0.7 }}>{f.n}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {shown.map((iv) => {
               const job = jobForTitle(iv.jobTitle);
               const st = INTERVIEW_STAGE_META[iv.stage] || INTERVIEW_STAGE_META.completed;
               return (
@@ -13781,7 +13809,8 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                 </button>
               );
             })}
-        </div>
+          </div>
+        </>
       )}
     </AccountShell>
   );
@@ -17515,9 +17544,7 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
     const { data: { user } } = await supabase.auth.getUser();
     const addr = user?.email;
     if (!addr) { setIvResetBusy(false); setIvResetMsg({ type: "err", text: "Your session has expired. Sign in again." }); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(addr, {
-      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/forgot-password` : undefined,
-    });
+    const { error } = await supabase.functions.invoke("send-password-reset", { body: { email: addr, redirect: typeof window !== "undefined" ? window.location.origin : undefined } });
     setIvResetBusy(false);
     setIvResetMsg(error
       ? { type: "err", text: "Couldn't send the reset link. Try again in a moment." }
