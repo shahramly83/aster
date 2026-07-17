@@ -2,7 +2,7 @@
 // only difference is the storage adapter (AsyncStorage instead of the browser's
 // localStorage) so the session survives app restarts. All access is RLS-gated.
 import "react-native-url-polyfill/auto";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, processLock } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 
@@ -26,5 +26,10 @@ export const supabase = createClient(url, anonKey, {
     autoRefreshToken: true,
     // No URL-based session detection on native; auth is handled in-app.
     detectSessionInUrl: false,
+    // React Native has no Web Locks API (navigator.locks); without this,
+    // getSession() can hang forever waiting on a lock that never resolves,
+    // leaving the app stuck on the boot spinner. processLock is supabase-js's
+    // RN-safe lock implementation.
+    lock: processLock,
   },
 });

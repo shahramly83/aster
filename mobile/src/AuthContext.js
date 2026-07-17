@@ -33,19 +33,26 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Boot: restore any persisted session, then hydrate the profile.
+  // Wrapped so a slow/throwing getSession or hydrate can NEVER leave the app
+  // hanging on the loader — worst case we fall through to the sign-in screen.
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setSession(data.session);
-      if (data.session) {
-        await hydrate();
-        // If biometric lock is on, require an unlock before showing anything.
-        const pref = await SecureStore.getItemAsync(BIOMETRIC_PREF_KEY);
-        if (pref === "1") setLocked(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(data.session);
+        if (data.session) {
+          await hydrate();
+          // If biometric lock is on, require an unlock before showing anything.
+          const pref = await SecureStore.getItemAsync(BIOMETRIC_PREF_KEY);
+          if (pref === "1") setLocked(true);
+        }
+      } catch (e) {
+        console.error("[boot] failed:", e?.message || e);
+      } finally {
+        if (mounted) setBooting(false);
       }
-      setBooting(false);
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
