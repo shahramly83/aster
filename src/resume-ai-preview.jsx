@@ -18741,6 +18741,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     ? new Date(cycleResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : null;
   const [showOffer, setShowOffer] = useState(false);
+  // Profile / Interview tabs on the candidate profile (only shown in a job pipeline).
+  const [profileTab, setProfileTab] = useState(isInterviewer(profile?.role) ? "interview" : "profile");
   const [pendingDecision, setPendingDecision] = useState(null); // 'offer' awaiting skip-scorecards confirm
   const [confirmReject, setConfirmReject] = useState(false);     // reject double-confirm (sends an email)
   // Database-view invite: pick an open role, draft a re-engagement email, and
@@ -19112,9 +19114,22 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {/* Two columns: resume + workflow in main, insights + summary in the sidebar */}
         <div className="grid lg:grid-cols-3 gap-5 mt-5 items-start">
           <div className="lg:col-span-2 space-y-5">
-            {/* Interviewer's next step up top, so the page opens with what to do,
-                not a bare resume. Managers get the stepped card lower down. */}
-            {isInterviewer(profile?.role) && (
+            {/* Profile / Interview tabs (segmented, like the search filters).
+                Only shown in a job pipeline, where the interview flow exists. */}
+            {contextJobId && (
+              <div className="flex items-center gap-1 rounded-xl p-1 sm:inline-flex" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                {[{ k: "profile", label: "Profile", icon: "doc" }, { k: "interview", label: "Interview", icon: "calendar" }].map((t) => {
+                  const on = profileTab === t.k;
+                  return (
+                    <button key={t.k} type="button" onClick={() => setProfileTab(t.k)} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""}`} style={on ? {} : { color: "var(--ink-2)" }}>
+                      <Icon name={t.icon} className="w-4 h-4" /> {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {/* Interviewer's next step (Interview tab): what to do, not a bare resume. */}
+            {contextJobId && profileTab === "interview" && isInterviewer(profile?.role) && (
               isBooked ? (
                 interviewPast ? (
                   <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
@@ -19137,6 +19152,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <RequestInterviewControl applicationId={applicationId} openRequest={openRequest} requesterName={requesterName} onRequest={onRequestScheduling} />
               )
             )}
+            {/* Profile tab: AI insights + résumé sections. */}
+            {(!contextJobId || profileTab === "profile") && (<>
             {aiInsightsCard}
 
         {parsed.summary && (
@@ -19227,6 +19244,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <p className="text-sm" style={{ color: "var(--ink-3)" }}>Not stated</p>
           )}
         </div>
+        </>)}
 
         {/* Database view, this candidate isn't in a pipeline for a job you're
             viewing, so interview / scorecard / decision tools are hidden. Show
@@ -19272,7 +19290,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         )}
 
-        {contextJobId && (<>
+        {contextJobId && profileTab === "interview" && (<>
         {isClosed && (
           <div className="mt-2 mb-6 rounded-2xl border p-5" style={{ borderColor: isHired ? "#BBF7D0" : "var(--line)", background: isHired ? "#F0FDF4" : "var(--bg)" }}>
             {isHired ? (
