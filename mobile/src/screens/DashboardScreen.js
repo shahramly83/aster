@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
-import { loadAnalytics, loadCredits } from "../lib/data";
+import { loadAnalytics, loadCredits, loadTopSources } from "../lib/data";
 import { Press, IconChip, TopBar, Loader, Feather } from "../components/ui";
 import { RingGauge, MeterBar, CreditRings } from "../components/Gauge";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
@@ -16,12 +16,27 @@ function daysUntil(iso) {
   return d > 0 ? d : 0;
 }
 
+// Distinct accents for source segments (readable on the blue ground).
+const SRC_COLORS = ["#7DE2A8", "#A9B8FF", "#FFD27D", "#FF9E9E", "#8BE0F0", "rgba(255,255,255,0.45)"];
+function sourceIcon(name) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("linkedin")) return "linkedin";
+  if (n.includes("indeed") || n.includes("job") || n.includes("board")) return "briefcase";
+  if (n.includes("referr")) return "users";
+  if (n.includes("career") || n.includes("website") || n.includes("site") || n.includes("page")) return "globe";
+  if (n.includes("twitter") || n.includes("x.com")) return "twitter";
+  if (n.includes("facebook")) return "facebook";
+  if (n.includes("instagram")) return "instagram";
+  return "link";
+}
+
 // The manager's analytics home: a bold brand-blue canvas with a pipeline-health
 // meter and per-metric gauges. Data-forward, styled after the reference concept.
 export default function DashboardScreen({ navigation }) {
   const { profile } = useAuth();
   const [a, setA] = useState(null);
   const [credits, setCredits] = useState(null);
+  const [sources, setSources] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Brand-blue screen → light status bar while focused.
@@ -29,12 +44,14 @@ export default function DashboardScreen({ navigation }) {
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const [an, cr] = await Promise.all([
+    const [an, cr, src] = await Promise.all([
       loadAnalytics(profile.companyId),
       loadCredits(profile.plan),
+      loadTopSources(profile.companyId),
     ]);
     setA(an);
     setCredits(cr);
+    setSources(src);
   }, [profile]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -106,6 +123,48 @@ export default function DashboardScreen({ navigation }) {
           <Count label="New / wk" value={a.newThisWeek} icon="trending-up" />
         </View>
 
+        {/* Top sources — editorial data-viz */}
+        {sources && sources.total > 0 ? (
+          <View style={{ paddingHorizontal: space(5), marginTop: space(7) }}>
+            <Text style={[type.label, { color: theme.onBrandMuted, marginBottom: space(3) }]}>TOP SOURCES</Text>
+            {/* headline */}
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={[styles.srcHeadIcon, { backgroundColor: SRC_COLORS[0] + "26" }]}>
+                    <Feather name={sourceIcon(sources.sources[0].name)} size={18} color={SRC_COLORS[0]} />
+                  </View>
+                  <Text style={[styles.srcHeadName, { color: theme.onBrand }]} numberOfLines={1}>{sources.sources[0].name}</Text>
+                </View>
+                <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 8 }]}>
+                  leads {sources.total} applicant{sources.total === 1 ? "" : "s"}
+                </Text>
+              </View>
+              <Text style={styles.srcHeadPct}>{sources.sources[0].pct}%</Text>
+            </View>
+
+            {/* segmented share bar */}
+            <View style={styles.shareBar}>
+              {sources.sources.map((s, i) => (
+                <View key={s.name} style={{ flex: Math.max(s.count, 0.001), backgroundColor: SRC_COLORS[i % SRC_COLORS.length] }} />
+              ))}
+            </View>
+
+            {/* ranked legend */}
+            <View style={{ marginTop: space(4) }}>
+              {sources.sources.map((s, i) => (
+                <View key={s.name} style={styles.srcRow}>
+                  <View style={[styles.srcDot, { backgroundColor: SRC_COLORS[i % SRC_COLORS.length] }]} />
+                  <Feather name={sourceIcon(s.name)} size={14} color={theme.onBrandMuted} style={{ marginRight: 8 }} />
+                  <Text style={[type.smallStrong, { color: theme.onBrand, flex: 1 }]} numberOfLines={1}>{s.name}</Text>
+                  <Text style={[type.small, { color: theme.onBrandMuted, marginRight: 12, fontVariant: ["tabular-nums"] }]}>{s.count}</Text>
+                  <Text style={[type.smallStrong, { color: theme.onBrand, width: 38, textAlign: "right", fontVariant: ["tabular-nums"] }]}>{s.pct}%</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {/* AI credits — concentric rings + legend */}
         <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: space(3) }}>
@@ -165,6 +224,12 @@ const styles = StyleSheet.create({
   countSep: { width: 1, height: 34, backgroundColor: theme.brandLine },
   countVal: { fontFamily: "Inter_700Bold", fontSize: 22, color: theme.onBrand, marginTop: 5, fontVariant: ["tabular-nums"] },
   panel: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
+  srcHeadIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 12 },
+  srcHeadName: { fontFamily: "Inter_700Bold", fontSize: 26, letterSpacing: -0.5, flexShrink: 1 },
+  srcHeadPct: { fontFamily: "Inter_700Bold", fontSize: 46, letterSpacing: -2, color: theme.onBrand, fontVariant: ["tabular-nums"], marginLeft: 10 },
+  shareBar: { flexDirection: "row", height: 14, borderRadius: radius.pill, overflow: "hidden", marginTop: space(4), gap: 3 },
+  srcRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2) },
+  srcDot: { width: 9, height: 9, borderRadius: 5, marginRight: 10 },
   creditCard: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
   ringCenter: { position: "absolute", alignItems: "center", justifyContent: "center" },
   legendRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2) },

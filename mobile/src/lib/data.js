@@ -224,6 +224,34 @@ export async function loadAnalytics(companyId) {
   };
 }
 
+// Top applicant sources for the dashboard. Counts applications by their `source`
+// channel (LinkedIn, career page, referral, job boards…) and returns the ranked
+// breakdown with shares. Remaining channels roll up into "Other".
+export async function loadTopSources(companyId, limit = 5) {
+  const { data } = await supabase
+    .from("applications")
+    .select("source")
+    .eq("company_id", companyId);
+  const rows = data || [];
+  const counts = {};
+  rows.forEach((a) => {
+    const s = (a.source && String(a.source).trim()) || "Direct";
+    counts[s] = (counts[s] || 0) + 1;
+  });
+  const total = rows.length;
+  const share = (n) => (total ? Math.round((n / total) * 100) : 0);
+  const sorted = Object.entries(counts)
+    .map(([name, count]) => ({ name, count, pct: share(count) }))
+    .sort((a, b) => b.count - a.count);
+  const top = sorted.slice(0, limit);
+  const rest = sorted.slice(limit);
+  if (rest.length) {
+    const c = rest.reduce((s, r) => s + r.count, 0);
+    top.push({ name: "Other", count: c, pct: share(c), other: true });
+  }
+  return { total, sources: top };
+}
+
 // AI credit metering for the dashboard. Pulls this cycle's usage for each AI
 // feature (same RPCs the web billing meter uses) and pairs it with the plan's
 // monthly allowance so we can show remaining credits. Each RPC is company-scoped
