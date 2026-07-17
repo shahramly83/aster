@@ -11,6 +11,7 @@
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, emailShell, button, esc } from "../_shared/email.ts";
+import { pushToUser } from "../_shared/push.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +88,15 @@ Deno.serve(async (req) => {
           button("Review the candidate", `${origin}/open-roles`),
         footnote: "You're getting this because you were added to this interview panel on Aster.",
       }),
+    });
+
+    // Also push to the interviewer's mobile devices, if any. Best-effort: a push
+    // failure never affects the email above or the already-saved panel change.
+    // Deep link opens the interview straight in the app.
+    await pushToUser(admin, interviewer_id, {
+      title: "You're on an interview panel",
+      body: `${candidateName} · ${roleTitle} · ${whenStr}`,
+      data: { url: interview?.job_id || job_id ? `aster://interview/${candidate_id}` : "aster://today" },
     });
 
     return json({ ok: true });

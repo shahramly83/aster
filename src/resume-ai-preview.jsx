@@ -1017,6 +1017,10 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 @keyframes tickPop { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
 .tick-pop { animation: tickPop .34s cubic-bezier(.22,1.4,.4,1) both; }
 @media (prefers-reduced-motion: reduce) { .tick-pop { animation: none; } }
+/* Offer preview: the signature is "written" left-to-right, like a pen stroke */
+@keyframes signDraw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.offer-sign-draw { animation: signDraw .72s cubic-bezier(.65,0,.35,1) both; }
+@media (prefers-reduced-motion: reduce) { .offer-sign-draw { animation: none; clip-path: none; } }
 /* Mobile nav dropdown: gentle drop-in */
 @keyframes menuDrop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 .mobile-menu-in { animation: menuDrop .22s cubic-bezier(.22,1,.36,1) both; }
@@ -2308,6 +2312,82 @@ function TeamInterviewPreview() {
   );
 }
 
+// Animated preview for the "Offers with e-signature" row: a mini branded offer
+// letter whose terms fill in, then the candidate's signature is drawn and the
+// status pill flips from Sent to Signed. Loops while on screen.
+function OfferSignPreview() {
+  const TERMS = [
+    ["Position", "Senior Frontend Engineer"],
+    ["Salary", "RM 12,000 / month"],
+    ["Start date", "1 Sep 2026"],
+  ];
+  const ref = useRef(null);
+  const [step, setStep] = useState(0); // 0 idle · 1..3 terms revealed · 4 signed
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setStep(4); return; }
+    let timers = [], cancelled = false, started = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const run = () => {
+      if (cancelled) return;
+      setStep(0);
+      TERMS.forEach((_, i) => at(450 + i * 420, () => setStep(i + 1)));
+      at(450 + TERMS.length * 420 + 520, () => setStep(4));   // signature is drawn
+      at(450 + TERMS.length * 420 + 520 + 2600, run);          // hold, then loop
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting && !started) { started = true; run(); obs.disconnect(); } });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, []);
+
+  const signed = step >= 4;
+  return (
+    <div ref={ref} className="w-full">
+      <div className="rounded-2xl bg-white shadow-soft overflow-hidden" style={{ border: "1px solid var(--line)" }}>
+        {/* letterhead + live status pill */}
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--line)" }}>
+          <span className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg brand-gradient flex items-center justify-center shrink-0"><Icon name="offer" className="w-3.5 h-3.5 text-white" /></span>
+            <span className="text-[11px] font-semibold" style={{ color: "var(--ink)" }}>Offer of employment</span>
+          </span>
+          <span className="text-[9px] font-bold uppercase px-2 py-1 rounded-full inline-flex items-center gap-1" style={{ letterSpacing: "0.04em", background: signed ? "#DCFCE7" : "var(--brand-soft)", color: signed ? "#16A34A" : "var(--brand)", transition: "background .3s ease, color .3s ease" }}>
+            {signed ? <><span className="tick-pop inline-flex"><Icon name="check" className="w-3 h-3" /></span> Signed</> : "Sent"}
+          </span>
+        </div>
+        {/* structured terms, revealed one by one */}
+        <div className="px-4 py-3 space-y-2">
+          {TERMS.map(([label, val], k) => {
+            const on = k < step || signed;
+            return (
+              <div key={label} className="flex items-center justify-between gap-3" style={{ opacity: on ? 1 : 0.32, transition: "opacity .35s ease" }}>
+                <span className="text-[10px] shrink-0" style={{ color: "var(--ink-3)" }}>{label}</span>
+                <span className="text-[11px] font-semibold truncate text-right" style={{ color: "var(--ink)" }}>{val}</span>
+              </div>
+            );
+          })}
+        </div>
+        {/* signature line: the name is drawn on when signed */}
+        <div className="px-4 pt-2.5 pb-3.5" style={{ borderTop: "1px solid var(--line)" }}>
+          <div className="flex items-end justify-between gap-3">
+            <span className="flex-1 min-w-0">
+              <span className="block h-5 overflow-hidden">
+                <span key={step} className={signed ? "offer-sign-draw block" : "block"} style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: "16px", lineHeight: "20px", color: "var(--brand)", opacity: signed ? 1 : 0 }}>Jane Tan</span>
+              </span>
+              <span className="block mt-0.5 pt-1 text-[9px]" style={{ borderTop: "1px solid var(--line-strong)", color: "var(--ink-3)" }}>Candidate signature</span>
+            </span>
+            <span className="text-[8px] font-semibold uppercase inline-flex items-center gap-1 shrink-0 pb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}><Icon name="shield" className="w-3 h-3" /> DocuSign</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PrivacyPreview() {
   const ITEMS = ["Encrypted in transit & at rest", "You control who sees what", "Export or delete anytime"];
   const ref = useRef(null);
@@ -3150,6 +3230,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                       return <ApplyPagePreview />;
                     case "chat":
                       return <WhatsAppPreview />;
+                    case "offer":
+                      return <OfferSignPreview />;
                     case "interviewers":
                       return <TeamInterviewPreview />;
                     case "shield":
