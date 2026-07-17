@@ -19531,7 +19531,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             hasEmail={hasEmail}
             defaultCurrency={preferredCurrency}
             onClose={() => setShowOffer(false)}
-            onSend={(emailSent, terms, esign) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, esign); }}
+            onSend={(emailSent, terms, message) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, message); }}
           />
         )}
         </>)}
@@ -19743,6 +19743,111 @@ function buildOfferDraft(name, jobTitle) {
   };
 }
 
+const DP_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DP_WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+function dpYmd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function dpParse(s) {
+  if (!s) return null;
+  const [y, m, d] = String(s).split("-").map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+}
+function dpFmt(s) {
+  const d = dpParse(s);
+  return d ? `${d.getDate()} ${DP_MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}` : "";
+}
+
+// On-brand calendar popover to replace the native date input. Emits "YYYY-MM-DD".
+function DatePicker({ value, onChange, placeholder = "Select a date", min = null, disabled = false, allowClear = false, align = "left" }) {
+  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(false);
+  const [mode, setMode] = useState("days");
+  const [view, setView] = useState(() => dpParse(value) || new Date());
+  const ref = useRef(null);
+  const minDate = dpParse(min);
+
+  useEffect(() => {
+    if (!open) { setShown(false); return; }
+    const id = requestAnimationFrame(() => setShown(true));
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { cancelAnimationFrame(id); document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const toggle = () => { if (disabled) return; setView(dpParse(value) || new Date()); setMode("days"); setOpen((o) => !o); };
+  const year = view.getFullYear(), month = view.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = dpYmd(new Date());
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  const isDisabled = (d) => minDate && d < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+  const pick = (d) => { onChange(dpYmd(d)); setOpen(false); };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={toggle} disabled={disabled}
+        className="w-full flex items-center justify-between gap-2 rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-neutral-400 disabled:opacity-50"
+        style={{ color: value ? "var(--ink)" : "var(--ink-3)" }}>
+        <span>{value ? dpFmt(value) : placeholder}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--ink-3)" }}>
+          <rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path d="M3 9h18M8 2.5v4M16 2.5v4" strokeLinecap="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className={`absolute z-[60] mt-2 w-[264px] rounded-2xl border bg-white p-3 ${align === "right" ? "right-0" : "left-0"}`}
+          style={{ borderColor: "var(--line-strong)", boxShadow: "0 12px 32px rgba(16,15,30,0.18)", transformOrigin: align === "right" ? "top right" : "top left", transition: "opacity 140ms ease-out, transform 140ms ease-out", opacity: shown ? 1 : 0, transform: shown ? "translateY(0) scale(1)" : "translateY(-4px) scale(0.98)" }}>
+          <div className="flex items-center justify-between mb-2">
+            <button type="button" onClick={() => setView(new Date(year, month - 1, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" aria-label="Previous month">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+            <button type="button" onClick={() => setMode(mode === "days" ? "years" : "days")} className="text-sm font-semibold px-2.5 py-1 rounded-lg hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink)" }}>{DP_MONTHS[month]} {year}</button>
+            <button type="button" onClick={() => setView(new Date(year, month + 1, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" aria-label="Next month">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+          {mode === "years" ? (
+            <div className="grid grid-cols-4 gap-1.5 max-h-[220px] overflow-y-auto py-1">
+              {Array.from({ length: 16 }, (_, i) => year - 6 + i).map((y) => (
+                <button key={y} type="button" onClick={() => { setView(new Date(y, month, 1)); setMode("days"); }} className="text-sm rounded-lg py-1.5 hover:bg-neutral-100 transition-colors" style={y === year ? { background: "var(--brand)", color: "#fff", fontWeight: 600 } : { color: "var(--ink-2)" }}>{y}</button>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-7 mb-1">
+                {DP_WEEKDAYS.map((w) => <div key={w} className="text-center text-[11px] font-medium py-1" style={{ color: "var(--ink-3)" }}>{w}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-0.5">
+                {cells.map((d, i) => {
+                  if (!d) return <div key={i} />;
+                  const key = dpYmd(d), isSel = value === key, isToday = key === todayKey, dis = isDisabled(d);
+                  return (
+                    <button key={i} type="button" disabled={dis} onClick={() => pick(d)}
+                      className="h-9 rounded-lg text-sm flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      style={isSel ? { background: "var(--brand)", color: "#fff", fontWeight: 600 } : { color: "var(--ink)", ...(isToday ? { boxShadow: "inset 0 0 0 1.5px var(--brand)" } : {}) }}
+                      onMouseEnter={(e) => { if (!isSel && !dis) e.currentTarget.style.background = "var(--brand-soft)"; }}
+                      onMouseLeave={(e) => { if (!isSel && !dis) e.currentTarget.style.background = "transparent"; }}>
+                      {d.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid var(--line)" }}>
+                <button type="button" onClick={() => pick(new Date())} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Today</button>
+                {allowClear && value && <button type="button" onClick={() => { onChange(""); setOpen(false); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--ink-3)" }}>Clear</button>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const EMPLOYMENT_TYPES = [
   { key: "full_time", label: "Full-time" },
   { key: "part_time", label: "Part-time" },
@@ -19762,7 +19867,6 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [empType, setEmpType] = useState("full_time");
   const [startDate, setStartDate] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
-  const [esign, setEsign] = useState(false);
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs text-neutral-500 mb-1";
@@ -19778,7 +19882,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
   const handleSend = (emailSent) => {
     setSending(true);
-    setTimeout(() => onSend(emailSent, terms, esign), emailSent ? 900 : 0);
+    setTimeout(() => onSend(emailSent, terms, body), emailSent ? 900 : 0);
   };
 
   return (
@@ -19787,7 +19891,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
       <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Send offer to {candidateName}</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          Set the terms below. Aster records them on the offer and shows them to the candidate, who can <span className="font-medium">accept or decline</span>. They stay in the Offer stage until they respond.
+          Set the terms below. Aster builds the offer letter and sends it to the candidate to <span className="font-medium">sign via DocuSign</span>. They stay in the Offer stage until they sign.
         </p>
 
         {!hasEmail && (
@@ -19824,26 +19928,26 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             </div>
             <div>
               <label className={labelClass}>Start date</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
+              <DatePicker value={startDate} onChange={setStartDate} placeholder="Select a date" align="right" />
             </div>
           </div>
 
           <label className={labelClass}>Offer expires <span className="text-neutral-400">(optional)</span></label>
-          <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className={inputClass} />
+          <DatePicker value={expiresAt} onChange={setExpiresAt} placeholder="No expiry" min={dpYmd(new Date())} allowClear />
         </div>
 
         <label className={labelClass}>Message to the candidate</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-3 resize-y`} disabled={!hasEmail} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-2 resize-y`} disabled={!hasEmail} />
+        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>This note appears in the DocuSign email the candidate receives with the offer letter to sign.</p>
 
-        {/* E-signature: send the offer letter through DocuSign for the candidate
-            to sign, instead of a plain accept/decline link. */}
-        <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
-          <input type="checkbox" checked={esign} onChange={(e) => setEsign(e.target.checked)} className="accent-[color:var(--brand)] w-4 h-4 mt-0.5 shrink-0" disabled={!hasEmail} />
-          <span className="text-sm" style={{ color: "var(--ink-2)" }}>
-            Send for e-signature via <span className="font-medium">DocuSign</span>
-            <span className="block text-xs" style={{ color: "var(--ink-3)" }}>The candidate signs the offer letter. The signed PDF is saved to the offer.</span>
-          </span>
-        </label>
+        {/* Every offer is sent through DocuSign for signature. The signed PDF is
+            saved back to the offer once the candidate completes signing. */}
+        {hasEmail && (
+          <div className="flex items-center gap-2 mb-4 rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--ink-3)" }}><path d="M12 15V3m0 12l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span className="text-xs" style={{ color: "var(--ink-2)" }}>Sent for e-signature via <span className="font-medium">DocuSign</span>. The signed PDF is saved to the offer.</span>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button onClick={onClose} className="text-sm rounded-lg px-4 py-2 text-neutral-600 hover:bg-neutral-100 transition-colors">
@@ -19856,7 +19960,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           )}
           {hasEmail && (
             <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
-              {sending ? "Sending…" : esign ? "Send for signature" : "Send offer"}
+              {sending ? "Sending…" : "Send offer"}
             </button>
           )}
         </div>
@@ -22897,19 +23001,15 @@ export default function ResumeAIPreview() {
   };
 
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
-  const sendOffer = (candidateId, emailSent, terms = null, esign = false) => {
-    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now", terms, esign } }));
-    // Move to Offer without the generic stage email; the offer email (with the
-    // accept/decline link) is sent by send-offer below when HR chose to email.
+  const sendOffer = (candidateId, emailSent, terms = null, message = null) => {
+    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now", terms } }));
     setCandidateStage(candidateId, "offer", { notify: false });
-    // Always record the offer + its terms. Then either request an e-signature via
-    // DocuSign, or email the plain accept/decline link, or (no email on file)
-    // just record it internally.
+    // Always record the offer + its terms. When the candidate has an email, send
+    // it through DocuSign for signature (the message becomes the DocuSign email
+    // note); with no email on file we just record the offer internally.
     if (canPersist) {
       dbCreateOffer(companyId, { candidateId, terms }).then((token) => {
-        if (!token) return;
-        if (esign) supabase.functions.invoke("docusign-send", { body: { token } }).catch(() => {});
-        else if (emailSent) supabase.functions.invoke("send-offer", { body: { token } }).catch(() => {});
+        if (token && emailSent) supabase.functions.invoke("docusign-send", { body: { token, message } }).catch(() => {});
       });
     }
   };
@@ -23510,7 +23610,7 @@ export default function ResumeAIPreview() {
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             preferredCurrency={preferredCurrency}
-            onSendOffer={(emailSent, terms, esign) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, esign)}
+            onSendOffer={(emailSent, terms, message) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}

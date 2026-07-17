@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
 
     const auth = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (!auth) return json({ error: "unauthorized" }, 401);
-    const { token: offerToken } = await req.json();
+    const { token: offerToken, message } = await req.json();
     if (!offerToken) return json({ error: "token is required" }, 400);
 
     const url = Deno.env.get("SUPABASE_URL")!;
@@ -151,8 +151,14 @@ Deno.serve(async (req) => {
     const { token: accessToken, basePath } = await dsAccessToken();
     const accountId = Deno.env.get("DOCUSIGN_ACCOUNT_ID")!;
 
+    // The HR-written note becomes the DocuSign email body the candidate sees.
+    const emailBlurb = (typeof message === "string" && message.trim())
+      ? message.trim().slice(0, 10000)
+      : `You have an offer for the ${jobTitle} role at ${companyName}. Please review and sign.`;
+
     const envelope = {
       emailSubject: `Your offer from ${companyName}`,
+      emailBlurb,
       documents: [{ documentBase64: toBase64(html), name: "Offer Letter", fileExtension: "html", documentId: "1" }],
       recipients: {
         signers: [{
