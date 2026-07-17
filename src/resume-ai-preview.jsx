@@ -19317,6 +19317,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <p className="text-sm" style={{ color: "#166534" }}>
                   {parsed.name.split(" ")[0]} has been hired and is no longer part of active interviewing. Their record stays here, but they won't appear in matching or be schedulable.
                 </p>
+                {offerSigned && (
+                  <button onClick={downloadSignedOffer} disabled={offerDl} className="mt-3 text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "#BBF7D0", color: "#166534" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    {offerDl ? "Preparing…" : "Download signed offer letter"}
+                  </button>
+                )}
               </>
             ) : (
               <>
