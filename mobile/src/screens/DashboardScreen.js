@@ -2,123 +2,144 @@ import React, { useCallback, useState } from "react";
 import { View, Text, ScrollView, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
-import { loadPipelineSummary, loadOpenPositions } from "../lib/data";
-import { Card, Avatar, IconChip, HeroBanner, StatTile, SectionHeader, Loader, Feather } from "../components/ui";
+import { loadAnalytics, loadOpenPositions } from "../lib/data";
+import { Press, IconChip, Loader, Feather } from "../components/ui";
+import { RingGauge, MeterBar } from "../components/Gauge";
+import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
-import { JOB_STAGES, stageLabel, stageColor } from "@aster/shared";
 
-// The manager's home, styled after the reference concept: a light airy canvas
-// with a top bar, a bold hero banner for the thing that needs attention, and
-// soft rounded cards for the pipeline snapshot.
+// The manager's analytics home: a bold brand-blue canvas with a pipeline-health
+// meter and per-metric gauges. Data-forward, styled after the reference concept.
 export default function DashboardScreen({ navigation }) {
   const { profile } = useAuth();
-  const [summary, setSummary] = useState(null);
+  const [a, setA] = useState(null);
   const [roles, setRoles] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Brand-blue screen → light status bar while focused.
+  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
+
   const load = useCallback(async () => {
     if (!profile) return;
-    const [s, r] = await Promise.all([
-      loadPipelineSummary(profile.companyId),
+    const [an, r] = await Promise.all([
+      loadAnalytics(profile.companyId),
       loadOpenPositions(profile.companyId, { manager: true }),
     ]);
-    setSummary(s);
+    setA(an);
     setRoles(r);
   }, [profile]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  if (!summary) return <SafeAreaView style={{ flex: 1 }}><Loader label="Loading your pipeline…" /></SafeAreaView>;
+  if (!a) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading analytics…" /></SafeAreaView>;
 
-  const funnel = JOB_STAGES.filter((s) => ["applied", "shortlisted", "interviewing", "offer", "hired"].includes(s.key));
-  const funnelMax = Math.max(1, ...funnel.map((s) => summary.byStage[s.key] || 0));
   const attention = roles
     .map((r) => ({ ...r, active: (r.counts.interviewing || 0) + (r.counts.offer || 0) }))
-    .sort((a, b) => b.active - a.active)
+    .sort((x, y) => y.active - x.active)
     .filter((r) => r.active > 0)
     .slice(0, 4);
-  const topRole = attention[0];
+  const healthLabel = a.health >= 66 ? "Healthy" : a.health >= 40 ? "Fair" : a.total ? "Needs work" : "No data yet";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Avatar name={profile?.name || profile?.email} size={44} />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[type.small, { color: theme.ink3 }]}>{greeting()}</Text>
-          <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{profile?.name?.split(" ")[0] || "Welcome"}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[type.small, { color: theme.onBrandMuted }]}>{greeting()}</Text>
+          <Text style={[type.h2, { color: theme.onBrand }]} numberOfLines={1}>{profile?.name?.split(" ")[0] || "Welcome"}</Text>
         </View>
-        <IconChip name="briefcase" tint={theme.ink2} onPress={() => navigation.navigate("PositionsTab")} />
+        <IconChip name="briefcase" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("PositionsTab")} />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(6) }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
+        contentContainerStyle={{ paddingBottom: TAB_CLEARANCE }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero banner — the thing that needs attention */}
-        {summary.awaitingDecision > 0 ? (
-          <HeroBanner
-            icon="clock"
-            title={`${summary.awaitingDecision} awaiting your decision`}
-            subtitle={topRole ? `Top: ${topRole.title}` : "Across your open roles"}
-            onPress={() => topRole && navigation.navigate("PositionApplicants", { jobId: topRole.id, jobTitle: topRole.title })}
-          />
-        ) : (
-          <HeroBanner icon="check" title="You're all caught up" subtitle="No candidates waiting on a decision" onPress={() => navigation.navigate("PositionsTab")} />
-        )}
-
-        {/* Stats */}
-        <View style={{ flexDirection: "row", gap: space(3) }}>
-          <StatTile label="In pipeline" value={summary.total} icon="users" tint={theme.brand} />
-          <StatTile label="Open roles" value={summary.openRoles} icon="briefcase" tint="#7C3AED" />
+        {/* Pipeline health header */}
+        <View style={styles.header}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <Text style={[styles.bigTitle]}>Pipeline{"\n"}Health</Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={[type.small, { color: theme.onBrandFaint }]}>Updated</Text>
+              <Text style={[type.smallStrong, { color: theme.onBrandMuted }]}>Just now</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: space(3) }}>
+            <Text style={styles.healthNum}>{a.health}</Text>
+            <Text style={[type.h3, { color: theme.onBrandMuted, marginBottom: 8, marginLeft: 8 }]}>/ 100 · {healthLabel}</Text>
+          </View>
+          <View style={{ marginTop: space(3) }}>
+            <MeterBar pct={a.health} color={theme.white} track={theme.brandTrack} ticks={38} height={26} />
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
+              <Text style={[type.small, { color: theme.onBrandFaint }]}>Low</Text>
+              <Text style={[type.small, { color: theme.onBrandFaint }]}>High</Text>
+            </View>
+          </View>
         </View>
-        <View style={{ flexDirection: "row", gap: space(3), marginTop: space(3) }}>
-          <StatTile label="New this week" value={summary.newThisWeek} icon="trending-up" tint={theme.success} />
-          <StatTile label="To decide" value={summary.awaitingDecision} icon="clock" tint={theme.warn} />
-        </View>
 
-        {/* Funnel */}
-        <View style={{ marginTop: space(6) }}>
-          <SectionHeader>Pipeline funnel</SectionHeader>
-          <Card>
-            {funnel.map((s, i) => {
-              const n = summary.byStage[s.key] || 0;
-              return (
-                <View key={s.key} style={{ marginTop: i === 0 ? 0 : space(3.5) }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 7 }}>
-                    <Text style={[type.smallStrong, { color: theme.ink2 }]}>{stageLabel(s.key)}</Text>
-                    <Text style={[type.smallStrong, { color: theme.ink, fontVariant: ["tabular-nums"] }]}>{n}</Text>
-                  </View>
-                  <View style={styles.track}>
-                    <View style={{ width: `${(n / funnelMax) * 100}%`, height: "100%", backgroundColor: stageColor(s.key), borderRadius: radius.pill }} />
-                  </View>
+        {/* Metric rows with gauges */}
+        <View style={{ paddingHorizontal: space(5) }}>
+          {a.metrics.map((m, i) => (
+            <View key={m.key} style={[styles.metricRow, i > 0 && styles.metricDivider]}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={[styles.dot, { backgroundColor: m.tone }]} />
+                  <Text style={[type.bodyStrong, { color: theme.onBrand }]}>{m.label}</Text>
                 </View>
-              );
-            })}
-          </Card>
+                <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 3, marginLeft: 16 }]}>{m.desc}</Text>
+                <Text style={styles.metricPct}>{m.pct}%</Text>
+              </View>
+              <RingGauge pct={m.pct} size={78} stroke={9} color={m.tone} track={theme.brandTrack} />
+            </View>
+          ))}
         </View>
 
-        {/* Roles needing attention */}
+        {/* Quick counts */}
+        <View style={styles.countsRow}>
+          <Count label="In pipeline" value={a.total} icon="users" />
+          <View style={styles.countSep} />
+          <Count label="Open roles" value={a.openRoles} icon="briefcase" />
+          <View style={styles.countSep} />
+          <Count label="New / wk" value={a.newThisWeek} icon="trending-up" />
+        </View>
+
+        {/* Needs attention */}
         {attention.length ? (
-          <View style={{ marginTop: space(6) }}>
-            <SectionHeader action="All roles" onAction={() => navigation.navigate("PositionsTab")}>Needs attention</SectionHeader>
+          <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: space(3) }}>
+              <Text style={[type.label, { color: theme.onBrandMuted }]}>NEEDS ATTENTION</Text>
+              <Press onPress={() => navigation.navigate("PositionsTab")}><Text style={[type.smallStrong, { color: theme.white }]}>All roles</Text></Press>
+            </View>
             {attention.map((r) => (
-              <Card key={r.id} onPress={() => navigation.navigate("PositionApplicants", { jobId: r.id, jobTitle: r.title })} style={{ marginBottom: space(3), flexDirection: "row", alignItems: "center", paddingVertical: space(4) }}>
-                <IconChip name="users" tint={theme.brand} bg={theme.brandSoft} size={42} />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{r.title}</Text>
-                  <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{r.applicantCount} candidate{r.applicantCount === 1 ? "" : "s"} · {r.active} to decide</Text>
+              <Press key={r.id} onPress={() => navigation.navigate("PositionApplicants", { jobId: r.id, jobTitle: r.title })} style={{ marginBottom: space(3) }}>
+                <View style={styles.panel}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[type.h3, { color: theme.onBrand }]} numberOfLines={1}>{r.title}</Text>
+                    <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 2 }]}>{r.applicantCount} candidate{r.applicantCount === 1 ? "" : "s"} · {r.active} to decide</Text>
+                  </View>
+                  <View style={styles.panelBadge}><Text style={[type.smallStrong, { color: theme.white }]}>{r.active}</Text></View>
+                  <Feather name="chevron-right" size={20} color={theme.onBrandFaint} style={{ marginLeft: 6 }} />
                 </View>
-                <View style={styles.badge}><Text style={[type.smallStrong, { color: theme.warn }]}>{r.active}</Text></View>
-              </Card>
+              </Press>
             ))}
           </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function Count({ label, value, icon }) {
+  return (
+    <View style={{ flex: 1, alignItems: "center" }}>
+      <Feather name={icon} size={16} color={theme.onBrandMuted} />
+      <Text style={[styles.countVal]}>{value}</Text>
+      <Text style={[type.small, { color: theme.onBrandMuted }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -128,7 +149,17 @@ function greeting() {
 }
 
 const styles = StyleSheet.create({
-  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(1), paddingBottom: space(4) },
-  track: { height: 9, borderRadius: radius.pill, backgroundColor: theme.line2, overflow: "hidden" },
-  badge: { minWidth: 30, height: 30, borderRadius: 15, paddingHorizontal: 8, backgroundColor: theme.warnBg, alignItems: "center", justifyContent: "center" },
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(3) },
+  header: { paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(6) },
+  bigTitle: { fontFamily: "Inter_700Bold", fontSize: 34, lineHeight: 38, letterSpacing: -0.5, color: theme.onBrand },
+  healthNum: { fontFamily: "Inter_700Bold", fontSize: 60, lineHeight: 62, letterSpacing: -2, color: theme.onBrand, fontVariant: ["tabular-nums"] },
+  metricRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(4) },
+  metricDivider: { borderTopWidth: 1, borderTopColor: theme.brandLine },
+  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  metricPct: { fontFamily: "Inter_700Bold", fontSize: 40, lineHeight: 46, letterSpacing: -1, color: theme.onBrand, marginTop: 6, marginLeft: 16, fontVariant: ["tabular-nums"] },
+  countsRow: { flexDirection: "row", alignItems: "center", marginHorizontal: space(5), marginTop: space(5), backgroundColor: theme.brandPanel, borderRadius: radius.lg, paddingVertical: space(4) },
+  countSep: { width: 1, height: 34, backgroundColor: theme.brandLine },
+  countVal: { fontFamily: "Inter_700Bold", fontSize: 22, color: theme.onBrand, marginTop: 5, fontVariant: ["tabular-nums"] },
+  panel: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
+  panelBadge: { minWidth: 30, height: 30, borderRadius: 15, paddingHorizontal: 8, backgroundColor: theme.brandDeep, alignItems: "center", justifyContent: "center" },
 });

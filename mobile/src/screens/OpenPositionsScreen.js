@@ -4,7 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadOpenPositions } from "../lib/data";
+import { setStatusBarStyle } from "expo-status-bar";
 import { Press, Loader, EmptyState, ScreenTitle, Feather } from "../components/ui";
+import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { JOB_STAGES, stageColor } from "@aster/shared";
 
@@ -18,7 +20,7 @@ export default function OpenPositionsScreen({ navigation }) {
     setJobs(await loadOpenPositions(profile.companyId, { manager, assignedJobIds }));
   }, [profile, manager, assignedJobIds]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   if (jobs === null) return <SafeAreaView style={{ flex: 1 }}><Loader label="Loading roles…" /></SafeAreaView>;
@@ -31,7 +33,7 @@ export default function OpenPositionsScreen({ navigation }) {
       <FlatList
         data={jobs}
         keyExtractor={(j) => j.id}
-        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(8), flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListEmptyComponent={

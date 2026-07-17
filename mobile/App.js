@@ -1,6 +1,6 @@
 import "react-native-url-polyfill/auto";
 import React from "react";
-import { StatusBar } from "expo-status-bar";
+import { setStatusBarStyle } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -130,12 +130,24 @@ export default function App() {
     if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded]);
 
+  // Status bar follows the active route: light on the blue Pipeline dashboard,
+  // dark everywhere else (including pushed stack screens).
+  const applyBar = (state) => {
+    let r = state?.routes?.[state.index];
+    while (r?.state) r = r.state.routes[r.state.index];
+    setStatusBarStyle(r?.name === "DashboardTab" ? "light" : "dark");
+  };
+
   if (!fontsLoaded) return null; // native blue splash stays up
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer linking={linking} theme={navTheme} fallback={<View style={{ flex: 1, backgroundColor: theme.brand }} />}>
-          <StatusBar style={splashDone ? "dark" : "light"} />
+        <NavigationContainer
+          linking={linking}
+          theme={navTheme}
+          fallback={<View style={{ flex: 1, backgroundColor: theme.brand }} />}
+          onStateChange={applyBar}
+        >
           <Root />
         </NavigationContainer>
       </AuthProvider>

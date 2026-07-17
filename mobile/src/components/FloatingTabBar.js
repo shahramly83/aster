@@ -17,10 +17,14 @@ const ICONS = {
   ProfileTab: "user",
 };
 
+// Content padding a scrollable tab screen should reserve so nothing hides behind
+// the floating (absolutely-positioned) bar.
+export const TAB_CLEARANCE = 108;
+
 export default function FloatingTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+    <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 14) }]}>
       <View style={[styles.bar, shadow.float]}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -60,7 +64,7 @@ function Tab({ icon, label, focused, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { backgroundColor: theme.bg, paddingHorizontal: 18, paddingTop: 8 },
+  wrap: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: "transparent", paddingHorizontal: 18, paddingTop: 8 },
   bar: {
     flexDirection: "row",
     alignItems: "center",

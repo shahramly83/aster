@@ -4,7 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadMyInterviews } from "../lib/data";
+import { setStatusBarStyle } from "expo-status-bar";
 import { Card, Press, Avatar, Loader, EmptyState, ScreenTitle, Feather } from "../components/ui";
+import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { fmtInterviewTime, minutesUntil } from "@aster/shared";
 
@@ -24,7 +26,7 @@ export default function TodayScreen({ navigation }) {
     } catch (e) { setError(e?.message || "Could not load interviews."); setItems([]); }
   }, [profile]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   if (items === null) return <SafeAreaView style={{ flex: 1 }}><Loader label="Loading your interviews…" /></SafeAreaView>;
@@ -45,7 +47,7 @@ export default function TodayScreen({ navigation }) {
       <FlatList
         data={flat}
         keyExtractor={(item) => (item._header ? `h-${item._header}` : `iv-${item.id}`)}
-        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(8), flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListEmptyComponent={

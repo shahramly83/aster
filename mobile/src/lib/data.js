@@ -175,6 +175,55 @@ export async function loadOpenPositions(companyId, { manager = false, assignedJo
   });
 }
 
+// Advanced analytics for the manager dashboard. Computes conversion/rate metrics
+// and a composite pipeline-health score from the applications table. Rates are
+// based on current pipeline composition (we store the current stage per
+// candidate), so they describe the live funnel, not historical progression.
+export async function loadAnalytics(companyId) {
+  const { data: apps } = await supabase
+    .from("applications")
+    .select("stage, created_at")
+    .eq("company_id", companyId);
+  const rows = apps || [];
+  const c = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, rejected: 0, declined: 0 };
+  let newThisWeek = 0;
+  const weekAgo = Date.now() - 7 * 86400000;
+  rows.forEach((a) => {
+    const s = a.stage || "applied";
+    if (c[s] != null) c[s] += 1;
+    if (a.created_at && new Date(a.created_at).getTime() >= weekAgo) newThisWeek += 1;
+  });
+  const total = rows.length;
+  const offered = c.offer + c.hired + c.declined;
+  const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
+
+  const advanced = pct(c.shortlisted + c.interviewing + c.offer + c.hired, total);
+  const interview = pct(c.interviewing + c.offer + c.hired, total);
+  const offerAccept = pct(c.hired, offered);
+  const hireRate = pct(c.hired, total);
+
+  // Composite health: transparent weighted blend of the rates shown below.
+  const health = total === 0 ? 0 : Math.round(advanced * 0.3 + interview * 0.35 + offerAccept * 0.35);
+
+  const { count: openRoles } = await supabase
+    .from("jobs").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "open");
+
+  return {
+    total,
+    counts: c,
+    newThisWeek,
+    openRoles: openRoles || 0,
+    awaitingDecision: c.interviewing + c.offer,
+    health,
+    metrics: [
+      { key: "advanced", label: "Advanced", desc: "past the applied stage", pct: advanced, tone: "#A9B8FF" },
+      { key: "interview", label: "In interview", desc: "reached interview or beyond", pct: interview, tone: "#FFFFFF" },
+      { key: "offerAccept", label: "Offer acceptance", desc: offered ? "of candidates offered" : "no offers yet", pct: offerAccept, tone: "#7DE2A8" },
+      { key: "hire", label: "Hire rate", desc: "of all applicants", pct: hireRate, tone: "#FFD27D" },
+    ],
+  };
+}
+
 // Company-wide pipeline summary for the manager dashboard: total per stage plus
 // a few headline numbers. One lightweight query over applications.
 export async function loadPipelineSummary(companyId) {

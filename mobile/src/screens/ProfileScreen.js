@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Switch, StyleSheet } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, Switch, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
+import { setStatusBarStyle } from "expo-status-bar";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "../AuthContext";
 import { Card, Avatar, Button, ScreenTitle, IconTile, Feather } from "../components/ui";
+import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 
 const BIOMETRIC_PREF_KEY = "aster.biometric.enabled";
@@ -25,10 +28,12 @@ export default function ProfileScreen() {
 
   const toggleBio = async (v) => { setBioOn(v); await setBiometricEnabled(v); };
 
+  useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); }, []));
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
       <ScreenTitle>Me</ScreenTitle>
-      <View style={{ padding: space(4) }}>
+      <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: TAB_CLEARANCE }} showsVerticalScrollIndicator={false}>
         <Card style={{ flexDirection: "row", alignItems: "center" }}>
           <Avatar name={profile?.name || profile?.email} size={56} />
           <View style={{ marginLeft: 14, flex: 1 }}>
@@ -70,7 +75,7 @@ export default function ProfileScreen() {
 
         <Button title="Sign out" icon="log-out" variant="ghost" onPress={signOut} style={{ marginTop: space(6) }} />
         <Text style={[type.small, { color: theme.ink4, textAlign: "center", marginTop: space(4) }]}>Aster · v0.1.0</Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
