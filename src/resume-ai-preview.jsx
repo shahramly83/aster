@@ -8851,7 +8851,7 @@ function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot =
 // decided against the caller's profiles.activities_seen_at watermark (0042).
 // Previously the times were string literals ("1h ago") and `read: i >= 2` pinned
 // the badge at 2 forever, even in an empty workspace.
-function buildActivities(seenAt = null) {
+function buildActivities(seenAt = null, extra = {}) {
   const cand = (id) => MOCK_CANDIDATES.find((c) => c.id === id)?.parsed?.name || "A candidate";
   const jobTitle = (id) => MOCK_JOBS.find((j) => j.id === id)?.title || "a role";
 
@@ -8868,6 +8868,22 @@ function buildActivities(seenAt = null) {
   if (interviewing) {
     const n = cand(interviewing.candidateId);
     list.push({ ts: interviewing.appliedAtIso, icon: "calendar", accent: "#16A34A", title: "Interview scheduled", desc: `${n} · ${jobTitle(interviewing.jobId)}`, dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { interview: true } } });
+  }
+
+  // Further pipeline milestones: the most recent candidate at each notable stage.
+  const latestAt = (stage) => [...apps].filter((a) => a.baseStage === stage).sort((a, b) => new Date(b.appliedAtIso || 0) - new Date(a.appliedAtIso || 0))[0];
+  const shortlisted = latestAt("shortlisted");
+  if (shortlisted) {
+    list.push({ ts: shortlisted.appliedAtIso, icon: "check", accent: "#F59E0B", title: "Candidate shortlisted", desc: `${cand(shortlisted.candidateId)} · ${jobTitle(shortlisted.jobId)}`, dotColor: "bg-amber-500", target: { screen: "candidates" } });
+  }
+  const offered = latestAt("offer");
+  if (offered) {
+    list.push({ ts: offered.appliedAtIso, icon: "doc", accent: "#7C3AED", title: "Offer in progress", desc: `${cand(offered.candidateId)} · ${jobTitle(offered.jobId)}`, dotColor: "bg-violet-500", target: { screen: "candidates" } });
+  }
+  // Hires, with their real hire date (most recent first).
+  const hires = Object.entries(extra.hiredDates || {}).filter(([, d]) => d).sort((a, b) => new Date(b[1]) - new Date(a[1]));
+  if (hires[0]) {
+    list.push({ ts: hires[0][1], icon: "check", accent: "#16A34A", title: "Candidate hired", desc: cand(hires[0][0]), dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { hired: true } } });
   }
 
   const [matchJobId, matches] = Object.entries(MOCK_MATCHES)[0] || [];
@@ -22678,7 +22694,7 @@ export default function ResumeAIPreview() {
     // keeps every read that already cost a credit.
     setInsightsCache((prev) => ({ ...prev, ...(data.experienceInsights || {}) }));
     setOffers(data.offers || {});
-    setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt));  // rebuilt from the now-real datasets
+    setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt, { hiredDates }));  // rebuilt from the now-real datasets
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
 
