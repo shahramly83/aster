@@ -224,6 +224,20 @@ export async function loadAnalytics(companyId) {
   };
 }
 
+// Live dashboard updates: subscribe to changes on the tables the dashboard reads
+// (applications, jobs, activity_log) for this company and call onChange on any
+// event. Returns an unsubscribe fn. Requires realtime enabled on those tables
+// (migration 0110); where it isn't, the dashboard's polling fallback covers it.
+export function subscribeDashboard(companyId, onChange) {
+  const channel = supabase
+    .channel(`dashboard:${companyId}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: `company_id=eq.${companyId}` }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `company_id=eq.${companyId}` }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "activity_log", filter: `company_id=eq.${companyId}` }, onChange)
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
 // Top applicant sources for the dashboard. Counts applications by their `source`
 // channel (LinkedIn, career page, referral, job boards…) and returns the ranked
 // breakdown with shares. Remaining channels roll up into "Other".

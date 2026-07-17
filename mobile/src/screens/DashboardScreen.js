@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
-import { loadAnalytics, loadCredits, loadTopSources } from "../lib/data";
+import { loadAnalytics, loadCredits, loadTopSources, subscribeDashboard } from "../lib/data";
 import { Press, IconChip, TopBar, Loader, Feather } from "../components/ui";
 import { RingGauge, MeterBar, CreditRings } from "../components/Gauge";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
@@ -54,7 +54,26 @@ export default function DashboardScreen({ navigation }) {
     setSources(src);
   }, [profile]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Refresh on focus + poll every 30s while focused (fallback for live data).
+  useFocusEffect(useCallback(() => {
+    load();
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [load]));
+
+  // Realtime: reload (debounced) whenever the company's applications / jobs /
+  // activity change, so the dashboard updates live without a manual pull.
+  const debounceRef = useRef(null);
+  useEffect(() => {
+    if (!profile) return undefined;
+    const bump = () => {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => load(), 700);
+    };
+    const unsub = subscribeDashboard(profile.companyId, bump);
+    return () => { clearTimeout(debounceRef.current); unsub(); };
+  }, [profile, load]);
+
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   if (!a) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading analytics…" /></SafeAreaView>;
