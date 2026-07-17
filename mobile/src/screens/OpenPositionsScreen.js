@@ -1,97 +1,190 @@
-import React, { useCallback, useState } from "react";
-import { View, Text, FlatList, RefreshControl, StyleSheet } from "react-native";
+import React, { useCallback, useRef, useState } from "react";
+import { View, Text, FlatList, Dimensions, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { loadOpenPositions } from "../lib/data";
-import { setStatusBarStyle } from "expo-status-bar";
-import { Press, Loader, EmptyState, ScreenTitle, Feather } from "../components/ui";
+import { Press, Loader, EmptyState, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { JOB_STAGES, stageColor } from "@aster/shared";
+
+const { width: SCREEN_W } = Dimensions.get("window");
+const CARD_W = Math.round(SCREEN_W * 0.80);
+const GAP = 16;
+const SNAP = CARD_W + GAP;
+const SIDE = (SCREEN_W - CARD_W) / 2; // centers the active card
+const GREEN = "#12B466";
+
+// Positive funnel stages for the mini pipeline bar.
+const PIPE = ["applied", "shortlisted", "interviewing", "offer", "hired"];
+
+function daysOpen(iso) {
+  if (!iso) return null;
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return d <= 0 ? "Today" : `${d}d open`;
+}
 
 export default function OpenPositionsScreen({ navigation }) {
   const { profile, manager, assignedJobIds } = useAuth();
   const [jobs, setJobs] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [active, setActive] = useState(0);
+  const listRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
-    setJobs(await loadOpenPositions(profile.companyId, { manager, assignedJobIds }));
+    const all = await loadOpenPositions(profile.companyId, { manager, assignedJobIds });
+    // Open roles only.
+    setJobs(all.filter((r) => r.status === "open"));
   }, [profile, manager, assignedJobIds]);
 
-  useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); load(); }, [load]));
+  // Blue screen → light status bar.
+  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  if (jobs === null) return <SafeAreaView style={{ flex: 1 }}><Loader label="Loading roles…" /></SafeAreaView>;
+  if (jobs === null) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading roles…" /></SafeAreaView>;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle subtitle={manager ? "Every role in your workspace" : "Roles you're on the panel for"}>
-        {manager ? "Roles" : "Positions"}
-      </ScreenTitle>
-      <FlatList
-        data={jobs}
-        keyExtractor={(j) => j.id}
-        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
-        ListEmptyComponent={
-          <EmptyState icon="briefcase" title={manager ? "No roles yet" : "No assigned roles"}
-            subtitle={manager ? "Create a role on the web app and it'll appear here." : "When a hiring manager adds you to a role's panel, it appears here."} />
-        }
-        renderItem={({ item }) => <RoleCard job={item} onPress={() => navigation.navigate("PositionApplicants", { jobId: item.id, jobTitle: item.title })} />}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
+      {/* Header on blue */}
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={[type.small, { color: theme.onBrandMuted }]}>{manager ? "Your workspace" : "Your panel"}</Text>
+          <Text style={[type.h1, { color: theme.onBrand }]}>Open roles</Text>
+        </View>
+        <View style={styles.countPill}>
+          <Text style={[type.smallStrong, { color: theme.white, fontVariant: ["tabular-nums"] }]}>{jobs.length}</Text>
+        </View>
+      </View>
+
+      {jobs.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
+          <EmptyState icon="briefcase" title="No open roles"
+            subtitle={manager ? "Open a role on the web app and it'll appear here." : "You're not on any open role's panel yet."} />
+        </View>
+      ) : (
+        <>
+          <FlatList
+            ref={listRef}
+            data={jobs}
+            keyExtractor={(j) => j.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={SNAP}
+            decelerationRate="fast"
+            disableIntervalMomentum
+            contentContainerStyle={{ paddingHorizontal: SIDE, paddingTop: space(3) }}
+            ItemSeparatorComponent={() => <View style={{ width: GAP }} />}
+            onMomentumScrollEnd={(e) => setActive(Math.round(e.nativeEvent.contentOffset.x / SNAP))}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+            renderItem={({ item, index }) => (
+              <RoleCard
+                job={item}
+                active={index === active}
+                onPress={() => navigation.navigate("PositionApplicants", { jobId: item.id, jobTitle: item.title })}
+              />
+            )}
+          />
+          {/* Pagination dots */}
+          <View style={styles.dots}>
+            {jobs.map((j, i) => (
+              <View key={j.id} style={[styles.dot, i === active && styles.dotActive]} />
+            ))}
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
 
-function RoleCard({ job, onPress }) {
+function RoleCard({ job, active, onPress }) {
   const total = job.applicantCount || 0;
-  const open = job.status === "open";
+  const toReview = (job.counts.interviewing || 0) + (job.counts.offer || 0);
+  const shortlisted = job.counts.shortlisted || 0;
+  const fg = active ? theme.white : theme.ink;
+  const fgMuted = active ? "rgba(255,255,255,0.72)" : theme.ink3;
+
   return (
-    <Press onPress={onPress} style={{ marginBottom: space(3) }}>
-      <View style={styles.card}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-          <View style={{ flex: 1 }}>
-            <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{job.title}</Text>
-            <View style={styles.metaRow}>
-              <View style={[styles.statusDot, { backgroundColor: open ? theme.success : theme.ink4 }]} />
-              <Text style={[type.small, { color: theme.ink3 }]}>{open ? "Open" : (job.status || "Closed")}</Text>
-              {job.location ? (
-                <>
-                  <View style={styles.sep} />
-                  <Feather name="map-pin" size={12} color={theme.ink4} />
-                  <Text style={[type.small, { color: theme.ink3, marginLeft: 4 }]} numberOfLines={1}>{job.location}</Text>
-                </>
-              ) : null}
-            </View>
+    <Press onPress={onPress} scaleTo={0.97}>
+      <View style={[styles.card, active ? styles.cardActive : styles.cardIdle, !active && { transform: [{ scale: 0.96 }] }]}>
+        {/* top: status + days */}
+        <View style={styles.cardTop}>
+          <View style={[styles.statusPill, active ? styles.pillOnGreen : styles.pillOpen]}>
+            <View style={[styles.statusDot, { backgroundColor: active ? theme.white : GREEN }]} />
+            <Text style={[type.smallStrong, { color: active ? theme.white : GREEN }]}>Open</Text>
           </View>
-          <View style={styles.countPill}>
-            <Text style={[type.smallStrong, { color: theme.ink2, fontVariant: ["tabular-nums"] }]}>{total}</Text>
-          </View>
+          {daysOpen(job.postedAt) ? (
+            <Text style={[type.small, { color: fgMuted }]}>{daysOpen(job.postedAt)}</Text>
+          ) : null}
         </View>
 
-        {/* Stacked pipeline bar */}
-        {total > 0 ? (
-          <View style={styles.track}>
-            {JOB_STAGES.filter((s) => job.counts[s.key] > 0).map((s) => (
-              <View key={s.key} style={{ flex: job.counts[s.key], backgroundColor: stageColor(s.key) }} />
-            ))}
+        {/* title */}
+        <Text style={[styles.title, { color: fg }]} numberOfLines={3}>{job.title}</Text>
+        {job.location ? (
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+            <Feather name="map-pin" size={13} color={fgMuted} />
+            <Text style={[type.small, { color: fgMuted, marginLeft: 5 }]} numberOfLines={1}>{job.location}</Text>
           </View>
-        ) : (
-          <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>No candidates in the pipeline yet.</Text>
-        )}
+        ) : null}
+
+        <View style={{ flex: 1 }} />
+
+        {/* candidate stat */}
+        <Text style={[styles.bigNum, { color: fg }]}>{total}</Text>
+        <Text style={[type.small, { color: fgMuted, marginTop: -2 }]}>
+          candidate{total === 1 ? "" : "s"} in pipeline{shortlisted ? ` · ${shortlisted} shortlisted` : ""}
+        </Text>
+
+        {/* pipeline bar */}
+        <View style={[styles.pipe, { backgroundColor: active ? "rgba(255,255,255,0.22)" : "#F0F1F6" }]}>
+          {total > 0 && PIPE.map((k, i) => {
+            const n = job.counts[k] || 0;
+            if (!n) return null;
+            const col = active ? `rgba(255,255,255,${0.95 - i * 0.16})` : stageColor(k);
+            return <View key={k} style={{ flex: n, backgroundColor: col }} />;
+          })}
+        </View>
+
+        {/* bottom action bar */}
+        <View style={styles.actionRow}>
+          {toReview > 0 ? (
+            <View style={[styles.reviewChip, active ? { backgroundColor: "rgba(255,255,255,0.18)" } : { backgroundColor: "#FBEFD9" }]}>
+              <Feather name="clock" size={12} color={active ? theme.white : "#C2710A"} />
+              <Text style={[type.smallStrong, { color: active ? theme.white : "#C2710A", marginLeft: 5 }]}>{toReview} to review</Text>
+            </View>
+          ) : <View />}
+          <View style={[styles.viewBtn, { backgroundColor: active ? theme.white : theme.brand }]}>
+            <Text style={[type.smallStrong, { color: active ? GREEN : theme.white }]}>View</Text>
+            <Feather name="arrow-right" size={16} color={active ? GREEN : theme.white} style={{ marginLeft: 5 }} />
+          </View>
+        </View>
       </View>
     </Press>
   );
 }
 
+const CARD_H = Math.min(500, Math.round(Dimensions.get("window").height * 0.60));
+
 const styles = StyleSheet.create({
-  card: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 5 },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(2) },
+  countPill: { minWidth: 40, height: 34, borderRadius: radius.pill, backgroundColor: theme.brandPanel, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
+  card: { width: CARD_W, height: CARD_H, borderRadius: 28, padding: space(5) },
+  cardActive: { backgroundColor: GREEN, shadowColor: GREEN, shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 10 },
+  cardIdle: { backgroundColor: theme.white, shadowColor: "#050B2E", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  statusPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill },
+  pillOpen: { backgroundColor: "#E7F7EE" },
+  pillOnGreen: { backgroundColor: "rgba(255,255,255,0.18)" },
   statusDot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
-  sep: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
-  countPill: { minWidth: 30, height: 26, borderRadius: radius.pill, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
-  track: { flexDirection: "row", height: 8, borderRadius: radius.pill, overflow: "hidden", marginTop: space(3.5), gap: 2 },
+  title: { fontFamily: "Inter_700Bold", fontSize: 26, lineHeight: 31, letterSpacing: -0.5, marginTop: space(4) },
+  bigNum: { fontFamily: "Inter_700Bold", fontSize: 40, letterSpacing: -1, fontVariant: ["tabular-nums"] },
+  pipe: { flexDirection: "row", height: 9, borderRadius: radius.pill, overflow: "hidden", marginTop: space(4), gap: 2 },
+  actionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: space(4) },
+  reviewChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill },
+  viewBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, height: 40, borderRadius: radius.pill },
+  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, paddingTop: space(4), paddingBottom: TAB_CLEARANCE },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.35)" },
+  dotActive: { width: 22, backgroundColor: theme.white },
 });

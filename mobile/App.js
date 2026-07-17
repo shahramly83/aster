@@ -132,10 +132,12 @@ export default function App() {
 
   // Status bar follows the active route: light on the blue Pipeline dashboard,
   // dark everywhere else (including pushed stack screens).
+  // Blue-background tabs use a light status bar; everything else dark.
+  const BLUE_ROUTES = ["DashboardTab", "PositionsTab"];
   const applyBar = (state) => {
     let r = state?.routes?.[state.index];
     while (r?.state) r = r.state.routes[r.state.index];
-    setStatusBarStyle(r?.name === "DashboardTab" ? "light" : "dark");
+    setStatusBarStyle(BLUE_ROUTES.includes(r?.name) ? "light" : "dark");
   };
 
   if (!fontsLoaded) return null; // native blue splash stays up
