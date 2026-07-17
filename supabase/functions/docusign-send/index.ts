@@ -10,6 +10,7 @@
 // Secrets: DOCUSIGN_* (see _shared/docusign.ts), plus SUPABASE_* (auto).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { dsAccessToken, dsConfigured } from "../_shared/docusign.ts";
+import { loadTemplate, renderTemplate } from "../_shared/email.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -176,11 +177,19 @@ Deno.serve(async (req) => {
     const { token: accessToken, basePath } = await dsAccessToken();
     const accountId = Deno.env.get("DOCUSIGN_ACCOUNT_ID")!;
 
+    // The DocuSign email note. Driven by the editable "offer" template so HR can
+    // change it, and rendered with the candidate/company tokens. The personalised
+    // letter body + terms live in the document itself.
+    const offerTpl = await loadTemplate(admin, "offer", companyId, {
+      subject: "You've been selected for the {{job_title}} role",
+      body: "You've received an offer for the {{job_title}} role at {{company_name}}. Open the document to review the terms and sign.",
+    });
+    const emailBlurb = renderTemplate(offerTpl.body, { candidate_name: cand.full_name || "there", job_title: jobTitle, company_name: companyName })
+      .replace(/\n{2,}/g, " ").slice(0, 9000);
+
     const envelope = {
       emailSubject: `Your offer from ${companyName}`,
-      // A clean one-line email note (the personalised message + terms live in the
-      // letter). Without this, DocuSign fills the email with generic boilerplate.
-      emailBlurb: `You've received an offer for the ${jobTitle} role at ${companyName}. Please open the document to review the terms and sign.`,
+      emailBlurb,
       documents: [{ documentBase64: toBase64(html), name: "Offer Letter", fileExtension: "html", documentId: "1" }],
       recipients: {
         signers: [{

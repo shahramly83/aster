@@ -12,6 +12,7 @@
 // Secrets: RESEND_API_KEY
 // Auto-provided: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendEmail } from "../_shared/email.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -68,9 +69,6 @@ Deno.serve(async (req) => {
       user_id: user.id, code_hash: await sha256(`${code}:${user.id}`), purpose: kind, expires_at: expires,
     });
 
-    const key = Deno.env.get("RESEND_API_KEY");
-    if (!key) return json({ ok: true, trusted: false, sent: false, reason: "email not configured" });
-
     const html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:460px;margin:0 auto;padding:32px 24px;color:#0F172A">
         <img src="https://hireaster.com/aster-logo.png" alt="Aster" height="20" style="height:20px;margin-bottom:28px" />
@@ -79,14 +77,12 @@ Deno.serve(async (req) => {
         <div style="font-size:34px;font-weight:800;letter-spacing:.32em;background:#F1F5F9;border-radius:12px;padding:16px 0;text-align:center;color:#0B2AE0">${code}</div>
         <p style="font-size:12px;color:#94A3B8;margin:22px 0 0">If you did not just sign in, someone has your password. Change it, and turn on two-factor if it is not already on.</p>
       </div>`;
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "Aster <noreply@hireaster.com>", to: [user.email], subject: `Aster sign-in code: ${code}`, html }),
-    });
-    if (!res.ok) console.error("resend login code", await res.text());
-
-    return json({ ok: true, trusted: false, sent: res.ok });
+    // Send through the shared helper, so the 2FA code goes out from the SAME
+    // verified sender (EMAIL_FROM) as every other Aster email, instead of a raw
+    // noreply@ call that a receiving server may filter differently.
+    const r = await sendEmail({ to: user.email, subject: `Aster sign-in code: ${code}`, html });
+    if (!r.ok) console.error("send-login-code email failed", r.error || r.skipped);
+    return json({ ok: true, trusted: false, sent: !!r.ok });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);

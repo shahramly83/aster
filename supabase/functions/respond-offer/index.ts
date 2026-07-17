@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
         if (to.length) {
           const tpl = await loadTemplate(admin, "offer_accepted", offer.company_id, {
             subject: "{{candidate_name}} accepted your offer",
-            body: "{{candidate_name}} accepted your offer for the {{job_title}} role. They've been moved to Hired in your pipeline.",
+            body: "{{candidate_name}} accepted your offer for the {{job_title}} role. Open Aster to review the offer and mark them as hired when you're ready.",
           });
           const tokens = { candidate_name: candidateName, job_title: jobTitle, company_name: companyName };
           await sendEmail({
