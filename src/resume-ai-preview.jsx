@@ -16970,7 +16970,7 @@ function EmailTwoFactorCard({ profile }) {
           <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
             placeholder="123456" aria-label="6-digit code"
-            className="w-full rounded-xl border px-3 py-2.5 text-lg tracking-[0.3em] text-center focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30" style={{ borderColor: "var(--line-strong)" }} />
+            className="w-full rounded-xl border px-3 py-2.5 text-lg tracking-[0.3em] text-center font-semibold focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30" style={{ borderColor: "var(--line-strong)", color: "#0F172A", background: "#fff" }} />
           <div className="flex items-center gap-2">
             <button onClick={confirmEnable} disabled={busy || code.length !== 6} className="rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-medium px-4 py-2 transition-colors disabled:opacity-40">{busy ? "Checking…" : "Confirm"}</button>
             <button onClick={startEnable} disabled={busy} className="text-sm font-medium hover:opacity-70" style={{ color: "var(--brand)" }}>Resend</button>
@@ -17014,7 +17014,7 @@ function LoginCodeGate({ email, onDone, onCancel }) {
   return (
     <div className="min-h-dvh flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-sm text-center">
-        <img src="/aster-logo.png" alt="Aster" className="h-5 w-auto object-contain mx-auto mb-8" />
+        <img src="/aster-logo.png" alt="Aster" className="h-9 w-auto object-contain mx-auto mb-8" />
         <h1 className="text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>Enter your sign-in code</h1>
         <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
           We emailed a 6-digit code{email ? <> to <span className="font-medium" style={{ color: "var(--ink)" }}>{email}</span></> : ""}. Enter it to finish signing in.
@@ -17023,7 +17023,7 @@ function LoginCodeGate({ email, onDone, onCancel }) {
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           onKeyDown={(e) => { if (e.key === "Enter" && code.length === 6) verify(); }}
           placeholder="123456" aria-label="6-digit code"
-          className="mt-6 w-full rounded-xl border px-3 py-3 text-2xl tracking-[0.4em] text-center focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30" style={{ borderColor: "var(--line-strong)", background: "#fff" }} />
+          className="mt-6 w-full rounded-xl border px-3 py-3 text-2xl tracking-[0.4em] text-center font-semibold focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]/30" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "#0F172A" }} />
         <label className="flex items-center justify-center gap-2 mt-4 text-sm cursor-pointer" style={{ color: "var(--ink-2)" }}>
           <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className="rounded" /> Trust this device for 30 days
         </label>
