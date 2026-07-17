@@ -6,7 +6,6 @@ import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { loadOpenPositions } from "../lib/data";
 import { Press, Loader, EmptyState, Feather } from "../components/ui";
-import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { JOB_STAGES, stageColor } from "@aster/shared";
 
@@ -70,6 +69,7 @@ export default function OpenPositionsScreen({ navigation }) {
             data={jobs}
             keyExtractor={(j) => j.id}
             horizontal
+            style={{ flexGrow: 0 }}
             showsHorizontalScrollIndicator={false}
             snapToInterval={SNAP}
             decelerationRate="fast"
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(2) },
   countPill: { minWidth: 40, height: 34, borderRadius: radius.pill, backgroundColor: theme.brandPanel, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
   card: { width: CARD_W, height: CARD_H, borderRadius: 28, padding: space(5) },
-  cardActive: { backgroundColor: theme.white, shadowColor: "#050B2E", shadowOpacity: 0.22, shadowRadius: 26, shadowOffset: { width: 0, height: 14 }, elevation: 12 },
+  cardActive: { backgroundColor: "rgba(255,255,255,0.92)", shadowColor: "#050B2E", shadowOpacity: 0.22, shadowRadius: 26, shadowOffset: { width: 0, height: 14 }, elevation: 12 },
   cardIdle: { backgroundColor: "rgba(255,255,255,0.10)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   statusPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: space(4) },
   reviewChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill },
   viewBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, height: 40, borderRadius: radius.pill },
-  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, paddingTop: space(4), paddingBottom: TAB_CLEARANCE },
+  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, paddingTop: space(5), paddingBottom: space(4) },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.35)" },
   dotActive: { width: 22, backgroundColor: theme.white },
 });
