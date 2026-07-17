@@ -32,14 +32,16 @@ async function stripe(path: string, params: Record<string, string>, secret: stri
   return { ok: res.ok, data: await res.json() };
 }
 
-// Base per-credit price in cents, by credit kind. The plan discount is applied on
-// top (Launch 0% · Scale 10% · Elite/Enterprise 20%). AI Rank is cheaper to buy.
-const BASE_CENTS: Record<string, number> = {
-  resume_screen: 100,     // $1.00
-  applicant_screen: 100,  // $1.00
-  ai_rank: 40,            // $0.40
-  ai_insight: 40,         // $0.40
+// Base per-credit price in each currency's MINOR unit, by credit kind. The plan
+// discount is applied on top (Launch 0% · Scale 10% · Elite/Enterprise 20%). The
+// currency follows the workspace's preferred_currency (MYR default). MYR/SGD are
+// set proportional to the plan prices (~4.07x USD for MYR, ~1.28x for SGD).
+const BASE_MINOR: Record<string, Record<string, number>> = {
+  usd: { resume_screen: 100, applicant_screen: 100, ai_rank: 40, ai_insight: 40 },   // $1.00 · $0.40
+  myr: { resume_screen: 400, applicant_screen: 400, ai_rank: 160, ai_insight: 160 }, // RM4.00 · RM1.60
+  sgd: { resume_screen: 130, applicant_screen: 130, ai_rank: 50, ai_insight: 50 },   // S$1.30 · S$0.50
 };
+const CREDIT_KINDS = ["resume_screen", "applicant_screen", "ai_rank", "ai_insight"];
 // Plan discount multiplier, keyed by BOTH the DB plan_tier names (free/growth/pro)
 // and the app names (launch/scale/elite), since companies.plan can hold either.
 const DISCOUNT_MULT: Record<string, number> = {
@@ -72,7 +74,7 @@ Deno.serve(async (req) => {
     const byKind = new Map<string, number>();
     for (const it of rawItems) {
       const k = String(it?.kind || "");
-      if (!(k in BASE_CENTS)) return json({ error: "unknown credit kind" }, 400);
+      if (!CREDIT_KINDS.includes(k)) return json({ error: "unknown credit kind" }, 400);
       const q = Math.floor(Number(it?.quantity));
       if (!Number.isFinite(q) || q < 0 || q > 10000) {
         return json({ error: "Enter a quantity between 0 and 10,000." }, 400);
@@ -97,11 +99,15 @@ Deno.serve(async (req) => {
       return json({ error: "Only an owner or hiring manager can buy credits." }, 403);
     }
 
-    const { data: company } = await admin.from("companies").select("plan").eq("id", companyId).maybeSingle();
+    const { data: company } = await admin.from("companies").select("plan, preferred_currency").eq("id", companyId).maybeSingle();
     const mult = DISCOUNT_MULT[String(company?.plan || "").toLowerCase()] ?? 1;
+    // Charge in the workspace's preferred currency (MYR default), server-side.
+    const cur = ["usd", "myr", "sgd"].includes(String(company?.preferred_currency || "").toLowerCase())
+      ? String(company.preferred_currency).toLowerCase() : "myr";
+    const rate = BASE_MINOR[cur];
     // Price every basket line server-side, so a crafted request can't cheat.
     const priced = basket.map(({ kind, qty }) => {
-      const unit = Math.max(1, Math.round(BASE_CENTS[kind] * mult));
+      const unit = Math.max(1, Math.round(rate[kind] * mult));
       return { kind, qty, unit, cents: unit * qty };
     });
 
@@ -141,7 +147,7 @@ Deno.serve(async (req) => {
       cancel_url: `${base}${path}?credits=cancel`,
     };
     priced.forEach(({ kind, qty, unit }, i) => {
-      params[`line_items[${i}][price_data][currency]`] = "usd";
+      params[`line_items[${i}][price_data][currency]`] = cur;
       params[`line_items[${i}][price_data][unit_amount]`] = String(unit);
       params[`line_items[${i}][price_data][product_data][name]`] = PRODUCT_NAME[kind] || "Aster credits";
       params[`line_items[${i}][quantity]`] = String(qty);

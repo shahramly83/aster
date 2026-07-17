@@ -303,6 +303,11 @@ function CurrencyDropdown({ value, onChange }) {
 // shared by every screen that quotes a price. A single source of truth: the app
 // can never advertise an amount different from the one the card is charged.
 let planPricesPromise = null;
+// The workspace's billing currency, mirrored here so any Buy-credits button can
+// show prices in it without threading the prop through every screen. The App
+// keeps it in step with preferred_currency; buy-credits re-derives server-side.
+let uiCurrency = "myr";
+function setUiCurrency(c) { if (["usd", "myr", "sgd"].includes(c)) uiCurrency = c; }
 function fetchPlanPrices() {
   if (!hasSupabase) return Promise.resolve({});
   if (!planPricesPromise) {
@@ -9786,15 +9791,25 @@ function usePurchasedBalance(kind) {
 // Buy top-up credits for a given kind. Base price per credit varies by kind
 // (resume/applicant $1, AI Rank $0.40) with a plan discount on top; the
 // buy-credits function re-derives the price server-side, so this is display only.
-// The four buyable credit kinds, with their base per-credit price (USD).
+// The four buyable credit kinds. Base per-credit price varies by currency (MYR/SGD
+// set proportional to the plan prices); the buy-credits function re-derives the
+// price server-side from the workspace currency, so this is display only.
 const CREDIT_KINDS = [
-  { k: "resume_screen", base: 1, label: "Resume screening", sub: "Bulk resume uploads" },
-  { k: "applicant_screen", base: 1, label: "Applicant screening", sub: "Inbound applications" },
-  { k: "ai_rank", base: 0.4, label: "AI Rank", sub: "Rank & shortlist" },
-  { k: "ai_insight", base: 0.4, label: "AI Insight", sub: "Candidate deep-dive" },
+  { k: "resume_screen", label: "Resume screening", sub: "Bulk resume uploads" },
+  { k: "applicant_screen", label: "Applicant screening", sub: "Inbound applications" },
+  { k: "ai_rank", label: "AI Rank", sub: "Rank & shortlist" },
+  { k: "ai_insight", label: "AI Insight", sub: "Candidate deep-dive" },
 ];
+const CREDIT_BASE = {
+  usd: { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4 },
+  myr: { resume_screen: 4, applicant_screen: 4, ai_rank: 1.6, ai_insight: 1.6 },
+  sgd: { resume_screen: 1.3, applicant_screen: 1.3, ai_rank: 0.5, ai_insight: 0.5 },
+};
+const CUR_SYMBOL = { usd: "$", myr: "RM", sgd: "S$" };
 
-function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen", pickKind = false }) {
+function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen", pickKind = false, currency = null }) {
+  const cur = ["usd", "myr", "sgd"].includes(currency) ? currency : uiCurrency;
+  const sym = CUR_SYMBOL[cur];
   // Single-kind (from a meter's Buy button): one input. pickKind (from Billing): a
   // quantity per kind. Both start empty (0) so the buyer types the amount they want.
   const [qty, setQty] = useState("");
@@ -9810,7 +9825,8 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   // Basket lines with quantities, priced. In single mode it's just the one kind.
   const lines = (pickKind ? CREDIT_KINDS : [meta]).map((c) => {
     const q = pickKind ? Math.max(0, Math.floor(Number(qtys[c.k]) || 0)) : Math.max(0, Math.floor(Number(qty) || 0));
-    return { ...c, q, unit: unitOf(c.base), amount: unitOf(c.base) * q };
+    const base = CREDIT_BASE[cur][c.k] ?? 1;
+    return { ...c, q, unit: unitOf(base), amount: unitOf(base) * q };
   });
   const items = lines.filter((l) => l.q > 0);
   const total = items.reduce((s, l) => s + l.amount, 0);
@@ -9850,7 +9866,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
                 <div key={l.k} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: l.q > 0 ? "var(--brand)" : "var(--line)", background: "var(--bg)" }}>
                   <div className="min-w-0 flex-1">
                     <span className="block text-xs font-semibold" style={{ color: "var(--ink)" }}>{l.label}</span>
-                    <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · ${l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""}</span>
+                    <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · {sym}{l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""}</span>
                   </div>
                   <input type="number" min="0" inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
                     onChange={(e) => { const v = e.target.value; setQtys((s) => ({ ...s, [l.k]: v })); setErr(null); }}
@@ -9873,18 +9889,18 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
             items.map((l) => (
               <div key={l.k} className="flex items-center justify-between text-sm mb-1.5">
                 <span style={{ color: "var(--ink-2)" }}>{pickKind ? l.label : "Quantity"} <span className="tnum" style={{ color: "var(--ink-3)" }}>× {l.q.toLocaleString()}</span></span>
-                <span className="tnum font-medium" style={{ color: "var(--ink)" }}>${l.amount.toFixed(2)}</span>
+                <span className="tnum font-medium" style={{ color: "var(--ink)" }}>{sym}{l.amount.toFixed(2)}</span>
               </div>
             ))
           )}
           <div className="flex items-center justify-between mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
             <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Total</span>
-            <span className="text-lg font-bold font-display tnum" style={{ color: "var(--ink)" }}>${total.toFixed(2)}</span>
+            <span className="text-lg font-bold font-display tnum" style={{ color: "var(--ink)" }}>{sym}{total.toFixed(2)}</span>
           </div>
         </div>
         {err && <p className="text-xs mt-3 rounded-lg px-3 py-2" style={{ color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA" }}>{err}</p>}
         <div className="flex items-center gap-2 mt-5">
-          <button onClick={buy} disabled={busy || !items.length} className="flex-1 rounded-xl brand-gradient text-white text-sm font-semibold py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50">{busy ? "Starting checkout…" : `Pay $${total.toFixed(2)}`}</button>
+          <button onClick={buy} disabled={busy || !items.length} className="flex-1 rounded-xl brand-gradient text-white text-sm font-semibold py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50">{busy ? "Starting checkout…" : `Pay ${sym}${total.toFixed(2)}`}</button>
           <button onClick={onClose} className="rounded-xl border px-4 py-2.5 text-sm hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
         </div>
         <p className="text-[11px] text-neutral-400 mt-3 text-center">Secure one-time payment via Stripe. Credits are added the moment payment clears.</p>
@@ -22127,6 +22143,7 @@ export default function ResumeAIPreview() {
   // Workspace billing currency preference (0095), RM default. Seeds the billing
   // screen + checkout, and is editable by the owner in Settings.
   const [preferredCurrency, setPreferredCurrency] = useState("myr");
+  useEffect(() => { setUiCurrency(preferredCurrency); }, [preferredCurrency]);
   // The company's IANA timezone (0091). Every interview time renders through this
   // so the in-app panel and the emails always agree, whatever zone the viewer is in.
   const [companyTimezone, setCompanyTimezone] = useState("Asia/Kuala_Lumpur");
