@@ -99,7 +99,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Quick counts */}
         <View style={styles.countsRow}>
-          <Count label="In pipeline" value={a.total} icon="users" />
+          <Count label="Total hired" value={a.counts.hired} icon="award" />
           <View style={styles.countSep} />
           <Count label="Open roles" value={a.openRoles} icon="briefcase" />
           <View style={styles.countSep} />
