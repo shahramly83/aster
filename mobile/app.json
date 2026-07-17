@@ -11,7 +11,9 @@
       "backgroundColor": "#0B2AE0",
       "resizeMode": "contain"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hireaster.mobile",
@@ -33,7 +35,8 @@
         {
           "color": "#0B2AE0"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "supabaseUrl": "",
