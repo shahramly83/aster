@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -18687,7 +18687,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "" }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -18783,11 +18783,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [scorecardsSkipped, setScorecardsSkipped] = useState(false);
   const scorecardsUnlocked = interviewPast;
   const decisionUnlocked = interviewPast && (scorecardsSkipped || (soloInterview ? anyScored : allScored));
-  // Which step opens first. After the interview we land on Scorecards (step 2) so
-  // the panel's feedback is reviewed BEFORE the decision, never auto-jump straight
-  // to Decision (that read as silently skipping scorecards). Decision stays
-  // clickable when unlocked; deciding with no scorecards asks for confirmation.
-  const [ivStep, setIvStep] = useState(() => (scorecardsUnlocked ? 2 : 1));
+  // Which step opens first. If Decision is already unlocked (the panel has scored,
+  // or the manager skipped), open straight on Decision so a reload doesn't drop
+  // back to Scorecards. Otherwise land on Scorecards after the interview, or
+  // Interview before it.
+  const [ivStep, setIvStep] = useState(() => (decisionUnlocked ? 3 : scorecardsUnlocked ? 2 : 1));
 
   if (!candidate) {
     return (
@@ -19538,6 +19538,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </>)}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+            {/* Offer status + signed-letter download, once an offer exists. */}
+            {isManagerView && (offer || stage === "offer" || stage === "hired") && (
+              <OfferStatusCard candidateId={candidate?.id} companyId={companyId} canPersist={canPersist} />
+            )}
             {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
                 time, panel and role at a glance while they read the profile. */}
             {!isManagerView && isBooked && !interviewPast && (
@@ -19738,11 +19742,60 @@ function buildRejectionDraft(name, jobTitle) {
 
 function buildOfferDraft(name, jobTitle, companyName = "") {
   const first = (name || "there").split(" ")[0];
-  const signOff = companyName || "The Hiring Team";
   return {
     subject: `You've been selected for the ${jobTitle} role`,
-    body: `Dear ${first},\n\nCongratulations! Following your interview, we're delighted to offer you the ${jobTitle} role. The full terms of your offer are set out in this letter.\n\nPlease review and sign to accept. If you have any questions before signing, just reply to this email and we'll be glad to help.\n\nWe look forward to welcoming you to the team.\n\nWarm regards,\n${signOff}`,
+    body: `Dear ${first},\n\nWe're delighted to inform you that your application for the ${jobTitle} role${companyName ? ` at ${companyName}` : ""} has been accepted. Congratulations, and we're glad to have you on board!\n\nThe full terms of your offer are set out below.`,
   };
+}
+
+// Offer status + signed-document download, shown on the candidate profile once an
+// offer exists. Reads the offer from the DB (so it survives a reload) and mints a
+// short-lived URL for the signed PDF on demand.
+function OfferStatusCard({ candidateId, companyId, canPersist }) {
+  const [rec, setRec] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (!canPersist || !candidateId || !companyId) return;
+    dbGetOffer(companyId, candidateId).then((r) => { if (alive) setRec(r); });
+    return () => { alive = false; };
+  }, [candidateId, companyId, canPersist]);
+  if (!rec) return null;
+  const signed = !!rec.signed_pdf_path || rec.esign_status === "completed";
+  const declined = rec.esign_status === "declined" || rec.status === "declined";
+  const viewed = rec.esign_status === "delivered";
+  const meta = signed
+    ? { label: "Signed", bg: "#DCFCE7", color: "#166534", dot: "#22C55E" }
+    : declined
+      ? { label: "Declined", bg: "#FEE2E2", color: "#B42318", dot: "#EF4444" }
+      : viewed
+        ? { label: "Viewed", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" }
+        : { label: "Sent for signature", bg: "#EEF0FF", color: "#4F46E5", dot: "#6366F1" };
+  const download = async () => {
+    setBusy(true);
+    const url = await dbSignedOfferUrl(candidateId);
+    setBusy(false);
+    if (url) window.open(url, "_blank", "noopener");
+  };
+  return (
+    <div className="rounded-2xl tool-card act-shadow px-5 py-4">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>Offer</h2>
+        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1.5" style={{ background: meta.bg, color: meta.color }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />{meta.label}
+        </span>
+      </div>
+      <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
+        {signed ? "The candidate signed the offer letter via DocuSign." : declined ? "The candidate declined the offer." : viewed ? "The candidate has opened the offer, not yet signed." : "The offer letter was sent for e-signature via DocuSign."}
+      </p>
+      {signed && (
+        <button onClick={download} disabled={busy} className="w-full text-sm font-medium rounded-lg px-3 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {busy ? "Preparing…" : "Download signed offer letter"}
+        </button>
+      )}
+    </div>
+  );
 }
 
 const DP_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -19801,15 +19854,15 @@ function DatePicker({ value, onChange, placeholder = "Select a date", min = null
         </svg>
       </button>
       {open && (
-        <div className={`absolute z-[60] mt-2 w-[264px] rounded-2xl border bg-white p-3 ${align === "right" ? "right-0" : "left-0"}`}
-          style={{ borderColor: "var(--line-strong)", boxShadow: "0 12px 32px rgba(16,15,30,0.18)", transformOrigin: align === "right" ? "top right" : "top left", transition: "opacity 140ms ease-out, transform 140ms ease-out", opacity: shown ? 1 : 0, transform: shown ? "translateY(0) scale(1)" : "translateY(-4px) scale(0.98)" }}>
-          <div className="flex items-center justify-between mb-2">
-            <button type="button" onClick={() => setView(new Date(year, month - 1, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" aria-label="Previous month">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <div className={`absolute z-[60] mt-2 rounded-2xl border bg-white p-3 ${align === "right" ? "right-0" : "left-0"}`}
+          style={{ width: 268, color: "var(--ink)", borderColor: "var(--line-strong)", boxShadow: "0 12px 32px rgba(16,15,30,0.18)", transformOrigin: align === "right" ? "top right" : "top left", transition: "opacity 140ms ease-out, transform 140ms ease-out", opacity: shown ? 1 : 0, transform: shown ? "translateY(0) scale(1)" : "translateY(-4px) scale(0.98)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <button type="button" onClick={() => setView(new Date(year, month - 1, 1))} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Previous month">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
-            <button type="button" onClick={() => setMode(mode === "days" ? "years" : "days")} className="text-sm font-semibold px-2.5 py-1 rounded-lg hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink)" }}>{DP_MONTHS[month]} {year}</button>
-            <button type="button" onClick={() => setView(new Date(year, month + 1, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" aria-label="Next month">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <button type="button" onClick={() => setMode(mode === "days" ? "years" : "days")} className="text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink)" }}>{DP_MONTHS[month]} {year}</button>
+            <button type="button" onClick={() => setView(new Date(year, month + 1, 1))} className="w-8 h-8 rounded-lg border flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }} aria-label="Next month">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </div>
           {mode === "years" ? (
@@ -19940,7 +19993,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
         <label className={labelClass}>Message to the candidate</label>
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-2 resize-y`} disabled={!hasEmail} />
-        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>This note appears at the top of the offer letter the candidate receives to sign.</p>
+        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>This is the opening of the offer letter. The terms, sign-off and signature block are added automatically.</p>
 
         {/* Every offer is sent through DocuSign for signature. The signed PDF is
             saved back to the offer once the candidate completes signing. */}
@@ -23613,6 +23666,8 @@ export default function ResumeAIPreview() {
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             preferredCurrency={preferredCurrency}
             companyName={company}
+            companyId={companyId}
+            canPersist={canPersist}
             onSendOffer={(emailSent, terms, message) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}

@@ -342,6 +342,32 @@ export async function dbCreateOffer(companyId, { candidateId, jobId = null, term
   return data?.token || null;
 }
 
+// Latest offer for a candidate (RLS scopes offers to the caller's company), so
+// the candidate profile can show its status + e-sign state after a reload.
+export async function dbGetOffer(companyId, candidateId) {
+  if (!hasSupabase || !companyId || !candidateId) return null;
+  const { data, error } = await supabase
+    .from("offers")
+    .select("status, esign_provider, esign_status, signed_pdf_path, created_at")
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) {
+    if (error.code === "42703" || error.code === "PGRST204") return null; // pre-esign columns
+    console.error("dbGetOffer", error.message);
+    return null;
+  }
+  return data || null;
+}
+
+// Short-lived download URL for the signed offer PDF (private bucket, minted by
+// the offer-signed-url edge function). Returns a URL string or null.
+export async function dbSignedOfferUrl(candidateId) {
+  if (!hasSupabase || !candidateId) return null;
+  const { data, error } = await supabase.functions.invoke("offer-signed-url", { body: { candidateId } });
+  if (error || !data?.url) { console.error("dbSignedOfferUrl", error?.message || "no url"); return null; }
+  return data.url;
+}
+
 export async function dbAddScorecard(companyId, userId, { candidateId, jobId = null, ratings, notes }) {
   if (!hasSupabase || !companyId) return;
   const { error } = await supabase.from("scorecards").insert({

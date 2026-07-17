@@ -57,7 +57,8 @@ async function logoDataUri(url: string | null): Promise<string | null> {
 // The offer letter as HTML. The /sig1/ and /date1/ anchors are where DocuSign
 // drops the signature and date fields (hidden white text so they don't show).
 function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: string; jobTitle: string; logo: string | null; addressLine: string; dateStr: string; message: string | null }): string {
-  const rows: [string, string][] = [["Role", opts.jobTitle]];
+  const accent = "#C1272D"; // letter accent (a per-company brand colour can override this later)
+  const rows: [string, string][] = [["Position", opts.jobTitle]];
   if (o.base_salary != null) {
     const sym = CURRENCY_SYMBOL[(o.salary_currency || "myr").toLowerCase()] || "";
     rows.push(["Base salary", `${sym}${Number(o.base_salary).toLocaleString("en-US")}`]);
@@ -66,47 +67,50 @@ function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: s
   if (o.start_date) rows.push(["Start date", fmtDate(o.start_date)]);
   if (o.expires_at) rows.push(["Offer valid until", fmtDate(o.expires_at)]);
   const trs = rows.map(([k, v]) =>
-    `<tr><td class="term-k">${esc(k)}</td><td class="term-v">${esc(v)}</td></tr>`).join("");
+    `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`).join("");
   const brand = opts.logo
-    ? `<img src="${opts.logo}" alt="${esc(opts.companyName)}" style="height:42px;max-width:240px;object-fit:contain;display:block;">`
-    : `<div class="serif" style="font-size:24px;font-weight:700;color:#1a1523;letter-spacing:-0.01em;">${esc(opts.companyName)}</div>`;
-  const addr = opts.addressLine ? `<div class="muted" style="font-size:12.5px;margin-top:8px;">${esc(opts.addressLine)}</div>` : "";
-  const foot = `${esc(opts.companyName)}${opts.addressLine ? ` &middot; ${esc(opts.addressLine)}` : ""}`;
+    ? `<img src="${opts.logo}" alt="${esc(opts.companyName)}" style="height:40px;max-width:250px;object-fit:contain;display:block;">`
+    : `<div class="serif" style="font-size:26px;font-weight:700;color:#1f2328;letter-spacing:-0.01em;">${esc(opts.companyName)}</div>`;
   const body = opts.message
     ? messageToHtml(opts.message)
-    : `<p>Dear ${esc(opts.candidateName)},</p><p>Following your interview, we are pleased to offer you the <strong>${esc(opts.jobTitle)}</strong> role at ${esc(opts.companyName)}, on the terms set out below.</p>`;
+    : `<p>Dear ${esc(opts.candidateName)},</p><p>We're delighted to inform you that your application for the <strong>${esc(opts.jobTitle)}</strong> role at ${esc(opts.companyName)} has been accepted. Congratulations, and we're glad to have you on board! The full terms of your offer are set out below.</p>`;
+  const contact = `<div class="cn">${esc(opts.companyName)}</div>${opts.addressLine ? `<div>${esc(opts.addressLine)}</div>` : ""}`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    body{font-family:Helvetica,Arial,sans-serif;color:#1a1523;line-height:1.65;font-size:14px;padding:56px 60px;max-width:664px;margin:0 auto;background:#ffffff;}
-    p{margin:0 0 14px;}
+    body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#33373c;line-height:1.75;font-size:13.5px;padding:60px 64px 52px;max-width:640px;margin:0 auto;background:#ffffff;}
+    p{margin:0 0 16px;}
+    strong{color:#1f2328;}
     .serif{font-family:Georgia,'Times New Roman',serif;}
-    .muted{color:#6b7280;}
-    .head{padding-bottom:16px;}
-    .rule{height:2px;background:#1a1523;margin:16px 0 0;}
-    .date{text-align:right;font-size:13px;color:#6b7280;margin:16px 0 2px;}
-    .eyebrow{font-family:Georgia,'Times New Roman',serif;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#9a938a;margin:0 0 18px;font-weight:700;}
-    .terms{width:100%;border-collapse:collapse;margin:20px 0 26px;background:#faf9f7;border:1px solid #ece9e4;}
-    .terms td{padding:13px 22px;border-bottom:1px solid #ece9e4;vertical-align:middle;}
-    .terms tr:last-child td{border-bottom:none;}
-    .term-k{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:#8a857d;width:190px;font-weight:600;}
-    .term-v{font-size:15px;font-weight:700;color:#1a1523;}
-    .sig-field{border-bottom:1.5px solid #1a1523;width:300px;height:30px;}
-    .sig-caption{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#8a857d;margin:7px 0 0;}
-    .foot{margin-top:44px;padding-top:14px;border-top:1px solid #ece9e4;font-size:11px;color:#a8a29a;line-height:1.6;}
+    .title{color:${accent};font-size:15px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;margin:24px 0 32px;}
+    .date{text-align:right;color:#9298a1;font-size:13px;margin:0 0 30px;}
+    .facts{width:100%;border-collapse:collapse;margin:8px 0 24px;}
+    .facts td{padding:12px 0;border-bottom:1px solid #eeeeee;vertical-align:top;}
+    .facts tr:last-child td{border-bottom:none;}
+    .facts .k{color:#9a9a9a;text-transform:uppercase;letter-spacing:0.08em;font-size:11px;font-weight:600;width:180px;padding-top:14px;}
+    .facts .v{color:#1f2328;font-weight:600;font-size:14px;}
+    .signoff{margin:22px 0 0;}
+    .signoff .co{font-weight:700;color:#1f2328;}
+    .accept{margin-top:42px;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#9a9a9a;font-weight:600;}
+    .sig-line{border-bottom:1.5px solid #1f2328;width:280px;height:36px;margin-top:6px;}
+    .sig-name{font-weight:700;color:#1f2328;margin-top:8px;font-size:14px;}
+    .sig-cap{color:#9a9a9a;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;margin-top:2px;}
+    .contact{margin-top:48px;text-align:right;font-size:12.5px;color:#77797d;line-height:1.7;}
+    .contact .cn{font-weight:700;color:#1f2328;font-size:13.5px;}
     .anchor{color:#ffffff;font-size:1px;}
   </style></head><body>
-    <div class="head">${brand}${addr}<div class="rule"></div></div>
-    <div class="date">${esc(opts.dateStr)}</div>
-    <div class="eyebrow">Offer of Employment</div>
+    ${brand}
+    <div class="title">Offer of Employment</div>
+    <div class="date">Date: ${esc(opts.dateStr)}</div>
     ${body}
-    <table class="terms">${trs}</table>
-    <p style="margin-top:4px;">To accept this offer, please sign below. We look forward to welcoming you to ${esc(opts.companyName)}.</p>
-    <div style="margin-top:40px;">
-      <div class="sig-field"><span class="anchor">/sig1/</span></div>
-      <div class="sig-caption">Signature</div>
-      <div class="sig-field" style="margin-top:30px;"><span class="anchor">/date1/</span></div>
-      <div class="sig-caption">Date</div>
-    </div>
-    <div class="foot">${foot}<br>This letter constitutes a formal offer of employment.</div>
+    <table class="facts">${trs}</table>
+    <p>To accept this offer, please review the terms above and sign below. We look forward to welcoming you to ${esc(opts.companyName)}.</p>
+    <div class="signoff">Warm regards,<br><span class="co">${esc(opts.companyName)}</span></div>
+    <div class="accept">Accepted and agreed</div>
+    <div class="sig-line"><span class="anchor">/sig1/</span></div>
+    <div class="sig-name">${esc(opts.candidateName)}</div>
+    <div class="sig-cap">Signature</div>
+    <div class="sig-line" style="width:200px;margin-top:26px;"><span class="anchor">/date1/</span></div>
+    <div class="sig-cap">Date</div>
+    <div class="contact">${contact}</div>
   </body></html>`;
 }
 
