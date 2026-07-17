@@ -302,14 +302,16 @@ function CurrencyDropdown({ value, onChange }) {
 // shared by every screen that quotes a price. A single source of truth: the app
 // can never advertise an amount different from the one the card is charged.
 // Best-effort geo defaults from the browser's IANA timezone (no network call):
-// Malaysia -> MYR, Singapore -> SGD, everywhere else -> USD. Also yields the tz,
-// used to default a new workspace's timezone. Users can change both afterwards.
+// Singapore -> SGD, the Americas -> USD, everywhere else -> MYR (our main
+// currency). Also yields the tz, used to default a new workspace's timezone.
+// Users can change both afterwards.
 function geoDefaults() {
   let tz = "Asia/Kuala_Lumpur";
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch { /* noop */ }
-  if (tz === "Asia/Kuala_Lumpur" || tz === "Asia/Kuching") return { currency: "myr", timezone: tz };
   if (tz === "Asia/Singapore") return { currency: "sgd", timezone: tz };
-  return { currency: "usd", timezone: tz };
+  // US / Canada / Latin America keep USD; every other region defaults to MYR.
+  if (/^America\//.test(tz) || /^US\//.test(tz) || tz === "Canada/Atlantic") return { currency: "usd", timezone: tz };
+  return { currency: "myr", timezone: tz };
 }
 
 let planPricesPromise = null;

@@ -1,0 +1,15 @@
+{
+  "name": "@aster/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Framework-agnostic Aster domain logic shared by the web app and the mobile app. Pure JS, no React, no build step.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./stages": "./stages.js",
+    "./scorecard": "./scorecard.js",
+    "./plan": "./plan.js",
+    "./time": "./time.js"
+  }
+}

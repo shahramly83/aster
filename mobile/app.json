@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Aster",
+    "slug": "aster-mobile",
+    "scheme": "aster",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0B2AE0",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hireaster.mobile",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Unlock Aster with Face ID."
+      }
+    },
+    "android": {
+      "package": "com.hireaster.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B2AE0"
+      }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-local-authentication",
+      [
+        "expo-notifications",
+        {
+          "color": "#0B2AE0"
+        }
+      ]
+    ],
+    "extra": {
+      "supabaseUrl": "",
+      "supabaseAnonKey": ""
+    }
+  }
+}
