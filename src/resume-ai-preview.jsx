@@ -3546,7 +3546,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       {/* Final CTA, a bold cobalt panel that anchors the page before the footer.
           Wrapped in the same max-w-6xl + px as the nav so the panel edges line up
           with the nav logo (left) and Get started button (right). */}
-      <section className="relative py-16 sm:py-24">
+      <section className="relative pt-16 pb-6 sm:py-24">
        <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <Reveal className="relative rounded-3xl overflow-hidden px-6 sm:px-12 py-12 sm:py-16" style={{ background: "var(--brand)", boxShadow: "0 40px 80px -40px rgba(var(--brand-rgb),0.55)" }}>
           {/* faint Aster marks for depth, bleeding off the corners (clipped by overflow-hidden) */}
