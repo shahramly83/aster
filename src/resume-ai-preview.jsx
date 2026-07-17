@@ -19539,8 +19539,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </>)}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {/* Offer status + signed-letter download, once an offer exists. */}
-            {isManagerView && (offer || stage === "offer" || stage === "hired") && (
+            {/* Offer status + signed-letter download. Shown whenever an offer
+                exists for this candidate (the card self-hides if there is none),
+                so the signed letter stays reachable in any later stage. */}
+            {isManagerView && (
               <OfferStatusCard candidateId={candidate?.id} companyId={companyId} canPersist={canPersist} />
             )}
             {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
