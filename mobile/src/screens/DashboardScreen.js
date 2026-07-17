@@ -4,18 +4,34 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
-import { loadAnalytics, loadOpenPositions } from "../lib/data";
+import { loadAnalytics, loadRecentActivity } from "../lib/data";
 import { Press, IconChip, TopBar, Loader, Feather } from "../components/ui";
 import { RingGauge, MeterBar } from "../components/Gauge";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
+import { relTime } from "@aster/shared";
+
+// Activity type → icon + on-blue tint. Falls back for unknown types.
+const ACTIVITY = {
+  new_application: { icon: "user-plus", tint: "#A9B8FF" },
+  scorecard: { icon: "star", tint: "#FFD27D" },
+  interview_scheduled: { icon: "calendar", tint: "#A9B8FF" },
+  interview_requested: { icon: "calendar", tint: "#A9B8FF" },
+  offer_sent: { icon: "send", tint: "#FFFFFF" },
+  offer_signed: { icon: "check-circle", tint: "#7DE2A8" },
+  hired: { icon: "award", tint: "#7DE2A8" },
+  offer_declined: { icon: "x-circle", tint: "#FFB4A9" },
+  offer_expired: { icon: "clock", tint: "rgba(255,255,255,0.55)" },
+  role_requested: { icon: "briefcase", tint: "#A9B8FF" },
+};
+const actMeta = (t) => ACTIVITY[t] || { icon: "activity", tint: "#A9B8FF" };
 
 // The manager's analytics home: a bold brand-blue canvas with a pipeline-health
 // meter and per-metric gauges. Data-forward, styled after the reference concept.
 export default function DashboardScreen({ navigation }) {
   const { profile } = useAuth();
   const [a, setA] = useState(null);
-  const [roles, setRoles] = useState([]);
+  const [activity, setActivity] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
   // Brand-blue screen → light status bar while focused.
@@ -23,12 +39,12 @@ export default function DashboardScreen({ navigation }) {
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const [an, r] = await Promise.all([
+    const [an, act] = await Promise.all([
       loadAnalytics(profile.companyId),
-      loadOpenPositions(profile.companyId, { manager: true }),
+      loadRecentActivity(profile.companyId, 8),
     ]);
     setA(an);
-    setRoles(r);
+    setActivity(act);
   }, [profile]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -36,14 +52,13 @@ export default function DashboardScreen({ navigation }) {
 
   if (!a) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading analytics…" /></SafeAreaView>;
 
-  // Open positions only. Roles that still have candidates to decide on surface
-  // first, but every open role is listed.
-  const openRoles = roles
-    .filter((r) => r.status === "open")
-    .map((r) => ({ ...r, active: (r.counts.interviewing || 0) + (r.counts.offer || 0) }))
-    .sort((x, y) => y.active - x.active)
-    .slice(0, 6);
   const healthLabel = a.health >= 66 ? "Healthy" : a.health >= 40 ? "Fair" : a.total ? "Needs work" : "No data yet";
+
+  // Tapping an activity jumps to the most relevant screen.
+  const openActivity = (it) => {
+    if (it.candidateId) navigation.navigate("CandidateProfile", { candidateId: it.candidateId, jobId: it.jobId, candidateName: it.title });
+    else if (it.jobId) navigation.navigate("PositionApplicants", { jobId: it.jobId, jobTitle: it.title });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
@@ -106,41 +121,36 @@ export default function DashboardScreen({ navigation }) {
           <Count label="New / wk" value={a.newThisWeek} icon="trending-up" />
         </View>
 
-        {/* Open positions */}
-        {openRoles.length ? (
-          <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: space(3) }}>
-              <Text style={[type.label, { color: theme.onBrandMuted }]}>OPEN POSITIONS</Text>
-              <Press onPress={() => navigation.navigate("PositionsTab")}><Text style={[type.smallStrong, { color: theme.white }]}>All roles</Text></Press>
-            </View>
-            {openRoles.map((r) => (
-              <Press key={r.id} onPress={() => navigation.navigate("PositionApplicants", { jobId: r.id, jobTitle: r.title })} style={{ marginBottom: space(3) }}>
-                <View style={styles.panel}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[type.h3, { color: theme.onBrand }]} numberOfLines={1}>{r.title}</Text>
-                    <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 2 }]}>
-                      {r.applicantCount} candidate{r.applicantCount === 1 ? "" : "s"} in pipeline
-                    </Text>
-                  </View>
-                  {r.active > 0 ? (
-                    <View style={styles.pending}>
-                      <Feather name="clock" size={12} color="#FFD27D" />
-                      <Text style={[type.smallStrong, { color: "#FFD27D", marginLeft: 5 }]}>{r.active} to review</Text>
-                    </View>
-                  ) : null}
-                  <Feather name="chevron-right" size={20} color={theme.onBrandFaint} style={{ marginLeft: 8 }} />
-                </View>
-              </Press>
-            ))}
-          </View>
-        ) : (
-          <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
-            <Text style={[type.label, { color: theme.onBrandMuted, marginBottom: space(3) }]}>OPEN POSITIONS</Text>
+        {/* Recent activity feed */}
+        <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
+          <Text style={[type.label, { color: theme.onBrandMuted, marginBottom: space(3) }]}>RECENT ACTIVITY</Text>
+          {activity.length === 0 ? (
             <View style={styles.panel}>
-              <Text style={[type.small, { color: theme.onBrandMuted }]}>No open roles right now.</Text>
+              <Text style={[type.small, { color: theme.onBrandMuted }]}>Nothing yet. New applicants, scorecards and offers will show here.</Text>
             </View>
-          </View>
-        )}
+          ) : (
+            <View style={styles.feed}>
+              {activity.map((it, i) => {
+                const m = actMeta(it.type);
+                const tappable = !!(it.candidateId || it.jobId);
+                return (
+                  <Press key={it.id} onPress={tappable ? () => openActivity(it) : undefined} haptic={tappable ? "light" : null} scaleTo={tappable ? 0.98 : 1}>
+                    <View style={[styles.actRow, i > 0 && styles.actDivider]}>
+                      <View style={styles.actIcon}>
+                        <Feather name={m.icon} size={16} color={m.tint} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[type.smallStrong, { color: theme.onBrand }]} numberOfLines={1}>{it.title}</Text>
+                        {it.description ? <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 1 }]} numberOfLines={1}>{it.description}</Text> : null}
+                      </View>
+                      <Text style={[type.small, { color: theme.onBrandFaint, marginLeft: 8 }]}>{relTime(it.createdAt)}</Text>
+                    </View>
+                  </Press>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -168,5 +178,8 @@ const styles = StyleSheet.create({
   countSep: { width: 1, height: 34, backgroundColor: theme.brandLine },
   countVal: { fontFamily: "Inter_700Bold", fontSize: 22, color: theme.onBrand, marginTop: 5, fontVariant: ["tabular-nums"] },
   panel: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
-  pending: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,210,125,0.15)", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  feed: { backgroundColor: theme.brandPanel, borderRadius: radius.lg, paddingHorizontal: space(4) },
+  actRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3.5) },
+  actDivider: { borderTopWidth: 1, borderTopColor: theme.brandLine },
+  actIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
 });

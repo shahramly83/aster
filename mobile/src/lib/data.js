@@ -224,6 +224,26 @@ export async function loadAnalytics(companyId) {
   };
 }
 
+// Recent hiring activity for the dashboard feed. Reads the company's activity
+// log (new applicants, scorecards, interviews, offers, hires), newest first.
+export async function loadRecentActivity(companyId, limit = 8) {
+  const { data } = await supabase
+    .from("activity_log")
+    .select("id, type, title, description, candidate_id, job_id, created_at")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data || []).map((a) => ({
+    id: a.id,
+    type: a.type,
+    title: a.title,
+    description: a.description,
+    candidateId: a.candidate_id,
+    jobId: a.job_id,
+    createdAt: a.created_at,
+  }));
+}
+
 // Company-wide pipeline summary for the manager dashboard: total per stage plus
 // a few headline numbers. One lightweight query over applications.
 export async function loadPipelineSummary(companyId) {

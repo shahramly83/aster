@@ -96,6 +96,7 @@ export default function OpenPositionsScreen({ navigation }) {
 
 function RoleCard({ job, onPress }) {
   const total = job.applicantCount || 0;
+  const hired = job.counts.hired || 0;
   const toReview = (job.counts.interviewing || 0) + (job.counts.offer || 0);
   const shortlisted = job.counts.shortlisted || 0;
   // Every card looks the same — translucent white on the blue. The centred card
@@ -127,10 +128,10 @@ function RoleCard({ job, onPress }) {
 
         <View style={{ flex: 1 }} />
 
-        {/* candidate stat */}
-        <Text style={[styles.bigNum, { color: theme.white }]}>{total}</Text>
+        {/* hires + pipeline context */}
+        <Text style={[styles.bigNum, { color: theme.white }]}>{hired}</Text>
         <Text style={[type.small, { color: fgMuted, marginTop: -2 }]}>
-          candidate{total === 1 ? "" : "s"} in pipeline{shortlisted ? ` · ${shortlisted} shortlisted` : ""}
+          hired · {total} in pipeline{shortlisted ? ` · ${shortlisted} shortlisted` : ""}
         </Text>
 
         {/* pipeline bar — keeps its stage colours */}
