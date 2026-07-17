@@ -178,6 +178,9 @@ Deno.serve(async (req) => {
 
     const envelope = {
       emailSubject: `Your offer from ${companyName}`,
+      // A clean one-line email note (the personalised message + terms live in the
+      // letter). Without this, DocuSign fills the email with generic boilerplate.
+      emailBlurb: `You've received an offer for the ${jobTitle} role at ${companyName}. Please open the document to review the terms and sign.`,
       documents: [{ documentBase64: toBase64(html), name: "Offer Letter", fileExtension: "html", documentId: "1" }],
       recipients: {
         signers: [{
