@@ -18771,6 +18771,39 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // Offer response state: 'sent' (awaiting candidate) | 'accepted' | 'declined'.
   const offerStatus = offer?.status || (isHired ? "accepted" : stage === "offer" ? "sent" : null);
   const hasEmail = !!candidate?.parsed?.email;
+
+  // Live offer record from the DB (survives reload) — drives the DocuSign e-sign
+  // status + signed-letter download shown inside the Decision panel.
+  const [offerRec, setOfferRec] = useState(null);
+  const [offerDl, setOfferDl] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (!canPersist || !candidate?.id || !companyId) { setOfferRec(null); return; }
+    dbGetOffer(companyId, candidate.id).then((r) => { if (alive) setOfferRec(r); });
+    return () => { alive = false; };
+  }, [candidate?.id, companyId, canPersist]);
+  const offerSigned = offerRec && (!!offerRec.signed_pdf_path || offerRec.esign_status === "completed");
+  const offerDeclinedRec = offerRec && (offerRec.esign_status === "declined" || offerRec.esign_status === "voided" || offerRec.status === "declined");
+  const offerViewed = offerRec && offerRec.esign_status === "delivered";
+  const offerExpired = offerRec && offerRec.expires_at && !offerSigned && !offerDeclinedRec
+    && new Date(`${offerRec.expires_at}T23:59:59`).getTime() < Date.now();
+  useEffect(() => { if (offerExpired && candidate?.id) dbExpireOffer(candidate.id); }, [offerExpired, candidate?.id]);
+  const offerMeta = offerSigned
+    ? { label: "Signed", bg: "#DCFCE7", color: "#166534", dot: "#22C55E" }
+    : offerExpired
+      ? { label: "Expired", bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" }
+      : offerDeclinedRec
+        ? { label: "Declined", bg: "#FEE2E2", color: "#B42318", dot: "#EF4444" }
+        : offerViewed
+          ? { label: "Viewed", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" }
+          : { label: "Sent for signature", bg: "#EEF0FF", color: "#4F46E5", dot: "#6366F1" };
+  const downloadSignedOffer = async () => {
+    if (!candidate?.id) return;
+    setOfferDl(true);
+    const url = await dbSignedOfferUrl(candidate.id);
+    setOfferDl(false);
+    if (url) window.open(url, "_blank", "noopener");
+  };
   const firstName = candidate?.parsed?.name ? candidate.parsed.name.split(" ")[0] : "the candidate";
 
   // ---- Interview flow: one stepped card, locked one step at a time ----------
@@ -19471,7 +19504,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <div className="mt-2">
                   <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
                     <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Ready to hire {firstName}</p>
-                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>The signed offer is in the Offer panel. Mark {firstName} as hired to complete the process.</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{firstName}'s acceptance is recorded. Mark them as hired to complete the process.</p>
                   </div>
                   <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
                     <Icon name="check" className="w-4 h-4" /> Mark as hired
@@ -19479,24 +19512,53 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </div>
               ) : offerStatus === "sent" ? (
                 <div className="mt-2">
-                  <div className="rounded-xl border p-3" style={{ borderColor: "#BFDBFE", background: "#EFF6FF" }}>
-                    <p className="text-sm font-medium" style={{ color: "#1E40AF" }}>Offer sent to {firstName}</p>
-                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#1E40AF" }}>
+                  <div className="rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                        {offerSigned ? `${firstName} signed the offer` : offerExpired ? "Offer expired" : offerDeclinedRec ? `${firstName} declined the offer` : `Offer sent to ${firstName}`}
+                      </p>
+                      {offer?.emailSent !== false && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1.5 shrink-0" style={{ background: offerMeta.bg, color: offerMeta.color }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: offerMeta.dot }} />{offerMeta.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
                       {offer?.emailSent === false
                         ? "Recorded internally, no email on file. Mark the outcome here once you hear back."
-                        : `${firstName} received the offer letter to review and sign through DocuSign. This updates automatically once they sign, decline, or the offer expires. The signed letter appears in the Offer panel on the right.`}
+                        : offerSigned
+                          ? "The candidate signed the offer letter via DocuSign. Download it below, then mark them as hired to complete the process."
+                          : offerExpired
+                            ? "The offer expired without a signature, so it was declined. Re-send a new offer if you'd like."
+                            : offerDeclinedRec
+                              ? "The candidate declined to sign the offer."
+                              : `${firstName} received the offer letter to review and sign through DocuSign. This updates automatically once they sign, decline, or the offer expires.`}
                     </p>
                   </div>
-                  {offer?.emailSent === false && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <button onClick={() => onRespondOffer && onRespondOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
-                        Mark accepted
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {offerSigned && (
+                      <button onClick={downloadSignedOffer} disabled={offerDl} className="text-sm font-medium rounded-xl px-4 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        {offerDl ? "Preparing…" : "Download signed letter"}
                       </button>
-                      <button onClick={() => onRespondOffer && onRespondOffer(false)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                        Mark declined
+                    )}
+                    {offerSigned && (
+                      <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
+                        <Icon name="check" className="w-4 h-4" /> Mark as hired
                       </button>
-                    </div>
-                  )}
+                    )}
+                    {(offerExpired || offerDeclinedRec) && (
+                      <button onClick={() => setShowOffer(true)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                        Re-send offer
+                      </button>
+                    )}
+                    {offer?.emailSent === false && (
+                      <>
+                        <button onClick={() => onRespondOffer && onRespondOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">Mark accepted</button>
+                        <button onClick={() => onRespondOffer && onRespondOffer(false)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Mark declined</button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <>
@@ -19547,12 +19609,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </>)}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {/* Offer status + signed-letter download. Shown whenever an offer
-                exists for this candidate (the card self-hides if there is none),
-                so the signed letter stays reachable in any later stage. */}
-            {isManagerView && (
-              <OfferStatusCard candidateId={candidate?.id} companyId={companyId} canPersist={canPersist} />
-            )}
             {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
                 time, panel and role at a glance while they read the profile. */}
             {!isManagerView && isBooked && !interviewPast && (
@@ -19757,65 +19813,6 @@ function buildOfferDraft(name, jobTitle, companyName = "") {
     subject: `You've been selected for the ${jobTitle} role`,
     body: `Dear ${first},\n\nFollowing your interview, we're delighted to offer you the ${jobTitle} role${companyName ? ` at ${companyName}` : ""}. The full terms of your offer are set out below.`,
   };
-}
-
-// Offer status + signed-document download, shown on the candidate profile once an
-// offer exists. Reads the offer from the DB (so it survives a reload) and mints a
-// short-lived URL for the signed PDF on demand.
-function OfferStatusCard({ candidateId, companyId, canPersist }) {
-  const [rec, setRec] = useState(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    if (!canPersist || !candidateId || !companyId) return;
-    dbGetOffer(companyId, candidateId).then((r) => { if (alive) setRec(r); });
-    return () => { alive = false; };
-  }, [candidateId, companyId, canPersist]);
-  const signed = rec ? (!!rec.signed_pdf_path || rec.esign_status === "completed") : false;
-  const declined = rec ? (rec.esign_status === "declined" || rec.esign_status === "voided" || rec.status === "declined") : false;
-  const viewed = rec ? rec.esign_status === "delivered" : false;
-  // Past its expiry date and still unsigned: the offer has lapsed. Void + decline
-  // it on the server (idempotent), and show it as expired.
-  const expired = rec && rec.expires_at && !signed && !declined
-    && new Date(`${rec.expires_at}T23:59:59`).getTime() < Date.now();
-  useEffect(() => {
-    if (expired && candidateId) dbExpireOffer(candidateId);
-  }, [expired, candidateId]);
-  if (!rec) return null;
-  const meta = signed
-    ? { label: "Signed", bg: "#DCFCE7", color: "#166534", dot: "#22C55E" }
-    : expired
-      ? { label: "Expired", bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" }
-      : declined
-        ? { label: "Declined", bg: "#FEE2E2", color: "#B42318", dot: "#EF4444" }
-        : viewed
-          ? { label: "Viewed", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" }
-          : { label: "Sent for signature", bg: "#EEF0FF", color: "#4F46E5", dot: "#6366F1" };
-  const download = async () => {
-    setBusy(true);
-    const url = await dbSignedOfferUrl(candidateId);
-    setBusy(false);
-    if (url) window.open(url, "_blank", "noopener");
-  };
-  return (
-    <div className="rounded-2xl tool-card act-shadow px-5 py-4">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>Offer</h2>
-        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1.5" style={{ background: meta.bg, color: meta.color }}>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />{meta.label}
-        </span>
-      </div>
-      <p className="text-xs mb-3" style={{ color: "var(--ink-3)" }}>
-        {signed ? "The candidate signed the offer letter via DocuSign." : declined ? "The candidate declined the offer." : viewed ? "The candidate has opened the offer, not yet signed." : "The offer letter was sent for e-signature via DocuSign."}
-      </p>
-      {signed && (
-        <button onClick={download} disabled={busy} className="w-full text-sm font-medium rounded-lg px-3 py-2 border bg-white hover:bg-neutral-50 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          {busy ? "Preparing…" : "Download signed offer letter"}
-        </button>
-      )}
-    </div>
-  );
 }
 
 const DP_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
