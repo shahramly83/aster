@@ -32,16 +32,15 @@ async function stripe(path: string, params: Record<string, string>, secret: stri
   return { ok: res.ok, data: await res.json() };
 }
 
-// Base per-credit price in each currency's MINOR unit, by credit kind. The plan
-// discount is applied on top (Launch 0% · Scale 10% · Elite/Enterprise 20%). The
-// currency follows the workspace's preferred_currency (MYR default). MYR/SGD are
-// set proportional to the plan prices (~4.07x USD for MYR, ~1.28x for SGD).
-const BASE_MINOR: Record<string, Record<string, number>> = {
-  usd: { resume_screen: 100, applicant_screen: 100, ai_rank: 40, ai_insight: 40 },   // $1.00 · $0.40
-  myr: { resume_screen: 400, applicant_screen: 400, ai_rank: 160, ai_insight: 160 }, // RM4.00 · RM1.60
-  sgd: { resume_screen: 130, applicant_screen: 130, ai_rank: 50, ai_insight: 50 },   // S$1.30 · S$0.50
+// Base per-credit price in USD minor units, by credit kind. The final price is
+// this base times the currency's rate (currency_rates, editable in /admin; USD=1)
+// times the plan discount (Launch 0% · Scale 10% · Elite/Enterprise 20%).
+const BASE_USD: Record<string, number> = {
+  resume_screen: 100, applicant_screen: 100,   // $1.00
+  ai_rank: 40, ai_insight: 40,                 // $0.40
 };
 const CREDIT_KINDS = ["resume_screen", "applicant_screen", "ai_rank", "ai_insight"];
+const DEFAULT_RATE: Record<string, number> = { usd: 1, myr: 4.09, sgd: 1.29 };
 // Plan discount multiplier, keyed by BOTH the DB plan_tier names (free/growth/pro)
 // and the app names (launch/scale/elite), since companies.plan can hold either.
 const DISCOUNT_MULT: Record<string, number> = {
@@ -104,10 +103,16 @@ Deno.serve(async (req) => {
     // Charge in the workspace's preferred currency (MYR default), server-side.
     const cur = ["usd", "myr", "sgd"].includes(String(company?.preferred_currency || "").toLowerCase())
       ? String(company.preferred_currency).toLowerCase() : "myr";
-    const rate = BASE_MINOR[cur];
+    // Currency rate from the admin-editable table (falls back to defaults).
+    const { data: rateRows } = await admin.from("currency_rates").select("currency, rate");
+    const rates: Record<string, number> = { ...DEFAULT_RATE };
+    for (const r of rateRows || []) {
+      if (r?.currency && Number(r.rate) > 0) rates[String(r.currency).toLowerCase()] = Number(r.rate);
+    }
+    const rate = rates[cur] ?? 1;
     // Price every basket line server-side, so a crafted request can't cheat.
     const priced = basket.map(({ kind, qty }) => {
-      const unit = Math.max(1, Math.round(rate[kind] * mult));
+      const unit = Math.max(1, Math.round(BASE_USD[kind] * rate * mult));
       return { kind, qty, unit, cents: unit * qty };
     });
 

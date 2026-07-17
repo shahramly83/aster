@@ -98,6 +98,7 @@ const SECTIONS = [
   { key: "subscriptions", label: "Subscriptions",    icon: "card",      roles: ["super", "billing"] },
   { key: "usage",         label: "Usage monitoring", icon: "chart",     roles: ["super", "support", "billing"] },
   { key: "support",       label: "Support logs",     icon: "headset",   roles: ["super", "support"] },
+  { key: "rates",         label: "Currency rates",   icon: "card",      roles: ["super", "billing"] },
   { key: "flags",         label: "Feature flags",    icon: "flag",      roles: ["super"] },
   { key: "booking",       label: "Booking dates",    icon: "calendar",  roles: ["super", "support"] },
   { key: "email_templates", label: "Email templates", icon: "mail",     roles: ["super", "support"] },
@@ -657,6 +658,88 @@ const PLATFORM_TOKEN_SAMPLES = {
   amount: "$49", applicant_count: "12", job_count: "3",
 };
 const fillPlatformTokens = (text) => (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => PLATFORM_TOKEN_SAMPLES[k] ?? `{{${k}}}`);
+
+// Currency rates: the FX multiplier per currency (USD = 1) that prices credit
+// top-ups (USD base × rate × plan discount). Reads currency_rates, writes via the
+// admin-only set_currency_rate RPC. Plan prices are set in Stripe, not here.
+function CurrencyRates({ role, audit }) {
+  const editable = role === "super" || role === "billing";
+  const [rates, setRates] = useState({ usd: 1, myr: 4.09, sgd: 1.29 });
+  const [draft, setDraft] = useState({ myr: "4.09", sgd: "1.29" });
+  const [saving, setSaving] = useState("");
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (!hasSupabase) return;
+    let active = true;
+    supabase.from("currency_rates").select("currency, rate").then(({ data }) => {
+      if (!active || !Array.isArray(data)) return;
+      const next = { usd: 1, myr: 4.09, sgd: 1.29 };
+      for (const r of data) { const c = String(r.currency || "").toLowerCase(); if (next[c] != null) next[c] = Number(r.rate); }
+      setRates(next);
+      setDraft({ myr: String(next.myr), sgd: String(next.sgd) });
+    });
+    return () => { active = false; };
+  }, []);
+
+  const saveOne = async (cur) => {
+    const v = Number(draft[cur]);
+    setErr(""); setMsg("");
+    if (!Number.isFinite(v) || v <= 0) { setErr("Enter a rate greater than 0."); return; }
+    setSaving(cur);
+    if (hasSupabase) {
+      const { error } = await supabase.rpc("set_currency_rate", { p_currency: cur, p_rate: v });
+      if (error) { setSaving(""); setErr(error.message || "Could not save."); return; }
+    }
+    setSaving("");
+    setRates((r) => ({ ...r, [cur]: v }));
+    audit("Set currency rate", `${cur.toUpperCase()} = ${v}`);
+    setMsg(`${cur.toUpperCase()} rate saved. New credit purchases price at this rate.`);
+  };
+
+  const sym = { usd: "$", myr: "RM", sgd: "S$" };
+  const preview = (usd) => `${sym.usd}${usd.toFixed(2)} · RM${(usd * rates.myr).toFixed(2)} · S$${(usd * rates.sgd).toFixed(2)}`;
+
+  return (
+    <div>
+      <SectionHead title="Currency rates" desc="FX rate per currency (USD = 1). Credit top-up prices are the USD base times this rate. Plan prices are set in Stripe." />
+      <PrivacyNote>Editable by <strong>Super</strong> and <strong>Billing</strong> admins. Changes apply to new credit purchases immediately, and every change is audited.</PrivacyNote>
+      <div className="grid gap-3 max-w-lg">
+        {[{ c: "usd", label: "US Dollar", fixed: true }, { c: "myr", label: "Malaysian Ringgit" }, { c: "sgd", label: "Singapore Dollar" }].map(({ c, label, fixed }) => (
+          <Card key={c} pad="p-4 sm:p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-neutral-900">{label} <span className="text-neutral-400 font-normal">({c.toUpperCase()})</span></p>
+                <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>1 USD = {fixed ? "1.00" : Number(rates[c]).toFixed(2)} {c.toUpperCase()}</p>
+              </div>
+              {fixed ? (
+                <span className="text-sm text-neutral-400">Base</span>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input type="number" step="0.01" min="0" value={draft[c]} disabled={!editable}
+                    onChange={(e) => setDraft((d) => ({ ...d, [c]: e.target.value }))}
+                    className="w-24 rounded-lg border px-2.5 py-1.5 text-sm text-right bg-white disabled:opacity-60" style={{ borderColor: "var(--line-strong)" }} />
+                  <button onClick={() => saveOne(c)} disabled={!editable || saving === c || draft[c] === String(rates[c])}
+                    className="text-sm font-semibold px-3.5 py-1.5 rounded-lg text-white grad disabled:opacity-40">{saving === c ? "Saving…" : "Save"}</button>
+                </div>
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+      {err && <p className="text-sm mt-3" style={{ color: "#B91C1C" }}>{err}</p>}
+      {msg && <p className="text-sm mt-3" style={{ color: "#16A34A" }}>{msg}</p>}
+      <Card className="mt-4" pad="p-4 sm:p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)" }}>Resulting credit prices (before plan discount)</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm"><span style={{ color: "var(--ink-2)" }}>Resume / Applicant screening</span><span className="tnum font-medium" style={{ color: "var(--ink)" }}>{preview(1)}</span></div>
+          <div className="flex items-center justify-between text-sm"><span style={{ color: "var(--ink-2)" }}>AI Rank / AI Insight</span><span className="tnum font-medium" style={{ color: "var(--ink)" }}>{preview(0.4)}</span></div>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 // Admin editor for the Tier 1 (platform) templates above. Reads any saved
 // overrides for the platform scope, writes via the admin-only RPC.
@@ -1262,6 +1345,7 @@ export default function AdminPortal() {
       case "subscriptions": screen = <Subscriptions role={role} companies={companies} subs={subs} setSubs={setSubs} audit={logAudit} onAction={runAdminAction} />; break;
       case "usage":         screen = <Usage role={role} companies={companies} usage={usage} />; break;
       case "support":       screen = <Support role={role} companies={companies} tickets={tickets} onResolve={resolveTicket} onReply={replyToTicket} />; break;
+      case "rates":         screen = <CurrencyRates role={role} audit={logAudit} />; break;
       case "flags":         screen = <Flags role={role} flags={flags} setFlags={setFlags} audit={logAudit} onToggle={toggleFlag} />; break;
       case "booking":       screen = <BookingDates role={role} blocked={blocked} setBlocked={setBlocked} audit={logAudit} />; break;
       case "email_templates": screen = <EmailTemplatesAdmin role={role} audit={logAudit} />; break;

@@ -9800,12 +9800,20 @@ const CREDIT_KINDS = [
   { k: "ai_rank", label: "AI Rank", sub: "Rank & shortlist" },
   { k: "ai_insight", label: "AI Insight", sub: "Candidate deep-dive" },
 ];
-const CREDIT_BASE = {
-  usd: { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4 },
-  myr: { resume_screen: 4, applicant_screen: 4, ai_rank: 1.6, ai_insight: 1.6 },
-  sgd: { resume_screen: 1.3, applicant_screen: 1.3, ai_rank: 0.5, ai_insight: 0.5 },
-};
+// Base per-credit price in USD; the shown price is this times the currency's rate
+// (currency_rates, editable in /admin) times the plan discount. buy-credits does
+// the same server-side, so display and charge agree.
+const CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4 };
 const CUR_SYMBOL = { usd: "$", myr: "RM", sgd: "S$" };
+// Editable currency rates (USD = 1), mirrored here and refreshed from the DB at
+// app load so any Buy-credits button prices in the workspace currency.
+let currencyRates = { usd: 1, myr: 4.09, sgd: 1.29 };
+function setCurrencyRates(rows) {
+  for (const r of rows || []) {
+    const c = String(r?.currency || "").toLowerCase();
+    if (["usd", "myr", "sgd"].includes(c) && Number(r.rate) > 0) currencyRates[c] = Number(r.rate);
+  }
+}
 
 function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen", pickKind = false, currency = null }) {
   const cur = ["usd", "myr", "sgd"].includes(currency) ? currency : uiCurrency;
@@ -9825,7 +9833,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   // Basket lines with quantities, priced. In single mode it's just the one kind.
   const lines = (pickKind ? CREDIT_KINDS : [meta]).map((c) => {
     const q = pickKind ? Math.max(0, Math.floor(Number(qtys[c.k]) || 0)) : Math.max(0, Math.floor(Number(qty) || 0));
-    const base = CREDIT_BASE[cur][c.k] ?? 1;
+    const base = (CREDIT_USD[c.k] ?? 1) * (currencyRates[cur] || 1);
     return { ...c, q, unit: unitOf(base), amount: unitOf(base) * q };
   });
   const items = lines.filter((l) => l.q > 0);
@@ -22117,6 +22125,10 @@ export default function ResumeAIPreview() {
       if (active && Array.isArray(data) && data.length) {
         setPlatformFlags((prev) => { const next = { ...prev }; data.forEach((f) => { next[f.key] = !!f.enabled; }); return next; });
       }
+    });
+    // Editable currency rates (drive credit top-up prices), set in /admin.
+    supabase.from("currency_rates").select("currency, rate").then(({ data }) => {
+      if (active && Array.isArray(data)) setCurrencyRates(data);
     });
     return () => { active = false; };
   }, []);
