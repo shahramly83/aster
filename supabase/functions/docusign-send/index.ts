@@ -35,9 +35,24 @@ type Offer = {
   employment_type: string | null; start_date: string | null; expires_at: string | null; offer_job_title: string | null;
 };
 
+// Fetch the company logo and inline it as a data URI so it renders reliably in
+// DocuSign's PDF (external image URLs are unreliable in the renderer).
+async function logoDataUri(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const ct = res.headers.get("content-type") || "image/png";
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    let bin = "";
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return `data:${ct};base64,${btoa(bin)}`;
+  } catch { return null; }
+}
+
 // The offer letter as HTML. The /sig1/ and /date1/ anchors are where DocuSign
 // drops the signature and date fields (hidden white text so they don't show).
-function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: string; jobTitle: string }): string {
+function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: string; jobTitle: string; logo: string | null; addressLine: string; dateStr: string }): string {
   const rows: [string, string][] = [["Role", opts.jobTitle]];
   if (o.base_salary != null) {
     const sym = CURRENCY_SYMBOL[(o.salary_currency || "myr").toLowerCase()] || "";
@@ -48,15 +63,24 @@ function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: s
   if (o.expires_at) rows.push(["Offer valid until", fmtDate(o.expires_at)]);
   const trs = rows.map(([k, v]) =>
     `<tr><td style="padding:8px 24px 8px 0;color:#6b7280;">${esc(k)}</td><td style="padding:8px 0;font-weight:600;color:#111827;">${esc(v)}</td></tr>`).join("");
+  const brand = opts.logo
+    ? `<img src="${opts.logo}" alt="${esc(opts.companyName)}" style="height:44px;max-width:220px;object-fit:contain;display:block;">`
+    : `<div style="font-size:22px;font-weight:700;color:#111827;">${esc(opts.companyName)}</div>`;
+  const addr = opts.addressLine ? `<div class="muted" style="margin-top:6px;">${esc(opts.addressLine)}</div>` : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     body{font-family:Arial,Helvetica,sans-serif;color:#111827;line-height:1.6;padding:48px;max-width:640px;margin:0 auto;}
-    h1{font-size:20px;margin:0 0 4px;} .muted{color:#6b7280;font-size:13px;}
+    .muted{color:#6b7280;font-size:13px;}
+    .head{border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:24px;}
     table{border-collapse:collapse;margin:20px 0;font-size:14px;}
     .sigline{margin-top:56px;border-top:1px solid #111827;width:280px;padding-top:6px;font-size:13px;color:#6b7280;}
     .anchor{color:#ffffff;font-size:1px;}
   </style></head><body>
-    <h1>${esc(opts.companyName)}</h1>
-    <p class="muted">Offer of employment</p>
+    <div class="head">
+      ${brand}
+      ${addr}
+    </div>
+    <div class="muted" style="text-align:right;margin-bottom:8px;">${esc(opts.dateStr)}</div>
+    <p style="font-weight:600;font-size:15px;margin:0 0 12px;">Offer of employment</p>
     <p>Dear ${esc(opts.candidateName)},</p>
     <p>Following your interview, we are pleased to offer you the <strong>${esc(opts.jobTitle)}</strong> role at ${esc(opts.companyName)}, on the terms below.</p>
     <table>${trs}</table>
@@ -102,8 +126,18 @@ Deno.serve(async (req) => {
     const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", offer.candidate_id).maybeSingle();
     if (!cand?.email) return json({ error: "candidate has no email" }, 422);
 
-    const { data: comp } = await admin.from("companies").select("name").eq("id", companyId).maybeSingle();
+    const { data: comp } = await admin.from("companies")
+      .select("name, logo_url, address, address_street, address_city, address_state, address_postcode, address_country")
+      .eq("id", companyId).maybeSingle();
     const companyName = comp?.name || "the hiring team";
+    const logo = await logoDataUri(comp?.logo_url || null);
+    const addressLine = [
+      comp?.address_street || comp?.address,
+      comp?.address_city,
+      [comp?.address_state, comp?.address_postcode].filter(Boolean).join(" "),
+      comp?.address_country,
+    ].filter(Boolean).join(", ");
+    const dateStr = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
     let jobTitle = offer.offer_job_title || "the role";
     if (!offer.offer_job_title) {
       const { data: app } = await admin.from("applications").select("jobs(title)")
@@ -112,7 +146,7 @@ Deno.serve(async (req) => {
       jobTitle = (app?.[0] as { jobs?: { title?: string } })?.jobs?.title || jobTitle;
     }
 
-    const html = offerLetterHtml(offer as Offer, { companyName, candidateName: cand.full_name || "there", jobTitle });
+    const html = offerLetterHtml(offer as Offer, { companyName, candidateName: cand.full_name || "there", jobTitle, logo, addressLine, dateStr });
 
     const { token: accessToken, basePath } = await dsAccessToken();
     const accountId = Deno.env.get("DOCUSIGN_ACCOUNT_ID")!;
