@@ -221,8 +221,7 @@ async function stripePortal() {
       return reason || "Couldn't open the billing portal. Try again.";
     }
     if (!data?.url) return data?.detail || data?.error || "Couldn't open the billing portal.";
-    window.location.href = data.url;
-    return null;
+    return { url: data.url };   // caller opens it in a new tab
   } catch (e) {
     console.error("portal", e);
     return "Couldn't open the billing portal. Try again.";
@@ -768,9 +767,10 @@ const BRAND_STYLES = `
 /* Resume upload dropzone: a soft brand glow that breathes, inviting the drop. */
 @keyframes uploadGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(11,42,224,0), 0 8px 22px -12px rgba(11,42,224,.20); border-color: var(--line-strong); } 50% { box-shadow: 0 0 0 4px rgba(11,42,224,.08), 0 12px 30px -10px rgba(11,42,224,.42); border-color: var(--brand); } }
 .upload-glow { animation: uploadGlow 2.4s ease-in-out infinite; }
-/* Tab attention glow: a soft brand pulse to flag a fresh status on a tab. */
-@keyframes tabGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(11,42,224,0); } 50% { box-shadow: 0 0 0 4px rgba(11,42,224,.22); } }
-.tab-glow { animation: tabGlow 1.6s ease-in-out infinite; }
+/* Tab attention glow: a brief brand ripple that plays a couple of times when a
+   fresh status arrives, then stops (re-triggered by re-adding the class). */
+@keyframes tabGlow { 0% { box-shadow: 0 0 0 0 rgba(11,42,224,.45); } 70% { box-shadow: 0 0 0 9px rgba(11,42,224,0); } 100% { box-shadow: 0 0 0 0 rgba(11,42,224,0); } }
+.tab-glow { animation: tabGlow 0.9s ease-out 2; }
 @media (prefers-reduced-motion: reduce) { .tour-pulse, .tour-pop, .tour-ping, .upload-glow, .tab-glow { animation: none !important; } }
 /* Hiring-tool surface: a subtle brand tint that sets the interview workflow
    (questions, scheduling, scorecards, decision) apart from the candidate's own
@@ -16198,10 +16198,17 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // which is authoritative for what was charged, in which currency, with what tax.
   const openPortal = async () => {
     if (!hasSupabase) { setMsg("Sign in to a live workspace to manage billing."); return; }
+    // Open the tab synchronously on click so the browser keeps it tied to the
+    // gesture (a tab opened after the await would be popup-blocked).
+    const tab = typeof window !== "undefined" ? window.open("", "_blank") : null;
     setPortalBusy(true);
     setMsg("Opening the billing portal…");
-    const err = await stripePortal();
-    if (err) { setMsg(err); setPortalBusy(false); }
+    const res = await stripePortal();
+    setPortalBusy(false);
+    if (typeof res === "string") { if (tab) tab.close(); setMsg(res); return; }
+    setMsg("");
+    if (tab) { try { tab.opener = null; } catch { /* noop */ } tab.location = res.url; }
+    else window.open(res.url, "_blank", "noopener");
   };
 
   const choosePlan = (p) => {
@@ -16272,7 +16279,9 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                 <p className="text-sm font-semibold text-neutral-900 tnum">
                   {upcoming
                     ? formatMoney(upcoming.amount, upcoming.currency)
-                    : formatMoney(savedInCur.amount, savedInCur.currency)}
+                    : (hasStripeCustomer && invoicesLoading)
+                      ? <span style={{ color: "var(--ink-3)" }}>…</span>
+                      : formatMoney(savedInCur.amount, savedInCur.currency)}
                 </p>
                 {renewDate && <p className="text-xs text-neutral-500">{renewDate}</p>}
                 {upcoming?.credit > 0 && (
@@ -18161,47 +18170,23 @@ function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true, bar
 // (no shared Save bar) so the change is obviously applied. Governs fresh checkouts
 // and credit top-ups; a live subscription keeps the currency it started with, which
 // the copy makes explicit so no one expects a mid-subscription switch.
-function BillingCurrencyCard({ currency, onChange, canPersist }) {
-  // Draft the choice; only persist on an explicit Save (no auto-save).
-  const [draft, setDraft] = useState(currency);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [err, setErr] = useState(null);
-  useEffect(() => { setDraft(currency); }, [currency]);
-  const dirty = draft !== currency;
-  const save = async () => {
-    if (!dirty) return;
-    setErr(null); setSaved(false);
-    if (!canPersist) { onChange(draft); return; }
-    setSaving(true);
-    const res = await dbSetCompanyCurrency(draft);
-    setSaving(false);
-    if (res?.ok) { onChange(draft); setSaved(true); setTimeout(() => setSaved(false), 2500); }
-    else { setErr(res?.error || "Couldn't save. Try again."); }
-  };
+// Currency pills only. The choice is drafted in SettingsScreen and persisted by
+// the page's global Save-changes bar, so there's no per-card save button here.
+function BillingCurrencyCard({ value, onChange }) {
   return (
-    <div className="flex flex-col items-start gap-3">
-      {/* Inline pills (not a popover): the Settings accordion is overflow-hidden,
-          which would clip an absolute dropdown so only the selected code showed. */}
-      <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
-        {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
-          const on = draft === c.key;
-          return (
-            <button key={c.key} type="button" onClick={() => { setDraft(c.key); setErr(null); setSaved(false); }}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors inline-flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
-              style={on ? { background: "var(--ink)" } : undefined}>
-              <CurrencyFlag code={c.key} /> {c.label}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={save} disabled={!dirty || saving}
-          className="text-sm font-medium rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 transition-opacity disabled:opacity-40">
-          {saving ? "Saving…" : "Save changes"}
-        </button>
-        <span className="text-xs" style={{ color: err ? "#B42318" : saved ? "#166534" : "var(--ink-3)" }}>{err ? err : saved ? "Saved." : ""}</span>
-      </div>
+    // Inline pills (not a popover): the Settings accordion is overflow-hidden,
+    // which would clip an absolute dropdown so only the selected code showed.
+    <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+      {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
+        const on = value === c.key;
+        return (
+          <button key={c.key} type="button" onClick={() => onChange(c.key)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors inline-flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
+            style={on ? { background: "var(--ink)" } : undefined}>
+            <CurrencyFlag code={c.key} /> {c.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -18219,14 +18204,23 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
 
   const cardClass = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
 
-  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase);
+  // Billing currency drafts here and persists with the page's global Save bar.
+  const [dCurrency, setDCurrency] = useState(preferredCurrency);
+  useEffect(() => { setDCurrency(preferredCurrency); }, [preferredCurrency]);
+
+  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency;
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setConnectErr(null);
     if (hasSupabase) {
       const err = await dbUpdateMyProfile({ notifyPrefs: dNotif });
       if (err) { setSaving(false); setConnectErr(err); return; }
+      if (dCurrency !== preferredCurrency) {
+        const res = await dbSetCompanyCurrency(dCurrency);
+        if (!res?.ok) { setSaving(false); setConnectErr(res?.error || "Couldn't save the billing currency."); return; }
+      }
     }
+    if (dCurrency !== preferredCurrency) setPreferredCurrency(dCurrency);
     setProfile?.({ ...(profile || {}), notifications: dNotif });
     setSaving(false);
     setSavedMsg("All changes saved.");
@@ -18234,6 +18228,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
 
   const handleCancel = () => {
     setDNotif(notifBase);
+    setDCurrency(preferredCurrency);
     setSavedMsg(null);
   };
 
@@ -18266,7 +18261,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
 
           {isOwner(profile?.role) && (
             <SettingsSection icon="card" title="Billing currency" desc="The currency your subscription and credit purchases are billed in">
-              <BillingCurrencyCard currency={preferredCurrency} onChange={setPreferredCurrency} canPersist={canPersist} />
+              <BillingCurrencyCard value={dCurrency} onChange={(c) => { setDCurrency(c); setSavedMsg(null); }} />
             </SettingsSection>
           )}
 
@@ -18851,13 +18846,24 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     setOfferDl(false);
     if (url) window.open(url, "_blank", "noopener");
   };
-  // Glow the Interview tab when the offer reaches a fresh result (signed /
-  // declined / expired) the manager hasn't opened the Interview tab to see yet.
-  const [seenInterviewTab, setSeenInterviewTab] = useState(false);
-  useEffect(() => { setSeenInterviewTab(false); }, [candidate?.id]);
-  useEffect(() => { if (profileTab === "interview") setSeenInterviewTab(true); }, [profileTab]);
+  // Glow the Interview tab ONCE when the offer reaches a fresh result (signed /
+  // declined / expired). It plays a brief ripple then stops; opening the Interview
+  // tab marks the status seen; a genuinely new status later plays it again.
   const offerResult = offerSigned || offerDeclinedRec || offerExpired;
-  const interviewGlow = !!contextJobId && profileTab !== "interview" && !seenInterviewTab && !!offerResult;
+  const statusSignal = offerRec ? `${offerRec.esign_status || ""}|${offerRec.status || ""}|${offerRec.signed_pdf_path ? "s" : ""}` : "";
+  const [glowPulse, setGlowPulse] = useState(false);
+  const seenStatusRef = useRef(undefined);
+  // Baseline per candidate: whatever the status is on open counts as already seen.
+  useEffect(() => { seenStatusRef.current = statusSignal; setGlowPulse(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candidate?.id]);
+  useEffect(() => {
+    if (profileTab === "interview") { seenStatusRef.current = statusSignal; setGlowPulse(false); return; }
+    if (seenStatusRef.current !== undefined && statusSignal && statusSignal !== seenStatusRef.current && offerResult) {
+      setGlowPulse(true);
+      const t = setTimeout(() => setGlowPulse(false), 1900);   // play once, then off
+      return () => clearTimeout(t);
+    }
+  }, [statusSignal, profileTab, offerResult]);
+  const interviewGlow = !!contextJobId && profileTab !== "interview" && glowPulse;
   const firstName = candidate?.parsed?.name ? candidate.parsed.name.split(" ")[0] : "the candidate";
 
   // ---- Interview flow: one stepped card, locked one step at a time ----------
