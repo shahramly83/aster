@@ -2627,7 +2627,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const compareGroups = [
     { group: "Jobs & team", rows: [
       { label: "Active job postings", free: "1", starter: "5", pro: "10", ent: "Unlimited" },
-      { label: "Seats", free: "1", starter: "30", pro: "100", ent: "Unlimited" },
+      { label: "Team members (seats)", free: "Unlimited", starter: "Unlimited", pro: "Unlimited", ent: "Unlimited" },
     ]},
     { group: "AI screening", rows: [
       { label: "Applicant screening", free: "100 / mo", starter: "500 / mo", pro: "1,000 / mo", ent: "Unlimited" },
