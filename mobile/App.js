@@ -1,7 +1,7 @@
 import "react-native-url-polyfill/auto";
 import React from "react";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -45,17 +45,32 @@ function tabIcon(name) {
   );
 }
 
-const screenOptions = {
-  headerShown: false,
-  tabBarActiveTintColor: theme.brand,
-  tabBarInactiveTintColor: theme.ink4,
-  tabBarLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
-  tabBarStyle: { borderTopColor: theme.line, backgroundColor: theme.card, height: 60, paddingTop: 6, paddingBottom: 8 },
-  tabBarHideOnKeyboard: true,
-};
+// Tab bar options that respect the device's bottom safe-area inset, so the bar
+// sits ABOVE the Android system navigation bar (3-button or gesture) and the
+// tabs are always tappable. Fixing height without this made the tabs collide
+// with the system bar.
+function useTabScreenOptions() {
+  const insets = useSafeAreaInsets();
+  const bottom = Math.max(insets.bottom, 8);
+  return {
+    headerShown: false,
+    tabBarActiveTintColor: theme.brand,
+    tabBarInactiveTintColor: theme.ink4,
+    tabBarLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
+    tabBarStyle: {
+      borderTopColor: theme.line,
+      backgroundColor: theme.card,
+      height: 58 + bottom,
+      paddingTop: 6,
+      paddingBottom: bottom,
+    },
+    tabBarHideOnKeyboard: true,
+  };
+}
 
 // Managers get a Pipeline dashboard as home + all-roles Positions.
 function ManagerTabs() {
+  const screenOptions = useTabScreenOptions();
   return (
     <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: "Pipeline", tabBarIcon: tabIcon("bar-chart-2") }} />
@@ -68,6 +83,7 @@ function ManagerTabs() {
 
 // Interviewers get the focused least-privilege experience.
 function InterviewerTabs() {
+  const screenOptions = useTabScreenOptions();
   return (
     <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today", tabBarIcon: tabIcon("calendar") }} />
