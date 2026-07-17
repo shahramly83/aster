@@ -7396,6 +7396,10 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false); // email-confirmation pending
+  // Billing currency for this workspace. Seeded from the geo/pricing-table guess
+  // handed in as a prop, but editable here so a visitor whose timezone guessed
+  // wrong (or who wants a different currency) is never stuck on it.
+  const [cur, setCur] = useState(["usd", "myr", "sgd"].includes(signupCurrency) ? signupCurrency : "myr");
 
   const pwScore = (() => {
     if (!password) return 0;
@@ -7431,12 +7435,12 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     if (!p) return prices == null ? "…" : null;
     // Show the amount in the currency picked on the pricing table, falling back to
     // the Price's base currency when that currency isn't configured on the Price.
-    const hasCur = p.currencies && p.currencies[signupCurrency] != null;
-    const amt = hasCur ? p.currencies[signupCurrency] : p.amount;
-    const cur = hasCur ? signupCurrency : p.currency;
+    const hasCur = p.currencies && p.currencies[cur] != null;
+    const amt = hasCur ? p.currencies[cur] : p.amount;
+    const shownCur = hasCur ? cur : p.currency;
     return p.interval === "year"
-      ? `${formatMoney(Math.round(amt / 12), cur)}/mo · billed yearly`
-      : `${formatMoney(amt, cur)}/month`;
+      ? `${formatMoney(Math.round(amt / 12), shownCur)}/mo · billed yearly`
+      : `${formatMoney(amt, shownCur)}/month`;
   };
   const shownPrice = signupTrial ? priceOf("scale") : priceOf(signupPlan);
 
@@ -7543,7 +7547,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
     // Persist the currency picked on the pricing table as the workspace's billing
     // currency, so the first checkout and every top-up bill in it (and Settings
     // shows it). Best-effort: a failure just leaves the RM default.
-    if (signupCurrency && signupCurrency !== "myr") { try { await dbSetCompanyCurrency(signupCurrency); } catch { /* keep default */ } }
+    if (cur && cur !== "myr") { try { await dbSetCompanyCurrency(cur); } catch { /* keep default */ } }
 
     setPlanCycle && setPlanCycle(signupCycle);
     const sess = await loadCustomerSession(data.user.id, em);
@@ -7689,7 +7693,10 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
                 </p>
               </div>
             </div>
-            <button onClick={goToPricing} className="text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-neutral-50" style={{ color: "var(--ink)", border: "1px solid var(--line-strong)" }}>Change</button>
+            <div className="flex items-center gap-2 shrink-0">
+              {!isEnterprise && <CurrencyDropdown value={cur} onChange={setCur} />}
+              <button onClick={goToPricing} className="text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors hover:bg-neutral-50" style={{ color: "var(--ink)", border: "1px solid var(--line-strong)" }}>Change</button>
+            </div>
           </div>
 
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSignUp(); }}>
