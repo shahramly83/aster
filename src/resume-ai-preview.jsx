@@ -18784,9 +18784,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   useEffect(() => {
     let alive = true;
     if (!canPersist || !candidate?.id || !companyId) { setOfferRec(null); return; }
-    dbGetOffer(companyId, candidate.id).then((r) => { if (alive) setOfferRec(r); });
-    return () => { alive = false; };
-  }, [candidate?.id, companyId, canPersist]);
+    const load = () => dbGetOffer(companyId, candidate.id).then((r) => { if (alive) setOfferRec(r); });
+    load();
+    // While the candidate is in the Offer stage, poll so a live sign / decline /
+    // expiry updates the status (and glows the Interview tab) without a refresh.
+    const id = stage === "offer" ? setInterval(load, 20000) : null;
+    return () => { alive = false; if (id) clearInterval(id); };
+  }, [candidate?.id, companyId, canPersist, stage]);
   const offerSigned = offerRec && (!!offerRec.signed_pdf_path || offerRec.esign_status === "completed");
   const offerDeclinedRec = offerRec && (offerRec.esign_status === "declined" || offerRec.esign_status === "voided" || offerRec.status === "declined");
   const offerViewed = offerRec && offerRec.esign_status === "delivered";
