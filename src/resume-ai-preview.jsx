@@ -16089,8 +16089,10 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
   // What the saved plan actually renews at. Absent for free/enterprise, and for
   // a plan whose Stripe price id hasn't been configured yet.
   const savedPrice = priceFor(plan, planCycle);
-  const renewCopy = savedPrice
-    ? `${formatMoney(savedPrice.amount, savedPrice.currency)}/${savedPrice.interval === "year" ? "year" : "month"}`
+  // Show the renewal in the display/workspace currency, not the USD headline.
+  const savedInCur = savedPrice ? inCur(savedPrice) : null;
+  const renewCopy = savedInCur
+    ? `${formatMoney(savedInCur.amount, savedInCur.currency)}/${savedPrice.interval === "year" ? "year" : "month"}`
     : "";
 
   const PLANS = [
@@ -16259,7 +16261,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                 <p className="text-sm font-semibold text-neutral-900 tnum">
                   {upcoming
                     ? formatMoney(upcoming.amount, upcoming.currency)
-                    : formatMoney(savedPrice.amount, savedPrice.currency)}
+                    : formatMoney(savedInCur.amount, savedInCur.currency)}
                 </p>
                 {renewDate && <p className="text-xs text-neutral-500">{renewDate}</p>}
                 {upcoming?.credit > 0 && (
@@ -23738,7 +23740,10 @@ export default function ResumeAIPreview() {
             jobs={jobs}
             interviewers={interviewers}
             onPreviewBooking={handlePreviewBooking}
-            contextJobId={viewCandidateJobId}
+            // When opened without an explicit job (e.g. Dashboard → Hires), fall
+            // back to the candidate's booked job so the Profile | Interview tabs and
+            // interview history still show for hired/interviewed candidates.
+            contextJobId={viewCandidateJobId || (activeCandidate ? (bookings[activeCandidate.id]?.jobId ?? bookings[activeCandidate.id]?.request?.jobId ?? null) : null)}
             initialStage={viewCandidateStage}
             // Bookings are stored per candidate; only surface it under the role it
             // belongs to, so the same candidate viewed under a different position
