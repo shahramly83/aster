@@ -21,12 +21,13 @@ export function AsterMark({ size = 48, color = theme.brand }) {
   );
 }
 
-// Full lockup: mark + "ASTER" wordmark. Width-driven; height derives from the
-// artwork aspect ratio (~427 wide x 94 tall for the combined bbox 205->617,250->342).
+// Full lockup: mark + "ASTER" wordmark. viewBox matches the web BrandLogo exactly
+// (vbX = markLeft - 2 = 203.3; width = wordRight + 2 - vbX = 415.4; height = mark
+// height 91.9) so nothing is clipped. Height derives from the aspect ratio.
 export function AsterLogo({ width = 132, color = theme.brand }) {
-  const ratio = 92 / 412; // bbox: x[205.3,616.7]=411.4, y[250.2,342.1]=91.9
+  const ratio = 91.9 / 415.4;
   return (
-    <Svg width={width} height={width * ratio} viewBox="205 250 412 92">
+    <Svg width={width} height={width * ratio} viewBox="203.3 250.2 415.4 91.9">
       <Path d={MARK_PATH} fill={color} />
       <Path d={WORD_PATH} fill={color} />
     </Svg>
