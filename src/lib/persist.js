@@ -317,13 +317,27 @@ export async function dbSetAttendance(companyId, candidateId, attendedIds = []) 
 
 // Persist an offer sent to a candidate and return its public token, so the app
 // can email the candidate a link to /offer/<token> to accept or decline.
-export async function dbCreateOffer(companyId, { candidateId, jobId = null }) {
+export async function dbCreateOffer(companyId, { candidateId, jobId = null, terms = null }) {
   if (!hasSupabase || !companyId || !candidateId) return null;
-  const { data, error } = await supabase
-    .from("offers")
-    .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" })
-    .select("token")
-    .single();
+  const row = { company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" };
+  if (terms) {
+    // Only send the columns that exist (0103). A pre-0103 workspace ignores the
+    // extra keys via the fallback insert below.
+    if (terms.baseSalary != null && terms.baseSalary !== "") row.base_salary = Number(terms.baseSalary);
+    if (terms.currency) row.salary_currency = terms.currency;
+    if (terms.employmentType) row.employment_type = terms.employmentType;
+    if (terms.startDate) row.start_date = terms.startDate;
+    if (terms.expiresAt) row.expires_at = terms.expiresAt;
+    if (terms.jobTitle) row.offer_job_title = terms.jobTitle;
+  }
+  let { data, error } = await supabase.from("offers").insert(row).select("token").single();
+  // 0103 not applied yet: retry with just the base columns so the offer still sends.
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data, error } = await supabase
+      .from("offers")
+      .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" })
+      .select("token").single());
+  }
   if (error) { console.error("dbCreateOffer", error.message); return null; }
   return data?.token || null;
 }

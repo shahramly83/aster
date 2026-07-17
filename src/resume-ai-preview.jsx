@@ -7309,7 +7309,28 @@ function OfferScreen({ data, done, onRespond }) {
         ) : (
           <>
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>You've received an offer</h1>
-            <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{company} has offered you the <strong>{jobTitle}</strong> role. Let them know your decision below.</p>
+            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>{company} has offered you the <strong>{jobTitle}</strong> role. Let them know your decision below.</p>
+            {(() => {
+              const sym = { myr: "RM", usd: "$", sgd: "S$" }[(data.salary_currency || "").toLowerCase()] || "";
+              const empLabel = { full_time: "Full-time", part_time: "Part-time", contract: "Contract", internship: "Internship" }[data.employment_type] || null;
+              const fmtD = (d) => { if (!d) return null; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
+              const rows = [];
+              if (data.base_salary != null) rows.push(["Base salary", `${sym}${Number(data.base_salary).toLocaleString("en-US")}`]);
+              if (empLabel) rows.push(["Employment type", empLabel]);
+              const sd = fmtD(data.start_date); if (sd) rows.push(["Start date", sd]);
+              const ed = fmtD(data.expires_at); if (ed) rows.push(["Offer valid until", ed]);
+              if (!rows.length) return null;
+              return (
+                <div className="mb-5 rounded-xl border" style={{ borderColor: "var(--line)" }}>
+                  {rows.map(([k, v], i) => (
+                    <div key={k} className="flex items-center justify-between gap-4 px-3.5 py-2.5" style={i ? { borderTop: "1px solid var(--line)" } : undefined}>
+                      <span className="text-xs" style={{ color: "var(--ink-3)" }}>{k}</span>
+                      <span className="text-sm font-semibold text-right" style={{ color: "var(--ink)" }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="flex gap-2">
               <button onClick={() => respond("accepted")} disabled={!!busy}
                 className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-50">
@@ -18666,7 +18687,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr" }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -19508,8 +19529,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             candidateName={parsed.name}
             jobTitle={(jobs.find((j) => j.id === contextJobId) || {}).title || "the role"}
             hasEmail={hasEmail}
+            defaultCurrency={preferredCurrency}
             onClose={() => setShowOffer(false)}
-            onSend={(emailSent) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent); }}
+            onSend={(emailSent, terms) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms); }}
           />
         )}
         </>)}
@@ -19721,17 +19743,41 @@ function buildOfferDraft(name, jobTitle) {
   };
 }
 
-function OfferModal({ candidateName, jobTitle, hasEmail = true, onClose, onSend }) {
+const EMPLOYMENT_TYPES = [
+  { key: "full_time", label: "Full-time" },
+  { key: "part_time", label: "Part-time" },
+  { key: "contract", label: "Contract" },
+  { key: "internship", label: "Internship" },
+];
+
+function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", onClose, onSend }) {
   const initial = buildOfferDraft(candidateName, jobTitle);
   const [subject, setSubject] = useState(initial.subject);
   const [body, setBody] = useState(initial.body);
   const [sending, setSending] = useState(false);
+  // Structured offer terms. All optional: an offer can go out with any left blank.
+  const [title, setTitle] = useState(jobTitle && jobTitle !== "the role" ? jobTitle : "");
+  const [salary, setSalary] = useState("");
+  const [currency, setCurrency] = useState(["myr", "usd", "sgd"].includes(defaultCurrency) ? defaultCurrency : "myr");
+  const [empType, setEmpType] = useState("full_time");
+  const [startDate, setStartDate] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const labelClass = "block text-xs text-neutral-500 mb-1";
 
-  const handleSend = () => {
+  const terms = {
+    jobTitle: title.trim() || null,
+    baseSalary: salary.trim() === "" ? null : salary.trim(),
+    currency,
+    employmentType: empType,
+    startDate: startDate || null,
+    expiresAt: expiresAt || null,
+  };
+
+  const handleSend = (emailSent) => {
     setSending(true);
-    setTimeout(() => onSend(true), 900); // simulate send
+    setTimeout(() => onSend(emailSent, terms), emailSent ? 900 : 0);
   };
 
   return (
@@ -19740,34 +19786,65 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, onClose, onSend 
       <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Send offer to {candidateName}</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          This emails the candidate to say they've been selected and asks them to <span className="font-medium">accept or decline</span>. They stay in the Offer stage until they respond.
+          Set the terms below. Aster records them on the offer and shows them to the candidate, who can <span className="font-medium">accept or decline</span>. They stay in the Offer stage until they respond.
         </p>
 
         {!hasEmail && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
             <p className="text-xs text-amber-700">
-              This candidate has no email on file, so the offer email can't be sent. You can still record the offer internally.
+              This candidate has no email on file, so the offer email can't be sent. You can still record the offer and its terms internally.
             </p>
           </div>
         )}
 
-        <label className="block text-xs text-neutral-500 mb-1">Subject</label>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} className={`${inputClass} mb-3`} disabled={!hasEmail} />
+        {/* Structured offer terms */}
+        <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Offer terms</p>
 
-        <label className="block text-xs text-neutral-500 mb-1">Message</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} className={`${inputClass} mb-4 resize-y`} disabled={!hasEmail} />
+          <label className={labelClass}>Job title</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={jobTitle} className={`${inputClass} mb-3`} />
+
+          <label className={labelClass}>Base salary</label>
+          <div className="flex gap-2 mb-3">
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="rounded-lg bg-neutral-100 border border-neutral-200 px-2 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400 shrink-0">
+              <option value="myr">RM</option>
+              <option value="usd">USD</option>
+              <option value="sgd">SGD</option>
+            </select>
+            <input type="number" inputMode="decimal" min="0" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="e.g. 8000 / month" className={`${inputClass} flex-1`} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <label className={labelClass}>Employment type</label>
+              <select value={empType} onChange={(e) => setEmpType(e.target.value)} className={inputClass}>
+                {EMPLOYMENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Start date</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
+            </div>
+          </div>
+
+          <label className={labelClass}>Offer expires <span className="text-neutral-400">(optional)</span></label>
+          <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className={inputClass} />
+        </div>
+
+        <label className={labelClass}>Message to the candidate</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-4 resize-y`} disabled={!hasEmail} />
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button onClick={onClose} className="text-sm rounded-lg px-4 py-2 text-neutral-600 hover:bg-neutral-100 transition-colors">
             Cancel
           </button>
           {!hasEmail && (
-            <button onClick={() => onSend(false)} className="text-sm rounded-lg px-4 py-2 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 transition-colors">
+            <button onClick={() => handleSend(false)} className="text-sm rounded-lg px-4 py-2 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 transition-colors">
               Record offer without email
             </button>
           )}
           {hasEmail && (
-            <button onClick={handleSend} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
+            <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
               {sending ? "Sending…" : "Send offer"}
             </button>
           )}
@@ -22809,14 +22886,16 @@ export default function ResumeAIPreview() {
   };
 
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
-  const sendOffer = (candidateId, emailSent) => {
-    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now" } }));
+  const sendOffer = (candidateId, emailSent, terms = null) => {
+    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now", terms } }));
     // Move to Offer without the generic stage email; the offer email (with the
     // accept/decline link) is sent by send-offer below when HR chose to email.
     setCandidateStage(candidateId, "offer", { notify: false });
-    if (canPersist && emailSent) {
-      dbCreateOffer(companyId, { candidateId }).then((token) => {
-        if (token) supabase.functions.invoke("send-offer", { body: { token } }).catch(() => {});
+    // Always record the offer + its terms; only email the accept/decline link when
+    // HR chose to (a candidate with no email on file records the offer internally).
+    if (canPersist) {
+      dbCreateOffer(companyId, { candidateId, terms }).then((token) => {
+        if (token && emailSent) supabase.functions.invoke("send-offer", { body: { token } }).catch(() => {});
       });
     }
   };
@@ -23416,7 +23495,8 @@ export default function ResumeAIPreview() {
             onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
-            onSendOffer={(emailSent) => activeCandidate && sendOffer(activeCandidate.id, emailSent)}
+            preferredCurrency={preferredCurrency}
+            onSendOffer={(emailSent, terms) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}
