@@ -55,6 +55,40 @@ export function Card({ children, style, elevated = true, onPress, haptic }) {
   return body;
 }
 
+// ---- Hero banner ------------------------------------------------------------
+// The bold, near-black banner from the reference concept: a circular accent icon
+// chip, a headline, and a circular arrow button. Used for the primary action /
+// attention item on a screen.
+export function HeroBanner({ title, subtitle, icon = "zap", onPress, accent = theme.brand }) {
+  return (
+    <Press onPress={onPress} haptic="medium" style={[shadow.float, { marginBottom: space(4) }]}>
+      <View style={styles.hero}>
+        <View style={[styles.heroChip, { backgroundColor: accent }]}>
+          <Feather name={icon} size={20} color={theme.white} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 14 }}>
+          <Text style={[type.h3, { color: theme.onHero }]} numberOfLines={1}>{title}</Text>
+          {subtitle ? <Text style={[type.small, { color: theme.onHeroMuted, marginTop: 2 }]} numberOfLines={1}>{subtitle}</Text> : null}
+        </View>
+        <View style={styles.heroArrow}>
+          <Feather name="arrow-up-right" size={20} color={theme.hero} />
+        </View>
+      </View>
+    </Press>
+  );
+}
+
+// ---- Circular icon chip -----------------------------------------------------
+export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44, onPress }) {
+  const chip = (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
+      <Feather name={name} size={size * 0.42} color={tint} />
+    </View>
+  );
+  if (onPress) return <Press onPress={onPress} scaleTo={0.92}>{chip}</Press>;
+  return chip;
+}
+
 // ---- Button -----------------------------------------------------------------
 export function Button({ title, onPress, variant = "primary", icon, disabled, loading, style, haptic = "medium" }) {
   const kinds = {
@@ -196,7 +230,10 @@ export function EmptyState({ icon = "inbox", title, subtitle }) {
 export { Feather };
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: theme.card, borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, padding: space(4) },
+  card: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(5) },
+  hero: { flexDirection: "row", alignItems: "center", backgroundColor: theme.hero, borderRadius: radius.card, padding: space(4), paddingRight: space(3) },
+  heroChip: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  heroArrow: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.white, alignItems: "center", justifyContent: "center", marginLeft: 8 },
   btn: { flexDirection: "row", height: 50, borderRadius: radius.md, alignItems: "center", justifyContent: "center", paddingHorizontal: space(4) },
   pill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, borderRadius: radius.pill, alignSelf: "flex-start" },
   score: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingVertical: 5, borderRadius: radius.pill },

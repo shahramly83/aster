@@ -86,7 +86,7 @@ function RoleCard({ job, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: theme.card, borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, padding: space(4), shadowColor: "#0B1B4D", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  card: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 5 },
   statusDot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
   sep: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },

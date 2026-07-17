@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
   filters: { paddingHorizontal: space(4), paddingVertical: space(3), gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
   chipActive: { backgroundColor: theme.brand, borderColor: theme.brand },
-  card: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, padding: space(3.5), shadowColor: "#0B1B4D", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  card: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.xl, padding: space(3.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
 });

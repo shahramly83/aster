@@ -22,12 +22,18 @@ export const palette = {
   ink3: "#6B7185", // muted
   ink4: "#9CA1B3", // faint / placeholder
 
-  // Surfaces
-  bg: "#F7F8FC", // app background
+  // Surfaces — warm, airy off-white (Apple/Bento aesthetic)
+  bg: "#F4F4F1", // app background
   bgElevated: "#FFFFFF",
   card: "#FFFFFF",
-  line: "#E9EBF2", // hairline borders
-  line2: "#F0F2F7", // subtle fills
+  line: "#ECECE8", // hairline borders (warm)
+  line2: "#F0F0EC", // subtle fills
+
+  // Near-black "hero" surface for bold banners (like the reference concept).
+  hero: "#17181C",
+  hero2: "#23252B",
+  onHero: "#FFFFFF",
+  onHeroMuted: "#9DA0A8",
 
   // Semantic
   success: "#12A150",
@@ -55,6 +61,10 @@ export const theme = {
   card: palette.card,
   line: palette.line,
   line2: palette.line2,
+  hero: palette.hero,
+  hero2: palette.hero2,
+  onHero: palette.onHero,
+  onHeroMuted: palette.onHeroMuted,
   success: palette.success,
   successBg: palette.successBg,
   warn: palette.warn,
@@ -64,7 +74,8 @@ export const theme = {
   white: palette.white,
 };
 
-export const radius = { xs: 8, sm: 10, md: 14, lg: 18, xl: 24, pill: 999 };
+// Rounder, softer geometry to match the reference concept.
+export const radius = { xs: 10, sm: 12, md: 16, lg: 22, xl: 28, card: 26, pill: 999 };
 
 // 4pt spacing rhythm.
 export const space = (n) => n * 4;
@@ -83,26 +94,34 @@ export const type = {
   tabular: { fontFamily: "Inter_700Bold", fontVariant: ["tabular-nums"] },
 };
 
-// Elevation presets (iOS shadow + Android elevation). Consistent, not random.
+// Elevation presets — soft, diffuse, low-opacity (the airy reference look).
 export const shadow = {
   sm: {
-    shadowColor: "#0B1B4D",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1A1A22",
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   md: {
-    shadowColor: "#0B1B4D",
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    shadowColor: "#1A1A22",
+    shadowOpacity: 0.07,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  // Floating elements (bottom nav, hero) sit higher off the surface.
+  float: {
+    shadowColor: "#14151A",
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 12,
   },
   brand: {
     shadowColor: palette.brand,
     shadowOpacity: 0.28,
-    shadowRadius: 16,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },

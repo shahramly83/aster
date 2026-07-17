@@ -1,7 +1,7 @@
 import "react-native-url-polyfill/auto";
 import React from "react";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -22,6 +22,7 @@ import { linking } from "./src/lib/linking";
 import { theme } from "./src/theme";
 import { Loader, Button } from "./src/components/ui";
 import BrandSplash from "./src/components/BrandSplash";
+import FloatingTabBar from "./src/components/FloatingTabBar";
 
 // Keep the native (blue) splash up until fonts are ready, then our animated
 // BrandSplash takes over for the reveal.
@@ -46,56 +47,28 @@ const navTheme = {
   colors: { ...DefaultTheme.colors, background: theme.bg, card: theme.card, border: theme.line, text: theme.ink, primary: theme.brand },
 };
 
-function tabIcon(name) {
-  return ({ color, focused }) => (
-    <Feather name={name} size={22} color={color} style={{ opacity: focused ? 1 : 0.9 }} />
-  );
-}
-
-// Tab bar options that respect the device's bottom safe-area inset, so the bar
-// sits ABOVE the Android system navigation bar (3-button or gesture) and the
-// tabs are always tappable. Fixing height without this made the tabs collide
-// with the system bar.
-function useTabScreenOptions() {
-  const insets = useSafeAreaInsets();
-  const bottom = Math.max(insets.bottom, 8);
-  return {
-    headerShown: false,
-    tabBarActiveTintColor: theme.brand,
-    tabBarInactiveTintColor: theme.ink4,
-    tabBarLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
-    tabBarStyle: {
-      borderTopColor: theme.line,
-      backgroundColor: theme.card,
-      height: 58 + bottom,
-      paddingTop: 6,
-      paddingBottom: bottom,
-    },
-    tabBarHideOnKeyboard: true,
-  };
-}
+const tabOptions = { headerShown: false, tabBarHideOnKeyboard: true };
+const renderTabBar = (props) => <FloatingTabBar {...props} />;
 
 // Managers get a Pipeline dashboard as home + all-roles Positions.
 function ManagerTabs() {
-  const screenOptions = useTabScreenOptions();
   return (
-    <Tab.Navigator screenOptions={screenOptions}>
-      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: "Pipeline", tabBarIcon: tabIcon("bar-chart-2") }} />
-      <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Roles", tabBarIcon: tabIcon("briefcase") }} />
-      <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Interviews", tabBarIcon: tabIcon("calendar") }} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Me", tabBarIcon: tabIcon("user") }} />
+    <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
+      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: "Pipeline" }} />
+      <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Roles" }} />
+      <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Interviews" }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Me" }} />
     </Tab.Navigator>
   );
 }
 
 // Interviewers get the focused least-privilege experience.
 function InterviewerTabs() {
-  const screenOptions = useTabScreenOptions();
   return (
-    <Tab.Navigator screenOptions={screenOptions}>
-      <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today", tabBarIcon: tabIcon("calendar") }} />
-      <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions", tabBarIcon: tabIcon("briefcase") }} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Me", tabBarIcon: tabIcon("user") }} />
+    <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
+      <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today" }} />
+      <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Me" }} />
     </Tab.Navigator>
   );
 }
