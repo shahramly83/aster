@@ -15,7 +15,6 @@ const CARD_W = Math.round(SCREEN_W * 0.80);
 const GAP = 16;
 const SNAP = CARD_W + GAP;
 const SIDE = (SCREEN_W - CARD_W) / 2; // centers the active card
-const GREEN = "#12B466";
 
 // Positive funnel stages for the mini pipeline bar.
 const PIPE = ["applied", "shortlisted", "interviewing", "offer", "hired"];
@@ -103,17 +102,19 @@ function RoleCard({ job, active, onPress }) {
   const total = job.applicantCount || 0;
   const toReview = (job.counts.interviewing || 0) + (job.counts.offer || 0);
   const shortlisted = job.counts.shortlisted || 0;
-  const fg = active ? theme.white : theme.ink;
-  const fgMuted = active ? "rgba(255,255,255,0.72)" : theme.ink3;
+  // Active card = crisp white on the blue; idle cards recede into a translucent
+  // white so the focused role still reads clearly. No green.
+  const fg = active ? theme.ink : theme.white;
+  const fgMuted = active ? theme.ink3 : "rgba(255,255,255,0.72)";
 
   return (
     <Press onPress={onPress} scaleTo={0.97}>
       <View style={[styles.card, active ? styles.cardActive : styles.cardIdle, !active && { transform: [{ scale: 0.96 }] }]}>
         {/* top: status + days */}
         <View style={styles.cardTop}>
-          <View style={[styles.statusPill, active ? styles.pillOnGreen : styles.pillOpen]}>
-            <View style={[styles.statusDot, { backgroundColor: active ? theme.white : GREEN }]} />
-            <Text style={[type.smallStrong, { color: active ? theme.white : GREEN }]}>Open</Text>
+          <View style={[styles.statusPill, active ? styles.pillOpen : styles.pillIdle]}>
+            <View style={[styles.statusDot, { backgroundColor: active ? theme.brand : theme.white }]} />
+            <Text style={[type.smallStrong, { color: active ? theme.brand : theme.white }]}>Open</Text>
           </View>
           {daysOpen(job.postedAt) ? (
             <Text style={[type.small, { color: fgMuted }]}>{daysOpen(job.postedAt)}</Text>
@@ -138,11 +139,11 @@ function RoleCard({ job, active, onPress }) {
         </Text>
 
         {/* pipeline bar */}
-        <View style={[styles.pipe, { backgroundColor: active ? "rgba(255,255,255,0.22)" : "#F0F1F6" }]}>
+        <View style={[styles.pipe, { backgroundColor: active ? "#F0F1F6" : "rgba(255,255,255,0.22)" }]}>
           {total > 0 && PIPE.map((k, i) => {
             const n = job.counts[k] || 0;
             if (!n) return null;
-            const col = active ? `rgba(255,255,255,${0.95 - i * 0.16})` : stageColor(k);
+            const col = active ? stageColor(k) : `rgba(255,255,255,${0.95 - i * 0.16})`;
             return <View key={k} style={{ flex: n, backgroundColor: col }} />;
           })}
         </View>
@@ -150,14 +151,14 @@ function RoleCard({ job, active, onPress }) {
         {/* bottom action bar */}
         <View style={styles.actionRow}>
           {toReview > 0 ? (
-            <View style={[styles.reviewChip, active ? { backgroundColor: "rgba(255,255,255,0.18)" } : { backgroundColor: "#FBEFD9" }]}>
-              <Feather name="clock" size={12} color={active ? theme.white : "#C2710A"} />
-              <Text style={[type.smallStrong, { color: active ? theme.white : "#C2710A", marginLeft: 5 }]}>{toReview} to review</Text>
+            <View style={[styles.reviewChip, active ? { backgroundColor: "#FBEFD9" } : { backgroundColor: "rgba(255,255,255,0.18)" }]}>
+              <Feather name="clock" size={12} color={active ? "#C2710A" : theme.white} />
+              <Text style={[type.smallStrong, { color: active ? "#C2710A" : theme.white, marginLeft: 5 }]}>{toReview} to review</Text>
             </View>
           ) : <View />}
-          <View style={[styles.viewBtn, { backgroundColor: active ? theme.white : theme.brand }]}>
-            <Text style={[type.smallStrong, { color: active ? GREEN : theme.white }]}>View</Text>
-            <Feather name="arrow-right" size={16} color={active ? GREEN : theme.white} style={{ marginLeft: 5 }} />
+          <View style={[styles.viewBtn, { backgroundColor: active ? theme.brand : theme.white }]}>
+            <Text style={[type.smallStrong, { color: active ? theme.white : theme.brand }]}>View</Text>
+            <Feather name="arrow-right" size={16} color={active ? theme.white : theme.brand} style={{ marginLeft: 5 }} />
           </View>
         </View>
       </View>
@@ -171,12 +172,12 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(2) },
   countPill: { minWidth: 40, height: 34, borderRadius: radius.pill, backgroundColor: theme.brandPanel, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
   card: { width: CARD_W, height: CARD_H, borderRadius: 28, padding: space(5) },
-  cardActive: { backgroundColor: GREEN, shadowColor: GREEN, shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 10 },
-  cardIdle: { backgroundColor: theme.white, shadowColor: "#050B2E", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
+  cardActive: { backgroundColor: theme.white, shadowColor: "#050B2E", shadowOpacity: 0.22, shadowRadius: 26, shadowOffset: { width: 0, height: 14 }, elevation: 12 },
+  cardIdle: { backgroundColor: "rgba(255,255,255,0.10)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   statusPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill },
-  pillOpen: { backgroundColor: "#E7F7EE" },
-  pillOnGreen: { backgroundColor: "rgba(255,255,255,0.18)" },
+  pillOpen: { backgroundColor: theme.brandSoft },
+  pillIdle: { backgroundColor: "rgba(255,255,255,0.18)" },
   statusDot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
   title: { fontFamily: "Inter_700Bold", fontSize: 26, lineHeight: 31, letterSpacing: -0.5, marginTop: space(4) },
   bigNum: { fontFamily: "Inter_700Bold", fontSize: 40, letterSpacing: -1, fontVariant: ["tabular-nums"] },
