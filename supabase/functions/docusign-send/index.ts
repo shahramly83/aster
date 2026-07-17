@@ -57,7 +57,6 @@ async function logoDataUri(url: string | null): Promise<string | null> {
 // The offer letter as HTML. The /sig1/ and /date1/ anchors are where DocuSign
 // drops the signature and date fields (hidden white text so they don't show).
 function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: string; jobTitle: string; logo: string | null; addressLine: string; dateStr: string; message: string | null }): string {
-  const accent = "#C1272D"; // letter accent (a per-company brand colour can override this later)
   const rows: [string, string][] = [["Position", opts.jobTitle]];
   if (o.base_salary != null) {
     const sym = CURRENCY_SYMBOL[(o.salary_currency || "myr").toLowerCase()] || "";
@@ -80,8 +79,7 @@ function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: s
     p{margin:0 0 16px;}
     strong{color:#1f2328;}
     .serif{font-family:Georgia,'Times New Roman',serif;}
-    .title{color:${accent};font-size:15px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;margin:24px 0 32px;}
-    .date{text-align:right;color:#9298a1;font-size:13px;margin:0 0 30px;}
+    .date{text-align:right;color:#9298a1;font-size:13px;margin:30px 0 30px;}
     .facts{width:100%;border-collapse:collapse;margin:8px 0 24px;}
     .facts td{padding:12px 0;border-bottom:1px solid #eeeeee;vertical-align:top;}
     .facts tr:last-child td{border-bottom:none;}
@@ -98,7 +96,6 @@ function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: s
     .anchor{color:#ffffff;font-size:1px;}
   </style></head><body>
     ${brand}
-    <div class="title">Offer of Employment</div>
     <div class="date">Date: ${esc(opts.dateStr)}</div>
     ${body}
     <table class="facts">${trs}</table>
