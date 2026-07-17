@@ -386,6 +386,7 @@ Deno.serve(async (req) => {
         fit,
         match_reasons: fit === "other" ? (fitReason || null) : null,
       });
+      await admin.from("activity_log").insert({ company_id: companyId, type: "new_application", title: `${fullName} applied`, description: `Applied for ${job.title || "a role"}`, candidate_id: candidateId, job_id });
     } else {
       // A re-submission (same candidate + job): refresh the classification in
       // case the role changed, and update the source to whatever channel they

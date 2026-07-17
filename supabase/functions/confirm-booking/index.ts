@@ -153,6 +153,11 @@ Deno.serve(async (req) => {
       } catch (e) { console.error("interviewer emails failed", e); }
     }
 
+    // Log the booking for the notification bell, only on the first confirm.
+    if (iv.status !== "scheduled") {
+      await admin.from("activity_log").insert({ company_id: iv.company_id, type: "interview_scheduled", title: `Interview scheduled with ${cand?.full_name || "a candidate"}`, description: `${jobTitle} · ${dateTime}`, candidate_id: iv.candidate_id, job_id: iv.job_id });
+    }
+
     return json({ ok: true, company_name: companyName, job_title: jobTitle, date_time: dateTime });
   } catch (e) {
     console.error(e);

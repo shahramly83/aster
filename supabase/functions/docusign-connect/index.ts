@@ -103,6 +103,9 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: false }).limit(1);
         const jobTitle = (app?.[0] as { jobs?: { title?: string } })?.jobs?.title || "the role";
 
+        // Log the event for the notification bell.
+        await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_signed", title: `${candidateName} signed the offer`, description: `Signed the offer for the ${jobTitle} role.`, candidate_id: offer.candidate_id });
+
         // 1) Team notification.
         const { data: recips } = await admin.from("profiles").select("email")
           .eq("company_id", offer.company_id).in("role", ["owner", "admin"]).eq("status", "active").not("email", "is", null);

@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -8851,6 +8851,31 @@ function CandidateAvatar({ name, hasPhoto, src = null, size = 40, showPhotoDot =
 // decided against the caller's profiles.activities_seen_at watermark (0042).
 // Previously the times were string literals ("1h ago") and `read: i >= 2` pinned
 // the badge at 2 forever, even in an empty workspace.
+// Icon/colour/target per logged event type (activity_log → bell feed).
+const ACTIVITY_META = {
+  new_application:     { icon: "doc",      accent: "#5A78F8", dotColor: "bg-neutral-800", target: { screen: "candidates", filter: { source: "public_application" } } },
+  interview_requested: { icon: "calendar", accent: "#6366F1", dotColor: "bg-indigo-500",  target: { screen: "interviews" } },
+  interview_scheduled: { icon: "calendar", accent: "#16A34A", dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { interview: true } } },
+  offer_sent:          { icon: "doc",      accent: "#7C3AED", dotColor: "bg-violet-500",  target: { screen: "candidates" } },
+  offer_signed:        { icon: "check",    accent: "#16A34A", dotColor: "bg-emerald-500", target: { screen: "candidates" } },
+  offer_declined:      { icon: "close",    accent: "#DC2626", dotColor: "bg-rose-500",    target: { screen: "candidates" } },
+  offer_expired:       { icon: "close",    accent: "#94A3B8", dotColor: "bg-neutral-400", target: { screen: "candidates" } },
+  hired:               { icon: "check",    accent: "#16A34A", dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { hired: true } } },
+  scorecard:           { icon: "check",    accent: "#0B2AE0", dotColor: "bg-blue-500",    target: { screen: "candidates" } },
+  role_requested:      { icon: "briefcase",accent: "#6366F1", dotColor: "bg-indigo-500",  target: { screen: "jobs" } },
+};
+// Map an activity_log row to the bell's feed-item shape.
+function mapActivityRow(row, seenAt = null) {
+  const m = ACTIVITY_META[row.type] || { icon: "bell", accent: "#0B2AE0", dotColor: "bg-neutral-800", target: { screen: "dashboard" } };
+  const seen = seenAt ? new Date(seenAt).getTime() : null;
+  return {
+    id: row.id, title: row.title, desc: row.description || "", ts: row.created_at,
+    time: relTime(row.created_at), candidateId: row.candidate_id || null,
+    read: seen == null ? false : new Date(row.created_at).getTime() <= seen,
+    ...m,
+  };
+}
+
 function buildActivities(seenAt = null, extra = {}) {
   const cand = (id) => MOCK_CANDIDATES.find((c) => c.id === id)?.parsed?.name || "A candidate";
   const jobTitle = (id) => MOCK_JOBS.find((j) => j.id === id)?.title || "a role";
@@ -22147,7 +22172,10 @@ export default function ResumeAIPreview() {
     // insert policy (job_id in assigned_job_ids()).
     const stamped = { ...card, interviewerId: userId };
     setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), stamped] }));
-    if (canPersist) dbAddScorecard(companyId, userId, { candidateId, jobId, ratings: card.ratings, notes: card.notes });
+    if (canPersist) {
+      dbAddScorecard(companyId, userId, { candidateId, jobId, ratings: card.ratings, notes: card.notes });
+      dbLogActivity("scorecard", `Scorecard submitted for ${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate"}`, { candidateId, jobId });
+    }
   };
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState(null);
@@ -22694,7 +22722,13 @@ export default function ResumeAIPreview() {
     // keeps every read that already cost a credit.
     setInsightsCache((prev) => ({ ...prev, ...(data.experienceInsights || {}) }));
     setOffers(data.offers || {});
-    setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt, { hiredDates }));  // rebuilt from the now-real datasets
+    setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt, { hiredDates }));  // derived feed as an instant fallback
+    // Authoritative feed: the real event log (0106). Replaces the derived feed
+    // once it has entries; a fresh workspace with no logged events keeps the
+    // derived summary until events start landing.
+    if (companyId) dbListActivity(companyId).then((rows) => {
+      if (rows.length) setActivities(rows.map((r) => mapActivityRow(r, opts.seenAt ?? activitiesSeenAt)));
+    });
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
 
@@ -23142,6 +23176,7 @@ export default function ResumeAIPreview() {
     if (stage === "hired") setHiredDates((prev) => (prev[candidateId] ? prev : { ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
     if (!canPersist || prevStage === stage) return;
     dbSetCandidateStage(companyId, candidateId, stage);
+    if (stage === "hired") dbLogActivity("hired", `${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "A candidate"} was hired`, { candidateId });
     // 'offer' is intentionally excluded: offers are sent via the dedicated
     // sendOffer flow (which emails an accept/decline link), not here.
     if (notify && (stage === "hired" || stage === "rejected")) {
@@ -23201,6 +23236,7 @@ export default function ResumeAIPreview() {
       dbCreateOffer(companyId, { candidateId, terms }).then((token) => {
         if (token && emailSent) supabase.functions.invoke("docusign-send", { body: { token, message } }).catch(() => {});
       });
+      dbLogActivity("offer_sent", `Offer sent to ${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate"}`, { candidateId });
     }
   };
   const respondOffer = (candidateId, accepted) => {

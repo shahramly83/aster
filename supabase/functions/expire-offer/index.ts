@@ -63,6 +63,9 @@ Deno.serve(async (req) => {
       .eq("company_id", companyId).eq("candidate_id", offer.candidate_id)
       .in("stage", ["offer", "interviewing", "shortlisted"]);
 
+    const { data: ec } = await admin.from("candidates").select("full_name").eq("id", offer.candidate_id).maybeSingle();
+    await admin.from("activity_log").insert({ company_id: companyId, type: "offer_expired", title: `${ec?.full_name || "A candidate"}'s offer expired`, description: "The offer lapsed without a signature and was declined.", candidate_id: offer.candidate_id });
+
     return json({ ok: true, expired: true });
   } catch (e) {
     console.error(e);

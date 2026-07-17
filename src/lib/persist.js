@@ -376,6 +376,31 @@ export async function dbSignedOfferUrl(candidateId) {
   return data.url;
 }
 
+// The notification bell's authoritative feed (0106). Company-scoped by RLS.
+export async function dbListActivity(companyId, limit = 60) {
+  if (!hasSupabase || !companyId) return [];
+  const { data, error } = await supabase
+    .from("activity_log")
+    .select("id, type, title, description, candidate_id, job_id, created_at")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false }).limit(limit);
+  if (error) {
+    if (error.code === "42P01" || error.code === "PGRST205") return []; // pre-0106
+    console.error("dbListActivity", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+// Append an in-app event to the feed (fire-and-forget; company-gated server-side).
+export async function dbLogActivity(type, title, { description = null, candidateId = null, jobId = null } = {}) {
+  if (!hasSupabase || !type || !title) return;
+  const { error } = await supabase.rpc("log_activity", {
+    p_type: type, p_title: title, p_description: description, p_candidate_id: candidateId, p_job_id: jobId,
+  });
+  if (error && error.code !== "42883" && error.code !== "PGRST202") console.error("dbLogActivity", error.message);
+}
+
 export async function dbAddScorecard(companyId, userId, { candidateId, jobId = null, ratings, notes }) {
   if (!hasSupabase || !companyId) return;
   const { error } = await supabase.from("scorecards").insert({
