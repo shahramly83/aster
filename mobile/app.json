@@ -36,7 +36,8 @@
           "color": "#0B2AE0"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ],
     "extra": {
       "supabaseUrl": "",

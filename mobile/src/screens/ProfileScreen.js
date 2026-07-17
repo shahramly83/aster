@@ -4,13 +4,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "../AuthContext";
-import { Card, Avatar, Button, ScreenTitle } from "../components/ui";
-import { theme } from "../theme";
+import { Card, Avatar, Button, ScreenTitle, IconTile, Feather } from "../components/ui";
+import { theme, type, space, radius } from "../theme";
 
 const BIOMETRIC_PREF_KEY = "aster.biometric.enabled";
 
 export default function ProfileScreen() {
-  const { profile, signOut, setBiometricEnabled } = useAuth();
+  const { profile, manager, signOut, setBiometricEnabled } = useAuth();
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioOn, setBioOn] = useState(false);
 
@@ -19,61 +19,62 @@ export default function ProfileScreen() {
       const hw = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
       setBioAvailable(hw && enrolled);
-      const pref = await SecureStore.getItemAsync(BIOMETRIC_PREF_KEY);
-      setBioOn(pref === "1");
+      setBioOn((await SecureStore.getItemAsync(BIOMETRIC_PREF_KEY)) === "1");
     })();
   }, []);
 
-  const toggleBio = async (v) => {
-    setBioOn(v);
-    await setBiometricEnabled(v);
-  };
+  const toggleBio = async (v) => { setBioOn(v); await setBiometricEnabled(v); };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
       <ScreenTitle>Me</ScreenTitle>
-      <View style={{ padding: 16 }}>
+      <View style={{ padding: space(4) }}>
         <Card style={{ flexDirection: "row", alignItems: "center" }}>
-          <Avatar name={profile?.name || profile?.email} size={52} />
+          <Avatar name={profile?.name || profile?.email} size={56} />
           <View style={{ marginLeft: 14, flex: 1 }}>
-            <Text style={styles.name}>{profile?.name || "Interviewer"}</Text>
-            <Text style={styles.meta}>{profile?.email}</Text>
-            <Text style={styles.badge}>{profile?.roleLabel} · {profile?.company}</Text>
-          </View>
-        </Card>
-
-        <Card style={{ marginTop: 12 }}>
-          <View style={styles.rowBetween}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={styles.settingLabel}>Unlock with Face ID / fingerprint</Text>
-              <Text style={styles.settingHint}>
-                {bioAvailable ? "Require biometrics each time you open Aster." : "No biometrics enrolled on this device."}
-              </Text>
+            <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{profile?.name || "Interviewer"}</Text>
+            <Text style={[type.small, { color: theme.ink3 }]} numberOfLines={1}>{profile?.email}</Text>
+            <View style={styles.roleTag}>
+              <Feather name={manager ? "shield" : "user-check"} size={11} color={theme.brand} />
+              <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 5 }]}>{profile?.roleLabel}</Text>
             </View>
-            <Switch value={bioOn} onValueChange={toggleBio} disabled={!bioAvailable} trackColor={{ true: theme.brand }} />
           </View>
         </Card>
 
-        <Card style={{ marginTop: 12 }}>
-          <Text style={styles.settingLabel}>Notifications</Text>
-          <Text style={styles.settingHint}>
-            Push is on for new interviews, panel invites and reminders. Manage detailed preferences on the web app.
-          </Text>
+        <Card style={{ marginTop: space(3), flexDirection: "row", alignItems: "center" }}>
+          <IconTile name="shield" tint={theme.brand} />
+          <View style={{ flex: 1, marginLeft: 12, paddingRight: 8 }}>
+            <Text style={[type.bodyStrong, { color: theme.ink }]}>Biometric unlock</Text>
+            <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>
+              {bioAvailable ? "Require Face ID / fingerprint on open" : "No biometrics enrolled on this device"}
+            </Text>
+          </View>
+          <Switch value={bioOn} onValueChange={toggleBio} disabled={!bioAvailable} trackColor={{ true: theme.brand }} />
         </Card>
 
-        <Button title="Sign out" variant="ghost" onPress={signOut} style={{ marginTop: 20 }} />
-        <Text style={styles.version}>Aster for interviewers · v0.1.0</Text>
+        <Card style={{ marginTop: space(3), flexDirection: "row", alignItems: "center" }}>
+          <IconTile name="bell" tint="#7C3AED" />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={[type.bodyStrong, { color: theme.ink }]}>Notifications</Text>
+            <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>Push on for interviews, panels and reminders. Detailed prefs on web.</Text>
+          </View>
+        </Card>
+
+        <Card style={{ marginTop: space(3), flexDirection: "row", alignItems: "center" }}>
+          <IconTile name="home" tint={theme.success} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={[type.bodyStrong, { color: theme.ink }]}>{profile?.company}</Text>
+            <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{manager ? "Full pipeline access" : "Interview panel access"}</Text>
+          </View>
+        </Card>
+
+        <Button title="Sign out" icon="log-out" variant="ghost" onPress={signOut} style={{ marginTop: space(6) }} />
+        <Text style={[type.small, { color: theme.ink4, textAlign: "center", marginTop: space(4) }]}>Aster · v0.1.0</Text>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  name: { fontSize: 18, fontWeight: "800", color: theme.ink },
-  meta: { color: theme.ink2, marginTop: 1 },
-  badge: { color: theme.brand, marginTop: 4, fontSize: 12, fontWeight: "700" },
-  rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  settingLabel: { fontSize: 15, fontWeight: "700", color: theme.ink },
-  settingHint: { color: theme.ink3, marginTop: 3, lineHeight: 18 },
-  version: { color: theme.ink3, textAlign: "center", marginTop: 24, fontSize: 12 },
+  roleTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: theme.brandSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 6 },
 });

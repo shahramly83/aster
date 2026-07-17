@@ -52,3 +52,10 @@ export const planLimits = (plan) => PLAN_LIMITS[plan] || PLAN_LIMITS.launch;
 
 // The role vocabulary stored in profiles.role, mapped to display labels.
 export const ROLE_LABELS = { owner: "Tenant", admin: "Hiring Manager", recruiter: "Recruiter", interviewer: "Interviewer" };
+
+// Managers (owner/admin/recruiter) run the pipeline: they see every role, move
+// candidates through all stages, and get the dashboard. Interviewers are the
+// least-privilege role, scoped to the panels they're on. Anything not clearly a
+// manager falls to the interviewer experience (fail closed to less access).
+export const MANAGER_ROLES = ["owner", "admin", "recruiter"];
+export const isManagerRole = (role) => MANAGER_ROLES.includes(role);

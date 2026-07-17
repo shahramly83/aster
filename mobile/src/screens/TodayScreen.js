@@ -1,22 +1,17 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet } from "react-native";
+import { View, Text, FlatList, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadMyInterviews } from "../lib/data";
-import { Card, Avatar, Loader, EmptyState, ScreenTitle } from "../components/ui";
-import { theme } from "../theme";
+import { Card, Press, Avatar, Loader, EmptyState, ScreenTitle, Feather } from "../components/ui";
+import { theme, type, space, radius } from "../theme";
 import { fmtInterviewTime, minutesUntil } from "@aster/shared";
 
-// Groups: interviews starting in the next 12h are "Up next", the rest "Later".
-function bucket(iso) {
-  const m = minutesUntil(iso);
-  if (m <= 12 * 60) return "soon";
-  return "later";
-}
+const bucket = (iso) => (minutesUntil(iso) <= 12 * 60 ? "soon" : "later");
 
 export default function TodayScreen({ navigation }) {
-  const { profile } = useAuth();
+  const { profile, manager } = useAuth();
   const [items, setItems] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -25,57 +20,42 @@ export default function TodayScreen({ navigation }) {
     if (!profile) return;
     try {
       setError("");
-      const rows = await loadMyInterviews(profile.companyId, profile.userId);
-      setItems(rows);
-    } catch (e) {
-      setError(e?.message || "Could not load interviews.");
-      setItems([]);
-    }
+      setItems(await loadMyInterviews(profile.companyId, profile.userId));
+    } catch (e) { setError(e?.message || "Could not load interviews."); setItems([]); }
   }, [profile]);
 
-  // Reload on focus + on visibility (matches the web app's focus-refresh model).
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   if (items === null) return <SafeAreaView style={{ flex: 1 }}><Loader label="Loading your interviews…" /></SafeAreaView>;
 
   const soon = items.filter((i) => bucket(i.scheduledAt) === "soon");
   const later = items.filter((i) => bucket(i.scheduledAt) === "later");
-  const sections = [
-    ...(soon.length ? [{ header: "Up next", data: soon }] : []),
-    ...(later.length ? [{ header: "Later", data: later }] : []),
+  const flat = [
+    ...(soon.length ? [{ _header: "Up next" }, ...soon] : []),
+    ...(later.length ? [{ _header: "Later" }, ...later] : []),
   ];
-  const flat = sections.flatMap((s) => [{ _header: s.header }, ...s.data]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle subtitle={profile ? `${profile.name || profile.roleLabel} · ${profile.company}` : ""}>
-        Today
+      <ScreenTitle subtitle={manager ? "Interviews you're on" : `${profile?.name || "Interviewer"} · ${profile?.company}`}>
+        Interviews
       </ScreenTitle>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[type.small, { color: theme.danger, paddingHorizontal: space(5), marginBottom: 8 }]}>{error}</Text> : null}
       <FlatList
         data={flat}
-        keyExtractor={(item, i) => item._header ? `h-${item._header}` : `iv-${item.id}`}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+        keyExtractor={(item) => (item._header ? `h-${item._header}` : `iv-${item.id}`)}
+        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(8), flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListEmptyComponent={
-          <View style={{ marginTop: 80 }}>
-            <EmptyState title="No interviews scheduled" subtitle="When you're added to an interview panel, it shows up here with a reminder." />
-          </View>
+          <EmptyState icon="calendar" title="No interviews scheduled" subtitle="When you're added to an interview panel, it appears here with a reminder." />
         }
-        renderItem={({ item }) => {
-          if (item._header) return <Text style={styles.sectionHeader}>{item._header}</Text>;
-          return <InterviewCard iv={item} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} />;
-        }}
+        renderItem={({ item }) =>
+          item._header
+            ? <Text style={styles.section}>{item._header.toUpperCase()}</Text>
+            : <InterviewCard iv={item} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} />
+        }
       />
     </SafeAreaView>
   );
@@ -85,33 +65,40 @@ function InterviewCard({ iv, onPress }) {
   const mins = minutesUntil(iv.scheduledAt);
   const soon = mins <= 30 && mins >= -15;
   return (
-    <Pressable onPress={onPress} style={{ marginBottom: 12 }}>
-      <Card style={soon ? { borderColor: theme.brand, borderWidth: 1.5 } : null}>
+    <Press onPress={onPress} style={{ marginBottom: space(3) }}>
+      <View style={[styles.card, soon && { borderColor: theme.brand, borderWidth: 1.5 }]}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Avatar uri={iv.avatarUrl} name={iv.candidateName} />
+          <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={48} />
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.name}>{iv.candidateName}</Text>
-            <Text style={styles.role}>{iv.jobTitle}</Text>
+            <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{iv.candidateName}</Text>
+            <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
           </View>
-          {soon ? <View style={styles.soonBadge}><Text style={styles.soonText}>{mins <= 0 ? "now" : `${mins}m`}</Text></View> : null}
+          {soon ? (
+            <View style={styles.soonBadge}><Text style={[type.smallStrong, { color: theme.white }]}>{mins <= 0 ? "now" : `${mins}m`}</Text></View>
+          ) : (
+            <Feather name="chevron-right" size={20} color={theme.ink4} />
+          )}
         </View>
-        <View style={styles.timeRow}>
-          <Text style={styles.time}>🕑 {fmtInterviewTime(iv.scheduledAt)}</Text>
-          {iv.meetingLink ? <Text style={styles.link}>· Video link</Text> : null}
+        <View style={styles.metaRow}>
+          <Feather name="clock" size={14} color={theme.ink3} />
+          <Text style={[type.small, { color: theme.ink2, marginLeft: 6 }]}>{fmtInterviewTime(iv.scheduledAt)}</Text>
+          {iv.meetingLink ? (
+            <>
+              <View style={styles.dot} />
+              <Feather name="video" size={14} color={theme.brand} />
+              <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 4 }]}>Video</Text>
+            </>
+          ) : null}
         </View>
-      </Card>
-    </Pressable>
+      </View>
+    </Press>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionHeader: { color: theme.ink3, fontWeight: "700", fontSize: 12, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 8, marginBottom: 8, marginLeft: 4 },
-  name: { fontSize: 16, fontWeight: "700", color: theme.ink },
-  role: { color: theme.ink2, marginTop: 1 },
-  timeRow: { flexDirection: "row", alignItems: "center", marginTop: 12 },
-  time: { color: theme.ink2, fontSize: 13 },
-  link: { color: theme.brand, fontSize: 13, marginLeft: 6, fontWeight: "600" },
-  soonBadge: { backgroundColor: theme.brand, borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 4 },
-  soonText: { color: "#fff", fontWeight: "700", fontSize: 12 },
-  error: { color: theme.danger, paddingHorizontal: 20, marginBottom: 8 },
+  section: { ...type.label, color: theme.ink3, marginTop: space(2), marginBottom: space(3), marginLeft: space(1) },
+  card: { backgroundColor: theme.card, borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, padding: space(4), shadowColor: "#0B1B4D", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: space(3.5) },
+  dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
+  soonBadge: { backgroundColor: theme.brand, borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
 });

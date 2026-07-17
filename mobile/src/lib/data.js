@@ -128,22 +128,82 @@ export async function submitScorecard({ companyId, userId, candidateId, jobId, r
 
 // ---- Open positions + applicants ----------------------------------------------
 
-// Jobs I'm assigned to, with a light applicant count.
-export async function loadOpenPositions(companyId, assignedJobIds) {
-  if (!assignedJobIds.length) return [];
-  const { data: jobs } = await supabase
+// Roles for the Positions screen, with live per-stage counts.
+// - Managers (admin/owner/recruiter) see EVERY role in the company.
+// - Interviewers see only the roles they're on the panel for (assignedJobIds).
+// RLS enforces the same boundary server-side; this just scopes the query.
+export async function loadOpenPositions(companyId, { manager = false, assignedJobIds = [] } = {}) {
+  let q = supabase
     .from("jobs")
     .select("id, title, status, details, created_at")
     .eq("company_id", companyId)
-    .in("id", assignedJobIds)
     .order("created_at", { ascending: false });
-  return (jobs || []).map((j) => ({
-    id: j.id,
-    title: j.title,
-    status: j.status,
-    location: j.details?.location || j.details?.city || "",
-    postedAt: j.created_at,
-  }));
+  if (!manager) {
+    if (!assignedJobIds.length) return [];
+    q = q.in("id", assignedJobIds);
+  }
+  const { data: jobs } = await q;
+  const rows = jobs || [];
+  if (!rows.length) return [];
+
+  // Per-job stage counts in one query, so each card can show a pipeline bar.
+  const jobIds = rows.map((j) => j.id);
+  const { data: apps } = await supabase
+    .from("applications")
+    .select("job_id, stage")
+    .eq("company_id", companyId)
+    .in("job_id", jobIds);
+  const countsByJob = {};
+  (apps || []).forEach((a) => {
+    (countsByJob[a.job_id] ||= {});
+    const s = a.stage || "applied";
+    countsByJob[a.job_id][s] = (countsByJob[a.job_id][s] || 0) + 1;
+  });
+
+  return rows.map((j) => {
+    const counts = countsByJob[j.id] || {};
+    const total = Object.values(counts).reduce((s, n) => s + n, 0);
+    return {
+      id: j.id,
+      title: j.title,
+      status: j.status,
+      location: j.details?.location || j.details?.city || "",
+      postedAt: j.created_at,
+      counts,
+      applicantCount: total,
+    };
+  });
+}
+
+// Company-wide pipeline summary for the manager dashboard: total per stage plus
+// a few headline numbers. One lightweight query over applications.
+export async function loadPipelineSummary(companyId) {
+  const { data: apps } = await supabase
+    .from("applications")
+    .select("stage, created_at")
+    .eq("company_id", companyId);
+  const rows = apps || [];
+  const byStage = {};
+  let newThisWeek = 0;
+  const weekAgo = Date.now() - 7 * 86400000;
+  rows.forEach((a) => {
+    const s = a.stage || "applied";
+    byStage[s] = (byStage[s] || 0) + 1;
+    if (a.created_at && new Date(a.created_at).getTime() >= weekAgo) newThisWeek += 1;
+  });
+  const { count: openRoles } = await supabase
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("status", "open");
+  return {
+    total: rows.length,
+    byStage,
+    newThisWeek,
+    openRoles: openRoles || 0,
+    // "Needs action": people sitting in interviewing/offer waiting on a decision.
+    awaitingDecision: (byStage.interviewing || 0) + (byStage.offer || 0),
+  };
 }
 
 // Applicants for one job, with stage and AI match score.

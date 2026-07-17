@@ -10,6 +10,7 @@ export const linking = {
     screens: {
       Main: {
         screens: {
+          DashboardTab: "pipeline",
           TodayTab: "today",
           PositionsTab: "positions",
           ProfileTab: "me",

@@ -8,6 +8,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { supabase } from "./lib/supabase";
 import { loadSession, loadAssignedJobIds } from "./lib/session";
 import { registerForPush, unregisterPush } from "./lib/push";
+import { isManagerRole } from "@aster/shared";
 
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
@@ -104,6 +105,9 @@ export function AuthProvider({ children }) {
     signedIn: !!session,
     session,
     profile,
+    // Managers (owner/admin/recruiter) get the pipeline experience; interviewers
+    // get the focused panel experience. Used to pick nav + gate features.
+    manager: isManagerRole(profile?.role),
     assignedJobIds,
     locked,
     signIn,
