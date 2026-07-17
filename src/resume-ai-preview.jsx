@@ -18485,7 +18485,7 @@ function deriveInsights(candidate) {
   };
 }
 
-function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName, currentUserId = null, attendees = [], isManager = false, allowSelfScore = false }) {
+function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName, currentUserId = null, attendees = [], isManager = false, allowSelfScore = false, onSkip = null }) {
   // Collaborative scorecards are available on every plan (locked matrix).
   const isPaid = planLimits(plan).scorecards;
   const [open, setOpen] = useState(false);
@@ -18639,11 +18639,23 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
               </div>
             </div>
           ) : (
-            <button onClick={() => setOpen(true)} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">
-              + Add your scorecard
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => setOpen(true)} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">
+                + Add your scorecard
+              </button>
+              {onSkip && (
+                <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                  Skip to decision &rarr;
+                </button>
+              )}
+            </div>
           )) : hasMine ? (
-            <p className="text-xs inline-flex items-center gap-1.5" style={{ color: "#16A34A" }}><Icon name="check" className="w-3.5 h-3.5" /> You submitted your scorecard.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-xs inline-flex items-center gap-1.5" style={{ color: "#16A34A" }}><Icon name="check" className="w-3.5 h-3.5" /> You submitted your scorecard.</p>
+              {onSkip && (
+                <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-3.5 py-1.5 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>Skip to decision &rarr;</button>
+              )}
+            </div>
           ) : null}
         </div>
       )}
@@ -19383,14 +19395,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 )}
               </div>
             ) : (
-              <div className="mb-3 rounded-xl border px-4 py-2.5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <span className="text-sm inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}>
-                  <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
-                  {scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " Add your own scorecard below, or skip to the decision."}
-                </span>
-                {!decisionUnlocked && (
-                  <button onClick={() => { setScorecardsSkipped(true); setIvStep(3); }} className="shrink-0 text-sm font-medium rounded-lg px-3 py-1.5 border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>Skip &rarr;</button>
-                )}
+              <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--ink-2)" }}>
+                <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
+                <span>{scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " Add your own scorecard, or skip to the decision below."}</span>
               </div>
             )}
             <ScorecardPanel
@@ -19403,6 +19410,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               attendees={booking?.attendees || []}
               isManager={true}
               allowSelfScore={true}
+              onSkip={!decisionUnlocked ? () => { setScorecardsSkipped(true); setIvStep(3); } : null}
             />
           </div>
         )}
@@ -19461,9 +19469,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </div>
               ) : offerStatus === "accepted" ? (
                 <div className="mt-2">
-                  <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
-                    <p className="text-sm font-medium" style={{ color: "#166534" }}>{firstName} accepted the offer 🎉</p>
-                    <p className="text-xs mt-0.5" style={{ color: "#166534" }}>Confirm the details with them, then close the process by marking them hired.</p>
+                  <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                    <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Ready to hire {firstName}</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>The signed offer is in the Offer panel. Mark {firstName} as hired to complete the process.</p>
                   </div>
                   <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
                     <Icon name="check" className="w-4 h-4" /> Mark as hired
