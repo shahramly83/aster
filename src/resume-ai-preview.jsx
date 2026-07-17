@@ -19531,7 +19531,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             hasEmail={hasEmail}
             defaultCurrency={preferredCurrency}
             onClose={() => setShowOffer(false)}
-            onSend={(emailSent, terms) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms); }}
+            onSend={(emailSent, terms, esign) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, esign); }}
           />
         )}
         </>)}
@@ -19762,6 +19762,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [empType, setEmpType] = useState("full_time");
   const [startDate, setStartDate] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [esign, setEsign] = useState(false);
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs text-neutral-500 mb-1";
@@ -19777,7 +19778,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
   const handleSend = (emailSent) => {
     setSending(true);
-    setTimeout(() => onSend(emailSent, terms), emailSent ? 900 : 0);
+    setTimeout(() => onSend(emailSent, terms, esign), emailSent ? 900 : 0);
   };
 
   return (
@@ -19832,7 +19833,17 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         </div>
 
         <label className={labelClass}>Message to the candidate</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-4 resize-y`} disabled={!hasEmail} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-3 resize-y`} disabled={!hasEmail} />
+
+        {/* E-signature: send the offer letter through DocuSign for the candidate
+            to sign, instead of a plain accept/decline link. */}
+        <label className="flex items-start gap-2.5 mb-4 cursor-pointer select-none">
+          <input type="checkbox" checked={esign} onChange={(e) => setEsign(e.target.checked)} className="accent-[color:var(--brand)] w-4 h-4 mt-0.5 shrink-0" disabled={!hasEmail} />
+          <span className="text-sm" style={{ color: "var(--ink-2)" }}>
+            Send for e-signature via <span className="font-medium">DocuSign</span>
+            <span className="block text-xs" style={{ color: "var(--ink-3)" }}>The candidate signs the offer letter. The signed PDF is saved to the offer.</span>
+          </span>
+        </label>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button onClick={onClose} className="text-sm rounded-lg px-4 py-2 text-neutral-600 hover:bg-neutral-100 transition-colors">
@@ -19845,7 +19856,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           )}
           {hasEmail && (
             <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
-              {sending ? "Sending…" : "Send offer"}
+              {sending ? "Sending…" : esign ? "Send for signature" : "Send offer"}
             </button>
           )}
         </div>
@@ -22886,16 +22897,19 @@ export default function ResumeAIPreview() {
   };
 
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
-  const sendOffer = (candidateId, emailSent, terms = null) => {
-    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now", terms } }));
+  const sendOffer = (candidateId, emailSent, terms = null, esign = false) => {
+    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now", terms, esign } }));
     // Move to Offer without the generic stage email; the offer email (with the
     // accept/decline link) is sent by send-offer below when HR chose to email.
     setCandidateStage(candidateId, "offer", { notify: false });
-    // Always record the offer + its terms; only email the accept/decline link when
-    // HR chose to (a candidate with no email on file records the offer internally).
+    // Always record the offer + its terms. Then either request an e-signature via
+    // DocuSign, or email the plain accept/decline link, or (no email on file)
+    // just record it internally.
     if (canPersist) {
       dbCreateOffer(companyId, { candidateId, terms }).then((token) => {
-        if (token && emailSent) supabase.functions.invoke("send-offer", { body: { token } }).catch(() => {});
+        if (!token) return;
+        if (esign) supabase.functions.invoke("docusign-send", { body: { token } }).catch(() => {});
+        else if (emailSent) supabase.functions.invoke("send-offer", { body: { token } }).catch(() => {});
       });
     }
   };
@@ -23496,7 +23510,7 @@ export default function ResumeAIPreview() {
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             preferredCurrency={preferredCurrency}
-            onSendOffer={(emailSent, terms) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms)}
+            onSendOffer={(emailSent, terms, esign) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, esign)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}
