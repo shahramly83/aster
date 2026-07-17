@@ -3290,10 +3290,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           <p className="eyebrow brand-text mb-2">Simple, transparent pricing</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Pricing that scales with your hiring</h2>
           <p className="text-neutral-500 mt-2">Start on Launch. Upgrade when you're hiring at volume. Any applicable taxes are shown at checkout.</p>
-          {/* Currency (left) + Monthly/Yearly (centered), on one inline row */}
-          <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <div className="justify-self-start"><CurrencyDropdown value={curSel} onChange={setCurSel} /></div>
-            <div className={`justify-self-center inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
+          {/* Currency + Monthly/Yearly. Stacked on mobile (currency above the
+              toggle); one inline row from sm up (currency left, toggle centered). */}
+          <div className="mt-6 flex flex-col items-center gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div className="sm:justify-self-start"><CurrencyDropdown value={curSel} onChange={setCurSel} /></div>
+            <div className={`sm:justify-self-center inline-flex rounded-full border p-0.5 ${yearlyOffered ? "" : "hidden"}`} style={{ borderColor: "var(--line)" }}>
               {[{ key: "monthly", label: "Monthly" }, { key: "yearly", label: "Yearly" }].map((c) => {
                 const on = cycle === c.key;
                 return (
@@ -3306,7 +3307,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                 );
               })}
             </div>
-            <div />
+            <div className="hidden sm:block" />
           </div>
         </Reveal>
 
@@ -3454,7 +3455,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               </div>
               {/* justify-center: the parent is a flex column, so on narrow screens
                   this stretches full width and the label drifts left without it. */}
-              <button onClick={() => navigate("contactSales")} className="inline-flex items-center justify-center gap-1.5 brand-gradient text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Book a 1:1 demo <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+              <button onClick={() => navigate("contactSales")} className="inline-flex items-center justify-center gap-1.5 brand-gradient text-white font-semibold text-base px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_40px_-12px_rgba(var(--brand-rgb),0.6)]">Book a 1:1 demo <Icon name="arrowUpRight" className="w-4 h-4" /></button>
             </div>
           </div>
         </Reveal>
@@ -3577,8 +3578,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               </a>
             </div>
 
-            {/* social proof */}
-            <div className="mt-8 flex items-center justify-center gap-3">
+            {/* social proof — images above, text below on mobile; inline from sm up */}
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
               <div className="flex -space-x-2.5">
                 {["A", "S", "D", "P"].map((n, i) => (
                   <FaceAvatar key={i} seed={`cta-${i}`} name={n} size={30} className="border-2" style={{ borderColor: "var(--brand)" }} />
@@ -4290,7 +4291,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // arrive in September, so the store badges are visual only (no links).
 function AppDownloadBand() {
   return (
-    <section className="pt-2 pb-10 sm:pt-0 sm:pb-20">
+    <section className="py-10 sm:py-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div className="min-w-0">
           <span className="inline-flex items-center gap-1.5 mb-2.5 text-[11px] font-semibold uppercase px-2.5 py-1 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", letterSpacing: "0.06em" }}>
