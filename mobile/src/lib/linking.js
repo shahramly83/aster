@@ -19,6 +19,7 @@ export const linking = {
       InterviewDetail: "interview/:interviewId",
       Scorecard: "scorecard/:candidateId",
       CandidateProfile: "candidate/:candidateId",
+      Discussion: "discussion/:candidateId",
     },
   },
 };

@@ -238,11 +238,101 @@ export async function loadApplicants(companyId, jobId) {
   });
 }
 
-// Move an applicant to a new pipeline stage. RLS lets interviewers update stage
-// only on their assigned jobs' applications.
-export async function setApplicantStage(applicationId, stage) {
-  const { error } = await supabase.from("applications").update({ stage }).eq("id", applicationId);
+// Stages a mobile client may set DIRECTLY, exactly matching what the web app's
+// StageControl writes without side effects it can't reproduce. Deliberately
+// EXCLUDES "offer" and "declined": on web those never come from a stage click —
+// "offer" runs through the dedicated offer + DocuSign flow (dbCreateOffer +
+// docusign-send) and "declined" only from an offer response. Setting them here
+// would leave an offer-stage candidate with no offer record and break the web
+// flow. Those actions stay on the web app.
+export const MOBILE_STAGES = ["applied", "shortlisted", "interviewing", "hired", "rejected"];
+
+// Move a candidate's stage with FULL web parity (mirrors setCandidateStage in
+// resume-ai-preview.jsx): writes by candidate_id + company_id (candidate-level,
+// like the web), logs activity on hire, and sends the same stage email for
+// hired/rejected. Best-effort on the side effects so a mail/log hiccup never
+// blocks the move.
+export async function moveCandidateStage({ companyId, candidateId, candidateName, stage, notify = true }) {
+  if (!MOBILE_STAGES.includes(stage)) {
+    throw new Error(`"${stage}" can only be set on the web app.`);
+  }
+  // 1) Persist the stage exactly as dbSetCandidateStage does (by candidate).
+  const { error } = await supabase
+    .from("applications")
+    .update({ stage })
+    .eq("company_id", companyId)
+    .eq("candidate_id", candidateId);
   if (error) throw error;
+
+  // 2) Activity log on hire (company-gated log_activity RPC, same as web).
+  if (stage === "hired") {
+    supabase.rpc("log_activity", {
+      p_type: "hired",
+      p_title: `${candidateName || "A candidate"} was hired`,
+      p_candidate_id: candidateId,
+    }).then(() => {}, () => {});
+  }
+
+  // 3) Candidate-facing stage email for hired/rejected (same edge function the
+  //    web calls). Never let an email failure surface as a stage-change failure.
+  if (notify && (stage === "hired" || stage === "rejected")) {
+    supabase.functions
+      .invoke("send-stage-email", { body: { candidate_id: candidateId, stage } })
+      .catch(() => {});
+  }
+}
+
+// ---- Candidate discussion (chat) ----------------------------------------------
+
+// Load a candidate's discussion thread, oldest first, with author names.
+export async function loadMessages(candidateId) {
+  const { data } = await supabase
+    .from("candidate_messages")
+    .select("id, author_id, body, created_at")
+    .eq("candidate_id", candidateId)
+    .order("created_at", { ascending: true });
+  const rows = data || [];
+  const authorIds = [...new Set(rows.map((r) => r.author_id))];
+  const nameById = {};
+  if (authorIds.length) {
+    const { data: profs } = await supabase.from("profiles").select("id, full_name, role").in("id", authorIds);
+    (profs || []).forEach((p) => { nameById[p.id] = { name: p.full_name || "Teammate", role: p.role }; });
+  }
+  return rows.map((m) => ({
+    id: m.id,
+    authorId: m.author_id,
+    authorName: nameById[m.author_id]?.name || "Teammate",
+    authorRole: nameById[m.author_id]?.role || null,
+    body: m.body,
+    createdAt: m.created_at,
+  }));
+}
+
+// Post a message, then best-effort push the rest of the panel.
+export async function sendMessage({ companyId, candidateId, jobId, authorId, body }) {
+  const text = (body || "").trim();
+  if (!text) return null;
+  const { data, error } = await supabase
+    .from("candidate_messages")
+    .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, author_id: authorId, body: text })
+    .select("id, author_id, body, created_at")
+    .single();
+  if (error) throw error;
+  supabase.functions.invoke("notify-message", { body: { candidate_id: candidateId, job_id: jobId || null, preview: text } }).catch(() => {});
+  return data;
+}
+
+// Subscribe to new messages on a candidate's thread. Returns an unsubscribe fn.
+export function subscribeMessages(candidateId, onInsert) {
+  const channel = supabase
+    .channel(`candidate_messages:${candidateId}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "candidate_messages", filter: `candidate_id=eq.${candidateId}` },
+      (payload) => onInsert(payload.new)
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
 }
 
 // ---- helpers -------------------------------------------------------------------

@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadPipelineSummary, loadOpenPositions } from "../lib/data";
 import { Card, Press, Avatar, StatTile, SectionHeader, ScreenTitle, Loader, EmptyState, StagePill, Feather } from "../components/ui";
+import { AsterMark } from "../components/Logo";
 import { theme, type, space, radius } from "../theme";
 import { JOB_STAGES, stageLabel, stageColor } from "@aster/shared";
 
@@ -41,7 +42,10 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle subtitle={`${profile.company}`}>
+      <ScreenTitle
+        subtitle={`${profile.company}`}
+        right={<View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" }}><AsterMark size={26} color={theme.brand} /></View>}
+      >
         {greeting()}{profile.name ? `, ${profile.name.split(" ")[0]}` : ""}
       </ScreenTitle>
       <ScrollView

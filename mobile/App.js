@@ -15,11 +15,17 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 
+import * as SplashScreen from "expo-splash-screen";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import { isManagerRole } from "@aster/shared";
 import { linking } from "./src/lib/linking";
 import { theme } from "./src/theme";
 import { Loader, Button } from "./src/components/ui";
+import BrandSplash from "./src/components/BrandSplash";
+
+// Keep the native (blue) splash up until fonts are ready, then our animated
+// BrandSplash takes over for the reveal.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 import SignInScreen from "./src/screens/SignInScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
@@ -29,6 +35,7 @@ import ScorecardScreen from "./src/screens/ScorecardScreen";
 import OpenPositionsScreen from "./src/screens/OpenPositionsScreen";
 import PositionApplicantsScreen from "./src/screens/PositionApplicantsScreen";
 import CandidateProfileScreen from "./src/screens/CandidateProfileScreen";
+import DiscussionScreen from "./src/screens/DiscussionScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 
 const Stack = createNativeStackNavigator();
@@ -132,6 +139,7 @@ function Root() {
       <Stack.Screen name="Scorecard" component={ScorecardScreen} options={{ title: "Scorecard" }} />
       <Stack.Screen name="PositionApplicants" component={PositionApplicantsScreen} options={{ title: "Candidates" }} />
       <Stack.Screen name="CandidateProfile" component={CandidateProfileScreen} options={{ title: "Candidate" }} />
+      <Stack.Screen name="Discussion" component={DiscussionScreen} options={({ route }) => ({ title: route.params?.candidateName || "Discussion" })} />
     </Stack.Navigator>
   );
 }
@@ -143,15 +151,22 @@ export default function App() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
-  if (!fontsLoaded) return <Loader />;
+  const [splashDone, setSplashDone] = React.useState(false);
+
+  React.useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null; // native blue splash stays up
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer linking={linking} theme={navTheme} fallback={<Loader />}>
-          <StatusBar style="dark" />
+        <NavigationContainer linking={linking} theme={navTheme} fallback={<View style={{ flex: 1, backgroundColor: theme.brand }} />}>
+          <StatusBar style={splashDone ? "dark" : "light"} />
           <Root />
         </NavigationContainer>
       </AuthProvider>
+      {!splashDone ? <BrandSplash onDone={() => setSplashDone(true)} /> : null}
     </SafeAreaProvider>
   );
 }

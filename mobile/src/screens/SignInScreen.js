@@ -3,6 +3,7 @@ import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Pres
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../AuthContext";
 import { Button, Feather } from "../components/ui";
+import { AsterLogo } from "../components/Logo";
 import { theme, type, radius, space, shadow } from "../theme";
 
 export default function SignInScreen() {
@@ -24,8 +25,8 @@ export default function SignInScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <View style={styles.wrap}>
-          <View style={[styles.logo, shadow.brand]}>
-            <Text style={styles.logoMark}>A</Text>
+          <View style={{ marginBottom: space(7) }}>
+            <AsterLogo width={128} color={theme.brand} />
           </View>
           <Text style={type.display}>Welcome back</Text>
           <Text style={[type.body, { color: theme.ink3, marginTop: 4, marginBottom: space(7) }]}>
