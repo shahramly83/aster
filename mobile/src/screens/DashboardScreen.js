@@ -122,11 +122,16 @@ export default function DashboardScreen({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={[type.h3, { color: theme.onBrand }]} numberOfLines={1}>{r.title}</Text>
                     <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 2 }]}>
-                      {r.applicantCount} candidate{r.applicantCount === 1 ? "" : "s"}{r.active > 0 ? ` · ${r.active} to decide` : ""}
+                      {r.applicantCount} candidate{r.applicantCount === 1 ? "" : "s"} in pipeline
                     </Text>
                   </View>
-                  {r.active > 0 ? <View style={styles.panelBadge}><Text style={[type.smallStrong, { color: theme.white }]}>{r.active}</Text></View> : null}
-                  <Feather name="chevron-right" size={20} color={theme.onBrandFaint} style={{ marginLeft: 6 }} />
+                  {r.active > 0 ? (
+                    <View style={styles.pending}>
+                      <Feather name="clock" size={12} color="#FFD27D" />
+                      <Text style={[type.smallStrong, { color: "#FFD27D", marginLeft: 5 }]}>{r.active} to review</Text>
+                    </View>
+                  ) : null}
+                  <Feather name="chevron-right" size={20} color={theme.onBrandFaint} style={{ marginLeft: 8 }} />
                 </View>
               </Press>
             ))}
@@ -172,5 +177,5 @@ const styles = StyleSheet.create({
   countSep: { width: 1, height: 34, backgroundColor: theme.brandLine },
   countVal: { fontFamily: "Inter_700Bold", fontSize: 22, color: theme.onBrand, marginTop: 5, fontVariant: ["tabular-nums"] },
   panel: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
-  panelBadge: { minWidth: 30, height: 30, borderRadius: 15, paddingHorizontal: 8, backgroundColor: theme.brandDeep, alignItems: "center", justifyContent: "center" },
+  pending: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,210,125,0.15)", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
 });
