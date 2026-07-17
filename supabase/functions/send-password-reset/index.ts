@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
 
     const html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:460px;margin:0 auto;padding:32px 24px;color:#0F172A">
-        <img src="https://hireaster.com/aster-logo.png" alt="Aster" height="20" style="height:20px;margin-bottom:28px" />
+        <img src="https://hireaster.com/aster-logo.png" alt="Aster" height="40" style="height:40px;margin-bottom:28px" />
         <h1 style="font-size:19px;margin:0 0 8px">Reset your password</h1>
         <p style="font-size:14px;color:#475569;margin:0 0 8px">Click the button below to set a new password for your Aster account. This link expires in 60 minutes.</p>
         ${button("Set a new password", link)}

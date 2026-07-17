@@ -84,7 +84,7 @@ export function emailShell(opts: { heading: string; bodyHtml: string; preview?: 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #ECE7F5;border-radius:16px;overflow:hidden;">
         <tr><td style="padding:26px 32px 0;">
           <a href="${SITE}" style="text-decoration:none;">
-            <img src="${SITE}/aster-logo.png" height="30" alt="Aster" style="height:30px;width:auto;display:inline-block;border:0;">
+            <img src="${SITE}/aster-logo.png" height="40" alt="Aster" style="height:40px;width:auto;display:inline-block;border:0;">
           </a>
         </td></tr>
         <tr><td style="padding:22px 32px 4px;">
@@ -120,7 +120,7 @@ export function companyShell(opts: {
 }): string {
   const { companyName, logoUrl, heading, bodyHtml, preview = "", signoff = true } = opts;
   const brand = logoUrl
-    ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" height="34" style="max-height:34px;max-width:200px;display:inline-block;vertical-align:middle;border:0;">`
+    ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" height="40" style="max-height:40px;max-width:220px;display:inline-block;vertical-align:middle;border:0;">`
     : `<span style="font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:18px;color:#171326;vertical-align:middle;">${esc(companyName)}</span>`;
   const sign = signoff
     ? `<p style="margin:20px 0 0;">Best regards,<br>${esc(companyName)}</p>`

@@ -1242,7 +1242,10 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBl
     supabase.rpc("workspace_by_slug", { p_slug: wsSlug }).then(({ data }) => {
       if (off) return;
       const row = Array.isArray(data) ? data[0] : data;
-      setWsBrand(row ? { name: row.name, logoUrl: row.logo_url || null } : null);
+      setWsBrand(row ? { name: row.name, logoUrl: row.logo_url || null, domain: row.domain || null } : null);
+      // Pre-fill the email with the company's domain (e.g. @onlazy.com) so a
+      // person only types their username. Only when the field is still empty.
+      if (row?.domain) setEmail((cur) => (cur ? cur : `@${row.domain}`));
     });
     return () => { off = true; };
   }, [wsSlug]);
@@ -1394,7 +1397,7 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBl
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
             <div>
               <label htmlFor="li-email" className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
-              <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
+              <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} onFocus={(e) => { if (wsBrand?.domain && e.target.value === `@${wsBrand.domain}`) { try { e.target.setSelectionRange(0, 0); } catch { /* noop */ } } }} placeholder={wsBrand?.domain ? `you@${wsBrand.domain}` : "you@company.com"} className={fieldDark} style={fieldDarkStyle} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">

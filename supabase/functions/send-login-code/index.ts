@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
 
     const html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:460px;margin:0 auto;padding:32px 24px;color:#0F172A">
-        <img src="https://hireaster.com/aster-logo.png" alt="Aster" height="20" style="height:20px;margin-bottom:28px" />
+        <img src="https://hireaster.com/aster-logo.png" alt="Aster" height="40" style="height:40px;margin-bottom:28px" />
         <h1 style="font-size:19px;margin:0 0 8px">Your sign-in code</h1>
         <p style="font-size:14px;color:#475569;margin:0 0 20px">Enter this code to finish signing in. It expires in 10 minutes.</p>
         <div style="font-size:34px;font-weight:800;letter-spacing:.32em;background:#F1F5F9;border-radius:12px;padding:16px 0;text-align:center;color:#0B2AE0">${code}</div>
