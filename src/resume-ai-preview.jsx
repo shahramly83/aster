@@ -2595,7 +2595,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const features = [
     { icon: "doc", title: "AI resume screening", body: "Drop in a CV and get structured skills, experience, and a summary in seconds. No manual data entry." },
     { icon: "target", title: "Role-fit match score", body: "Every applicant is scored against the role, so the strongest fits rise to the top on their own." },
-    { icon: "calendar", title: "Interview scheduling", body: "Connect one workspace calendar and let candidates self-book. Google Meet and Teams links are created for you." },
+    { icon: "calendar", title: "Interview scheduling", body: "Offer a few times and let candidates self-book. Everyone gets a calendar invite, and Aster shares your Meet, Teams or Zoom link with them." },
     { icon: "users", title: "One shared pipeline", body: "Track every candidate from applied to hired, with the whole team on the same board." },
   ];
 
@@ -2608,7 +2608,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const problems = [
     { icon: "doc", pain: "Drowning in CVs", fix: "50+ resumes per role, each opened and read by hand.", result: "Aster reads every CV as it arrives and summarises skills, experience, and fit in a single line." },
     { icon: "target", pain: "Good people slip through", fix: "The strongest fit is buried on page 3 of a spreadsheet.", result: "Every applicant gets a match score for the role. The strongest sit at the top of the list, with reasons rather than just a number." },
-    { icon: "calendar", pain: "Scheduling ping-pong", fix: "A dozen emails just to lock one interview slot.", result: "Send one link. The candidate picks a time from your live calendar, and the Meet or Teams invite is created automatically." },
+    { icon: "calendar", pain: "Scheduling ping-pong", fix: "A dozen emails just to lock one interview slot.", result: "Offer a few times in one link. The candidate self-books, everyone gets a calendar invite, and Aster shares the meeting link you add." },
     { icon: "interview", pain: "Every interviewer improvises", fix: "No two interviews cover the same ground, so comparisons are guesswork.", result: "The moment an interview is booked, Aster drafts questions for that role and that candidate, so every panel covers the same ground." },
     { icon: "users", pain: "Feedback scattered in DMs", fix: "Scores and gut-feels live in chats, sticky notes and inboxes.", result: "One scorecard per candidate. Everyone rates the same criteria, and you get a clear yes or no from the team." },
     { icon: "dashboard", pain: "No read on the pipeline", fix: "Nobody can say how many are in play or where things stall.", result: "One dashboard shows what came in, who is at which stage, and where things are stalling." },
@@ -2620,7 +2620,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { icon: "briefcase", tag: "Sourcing", title: "Apply Pages", body: "Every role gets a shareable link for LinkedIn, JobStreet, or your careers site. Each link is source-tracked, so you always know which channel your best applicants come from." },
     { icon: "chat", tag: "Messaging", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
     { icon: "offer", tag: "Offers", title: "Offers with e-signature", body: "Set the terms and Aster builds a branded offer letter, sent for signature via DocuSign. The signed PDF is saved to the candidate's profile automatically." },
-    { icon: "interviewers", tag: "Collaboration", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and video link automatically. Interviewers see only the candidates they're assessing." },
+    { icon: "eye", tag: "Insights", title: "AI Experience Insights", body: "Run a deeper AI read of any resume: total and leadership experience, time at each employer, and any gaps. Saved to the candidate, so it never costs a second credit." },
+    { icon: "interviewers", tag: "Collaboration", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and the meeting link. Interviewers see only the candidates they're assessing." },
     { icon: "shield", tag: "Security", title: "Privacy by default", body: "Your candidates' data stays yours: encrypted, in your workspace, and exportable or deletable whenever you want." },
   ];
 
@@ -2692,9 +2693,9 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "Security", q: "Is candidate data used to train AI models?", a: "No. Your candidates' data is used only to screen and rank them for your roles. It isn't used to train shared models or shared with other companies." },
     { cat: "Security", q: "Do you support SSO and audit logs?", a: "Yes, on Enterprise. Single sign-on and audit logs give larger teams centralised access control and a full record of who did what." },
     { cat: "Security", q: "Can I export or back up my data?", a: "Anytime. Export candidates, resumes, and pipeline data whenever you need. Your data stays portable and yours." },
-    { cat: "Integrations", q: "Do you work with Google and Microsoft?", a: "Both. Connect a Google or Microsoft workspace calendar, and interviews automatically create Meet or Teams links for everyone." },
-    { cat: "Integrations", q: "Which calendars does Aster connect to?", a: "Google Workspace and Microsoft 365. Connect one and Aster reads your availability and creates Meet or Teams links for each interview automatically." },
-    { cat: "Integrations", q: "Can candidates book their own interview slots?", a: "Yes. Share one link and candidates pick a time from your live availability. The calendar invite and video link are created automatically, with no back-and-forth email." },
+    { cat: "Integrations", q: "Do interview invites work with Google and Microsoft?", a: "Both. Every booking confirmation includes a calendar invite (.ics) that adds straight to Google Calendar, Outlook, Apple Calendar or any app, for the candidate and each interviewer." },
+    { cat: "Integrations", q: "How do the video meeting links work?", a: "You add your own link (Google Meet, Microsoft Teams or Zoom) when you confirm the time, and Aster shares it with the candidate and the whole panel, in the confirmation and reminders." },
+    { cat: "Integrations", q: "Can candidates book their own interview slots?", a: "Yes. Offer a few times and share one link, and the candidate picks the slot that works. Everyone gets a calendar invite and the meeting link, with no back-and-forth email." },
     { cat: "Integrations", q: "Can I share roles on job boards?", a: "Yes. Every role gets an Apply page you can post on LinkedIn, JobStreet, or anywhere. Applicants land straight in your pipeline, tagged by source so you can see which channel performs best." },
     { cat: "Integrations", q: "Can I collect applications from my own website?", a: "Yes. Each role has a shareable Apply page you can link from your careers site or anywhere else, and applicants flow straight into your pipeline. Every apply link is source-tracked, so you always know which channel each applicant came from." },
     { cat: "Integrations", q: "Does Aster send WhatsApp reminders?", a: "On Elite and up, Aster sends interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
@@ -3065,7 +3066,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               </div>
               <h3 className="font-display font-bold text-neutral-900 mb-2.5" style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", letterSpacing: "-0.02em" }}>Interview scheduling</h3>
               <p className="leading-relaxed max-w-md" style={{ color: "var(--ink-2)", fontSize: "0.975rem" }}>
-                Connect one workspace calendar and let candidates self-book. Google Meet and Teams links are created for you. No back-and-forth email.
+                Offer a few times and let candidates self-book. Everyone gets a calendar invite, and the Meet, Teams or Zoom link you add is shared with them. No back-and-forth email.
               </p>
             </div>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center border-t lg:border-t-0 lg:border-l" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
@@ -3671,10 +3672,10 @@ const PRODUCT_PAGES = {
     subtitle: "AI-drafted questions the moment an interview is booked, self-scheduling that fills your calendar, and one scorecard per candidate so the whole panel rates the same criteria.",
     chips: ["Self-scheduling", "AI questions", "Team scorecards"],
     features: [
-      { icon: "calendar", title: "Candidate self-scheduling", body: "Share one link. Candidates pick a slot from your live availability and the Meet or Teams invite is created automatically." },
+      { icon: "calendar", title: "Candidate self-scheduling", body: "Offer a few times in one link. The candidate picks a slot, everyone gets a calendar invite, and Aster shares the meeting link you add." },
       { icon: "interview", title: "AI interview questions", body: "Questions written for the role and the person, grouped by theme and ready the moment the interview is booked." },
       { icon: "star", title: "Collaborative scorecards", body: "Every interviewer rates the same criteria from 1 to 4, and Aster averages them into one clear team score." },
-      { icon: "interviewers", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and video link automatically." },
+      { icon: "interviewers", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and the meeting link." },
     ],
     highlight: { title: "No two interviews should be guesswork", body: "When every panel covers the same ground and scores the same way, comparing candidates becomes a decision, not a debate.", points: ["Structured questions per role keep interviews fair", "Scorecards roll up to a clear yes or no", "WhatsApp reminders cut no-shows"] },
   },
@@ -3726,7 +3727,7 @@ const PRODUCT_PAGES = {
       { icon: "users", title: "Everyone on one board", body: "The whole team sees the same pipeline in real time, so there's no 'which spreadsheet is current?'" },
       { icon: "lock", title: "Roles & permissions", body: "Interviewers see only the candidates they're assessing. Sensitive data stays on a need-to-know basis." },
       { icon: "star", title: "Feedback in one place", body: "Scorecards and notes live on the candidate, so decisions are made from evidence, not gut-feel in a chat." },
-      { icon: "interviewers", title: "Interview panels", body: "Add teammates to any interview and everyone gets the invite and video link, automatically." },
+      { icon: "interviewers", title: "Interview panels", body: "Add teammates to any interview and everyone gets the calendar invite and the meeting link." },
     ],
     highlight: { title: "Hiring is a team sport", body: "Aster keeps every stakeholder aligned on the same candidates, criteria and decisions, without another meeting.", points: ["Assign interviewers per candidate", "One scorecard, everyone rates the same criteria", "A clear team score, not a thread of opinions"] },
   },
@@ -3738,7 +3739,7 @@ const PRODUCT_PAGES = {
     features: [
       { icon: "doc", title: "Auto-screen & score", body: "Every resume is read, structured and scored against the role the moment it arrives, no clicks needed." },
       { icon: "chat", title: "Templated emails", body: "Application received, interview invite, offer and rejection emails send from editable templates with details filled in." },
-      { icon: "calendar", title: "Scheduling flow", body: "Booking, calendar invites and video links are created automatically once a candidate picks a slot." },
+      { icon: "calendar", title: "Scheduling flow", body: "Once a candidate picks a slot, the booking is confirmed and everyone gets a calendar invite with the meeting link you added." },
       { icon: "bell", title: "Reminders that reduce no-shows", body: "Interview confirmations and reminders go out over email and WhatsApp, where candidates actually reply." },
     ],
     highlight: { title: "Consistency, without the manual effort", body: "Automations run the same way every time, so candidates get a fast, professional experience and your team gets its time back.", points: ["Every automated email is fully editable", "Placeholders keep messaging on-brand", "Nothing sends without your process behind it"] },
@@ -3746,11 +3747,11 @@ const PRODUCT_PAGES = {
   integrations: {
     eyebrow: "Integrations", icon: "link",
     title: "Works with the tools", accent: "you already use.",
-    subtitle: "Connect your calendar, email and messaging in a couple of clicks. Aster reads availability, creates meeting links, and sends messages where your candidates are.",
-    chips: ["Google & Microsoft", "Meet & Teams", "WhatsApp Business"],
+    subtitle: "Aster sends calendar invites, email and WhatsApp where your candidates are. Booking confirmations add straight to any calendar, and your meeting link goes out with them.",
+    chips: ["Calendar invites (.ics)", "Meet, Teams & Zoom", "WhatsApp Business"],
     features: [
-      { icon: "calendar", title: "Google & Microsoft calendars", body: "Connect one workspace calendar and Aster reads availability and creates events for every interview." },
-      { icon: "interview", title: "Meet & Teams links", body: "Video links are generated automatically for each interview and shared with the whole panel." },
+      { icon: "calendar", title: "Works with any calendar", body: "Every booking confirmation carries a calendar invite (.ics) that adds straight to Google Calendar, Outlook, Apple Calendar or any app." },
+      { icon: "interview", title: "Meet, Teams or Zoom", body: "Add your video link when you confirm the time, and Aster shares it with the candidate and the whole panel." },
       { icon: "chat", title: "WhatsApp Business", body: "Send interview confirmations and reminders over WhatsApp, where candidates actually reply." },
       { icon: "briefcase", title: "Job boards & apply links", body: "Post roles to LinkedIn, JobStreet and more. Applicants land straight in your pipeline, tagged by source." },
     ],
@@ -3800,7 +3801,7 @@ const SOLUTIONS_PAGES = {
     features: [
       { icon: "doc", title: "Every resume, screened", body: "Skills, experience and a one-line summary pulled from each CV the moment it lands. No manual data entry." },
       { icon: "target", title: "Ranked by role fit", body: "A match score with the reasons puts the strongest candidates on top, so you start from a shortlist." },
-      { icon: "calendar", title: "Scheduling without the ping-pong", body: "Send one link and let candidates self-book. The Meet or Teams invite is created for you." },
+      { icon: "calendar", title: "Scheduling without the ping-pong", body: "Offer a few times and let candidates self-book. Everyone gets a calendar invite with the meeting link you add." },
       { icon: "chat", title: "Reach candidates where they reply", body: "Templated emails and WhatsApp reminders keep candidates warm and cut no-shows." },
     ],
     highlight: { title: "From 46 applicants to a shortlist of 3", body: "Aster reads and ranks the whole pile as it arrives, so your morning starts with the people worth calling.", points: ["Bulk-upload the CVs you already have", "Source-tracked apply links show what's working", "Every candidate on one shared pipeline"] },
@@ -3851,7 +3852,7 @@ const SOLUTIONS_PAGES = {
     chips: ["14-day free trial", "Set up in minutes", "No recruiter needed"],
     features: [
       { icon: "doc", title: "No CV reading", body: "Drop in applicants and get a ranked, summarised shortlist in seconds." },
-      { icon: "calendar", title: "Interviews book themselves", body: "Share a link; candidates pick a slot and the video invite is created for you." },
+      { icon: "calendar", title: "Interviews book themselves", body: "Share a link; candidates pick a slot and everyone gets a calendar invite with your meeting link." },
       { icon: "target", title: "Know who's actually a fit", body: "A match score with reasons helps you make confident calls, fast." },
       { icon: "hire", title: "One place, applied to hired", body: "Post a role, screen, interview and offer, without stitching five tools together." },
     ],
@@ -3865,7 +3866,7 @@ const SOLUTIONS_PAGES = {
     chips: ["14-day free trial", "AI screening", "Self-scheduling"],
     features: [
       { icon: "target", title: "Start from a shortlist", body: "Every applicant ranked against the role, so you talk to the best first." },
-      { icon: "calendar", title: "Book interviews in a click", body: "One link, candidate self-books, invite created. No email tag." },
+      { icon: "calendar", title: "Book interviews in a click", body: "One link, candidate self-books, calendar invite sent. No email tag." },
       { icon: "doc", title: "Zero data entry", body: "CVs screened into structured profiles automatically." },
       { icon: "users", title: "Bring the team in", body: "Add teammates to interviews; everyone works from one board." },
     ],
@@ -3944,7 +3945,7 @@ const SOLUTIONS_PAGES = {
     chips: ["High-volume screening", "Fast scheduling", "WhatsApp reminders"],
     features: [
       { icon: "matching", title: "Screen the flood", body: "Every applicant screened and ranked, so volume never buries the good ones." },
-      { icon: "calendar", title: "Book on the spot", body: "Candidates self-book from live availability. Ideal for walk-in-speed hiring." },
+      { icon: "calendar", title: "Book on the spot", body: "Candidates self-book from the times you offer. Ideal for walk-in-speed hiring." },
       { icon: "chat", title: "Reach candidates on WhatsApp", body: "Confirmations and reminders where hourly candidates actually reply." },
       { icon: "briefcase", title: "Apply links everywhere", body: "Share source-tracked links on socials, in-store QR codes and job boards." },
     ],
@@ -4297,7 +4298,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // arrive in September, so the store badges are visual only (no links).
 function AppDownloadBand() {
   return (
-    <section className="py-10 sm:py-20">
+    <section className="py-5 sm:py-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div className="min-w-0">
           <span className="inline-flex items-center gap-1.5 mb-2.5 text-[11px] font-semibold uppercase px-2.5 py-1 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)", letterSpacing: "0.06em" }}>
@@ -5350,7 +5351,7 @@ function CollaborationHeroAnim() {
 
 // Automation & Workflows: a workflow whose steps activate in sequence.
 function AutomationHeroAnim() {
-  const STEPS = [["When a candidate is rejected", "target", "Trigger"], ["Send a warm rejection email", "doc", "Action"], ["When an interview is booked", "calendar", "Trigger"], ["Create the Meet link + invite", "link", "Action"], ["WhatsApp reminder, 1h before", "chat", "Action"]];
+  const STEPS = [["When a candidate is rejected", "target", "Trigger"], ["Send a warm rejection email", "doc", "Action"], ["When an interview is booked", "calendar", "Trigger"], ["Send the calendar invite + link", "link", "Action"], ["WhatsApp reminder, 1h before", "chat", "Action"]];
   const ref = useRef(null);
   const reduce = prefersReducedMotion();
   const [on, setOn] = useState(reduce ? STEPS.length : 0);
@@ -6856,7 +6857,7 @@ const GETTING_STARTED_STEPS = [
   { icon: "jobs", title: "Post your first job", body: "Create a role and publish it. You get a public apply link to share anywhere, and a career page that hosts it." },
   { icon: "upload", title: "Add candidates", body: "Upload resumes in bulk, or let applicants come in through the job link. Aster screens each CV into structured skills and experience." },
   { icon: "target", title: "Run AI Rank", body: "Score every applicant against the role and start from a ranked shortlist instead of a pile. Paid plans show the reasoning behind each score." },
-  { icon: "interview", title: "Interview & hire", body: "Send one scheduling link, the candidate self-books, and a Meet or Teams invite is created. Move people through the pipeline as they progress." },
+  { icon: "interview", title: "Interview & hire", body: "Send one scheduling link, the candidate self-books, and everyone gets a calendar invite with your meeting link. Move people through the pipeline as they progress." },
 ];
 function GettingStartedScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, goTrust = () => {}, goLegal = () => {}, logoUrl }) {
   const nav = { navigate, goProduct, goSolution, goBlog, goGlossary, goCompare, goTrust, goLegal, logoUrl, light: true };
@@ -6888,9 +6889,9 @@ function GettingStartedScreen({ navigate, goProduct, goSolution, goBlog = () => 
               <p className="font-display font-semibold text-lg" style={{ color: "var(--ink)" }}>Ready to try it?</p>
               <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Create a workspace free, no credit card. Need a hand? Open a support ticket any time.</p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <a href="https://help.hireaster.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors hover:bg-white" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>Support ticket <Icon name="arrowUpRight" className="w-4 h-4" /></a>
-              <button onClick={() => navigate("signup")} className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl brand-gradient text-white transition-opacity hover:opacity-90">Create workspace <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+              <a href="https://help.hireaster.com" target="_blank" rel="noopener noreferrer" className="flex sm:inline-flex items-center justify-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors hover:bg-white" style={{ color: "var(--brand)", border: "1px solid var(--line)" }}>Support ticket <Icon name="arrowUpRight" className="w-4 h-4" /></a>
+              <button onClick={() => navigate("signup")} className="flex sm:inline-flex items-center justify-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl brand-gradient text-white transition-opacity hover:opacity-90">Create workspace <Icon name="arrowUpRight" className="w-4 h-4" /></button>
             </div>
           </div>
           </div>
