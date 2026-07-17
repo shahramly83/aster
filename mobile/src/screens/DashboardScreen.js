@@ -36,11 +36,13 @@ export default function DashboardScreen({ navigation }) {
 
   if (!a) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading analytics…" /></SafeAreaView>;
 
-  const attention = roles
+  // Open positions only. Roles that still have candidates to decide on surface
+  // first, but every open role is listed.
+  const openRoles = roles
+    .filter((r) => r.status === "open")
     .map((r) => ({ ...r, active: (r.counts.interviewing || 0) + (r.counts.offer || 0) }))
     .sort((x, y) => y.active - x.active)
-    .filter((r) => r.active > 0)
-    .slice(0, 4);
+    .slice(0, 6);
   const healthLabel = a.health >= 66 ? "Healthy" : a.health >= 40 ? "Fair" : a.total ? "Needs work" : "No data yet";
 
   return (
@@ -107,27 +109,36 @@ export default function DashboardScreen({ navigation }) {
           <Count label="New / wk" value={a.newThisWeek} icon="trending-up" />
         </View>
 
-        {/* Needs attention */}
-        {attention.length ? (
+        {/* Open positions */}
+        {openRoles.length ? (
           <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: space(3) }}>
-              <Text style={[type.label, { color: theme.onBrandMuted }]}>NEEDS ATTENTION</Text>
+              <Text style={[type.label, { color: theme.onBrandMuted }]}>OPEN POSITIONS</Text>
               <Press onPress={() => navigation.navigate("PositionsTab")}><Text style={[type.smallStrong, { color: theme.white }]}>All roles</Text></Press>
             </View>
-            {attention.map((r) => (
+            {openRoles.map((r) => (
               <Press key={r.id} onPress={() => navigation.navigate("PositionApplicants", { jobId: r.id, jobTitle: r.title })} style={{ marginBottom: space(3) }}>
                 <View style={styles.panel}>
                   <View style={{ flex: 1 }}>
                     <Text style={[type.h3, { color: theme.onBrand }]} numberOfLines={1}>{r.title}</Text>
-                    <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 2 }]}>{r.applicantCount} candidate{r.applicantCount === 1 ? "" : "s"} · {r.active} to decide</Text>
+                    <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 2 }]}>
+                      {r.applicantCount} candidate{r.applicantCount === 1 ? "" : "s"}{r.active > 0 ? ` · ${r.active} to decide` : ""}
+                    </Text>
                   </View>
-                  <View style={styles.panelBadge}><Text style={[type.smallStrong, { color: theme.white }]}>{r.active}</Text></View>
+                  {r.active > 0 ? <View style={styles.panelBadge}><Text style={[type.smallStrong, { color: theme.white }]}>{r.active}</Text></View> : null}
                   <Feather name="chevron-right" size={20} color={theme.onBrandFaint} style={{ marginLeft: 6 }} />
                 </View>
               </Press>
             ))}
           </View>
-        ) : null}
+        ) : (
+          <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
+            <Text style={[type.label, { color: theme.onBrandMuted, marginBottom: space(3) }]}>OPEN POSITIONS</Text>
+            <View style={styles.panel}>
+              <Text style={[type.small, { color: theme.onBrandMuted }]}>No open roles right now.</Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
