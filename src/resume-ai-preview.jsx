@@ -13539,7 +13539,7 @@ const INTERVIEW_STAGE_META = {
   confirmed:          { label: "Confirmed",          bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
   scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
-  completed:          { label: "Interview complete",     bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
+  completed:          { label: "Interview completed",    bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
   offer:              { label: "Offer",              bg: "#F5F3FF", color: "#6D28D9", dot: "#8B5CF6" },
   hired:              { label: "Hired",              bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   rejected:           { label: "Not selected",       bg: "#FEF2F2", color: "#B42318", dot: "#DC2626" },
@@ -18488,10 +18488,10 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
   const hasMine = scorecards.some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
   const onPanel = isManager || isAttendee;   // whose scorecard this is
   const canSeeAll = isManager || hasMine;    // full panel visible
-  // Only interviewers score. The hiring manager runs the process and reads the
-  // panel's results, but never rates the candidate themselves, EXCEPT on a solo
-  // interview (no panel), where allowSelfScore lets the manager add one card.
-  const canScore = !hasMine && ((isAttendee && !isManager) || (allowSelfScore && scorecards.length === 0));
+  // Interviewers score. The hiring manager runs the process and reads the panel's
+  // results, and may also add their own scorecard (allowSelfScore) alongside the
+  // panel, or on a solo interview. Either way it's one card each (gated by hasMine).
+  const canScore = !hasMine && ((isAttendee && !isManager) || allowSelfScore);
 
   const submit = () => {
     if (!canSubmit) return;
@@ -18755,13 +18755,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // (or there are no interviewer attendees to wait on, e.g. a solo interview).
   const allScored = attendedInterviewers.length === 0 || scoredCount >= attendedInterviewers.length;
   const anyScored = (scorecards || []).length > 0;
-  // A solo interview has NO interviewer panel to score. Only then may the hiring
-  // manager add their own scorecard or SKIP the step to unlock Decision. When there
-  // IS a panel, the previous process stands: Decision waits for all of them to score.
+  // A solo interview has NO interviewer panel to score. The hiring manager can
+  // always add their own scorecard, and can SKIP the step to unlock Decision
+  // without waiting on the panel (skip works whether or not there's a panel).
   const soloInterview = interviewerAttendees.length === 0;
   const [scorecardsSkipped, setScorecardsSkipped] = useState(false);
   const scorecardsUnlocked = interviewPast;
-  const decisionUnlocked = interviewPast && (soloInterview ? (anyScored || scorecardsSkipped) : allScored);
+  const decisionUnlocked = interviewPast && (scorecardsSkipped || (soloInterview ? anyScored : allScored));
   // Which step opens first. After the interview we land on Scorecards (step 2) so
   // the panel's feedback is reviewed BEFORE the decision, never auto-jump straight
   // to Decision (that read as silently skipping scorecards). Decision stays
@@ -19350,7 +19350,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <div className="mt-2">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Team scorecards</span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview complete · {interviewWhen}</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview completed · {interviewWhen}</span>
             </div>
             {soloInterview ? (
               <div className="mb-3 rounded-xl border px-4 py-2.5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -19362,9 +19362,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 )}
               </div>
             ) : (
-              <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--ink-2)" }}>
-                <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
-                <span>{scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " The decision unlocks once everyone has scored."}</span>
+              <div className="mb-3 rounded-xl border px-4 py-2.5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <span className="text-sm inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}>
+                  <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
+                  {scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " Add your own scorecard below, or skip to the decision."}
+                </span>
+                {!decisionUnlocked && (
+                  <button onClick={() => { setScorecardsSkipped(true); setIvStep(3); }} className="shrink-0 text-sm font-medium rounded-lg px-3 py-1.5 border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>Skip &rarr;</button>
+                )}
               </div>
             )}
             <ScorecardPanel
@@ -19376,7 +19381,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               currentUserId={currentUserId}
               attendees={booking?.attendees || []}
               isManager={true}
-              allowSelfScore={soloInterview}
+              allowSelfScore={true}
             />
           </div>
         )}
@@ -19386,7 +19391,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <div className="mt-6">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Your scorecard</span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview complete · {interviewWhen}</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview completed · {interviewWhen}</span>
             </div>
             <ScorecardPanel
               scorecards={scorecards}
@@ -19492,7 +19497,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>
                 {soloInterview
                   ? "In step 2, add your scorecard or skip it to unlock the decision."
-                  : `The decision unlocks once the panel has scored (${scoredCount} of ${attendedInterviewers.length} in). Collect the scorecards in step 2, then decide here.`}
+                  : `The decision unlocks once the panel has scored (${scoredCount} of ${attendedInterviewers.length} in). Collect the scorecards in step 2, add your own, or skip to decide now.`}
               </p>
             </div>
           ))}
