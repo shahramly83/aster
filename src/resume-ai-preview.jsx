@@ -19739,7 +19739,7 @@ function buildOfferDraft(name, jobTitle) {
   const first = (name || "there").split(" ")[0];
   return {
     subject: `You've been selected for the ${jobTitle} role`,
-    body: `Hi ${first},\n\nCongratulations! Following your interview, we're delighted to let you know that you've been selected for the ${jobTitle} role.\n\nOur HR team will be in touch shortly with the full details: compensation, start date, and everything you'll need for the next steps.\n\nBefore we proceed, please let us know whether you'd like to accept this offer using the Accept or Decline buttons below. We can't move forward until we hear from you.\n\nWe're excited about the possibility of you joining the team and look forward to your response.\n\nWarm regards,\nThe Hiring Team`,
+    body: `Dear ${first},\n\nCongratulations! Following your interview, we're delighted to offer you the ${jobTitle} role. The terms are set out below.\n\nPlease review the offer and sign to accept. If you have any questions before signing, just reply to this email and our HR team will be glad to help.\n\nWe're excited about the possibility of you joining the team.\n\nWarm regards,\nThe Hiring Team`,
   };
 }
 
@@ -19938,7 +19938,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
         <label className={labelClass}>Message to the candidate</label>
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-2 resize-y`} disabled={!hasEmail} />
-        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>This note appears in the DocuSign email the candidate receives with the offer letter to sign.</p>
+        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>This note appears at the top of the offer letter the candidate receives to sign.</p>
 
         {/* Every offer is sent through DocuSign for signature. The signed PDF is
             saved back to the offer once the candidate completes signing. */}
