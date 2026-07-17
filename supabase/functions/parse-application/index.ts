@@ -11,6 +11,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, companyShell, emailShell, button, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
 import { rateLimit, clientIp } from "../_shared/ratelimit.ts";
+import { pushToUser } from "../_shared/push.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -387,6 +388,20 @@ Deno.serve(async (req) => {
         match_reasons: fit === "other" ? (fitReason || null) : null,
       });
       await admin.from("activity_log").insert({ company_id: companyId, type: "new_application", title: `${fullName} applied`, description: `Applied for ${job.title || "a role"}`, candidate_id: candidateId, job_id });
+
+      // Push the role's assigned panel about the new applicant. Best-effort, and
+      // scoped to job_assignments (not the whole company) to keep it from being
+      // noisy on high-volume roles. A push failure never affects the apply flow.
+      try {
+        const { data: asg } = await admin.from("job_assignments")
+          .select("profile_id").eq("company_id", companyId).eq("job_id", job_id);
+        const ids = [...new Set((asg || []).map((a: { profile_id?: string }) => a.profile_id).filter(Boolean))];
+        await Promise.all(ids.map((uid: string) => pushToUser(admin, uid, {
+          title: "New applicant",
+          body: `${fullName} applied for ${job.title || "a role"}`,
+          data: { url: `aster://candidate/${candidateId}` },
+        })));
+      } catch (e) { console.error("new-applicant push failed", e); }
     } else {
       // A re-submission (same candidate + job): refresh the classification in
       // case the role changed, and update the source to whatever channel they

@@ -10,6 +10,7 @@
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs, icsAttachment } from "../_shared/email.ts";
+import { pushToUser } from "../_shared/push.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -156,6 +157,21 @@ Deno.serve(async (req) => {
     // Log the booking for the notification bell, only on the first confirm.
     if (iv.status !== "scheduled") {
       await admin.from("activity_log").insert({ company_id: iv.company_id, type: "interview_scheduled", title: `Interview scheduled with ${cand?.full_name || "a candidate"}`, description: `${jobTitle} · ${dateTime}`, candidate_id: iv.candidate_id, job_id: iv.job_id });
+
+      // Push the panel's interviewers on their phones (first confirm only, to
+      // match the activity log). Best-effort: a push failure changes nothing.
+      if (iv.job_id) {
+        try {
+          const { data: asg } = await admin.from("job_assignments")
+            .select("profile_id").eq("company_id", iv.company_id).eq("job_id", iv.job_id);
+          const ids = [...new Set((asg || []).map((a: { profile_id?: string }) => a.profile_id).filter(Boolean))];
+          await Promise.all(ids.map((uid: string) => pushToUser(admin, uid, {
+            title: "Interview scheduled",
+            body: `${cand?.full_name || "A candidate"} · ${jobTitle} · ${dateTime}`,
+            data: { url: `aster://interview/${iv.candidate_id}` },
+          })));
+        } catch (e) { console.error("panel push failed", e); }
+      }
     }
 
     return json({ ok: true, company_name: companyName, job_title: jobTitle, date_time: dateTime });
