@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -19471,23 +19471,24 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </div>
               ) : offerStatus === "sent" ? (
                 <div className="mt-2">
-                  <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#BFDBFE", background: "#EFF6FF" }}>
-                    <p className="text-sm font-medium" style={{ color: "#1E40AF" }}>Offer sent, awaiting {firstName}'s response</p>
-                    <p className="text-xs mt-0.5" style={{ color: "#1E40AF" }}>
+                  <div className="rounded-xl border p-3" style={{ borderColor: "#BFDBFE", background: "#EFF6FF" }}>
+                    <p className="text-sm font-medium" style={{ color: "#1E40AF" }}>Offer sent to {firstName}</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#1E40AF" }}>
                       {offer?.emailSent === false
-                        ? "Recorded internally (no email on file). Update the stage once they confirm."
-                        : `${firstName} was emailed that they've been selected and asked to accept or decline. The HR team will follow up with details.`}
+                        ? "Recorded internally, no email on file. Mark the outcome here once you hear back."
+                        : `${firstName} received the offer letter to review and sign through DocuSign. This updates automatically once they sign, decline, or the offer expires. The signed letter appears in the Offer panel on the right.`}
                     </p>
                   </div>
-                  <p className="text-[11px] mb-2" style={{ color: "var(--ink-3)" }}>Preview. Simulate the candidate's reply:</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => onRespondOffer && onRespondOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
-                      Candidate accepts ✓
-                    </button>
-                    <button onClick={() => onRespondOffer && onRespondOffer(false)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-                      Candidate declines
-                    </button>
-                  </div>
+                  {offer?.emailSent === false && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <button onClick={() => onRespondOffer && onRespondOffer(true)} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
+                        Mark accepted
+                      </button>
+                      <button onClick={() => onRespondOffer && onRespondOffer(false)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                        Mark declined
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -19744,7 +19745,7 @@ function buildOfferDraft(name, jobTitle, companyName = "") {
   const first = (name || "there").split(" ")[0];
   return {
     subject: `You've been selected for the ${jobTitle} role`,
-    body: `Dear ${first},\n\nWe're delighted to inform you that your application for the ${jobTitle} role${companyName ? ` at ${companyName}` : ""} has been accepted. Congratulations, and we're glad to have you on board!\n\nThe full terms of your offer are set out below.`,
+    body: `Dear ${first},\n\nFollowing your interview, we're delighted to offer you the ${jobTitle} role${companyName ? ` at ${companyName}` : ""}. The full terms of your offer are set out below.`,
   };
 }
 
@@ -19760,17 +19761,26 @@ function OfferStatusCard({ candidateId, companyId, canPersist }) {
     dbGetOffer(companyId, candidateId).then((r) => { if (alive) setRec(r); });
     return () => { alive = false; };
   }, [candidateId, companyId, canPersist]);
+  const signed = rec ? (!!rec.signed_pdf_path || rec.esign_status === "completed") : false;
+  const declined = rec ? (rec.esign_status === "declined" || rec.esign_status === "voided" || rec.status === "declined") : false;
+  const viewed = rec ? rec.esign_status === "delivered" : false;
+  // Past its expiry date and still unsigned: the offer has lapsed. Void + decline
+  // it on the server (idempotent), and show it as expired.
+  const expired = rec && rec.expires_at && !signed && !declined
+    && new Date(`${rec.expires_at}T23:59:59`).getTime() < Date.now();
+  useEffect(() => {
+    if (expired && candidateId) dbExpireOffer(candidateId);
+  }, [expired, candidateId]);
   if (!rec) return null;
-  const signed = !!rec.signed_pdf_path || rec.esign_status === "completed";
-  const declined = rec.esign_status === "declined" || rec.status === "declined";
-  const viewed = rec.esign_status === "delivered";
   const meta = signed
     ? { label: "Signed", bg: "#DCFCE7", color: "#166534", dot: "#22C55E" }
-    : declined
-      ? { label: "Declined", bg: "#FEE2E2", color: "#B42318", dot: "#EF4444" }
-      : viewed
-        ? { label: "Viewed", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" }
-        : { label: "Sent for signature", bg: "#EEF0FF", color: "#4F46E5", dot: "#6366F1" };
+    : expired
+      ? { label: "Expired", bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" }
+      : declined
+        ? { label: "Declined", bg: "#FEE2E2", color: "#B42318", dot: "#EF4444" }
+        : viewed
+          ? { label: "Viewed", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" }
+          : { label: "Sent for signature", bg: "#EEF0FF", color: "#4F46E5", dot: "#6366F1" };
   const download = async () => {
     setBusy(true);
     const url = await dbSignedOfferUrl(candidateId);

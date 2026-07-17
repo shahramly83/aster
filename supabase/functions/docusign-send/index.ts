@@ -73,7 +73,7 @@ function offerLetterHtml(o: Offer, opts: { companyName: string; candidateName: s
     : `<div class="serif" style="font-size:26px;font-weight:700;color:#1f2328;letter-spacing:-0.01em;">${esc(opts.companyName)}</div>`;
   const body = opts.message
     ? messageToHtml(opts.message)
-    : `<p>Dear ${esc(opts.candidateName)},</p><p>We're delighted to inform you that your application for the <strong>${esc(opts.jobTitle)}</strong> role at ${esc(opts.companyName)} has been accepted. Congratulations, and we're glad to have you on board! The full terms of your offer are set out below.</p>`;
+    : `<p>Dear ${esc(opts.candidateName)},</p><p>Following your interview, we're delighted to offer you the <strong>${esc(opts.jobTitle)}</strong> role at ${esc(opts.companyName)}. The full terms of your offer are set out below.</p>`;
   const contact = `<div class="cn">${esc(opts.companyName)}</div>${opts.addressLine ? `<div>${esc(opts.addressLine)}</div>` : ""}`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#33373c;line-height:1.75;font-size:13.5px;padding:60px 64px 52px;max-width:640px;margin:0 auto;background:#ffffff;}

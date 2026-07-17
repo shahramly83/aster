@@ -348,7 +348,7 @@ export async function dbGetOffer(companyId, candidateId) {
   if (!hasSupabase || !companyId || !candidateId) return null;
   const { data, error } = await supabase
     .from("offers")
-    .select("status, esign_provider, esign_status, signed_pdf_path, created_at")
+    .select("status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at")
     .eq("company_id", companyId).eq("candidate_id", candidateId)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) {
@@ -357,6 +357,14 @@ export async function dbGetOffer(companyId, candidateId) {
     return null;
   }
   return data || null;
+}
+
+// Decline + void an offer whose expiry date has passed (server-verified).
+// Fire-and-forget from the UI; idempotent on the server.
+export async function dbExpireOffer(candidateId) {
+  if (!hasSupabase || !candidateId) return;
+  const { error } = await supabase.functions.invoke("expire-offer", { body: { candidateId } });
+  if (error) console.error("dbExpireOffer", error.message);
 }
 
 // Short-lived download URL for the signed offer PDF (private bucket, minted by
