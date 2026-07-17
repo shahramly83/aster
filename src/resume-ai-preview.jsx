@@ -20195,7 +20195,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {} }) {
+function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {}, scheduleRequests = [] }) {
   const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   // Match the Candidate Search AI Rank meter's wording exactly (same shared pool).
@@ -20211,6 +20211,9 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     // Only flag "Interview scheduled" when the stage pill doesn't already say it
     // (the pill reads "Interview Scheduled" once the stage flips to interviewing).
     if (a.stage !== "interviewing" && bookings?.[a.candidateId]?.status === "scheduled") return { label: "Interview scheduled", color: "#4F46E5", bg: "#EEF0FF" };
+    // Compact "requested" flag: an interview was asked for but not yet booked. Full
+    // detail (who, status) lives inside the candidate profile.
+    if (a.applicationId && scheduleRequests?.some((r) => r.application_id === a.applicationId)) return { label: "Interview requested", color: "#B45309", bg: "#FEF3C7" };
     const t = (a.appliedAt || "").toLowerCase();
     if (t.includes("today") || /^\s*1\s*d/.test(t)) return { label: "New", color: "#166534", bg: "#DCFCE7" };
     return null;
@@ -23470,6 +23473,7 @@ export default function ResumeAIPreview() {
             reloadTeam={reloadTeam}
             shortlistedApps={shortlistedApps}
             onToggleShortlist={toggleShortlist}
+            scheduleRequests={scheduleRequests}
           />
         )}
         </ErrorBoundary>
