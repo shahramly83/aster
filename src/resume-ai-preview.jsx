@@ -2694,7 +2694,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "Security", q: "Do you support SSO and audit logs?", a: "Yes, on Enterprise. Single sign-on and audit logs give larger teams centralised access control and a full record of who did what." },
     { cat: "Security", q: "Can I export or back up my data?", a: "Anytime. Export candidates, resumes, and pipeline data whenever you need. Your data stays portable and yours." },
     { cat: "Integrations", q: "Do interview invites work with Google and Microsoft?", a: "Both. Every booking confirmation includes a calendar invite (.ics) that adds straight to Google Calendar, Outlook, Apple Calendar or any app, for the candidate and each interviewer." },
-    { cat: "Integrations", q: "How do the video meeting links work?", a: "You add your own link (Google Meet, Microsoft Teams or Zoom) when you confirm the time, and Aster shares it with the candidate and the whole panel, in the confirmation and reminders." },
+    { cat: "Integrations", q: "How do the video meeting links work?", a: "You add your own link (Google Meet, Microsoft Teams or Zoom) when you confirm the time, and Aster shares it with the candidate and the whole panel, in the confirmation and reminders. Two-way calendar sync that reads your live availability and generates links for you is coming soon." },
     { cat: "Integrations", q: "Can candidates book their own interview slots?", a: "Yes. Offer a few times and share one link, and the candidate picks the slot that works. Everyone gets a calendar invite and the meeting link, with no back-and-forth email." },
     { cat: "Integrations", q: "Can I share roles on job boards?", a: "Yes. Every role gets an Apply page you can post on LinkedIn, JobStreet, or anywhere. Applicants land straight in your pipeline, tagged by source so you can see which channel performs best." },
     { cat: "Integrations", q: "Can I collect applications from my own website?", a: "Yes. Each role has a shareable Apply page you can link from your careers site or anywhere else, and applicants flow straight into your pipeline. Every apply link is source-tracked, so you always know which channel each applicant came from." },
@@ -3755,7 +3755,7 @@ const PRODUCT_PAGES = {
       { icon: "chat", title: "WhatsApp Business", body: "Send interview confirmations and reminders over WhatsApp, where candidates actually reply." },
       { icon: "briefcase", title: "Job boards & apply links", body: "Post roles to LinkedIn, JobStreet and more. Applicants land straight in your pipeline, tagged by source." },
     ],
-    highlight: { title: "A marketplace that keeps growing", body: "Aster covers the core hiring workflow out of the box, with more connections added over time and custom integrations on Enterprise.", points: ["One-click calendar connection", "Secure, revocable access", "Custom integrations for Enterprise teams"] },
+    highlight: { title: "A marketplace that keeps growing", body: "Aster covers the core hiring workflow out of the box, with more connections added over time and custom integrations on Enterprise.", points: ["Calendar invites for Google, Outlook & Apple", "Two-way calendar sync (live availability) coming soon", "Custom integrations for Enterprise teams"] },
   },
 };
 
