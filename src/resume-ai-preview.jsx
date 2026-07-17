@@ -72,8 +72,8 @@ async function loadCustomerSession(userId, fallbackEmail) {
     email2fa = !fe && !!f?.email_2fa_enabled;
   } catch { /* column absent pre-migration: treat as off */ }
   // Company timezone (0091). Read defensively so a missing column can't break the
-  // whole session load; default to the app's original assumption.
-  let companyTimezone = "Asia/Kuala_Lumpur";
+  // whole session load; default to the viewer's geo timezone when unset.
+  let companyTimezone = geoDefaults().timezone;
   try {
     const { data: tzRow, error: tzErr } = await supabase.from("companies").select("timezone").eq("id", data.company_id).maybeSingle();
     if (!tzErr && tzRow?.timezone) companyTimezone = tzRow.timezone;
@@ -302,6 +302,17 @@ function CurrencyDropdown({ value, onChange }) {
 // Live Stripe amounts keyed "<plan>|<cycle>", fetched once per page load and
 // shared by every screen that quotes a price. A single source of truth: the app
 // can never advertise an amount different from the one the card is charged.
+// Best-effort geo defaults from the browser's IANA timezone (no network call):
+// Malaysia -> MYR, Singapore -> SGD, everywhere else -> USD. Also yields the tz,
+// used to default a new workspace's timezone. Users can change both afterwards.
+function geoDefaults() {
+  let tz = "Asia/Kuala_Lumpur";
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch { /* noop */ }
+  if (tz === "Asia/Kuala_Lumpur" || tz === "Asia/Kuching") return { currency: "myr", timezone: tz };
+  if (tz === "Asia/Singapore") return { currency: "sgd", timezone: tz };
+  return { currency: "usd", timezone: tz };
+}
+
 let planPricesPromise = null;
 // The workspace's billing currency, mirrored here so any Buy-credits button can
 // show prices in it without threading the prop through every screen. The App
@@ -2503,7 +2514,7 @@ function SchedulingPreview() {
 function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goGlossary = () => {}, goCompare = () => {}, logoUrl, setSignupPlan, setSignupCycle, setSignupCurrency, setSignupTrial }) {
   const prices = usePlanPrices();
   const [cycle, setCycle] = useState("monthly");
-  const [curSel, setCurSel] = useState("myr");   // display currency; RM default
+  const [curSel, setCurSel] = useState(() => geoDefaults().currency);   // geo default: MY->RM, SG->SGD, else USD
   // Amount + currency for the selected display currency, falling back to the
   // Price's base currency when that currency isn't configured on the Price.
   const inCur = (p) => (p && p.currencies && p.currencies[curSel] != null)
@@ -18151,44 +18162,45 @@ function WhatsAppBusinessCard({ plan = "launch", navigate, canManage = true, bar
 // and credit top-ups; a live subscription keeps the currency it started with, which
 // the copy makes explicit so no one expects a mid-subscription switch.
 function BillingCurrencyCard({ currency, onChange, canPersist }) {
+  // Draft the choice; only persist on an explicit Save (no auto-save).
+  const [draft, setDraft] = useState(currency);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState(null);
-  const pick = async (cur) => {
-    if (cur === currency) return;
-    const prev = currency;
-    onChange(cur);                          // optimistic
+  useEffect(() => { setDraft(currency); }, [currency]);
+  const dirty = draft !== currency;
+  const save = async () => {
+    if (!dirty) return;
     setErr(null); setSaved(false);
-    if (!canPersist) return;
+    if (!canPersist) { onChange(draft); return; }
     setSaving(true);
-    const res = await dbSetCompanyCurrency(cur);
+    const res = await dbSetCompanyCurrency(draft);
     setSaving(false);
-    if (res?.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
-    else { onChange(prev); setErr(res?.error || "Couldn't save. Try again."); }   // roll back
+    if (res?.ok) { onChange(draft); setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    else { setErr(res?.error || "Couldn't save. Try again."); }
   };
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div className="min-w-0">
-        <p className="text-sm" style={{ color: "var(--ink-2)" }}>
-          New subscriptions and credit top-ups are billed in this currency. An active subscription keeps the currency it was started with.
-        </p>
-        <p className="text-xs mt-1" style={{ color: err ? "#B42318" : saved ? "#166534" : "var(--ink-3)" }}>
-          {saving ? "Saving…" : err ? err : saved ? "Saved." : ""}
-        </p>
-      </div>
+    <div className="flex flex-col items-start gap-3">
       {/* Inline pills (not a popover): the Settings accordion is overflow-hidden,
           which would clip an absolute dropdown so only the selected code showed. */}
-      <div className="shrink-0 inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
+      <div className="inline-flex rounded-full border p-0.5" style={{ borderColor: "var(--line)" }}>
         {[{ key: "usd", label: "USD" }, { key: "myr", label: "RM" }, { key: "sgd", label: "SGD" }].map((c) => {
-          const on = currency === c.key;
+          const on = draft === c.key;
           return (
-            <button key={c.key} type="button" onClick={() => pick(c.key)}
+            <button key={c.key} type="button" onClick={() => { setDraft(c.key); setErr(null); setSaved(false); }}
               className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors inline-flex items-center gap-1.5 ${on ? "text-white" : "text-neutral-500 hover:text-neutral-800"}`}
               style={on ? { background: "var(--ink)" } : undefined}>
               <CurrencyFlag code={c.key} /> {c.label}
             </button>
           );
         })}
+      </div>
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={save} disabled={!dirty || saving}
+          className="text-sm font-medium rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 transition-opacity disabled:opacity-40">
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+        <span className="text-xs" style={{ color: err ? "#B42318" : saved ? "#166534" : "var(--ink-3)" }}>{err ? err : saved ? "Saved." : ""}</span>
       </div>
     </div>
   );
@@ -22160,7 +22172,7 @@ export default function ResumeAIPreview() {
   useEffect(() => { setUiCurrency(preferredCurrency); }, [preferredCurrency]);
   // The company's IANA timezone (0091). Every interview time renders through this
   // so the in-app panel and the emails always agree, whatever zone the viewer is in.
-  const [companyTimezone, setCompanyTimezone] = useState("Asia/Kuala_Lumpur");
+  const [companyTimezone, setCompanyTimezone] = useState(() => geoDefaults().timezone);
   useEffect(() => { setActiveTimezone(companyTimezone); }, [companyTimezone]);
   const [plan, setPlan] = useState("scale");
   const [planCycle, setPlanCycle] = useState("monthly");
@@ -22233,7 +22245,7 @@ export default function ResumeAIPreview() {
   // The currency the visitor picked on the marketing pricing table, carried through
   // sign-up and into checkout so the price they saw is the price they're billed.
   // RM default matches the pricing table's default.
-  const [signupCurrency, setSignupCurrency] = useState("myr");
+  const [signupCurrency, setSignupCurrency] = useState(() => geoDefaults().currency);
   // true = arrived via a generic "start trial" CTA (14-day Growth trial);
   // false = picked a specific plan on the pricing table (pay / free forever).
   const [signupTrial, setSignupTrial] = useState(true);
