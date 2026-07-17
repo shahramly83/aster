@@ -4,34 +4,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
-import { loadAnalytics, loadRecentActivity } from "../lib/data";
+import { loadAnalytics, loadCredits } from "../lib/data";
 import { Press, IconChip, TopBar, Loader, Feather } from "../components/ui";
-import { RingGauge, MeterBar } from "../components/Gauge";
+import { RingGauge, MeterBar, CreditRings } from "../components/Gauge";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
-import { relTime } from "@aster/shared";
 
-// Activity type → icon + on-blue tint. Falls back for unknown types.
-const ACTIVITY = {
-  new_application: { icon: "user-plus", tint: "#A9B8FF" },
-  scorecard: { icon: "star", tint: "#FFD27D" },
-  interview_scheduled: { icon: "calendar", tint: "#A9B8FF" },
-  interview_requested: { icon: "calendar", tint: "#A9B8FF" },
-  offer_sent: { icon: "send", tint: "#FFFFFF" },
-  offer_signed: { icon: "check-circle", tint: "#7DE2A8" },
-  hired: { icon: "award", tint: "#7DE2A8" },
-  offer_declined: { icon: "x-circle", tint: "#FFB4A9" },
-  offer_expired: { icon: "clock", tint: "rgba(255,255,255,0.55)" },
-  role_requested: { icon: "briefcase", tint: "#A9B8FF" },
-};
-const actMeta = (t) => ACTIVITY[t] || { icon: "activity", tint: "#A9B8FF" };
+function daysUntil(iso) {
+  if (!iso) return null;
+  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
+  return d > 0 ? d : 0;
+}
 
 // The manager's analytics home: a bold brand-blue canvas with a pipeline-health
 // meter and per-metric gauges. Data-forward, styled after the reference concept.
 export default function DashboardScreen({ navigation }) {
   const { profile } = useAuth();
   const [a, setA] = useState(null);
-  const [activity, setActivity] = useState([]);
+  const [credits, setCredits] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Brand-blue screen → light status bar while focused.
@@ -39,12 +29,12 @@ export default function DashboardScreen({ navigation }) {
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const [an, act] = await Promise.all([
+    const [an, cr] = await Promise.all([
       loadAnalytics(profile.companyId),
-      loadRecentActivity(profile.companyId, 8),
+      loadCredits(profile.plan),
     ]);
     setA(an);
-    setActivity(act);
+    setCredits(cr);
   }, [profile]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -53,12 +43,7 @@ export default function DashboardScreen({ navigation }) {
   if (!a) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading analytics…" /></SafeAreaView>;
 
   const healthLabel = a.health >= 66 ? "Healthy" : a.health >= 40 ? "Fair" : a.total ? "Needs work" : "No data yet";
-
-  // Tapping an activity jumps to the most relevant screen.
-  const openActivity = (it) => {
-    if (it.candidateId) navigation.navigate("CandidateProfile", { candidateId: it.candidateId, jobId: it.jobId, candidateName: it.title });
-    else if (it.jobId) navigation.navigate("PositionApplicants", { jobId: it.jobId, jobTitle: it.title });
-  };
+  const resetDays = credits ? daysUntil(credits.resetsAt) : null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
@@ -121,35 +106,37 @@ export default function DashboardScreen({ navigation }) {
           <Count label="New / wk" value={a.newThisWeek} icon="trending-up" />
         </View>
 
-        {/* Recent activity feed */}
+        {/* AI credits — concentric rings + legend */}
         <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
-          <Text style={[type.label, { color: theme.onBrandMuted, marginBottom: space(3) }]}>RECENT ACTIVITY</Text>
-          {activity.length === 0 ? (
-            <View style={styles.panel}>
-              <Text style={[type.small, { color: theme.onBrandMuted }]}>Nothing yet. New applicants, scorecards and offers will show here.</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: space(3) }}>
+            <Text style={[type.label, { color: theme.onBrandMuted }]}>AI CREDITS</Text>
+            {resetDays != null ? (
+              <Text style={[type.small, { color: theme.onBrandFaint }]}>Resets in {resetDays}d</Text>
+            ) : null}
+          </View>
+          <View style={styles.creditCard}>
+            <View style={{ width: 148, height: 148, alignItems: "center", justifyContent: "center" }}>
+              <CreditRings rings={credits?.items || []} size={148} stroke={13} gap={5} />
+              <View style={styles.ringCenter} pointerEvents="none">
+                <Feather name="zap" size={22} color="rgba(255,255,255,0.9)" />
+              </View>
             </View>
-          ) : (
-            <View style={styles.feed}>
-              {activity.map((it, i) => {
-                const m = actMeta(it.type);
-                const tappable = !!(it.candidateId || it.jobId);
-                return (
-                  <Press key={it.id} onPress={tappable ? () => openActivity(it) : undefined} haptic={tappable ? "light" : null} scaleTo={tappable ? 0.98 : 1}>
-                    <View style={[styles.actRow, i > 0 && styles.actDivider]}>
-                      <View style={styles.actIcon}>
-                        <Feather name={m.icon} size={16} color={m.tint} />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[type.smallStrong, { color: theme.onBrand }]} numberOfLines={1}>{it.title}</Text>
-                        {it.description ? <Text style={[type.small, { color: theme.onBrandMuted, marginTop: 1 }]} numberOfLines={1}>{it.description}</Text> : null}
-                      </View>
-                      <Text style={[type.small, { color: theme.onBrandFaint, marginLeft: 8 }]}>{relTime(it.createdAt)}</Text>
+            <View style={{ flex: 1, marginLeft: space(4) }}>
+              {(credits?.items || []).map((it) => (
+                <Press key={it.key} onPress={() => navigation.navigate("ProfileTab")} haptic="light" scaleTo={0.98}>
+                  <View style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: it.color }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[type.smallStrong, { color: theme.onBrand }]} numberOfLines={1}>{it.label}</Text>
+                      <Text style={[type.small, { color: theme.onBrandMuted }]}>
+                        {it.unlimited ? "Unlimited" : `${it.remaining} of ${it.limit} left`}
+                      </Text>
                     </View>
-                  </Press>
-                );
-              })}
+                  </View>
+                </Press>
+              ))}
             </View>
-          )}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -178,8 +165,8 @@ const styles = StyleSheet.create({
   countSep: { width: 1, height: 34, backgroundColor: theme.brandLine },
   countVal: { fontFamily: "Inter_700Bold", fontSize: 22, color: theme.onBrand, marginTop: 5, fontVariant: ["tabular-nums"] },
   panel: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
-  feed: { backgroundColor: theme.brandPanel, borderRadius: radius.lg, paddingHorizontal: space(4) },
-  actRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3.5) },
-  actDivider: { borderTopWidth: 1, borderTopColor: theme.brandLine },
-  actIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
+  creditCard: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
+  ringCenter: { position: "absolute", alignItems: "center", justifyContent: "center" },
+  legendRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2) },
+  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
 });

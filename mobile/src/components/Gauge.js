@@ -3,7 +3,7 @@
 // look of the reference concept.
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path, Circle, G } from "react-native-svg";
 
 const TAU = Math.PI * 2;
 
@@ -50,6 +50,36 @@ export function RingFull({ pct = 0, size = 64, stroke = 8, color = "#0B2AE0", tr
         strokeLinecap="round" strokeDasharray={`${(C * p) / 100} ${C}`}
         transform={`rotate(-90 ${c} ${c})`}
       />
+    </Svg>
+  );
+}
+
+// Concentric "activity rings" — one ring per item, fill = item.pct (0..100).
+// Distinctive way to show several credit pools at once. Rings run outer→inner in
+// array order.
+export function CreditRings({ rings = [], size = 168, stroke = 12, gap = 5, track = "rgba(255,255,255,0.14)" }) {
+  const c = size / 2;
+  return (
+    <Svg width={size} height={size}>
+      <G rotation={-90} origin={`${c}, ${c}`}>
+        {rings.map((r, i) => {
+          const radius = c - stroke / 2 - i * (stroke + gap);
+          if (radius < stroke) return null;
+          const C = TAU * radius;
+          const p = Math.max(0, Math.min(100, r.pct));
+          return (
+            <React.Fragment key={r.key || i}>
+              <Circle cx={c} cy={c} r={radius} stroke={track} strokeWidth={stroke} fill="none" />
+              {p > 0 ? (
+                <Circle
+                  cx={c} cy={c} r={radius} stroke={r.color} strokeWidth={stroke} fill="none"
+                  strokeLinecap="round" strokeDasharray={`${(C * p) / 100} ${C}`}
+                />
+              ) : null}
+            </React.Fragment>
+          );
+        })}
+      </G>
     </Svg>
   );
 }

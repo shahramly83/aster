@@ -2,7 +2,7 @@
 // tables the web app uses; RLS scopes rows to the interviewer. Shapes returned
 // here match what the web app already renders so behaviour stays consistent.
 import { supabase } from "./supabase";
-import { recommendationFromRatings } from "@aster/shared";
+import { recommendationFromRatings, planLimits } from "@aster/shared";
 
 const SIGNED_URL_TTL = 3600; // seconds
 
@@ -220,6 +220,47 @@ export async function loadAnalytics(companyId) {
       { key: "interview", label: "In interview", desc: "reached interview or beyond", pct: interview, tone: "#FFFFFF" },
       { key: "offerAccept", label: "Offer acceptance", desc: offered ? "of candidates offered" : "no offers yet", pct: offerAccept, tone: "#7DE2A8" },
       { key: "hire", label: "Hire rate", desc: "of all applicants", pct: hireRate, tone: "#FFD27D" },
+    ],
+  };
+}
+
+// AI credit metering for the dashboard. Pulls this cycle's usage for each AI
+// feature (same RPCs the web billing meter uses) and pairs it with the plan's
+// monthly allowance so we can show remaining credits. Each RPC is company-scoped
+// server-side (security definer), so no args are needed.
+export async function loadCredits(plan) {
+  const lim = planLimits(plan);
+  const call = async (fn) => {
+    try {
+      const { data } = await supabase.rpc(fn);
+      const r = Array.isArray(data) ? data[0] : data;
+      return { used: Number(r?.used) || 0, resetsAt: r?.resets_at || null, limit: r?.monthly_limit ?? null };
+    } catch {
+      return { used: 0, resetsAt: null, limit: null };
+    }
+  };
+  const [rank, insight, iq, appl] = await Promise.all([
+    call("get_ai_rank_usage"),
+    call("get_ai_insight_usage"),
+    call("get_interview_q_usage"),
+    call("get_applicant_parse_usage"),
+  ]);
+
+  const mk = (key, label, icon, color, u, planLimit) => {
+    const limit = u.limit ?? planLimit;
+    const unlimited = !isFinite(limit);
+    const remaining = unlimited ? Infinity : Math.max(0, limit - u.used);
+    const pct = unlimited ? 100 : limit > 0 ? Math.round((remaining / limit) * 100) : 0;
+    return { key, label, icon, color, used: u.used, limit, unlimited, remaining, pct };
+  };
+
+  return {
+    resetsAt: rank.resetsAt || insight.resetsAt || iq.resetsAt || appl.resetsAt || null,
+    items: [
+      mk("rank", "AI Rank", "zap", "#7DE2A8", rank, lim.aiRunsPerMonth),
+      mk("insight", "AI Insights", "activity", "#A9B8FF", insight, lim.aiInsightsPerMonth),
+      mk("iq", "Interview Q's", "help-circle", "#FFD27D", iq, lim.interviewQuestionsPerMonth),
+      mk("screen", "Screening", "user-check", "#FFFFFF", appl, lim.parseApplicant),
     ],
   };
 }
