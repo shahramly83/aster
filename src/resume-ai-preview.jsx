@@ -752,7 +752,10 @@ const BRAND_STYLES = `
 /* Resume upload dropzone: a soft brand glow that breathes, inviting the drop. */
 @keyframes uploadGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(11,42,224,0), 0 8px 22px -12px rgba(11,42,224,.20); border-color: var(--line-strong); } 50% { box-shadow: 0 0 0 4px rgba(11,42,224,.08), 0 12px 30px -10px rgba(11,42,224,.42); border-color: var(--brand); } }
 .upload-glow { animation: uploadGlow 2.4s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .tour-pulse, .tour-pop, .tour-ping, .upload-glow { animation: none !important; } }
+/* Tab attention glow: a soft brand pulse to flag a fresh status on a tab. */
+@keyframes tabGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(11,42,224,0); } 50% { box-shadow: 0 0 0 4px rgba(11,42,224,.22); } }
+.tab-glow { animation: tabGlow 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tour-pulse, .tour-pop, .tour-ping, .upload-glow, .tab-glow { animation: none !important; } }
 /* Hiring-tool surface: a subtle brand tint that sets the interview workflow
    (questions, scheduling, scorecards, decision) apart from the candidate's own
    resume cards, which stay plain white. Matches the AI Insights card. */
@@ -18806,6 +18809,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     setOfferDl(false);
     if (url) window.open(url, "_blank", "noopener");
   };
+  // Glow the Interview tab when the offer reaches a fresh result (signed /
+  // declined / expired) the manager hasn't opened the Interview tab to see yet.
+  const [seenInterviewTab, setSeenInterviewTab] = useState(false);
+  useEffect(() => { setSeenInterviewTab(false); }, [candidate?.id]);
+  useEffect(() => { if (profileTab === "interview") setSeenInterviewTab(true); }, [profileTab]);
+  const offerResult = offerSigned || offerDeclinedRec || offerExpired;
+  const interviewGlow = !!contextJobId && profileTab !== "interview" && !seenInterviewTab && !!offerResult;
   const firstName = candidate?.parsed?.name ? candidate.parsed.name.split(" ")[0] : "the candidate";
 
   // ---- Interview flow: one stepped card, locked one step at a time ----------
@@ -19121,8 +19131,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 {[{ k: "profile", label: "Profile", icon: "doc" }, { k: "interview", label: "Interview", icon: "calendar" }].map((t) => {
                   const on = profileTab === t.k;
                   return (
-                    <button key={t.k} type="button" onClick={() => setProfileTab(t.k)} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""}`} style={on ? {} : { color: "var(--ink-2)" }}>
+                    <button key={t.k} type="button" onClick={() => setProfileTab(t.k)} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""}`} style={on ? {} : { color: "var(--ink-2)" }}>
                       <Icon name={t.icon} className="w-4 h-4" /> {t.label}
+                      {t.k === "interview" && interviewGlow && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} />}
                     </button>
                   );
                 })}
