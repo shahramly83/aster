@@ -19741,7 +19741,7 @@ function buildOfferDraft(name, jobTitle, companyName = "") {
   const signOff = companyName || "The Hiring Team";
   return {
     subject: `You've been selected for the ${jobTitle} role`,
-    body: `Dear ${first},\n\nCongratulations! Following your interview, we're delighted to offer you the ${jobTitle} role. The full terms of your offer are set out below.\n\nPlease review and sign to accept. If you have any questions before signing, just reply to this email and we'll be glad to help.\n\nWe look forward to welcoming you to the team.\n\nWarm regards,\n${signOff}`,
+    body: `Dear ${first},\n\nCongratulations! Following your interview, we're delighted to offer you the ${jobTitle} role. The full terms of your offer are set out in this letter.\n\nPlease review and sign to accept. If you have any questions before signing, just reply to this email and we'll be glad to help.\n\nWe look forward to welcoming you to the team.\n\nWarm regards,\n${signOff}`,
   };
 }
 
