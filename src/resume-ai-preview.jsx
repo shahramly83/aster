@@ -2619,6 +2619,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { icon: "upload", tag: "Intake", title: "Bulk resume upload", body: "Drop in a stack of PDFs or Word files, or a whole ZIP. Aster screens each one, pulls out the details, and flags anything it can't read for you to check." },
     { icon: "briefcase", tag: "Sourcing", title: "Apply Pages", body: "Every role gets a shareable link for LinkedIn, JobStreet, or your careers site. Each link is source-tracked, so you always know which channel your best applicants come from." },
     { icon: "chat", tag: "Messaging", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
+    { icon: "offer", tag: "Offers", title: "Offers with e-signature", body: "Set the terms and Aster builds a branded offer letter, sent for signature via DocuSign. The signed PDF is saved to the candidate's profile automatically." },
     { icon: "interviewers", tag: "Collaboration", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and video link automatically. Interviewers see only the candidates they're assessing." },
     { icon: "shield", tag: "Security", title: "Privacy by default", body: "Your candidates' data stays yours: encrypted, in your workspace, and exportable or deletable whenever you want." },
   ];
@@ -2639,6 +2640,10 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       { label: "AI interview questions", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
       { label: "Collaborative scorecards", free: true, starter: true, pro: true, ent: true },
       { label: "WhatsApp Business reminders", free: false, starter: false, pro: true, ent: true },
+    ]},
+    { group: "Offers", rows: [
+      { label: "Offer letters & e-signature (DocuSign)", free: true, starter: true, pro: true, ent: true },
+      { label: "Signed PDF stored on the profile", free: true, starter: true, pro: true, ent: true },
     ]},
     { group: "Security & support", rows: [
       { label: "Two-factor authentication", free: true, starter: true, pro: true, ent: true },
@@ -2670,6 +2675,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "General", q: "How does the match score work?", a: "Aster reads each resume, compares it against the role's requirements, and gives every applicant a score with the reasons behind it, so the strongest fits rise to the top instead of getting buried on page three." },
     { cat: "General", q: "How accurate is Aster's screening?", a: "The match score is a strong first pass, not a final decision. It surfaces the best-fit candidates with reasons, so your team reviews a shortlist instead of a pile, and you always make the call." },
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster screens and scores them the same way as new applicants, so nothing gets left behind." },
+    { cat: "General", q: "Can I send and sign offers in Aster?", a: "Yes. Set the offer terms and Aster builds a branded offer letter, then sends it for e-signature via DocuSign. The candidate signs, the signed PDF is saved to their profile, and your team is notified. An offer that passes its expiry date is voided and declined on its own." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
     { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts screening and scoring right away. There's no setup project to run first." },
     { cat: "Billing", q: "Is there a free trial?", a: "Yes. New accounts get a 14-day Scale trial with full access and no card required. Subscribe before it ends to keep your account. If you don't, the account is suspended and deleted after 30 days." },
@@ -3610,7 +3616,7 @@ const PRODUCT_NAV = [
   { slug: "ats", label: "Applicant Tracking", desc: "One shared pipeline, applied to hired", icon: "jobs" },
   { slug: "ai", label: "Aster Intelligence", desc: "AI screening, matching and dedup", icon: "matching" },
   { slug: "interviews", label: "Interviews & Scorecards", desc: "Structured, collaborative interviews", icon: "interview" },
-  { slug: "offers", label: "Offer Management", desc: "Draft, send and track every offer", icon: "offer" },
+  { slug: "offers", label: "Offer Management", desc: "Terms, a signed letter, e-signature", icon: "offer" },
   { slug: "analytics", label: "Analytics & Reporting", desc: "See what's working across hiring", icon: "target" },
   { slug: "career-site", label: "Career Site & Job Board", desc: "A branded careers page and apply flow", icon: "briefcase" },
   { slug: "collaboration", label: "Collaboration & Hiring Teams", desc: "Bring the whole panel together", icon: "users" },
@@ -3674,16 +3680,16 @@ const PRODUCT_PAGES = {
   },
   offers: {
     eyebrow: "Offer Management", icon: "offer",
-    title: "Close the loop", accent: "with a clean offer flow.",
-    subtitle: "Draft the offer from an editable template, send it for the candidate to accept or decline, and track the status without leaving the pipeline.",
-    chips: ["Offer templates", "Accept / decline", "Status tracking"],
+    title: "Close the loop", accent: "with a signed offer.",
+    subtitle: "Set the terms, and Aster builds a branded offer letter and sends it for e-signature via DocuSign. The candidate signs, the signed PDF is saved to their profile, and your team is notified, all without leaving the pipeline.",
+    chips: ["Structured terms", "E-signature via DocuSign", "Signed PDF on file"],
     features: [
-      { icon: "doc", title: "Editable offer templates", body: "Start from a warm, on-brand template with placeholders for name, role, company and more, filled in automatically." },
-      { icon: "offer", title: "Send & get a decision", body: "The candidate is emailed to accept or decline, and stays in the Offer stage until they respond." },
-      { icon: "check", title: "Track every offer", body: "See at a glance who's been offered, who's accepted, and who declined, right on the candidate profile." },
-      { icon: "chat", title: "Handle the follow-up", body: "Re-send, adjust, or close out an offer, with the whole thread kept on the record." },
+      { icon: "doc", title: "Structured offer terms", body: "Capture the real terms: base salary and currency, employment type, start date, and an optional expiry. Aster records them on the offer and builds the letter from them." },
+      { icon: "offer", title: "Sign via DocuSign", body: "Aster generates a branded offer letter and sends it through DocuSign for the candidate to review and sign. No separate document to prepare." },
+      { icon: "check", title: "Signed PDF, saved for you", body: "The moment the candidate signs, the signed letter is stored on their profile to download anytime, and your team gets the offer-accepted email." },
+      { icon: "chat", title: "Track every offer", body: "See at a glance who's been sent an offer, who's signed, declined, or let it lapse, right on the candidate profile." },
     ],
-    highlight: { title: "From final interview to signed, in one place", body: "No copying details into a separate doc, no chasing a reply in email. The offer lives where the rest of the hire does.", points: ["Placeholders keep every offer consistent", "Accept and decline are one tap for the candidate", "Accepted offers trigger the welcome email"] },
+    highlight: { title: "From final interview to signed, in one place", body: "No copying details into a separate doc, no chasing a reply in email. The terms, the letter and the signature all live where the rest of the hire does.", points: ["Terms flow straight into a branded offer letter", "The candidate signs in DocuSign, no extra tools", "An expired offer is voided and declined on its own"] },
   },
   analytics: {
     eyebrow: "Analytics & Reporting", icon: "target",
@@ -6347,10 +6353,11 @@ function BlogScreen({ slug = "", cat = "", navigate, goProduct, goSolution, goBl
       {/* Category filters */}
       <section className="pt-10" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => goBlog({})} className="text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: !cat ? "var(--brand-soft)" : "#fff", color: !cat ? "var(--brand)" : "var(--ink-2)", border: `1px solid ${!cat ? "transparent" : "var(--line)"}` }}>All</button>
+          {/* One horizontal-scroll row on mobile (edge to edge), wraps from sm up. */}
+          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 sm:mx-0 sm:px-0 sm:pb-0 sm:flex-wrap sm:overflow-visible" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+            <button onClick={() => goBlog({})} className="shrink-0 inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-full font-medium transition-colors" style={{ background: !cat ? "var(--brand-soft)" : "#fff", color: !cat ? "var(--brand)" : "var(--ink-2)", border: `1px solid ${!cat ? "transparent" : "var(--line)"}` }}>All</button>
             {BLOG_CATEGORIES.map((c) => (
-              <button key={c.slug} onClick={() => goBlog({ category: c.slug })} className="inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 rounded-full transition-colors" style={{ background: cat === c.slug ? "var(--brand-soft)" : "#fff", color: cat === c.slug ? "var(--brand)" : "var(--ink-2)", border: `1px solid ${cat === c.slug ? "transparent" : "var(--line)"}` }}>
+              <button key={c.slug} onClick={() => goBlog({ category: c.slug })} className="shrink-0 inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-full font-medium transition-colors whitespace-nowrap" style={{ background: cat === c.slug ? "var(--brand-soft)" : "#fff", color: cat === c.slug ? "var(--brand)" : "var(--ink-2)", border: `1px solid ${cat === c.slug ? "transparent" : "var(--line)"}` }}>
                 <Icon name={c.icon} className="w-3.5 h-3.5" /> {c.label}
               </button>
             ))}
@@ -6907,7 +6914,7 @@ function CompareScreen({ slug = "", navigate, goProduct, goSolution, goBlog, goG
         <section className="relative overflow-hidden grain" style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
           <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 82% 6%, rgba(var(--brand-rgb),0.06) 0%, transparent 60%)" }} />
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-10">
-            <button onClick={() => goCompare("")} className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
+            <button onClick={() => goCompare("")} className="flex w-fit items-center gap-1.5 text-sm mb-6 transition-colors hover:text-[color:var(--ink)]" style={{ color: "var(--ink-3)" }}><Icon name="chevronLeft" className="w-4 h-4" /> All comparisons</button>
             <span className="inline-flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-full mb-5" style={{ background: `${competitor.tint}1f`, color: competitor.tint, border: `1px solid ${competitor.tint}55` }}>
               <Icon name="target" className="w-3.5 h-3.5" /> {competitor.category}
             </span>
