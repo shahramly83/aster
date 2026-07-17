@@ -195,6 +195,25 @@ export function SectionHeader({ children, action, onAction }) {
   );
 }
 
+// ---- App header (shared) ----------------------------------------------------
+// The consistent top bar used on the blue tab screens (Pipeline, Roles): a
+// greeting + first name on the left and an action chip on the right.
+function greetingWord() {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+}
+export function TopBar({ name, subtitle, right }) {
+  return (
+    <View style={styles.topBar}>
+      <View style={{ flex: 1 }}>
+        <Text style={[type.small, { color: theme.onBrandMuted }]}>{subtitle || greetingWord()}</Text>
+        <Text style={[type.h2, { color: theme.onBrand }]} numberOfLines={1}>{name || "Welcome"}</Text>
+      </View>
+      {right}
+    </View>
+  );
+}
+
 // ---- Screen scaffolding -----------------------------------------------------
 export function ScreenTitle({ children, subtitle, right }) {
   return (
@@ -239,6 +258,7 @@ const styles = StyleSheet.create({
   score: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingVertical: 5, borderRadius: radius.pill },
   stat: { flex: 1, padding: space(4) },
   statIcon: { width: 34, height: 34, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(3) },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginTop: space(2), paddingHorizontal: space(1) },
   screenTitle: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(3) },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: space(6) },

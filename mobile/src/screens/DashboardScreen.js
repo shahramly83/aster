@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { loadAnalytics, loadOpenPositions } from "../lib/data";
-import { Press, IconChip, Loader, Feather } from "../components/ui";
+import { Press, IconChip, TopBar, Loader, Feather } from "../components/ui";
 import { RingGauge, MeterBar } from "../components/Gauge";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
@@ -47,14 +47,11 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <View style={{ flex: 1 }}>
-          <Text style={[type.small, { color: theme.onBrandMuted }]}>{greeting()}</Text>
-          <Text style={[type.h2, { color: theme.onBrand }]} numberOfLines={1}>{profile?.name?.split(" ")[0] || "Welcome"}</Text>
-        </View>
-        <IconChip name="briefcase" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("PositionsTab")} />
-      </View>
+      {/* Top bar (shared with Roles) */}
+      <TopBar
+        name={profile?.name?.split(" ")[0] || "Welcome"}
+        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("ProfileTab")} />}
+      />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE }}
@@ -159,13 +156,7 @@ function Count({ label, value, icon }) {
   );
 }
 
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-}
-
 const styles = StyleSheet.create({
-  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(3) },
   header: { paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(6) },
   bigTitle: { fontFamily: "Inter_700Bold", fontSize: 34, lineHeight: 38, letterSpacing: -0.5, color: theme.onBrand },
   healthNum: { fontFamily: "Inter_700Bold", fontSize: 60, lineHeight: 62, letterSpacing: -2, color: theme.onBrand, fontVariant: ["tabular-nums"] },

@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { loadOpenPositions } from "../lib/data";
-import { Press, Loader, EmptyState, Feather } from "../components/ui";
+import { Press, Loader, EmptyState, TopBar, IconChip, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { JOB_STAGES, stageColor } from "@aster/shared";
 
@@ -46,16 +46,12 @@ export default function OpenPositionsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
-      {/* Header on blue */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={[type.small, { color: theme.onBrandMuted }]}>{manager ? "Your workspace" : "Your panel"}</Text>
-          <Text style={[type.h1, { color: theme.onBrand }]}>Open roles</Text>
-        </View>
-        <View style={styles.countPill}>
-          <Text style={[type.smallStrong, { color: theme.white, fontVariant: ["tabular-nums"] }]}>{jobs.length}</Text>
-        </View>
-      </View>
+      {/* Same header as the Pipeline dashboard */}
+      <TopBar
+        name={profile?.name?.split(" ")[0] || "Welcome"}
+        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("ProfileTab")} />}
+      />
+      <Text style={styles.sectionLabel}>OPEN ROLES · {jobs.length}</Text>
 
       {jobs.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
@@ -137,12 +133,12 @@ function RoleCard({ job, onPress }) {
           candidate{total === 1 ? "" : "s"} in pipeline{shortlisted ? ` · ${shortlisted} shortlisted` : ""}
         </Text>
 
-        {/* pipeline bar */}
-        <View style={[styles.pipe, { backgroundColor: "rgba(255,255,255,0.20)" }]}>
-          {total > 0 && PIPE.map((k, i) => {
+        {/* pipeline bar — keeps its stage colours */}
+        <View style={[styles.pipe, { backgroundColor: "rgba(255,255,255,0.22)" }]}>
+          {total > 0 && PIPE.map((k) => {
             const n = job.counts[k] || 0;
             if (!n) return null;
-            return <View key={k} style={{ flex: n, backgroundColor: `rgba(255,255,255,${0.95 - i * 0.15})` }} />;
+            return <View key={k} style={{ flex: n, backgroundColor: stageColor(k) }} />;
           })}
         </View>
 
@@ -167,8 +163,7 @@ function RoleCard({ job, onPress }) {
 const CARD_H = Math.min(500, Math.round(Dimensions.get("window").height * 0.60));
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(2) },
-  countPill: { minWidth: 40, height: 34, borderRadius: radius.pill, backgroundColor: theme.brandPanel, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
+  sectionLabel: { color: theme.onBrandMuted, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2, paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(1) },
   card: { width: CARD_W, height: CARD_H, borderRadius: 28, padding: space(5), backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   statusPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.20)" },
