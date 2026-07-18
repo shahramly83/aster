@@ -20321,10 +20321,6 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [startDate, setStartDate] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   // Letter fields: who signs for the company, plus optional prose details.
-  const [signatoryName, setSignatoryName] = useState(defaultSignatory || "");
-  const [signatoryTitle, setSignatoryTitle] = useState("");
-  const [reportingTo, setReportingTo] = useState("");
-  const [workLocation, setWorkLocation] = useState("");
   const [bodyEdited, setBodyEdited] = useState(false);    // true once HR edits the letter body
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
 
@@ -20337,8 +20333,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     const co = companyName || "[Company]";
     const start = fmt(startDate) || "[start date]";
     const pay = salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "[Basic Salary]";
-    const mgr = reportingTo.trim() || "your immediate superior";
-    const loc = workLocation.trim();
+    const mgr = "your immediate superior";
     return [
       `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
       `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before ${start}, failing which this offer of employment shall be null and void.`,
@@ -20349,7 +20344,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
       `ANNUAL LEAVE\nYou will be entitled to annual leave as per ${co}'s HR Policies on Terms and Conditions of Service.`,
       `TERMINATION OF EMPLOYMENT\nAfter confirmation of employment, either party maintains the right to terminate this letter of employment by giving to the other not less than two (2) calendar months' notice or salary in lieu of such notice.`,
       `COMPANY RULES\nYour appointment shall always be subject to your compliance with any conditions of service or Company rules and practices, either express or implied, for the time being in force.`,
-      `NORMAL HOURS OF WORK\nThe normal hours of work shall be a total of 40 hours per week.${loc ? ` Your place of work will be ${loc}.` : ""} You shall be required when necessary to work beyond the normal working hours.`,
+      `NORMAL HOURS OF WORK\nThe normal hours of work shall be a total of 40 hours per week. You shall be required when necessary to work beyond the normal working hours.`,
       `You will be reporting to ${mgr} and be responsible for the duties set out in your Job Description, and for their performance, profitability, market development and budget achievement and control.`,
       `If you are agreeable with the above terms of employment, please signify your acceptance by signing where indicated below.`,
     ].join("\n\n");
@@ -20357,7 +20352,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   useEffect(() => {
     if (!bodyEdited) setBody(composeBody());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, salary, currency, startDate, reportingTo, workLocation, companyName]);
+  }, [title, salary, currency, startDate, companyName]);
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs text-neutral-500 mb-1";
@@ -20369,10 +20364,6 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     employmentType: empType,
     startDate: startDate || null,
     expiresAt: expiresAt || null,
-    signatoryName: signatoryName.trim() || null,
-    signatoryTitle: signatoryTitle.trim() || null,
-    reportingTo: reportingTo.trim() || null,
-    workLocation: workLocation.trim() || null,
   };
 
   const handleSend = (emailSent) => {
@@ -20431,31 +20422,6 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           <DatePicker value={expiresAt} onChange={setExpiresAt} placeholder="No expiry" min={dpYmd(new Date())} allowClear />
         </div>
 
-        {/* Letter details: who signs for the company, plus optional prose fields. */}
-        <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Letter details</p>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div>
-              <label className={labelClass}>Signed by</label>
-              <input value={signatoryName} onChange={(e) => setSignatoryName(e.target.value)} placeholder="e.g. Aisha Rahman" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Title</label>
-              <input value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} placeholder="e.g. HR Manager" className={inputClass} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass}>Reporting to <span className="text-neutral-400">(optional)</span></label>
-              <input value={reportingTo} onChange={(e) => setReportingTo(e.target.value)} placeholder="e.g. Head of Engineering" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Work location <span className="text-neutral-400">(optional)</span></label>
-              <input value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} placeholder="e.g. Kuala Lumpur (hybrid)" className={inputClass} />
-            </div>
-          </div>
-        </div>
-
         <div className="flex items-center justify-between mb-1.5">
           <label className={labelClass} style={{ marginBottom: 0 }}>Offer letter</label>
           <div className="inline-flex rounded-lg p-0.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
@@ -20492,9 +20458,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 return <p key={i} className="mb-3">{blk.replace(/\n/g, " ").trim()}</p>;
               })}
               <p className="mt-5">Yours sincerely,</p>
-              <p className="mt-2 font-bold" style={{ color: "var(--ink)" }}>{signatoryName.trim() || companyName || "Your Company"}</p>
-              {signatoryTitle.trim() && <p className="text-xs" style={{ color: "var(--ink-2)" }}>{signatoryTitle.trim()}</p>}
-              {signatoryName.trim() && signatoryName.trim() !== (companyName || "") && <p className="text-xs" style={{ color: "var(--ink-2)" }}>{companyName}</p>}
+              <p className="mt-2 font-bold" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</p>
             </div>
           </div>
         )}
