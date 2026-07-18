@@ -12111,12 +12111,12 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     </div>
                   )}
                   {job.approvalStatus === "pending" && (
-                    <div className="mb-3 rounded-lg px-3 py-2.5" style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
-                      <p className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: "#3730A3" }}>
-                        <Icon name="clock" className="w-3 h-3" /> Role requested{job.requestedByName ? ` by ${job.requestedByName}` : ""}
+                    <div className="mb-3 rounded-xl px-3 py-2 flex items-center justify-between gap-2 flex-wrap" style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
+                      <p className="text-[11.5px] font-medium inline-flex items-center gap-1.5 min-w-0" style={{ color: "#3730A3" }}>
+                        <Icon name="clock" className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Request to publish{job.requestedByName ? ` by ${job.requestedByName}` : ""}</span>
                       </p>
-                      <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#4338CA" }}>Approve to publish this role and open its apply link. If your open-role slots are full, it stays a draft until you free one.</p>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <button onClick={() => onDecideRequest(job.id, true)} className="text-[11px] font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">Approve &amp; publish</button>
                         <button onClick={() => onDecideRequest(job.id, false)} className="text-[11px] font-semibold rounded-lg px-3 py-1.5 bg-white transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>Reject</button>
                       </div>
