@@ -74,18 +74,27 @@ async function buildSignedPdf(model: LetterModel, opts: {
   let page = doc.addPage([W, H]);
   let y = H - M;
 
-  const wrap = (text: string, f: typeof font, size: number): string[] => {
-    const words = String(text).split(/\s+/);
+  // Wrap to an explicit max width, hard-breaking any single token wider than the
+  // column (e.g. a SHA-256 hash or a long user-agent string).
+  const wrapW = (text: string, f: typeof font, size: number, mw: number): string[] => {
     const lines: string[] = [];
     let cur = "";
-    for (const w of words) {
+    for (let w of String(text).split(/\s+/).filter(Boolean)) {
+      while (f.widthOfTextAtSize(w, size) > mw && w.length > 1) {
+        let i = 1;
+        while (i < w.length && f.widthOfTextAtSize(w.slice(0, i + 1), size) <= mw) i++;
+        if (cur) { lines.push(cur); cur = ""; }
+        lines.push(w.slice(0, i));
+        w = w.slice(i);
+      }
       const t = cur ? `${cur} ${w}` : w;
-      if (f.widthOfTextAtSize(t, size) > maxW && cur) { lines.push(cur); cur = w; }
+      if (f.widthOfTextAtSize(t, size) > mw && cur) { lines.push(cur); cur = w; }
       else cur = t;
     }
     if (cur) lines.push(cur);
-    return lines;
+    return lines.length ? lines : [""];
   };
+  const wrap = (text: string, f: typeof font, size: number): string[] => wrapW(text, f, size, maxW);
   const firstPage = page;
   const ensure = (need: number) => { if (y < M + need) { page = doc.addPage([W, H]); y = H - M; } };
   const para = (text: string, f: typeof font, size: number, color = ink, leading = size * 1.5) => {
@@ -122,13 +131,14 @@ async function buildSignedPdf(model: LetterModel, opts: {
     const nl = blk.indexOf("\n");
     const head = nl > 0 ? blk.slice(0, nl).trim() : "";
     if (head && head.length <= 45 && head === head.toUpperCase() && /[A-Z]/.test(head)) {
-      ensure(26);
-      para(head, bold, 9.5, ink, 13);
+      ensure(28);
+      para(head, bold, 9.5, ink, 14);
+      y -= 3;   // clear gap so the body starts on its own line under the heading
       para(blk.slice(nl + 1).replace(/\n/g, " ").trim(), font, 10.5, ink, 15.5);
     } else {
       para(blk.replace(/\n/g, " ").trim(), font, 10.5, ink, 15.5);
     }
-    y -= 8;
+    y -= 11;
   }
   y -= 6;
 
@@ -140,28 +150,33 @@ async function buildSignedPdf(model: LetterModel, opts: {
   if (model.signatoryName !== model.companyName) { page.drawText(model.companyName, { x: M, y, size: 10, font, color: gray }); y -= 13; }
   y -= 28;
 
-  // Candidate signature block, kept together on one page.
-  ensure(120);
-  page.drawText("ACCEPTED AND AGREED", { x: M, y, size: 9, font: bold, color: gray }); y -= 30;
+  // Candidate signature block — single column: signature, then the date below it.
+  ensure(184);
+  const sigW = 300;
+  page.drawText("ACCEPTED AND AGREED", { x: M, y, size: 9, font: bold, color: gray });
+  y -= 16;
+  // Signature mark (drawn image or typed), sitting just above its line.
+  const sigLineY = y - 42;
   if (opts.signatureType === "drawn" && opts.drawn) {
     try {
       const img = opts.drawn.mime.includes("png") ? await doc.embedPng(opts.drawn.bytes) : await doc.embedJpg(opts.drawn.bytes);
-      const h = 40, w = Math.min((img.width / img.height) * h, 240);
-      page.drawImage(img, { x: M, y: y - 4, width: w, height: h });
-    } catch { page.drawText(opts.signedName, { x: M, y, size: 22, font: italic, color: ink }); }
+      const h = 42, w = Math.min((img.width / img.height) * h, 260);
+      page.drawImage(img, { x: M, y: sigLineY + 3, width: w, height: h });
+    } catch { page.drawText(opts.signedName, { x: M, y: sigLineY + 8, size: 22, font: italic, color: ink }); }
   } else {
-    page.drawText(opts.signedName, { x: M, y, size: 22, font: italic, color: ink });
+    page.drawText(opts.signedName, { x: M, y: sigLineY + 8, size: 22, font: italic, color: ink });
   }
-  y -= 10;
-  page.drawLine({ start: { x: M, y }, end: { x: M + 280, y }, thickness: 1.2, color: ink });
-  page.drawLine({ start: { x: M + 320, y }, end: { x: M + 480, y }, thickness: 1.2, color: ink });
-  y -= 14;
-  page.drawText(opts.signedName, { x: M, y, size: 11, font: bold, color: ink });
+  page.drawLine({ start: { x: M, y: sigLineY }, end: { x: M + sigW, y: sigLineY }, thickness: 1.2, color: ink });
+  y = sigLineY - 14;
+  page.drawText(opts.signedName, { x: M, y, size: 11, font: bold, color: ink }); y -= 12;
+  page.drawText("SIGNATURE", { x: M, y, size: 8, font, color: gray }); y -= 36;
+  // Date, below the name.
   const dsigned = new Date(opts.signedAtIso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-  page.drawText(dsigned, { x: M + 320, y, size: 11, font: bold, color: ink });
-  y -= 12;
-  page.drawText("SIGNATURE", { x: M, y, size: 8, font, color: gray });
-  page.drawText("DATE", { x: M + 320, y, size: 8, font, color: gray });
+  page.drawText(dsigned, { x: M, y, size: 11, font: bold, color: ink });
+  const dateLineY = y - 6;
+  page.drawLine({ start: { x: M, y: dateLineY }, end: { x: M + sigW, y: dateLineY }, thickness: 1.2, color: ink });
+  y = dateLineY - 14;
+  page.drawText("DATE", { x: M, y, size: 8, font, color: gray });
 
   // Footer on the first page.
   if (model.addressLine) {
@@ -189,11 +204,13 @@ async function buildSignedPdf(model: LetterModel, opts: {
     ["Signer device", uaShort || "not available"],
     ["Document hash (SHA-256)", opts.docHash],
   ];
+  const valX = M + 200;
+  const valMaxW = W - M - valX;   // value column width, so long values wrap in-column
   for (const [k, v] of rows) {
     cert.drawText(k.toUpperCase(), { x: M, y: cy, size: 8, font: bold, color: gray });
-    const vlines = wrap(v, font, 10);
+    const vlines = wrapW(v, font, 10, valMaxW);
     let vy = cy;
-    for (const ln of vlines) { cert.drawText(ln, { x: M + 200, y: vy, size: 10, font, color: ink }); vy -= 13; }
+    for (const ln of vlines) { cert.drawText(ln, { x: valX, y: vy, size: 10, font, color: ink }); vy -= 13; }
     cy -= Math.max(22, vlines.length * 13 + 9);
   }
   cy -= 8;
