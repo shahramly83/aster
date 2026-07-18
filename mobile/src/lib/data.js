@@ -66,7 +66,7 @@ export async function loadMyInterviews(companyId, userId) {
 export async function loadCandidateInterview(companyId, candidateId) {
   const { data } = await supabase
     .from("interviews")
-    .select("id, status, scheduled_at, proposed_slots, token, created_at")
+    .select("id, status, scheduled_at, proposed_slots, token, meeting_link, attendees, created_at")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
     .in("status", ["scheduled", "sent"])
@@ -80,7 +80,20 @@ export async function loadCandidateInterview(companyId, candidateId) {
     scheduledAt: data.scheduled_at || null,
     proposedSlots: Array.isArray(data.proposed_slots) ? data.proposed_slots : [],
     token: data.token || null,
+    meetingLink: data.meeting_link || null,
+    attendees: Array.isArray(data.attendees) ? data.attendees : [],
   };
+}
+
+// Save/update the meeting link on the candidate's scheduled interview.
+export async function saveMeetingLink(companyId, candidateId, link) {
+  const { data } = await supabase
+    .from("interviews").select("id")
+    .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
+    .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data) return { ok: false, error: "No scheduled interview." };
+  const { error } = await supabase.from("interviews").update({ meeting_link: link || null }).eq("id", data.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 // Propose several interview times to the candidate (web-parity dbCreateInterview

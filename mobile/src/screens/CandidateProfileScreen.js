@@ -1,14 +1,14 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, ScrollView, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, saveMeetingLink, resendInterviewInvite } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
-import CalendarSheet from "../components/CalendarSheet";
+import ProposeTimesSheet from "../components/ProposeTimesSheet";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { theme, type, space, radius } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime } from "@aster/shared";
@@ -23,9 +23,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [candidate, setCandidate] = useState(null);
   const [cards, setCards] = useState([]);
   const [stage, setStage] = useState(route.params?.stage || "applied");
-  const [scheduledAt, setScheduledAt] = useState(null);
-  const [pendingInvite, setPendingInvite] = useState(null);
-  const [calOpen, setCalOpen] = useState(false);
+  const [interview, setInterview] = useState(null); // full loadCandidateInterview record
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [mlInput, setMlInput] = useState("");
+  const [mlSaving, setMlSaving] = useState(false);
   const [confirm, setConfirm] = useState(null); // branded confirm dialog config
   const [offerOpen, setOfferOpen] = useState(false);
   const [offer, setOffer] = useState(null);
@@ -43,7 +44,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
       loadOffer(profile.companyId, candidateId),
       loadApplicationMeta(profile.companyId, candidateId),
     ]);
-    setCandidate(c); setCards(sc); setScheduledAt(iv?.scheduledAt || null); setPendingInvite(iv?.status === "sent" ? iv : null); setOffer(off);
+    setCandidate(c); setCards(sc); setInterview(iv); setOffer(off);
+    setMlInput(iv?.meetingLink || "");
     if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
     setMatchReason(meta?.reason || null);
     setMatchScore(meta?.score ?? null);
@@ -95,18 +97,18 @@ export default function CandidateProfileScreen({ route, navigation }) {
     });
   };
 
-  const confirmSchedule = async (date) => {
-    try {
-      await scheduleInterview({
-        companyId: profile.companyId, candidateId, jobId, candidateName: nameOf(),
-        startIso: date.toISOString(), interviewerId: profile.userId, interviewerName: profile.name,
-      });
-      setScheduledAt(date.toISOString());
-      setStage("interviewing");
-      Alert.alert("Interview scheduled", `Scheduled for ${fmtInterviewTime(date.toISOString(), profile.timezone)}.`);
-    } catch (e) {
-      Alert.alert("Could not schedule", e?.message || "You may not have permission to schedule interviews.");
-    }
+  const saveMl = async () => {
+    setMlSaving(true);
+    const res = await saveMeetingLink(profile.companyId, candidateId, mlInput.trim());
+    setMlSaving(false);
+    if (!res.ok) Alert.alert("Couldn't save link", res.error || "Try again.");
+    else load();
+  };
+
+  const resendInvite = async () => {
+    if (!interview?.token) return;
+    const res = await resendInterviewInvite(interview.token);
+    Alert.alert(res.ok ? "Email resent" : "Couldn't resend", res.ok ? "The candidate got the booking link again." : (res.error || "Try again."));
   };
 
   if (loading) return (
@@ -118,13 +120,20 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const parsed = candidate?.parsed || {};
   const name = nameOf();
 
-  // Follow the web sequence: schedule an interview once shortlisted, and only
-  // open scorecards once the interview has actually happened (its time is past),
-  // or the candidate has already moved past interviewing.
-  const canSchedule = ["shortlisted", "interviewing"].includes(stage);
-  const showInterview = !!scheduledAt || canSchedule;
+  // ---- Interview → decision → offer → hired state machine (web sequence) ----
+  const scheduledAt = interview?.status === "scheduled" ? interview.scheduledAt : null;
+  const pendingInvite = interview?.status === "sent" ? interview : null;
   const interviewDone = !!scheduledAt && new Date(scheduledAt).getTime() < Date.now();
+  // Show the interview flow once the candidate reaches interviewing (or there's
+  // already an invite/booking).
+  const showInterview = stage === "interviewing" || !!scheduledAt || !!pendingInvite;
   const canScore = interviewDone || ["offer", "hired"].includes(stage);
+  // Every panel member (interview attendees) must submit a scorecard before the
+  // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
+  const ratedIds = new Set(cards.map((c) => c.interviewerId));
+  const panel = interview?.attendees || [];
+  const allRated = panel.length ? panel.every((p) => p.id && ratedIds.has(p.id)) : cards.length > 0;
+  const showDecision = stage === "interviewing" && interviewDone && allRated;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -176,23 +185,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <SectionHeader>Hiring process</SectionHeader>
             <Card>
               <ProcessStepper stage={stage} />
-              {manager && stage !== "hired" && stage !== "rejected" && stage !== "declined" ? (
+              {manager && (stage === "applied" || stage === "shortlisted") ? (
                 <View style={styles.stageActions}>
                   {stage === "applied" ? (
                     <Button title="Shortlist" icon="star" onPress={() => moveTo("shortlisted")} />
-                  ) : null}
-                  {stage === "shortlisted" ? (
+                  ) : (
                     <Button title="Move to interview" icon="calendar" onPress={() => moveTo("interviewing")} />
-                  ) : null}
-                  {stage === "interviewing" ? (
-                    <Button title="Make offer" icon="file-text" onPress={() => setOfferOpen(true)} />
-                  ) : null}
-                  {stage === "offer" ? (
-                    <Button title="Mark as hired" icon="award" variant="success" onPress={() => moveTo("hired")} />
-                  ) : null}
-                  {stage === "interviewing" ? (
-                    <Button title="Mark as hired" icon="award" variant="ghost" onPress={() => moveTo("hired")} />
-                  ) : null}
+                  )}
                 </View>
               ) : null}
             </Card>
@@ -206,28 +205,79 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </View>
           ) : null}
 
-          {/* Interview — appears once shortlisted (web sequence) */}
+          {/* Interview flow: propose times -> candidate picks -> meeting link */}
           {showInterview ? (
           <View style={{ marginTop: space(5) }}>
             <SectionHeader>Interview</SectionHeader>
             <Card>
               {scheduledAt ? (
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View style={styles.ivIcon}><Feather name="calendar" size={18} color={theme.brand} /></View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={[type.bodyStrong, { color: theme.ink }]}>Interview scheduled</Text>
-                    <Text style={[type.small, { color: theme.ink2, marginTop: 1 }]}>{fmtInterviewTime(scheduledAt, profile.timezone)}</Text>
+                <>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={styles.ivIcon}><Feather name="calendar" size={18} color={theme.brand} /></View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[type.bodyStrong, { color: theme.ink }]}>{interviewDone ? "Interview held" : "Interview confirmed"}</Text>
+                      <Text style={[type.small, { color: theme.ink2, marginTop: 1 }]}>{fmtInterviewTime(scheduledAt, profile.timezone)}</Text>
+                    </View>
                   </View>
-                  <Pressable onPress={() => setCalOpen(true)} hitSlop={8}><Text style={[type.smallStrong, { color: theme.brand }]}>Change</Text></Pressable>
-                </View>
+                  {/* Meeting link field appears once the candidate has accepted */}
+                  <View style={styles.mlWrap}>
+                    <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 7 }]}>Meeting link</Text>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <TextInput
+                        value={mlInput} onChangeText={setMlInput}
+                        placeholder="Paste the video call link…" placeholderTextColor={theme.ink4}
+                        autoCapitalize="none" keyboardType="url"
+                        style={[styles.mlInput, { flex: 1 }]}
+                      />
+                      <Pressable onPress={saveMl} disabled={mlSaving} style={styles.mlSave}>
+                        {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Save</Text>}
+                      </Pressable>
+                    </View>
+                    {interview?.meetingLink ? (
+                      <Pressable onPress={() => Linking.openURL(interview.meetingLink)} style={{ marginTop: 8 }}>
+                        <Text style={[type.small, { color: theme.brand }]} numberOfLines={1}>Open link ↗</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </>
+              ) : pendingInvite ? (
+                <>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={styles.ivIcon}><Feather name="clock" size={18} color={theme.warn} /></View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[type.bodyStrong, { color: theme.ink }]}>Waiting on the candidate</Text>
+                      <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>{pendingInvite.proposedSlots.length} time{pendingInvite.proposedSlots.length === 1 ? "" : "s"} proposed. They'll pick one.</Text>
+                    </View>
+                  </View>
+                  {pendingInvite.proposedSlots.map((s, i) => (
+                    <View key={i} style={styles.slotRow}>
+                      <Feather name="calendar" size={13} color={theme.ink4} />
+                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{fmtInterviewTime(s.start, profile.timezone)}</Text>
+                    </View>
+                  ))}
+                  {manager ? <Button title="Resend invite" icon="mail" variant="ghost" onPress={resendInvite} style={{ marginTop: space(3) }} /> : null}
+                </>
               ) : (
                 <>
-                  <Text style={[type.small, { color: theme.ink3 }]}>No interview scheduled yet.</Text>
-                  <Button title="Schedule interview" icon="calendar" onPress={() => setCalOpen(true)} style={{ marginTop: space(3) }} />
+                  <Text style={[type.small, { color: theme.ink3 }]}>Get the panel's availability, then propose a few times for the candidate to choose from.</Text>
+                  <Button title="1 · Panel availability" icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                  {manager ? <Button title="2 · Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} /> : null}
                 </>
               )}
             </Card>
           </View>
+          ) : null}
+
+          {/* Decision — opens once the panel has all scored */}
+          {showDecision ? (
+            <View style={{ marginTop: space(5) }}>
+              <SectionHeader>Decision</SectionHeader>
+              <Card>
+                <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>The panel has finished scoring. Make the call.</Text>
+                <Button title="Make offer" icon="file-text" variant="success" onPress={() => setOfferOpen(true)} />
+                <Button title="Decline candidate" icon="x" variant="danger" onPress={reject} style={{ marginTop: space(2.5) }} />
+              </Card>
+            </View>
           ) : null}
 
           {/* Panel feedback — scorecards open once an interview exists (web sequence) */}
@@ -368,12 +418,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
         </ScrollView>
       </SafeAreaView>
 
-      <CalendarSheet
-        visible={calOpen}
-        onClose={() => setCalOpen(false)}
-        title="Schedule interview"
-        confirmLabel="Schedule"
-        onConfirm={({ startIso }) => confirmSchedule(new Date(startIso))}
+      <ProposeTimesSheet
+        visible={proposeOpen}
+        onClose={() => setProposeOpen(false)}
+        companyId={profile.companyId}
+        candidateId={candidateId}
+        jobId={jobId}
+        hm={{ id: profile.userId, name: profile.name, email: profile.email }}
+        onSent={() => { setStage("interviewing"); load(); }}
       />
 
       {/* Why this match — slides up */}
@@ -546,6 +598,10 @@ const styles = StyleSheet.create({
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  mlWrap: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
+  mlInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, height: 44, fontFamily: "Inter_500Medium", fontSize: 14, color: theme.ink },
+  mlSave: { paddingHorizontal: 16, height: 44, borderRadius: radius.md, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+  slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
   whyIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
