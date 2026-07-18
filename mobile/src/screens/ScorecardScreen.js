@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 import { useAuth } from "../AuthContext";
 import { submitScorecard } from "../lib/data";
-import { Card, Button, SectionHeader } from "../components/ui";
+import { Card, Button, SectionHeader, ScreenHeader } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { SCORE_CRITERIA, recommendationFromRatings, recommendationMeta } from "@aster/shared";
 
@@ -40,10 +40,11 @@ export default function ScorecardScreen({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["bottom"]}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScreenHeader eyebrow="Scorecard" title={candidateName || "Candidate"} onBack={() => navigation.goBack()} />
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(10) }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Text style={[type.h1, { color: theme.ink }]}>{candidateName || "Candidate"}</Text>
-        <Text style={[type.small, { color: theme.ink3, marginTop: 4 }]}>Rate each area 1–4. Your card stays private until you submit.</Text>
+        <Text style={[type.small, { color: theme.ink3 }]}>Rate each area 1–4. Your card stays private until you submit.</Text>
 
         <View style={{ marginTop: space(5) }}>
           {SCORE_CRITERIA.map((c) => (
@@ -88,7 +89,8 @@ export default function ScorecardScreen({ route, navigation }) {
         <Button title="Submit scorecard" icon="check" onPress={onSubmit} loading={busy} disabled={!allRated} haptic="success" style={{ marginTop: space(5) }} />
         {!allRated ? <Text style={[type.small, { color: theme.ink4, textAlign: "center", marginTop: space(2) }]}>Rate all four areas to submit.</Text> : null}
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

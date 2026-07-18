@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Linking, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { loadCandidate, loadInterviewQuestions, loadMyInterviews } from "../lib/data";
 import { useAuth } from "../AuthContext";
-import { Card, Avatar, Button, Loader, SectionHeader, Feather } from "../components/ui";
+import { Card, Avatar, Button, Loader, SectionHeader, ScreenHeader, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { fmtInterviewTime } from "@aster/shared";
 
@@ -42,7 +42,9 @@ export default function InterviewDetailScreen({ route, navigation }) {
   const title = parsed.currentTitle || parsed.headline || "";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["bottom"]}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScreenHeader eyebrow="Interview" title={iv.candidateName || "Interview"} onBack={() => navigation.goBack()} />
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(10) }} showsVerticalScrollIndicator={false}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -90,7 +92,8 @@ export default function InterviewDetailScreen({ route, navigation }) {
 
         <Button title="Fill scorecard" icon="edit-3" onPress={() => navigation.navigate("Scorecard", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName })} style={{ marginTop: space(5) }} />
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadCandidate, loadScorecards, moveCandidateStage, MOBILE_STAGES } from "../lib/data";
-import { Card, Button, Avatar, Loader, SectionHeader, Feather } from "../components/ui";
+import { Card, Button, Avatar, Loader, SectionHeader, ScreenHeader, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor } from "@aster/shared";
 
@@ -46,15 +46,16 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const name = candidate?.name || candidateName || "Candidate";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["bottom"]}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScreenHeader eyebrow="Candidate" title={name} onBack={() => navigation.goBack()} />
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(10) }} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Identity */}
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Avatar uri={candidate?.avatarUrl} name={name} size={60} />
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={[type.h2, { color: theme.ink }]} numberOfLines={1}>{name}</Text>
-              {parsed.currentTitle ? <Text style={[type.small, { color: theme.ink2, marginTop: 2 }]} numberOfLines={1}>{parsed.currentTitle}</Text> : null}
+              <Text style={[type.h3, { color: theme.ink }]} numberOfLines={2}>{parsed.currentTitle || name}</Text>
               <View style={[styles.stageTag, { backgroundColor: stageColor(stage) + "1A" }]}>
                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stageColor(stage), marginRight: 6 }} />
                 <Text style={[type.smallStrong, { color: theme.ink2 }]}>{stageLabel(stage)}</Text>
@@ -221,7 +222,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
         <Button title="Add my scorecard" icon="edit-3" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(4) }} />
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

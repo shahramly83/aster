@@ -3,7 +3,7 @@ import { View, Text, TextInput, FlatList, Pressable, KeyboardAvoidingView, Platf
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../AuthContext";
 import { loadMessages, sendMessage, subscribeMessages } from "../lib/data";
-import { Avatar, Loader, EmptyState, Feather } from "../components/ui";
+import { Avatar, Loader, EmptyState, ScreenHeader, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { relTime } from "@aster/shared";
 
@@ -59,7 +59,9 @@ export default function DiscussionScreen({ route }) {
   if (messages === null) return <Loader label="Loading discussion…" />;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["bottom"]}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScreenHeader eyebrow="Discussion" title={candidateName || "Candidate"} onBack={() => navigation.goBack()} />
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
         <FlatList
           ref={listRef}
@@ -92,7 +94,8 @@ export default function DiscussionScreen({ route }) {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

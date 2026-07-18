@@ -2,6 +2,7 @@
 // soft elevation, tactile press feedback (scale + haptics), and vector icons.
 import React, { useRef } from "react";
 import { View, Text, Pressable, ActivityIndicator, Image, StyleSheet, Animated, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { theme, palette, radius, type, shadow, space } from "../theme";
@@ -216,6 +217,30 @@ export function TopBar({ name, subtitle, right }) {
   );
 }
 
+// ---- Blue screen header (shared across pushed screens) ----------------------
+// A consistent brand-blue header: back button, an uppercase eyebrow, and the
+// screen title (wraps to two lines). Sits above a light body.
+export function ScreenHeader({ title, eyebrow, onBack, right }) {
+  return (
+    <View style={styles.screenHeader}>
+      <SafeAreaView edges={["top"]}>
+        <View style={styles.screenHeaderRow}>
+          {onBack ? (
+            <Press onPress={onBack} haptic="light" style={styles.screenBack}>
+              <Feather name="arrow-left" size={20} color={theme.white} />
+            </Press>
+          ) : null}
+          <View style={{ flex: 1, marginLeft: onBack ? 14 : 0 }}>
+            {eyebrow ? <Text style={styles.screenEyebrow}>{String(eyebrow).toUpperCase()}</Text> : null}
+            <Text style={styles.screenHeadTitle} numberOfLines={2}>{title}</Text>
+          </View>
+          {right}
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
 // ---- Screen scaffolding -----------------------------------------------------
 export function ScreenTitle({ children, subtitle, right }) {
   return (
@@ -261,6 +286,11 @@ const styles = StyleSheet.create({
   stat: { flex: 1, padding: space(4) },
   statIcon: { width: 34, height: 34, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(3) },
+  screenHeader: { backgroundColor: theme.brand },
+  screenHeaderRow: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(5) },
+  screenBack: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  screenEyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.4, color: "rgba(255,255,255,0.72)", marginBottom: 5 },
+  screenHeadTitle: { fontFamily: "Inter_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.3, color: theme.white },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginTop: space(2), paddingHorizontal: space(1) },
   screenTitle: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(3) },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: space(6) },
