@@ -242,9 +242,15 @@ export async function loadAnalytics(companyId) {
 // (applications, jobs, activity_log) for this company and call onChange on any
 // event. Returns an unsubscribe fn. Requires realtime enabled on those tables
 // (migration 0110); where it isn't, the dashboard's polling fallback covers it.
+//
+// Each call gets a UNIQUE channel topic. Supabase reuses the channel instance
+// when a topic name repeats, and you can't add postgres_changes handlers to an
+// already-subscribed channel — so several screens subscribing at once (dashboard
+// + the auto-refresh hook) would otherwise collide.
+let _dashChanSeq = 0;
 export function subscribeDashboard(companyId, onChange) {
   const channel = supabase
-    .channel(`dashboard:${companyId}`)
+    .channel(`dashboard:${companyId}:${++_dashChanSeq}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: `company_id=eq.${companyId}` }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `company_id=eq.${companyId}` }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "activity_log", filter: `company_id=eq.${companyId}` }, onChange)
@@ -515,9 +521,11 @@ export async function sendMessage({ companyId, candidateId, jobId, authorId, bod
 }
 
 // Subscribe to new messages on a candidate's thread. Returns an unsubscribe fn.
+// Unique topic per call (see subscribeDashboard) to avoid re-subscribe collisions.
+let _msgChanSeq = 0;
 export function subscribeMessages(candidateId, onInsert) {
   const channel = supabase
-    .channel(`candidate_messages:${candidateId}`)
+    .channel(`candidate_messages:${candidateId}:${++_msgChanSeq}`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "candidate_messages", filter: `candidate_id=eq.${candidateId}` },
