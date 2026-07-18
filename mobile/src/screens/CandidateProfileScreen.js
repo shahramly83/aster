@@ -67,6 +67,25 @@ export default function CandidateProfileScreen({ route, navigation }) {
           </View>
         </Card>
 
+        {/* Details / contact */}
+        {(() => {
+          const email = parsed.email || candidate?.email;
+          const rows = [
+            parsed.location && { icon: "map-pin", value: parsed.location },
+            parsed.years_of_experience != null && { icon: "briefcase", value: `${parsed.years_of_experience} years of experience` },
+            parsed.salary_expectation && { icon: "dollar-sign", value: String(parsed.salary_expectation) },
+            email && { icon: "mail", value: email, onPress: () => Linking.openURL(`mailto:${email}`) },
+            parsed.phone && { icon: "phone", value: parsed.phone, onPress: () => Linking.openURL(`tel:${parsed.phone}`) },
+            parsed.linkedin_url && { icon: "linkedin", value: "LinkedIn profile", onPress: () => Linking.openURL(parsed.linkedin_url) },
+            parsed.portfolio_url && { icon: "globe", value: "Portfolio", onPress: () => Linking.openURL(parsed.portfolio_url) },
+          ].filter(Boolean);
+          return rows.length ? (
+            <Card style={{ marginTop: space(3), paddingVertical: space(1) }}>
+              {rows.map((r, i) => <DetailRow key={i} {...r} last={i === rows.length - 1} />)}
+            </Card>
+          ) : null;
+        })()}
+
         {/* Stage control */}
         <View style={{ marginTop: space(5) }}>
           <SectionHeader>{manager ? "Move to stage" : "Quick actions"}</SectionHeader>
@@ -112,10 +131,68 @@ export default function CandidateProfileScreen({ route, navigation }) {
           <View style={{ marginTop: space(5) }}>
             <SectionHeader>Skills</SectionHeader>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {parsed.skills.slice(0, 14).map((s, i) => (
+              {parsed.skills.slice(0, 16).map((s, i) => (
                 <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]}>{String(s)}</Text></View>
               ))}
             </View>
+          </View>
+        ) : null}
+
+        {/* Experience */}
+        {Array.isArray(parsed.experience) && parsed.experience.length ? (
+          <View style={{ marginTop: space(5) }}>
+            <SectionHeader>Experience</SectionHeader>
+            <Card>
+              {parsed.experience.map((e, i) => (
+                <View key={i} style={i > 0 ? styles.timelineItem : null}>
+                  <Text style={[type.bodyStrong, { color: theme.ink }]}>{e.title || "Role"}{e.company ? ` · ${e.company}` : ""}</Text>
+                  {e.duration ? <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{e.duration}</Text> : null}
+                  {e.summary ? <Text style={[type.small, { color: theme.ink2, marginTop: 5, lineHeight: 19 }]}>{e.summary}</Text> : null}
+                </View>
+              ))}
+            </Card>
+          </View>
+        ) : null}
+
+        {/* Education */}
+        {Array.isArray(parsed.education) && parsed.education.length ? (
+          <View style={{ marginTop: space(5) }}>
+            <SectionHeader>Education</SectionHeader>
+            <Card>
+              {parsed.education.map((e, i) => (
+                <View key={i} style={i > 0 ? styles.timelineItem : null}>
+                  <Text style={[type.bodyStrong, { color: theme.ink }]}>{e.degree || "Studies"}</Text>
+                  <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{[e.institution, e.year].filter(Boolean).join(" · ")}</Text>
+                </View>
+              ))}
+            </Card>
+          </View>
+        ) : null}
+
+        {/* Languages */}
+        {Array.isArray(parsed.languages) && parsed.languages.length ? (
+          <View style={{ marginTop: space(5) }}>
+            <SectionHeader>Languages</SectionHeader>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {parsed.languages.map((l, i) => (
+                <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]}>{String(l)}</Text></View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {/* Certifications */}
+        {Array.isArray(parsed.certifications) && parsed.certifications.length ? (
+          <View style={{ marginTop: space(5) }}>
+            <SectionHeader>Certifications</SectionHeader>
+            <Card>
+              {parsed.certifications.map((c, i) => (
+                <View key={i} style={[styles.certRow, i > 0 && styles.detailDivider]}>
+                  <Feather name="award" size={15} color={theme.brand} />
+                  <Text style={[type.small, { color: theme.ink2, flex: 1, marginLeft: 10 }]}>{String(c)}</Text>
+                </View>
+              ))}
+            </Card>
           </View>
         ) : null}
 
@@ -148,8 +225,23 @@ export default function CandidateProfileScreen({ route, navigation }) {
   );
 }
 
+function DetailRow({ icon, value, onPress, last }) {
+  const Wrap = onPress ? Pressable : View;
+  return (
+    <Wrap onPress={onPress} style={[styles.detailRow, !last && styles.detailDivider]}>
+      <Feather name={icon} size={16} color={theme.ink3} />
+      <Text style={[type.small, { color: onPress ? theme.brand : theme.ink2, flex: 1, marginLeft: 12 }]} numberOfLines={1}>{value}</Text>
+      {onPress ? <Feather name="external-link" size={14} color={theme.ink4} /> : null}
+    </Wrap>
+  );
+}
+
 const styles = StyleSheet.create({
   stageTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 8 },
+  detailRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3) },
+  detailDivider: { borderBottomWidth: 1, borderBottomColor: theme.line2 },
+  timelineItem: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
+  certRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2.5) },
   stageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   hint: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), paddingHorizontal: 2 },
   stageBtn: { paddingHorizontal: 14, height: 40, borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, alignItems: "center", justifyContent: "center" },
