@@ -10,7 +10,7 @@ import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { theme, type, space, radius } from "../theme";
+import { theme, type, space, radius, shadow } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime } from "@aster/shared";
 
 // The hiring process, in order. Offer/Hired are shown but managed on web.
@@ -34,6 +34,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [matchReason, setMatchReason] = useState(null);
   const [matchScore, setMatchScore] = useState(null);
   const [whyOpen, setWhyOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -180,6 +181,109 @@ export default function CandidateProfileScreen({ route, navigation }) {
               ) : null}
             </View>
 
+            {/* Candidate details — collapsed by default to keep the hiring flow clean */}
+            <Pressable onPress={() => setDetailsOpen((o) => !o)} style={styles.exploreToggle}>
+              <View style={styles.exploreIcon}><Feather name="file-text" size={16} color={theme.brand} /></View>
+              <Text style={[type.bodyStrong, { color: theme.ink, flex: 1, marginLeft: 10 }]}>Candidate details</Text>
+              <Feather name={detailsOpen ? "chevron-up" : "chevron-down"} size={20} color={theme.ink3} />
+            </Pressable>
+            {detailsOpen ? (
+              <View>
+                {(() => {
+                  const email = parsed.email || candidate?.email;
+                  const rows = [
+                    parsed.location && { icon: "map-pin", value: parsed.location },
+                    parsed.years_of_experience != null && { icon: "briefcase", value: `${parsed.years_of_experience} years of experience` },
+                    parsed.salary_expectation && { icon: "dollar-sign", value: String(parsed.salary_expectation) },
+                    email && { icon: "mail", value: email, onPress: () => Linking.openURL(`mailto:${email}`) },
+                    parsed.phone && { icon: "phone", value: parsed.phone, onPress: () => Linking.openURL(`tel:${parsed.phone}`) },
+                    parsed.linkedin_url && { icon: "linkedin", value: "LinkedIn profile", onPress: () => Linking.openURL(parsed.linkedin_url) },
+                    parsed.portfolio_url && { icon: "globe", value: "Portfolio", onPress: () => Linking.openURL(parsed.portfolio_url) },
+                  ].filter(Boolean);
+                  return rows.length ? (
+                    <View style={{ marginTop: space(4) }}>
+                      <SectionHeader>Contact</SectionHeader>
+                      <Card style={{ paddingVertical: space(1) }}>
+                        {rows.map((r, i) => <DetailRow key={i} {...r} last={i === rows.length - 1} />)}
+                      </Card>
+                    </View>
+                  ) : null;
+                })()}
+
+                {parsed.summary ? (
+                  <View style={{ marginTop: space(5) }}>
+                    <SectionHeader>Summary</SectionHeader>
+                    <Card><Text style={[type.body, { color: theme.ink2 }]}>{parsed.summary}</Text></Card>
+                  </View>
+                ) : null}
+
+                {Array.isArray(parsed.skills) && parsed.skills.length ? (
+                  <View style={{ marginTop: space(5) }}>
+                    <SectionHeader>Skills</SectionHeader>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {parsed.skills.slice(0, 16).map((s, i) => (
+                        <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]}>{String(s)}</Text></View>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+
+                {Array.isArray(parsed.experience) && parsed.experience.length ? (
+                  <View style={{ marginTop: space(5) }}>
+                    <SectionHeader>Experience</SectionHeader>
+                    <Card>
+                      {parsed.experience.map((e, i) => (
+                        <View key={i} style={i > 0 ? styles.timelineItem : null}>
+                          <Text style={[type.bodyStrong, { color: theme.ink }]}>{e.title || "Role"}{e.company ? ` · ${e.company}` : ""}</Text>
+                          {e.duration ? <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{e.duration}</Text> : null}
+                          {e.summary ? <Text style={[type.small, { color: theme.ink2, marginTop: 5, lineHeight: 19 }]}>{e.summary}</Text> : null}
+                        </View>
+                      ))}
+                    </Card>
+                  </View>
+                ) : null}
+
+                {Array.isArray(parsed.education) && parsed.education.length ? (
+                  <View style={{ marginTop: space(5) }}>
+                    <SectionHeader>Education</SectionHeader>
+                    <Card>
+                      {parsed.education.map((e, i) => (
+                        <View key={i} style={i > 0 ? styles.timelineItem : null}>
+                          <Text style={[type.bodyStrong, { color: theme.ink }]}>{e.degree || "Studies"}</Text>
+                          <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{[e.institution, e.year].filter(Boolean).join(" · ")}</Text>
+                        </View>
+                      ))}
+                    </Card>
+                  </View>
+                ) : null}
+
+                {Array.isArray(parsed.languages) && parsed.languages.length ? (
+                  <View style={{ marginTop: space(5) }}>
+                    <SectionHeader>Languages</SectionHeader>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {parsed.languages.map((l, i) => (
+                        <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]}>{String(l)}</Text></View>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+
+                {Array.isArray(parsed.certifications) && parsed.certifications.length ? (
+                  <View style={{ marginTop: space(5) }}>
+                    <SectionHeader>Certifications</SectionHeader>
+                    <Card>
+                      {parsed.certifications.map((c, i) => (
+                        <View key={i} style={[styles.certRow, i > 0 && styles.detailDivider]}>
+                          <Feather name="award" size={15} color={theme.brand} />
+                          <Text style={[type.small, { color: theme.ink2, flex: 1, marginLeft: 10 }]}>{String(c)}</Text>
+                        </View>
+                      ))}
+                    </Card>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
           {/* Hiring process */}
           <View style={{ marginTop: space(5) }}>
             <SectionHeader>Hiring process</SectionHeader>
@@ -308,105 +412,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
           </View>
           ) : null}
 
-          {/* Details / contact */}
-          {(() => {
-            const email = parsed.email || candidate?.email;
-            const rows = [
-              parsed.location && { icon: "map-pin", value: parsed.location },
-              parsed.years_of_experience != null && { icon: "briefcase", value: `${parsed.years_of_experience} years of experience` },
-              parsed.salary_expectation && { icon: "dollar-sign", value: String(parsed.salary_expectation) },
-              email && { icon: "mail", value: email, onPress: () => Linking.openURL(`mailto:${email}`) },
-              parsed.phone && { icon: "phone", value: parsed.phone, onPress: () => Linking.openURL(`tel:${parsed.phone}`) },
-              parsed.linkedin_url && { icon: "linkedin", value: "LinkedIn profile", onPress: () => Linking.openURL(parsed.linkedin_url) },
-              parsed.portfolio_url && { icon: "globe", value: "Portfolio", onPress: () => Linking.openURL(parsed.portfolio_url) },
-            ].filter(Boolean);
-            return rows.length ? (
-              <View style={{ marginTop: space(5) }}>
-                <SectionHeader>Details</SectionHeader>
-                <Card style={{ paddingVertical: space(1) }}>
-                  {rows.map((r, i) => <DetailRow key={i} {...r} last={i === rows.length - 1} />)}
-                </Card>
-              </View>
-            ) : null;
-          })()}
-
-          {/* Summary */}
-          {parsed.summary ? (
-            <View style={{ marginTop: space(5) }}>
-              <SectionHeader>Summary</SectionHeader>
-              <Card><Text style={[type.body, { color: theme.ink2 }]}>{parsed.summary}</Text></Card>
-            </View>
-          ) : null}
-
-          {/* Skills */}
-          {Array.isArray(parsed.skills) && parsed.skills.length ? (
-            <View style={{ marginTop: space(5) }}>
-              <SectionHeader>Skills</SectionHeader>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {parsed.skills.slice(0, 16).map((s, i) => (
-                  <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]}>{String(s)}</Text></View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Experience */}
-          {Array.isArray(parsed.experience) && parsed.experience.length ? (
-            <View style={{ marginTop: space(5) }}>
-              <SectionHeader>Experience</SectionHeader>
-              <Card>
-                {parsed.experience.map((e, i) => (
-                  <View key={i} style={i > 0 ? styles.timelineItem : null}>
-                    <Text style={[type.bodyStrong, { color: theme.ink }]}>{e.title || "Role"}{e.company ? ` · ${e.company}` : ""}</Text>
-                    {e.duration ? <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{e.duration}</Text> : null}
-                    {e.summary ? <Text style={[type.small, { color: theme.ink2, marginTop: 5, lineHeight: 19 }]}>{e.summary}</Text> : null}
-                  </View>
-                ))}
-              </Card>
-            </View>
-          ) : null}
-
-          {/* Education */}
-          {Array.isArray(parsed.education) && parsed.education.length ? (
-            <View style={{ marginTop: space(5) }}>
-              <SectionHeader>Education</SectionHeader>
-              <Card>
-                {parsed.education.map((e, i) => (
-                  <View key={i} style={i > 0 ? styles.timelineItem : null}>
-                    <Text style={[type.bodyStrong, { color: theme.ink }]}>{e.degree || "Studies"}</Text>
-                    <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]}>{[e.institution, e.year].filter(Boolean).join(" · ")}</Text>
-                  </View>
-                ))}
-              </Card>
-            </View>
-          ) : null}
-
-          {/* Languages */}
-          {Array.isArray(parsed.languages) && parsed.languages.length ? (
-            <View style={{ marginTop: space(5) }}>
-              <SectionHeader>Languages</SectionHeader>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {parsed.languages.map((l, i) => (
-                  <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]}>{String(l)}</Text></View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Certifications */}
-          {Array.isArray(parsed.certifications) && parsed.certifications.length ? (
-            <View style={{ marginTop: space(5) }}>
-              <SectionHeader>Certifications</SectionHeader>
-              <Card>
-                {parsed.certifications.map((c, i) => (
-                  <View key={i} style={[styles.certRow, i > 0 && styles.detailDivider]}>
-                    <Feather name="award" size={15} color={theme.brand} />
-                    <Text style={[type.small, { color: theme.ink2, flex: 1, marginLeft: 10 }]}>{String(c)}</Text>
-                  </View>
-                ))}
-              </Card>
-            </View>
-          ) : null}
 
           {/* Reject */}
           {manager && stage !== "rejected" && stage !== "hired" && stage !== "declined" ? (
@@ -604,6 +609,8 @@ const styles = StyleSheet.create({
   slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
+  exploreToggle: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, borderWidth: 1, borderColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(3.5), marginTop: space(5), ...shadow.sm },
+  exploreIcon: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   whyIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   whyScore: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   whyBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
