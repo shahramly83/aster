@@ -119,6 +119,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const parsed = candidate?.parsed || {};
   const name = nameOf();
 
+  // Follow the web sequence: you schedule an interview once a candidate is
+  // shortlisted, and you can only add a scorecard once an interview exists.
+  const canSchedule = ["shortlisted", "interviewing"].includes(stage);
+  const showInterview = !!scheduledAt || canSchedule;
+  const canScore = !!scheduledAt || ["interviewing", "offer", "hired"].includes(stage);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       {/* Gradient profile header with a big transparent Aster mark in the corner */}
@@ -199,7 +205,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </View>
           ) : null}
 
-          {/* Interview (part of the process) */}
+          {/* Interview — appears once shortlisted (web sequence) */}
+          {showInterview ? (
           <View style={{ marginTop: space(5) }}>
             <SectionHeader>Interview</SectionHeader>
             <Card>
@@ -220,8 +227,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
               )}
             </Card>
           </View>
+          ) : null}
 
-          {/* Panel feedback (part of the process) */}
+          {/* Panel feedback — scorecards open once an interview exists (web sequence) */}
+          {(canScore || cards.length > 0) ? (
           <View style={{ marginTop: space(5) }}>
             <SectionHeader>Panel feedback · {cards.length}</SectionHeader>
             {cards.length === 0 ? (
@@ -242,8 +251,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 );
               })
             )}
-            <Button title="Add my scorecard" icon="edit-3" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+            {canScore ? (
+              <Button title="Add my scorecard" icon="edit-3" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+            ) : null}
           </View>
+          ) : null}
 
           {/* Details / contact */}
           {(() => {
