@@ -60,6 +60,20 @@ export async function loadMyInterviews(companyId, userId) {
   });
 }
 
+// The candidate's next scheduled interview time (if any), for the profile.
+export async function loadCandidateInterview(companyId, candidateId) {
+  const { data } = await supabase
+    .from("interviews")
+    .select("scheduled_at")
+    .eq("company_id", companyId)
+    .eq("candidate_id", candidateId)
+    .eq("status", "scheduled")
+    .order("scheduled_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.scheduled_at || null;
+}
+
 // Full detail for one candidate (parsed resume blob + signed URLs).
 export async function loadCandidate(candidateId) {
   const { data } = await supabase
@@ -394,6 +408,26 @@ export async function loadApplicants(companyId, jobId) {
       avatarUrl: c.photo_path ? urlByPath[c.photo_path] || null : null,
     };
   });
+}
+
+// Schedule an interview directly (manager picks a time). Inserts a scheduled
+// interview with the manager on the panel and advances the candidate to the
+// interviewing stage — mirroring what confirm-booking does when a candidate books.
+export async function scheduleInterview({ companyId, candidateId, jobId, candidateName, startIso, interviewerId, interviewerName }) {
+  const { error } = await supabase.from("interviews").insert({
+    company_id: companyId,
+    candidate_id: candidateId,
+    job_id: jobId || null,
+    interviewer_id: interviewerId || null,
+    interviewer_name: interviewerName || null,
+    scheduled_at: startIso,
+    status: "scheduled",
+    provider: "google",
+    attendees: [],
+  });
+  if (error) throw error;
+  // Advance the pipeline stage the same way a confirmed booking does.
+  await moveCandidateStage({ companyId, candidateId, candidateName, stage: "interviewing", notify: false }).catch(() => {});
 }
 
 // Stages a mobile client may set DIRECTLY, exactly matching what the web app's

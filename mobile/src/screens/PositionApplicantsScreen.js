@@ -1,14 +1,17 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, FlatList, ScrollView, Pressable, RefreshControl, StyleSheet } from "react-native";
+import { View, Text, FlatList, ScrollView, Pressable, RefreshControl, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
-import { loadApplicants } from "../lib/data";
+import { loadApplicants, moveCandidateStage } from "../lib/data";
 import { Press, Avatar, StagePill, Loader, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
 import { stageColor, relTime } from "@aster/shared";
+
+const SHORTLISTED_PLUS = ["shortlisted", "interviewing", "offer", "hired"];
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -33,6 +36,19 @@ export default function PositionApplicantsScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+
+  // Star toggles a candidate between applied and shortlisted (web-safe stage move).
+  const toggleStar = async (item) => {
+    const next = item.stage === "applied" ? "shortlisted" : item.stage === "shortlisted" ? "applied" : null;
+    if (!next) return; // already past shortlist
+    setRows((prev) => prev.map((r) => (r.candidateId === item.candidateId ? { ...r, stage: next } : r)));
+    try {
+      await moveCandidateStage({ companyId: profile.companyId, candidateId: item.candidateId, candidateName: item.name, stage: next });
+    } catch (e) {
+      setRows((prev) => prev.map((r) => (r.candidateId === item.candidateId ? { ...r, stage: item.stage } : r)));
+      Alert.alert("Could not update", e?.message || "Please try again.");
+    }
+  };
 
   const filtered = useMemo(
     () => (rows || []).filter((r) => filter === "all" || r.stage === filter),
@@ -83,20 +99,22 @@ export default function PositionApplicantsScreen({ route, navigation }) {
             </ScrollView>
           }
           ListEmptyComponent={<View style={{ marginTop: space(10) }}><EmptyState icon="users" title="No candidates here" subtitle={filter === "all" ? "Applicants for this role will show here." : "No one in this stage yet."} /></View>}
-          renderItem={({ item }) => <CandidateCard item={item} onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, stage: item.stage, candidateName: item.name })} />}
+          renderItem={({ item }) => <CandidateCard item={item} onStar={() => toggleStar(item)} onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, stage: item.stage, candidateName: item.name })} />}
         />
       )}
     </View>
   );
 }
 
-function CandidateCard({ item, onPress }) {
+function CandidateCard({ item, onPress, onStar }) {
   const sc = stageColor(item.stage);
+  const starred = SHORTLISTED_PLUS.includes(item.stage);
+  const canToggle = item.stage === "applied" || item.stage === "shortlisted";
   return (
     <Press onPress={onPress} style={{ marginBottom: space(3) }}>
       <View style={styles.card}>
         <View style={[styles.rail, { backgroundColor: sc }]} />
-        {/* top: identity + match ring */}
+        {/* top: identity + star + match ring */}
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <View style={[styles.avatarRing, { borderColor: sc }]}>
             <Avatar uri={item.avatarUrl} name={item.name} size={50} />
@@ -111,7 +129,12 @@ function CandidateCard({ item, onPress }) {
               ) : null}
             </View>
           </View>
-          <MatchRing score={item.matchScore} />
+          <View style={{ alignItems: "center", marginLeft: 8 }}>
+            <Pressable onPress={canToggle ? onStar : undefined} disabled={!canToggle} hitSlop={8} style={{ padding: 3 }}>
+              <Ionicons name={starred ? "star" : "star-outline"} size={22} color={starred ? "#F5A623" : theme.ink4} />
+            </Pressable>
+            <View style={{ marginTop: 4 }}><MatchRing score={item.matchScore} /></View>
+          </View>
         </View>
 
         {/* skills */}
