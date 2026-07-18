@@ -9,6 +9,7 @@ import { useAuth } from "../AuthContext";
 import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, IconChip, StagePill, EmptyState, Feather } from "../components/ui";
+import { AsterLogo } from "../components/Logo";
 import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
 import { stageColor, relTime } from "@aster/shared";
@@ -39,10 +40,6 @@ export default function JobDetailScreen({ route, navigation }) {
   const [savingId, setSavingId] = useState(null);             // profile id mid assign/unassign
 
   const canManageInterviewers = ["owner", "admin"].includes((profile?.role || "").toLowerCase());
-
-  const firstName = profile?.name?.split(" ")[0] || "Welcome";
-  const hr = new Date().getHours();
-  const greeting = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -296,9 +293,8 @@ export default function JobDetailScreen({ route, navigation }) {
             <Press onPress={() => navigation.goBack()} haptic="light" style={styles.back}>
               <Feather name="arrow-left" size={20} color={theme.white} />
             </Press>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[type.small, { color: theme.onBrandMuted }]}>{greeting}</Text>
-              <Text style={[type.h2, { color: theme.onBrand }]} numberOfLines={1}>{firstName}</Text>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <AsterLogo width={96} color={theme.white} />
             </View>
             <IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Main", { screen: "ProfileTab" })} />
           </View>
