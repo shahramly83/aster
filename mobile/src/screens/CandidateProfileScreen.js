@@ -4,8 +4,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl } from "../lib/data";
 import { Card, Button, Avatar, Loader, SectionHeader, ScreenHeader, Feather } from "../components/ui";
+import OfferSheet from "../components/OfferSheet";
 import { theme, type, space, radius } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime } from "@aster/shared";
 
@@ -13,7 +14,7 @@ import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterview
 const STEPS = ["applied", "shortlisted", "interviewing", "offer", "hired"];
 
 export default function CandidateProfileScreen({ route, navigation }) {
-  const { profile } = useAuth();
+  const { profile, manager } = useAuth();
   const { candidateId, applicationId, jobId, candidateName } = route.params || {};
   const [candidate, setCandidate] = useState(null);
   const [cards, setCards] = useState([]);
@@ -21,20 +22,56 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [scheduledAt, setScheduledAt] = useState(null);
   const [picker, setPicker] = useState(null); // null | "date" | "time"
   const [schedDate, setSchedDate] = useState(null);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offer, setOffer] = useState(null);
+  const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [c, sc, iv] = await Promise.all([
+    const [c, sc, iv, off] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId),
       loadCandidateInterview(profile.companyId, candidateId),
+      loadOffer(profile.companyId, candidateId),
     ]);
-    setCandidate(c); setCards(sc); setScheduledAt(iv); setLoading(false);
+    setCandidate(c); setCards(sc); setScheduledAt(iv); setOffer(off);
+    setApprovals(off?.id && off.approval_status ? await loadOfferApprovals(off.id) : []);
+    setLoading(false);
   }, [candidateId, profile.companyId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const nameOf = () => candidate?.name || candidateName || "Candidate";
+
+  // Move the candidate to a stage, mirroring the web setCandidateStage side
+  // effects (activity log on hire, hired/rejected candidate email). Optimistic.
+  const moveTo = (to) => {
+    const isHire = to === "hired";
+    Alert.alert(
+      isHire ? "Mark as hired?" : `Move to ${stageLabel(to)}?`,
+      isHire
+        ? `${nameOf()} will be marked hired and emailed a congratulations.`
+        : `${nameOf()} will be moved to ${stageLabel(to)}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: isHire ? "Mark hired" : "Move",
+          onPress: async () => {
+            const prev = stage;
+            setStage(to);
+            try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to }); }
+            catch (e) { setStage(prev); Alert.alert("Could not update", e?.message || "Please try again."); }
+          },
+        },
+      ]
+    );
+  };
+
+  const viewSigned = async () => {
+    const url = await signedOfferUrl(candidateId);
+    if (url) Linking.openURL(url);
+    else Alert.alert("Not available yet", "The signed offer PDF isn't ready.");
+  };
 
   const reject = () => {
     Alert.alert("Reject candidate?", `${nameOf()} will be moved to Rejected and emailed.`, [
@@ -106,8 +143,35 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <SectionHeader>Hiring process</SectionHeader>
             <Card>
               <ProcessStepper stage={stage} />
+              {manager && stage !== "hired" && stage !== "rejected" && stage !== "declined" ? (
+                <View style={styles.stageActions}>
+                  {stage === "applied" ? (
+                    <Button title="Shortlist" icon="star" onPress={() => moveTo("shortlisted")} />
+                  ) : null}
+                  {stage === "shortlisted" ? (
+                    <Button title="Move to interview" icon="calendar" onPress={() => moveTo("interviewing")} />
+                  ) : null}
+                  {stage === "interviewing" ? (
+                    <Button title="Make offer" icon="file-text" onPress={() => setOfferOpen(true)} />
+                  ) : null}
+                  {stage === "offer" ? (
+                    <Button title="Mark as hired" icon="award" variant="success" onPress={() => moveTo("hired")} />
+                  ) : null}
+                  {stage === "interviewing" ? (
+                    <Button title="Mark as hired" icon="award" variant="ghost" onPress={() => moveTo("hired")} />
+                  ) : null}
+                </View>
+              ) : null}
             </Card>
           </View>
+
+          {/* Offer (created + sent from mobile; signed on the hosted Aster Sign page) */}
+          {offer ? (
+            <View style={{ marginTop: space(5) }}>
+              <SectionHeader>Offer</SectionHeader>
+              <OfferCard offer={offer} approvals={approvals} onViewSigned={viewSigned} />
+            </View>
+          ) : null}
 
           {/* Interview (part of the process) */}
           <View style={{ marginTop: space(5) }}>
@@ -256,7 +320,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           ) : null}
 
           {/* Reject */}
-          {stage !== "rejected" && stage !== "hired" ? (
+          {manager && stage !== "rejected" && stage !== "hired" && stage !== "declined" ? (
             <Pressable onPress={reject} style={{ alignSelf: "center", marginTop: space(7), padding: 8 }}>
               <Text style={[type.smallStrong, { color: theme.danger }]}>Reject candidate</Text>
             </Pressable>
@@ -273,8 +337,71 @@ export default function CandidateProfileScreen({ route, navigation }) {
           onChange={onPickerChange}
         />
       ) : null}
+
+      <OfferSheet
+        visible={offerOpen}
+        onClose={() => setOfferOpen(false)}
+        companyId={profile.companyId}
+        candidateId={candidateId}
+        candidateName={name}
+        jobId={jobId}
+        onSent={() => { setStage("offer"); load(); }}
+      />
     </View>
   );
+}
+
+function OfferCard({ offer, approvals, onViewSigned }) {
+  const st = offerStatus(offer);
+  const cur = { myr: "RM", usd: "$", sgd: "S$" }[offer.salary_currency] || "";
+  const emp = { full_time: "Full-time", part_time: "Part-time", contract: "Contract", internship: "Internship" }[offer.employment_type] || null;
+  const signed = offer.status === "accepted" || offer.esign_status === "completed";
+  return (
+    <Card>
+      <View style={[styles.offerBadge, { backgroundColor: st.bg }]}>
+        <Feather name={st.icon} size={13} color={st.color} />
+        <Text style={[type.smallStrong, { color: st.color, marginLeft: 6 }]}>{st.label}</Text>
+      </View>
+      {offer.offer_job_title ? <Text style={[type.bodyStrong, { color: theme.ink, marginTop: space(3) }]}>{offer.offer_job_title}</Text> : null}
+      <View style={{ marginTop: 6, gap: 5 }}>
+        {offer.base_salary != null ? <OfferLine icon="dollar-sign" text={`${cur}${Number(offer.base_salary).toLocaleString()}${emp ? ` · ${emp}` : ""}`} /> : null}
+        {offer.start_date ? <OfferLine icon="calendar" text={`Starts ${offer.start_date}`} /> : null}
+        {offer.expires_at ? <OfferLine icon="clock" text={`Expires ${offer.expires_at}`} /> : null}
+      </View>
+      {approvals.length ? (
+        <View style={{ marginTop: space(3), paddingTop: space(3), borderTopWidth: 1, borderTopColor: theme.line2 }}>
+          <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Approvals</Text>
+          {approvals.map((a) => (
+            <View key={a.step} style={styles.apprRow}>
+              <View style={[styles.apprDot, { backgroundColor: a.status === "approved" ? theme.success : a.status === "declined" ? theme.danger : theme.line }]}>
+                {a.status === "approved" ? <Feather name="check" size={10} color={theme.white} /> : a.status === "declined" ? <Feather name="x" size={10} color={theme.white} /> : null}
+              </View>
+              <Text style={[type.small, { color: theme.ink2, flex: 1, marginLeft: 8 }]} numberOfLines={1}>{a.approver_name || a.approver_email}</Text>
+              <Text style={[type.small, { color: a.status === "declined" ? theme.danger : a.status === "approved" ? theme.success : theme.ink4 }]}>{a.status}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {signed ? <Button title="View signed offer" icon="file-text" variant="secondary" onPress={onViewSigned} style={{ marginTop: space(3) }} /> : null}
+    </Card>
+  );
+}
+
+function OfferLine({ icon, text }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <Feather name={icon} size={13} color={theme.ink4} />
+      <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{text}</Text>
+    </View>
+  );
+}
+
+function offerStatus(o) {
+  if (o.approval_status === "pending") return { label: "Pending approval", color: "#B45309", bg: "#FEF3C7", icon: "clock" };
+  if (o.approval_status === "declined") return { label: "Approval declined", color: theme.danger, bg: "#FEF3F2", icon: "x-circle" };
+  if (o.status === "accepted" || o.esign_status === "completed") return { label: "Signed & accepted", color: "#166534", bg: "#F0FDF4", icon: "check-circle" };
+  if (o.status === "declined") return { label: "Declined", color: theme.danger, bg: "#FEF3F2", icon: "x-circle" };
+  return { label: "Sent · awaiting signature", color: theme.brand, bg: theme.brandSoft, icon: "send" };
 }
 
 function ProcessStepper({ stage }) {
@@ -329,6 +456,10 @@ const styles = StyleSheet.create({
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
+  offerBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
+  apprRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
+  apprDot: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   // stepper
   stepLine: { flexDirection: "row", alignItems: "center", width: "100%" },
   connector: { flex: 1, height: 2 },

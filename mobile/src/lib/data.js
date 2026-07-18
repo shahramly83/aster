@@ -583,12 +583,12 @@ export async function scheduleInterview({ companyId, candidateId, jobId, candida
 }
 
 // Stages a mobile client may set DIRECTLY, exactly matching what the web app's
-// StageControl writes without side effects it can't reproduce. Deliberately
-// EXCLUDES "offer" and "declined": on web those never come from a stage click —
-// "offer" runs through the dedicated offer + DocuSign flow (dbCreateOffer +
-// docusign-send) and "declined" only from an offer response. Setting them here
-// would leave an offer-stage candidate with no offer record and break the web
-// flow. Those actions stay on the web app.
+// Stages that may be set by a plain stage move. Deliberately EXCLUDES "offer"
+// and "declined": "offer" must go through sendOffer() (create the offer row +
+// Aster Sign / approval), never a raw stage write, or you'd get an offer-stage
+// candidate with no offer record; "declined" only ever comes from an offer
+// response (respond-offer / expire-offer). sendOffer sets the "offer" stage
+// itself as part of the real flow.
 export const MOBILE_STAGES = ["applied", "shortlisted", "interviewing", "hired", "rejected"];
 
 // Move a candidate's stage with FULL web parity (mirrors setCandidateStage in
@@ -623,6 +623,124 @@ export async function moveCandidateStage({ companyId, candidateId, candidateName
     supabase.functions
       .invoke("send-stage-email", { body: { candidate_id: candidateId, stage } })
       .catch(() => {});
+  }
+}
+
+// ---- Offers (mirrors the web sendOffer / dbCreateOffer / Aster Sign flow) ---
+// Links resolve on the production web app (Aster Sign is a hosted signing page
+// the candidate reaches by emailed link; approvers get their own /approve link).
+const OFFER_ORIGIN = "https://hireaster.com";
+
+// Latest offer for a candidate (same columns dbGetOffer reads on web).
+export async function loadOffer(companyId, candidateId) {
+  if (!companyId || !candidateId) return null;
+  const { data } = await supabase
+    .from("offers")
+    .select("id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, message, base_salary, salary_currency, employment_type, start_date, offer_job_title")
+    .eq("company_id", companyId)
+    .eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data || null;
+}
+
+// The approval chain for an offer, in step order (drives the approval progress).
+export async function loadOfferApprovals(offerId) {
+  if (!offerId) return [];
+  const { data } = await supabase
+    .from("offer_approvals")
+    .select("step, approver_email, approver_name, status, reason, decided_at")
+    .eq("offer_id", offerId)
+    .order("step", { ascending: true });
+  return data || [];
+}
+
+// Insert the offer row with its terms (mirrors dbCreateOffer, camelCase terms →
+// columns). Returns { token, id } or { error }.
+async function createOffer(companyId, { candidateId, jobId = null, terms = null }) {
+  const row = { company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" };
+  if (terms) {
+    if (terms.baseSalary != null && terms.baseSalary !== "") row.base_salary = Number(terms.baseSalary);
+    if (terms.currency) row.salary_currency = terms.currency;
+    if (terms.employmentType) row.employment_type = terms.employmentType;
+    if (terms.startDate) row.start_date = terms.startDate;
+    if (terms.expiresAt) row.expires_at = terms.expiresAt;
+    if (terms.jobTitle) row.offer_job_title = terms.jobTitle;
+  }
+  const { data, error } = await supabase.from("offers").insert(row).select("token, id").single();
+  if (error) {
+    // Pre-migration DB missing the terms columns: retry base columns only.
+    if (error.code === "42703" || error.code === "PGRST204") {
+      const { data: d2, error: e2 } = await supabase.from("offers")
+        .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" })
+        .select("token, id").single();
+      return e2 ? { error: e2.message } : d2;
+    }
+    return { error: error.message };
+  }
+  return data;
+}
+
+// Create + send an offer, mirroring the web sendOffer:
+//   - creates the offer row (with terms),
+//   - advances the application to the "offer" stage (no candidate email here),
+//   - with approvers → offer-approval-submit (sequential sign-off; candidate is
+//     emailed only after the final approval),
+//   - else if emailSent → aster-sign-send emails the candidate a review-&-sign link,
+//   - else records the offer only.
+// Returns { ok, token, needsApproval, emailed } or { ok:false, error }.
+export async function sendOffer({ companyId, candidateId, candidateName, jobId = null, terms, message = null, approvers = [], emailSent = true }) {
+  const valid = (approvers || [])
+    .filter((a) => a?.email && a.email.includes("@"))
+    .map((a) => ({ email: a.email.trim(), name: (a.name || "").trim() }));
+  const needsApproval = valid.length > 0;
+
+  const created = await createOffer(companyId, { candidateId, jobId, terms });
+  if (!created || created.error || !created.token) {
+    return { ok: false, error: created?.error || "Couldn't create the offer." };
+  }
+  const token = created.token;
+
+  // Advance to the offer stage — no candidate email (offers email separately).
+  // This mirrors setCandidateStage(candidateId, "offer", { notify:false }); done
+  // here (not moveCandidateStage) so a raw "offer" stage write stays blocked
+  // everywhere except as part of a real offer.
+  await supabase.from("applications").update({ stage: "offer" })
+    .eq("company_id", companyId).eq("candidate_id", candidateId);
+
+  try {
+    if (needsApproval) {
+      const { data, error } = await supabase.functions.invoke("offer-approval-submit", {
+        body: { offerToken: token, approvers: valid, message, terms, mode: null, origin: OFFER_ORIGIN },
+      });
+      if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Couldn't submit for approval.", staged: true };
+    } else if (emailSent) {
+      const { data, error } = await supabase.functions.invoke("aster-sign-send", {
+        body: { token, message, origin: OFFER_ORIGIN },
+      });
+      if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Offer created, but emailing the candidate failed.", staged: true };
+    }
+  } catch (e) {
+    return { ok: false, error: e?.message || "Offer created, but sending failed.", staged: true };
+  }
+
+  supabase.rpc("log_activity", {
+    p_type: needsApproval ? "offer_approval_requested" : "offer_sent",
+    p_title: `Offer ${needsApproval ? "sent for approval" : "sent"} to ${candidateName || "a candidate"}`,
+    p_candidate_id: candidateId,
+  }).then(() => {}, () => {});
+
+  return { ok: true, token, needsApproval, emailed: !needsApproval && emailSent };
+}
+
+// Short-lived signed URL for a completed offer's PDF (via offer-signed-url).
+export async function signedOfferUrl(candidateId) {
+  try {
+    const { data } = await supabase.functions.invoke("offer-signed-url", { body: { candidateId } });
+    return data?.url || null;
+  } catch {
+    return null;
   }
 }
 
