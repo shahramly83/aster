@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, FlatList, RefreshControl, StyleSheet, Animated, Easing } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
 import { loadTeam } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Avatar, HeaderActions, Loader, EmptyState, Feather } from "../components/ui";
+import { Avatar, HeaderActions, TopBar, Loader, EmptyState, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { ROLE_LABELS } from "@aster/shared";
@@ -64,36 +63,36 @@ export default function TeamsScreen({ navigation }) {
   const flat = groups.flatMap((g) => [{ _section: g.role, count: g.members.length }, ...g.members]);
   const total = rows ? rows.length : 0;
 
+  const firstName = profile?.name?.split(" ")[0] || "there";
   const Header = (
-    <LinearGradient colors={["#123AF0", "#0B2AE0", "#0A1E9E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+    <View style={{ backgroundColor: theme.brand }}>
       <SafeAreaView edges={["top"]}>
-        <View style={styles.heroTop}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>YOUR WORKSPACE</Text>
-            <Text style={styles.title}>Team</Text>
-          </View>
-          <HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />
+        <TopBar
+          mark
+          subtitle="Your workspace team"
+          name={firstName}
+          right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
+        />
+        <View style={styles.summaryWrap}>
+          {rows && rows.length ? (
+            <View style={styles.summary}>
+              {groups.map((g) => {
+                const m = metaOf(g.role);
+                return (
+                  <View key={g.role} style={styles.sumTile}>
+                    <View style={styles.sumIcon}><Feather name={m.icon} size={14} color="#fff" /></View>
+                    <Text style={styles.sumCount}>{g.members.length}</Text>
+                    <Text style={styles.sumLabel} numberOfLines={1}>{(ROLE_LABELS[g.role] || "Member") + (g.members.length === 1 ? "" : "s")}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.heroSub}>{rows ? "No teammates yet" : "Loading your team…"}</Text>
+          )}
         </View>
-
-        {/* Role summary tiles */}
-        {rows && rows.length ? (
-          <View style={styles.summary}>
-            {groups.map((g) => {
-              const m = metaOf(g.role);
-              return (
-                <View key={g.role} style={styles.sumTile}>
-                  <View style={styles.sumIcon}><Feather name={m.icon} size={14} color="#fff" /></View>
-                  <Text style={styles.sumCount}>{g.members.length}</Text>
-                  <Text style={styles.sumLabel} numberOfLines={1}>{(ROLE_LABELS[g.role] || "Member") + (g.members.length === 1 ? "" : "s")}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <Text style={styles.heroSub}>{rows ? "No teammates yet" : "Loading your team…"}</Text>
-        )}
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 
   if (rows === null) {
@@ -168,10 +167,7 @@ export default function TeamsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingHorizontal: space(5), paddingBottom: space(5) },
-  heroTop: { flexDirection: "row", alignItems: "flex-start", paddingTop: space(2), marginBottom: space(4) },
-  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.4, color: "rgba(255,255,255,0.7)", marginBottom: 4 },
-  title: { fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 32, letterSpacing: -0.6, color: "#fff" },
+  summaryWrap: { paddingHorizontal: space(5), paddingBottom: space(5), paddingTop: space(1) },
   heroSub: { fontFamily: "Inter_500Medium", fontSize: 14, color: "rgba(255,255,255,0.82)" },
   summary: { flexDirection: "row", gap: 10 },
   sumTile: { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 10, alignItems: "flex-start" },
