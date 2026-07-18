@@ -41,35 +41,20 @@ export default function PositionApplicantsScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      {/* Blue header (only the header is blue) */}
+      {/* Blue header — minimal title block */}
       <View style={styles.header}>
         <SafeAreaView edges={["top"]}>
           <View style={styles.headRow}>
             <Press onPress={() => navigation.goBack()} haptic="light" style={styles.back}>
-              <Feather name="chevron-left" size={22} color={theme.white} />
+              <Feather name="arrow-left" size={20} color={theme.white} />
             </Press>
-            <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[type.h2, { color: theme.white }]} numberOfLines={1}>{jobTitle || "Candidates"}</Text>
-              <Text style={[type.small, { color: "rgba(255,255,255,0.72)", marginTop: 1 }]}>
-                {rows ? `${rows.length} candidate${rows.length === 1 ? "" : "s"}` : "Loading…"}
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={styles.eyebrow}>
+                {rows ? `${rows.length} CANDIDATE${rows.length === 1 ? "" : "S"}` : "LOADING"}
               </Text>
+              <Text style={[type.h1, { color: theme.white }]} numberOfLines={1}>{jobTitle || "Candidates"}</Text>
             </View>
           </View>
-
-          {rows ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-              {FILTERS.map((f) => {
-                const active = filter === f.key;
-                const count = f.key === "all" ? rows.length : rows.filter((r) => r.stage === f.key).length;
-                return (
-                  <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[styles.chip, active && styles.chipActive]}>
-                    <Text style={[type.smallStrong, { color: active ? theme.brand : theme.white }]}>{f.label}</Text>
-                    <Text style={[type.smallStrong, { color: active ? theme.brand : "rgba(255,255,255,0.6)", marginLeft: 5, fontVariant: ["tabular-nums"] }]}>{count}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          ) : null}
         </SafeAreaView>
       </View>
 
@@ -80,10 +65,24 @@ export default function PositionApplicantsScreen({ route, navigation }) {
         <FlatList
           data={filtered}
           keyExtractor={(r) => r.applicationId}
-          contentContainerStyle={{ padding: space(4), paddingBottom: space(10), flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(10), flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
-          ListEmptyComponent={<View style={{ marginTop: space(12) }}><EmptyState icon="users" title="No candidates here" subtitle={filter === "all" ? "Applicants for this role will show here." : "No one in this stage yet."} /></View>}
+          ListHeaderComponent={
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+              {FILTERS.map((f) => {
+                const active = filter === f.key;
+                const count = f.key === "all" ? rows.length : rows.filter((r) => r.stage === f.key).length;
+                return (
+                  <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[styles.chip, active && styles.chipActive]}>
+                    <Text style={[type.smallStrong, { color: active ? theme.white : theme.ink2 }]}>{f.label}</Text>
+                    <Text style={[type.smallStrong, { color: active ? "rgba(255,255,255,0.8)" : theme.ink4, marginLeft: 5, fontVariant: ["tabular-nums"] }]}>{count}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          }
+          ListEmptyComponent={<View style={{ marginTop: space(10) }}><EmptyState icon="users" title="No candidates here" subtitle={filter === "all" ? "Applicants for this role will show here." : "No one in this stage yet."} /></View>}
           renderItem={({ item }) => <CandidateCard item={item} onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, stage: item.stage, candidateName: item.name })} />}
         />
       )}
@@ -131,12 +130,13 @@ function MatchRing({ score }) {
 }
 
 const styles = StyleSheet.create({
-  header: { backgroundColor: theme.brand, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, paddingBottom: space(3) },
-  headRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(1), paddingBottom: space(2) },
+  header: { backgroundColor: theme.brand },
+  headRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(1), paddingBottom: space(5) },
   back: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  filters: { paddingHorizontal: space(4), paddingTop: space(1), gap: 8 },
-  chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.15)" },
-  chipActive: { backgroundColor: theme.white },
+  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2, color: "rgba(255,255,255,0.7)", marginBottom: 3 },
+  filters: { paddingVertical: space(4), gap: 8 },
+  chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
+  chipActive: { backgroundColor: theme.brand, borderColor: theme.brand },
   card: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.xl, padding: space(3.5), paddingLeft: space(4), overflow: "hidden", shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   rail: { position: "absolute", left: 0, top: 14, bottom: 14, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
   avatarRing: { padding: 2.5, borderRadius: 30, borderWidth: 2 },
