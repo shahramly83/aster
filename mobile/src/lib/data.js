@@ -149,7 +149,7 @@ export async function submitScorecard({ companyId, userId, candidateId, jobId, r
 export async function loadOpenPositions(companyId, { manager = false, assignedJobIds = [] } = {}) {
   let q = supabase
     .from("jobs")
-    .select("id, title, status, details, created_at")
+    .select("id, title, status, details, created_at, ai_ranked_at")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
   if (!manager) {
@@ -183,6 +183,7 @@ export async function loadOpenPositions(companyId, { manager = false, assignedJo
       status: j.status,
       location: j.details?.location || j.details?.city || "",
       postedAt: j.created_at,
+      aiRankedAt: j.ai_ranked_at || null,
       counts,
       applicantCount: total,
     };
@@ -414,6 +415,105 @@ export async function loadApplicants(companyId, jobId) {
       avatarUrl: c.photo_path ? urlByPath[c.photo_path] || null : null,
     };
   });
+}
+
+// ---- AI Rank (mirrors the web per-job flow) --------------------------------
+// Terminal stages leave the active pipeline and aren't ranked.
+const RANK_TERMINAL = ["hired", "rejected", "declined"];
+
+// The last time this job was AI-Ranked (jobs.ai_ranked_at). Drives the per-job
+// lock: once ranked, AI Rank is locked for EVERYONE until a genuinely new
+// candidate applies (an application newer than this stamp).
+export async function loadJobRankedAt(jobId) {
+  if (!jobId) return null;
+  const { data } = await supabase.from("jobs").select("ai_ranked_at").eq("id", jobId).single();
+  return data?.ai_ranked_at || null;
+}
+
+// Persist an AI Rank run's scores. Routes through the definer RPC (0098) so an
+// assigned interviewer's run persists too (applications RLS is read-only for
+// them); falls back to a direct update for admins if the RPC isn't deployed.
+async function saveMatchScores(companyId, jobId, results) {
+  const p_scores = results.map(({ candidateId, score, rationale }) => ({
+    candidate_id: candidateId, score: Math.round((Number(score) || 0) * 100), reasons: rationale || null,
+  }));
+  const { error } = await supabase.rpc("save_match_scores", { p_job_id: jobId, p_scores });
+  if (error && (error.code === "42883" || error.code === "PGRST202")) {
+    if (!companyId) return { ok: false, error: "save_match_scores RPC missing (apply migration 0100)" };
+    let firstErr = null;
+    await Promise.all(results.map(({ candidateId, score, rationale }) =>
+      supabase.from("applications")
+        .update({ match_score: Math.round((Number(score) || 0) * 100), match_reasons: rationale || null })
+        .eq("company_id", companyId).eq("job_id", jobId).eq("candidate_id", candidateId)
+        .then(({ error: e }) => { if (e && !firstErr) firstErr = e.message; })
+    ));
+    return firstErr ? { ok: false, error: firstErr } : { ok: true };
+  }
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// Rank a role's active applicants against the role, then persist + lock.
+// Returns { ok:true, count, units } on success, or { ok:false, reason?, error? }
+// where reason is "min" (fewer than 2 rankable) or "limit" (out of credits).
+// The rank-candidates edge function charges the AI Rank credit itself (server
+// side), only on a successful ranking — we never charge on failure.
+export async function runAiRank({ companyId, jobId, job }) {
+  if (!jobId) return { ok: false, error: "Missing job." };
+
+  // Active pool: applications not in a terminal stage, whose candidate is parsed.
+  const { data: apps } = await supabase
+    .from("applications")
+    .select("candidate_id, stage, match_reasons")
+    .eq("company_id", companyId)
+    .eq("job_id", jobId);
+  const active = (apps || []).filter((a) => !RANK_TERMINAL.includes(a.stage || "applied"));
+  const prevReason = {};
+  active.forEach((a) => { if (a.match_reasons) prevReason[a.candidate_id] = a.match_reasons; });
+  const candIds = [...new Set(active.map((a) => a.candidate_id))];
+  if (candIds.length < 2) return { ok: false, reason: "min" };
+
+  const { data: cands } = await supabase
+    .from("candidates").select("id, parsed, full_name").in("id", candIds);
+  const pool = (cands || []).filter((c) => c && c.parsed).slice(0, 40); // 1 credit / 10, capped at 40
+  if (pool.length < 2) return { ok: false, reason: "min" };
+  const units = Math.max(1, Math.ceil(pool.length / 10));
+
+  // Fresh role info (description/requirements live in jobs.details).
+  const { data: jobRow } = await supabase.from("jobs").select("title, details").eq("id", jobId).single();
+  const details = jobRow?.details || job?.details || {};
+  const roleInfo = {
+    title: jobRow?.title || job?.title || "",
+    description: details.description || "",
+    requirements: details.requirements || [],
+  };
+  const payload = pool.map((c) => ({
+    id: c.id,
+    name: c.parsed?.name || c.full_name || "Candidate",
+    role: (Array.isArray(c.parsed?.experience) && c.parsed.experience[0]?.title) || null,
+    years: typeof c.parsed?.years_of_experience === "number" ? c.parsed.years_of_experience : null,
+    skills: Array.isArray(c.parsed?.skills) ? c.parsed.skills : [],
+    industries: Array.isArray(c.parsed?.industries) ? c.parsed.industries : [],
+  }));
+
+  const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units } });
+  if (data?.error === "limit_reached") return { ok: false, reason: "limit", available: Number(data.available) || 0, needed: units };
+  if (error || data?.error || !Array.isArray(data?.ranked)) return { ok: false, error: data?.error || error?.message || "rank failed" };
+
+  // Keep each existing "Why" stable; only write a rationale for a candidate that
+  // doesn't have one yet (a new applicant). Score (0..100 from the fn) → 0..1.
+  const results = data.ranked
+    .filter((r) => r && r.id)
+    .map((r) => ({ candidateId: r.id, score: (Number(r.score) || 0) / 100, rationale: prevReason[r.id] || r.reason || "" }));
+  if (!results.length) return { ok: false, error: "no scores returned" };
+
+  const saved = await saveMatchScores(companyId, jobId, results);
+  if (!saved.ok) return { ok: false, error: saved.error || "scores not saved", ranked: true };
+
+  // Lock the job for everyone until a new candidate applies. Best-effort: the
+  // save already succeeded, so a stamp failure just means the lock isn't set yet.
+  await supabase.rpc("stamp_job_ranked", { p_job_id: jobId });
+  return { ok: true, count: results.length, units: typeof data.used === "number" ? data.used : units };
 }
 
 // Schedule an interview directly (manager picks a time). Inserts a scheduled

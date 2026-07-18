@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, FlatList, ScrollView, Pressable, RefreshControl, Alert, StyleSheet } from "react-native";
+import { View, Text, FlatList, ScrollView, Pressable, RefreshControl, ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
-import { loadApplicants, moveCandidateStage } from "../lib/data";
+import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, ScreenHeader, StagePill, Loader, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
@@ -31,10 +31,19 @@ export default function JobDetailScreen({ route, navigation }) {
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState(route.params?.initialFilter || "all");
+  const [ranking, setRanking] = useState(false);
+  const [rankedAtLocal, setRankedAtLocal] = useState(null);   // set the instant a run finishes
+  const [serverRankedAt, setServerRankedAt] = useState(null); // jobs.ai_ranked_at, refreshed on load
+  const [rankNotice, setRankNotice] = useState(null);         // { type: "ok"|"err", text }
 
   const load = useCallback(async () => {
     if (!profile) return;
-    setRows(await loadApplicants(profile.companyId, jobId));
+    const [apps, jr] = await Promise.all([
+      loadApplicants(profile.companyId, jobId),
+      loadJobRankedAt(jobId),
+    ]);
+    setRows(apps);
+    setServerRankedAt(jr);
   }, [profile, jobId]);
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
@@ -70,6 +79,60 @@ export default function JobDetailScreen({ route, navigation }) {
     [rows, filter]
   );
 
+  // ---- AI Rank gating (mirrors web) ----
+  const TERMINAL = ["hired", "rejected", "declined"];
+  const activeRows = (rows || []).filter((r) => !TERMINAL.includes(r.stage));
+  const canRank = activeRows.length >= 2;                 // needs 2+ candidates to compare
+  const hasScores = (rows || []).some((r) => typeof r.matchScore === "number");
+  const rankUnits = Math.max(1, Math.ceil(Math.min(activeRows.length, 40) / 10));
+  // Latest of: server stamp, the snapshot from the carousel, and this session's run.
+  const effRankedAt = [serverRankedAt, job?.aiRankedAt, rankedAtLocal].filter(Boolean).sort().slice(-1)[0] || null;
+  // A new candidate = an application newer than the last rank; that unlocks it again.
+  const hasNewSinceRank = effRankedAt ? (rows || []).some((r) => r.appliedAt && r.appliedAt > effRankedAt) : true;
+  const rankLocked = !!effRankedAt && !hasNewSinceRank;
+
+  const doRank = async () => {
+    setRanking(true);
+    setRankNotice(null);
+    try {
+      const res = await runAiRank({ companyId: profile.companyId, jobId, job });
+      if (res.ok) {
+        setRankedAtLocal(new Date().toISOString());
+        setRankNotice({ type: "ok", text: "Rankings updated and synced." });
+        await load();
+      } else if (res.reason === "min") {
+        setRankNotice({ type: "err", text: "AI Rank needs at least 2 candidates to rank." });
+      } else if (res.reason === "limit") {
+        setRankNotice({ type: "err", text: "You're out of AI Rank credits this month. Top up on the web app to run again." });
+      } else {
+        setRankNotice({ type: "err", text: res.error ? `Couldn't rank: ${res.error}` : "Couldn't rank these applicants. No credit was used." });
+      }
+    } catch (e) {
+      setRankNotice({ type: "err", text: "Couldn't rank these applicants. No credit was used." });
+    } finally {
+      setRanking(false);
+    }
+  };
+
+  const onRankPress = () => {
+    if (ranking) return;
+    // Clickable even when it can't run, so a tap explains WHY.
+    if (!canRank) { setRankNotice({ type: "err", text: "AI Rank needs at least 2 candidates to rank. Once two or more applicants are ready, you can score them against this role." }); return; }
+    if (rankLocked) { setRankNotice({ type: "err", text: "These applicants are already ranked. AI Rank unlocks again the moment a new candidate applies, so you're not charged to re-rank an unchanged list." }); return; }
+    Alert.alert(
+      hasScores ? "Re-run AI Rank?" : "Run AI Rank?",
+      `Scores your ${Math.min(activeRows.length, 40)} candidate${activeRows.length === 1 ? "" : "s"} against this role and uses ${rankUnits} AI Rank credit${rankUnits === 1 ? "" : "s"}.`,
+      [{ text: "Cancel", style: "cancel" }, { text: hasScores ? "Re-run" : "Run", onPress: doRank }]
+    );
+  };
+
+  const rankLabel = ranking ? "Ranking" : rankLocked ? "Ranked" : hasScores ? "Re-run" : "AI Rank";
+  const rankSub = ranking ? "Scoring candidates against this role…"
+    : rankLocked ? "Already ranked. Unlocks when a new candidate applies."
+    : !canRank ? "Available once 2+ candidates are ready to rank."
+    : hasScores ? `Re-run to refresh scores · ${rankUnits} credit${rankUnits === 1 ? "" : "s"}`
+    : `Score every candidate against this role · ${rankUnits} credit${rankUnits === 1 ? "" : "s"}`;
+
   const header = (
     <View>
       {/* Hero card */}
@@ -95,6 +158,37 @@ export default function JobDetailScreen({ route, navigation }) {
           <HeroStat label="Posted" value={job?.postedAt ? relTime(job.postedAt) : "—"} small />
         </View>
       </LinearGradient>
+
+      {/* AI Rank */}
+      <View style={styles.rankBar}>
+        <View style={styles.rankIcon}>
+          <Feather name={rankLocked || (!canRank && !ranking) ? "lock" : "zap"} size={16} color={theme.brand} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={[type.bodyStrong, { color: theme.ink }]}>AI Rank</Text>
+          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={2}>{rankSub}</Text>
+        </View>
+        <Pressable
+          onPress={onRankPress}
+          disabled={ranking}
+          style={[styles.rankBtn, (rankLocked || !canRank) && styles.rankBtnMuted, ranking && { opacity: 0.7 }]}
+        >
+          {ranking ? (
+            <ActivityIndicator color={theme.white} size="small" />
+          ) : (
+            <>
+              <Feather name={rankLocked ? "lock" : "zap"} size={14} color={theme.white} />
+              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>{rankLabel}</Text>
+            </>
+          )}
+        </Pressable>
+      </View>
+      {rankNotice ? (
+        <View style={[styles.notice, rankNotice.type === "ok" ? styles.noticeOk : styles.noticeErr]}>
+          <Feather name={rankNotice.type === "ok" ? "check-circle" : "alert-circle"} size={14} color={rankNotice.type === "ok" ? "#166534" : "#B42318"} />
+          <Text style={[type.small, { color: rankNotice.type === "ok" ? "#166534" : "#B42318", marginLeft: 8, flex: 1 }]}>{rankNotice.text}</Text>
+        </View>
+      ) : null}
 
       {/* Filter chips */}
       {rows ? (
@@ -235,6 +329,14 @@ const styles = StyleSheet.create({
   heroNum: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 46, letterSpacing: -1.5, marginTop: space(4), fontVariant: ["tabular-nums"] },
   heroPipe: { flexDirection: "row", height: 8, borderRadius: radius.pill, overflow: "hidden", marginTop: space(4), gap: 2, backgroundColor: "rgba(255,255,255,0.18)" },
   heroFoot: { flexDirection: "row", justifyContent: "space-between", marginTop: space(5) },
+
+  rankBar: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.xl, borderWidth: 1, borderColor: theme.line, padding: space(4), marginTop: space(4), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  rankIcon: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: theme.brand + "14", alignItems: "center", justifyContent: "center" },
+  rankBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", minWidth: 96, paddingHorizontal: 14, height: 38, borderRadius: radius.pill, backgroundColor: theme.brand, marginLeft: 10 },
+  rankBtnMuted: { backgroundColor: theme.ink3 },
+  notice: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), borderRadius: radius.lg, borderWidth: 1 },
+  noticeOk: { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" },
+  noticeErr: { backgroundColor: "#FEF3F2", borderColor: "#FECDCA" },
 
   filters: { paddingVertical: space(4), gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
