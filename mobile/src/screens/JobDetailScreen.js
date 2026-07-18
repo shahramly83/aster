@@ -328,7 +328,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <CandidateCard
               item={item}
               onStar={() => toggleStar(item)}
-              onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, stage: item.stage, candidateName: item.name })}
+              onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, jobTitle, stage: item.stage, candidateName: item.name })}
             />
           )}
         />

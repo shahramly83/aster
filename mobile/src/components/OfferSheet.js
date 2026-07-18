@@ -3,12 +3,12 @@
 // optional letter body and optional approvers) and calls data.sendOffer, which
 // creates the offer, advances the candidate to the offer stage, and either
 // emails the candidate a review-&-sign link or routes it through approval.
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { sendOffer } from "../lib/data";
 import { Button, Feather } from "./ui";
+import CalendarSheet from "./CalendarSheet";
 import { theme, type, space, radius } from "../theme";
 
 const CURRENCIES = [{ k: "myr", label: "RM" }, { k: "usd", label: "$" }, { k: "sgd", label: "S$" }];
@@ -19,11 +19,6 @@ const EMP_TYPES = [
   { k: "internship", label: "Internship" },
 ];
 
-// Date-only YYYY-MM-DD in local time (avoids the UTC off-by-one from toISOString).
-function ymd(d) {
-  const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return z.toISOString().slice(0, 10);
-}
 function prettyDate(iso) {
   if (!iso) return "Select";
   const [y, m, dd] = iso.split("-");
@@ -31,7 +26,7 @@ function prettyDate(iso) {
   return `${Number(dd)} ${months[Number(m) - 1]} ${y}`;
 }
 
-export default function OfferSheet({ visible, onClose, companyId, candidateId, candidateName, jobId, defaults = {}, onSent }) {
+export default function OfferSheet({ visible, onClose, companyId, companyName, candidateId, candidateName, jobId, defaults = {}, onSent }) {
   const insets = useSafeAreaInsets();
   const [jobTitle, setJobTitle] = useState(defaults.jobTitle || "");
   const [salary, setSalary] = useState("");
@@ -39,25 +34,61 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
   const [empType, setEmpType] = useState("full_time");
   const [startDate, setStartDate] = useState(null); // YYYY-MM-DD
   const [expiresAt, setExpiresAt] = useState(null);
-  const [message, setMessage] = useState("");
+  const [body, setBody] = useState("");            // the offer letter (sent as the message)
+  const [bodyEdited, setBodyEdited] = useState(false); // stop auto-syncing once hand-edited
+  const [letterView, setLetterView] = useState("write"); // 'write' | 'preview'
   const [approvers, setApprovers] = useState([]); // [{ name, email }]
   const [picker, setPicker] = useState(null); // null | "start" | "expires"
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState(null);
 
+  // Keep defaults in sync if the sheet is opened for a different role.
+  useEffect(() => { if (visible && defaults.jobTitle && !jobTitle) setJobTitle(defaults.jobTitle); }, [visible, defaults.jobTitle]);
+
+  // The default letter body, composed from the terms — mirrors the web OfferModal
+  // (and the server), staying in sync until the manager edits the letter by hand.
+  const composeBody = () => {
+    const SYM = { myr: "RM", usd: "$", sgd: "S$" };
+    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
+    const role = jobTitle.trim() || "[Position]";
+    const co = companyName || "[Company]";
+    const start = fmt(startDate) || "[start date]";
+    const pay = salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "[Basic Salary]";
+    const exp = fmt(expiresAt);
+    return [
+      `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
+      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before ${start}, failing which this offer of employment shall be null and void.`,
+      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until ${exp}. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
+      `REMUNERATION\nYou will be paid a Basic Salary of ${pay} per month with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
+      `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons for doing so. During the probationary period, the employment may be terminated by the Company or the employee by giving to the other not less than two (2) weeks' notice or two (2) weeks' salary in lieu of such notice and without assigning any reasons therefor.`,
+      `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
+      `BONUS\nIncentive bonus may be paid to you at the discretion of the Management depending on your personal performance and contribution towards the profitability of the Company.`,
+      `ANNUAL LEAVE\nYou will be entitled to annual leave as per ${co}'s HR Policies on Terms and Conditions of Service.`,
+      `TERMINATION OF EMPLOYMENT\nAfter confirmation of employment, either party maintains the right to terminate this letter of employment by giving to the other not less than two (2) calendar months' notice or salary in lieu of such notice.`,
+      `COMPANY RULES\nYour appointment shall always be subject to your compliance with any conditions of service or Company rules and practices, either express or implied, for the time being in force.`,
+      `NORMAL HOURS OF WORK\nThe normal hours of work shall be a total of 40 hours per week. You shall be required when necessary to work beyond the normal working hours.`,
+      `You will be reporting to your immediate superior and be responsible for the duties set out in your Job Description, and for their performance, profitability, market development and budget achievement and control.`,
+      `If you are agreeable with the above terms of employment, please signify your acceptance by signing where indicated below.`,
+    ].join("\n\n");
+  };
+
+  // Recompose the letter as the terms change, until the manager edits it by hand.
+  useEffect(() => {
+    if (!bodyEdited) setBody(composeBody());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobTitle, salary, currency, startDate, expiresAt, companyName]);
+
   const reset = () => {
-    setSalary(""); setStartDate(null); setExpiresAt(null); setMessage("");
+    setSalary(""); setStartDate(null); setExpiresAt(null);
+    setBodyEdited(false); setLetterView("write");
     setApprovers([]); setErr(null); setSending(false);
   };
 
   const close = () => { if (!sending) { onClose(); } };
 
-  const onPickerChange = (event, selected) => {
-    const which = picker;
-    setPicker(null);
-    if (event.type === "dismissed" || !selected) return;
-    if (which === "start") setStartDate(ymd(selected));
-    else if (which === "expires") setExpiresAt(ymd(selected));
+  const onPickDate = ({ ymd: picked }) => {
+    if (picker === "start") setStartDate(picked);
+    else if (picker === "expires") setExpiresAt(picked);
   };
 
   const addApprover = () => setApprovers((p) => [...p, { name: "", email: "" }]);
@@ -82,7 +113,7 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
     };
     const res = await sendOffer({
       companyId, candidateId, candidateName, jobId,
-      terms, message: message.trim() || null, approvers: validApprovers, emailSent: true,
+      terms, message: (body && body.trim()) || null, approvers: validApprovers, emailSent: true,
     });
     setSending(false);
     if (!res.ok) { setErr(res.error || "Couldn't send the offer."); return; }
@@ -118,7 +149,6 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
 
             <Field label="Base salary">
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput value={salary} onChangeText={setSalary} keyboardType="numeric" placeholder="5000" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1 }]} />
                 <View style={styles.segment}>
                   {CURRENCIES.map((c) => (
                     <Pressable key={c.k} onPress={() => setCurrency(c.k)} style={[styles.seg, currency === c.k && styles.segOn]}>
@@ -126,6 +156,7 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
                     </Pressable>
                   ))}
                 </View>
+                <TextInput value={salary} onChangeText={setSalary} keyboardType="numeric" placeholder="e.g. 8000 / month" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1 }]} />
               </View>
             </Field>
 
@@ -154,9 +185,35 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
               </Field>
             </View>
 
-            <Field label="Message (optional)">
-              <TextInput value={message} onChangeText={setMessage} placeholder="A short note to open the offer letter…" placeholderTextColor={theme.ink4} multiline style={[styles.input, styles.textarea]} />
-            </Field>
+            <View style={{ marginTop: space(4) }}>
+              <View style={styles.letterHead}>
+                <Text style={[type.smallStrong, { color: theme.ink2 }]}>Offer letter</Text>
+                <View style={styles.letterToggle}>
+                  {[["write", "Write"], ["preview", "Preview"]].map(([k, l]) => (
+                    <Pressable key={k} onPress={() => setLetterView(k)} style={[styles.letterTab, letterView === k && styles.letterTabOn]}>
+                      <Text style={[type.small, { fontFamily: "Inter_600SemiBold", color: letterView === k ? theme.brand : theme.ink3 }]}>{l}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              {letterView === "write" ? (
+                <>
+                  <TextInput value={body} onChangeText={(v) => { setBody(v); setBodyEdited(true); }} multiline style={[styles.input, styles.letterArea]} />
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 8 }}>
+                    <Text style={[type.small, { color: theme.ink4, flex: 1 }]}>Aster adds the heading, greeting and signature automatically.</Text>
+                    {bodyEdited ? (
+                      <Pressable onPress={() => { setBody(composeBody()); setBodyEdited(false); }} hitSlop={6}>
+                        <Text style={[type.small, { fontFamily: "Inter_600SemiBold", color: theme.brand }]}>Reset from terms</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </>
+              ) : (
+                <View style={styles.preview}>
+                  <Text style={[type.small, { color: theme.ink2, lineHeight: 20 }]}>{body}</Text>
+                </View>
+              )}
+            </View>
 
             <Field label={`Approvers (optional)${validApprovers.length ? ` · ${validApprovers.length}` : ""}`}>
               {approvers.map((a, i) => (
@@ -191,14 +248,16 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
         </View>
       </View>
 
-      {picker ? (
-        <DateTimePicker
-          value={new Date(Date.now() + 86400000)}
-          mode="date"
-          minimumDate={new Date()}
-          onChange={onPickerChange}
-        />
-      ) : null}
+      <CalendarSheet
+        visible={!!picker}
+        mode="date"
+        title={picker === "expires" ? "Offer expiry date" : "Start date"}
+        confirmLabel={picker === "expires" ? "Set expiry" : "Set start date"}
+        minDate={new Date()}
+        initial={picker === "start" ? startDate : picker === "expires" ? expiresAt : null}
+        onConfirm={onPickDate}
+        onClose={() => setPicker(null)}
+      />
     </Modal>
   );
 }
@@ -219,6 +278,12 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", marginBottom: space(1) },
   input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
   textarea: { minHeight: 74, textAlignVertical: "top", paddingTop: 11 },
+  letterHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  letterToggle: { flexDirection: "row", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.sm, padding: 2 },
+  letterTab: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.sm - 2 },
+  letterTabOn: { backgroundColor: theme.card, ...(theme.shadowSm || {}) },
+  letterArea: { minHeight: 220, textAlignVertical: "top", paddingTop: 11, lineHeight: 20, fontFamily: "Inter_400Regular" },
+  preview: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 14 },
   segment: { flexDirection: "row", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, overflow: "hidden" },
   seg: { paddingHorizontal: 12, justifyContent: "center", alignItems: "center" },
   segOn: { backgroundColor: theme.brand },

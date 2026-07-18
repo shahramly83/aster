@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite } from "../lib/data";
-import { Card, Button, Avatar, Press, SectionHeader, Feather } from "../components/ui";
+import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
@@ -158,7 +158,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   if (loading) return (
     <View style={{ flex: 1, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" }}>
-      <ActivityIndicator color="#fff" />
+      <Loader tint="#fff" />
     </View>
   );
 
@@ -562,9 +562,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
         visible={offerOpen}
         onClose={() => setOfferOpen(false)}
         companyId={profile.companyId}
+        companyName={profile.company}
         candidateId={candidateId}
         candidateName={name}
         jobId={jobId}
+        defaults={{ jobTitle: route.params?.jobTitle || "" }}
         onSent={() => { setStage("offer"); load(); }}
       />
     </View>

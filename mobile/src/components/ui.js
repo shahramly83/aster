@@ -1,7 +1,7 @@
 // Aster UI primitives. The visual language of the app lives here: Inter type,
 // soft elevation, tactile press feedback (scale + haptics), and vector icons.
-import React, { useRef } from "react";
-import { View, Text, Pressable, ActivityIndicator, Image, StyleSheet, Animated, Platform } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { View, Text, Pressable, ActivityIndicator, Image, StyleSheet, Animated, Easing, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -274,11 +274,23 @@ export function ScreenTitle({ children, subtitle, right }) {
   );
 }
 
-export function Loader({ label }) {
+// Loading spinner that reuses the brand mark from the splash: the Aster
+// starburst rotates continuously. `tint` white for blue screens, brand for light.
+export function Loader({ label, tint = theme.brand, size = 44 }) {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1500, easing: Easing.linear, useNativeDriver: true }));
+    anim.start();
+    return () => anim.stop();
+  }, [spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const onBrand = tint !== theme.brand;
   return (
     <View style={styles.centered}>
-      <ActivityIndicator color={theme.brand} />
-      {label ? <Text style={[type.small, { color: theme.ink3, marginTop: 12 }]}>{label}</Text> : null}
+      <Animated.View style={{ transform: [{ rotate }] }}>
+        <AsterMark size={size} color={tint} />
+      </Animated.View>
+      {label ? <Text style={[type.small, { color: onBrand ? "rgba(255,255,255,0.9)" : theme.ink3, marginTop: 14 }]}>{label}</Text> : null}
     </View>
   );
 }

@@ -25,15 +25,20 @@ function timeLabel(h, m) {
   return `${hh}:${String(m).padStart(2, "0")} ${ap}`;
 }
 
-export default function CalendarSheet({ visible, onClose, onConfirm, title = "Pick a date & time", confirmLabel = "Confirm", minDate, initial }) {
+const WD_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const ymdOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+export default function CalendarSheet({ visible, onClose, onConfirm, title, confirmLabel = "Confirm", minDate, initial, mode = "datetime" }) {
   const insets = useSafeAreaInsets();
+  const dateOnly = mode === "date";
   const today = startOfDay(new Date());
   const floor = minDate ? startOfDay(new Date(minDate)) : today;
   const init = initial ? new Date(initial) : null;
+  const heading = title || (dateOnly ? "Pick a date" : "Pick a date & time");
 
   const [view, setView] = useState(startOfDay(init || floor)); // any day in the shown month
   const [day, setDay] = useState(init ? startOfDay(init) : null);
-  const [from, setFrom] = useState(init ? { h: init.getHours(), m: init.getMinutes() >= 30 ? 30 : 0 } : null);
+  const [from, setFrom] = useState(init && !dateOnly ? { h: init.getHours(), m: init.getMinutes() >= 30 ? 30 : 0 } : null);
   const [to, setTo] = useState(null);
 
   const mins = (t) => (t ? t.h * 60 + t.m : -1);
@@ -59,14 +64,28 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title = "Pi
   const canPrev = new Date(view.getFullYear(), view.getMonth(), 1) > new Date(floor.getFullYear(), floor.getMonth(), 1);
   const shiftMonth = (n) => setView(new Date(view.getFullYear(), view.getMonth() + n, 1));
 
-  const ready = day && from && to && mins(to) > mins(from);
+  const ready = dateOnly ? !!day : (day && from && to && mins(to) > mins(from));
   const confirm = () => {
     if (!ready) return;
+    if (dateOnly) {
+      onConfirm({ ymd: ymdOf(day), startIso: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0).toISOString() });
+      onClose();
+      return;
+    }
     const s = new Date(day.getFullYear(), day.getMonth(), day.getDate(), from.h, from.m, 0, 0);
     const e = new Date(day.getFullYear(), day.getMonth(), day.getDate(), to.h, to.m, 0, 0);
     onConfirm({ startIso: s.toISOString(), endIso: e.toISOString() });
     onClose();
   };
+
+  // Human summary of the current selection for the header pill.
+  const summary = !day
+    ? (dateOnly ? "Choose a day" : "Choose a day and time")
+    : dateOnly
+      ? `${WD_LONG[day.getDay()]}, ${day.getDate()} ${MONTHS[day.getMonth()]}`
+      : from && to
+        ? `${WEEKDAYS[day.getDay()]} ${day.getDate()} ${MONTHS[day.getMonth()].slice(0, 3)} · ${timeLabel(from.h, from.m)}–${timeLabel(to.h, to.m)}`
+        : `${WD_LONG[day.getDay()]}, ${day.getDate()} ${MONTHS[day.getMonth()]}`;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
@@ -75,8 +94,14 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title = "Pi
         <View style={[styles.sheet, { paddingBottom: insets.bottom + space(3) }]}>
           <View style={styles.handle} />
           <View style={styles.head}>
-            <Text style={[type.h3, { color: theme.ink }]}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+            <Text style={[type.h3, { color: theme.ink }]}>{heading}</Text>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}><Feather name="x" size={20} color={theme.ink3} /></Pressable>
+          </View>
+
+          {/* Live selection summary */}
+          <View style={styles.summary}>
+            <Feather name="calendar" size={16} color={theme.brand} />
+            <Text style={[type.smallStrong, { color: day ? theme.ink : theme.ink3, marginLeft: 10, flex: 1 }]} numberOfLines={1}>{summary}</Text>
           </View>
 
           {/* Month nav */}
@@ -117,33 +142,37 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title = "Pi
             })}
           </View>
 
-          {/* Time range: From → To */}
-          <Text style={styles.timeHead}>FROM</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
-            {TIME_SLOTS.map((t, i) => {
-              const on = from && mins(from) === mins(t);
-              return (
-                <Pressable key={i} onPress={() => pickFrom(t)} style={[styles.timeChip, on && styles.timeChipOn]}>
-                  <Text style={[styles.timeTxt, on && { color: theme.white }]}>{timeLabel(t.h, t.m)}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          {/* Time range: From → To (skipped in date-only mode) */}
+          {!dateOnly ? (
+            <>
+              <Text style={styles.timeHead}>FROM</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
+                {TIME_SLOTS.map((t, i) => {
+                  const on = from && mins(from) === mins(t);
+                  return (
+                    <Pressable key={i} onPress={() => pickFrom(t)} style={[styles.timeChip, on && styles.timeChipOn]}>
+                      <Text style={[styles.timeTxt, on && { color: theme.white }]}>{timeLabel(t.h, t.m)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
-          <Text style={styles.timeHead}>TO</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
-            {TIME_SLOTS.map((t, i) => {
-              const disabled = mins(t) <= mins(from);
-              const on = to && mins(to) === mins(t);
-              return (
-                <Pressable key={i} onPress={() => !disabled && setTo(t)} disabled={disabled} style={[styles.timeChip, on && styles.timeChipOn, disabled && { opacity: 0.35 }]}>
-                  <Text style={[styles.timeTxt, on && { color: theme.white }]}>{timeLabel(t.h, t.m)}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+              <Text style={styles.timeHead}>TO</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
+                {TIME_SLOTS.map((t, i) => {
+                  const disabled = mins(t) <= mins(from);
+                  const on = to && mins(to) === mins(t);
+                  return (
+                    <Pressable key={i} onPress={() => !disabled && setTo(t)} disabled={disabled} style={[styles.timeChip, on && styles.timeChipOn, disabled && { opacity: 0.35 }]}>
+                      <Text style={[styles.timeTxt, on && { color: theme.white }]}>{timeLabel(t.h, t.m)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </>
+          ) : null}
 
-          <Button title={ready ? confirmLabel : "Select a date & time range"} icon={ready ? "check" : undefined} onPress={confirm} disabled={!ready} style={{ marginTop: space(4) }} />
+          <Button title={ready ? confirmLabel : (dateOnly ? "Select a date" : "Select a date & time range")} icon={ready ? "check" : undefined} onPress={confirm} disabled={!ready} style={{ marginTop: space(5) }} />
         </View>
       </View>
     </Modal>
@@ -155,16 +184,18 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: theme.card, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(2) },
   handle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: theme.line, marginBottom: space(3) },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3) },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: theme.bg, alignItems: "center", justifyContent: "center" },
+  summary: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 14, height: 46, marginBottom: space(4) },
   monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(2) },
   monthLabel: { fontFamily: "Inter_700Bold", fontSize: 16, color: theme.ink, letterSpacing: -0.2 },
   navBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
-  weekRow: { flexDirection: "row", marginTop: space(1), marginBottom: 2 },
+  weekRow: { flexDirection: "row", marginTop: space(1), marginBottom: 4 },
   grid: { flexDirection: "row", flexWrap: "wrap" },
-  cell: { width: `${100 / 7}%`, height: 46, alignItems: "center", justifyContent: "center" },
-  weekTxt: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.ink4, letterSpacing: 0.3 },
-  dayDot: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
-  daySelected: { backgroundColor: theme.brand },
-  dayTxt: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: theme.ink, fontVariant: ["tabular-nums"] },
+  cell: { width: `${100 / 7}%`, height: 48, alignItems: "center", justifyContent: "center" },
+  weekTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: theme.ink4, letterSpacing: 0.5, textTransform: "uppercase" },
+  dayDot: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  daySelected: { backgroundColor: theme.brand, shadowColor: theme.brand, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  dayTxt: { fontFamily: "Inter_600SemiBold", fontSize: 15.5, color: theme.ink, fontVariant: ["tabular-nums"] },
   todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: theme.brand, marginTop: 2 },
   todayDot0: { width: 4, height: 4, marginTop: 2 },
   timeHead: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1, color: theme.ink4, marginTop: space(4), marginBottom: space(2) },

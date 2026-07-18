@@ -58,7 +58,7 @@ export default function OpenPositionsScreen({ navigation }) {
       <Text style={styles.sectionLabel}>OPEN ROLES{jobs ? ` · ${jobs.length}` : ""}</Text>
 
       {jobs === null ? (
-        <View style={{ flex: 1 }}><Loader label="Loading roles…" /></View>
+        <View style={{ flex: 1 }}><Loader label="Loading roles…" tint="#fff" /></View>
       ) : jobs.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
           <EmptyState icon="briefcase" title="No open roles"
