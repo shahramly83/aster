@@ -123,7 +123,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const name = nameOf();
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.brand }}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
       {/* Gradient profile header */}
       <LinearGradient colors={["#123AF0", "#0B2AE0", "#0A1E9E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <SafeAreaView edges={["top"]}>
@@ -150,12 +150,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
         </SafeAreaView>
       </LinearGradient>
 
-      {/* Content sheet overlapping the header */}
+      {/* Flat content below the curved header */}
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        <ScrollView style={{ flex: 1, marginTop: -26 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
           <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-
             {/* Quick actions */}
             <View style={{ flexDirection: "row", gap: 10 }}>
               {candidate?.resumeUrl ? <Button title="Résumé" icon="file-text" variant="secondary" onPress={() => Linking.openURL(candidate.resumeUrl)} style={{ flex: 1 }} /> : null}
@@ -474,7 +472,7 @@ function DetailRow({ icon, value, onPress, last }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingBottom: space(9), borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  hero: { paddingBottom: space(9), borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
   heroTop: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2) },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
   heroBody: { alignItems: "center", paddingHorizontal: space(5), marginTop: space(2) },
@@ -482,8 +480,7 @@ const styles = StyleSheet.create({
   heroName: { fontFamily: "Inter_700Bold", fontSize: 22, letterSpacing: -0.3, color: theme.white, marginTop: space(3) },
   heroRole: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: "rgba(255,255,255,0.8)", marginTop: 3 },
   heroPill: { flexDirection: "row", alignItems: "center", marginTop: space(3), backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  sheet: { backgroundColor: theme.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: space(4), paddingTop: space(4), paddingBottom: space(6), minHeight: 400 },
-  sheetHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: theme.line, marginBottom: space(4) },
+  sheet: { backgroundColor: theme.bg, paddingHorizontal: space(4), paddingTop: space(5), paddingBottom: space(6), minHeight: 400 },
 
   stageTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 8 },
   detailRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3) },
