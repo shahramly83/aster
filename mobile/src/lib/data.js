@@ -61,17 +61,68 @@ export async function loadMyInterviews(companyId, userId) {
 }
 
 // The candidate's next scheduled interview time (if any), for the profile.
+// The candidate's latest interview record — scheduled OR a pending invite ("sent"
+// with proposed slots the candidate hasn't picked from yet). Returns an object.
 export async function loadCandidateInterview(companyId, candidateId) {
   const { data } = await supabase
     .from("interviews")
-    .select("scheduled_at")
+    .select("id, status, scheduled_at, proposed_slots, token, created_at")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
-    .eq("status", "scheduled")
-    .order("scheduled_at", { ascending: false })
+    .in("status", ["scheduled", "sent"])
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return data?.scheduled_at || null;
+  if (!data) return null;
+  return {
+    id: data.id,
+    status: data.status,
+    scheduledAt: data.scheduled_at || null,
+    proposedSlots: Array.isArray(data.proposed_slots) ? data.proposed_slots : [],
+    token: data.token || null,
+  };
+}
+
+// Propose several interview times to the candidate (web-parity dbCreateInterview
+// Invite): insert a "sent" interviews row with proposed_slots [{start,end}] and a
+// booking token, then email the candidate a /book link (send-interview-invite).
+export async function createInterviewInvite({ companyId, candidateId, jobId, interviewerName, interviewerEmail, slots = [], attendees = [] }) {
+  const proposed = (slots || []).filter((s) => s && s.start).map((s) => ({ start: s.start, end: s.end }));
+  if (!proposed.length) return { ok: false, error: "Add at least one time." };
+  const { data, error } = await supabase
+    .from("interviews")
+    .insert({
+      company_id: companyId,
+      candidate_id: candidateId,
+      job_id: jobId || null,
+      interviewer_name: interviewerName || null,
+      interviewer_email: interviewerEmail || null,
+      proposed_slots: proposed,
+      provider: "google",
+      status: "sent",
+      attendees,
+    })
+    .select("token").single();
+  if (error || !data?.token) return { ok: false, error: error?.message || "Couldn't create the invite." };
+
+  let emailed = false, skipped = null;
+  try {
+    const { data: em, error: ee } = await supabase.functions.invoke("send-interview-invite", { body: { token: data.token } });
+    skipped = em?.skipped || null;
+    emailed = !ee && !em?.error && !skipped;
+  } catch { /* best-effort email */ }
+  return { ok: true, token: data.token, emailed, skipped };
+}
+
+// Re-send the booking email for an existing invite token.
+export async function resendInterviewInvite(token) {
+  if (!token) return { ok: false };
+  try {
+    const { data, error } = await supabase.functions.invoke("send-interview-invite", { body: { token } });
+    return { ok: !error && !data?.error, skipped: data?.skipped || null };
+  } catch (e) {
+    return { ok: false, error: e?.message };
+  }
 }
 
 // Full detail for one candidate (parsed resume blob + signed URLs).

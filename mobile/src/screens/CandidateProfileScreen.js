@@ -9,6 +9,7 @@ import { Card, Button, Avatar, Press, SectionHeader, Feather } from "../componen
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import CalendarSheet from "../components/CalendarSheet";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { theme, type, space, radius } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime } from "@aster/shared";
 
@@ -23,7 +24,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [cards, setCards] = useState([]);
   const [stage, setStage] = useState(route.params?.stage || "applied");
   const [scheduledAt, setScheduledAt] = useState(null);
+  const [pendingInvite, setPendingInvite] = useState(null);
   const [calOpen, setCalOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null); // branded confirm dialog config
   const [offerOpen, setOfferOpen] = useState(false);
   const [offer, setOffer] = useState(null);
   const [approvals, setApprovals] = useState([]);
@@ -40,7 +43,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
       loadOffer(profile.companyId, candidateId),
       loadApplicationMeta(profile.companyId, candidateId),
     ]);
-    setCandidate(c); setCards(sc); setScheduledAt(iv); setOffer(off);
+    setCandidate(c); setCards(sc); setScheduledAt(iv?.scheduledAt || null); setPendingInvite(iv?.status === "sent" ? iv : null); setOffer(off);
     if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
     setMatchReason(meta?.reason || null);
     setMatchScore(meta?.score ?? null);
@@ -54,26 +57,25 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   // Move the candidate to a stage, mirroring the web setCandidateStage side
   // effects (activity log on hire, hired/rejected candidate email). Optimistic.
+  const applyStage = async (to) => {
+    const prev = stage;
+    setStage(to);
+    try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to }); }
+    catch (e) { setStage(prev); Alert.alert("Could not update", e?.message || "Please try again."); }
+  };
+
   const moveTo = (to) => {
     const isHire = to === "hired";
-    Alert.alert(
-      isHire ? "Mark as hired?" : `Move to ${stageLabel(to)}?`,
-      isHire
+    setConfirm({
+      icon: isHire ? "award" : "arrow-right-circle",
+      variant: isHire ? "success" : "primary",
+      title: isHire ? "Mark as hired?" : `Move to ${stageLabel(to)}?`,
+      message: isHire
         ? `${nameOf()} will be marked hired and emailed a congratulations.`
         : `${nameOf()} will be moved to ${stageLabel(to)}.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: isHire ? "Mark hired" : "Move",
-          onPress: async () => {
-            const prev = stage;
-            setStage(to);
-            try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to }); }
-            catch (e) { setStage(prev); Alert.alert("Could not update", e?.message || "Please try again."); }
-          },
-        },
-      ]
-    );
+      confirmLabel: isHire ? "Mark hired" : "Move",
+      onConfirm: () => applyStage(to),
+    });
   };
 
   const viewSigned = async () => {
@@ -83,17 +85,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
   };
 
   const reject = () => {
-    Alert.alert("Reject candidate?", `${nameOf()} will be moved to Rejected and emailed.`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Reject", style: "destructive", onPress: async () => {
-          const prev = stage;
-          setStage("rejected");
-          try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: "rejected" }); }
-          catch (e) { setStage(prev); Alert.alert("Could not update", e?.message || "Please try again."); }
-        },
-      },
-    ]);
+    setConfirm({
+      icon: "x-circle",
+      variant: "danger",
+      title: "Reject candidate?",
+      message: `${nameOf()} will be moved to Rejected and emailed.`,
+      confirmLabel: "Reject",
+      onConfirm: () => applyStage("rejected"),
+    });
   };
 
   const confirmSchedule = async (date) => {
@@ -401,6 +400,17 @@ export default function CandidateProfileScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={!!confirm}
+        title={confirm?.title}
+        message={confirm?.message}
+        icon={confirm?.icon}
+        variant={confirm?.variant}
+        confirmLabel={confirm?.confirmLabel}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => { const fn = confirm?.onConfirm; setConfirm(null); fn?.(); }}
+      />
 
       <OfferSheet
         visible={offerOpen}
