@@ -14,6 +14,7 @@ import { relTime } from "@aster/shared";
 // Icon + tint per activity_log type (same types the web/edge functions write).
 const TYPES = {
   new_application: { icon: "user-plus", tint: "#0B2AE0" },
+  interview_poll: { icon: "clock", tint: "#0B2AE0" },
   interview_scheduled: { icon: "calendar", tint: "#7C3AED" },
   scorecard: { icon: "edit-3", tint: "#1D6FD6" },
   hired: { icon: "award", tint: "#12A150" },
@@ -44,8 +45,14 @@ export default function NotificationsScreen({ navigation }) {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const open = (n) => {
-    if (n.candidateId) navigation.navigate("CandidateProfile", { candidateId: n.candidateId, jobId: n.jobId });
-    else if (n.jobId) navigation.navigate("JobDetail", { jobId: n.jobId });
+    // A poll notification goes straight to the discussion thread to vote.
+    if (n.type === "interview_poll" && n.candidateId) {
+      navigation.navigate("Discussion", { candidateId: n.candidateId, jobId: n.jobId });
+    } else if (n.candidateId) {
+      navigation.navigate("CandidateProfile", { candidateId: n.candidateId, jobId: n.jobId });
+    } else if (n.jobId) {
+      navigation.navigate("JobDetail", { jobId: n.jobId });
+    }
   };
 
   return (

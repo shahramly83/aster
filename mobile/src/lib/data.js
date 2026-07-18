@@ -820,7 +820,8 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
 }
 
 // Create a poll from time-range slots [{ start, end }] (ISO). Managers only.
-export async function createPoll({ companyId, candidateId, jobId, createdBy, slots = [] }) {
+// Logs an activity so the panel is notified (Notifications feed + bell badge).
+export async function createPoll({ companyId, candidateId, candidateName, jobId, createdBy, slots = [] }) {
   const clean = slots.filter((s) => s && s.start);
   if (clean.length < 2) return { ok: false, error: "Add at least two time ranges." };
   const { data: poll, error } = await supabase
@@ -831,6 +832,13 @@ export async function createPoll({ companyId, candidateId, jobId, createdBy, slo
   const rows = clean.map((s) => ({ poll_id: poll.id, company_id: companyId, slot_ts: s.start, slot_end: s.end || null }));
   const { error: se } = await supabase.from("interview_poll_slots").insert(rows);
   if (se) return { ok: false, error: se.message };
+  supabase.rpc("log_activity", {
+    p_type: "interview_poll",
+    p_title: `Interview availability poll · ${candidateName || "candidate"}`,
+    p_description: `Tap to mark the times you can make (${clean.length} options).`,
+    p_candidate_id: candidateId,
+    p_job_id: jobId || null,
+  }).then(() => {}, () => {});
   return { ok: true, id: poll.id };
 }
 

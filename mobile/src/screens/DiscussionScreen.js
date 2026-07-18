@@ -147,7 +147,7 @@ export default function DiscussionScreen({ route, navigation }) {
   };
 
   const onCreatePoll = async (slots) => {
-    const res = await createPoll({ companyId: profile.companyId, candidateId, jobId, createdBy: profile.userId, slots });
+    const res = await createPoll({ companyId: profile.companyId, candidateId, candidateName, jobId, createdBy: profile.userId, slots });
     if (res.ok) await loadPoll();
     return res;
   };
