@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, FlatList, ScrollView, Pressable, RefreshControl, ActivityIndicator, Alert, StyleSheet } from "react-native";
+import { View, Text, FlatList, ScrollView, Pressable, Modal, RefreshControl, ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
-import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt } from "../lib/data";
+import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, ScreenHeader, StagePill, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
@@ -34,15 +34,22 @@ export default function JobDetailScreen({ route, navigation }) {
   const [rankedAtLocal, setRankedAtLocal] = useState(null);   // set the instant a run finishes
   const [serverRankedAt, setServerRankedAt] = useState(null); // jobs.ai_ranked_at, refreshed on load
   const [rankNotice, setRankNotice] = useState(null);         // { type: "ok"|"err", text }
+  const [interviewers, setInterviewers] = useState(null);     // interviewer pool for this job
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [savingId, setSavingId] = useState(null);             // profile id mid assign/unassign
+
+  const canManageInterviewers = ["owner", "admin"].includes((profile?.role || "").toLowerCase());
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const [apps, jr] = await Promise.all([
+    const [apps, jr, team] = await Promise.all([
       loadApplicants(profile.companyId, jobId),
       loadJobRankedAt(jobId),
+      loadInterviewers(profile.companyId, jobId),
     ]);
     setRows(apps);
     setServerRankedAt(jr);
+    setInterviewers(team);
   }, [profile, jobId]);
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
@@ -141,6 +148,24 @@ export default function JobDetailScreen({ route, navigation }) {
 
   const rankLabel = ranking ? "Ranking" : rankLocked ? "Ranked" : hasScores ? "Re-run" : "AI Rank";
 
+  // ---- Interviewers ----
+  const assignedInterviewers = (interviewers || []).filter((m) => m.assigned);
+  const toggleInterviewer = async (m) => {
+    if (savingId) return;
+    setSavingId(m.id);
+    const next = !m.assigned;
+    // Optimistic flip.
+    setInterviewers((prev) => prev.map((x) => (x.id === m.id ? { ...x, assigned: next } : x)));
+    const err = next
+      ? await assignInterviewer(jobId, m.id)
+      : await unassignInterviewer(jobId, m.id);
+    if (err) {
+      setInterviewers((prev) => prev.map((x) => (x.id === m.id ? { ...x, assigned: !next } : x)));
+      Alert.alert("Couldn't update interviewers", err);
+    }
+    setSavingId(null);
+  };
+
   const header = (
     <View>
       {/* Hero card */}
@@ -197,6 +222,48 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
       ) : null}
 
+      {/* Interviewers */}
+      <View style={styles.interCard}>
+        <View style={styles.interHead}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Feather name="users" size={16} color={theme.ink2} />
+            <Text style={[type.bodyStrong, { color: theme.ink, marginLeft: 8 }]}>Interviewers</Text>
+            {assignedInterviewers.length ? (
+              <View style={styles.interCount}><Text style={[type.smallStrong, { color: theme.brand }]}>{assignedInterviewers.length}</Text></View>
+            ) : null}
+          </View>
+          {canManageInterviewers ? (
+            <Pressable onPress={() => setPickerOpen(true)} hitSlop={8} style={styles.interAdd}>
+              <Feather name="plus" size={14} color={theme.brand} />
+              <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 4 }]}>Add</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {assignedInterviewers.length ? (
+          <View style={{ marginTop: space(3), gap: 8 }}>
+            {assignedInterviewers.map((m) => (
+              <View key={m.id} style={styles.interRow}>
+                <Avatar name={m.name} size={34} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={[type.smallStrong, { color: theme.ink }]} numberOfLines={1}>{m.name}</Text>
+                  {m.email ? <Text style={[type.small, { color: theme.ink4 }]} numberOfLines={1}>{m.email}</Text> : null}
+                </View>
+                {canManageInterviewers ? (
+                  <Pressable onPress={() => toggleInterviewer(m)} disabled={!!savingId} hitSlop={8} style={styles.interRemove}>
+                    {savingId === m.id ? <ActivityIndicator size="small" color={theme.ink4} /> : <Feather name="x" size={16} color={theme.ink3} />}
+                  </Pressable>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={[type.small, { color: theme.ink3, marginTop: space(2) }]}>
+            {canManageInterviewers ? "No interviewers on this role yet. Add teammates so they can see these candidates and run interviews." : "No interviewers assigned yet."}
+          </Text>
+        )}
+      </View>
+
       {/* Filter chips */}
       {rows ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
@@ -249,6 +316,46 @@ export default function JobDetailScreen({ route, navigation }) {
           )}
         />
       </SafeAreaView>
+
+      {/* Add-interviewers picker */}
+      <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={() => setPickerOpen(false)}>
+        <View style={styles.sheetBackdrop}>
+          <Pressable style={{ flex: 1 }} onPress={() => setPickerOpen(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHead}>
+              <Text style={[type.h3, { color: theme.ink }]}>Interviewers</Text>
+              <Pressable onPress={() => setPickerOpen(false)} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+            </View>
+            <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Tap a teammate to add or remove them from this role.</Text>
+            {(interviewers || []).length === 0 ? (
+              <View style={{ paddingVertical: space(8) }}>
+                <EmptyState icon="user-plus" title="No interviewers yet" subtitle="Invite interviewers to your workspace on the web app, then assign them here." />
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                {(interviewers || []).map((m) => (
+                  <Pressable key={m.id} onPress={() => toggleInterviewer(m)} disabled={!!savingId} style={styles.pickRow}>
+                    <Avatar name={m.name} size={38} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{m.name}</Text>
+                      {m.email ? <Text style={[type.small, { color: theme.ink4 }]} numberOfLines={1}>{m.email}</Text> : null}
+                    </View>
+                    {savingId === m.id ? (
+                      <ActivityIndicator size="small" color={theme.brand} />
+                    ) : (
+                      <View style={[styles.pickCheck, m.assigned && styles.pickCheckOn]}>
+                        {m.assigned ? <Feather name="check" size={15} color={theme.white} /> : null}
+                      </View>
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+            <SafeAreaView edges={["bottom"]} />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -346,6 +453,21 @@ const styles = StyleSheet.create({
   notice: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), borderRadius: radius.lg, borderWidth: 1 },
   noticeOk: { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" },
   noticeErr: { backgroundColor: "#FEF3F2", borderColor: "#FECDCA" },
+
+  interCard: { backgroundColor: theme.card, borderRadius: radius.xl, borderWidth: 1, borderColor: theme.line, padding: space(4), marginTop: space(4) },
+  interHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  interCount: { marginLeft: 8, minWidth: 22, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: theme.brand + "14", alignItems: "center", justifyContent: "center" },
+  interAdd: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, height: 32, borderRadius: radius.pill, backgroundColor: theme.brand + "12" },
+  interRow: { flexDirection: "row", alignItems: "center" },
+  interRemove: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: theme.line2 },
+
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(15,18,40,0.45)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(2) },
+  sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
+  pickRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: theme.line2 },
+  pickCheck: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
+  pickCheckOn: { backgroundColor: theme.brand, borderColor: theme.brand },
 
   filters: { paddingVertical: space(4), gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },

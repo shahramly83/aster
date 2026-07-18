@@ -522,6 +522,46 @@ export async function runAiRank({ companyId, jobId, job }) {
   return { ok: true, count: results.length, units: typeof data.used === "number" ? data.used : units };
 }
 
+// ---- Job interviewer pool (job_assignments, migration 0021) ----------------
+// Company team members double as the interviewer pool; a job_assignments row
+// links an interviewer to a job so they can see its applicants and request
+// interviews. Returns the interviewer-role teammates with an `assigned` flag for
+// this job (assigned first, then alphabetical).
+export async function loadInterviewers(companyId, jobId) {
+  if (!companyId) return [];
+  const [{ data: profs }, { data: assigns }] = await Promise.all([
+    supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", companyId).neq("status", "suspended"),
+    jobId
+      ? supabase.from("job_assignments").select("profile_id").eq("company_id", companyId).eq("job_id", jobId)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const assigned = new Set((assigns || []).map((a) => a.profile_id));
+  return (profs || [])
+    .filter((p) => (p.role || "").toLowerCase() === "interviewer")
+    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: p.role, assigned: assigned.has(p.id) }))
+    .sort((a, b) => (Number(b.assigned) - Number(a.assigned)) || a.name.localeCompare(b.name));
+}
+
+// Add a teammate to a job's interviewer pool. Owner/admin-gated server-side.
+// Returns an error message, or null on success.
+export async function assignInterviewer(jobId, profileId) {
+  if (!jobId || !profileId) return "Missing job or teammate.";
+  const { error } = await supabase.rpc("assign_interviewer", { p_job_id: jobId, p_profile_id: profileId });
+  if (!error) return null;
+  if (error.code === "42501") return "Only an owner or admin can assign interviewers.";
+  if (error.code === "42883") return "Interviewer assignment isn't available (migration 0021 missing).";
+  return error.message || "Couldn't add that interviewer.";
+}
+
+// Remove a teammate from a job's interviewer pool. Owner/admin-gated server-side.
+export async function unassignInterviewer(jobId, profileId) {
+  if (!jobId || !profileId) return "Missing job or teammate.";
+  const { error } = await supabase.rpc("unassign_interviewer", { p_job_id: jobId, p_profile_id: profileId });
+  if (!error) return null;
+  if (error.code === "42501") return "Only an owner or admin can change interviewers.";
+  return error.message || "Couldn't remove that interviewer.";
+}
+
 // Schedule an interview directly (manager picks a time). Inserts a scheduled
 // interview with the manager on the panel and advances the candidate to the
 // interviewing stage — mirroring what confirm-booking does when a candidate books.
