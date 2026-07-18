@@ -86,14 +86,19 @@ export async function loadCandidateInterview(companyId, candidateId) {
 }
 
 // Save/update the meeting link on the candidate's scheduled interview.
-export async function saveMeetingLink(companyId, candidateId, link) {
-  const { data } = await supabase
-    .from("interviews").select("id")
-    .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
-    .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
-  if (!data) return { ok: false, error: "No scheduled interview." };
-  const { error } = await supabase.from("interviews").update({ meeting_link: link || null }).eq("id", data.id);
-  return error ? { ok: false, error: error.message } : { ok: true };
+// Save the interview's video-call link AND share it with everyone, matching the
+// web app: the candidate gets a company-branded "your interview link" email and
+// each panel member gets an internal heads-up with a calendar invite. Routed
+// through the share-meeting-link edge function so mobile and web behave the same.
+export async function shareMeetingLink(companyId, candidateId, jobId, link) {
+  const clean = String(link || "").trim();
+  if (!/^https?:\/\/\S+$/i.test(clean)) return { ok: false, error: "Enter a valid http(s) link." };
+  const { data, error } = await supabase.functions.invoke("share-meeting-link", {
+    body: { candidate_id: candidateId, job_id: jobId || null, meeting_link: clean },
+  });
+  if (error) return { ok: false, error: error.message || "Couldn't share the link." };
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, candidate: !!data?.candidate, panel: data?.panel || 0 };
 }
 
 // Propose several interview times to the candidate (web-parity dbCreateInterview

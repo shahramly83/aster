@@ -75,14 +75,14 @@ export default function TodayScreen({ navigation }) {
         renderItem={({ item }) =>
           item._header
             ? <Text style={styles.section}>{item._header.toUpperCase()}</Text>
-            : <InterviewCard iv={item} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} />
+            : <InterviewCard iv={item} tz={profile?.timezone} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} />
         }
       />
     </View>
   );
 }
 
-function InterviewCard({ iv, onPress }) {
+function InterviewCard({ iv, tz, onPress }) {
   const mins = minutesUntil(iv.scheduledAt);
   const soon = mins <= 30 && mins >= -15;
   return (
@@ -102,7 +102,7 @@ function InterviewCard({ iv, onPress }) {
         </View>
         <View style={styles.metaRow}>
           <Feather name="clock" size={14} color={theme.ink3} />
-          <Text style={[type.small, { color: theme.ink2, marginLeft: 6 }]}>{fmtInterviewTime(iv.scheduledAt)}</Text>
+          <Text style={[type.small, { color: theme.ink2, marginLeft: 6 }]}>{fmtInterviewTime(iv.scheduledAt, tz)}</Text>
           {iv.meetingLink ? (
             <>
               <View style={styles.dot} />

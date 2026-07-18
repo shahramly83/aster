@@ -29,6 +29,21 @@ export function fmtInterviewTime(iso, timeZone) {
   return new Intl.DateTimeFormat(undefined, opts).format(d);
 }
 
+// "Tue, 21 Jul, 9:00 – 10:00 am" — a full interview window. Falls back to a
+// single time when there's no end. Both ends render in the same time zone.
+export function fmtInterviewRange(startIso, endIso, timeZone) {
+  if (!startIso) return "";
+  if (!endIso) return fmtInterviewTime(startIso, timeZone);
+  const dateOpts = { weekday: "short", day: "numeric", month: "short" };
+  const timeOpts = { hour: "numeric", minute: "2-digit" };
+  if (timeZone) { dateOpts.timeZone = timeZone; timeOpts.timeZone = timeZone; }
+  const s = new Date(startIso), e = new Date(endIso);
+  const date = new Intl.DateTimeFormat(undefined, dateOpts).format(s);
+  const start = new Intl.DateTimeFormat(undefined, timeOpts).format(s);
+  const end = new Intl.DateTimeFormat(undefined, timeOpts).format(e);
+  return `${date}, ${start} – ${end}`;
+}
+
 // Minutes until an ISO instant (negative once it's in the past).
 export function minutesUntil(iso) {
   if (!iso) return Infinity;

@@ -1,17 +1,17 @@
-import React, { useCallback, useState } from "react";
-import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator, Keyboard, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, saveMeetingLink, resendInterviewInvite } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { theme, type, space, radius, shadow } from "../theme";
-import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime } from "@aster/shared";
+import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange } from "@aster/shared";
 
 // The hiring process, in order. Offer/Hired are shown but managed on web.
 const STEPS = ["applied", "shortlisted", "interviewing", "offer", "hired"];
@@ -21,6 +21,20 @@ const _WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const _MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const _hm = (iso) => { const d = new Date(iso); return `${d.getHours() % 12 === 0 ? 12 : d.getHours() % 12}:${String(d.getMinutes()).padStart(2, "0")}`; };
 const _ap = (iso) => (new Date(iso).getHours() < 12 ? "AM" : "PM");
+// Track the soft-keyboard height so the scroll content can lift its bottom
+// fields above it (Android edge-to-edge doesn't resize the view for us).
+function useKeyboardHeight() {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const s = Keyboard.addListener(showEvt, (e) => setH(e.endCoordinates?.height || 0));
+    const hd = Keyboard.addListener(hideEvt, () => setH(0));
+    return () => { s.remove(); hd.remove(); };
+  }, []);
+  return h;
+}
+
 function slotRange(startIso, endIso) {
   const s = new Date(startIso);
   const date = `${_WD[s.getDay()]} ${s.getDate()} ${_MON[s.getMonth()]}`;
@@ -32,6 +46,8 @@ function slotRange(startIso, endIso) {
 export default function CandidateProfileScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
   const insets = useSafeAreaInsets();
+  const kb = useKeyboardHeight();
+  const scrollRef = useRef(null);
   const { candidateId, applicationId, jobId, candidateName } = route.params || {};
   const [candidate, setCandidate] = useState(null);
   const [cards, setCards] = useState([]);
@@ -111,13 +127,19 @@ export default function CandidateProfileScreen({ route, navigation }) {
     });
   };
 
-  const saveMl = async () => {
+  // Save the link and email it to the candidate + the whole panel (web parity).
+  const persistMl = async (link) => {
     setMlSaving(true);
-    const res = await saveMeetingLink(profile.companyId, candidateId, mlInput.trim());
+    const res = await shareMeetingLink(profile.companyId, candidateId, jobId, link);
     setMlSaving(false);
-    if (!res.ok) Alert.alert("Couldn't save link", res.error || "Try again.");
-    else load();
+    if (!res.ok) { Alert.alert("Couldn't share link", res.error || "Try again."); return; }
+    Keyboard.dismiss();
+    const who = [res.candidate ? "the candidate" : null, res.panel ? `${res.panel} panel member${res.panel === 1 ? "" : "s"}` : null].filter(Boolean).join(" and ");
+    Alert.alert("Link shared", who ? `Sent to ${who} with a calendar invite.` : "Meeting link saved.");
+    load();
   };
+
+  const saveMl = () => persistMl(mlInput.trim());
 
   const resendInvite = async () => {
     if (!interview?.token) return;
@@ -136,6 +158,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   // ---- Interview → decision → offer → hired state machine (web sequence) ----
   const scheduledAt = interview?.status === "scheduled" ? interview.scheduledAt : null;
+  // The candidate's chosen slot is one of the proposed ranges; recover its end
+  // so the confirmed card can show the full window (e.g. 9:00 – 10:00 am).
+  const scheduledEnd = scheduledAt
+    ? ((interview?.proposedSlots || []).find((s) => s?.start && new Date(s.start).getTime() === new Date(scheduledAt).getTime())?.end || null)
+    : null;
   const pendingInvite = interview?.status === "sent" ? interview : null;
   const interviewDone = !!scheduledAt && new Date(scheduledAt).getTime() < Date.now();
   // Show the interview flow once the candidate reaches interviewing (or there's
@@ -184,7 +211,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
       {/* Scrolling content */}
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) + (kb > 0 ? kb : 0) }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
           <View style={styles.sheet}>
             {/* Actions */}
             <View style={styles.actions}>
@@ -333,28 +360,41 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     <View style={styles.ivIcon}><Feather name="calendar" size={18} color={theme.brand} /></View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={[type.bodyStrong, { color: theme.ink }]}>{interviewDone ? "Interview held" : "Interview confirmed"}</Text>
-                      <Text style={[type.small, { color: theme.ink2, marginTop: 1 }]}>{fmtInterviewTime(scheduledAt, profile.timezone)}</Text>
+                      <Text style={[type.small, { color: theme.ink2, marginTop: 1 }]}>{fmtInterviewRange(scheduledAt, scheduledEnd, profile.timezone)}</Text>
                     </View>
                   </View>
-                  {/* Meeting link field appears once the candidate has accepted */}
+                  {/* Meeting link appears once the candidate has accepted. Paste the
+                      Meet/Zoom/Teams link; Share saves it and emails everyone. */}
                   <View style={styles.mlWrap}>
-                    <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 7 }]}>Meeting link</Text>
+                    <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Meeting link</Text>
+                    {interview?.meetingLink ? (
+                      <>
+                        <Pressable onPress={() => Linking.openURL(interview.meetingLink)} style={styles.mlChip}>
+                          <View style={styles.mlChipIcon}><Feather name="video" size={15} color={theme.brand} /></View>
+                          <Text style={[type.small, { color: theme.ink, flex: 1 }]} numberOfLines={1}>{interview.meetingLink}</Text>
+                          <Feather name="external-link" size={15} color={theme.brand} />
+                        </Pressable>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
+                          <Feather name="check-circle" size={13} color={theme.success} />
+                          <Text style={[type.small, { color: theme.success, marginLeft: 6 }]}>Shared with the candidate and panel</Text>
+                        </View>
+                        <Text style={[type.small, { color: theme.ink4, marginTop: 10, marginBottom: 7 }]}>Replace with your own</Text>
+                      </>
+                    ) : (
+                      <Text style={[type.small, { color: theme.ink4, marginBottom: 8 }]}>Paste the video call link, then Share to send it to the candidate and panel with a calendar invite.</Text>
+                    )}
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       <TextInput
                         value={mlInput} onChangeText={setMlInput}
-                        placeholder="Paste the video call link…" placeholderTextColor={theme.ink4}
+                        placeholder="https://meet.google.com/…" placeholderTextColor={theme.ink4}
                         autoCapitalize="none" keyboardType="url"
+                        onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
                         style={[styles.mlInput, { flex: 1 }]}
                       />
                       <Pressable onPress={saveMl} disabled={mlSaving} style={styles.mlSave}>
-                        {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Save</Text>}
+                        {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Share</Text>}
                       </Pressable>
                     </View>
-                    {interview?.meetingLink ? (
-                      <Pressable onPress={() => Linking.openURL(interview.meetingLink)} style={{ marginTop: 8 }}>
-                        <Text style={[type.small, { color: theme.brand }]} numberOfLines={1}>Open link ↗</Text>
-                      </Pressable>
-                    ) : null}
                   </View>
                 </>
               ) : pendingInvite ? (
@@ -619,6 +659,8 @@ const styles = StyleSheet.create({
   mlWrap: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
   mlInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, height: 44, fontFamily: "Inter_500Medium", fontSize: 14, color: theme.ink },
   mlSave: { paddingHorizontal: 16, height: 44, borderRadius: radius.md, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+  mlChip: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
+  mlChipIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.white, alignItems: "center", justifyContent: "center" },
   slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
