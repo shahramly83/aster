@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.55)", alignItems: "center", justifyContent: "center", padding: space(6) },
   card: { width: "100%", maxWidth: 380, backgroundColor: theme.card, borderRadius: 24, padding: space(5), alignItems: "center" },
   icon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: space(4) },
-  title: { fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: -0.3, color: theme.ink, textAlign: "center" },
+  title: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 20, letterSpacing: -0.4, color: theme.ink, textAlign: "center" },
   message: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: theme.ink3, textAlign: "center", marginTop: space(2) },
   row: { flexDirection: "row", gap: 10, marginTop: space(5), alignSelf: "stretch" },
   btn: { flex: 1, height: 50, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },

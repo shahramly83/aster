@@ -268,7 +268,7 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
             <Text style={[type.h3, { color: theme.ink }]}>Propose interview dates</Text>
             <Pressable onPress={close} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
           </View>
-          <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Add a few time ranges — your panel marks which they can make.</Text>
+          <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Add a few time ranges. Your panel marks which they can make.</Text>
 
           {slots.map((s) => (
             <View key={s.start} style={styles.slotChip}>

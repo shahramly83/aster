@@ -3,8 +3,8 @@
 // optional letter body and optional approvers) and calls data.sendOffer, which
 // creates the offer, advances the candidate to the offer stage, and either
 // emails the candidate a review-&-sign link or routes it through approval.
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { sendOffer } from "../lib/data";
 import { Button, Feather } from "./ui";
@@ -19,6 +19,19 @@ const EMP_TYPES = [
   { k: "internship", label: "Internship" },
 ];
 
+// Track soft-keyboard height so the sheet can lift above it (Android edge-to-edge).
+function useKeyboardHeight() {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const s = Keyboard.addListener(showEvt, (e) => setH(e.endCoordinates?.height || 0));
+    const hd = Keyboard.addListener(hideEvt, () => setH(0));
+    return () => { s.remove(); hd.remove(); };
+  }, []);
+  return h;
+}
+
 function prettyDate(iso) {
   if (!iso) return "Select";
   const [y, m, dd] = iso.split("-");
@@ -28,6 +41,8 @@ function prettyDate(iso) {
 
 export default function OfferSheet({ visible, onClose, companyId, companyName, candidateId, candidateName, jobId, defaults = {}, onSent }) {
   const insets = useSafeAreaInsets();
+  const kb = useKeyboardHeight();
+  const scrollRef = useRef(null);
   const [jobTitle, setJobTitle] = useState(defaults.jobTitle || "");
   const [salary, setSalary] = useState("");
   const [currency, setCurrency] = useState(defaults.currency || "myr");
@@ -132,7 +147,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
       <View style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={close} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(2) }]}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(2), marginBottom: kb > 0 ? kb : 0 }]}>
           <View style={styles.handle} />
           <View style={styles.head}>
             <View style={{ flex: 1 }}>
@@ -142,7 +157,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             <Pressable onPress={close} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
           </View>
 
-          <ScrollView style={{ maxHeight: 460 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollRef} style={{ maxHeight: kb > 0 ? 300 : 460 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
             <Field label="Job title">
               <TextInput value={jobTitle} onChangeText={setJobTitle} placeholder="e.g. Digital Marketing Specialist" placeholderTextColor={theme.ink4} style={styles.input} />
             </Field>
@@ -218,8 +233,8 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             <Field label={`Approvers (optional)${validApprovers.length ? ` · ${validApprovers.length}` : ""}`}>
               {approvers.map((a, i) => (
                 <View key={i} style={styles.approverRow}>
-                  <TextInput value={a.name} onChangeText={(v) => setApprover(i, "name", v)} placeholder="Name" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1 }]} />
-                  <TextInput value={a.email} onChangeText={(v) => setApprover(i, "email", v)} keyboardType="email-address" autoCapitalize="none" placeholder="email@company.com" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1.4 }]} />
+                  <TextInput value={a.name} onChangeText={(v) => setApprover(i, "name", v)} onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)} placeholder="Name" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1 }]} />
+                  <TextInput value={a.email} onChangeText={(v) => setApprover(i, "email", v)} onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)} keyboardType="email-address" autoCapitalize="none" placeholder="email@company.com" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1.4 }]} />
                   <Pressable onPress={() => removeApprover(i)} hitSlop={6} style={styles.approverX}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
                 </View>
               ))}

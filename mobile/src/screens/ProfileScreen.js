@@ -137,10 +137,10 @@ const styles = StyleSheet.create({
   watermark: { position: "absolute", top: 4, right: -28 },
   headerTop: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2) },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: -0.3, color: theme.white, marginLeft: 14 },
+  headerTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 20, letterSpacing: -0.4, color: theme.white, marginLeft: 14 },
   profileRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), marginTop: space(5) },
   avatarRing: { padding: 3, borderRadius: 36, borderWidth: 2, borderColor: "rgba(255,255,255,0.5)", backgroundColor: "rgba(255,255,255,0.12)" },
-  profileName: { fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: -0.3, color: theme.white },
+  profileName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 20, letterSpacing: -0.4, color: theme.white },
   profileEmail: { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
   roleTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 8 },
 

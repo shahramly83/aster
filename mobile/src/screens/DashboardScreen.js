@@ -286,7 +286,7 @@ function CreditModal({ item, credits, onClose }) {
 
           {out && others.length ? (
             <Text style={styles.mBody}>
-              Everything else keeps working — {joinLabels(others)} still {others.length === 1 ? "has" : "have"} credits this cycle.
+              Everything else keeps working. {joinLabels(others)} still {others.length === 1 ? "has" : "have"} credits this cycle.
             </Text>
           ) : null}
 
@@ -310,7 +310,7 @@ function Count({ label, value, icon }) {
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(6) },
-  bigTitle: { fontFamily: "Inter_700Bold", fontSize: 34, lineHeight: 38, letterSpacing: -0.5, color: theme.onBrand },
+  bigTitle: { fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 34, lineHeight: 38, letterSpacing: -0.7, color: theme.onBrand },
   healthNum: { fontFamily: "Inter_700Bold", fontSize: 60, lineHeight: 62, letterSpacing: -2, color: theme.onBrand, fontVariant: ["tabular-nums"] },
   metricRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(4) },
   metricDivider: { borderTopWidth: 1, borderTopColor: theme.brandLine },
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   metricPct: { fontFamily: "Inter_700Bold", fontSize: 40, lineHeight: 46, letterSpacing: -1, color: theme.onBrand, marginTop: 6, marginLeft: 16, fontVariant: ["tabular-nums"] },
   countsRow: { flexDirection: "row", alignItems: "center", marginHorizontal: space(5), marginTop: space(5), backgroundColor: theme.brandPanel, borderRadius: radius.lg, paddingVertical: space(4) },
   countSep: { width: 1, height: 34, backgroundColor: theme.brandLine },
-  countVal: { fontFamily: "Inter_700Bold", fontSize: 22, color: theme.onBrand, marginTop: 5, fontVariant: ["tabular-nums"] },
+  countVal: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, color: theme.onBrand, marginTop: 5, fontVariant: ["tabular-nums"] },
   panel: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandPanel, borderRadius: radius.lg, padding: space(4) },
   srcBarRow: { marginBottom: space(4) },
   srcBarHead: { flexDirection: "row", alignItems: "center", marginBottom: 9 },
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   mTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
   mIcon: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   mClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center" },
-  mTitle: { fontFamily: "Inter_700Bold", fontSize: 25, letterSpacing: -0.4, color: theme.ink, marginTop: space(4) },
+  mTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 25, letterSpacing: -0.5, color: theme.ink, marginTop: space(4) },
   mBody: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, color: theme.ink3, marginTop: space(3) },
   mBar: { backgroundColor: theme.brand + "0F", borderRadius: radius.lg, padding: space(4), marginTop: space(4) },
   mBarHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

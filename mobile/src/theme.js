@@ -90,10 +90,12 @@ export const space = (n) => n * 4;
 
 // Inter type scale. `family` values are the loaded font names (see App.js).
 export const type = {
-  display: { fontFamily: "Inter_700Bold", fontSize: 30, lineHeight: 36, letterSpacing: -0.5 },
-  h1: { fontFamily: "Inter_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.3 },
-  h2: { fontFamily: "Inter_600SemiBold", fontSize: 19, lineHeight: 25, letterSpacing: -0.2 },
-  h3: { fontFamily: "Inter_600SemiBold", fontSize: 16, lineHeight: 22 },
+  // Display/headings use Plus Jakarta Sans to match the web app + marketing
+  // (.font-display, letter-spacing -0.02em); body text stays Inter.
+  display: { fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 30, lineHeight: 36, letterSpacing: -0.6 },
+  h1: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5 },
+  h2: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 19, lineHeight: 25, letterSpacing: -0.4 },
+  h3: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 16, lineHeight: 22, letterSpacing: -0.3 },
   bodyStrong: { fontFamily: "Inter_600SemiBold", fontSize: 15, lineHeight: 21 },
   body: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22 },
   small: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18 },

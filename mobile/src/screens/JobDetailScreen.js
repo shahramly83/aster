@@ -463,8 +463,8 @@ const styles = StyleSheet.create({
   hero: { borderRadius: radius.xl, padding: space(5), marginTop: space(4), shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
   openBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill },
   openDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#7DE2A8", marginRight: 6 },
-  heroTitle: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.3, marginTop: space(4) },
-  heroNum: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 46, letterSpacing: -1.5, marginTop: space(3), fontVariant: ["tabular-nums"] },
+  heroTitle: { color: theme.white, fontFamily: "PlusJakartaSans_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.4, marginTop: space(4) },
+  heroNum: { color: theme.white, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 46, letterSpacing: -1.5, marginTop: space(3), fontVariant: ["tabular-nums"] },
   heroPipe: { flexDirection: "row", height: 8, borderRadius: radius.pill, overflow: "hidden", marginTop: space(4), gap: 2, backgroundColor: "rgba(255,255,255,0.18)" },
   heroFoot: { flexDirection: "row", justifyContent: "space-between", marginTop: space(5) },
 

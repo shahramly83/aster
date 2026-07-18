@@ -88,7 +88,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
       res.emailed
         ? "The candidate has been emailed a link to pick a time."
         : res.skipped === "no_candidate_email"
-          ? "Times saved, but the candidate has no email on file — share the booking link manually."
+          ? "Times saved, but the candidate has no email on file. Share the booking link manually."
           : "Interview times proposed.",
     );
   };
@@ -103,7 +103,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
             <Text style={[type.h3, { color: theme.ink }]}>Propose times to candidate</Text>
             <Pressable onPress={close} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
           </View>
-          <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Pick the best options from the panel's availability — the candidate chooses one.</Text>
+          <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Pick the best options from the panel's availability. The candidate chooses one.</Text>
 
           <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
             {pollSlots.length ? (
