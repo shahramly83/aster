@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, FlatList, Pressable, Modal, KeyboardAvoidingView, Platform, Alert, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TextInput, FlatList, Pressable, Modal, Keyboard, Platform, Alert, StyleSheet } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAuth } from "../AuthContext";
 import {
@@ -11,10 +11,27 @@ import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from
 import { theme, type, space, radius } from "../theme";
 import { relTime, fmtInterviewTime } from "@aster/shared";
 
+// Tracks the on-screen keyboard height so we can pad the chat above it. Edge-to-
+// edge Android doesn't resize the window, so KeyboardAvoidingView is unreliable.
+function useKeyboardHeight() {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const s = Keyboard.addListener(showEvt, (e) => setH(e.endCoordinates?.height || 0));
+    const hd = Keyboard.addListener(hideEvt, () => setH(0));
+    return () => { s.remove(); hd.remove(); };
+  }, []);
+  return h;
+}
+
 // Candidate-scoped chat between the hiring manager and the interview panel, with
-// an interview availability poll pinned above the thread.
+// an interview availability poll at the top of the thread.
 export default function DiscussionScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
+  const insets = useSafeAreaInsets();
+  const kb = useKeyboardHeight();
+  const bottomPad = kb > 0 ? kb : insets.bottom;
   const { candidateId, jobId, candidateName } = route.params || {};
   const [messages, setMessages] = useState(null);
   const [poll, setPoll] = useState(null);
@@ -36,6 +53,9 @@ export default function DiscussionScreen({ route, navigation }) {
   }, [profile?.companyId, profile?.userId, candidateId]);
 
   useEffect(() => { load(); loadPoll(); }, [load, loadPoll]);
+
+  // Keep the latest message + input visible when the keyboard opens.
+  useEffect(() => { if (kb) scrollEnd(); }, [kb]);
 
   // Live message inserts.
   useEffect(() => {
@@ -132,8 +152,7 @@ export default function DiscussionScreen({ route, navigation }) {
           </Press>
         ) : null}
       />
-      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
+      <View style={{ flex: 1, paddingBottom: bottomPad }}>
           <FlatList
             ref={listRef}
             data={messages}
@@ -169,8 +188,7 @@ export default function DiscussionScreen({ route, navigation }) {
               <Feather name="arrow-up" size={20} color={theme.white} />
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
 
       <PollComposer visible={composerOpen} tz={profile.timezone} onClose={() => setComposerOpen(false)} onCreate={onCreatePoll} />
     </View>
