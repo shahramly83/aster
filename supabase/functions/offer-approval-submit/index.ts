@@ -27,8 +27,9 @@ Deno.serve(async (req) => {
   try {
     const auth = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (!auth) return json({ error: "unauthorized" }, 401);
-    const { offerToken, approvers, message, origin } = await req.json();
+    const { offerToken, approvers, message, origin, mode, terms } = await req.json();
     if (!offerToken) return json({ error: "offerToken is required" }, 400);
+    const resume = mode === "resume";   // resubmit: keep already-approved steps, resume at the decliner
 
     const clean = (Array.isArray(approvers) ? approvers : [])
       .map((a: { email?: string; name?: string }) => ({ email: String(a?.email || "").trim().toLowerCase(), name: (a?.name || "").trim() || null }))
@@ -45,26 +46,51 @@ Deno.serve(async (req) => {
     const { data: offer } = await admin.from("offers").select(OFFER_COLS).eq("token", offerToken).maybeSingle();
     if (!offer || offer.company_id !== companyId) return json({ error: "not found" }, 404);
 
-    // Persist the composed letter body + mark pending approval (draft: not yet
-    // sent to the candidate). Wipe any previous chain (fresh submit / resubmit).
+    // On resubmit, keep the steps that already approved so those approvers are not
+    // asked again; the chain resumes at the first non-approved (the decliner).
+    const approvedBy = new Map<string, string | null>();
+    if (resume) {
+      const { data: existing } = await admin.from("offer_approvals").select("approver_email, status, decided_at").eq("offer_id", offer.id);
+      for (const rrow of existing || []) {
+        if (rrow.status === "approved") approvedBy.set(String(rrow.approver_email).toLowerCase(), rrow.decided_at ?? null);
+      }
+    }
+
+    // Persist the composed letter body + edited terms; mark pending approval
+    // (draft: not yet sent to the candidate). Then rebuild the approval chain.
     const note = (typeof message === "string" && message.trim()) ? message.trim().slice(0, 20000) : null;
+    const t = terms && typeof terms === "object" ? terms : null;
+    const termCols = t ? {
+      ...(t.jobTitle !== undefined ? { offer_job_title: t.jobTitle || null } : {}),
+      ...(t.baseSalary !== undefined ? { base_salary: t.baseSalary === "" || t.baseSalary == null ? null : t.baseSalary } : {}),
+      ...(t.currency !== undefined ? { salary_currency: t.currency || null } : {}),
+      ...(t.employmentType !== undefined ? { employment_type: t.employmentType || null } : {}),
+      ...(t.startDate !== undefined ? { start_date: t.startDate || null } : {}),
+      ...(t.expiresAt !== undefined ? { expires_at: t.expiresAt || null } : {}),
+    } : {};
     await admin.from("offers").update({
-      approval_status: "pending", status: "draft", ...(note != null ? { message: note } : {}),
+      approval_status: "pending", status: "draft", ...(note != null ? { message: note } : {}), ...termCols,
     }).eq("id", offer.id);
     await admin.from("offer_approvals").delete().eq("offer_id", offer.id);
 
-    const rows = clean.map((a, i) => ({
-      offer_id: offer.id, company_id: companyId, step: i + 1, approver_email: a.email, approver_name: a.name,
-    }));
-    const { data: inserted, error: insErr } = await admin.from("offer_approvals").insert(rows).select("token, approver_email, approver_name, step");
+    const rows = clean.map((a, i) => {
+      const keep = resume && approvedBy.has(a.email);
+      return {
+        offer_id: offer.id, company_id: companyId, step: i + 1, approver_email: a.email, approver_name: a.name,
+        status: keep ? "approved" : "pending", decided_at: keep ? approvedBy.get(a.email) : null,
+      };
+    });
+    const { data: inserted, error: insErr } = await admin.from("offer_approvals").insert(rows).select("token, approver_email, approver_name, step, status");
     if (insErr || !inserted?.length) { console.error("insert approvals", insErr?.message); return json({ error: "could_not_create" }, 500); }
 
     const base = (typeof origin === "string" && origin.startsWith("http")) ? origin.replace(/\/$/, "") : "https://hireaster.com";
-    const first = inserted.sort((a: { step: number }, b: { step: number }) => a.step - b.step)[0];
-    const sent = await emailApprover(admin, { ...offer, message: note ?? offer.message }, first, inserted.length, base);
-    if (!sent) console.error("approver email failed for", first.approver_email);
+    const ordered = inserted.sort((a: { step: number }, b: { step: number }) => a.step - b.step);
+    // Email the first approver whose turn is live (skips any carried-over approvals).
+    const target = ordered.find((r: { status: string }) => r.status !== "approved") || ordered[0];
+    const sent = await emailApprover(admin, { ...offer, message: note ?? offer.message }, target, inserted.length, base);
+    if (!sent) console.error("approver email failed for", target.approver_email);
 
-    return json({ ok: true, total: inserted.length });
+    return json({ ok: true, total: inserted.length, resumedAt: target.step });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error", detail: String((e as Error)?.message || e) }, 500);

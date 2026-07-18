@@ -388,10 +388,10 @@ export async function dbListOfferApprovals(offerId) {
 
 // Submit an offer for sequential approval (or resubmit after a decline). approvers
 // is an ordered array of { email, name }. Returns true on success.
-export async function dbSubmitApproval({ offerToken, approvers, message = null }) {
+export async function dbSubmitApproval({ offerToken, approvers, message = null, terms = null, mode = null }) {
   if (!hasSupabase || !offerToken) return false;
   const origin = typeof window !== "undefined" ? window.location.origin : undefined;
-  const { data, error } = await supabase.functions.invoke("offer-approval-submit", { body: { offerToken, approvers, message, origin } });
+  const { data, error } = await supabase.functions.invoke("offer-approval-submit", { body: { offerToken, approvers, message, terms, mode, origin } });
   if (error || data?.error) { console.error("dbSubmitApproval", data?.error || error?.message); return false; }
   return true;
 }

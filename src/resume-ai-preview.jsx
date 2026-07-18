@@ -19222,7 +19222,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       currency: offerRec.salary_currency || undefined,
       empType: offerRec.employment_type || undefined,
       startDate: offerRec.start_date || "",
-      approvers: approvals.map((a) => ({ email: a.approver_email, name: a.approver_name || "" })),
+      approvers: approvals.map((a) => ({ email: a.approver_email, name: a.approver_name || "", status: a.status })),
     });
     setShowOffer(true);
   };
@@ -20152,8 +20152,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             onClose={() => { setShowOffer(false); setResubmitData(null); }}
             onSend={async (emailSent, terms, message, approvers) => {
               setShowOffer(false);
-              // Replace the declined offer so a fresh chain is created, then send.
-              if (resubmitData && offerRec?.id) { await dbCloseOffer(offerRec.id); setOfferRec(null); setApprovals([]); }
+              // Resubmit: resume on the SAME offer, keeping already-approved steps
+              // (they are not asked again); the chain restarts at the decliner.
+              if (resubmitData && offerRec?.token) {
+                setResubmitData(null);
+                const ok = await dbSubmitApproval({ offerToken: offerRec.token, approvers, message, terms, mode: "resume" });
+                if (ok) reloadOffer();
+                return;
+              }
               setResubmitData(null);
               onSendOffer && onSendOffer(emailSent, terms, message, approvers);
             }}
@@ -20541,7 +20547,16 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     expiresAt: expiresAt || null,
   };
 
+  // Core terms are required before an offer can go out (draft-save aside): an
+  // offer with no salary or start date should never reach an approver or candidate.
+  const [err, setErr] = useState({});
   const handleSend = (emailSent) => {
+    const e = {};
+    if (!title.trim()) e.title = "Add the job title.";
+    if (salary.trim() === "") e.salary = "Add the base salary.";
+    if (!startDate) e.startDate = "Add the start date.";
+    setErr(e);
+    if (Object.keys(e).length) { setLetterView("write"); return; }
     setSending(true);
     const appr = approvers.filter((a) => a.email.trim());
     setTimeout(() => onSend(emailSent, terms, body, appr), emailSent ? 900 : 0);
@@ -20570,20 +20585,22 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
           <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Offer terms</p>
 
-          <label className={labelClass}>Job title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={jobTitle} className={`${inputClass} mb-3`} />
+          <label className={labelClass}>Job title <span className="text-red-500">*</span></label>
+          <input value={title} onChange={(e) => { setTitle(e.target.value); if (err.title) setErr((p) => ({ ...p, title: null })); }} placeholder={jobTitle} className={`${inputClass} ${err.title ? "border-red-400 ring-1 ring-red-300" : ""} mb-1`} />
+          {err.title ? <p className="text-xs text-red-500 mb-2">{err.title}</p> : <div className="mb-3" />}
 
-          <label className={labelClass}>Base salary</label>
-          <div className="flex gap-2 mb-3">
+          <label className={labelClass}>Base salary <span className="text-red-500">*</span></label>
+          <div className="flex gap-2 mb-1">
             <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="rounded-lg bg-neutral-100 border border-neutral-200 px-2 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400 shrink-0">
               <option value="myr">RM</option>
               <option value="usd">USD</option>
               <option value="sgd">SGD</option>
             </select>
-            <input type="number" inputMode="decimal" min="0" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="e.g. 8000 / month" className={`${inputClass} flex-1`} />
+            <input type="number" inputMode="decimal" min="0" value={salary} onChange={(e) => { setSalary(e.target.value); if (err.salary) setErr((p) => ({ ...p, salary: null })); }} placeholder="e.g. 8000 / month" className={`${inputClass} ${err.salary ? "border-red-400 ring-1 ring-red-300" : ""} flex-1`} />
           </div>
+          {err.salary ? <p className="text-xs text-red-500 mb-2">{err.salary}</p> : <div className="mb-3" />}
 
-          <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="grid grid-cols-2 gap-2 mb-1">
             <div>
               <label className={labelClass}>Employment type</label>
               <select value={empType} onChange={(e) => setEmpType(e.target.value)} className={inputClass}>
@@ -20591,10 +20608,14 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               </select>
             </div>
             <div>
-              <label className={labelClass}>Start date</label>
-              <DatePicker value={startDate} onChange={setStartDate} placeholder="Select a date" align="right" />
+              <label className={labelClass}>Start date <span className="text-red-500">*</span></label>
+              <div className={err.startDate ? "rounded-lg ring-1 ring-red-300" : ""}>
+                <DatePicker value={startDate} onChange={(v) => { setStartDate(v); if (err.startDate) setErr((p) => ({ ...p, startDate: null })); }} placeholder="Select a date" align="right" />
+              </div>
+              {err.startDate && <p className="text-xs text-red-500 mt-1">{err.startDate}</p>}
             </div>
           </div>
+          <div className="mb-3" />
 
           <label className={labelClass}>Offer expires <span className="text-neutral-400">(optional)</span></label>
           <DatePicker value={expiresAt} onChange={setExpiresAt} placeholder="No expiry" min={dpYmd(new Date())} allowClear />
@@ -20652,6 +20673,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{i + 1}</span>
                     <input type="email" value={a.email} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} placeholder="approver@company.com" className={`${inputClass.replace("w-full ", "")} flex-1 min-w-0`} />
                     <input value={a.name} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className={`${inputClass.replace("w-full ", "")} w-32 shrink-0`} />
+                    {a.status === "approved" && <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>}
                     <button type="button" onClick={() => setApprovers((l) => l.filter((_, j) => j !== i))} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-lg leading-none text-neutral-400 hover:bg-neutral-100 hover:text-red-500 transition-colors" aria-label="Remove approver">×</button>
                   </div>
                 ))}
