@@ -157,6 +157,7 @@ export default function DiscussionScreen({ route, navigation }) {
             ref={listRef}
             data={messages}
             keyExtractor={(m) => String(m.id)}
+            style={{ flex: 1 }}
             contentContainerStyle={{ padding: space(4), paddingBottom: space(4), flexGrow: 1 }}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollEnd}
