@@ -134,10 +134,6 @@ export default function DiscussionScreen({ route, navigation }) {
       />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
-          {poll ? (
-            <PollCard poll={poll} tz={profile.timezone} manager={manager} savingSlot={savingSlot} onToggle={toggleVote} onPick={pickSlot} />
-          ) : null}
-
           <FlatList
             ref={listRef}
             data={messages}
@@ -146,12 +142,17 @@ export default function DiscussionScreen({ route, navigation }) {
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollEnd}
             ListHeaderComponent={
-              <View style={styles.banner}>
-                <Feather name="users" size={13} color={theme.ink3} />
-                <Text style={[type.small, { color: theme.ink3, marginLeft: 6, flex: 1 }]}>
-                  Private discussion about {candidateName || "this candidate"} with your panel.
-                </Text>
-              </View>
+              <>
+                {poll ? (
+                  <PollCard poll={poll} tz={profile.timezone} manager={manager} savingSlot={savingSlot} onToggle={toggleVote} onPick={pickSlot} />
+                ) : null}
+                <View style={styles.banner}>
+                  <Feather name="users" size={13} color={theme.ink3} />
+                  <Text style={[type.small, { color: theme.ink3, marginLeft: 6, flex: 1 }]}>
+                    Private discussion about {candidateName || "this candidate"} with your panel.
+                  </Text>
+                </View>
+              </>
             }
             ListEmptyComponent={<View style={{ marginTop: space(8) }}><EmptyState icon="message-circle" title="No messages yet" subtitle="Start the conversation with your interview panel." /></View>}
             renderItem={({ item }) => <Bubble m={item} mine={item.authorId === profile.userId} />}
@@ -324,7 +325,7 @@ const styles = StyleSheet.create({
   send: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
 
   // Poll card
-  pollCard: { backgroundColor: theme.card, borderBottomWidth: 1, borderBottomColor: theme.line, paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(4) },
+  pollCard: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, padding: space(4), marginBottom: space(4) },
   pollHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   pollStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   slot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 11 },
