@@ -149,33 +149,16 @@ export default function CandidateProfileScreen({ route, navigation }) {
         <View style={styles.avatarRing}>
           <Avatar uri={candidate?.avatarUrl} name={name} size={88} />
         </View>
-        <View style={[styles.badge, { backgroundColor: stageColor(stage) }]}>
-          <Feather name="zap" size={12} color={theme.white} />
-          <Text style={styles.badgeTxt}>{stageLabel(stage)}</Text>
-        </View>
         <Text style={styles.name} numberOfLines={2}>{name}</Text>
-        {Array.isArray(parsed.skills) && parsed.skills.length ? (
-          <View style={styles.tags}>
-            {parsed.skills.slice(0, 3).map((s, i) => (
-              <View key={i} style={styles.tag}>
-                <Feather name="check-circle" size={13} color={theme.brand} />
-                <Text style={styles.tagTxt} numberOfLines={1}>{String(s)}</Text>
-              </View>
-            ))}
-          </View>
-        ) : parsed.currentTitle ? (
-          <Text style={styles.role} numberOfLines={1}>{parsed.currentTitle}</Text>
-        ) : null}
       </View>
 
       {/* Scrolling content */}
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
           <View style={styles.sheet}>
-            {/* Quick actions */}
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              {candidate?.resumeUrl ? <Button title="Résumé" icon="file-text" variant="secondary" onPress={() => Linking.openURL(candidate.resumeUrl)} style={{ flex: 1 }} /> : null}
-              <Button title="Discuss" icon="message-circle" variant={candidate?.resumeUrl ? "ghost" : "secondary"} onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ flex: 1 }} />
+            {/* Discuss (centered) */}
+            <View style={{ alignItems: "center" }}>
+              <Button title="Discuss" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ minWidth: 220 }} />
             </View>
 
           {/* Hiring process */}
