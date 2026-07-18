@@ -39,9 +39,13 @@ export type LetterModel = {
   signatoryTitle: string;   // sign-off designation ("" if none)
 };
 
-// The letter body, in prose. The stored HR note (message), if any, is inserted as
-// its own paragraph after the terms. No table: every term reads as a sentence.
+// The letter body, in prose. If a body was composed/edited in the Send-offer
+// modal (stored as message) it is used verbatim, so what HR writes is exactly
+// what prints. Otherwise a standard body is generated from the terms.
 export function letterBody(o: OfferRow, m: { candidateName: string; jobTitle: string; companyName: string }): string[] {
+  if (o.message && o.message.trim()) {
+    return o.message.trim().split(/\n{2,}/).map((p) => p.replace(/\n/g, " ").trim()).filter(Boolean);
+  }
   const paras: string[] = [];
   paras.push(`We are pleased to offer you the position of ${m.jobTitle} at ${m.companyName}, on the terms and conditions set out in this letter.`);
 
@@ -59,10 +63,6 @@ export function letterBody(o: OfferRow, m: { candidateName: string; jobTitle: st
   if (o.reporting_to && o.reporting_to.trim()) extras.push(`You will report to ${o.reporting_to.trim()}.`);
   if (o.work_location && o.work_location.trim()) extras.push(`Your place of work will be ${o.work_location.trim()}.`);
   if (extras.length) paras.push(extras.join(" "));
-
-  if (o.message && o.message.trim()) {
-    for (const p of o.message.trim().split(/\n{2,}/)) { const t = p.replace(/\n/g, " ").trim(); if (t) paras.push(t); }
-  }
 
   let close = "";
   if (o.expires_at) close = `This offer remains open for your acceptance until ${fmtDate(o.expires_at)}. `;

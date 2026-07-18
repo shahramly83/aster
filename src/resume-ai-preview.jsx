@@ -20325,6 +20325,36 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [signatoryTitle, setSignatoryTitle] = useState("");
   const [reportingTo, setReportingTo] = useState("");
   const [workLocation, setWorkLocation] = useState("");
+  const [bodyEdited, setBodyEdited] = useState(false);    // true once HR edits the letter body
+  const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
+
+  // The default letter body, composed from the terms (mirrors the server). It
+  // stays in sync as HR fills in the terms, until they edit the letter by hand.
+  const composeBody = () => {
+    const EMP = { full_time: "full-time", part_time: "part-time", contract: "contract", internship: "internship" };
+    const SYM = { myr: "RM", usd: "$", sgd: "S$" };
+    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
+    const role = title.trim() || (jobTitle && jobTitle !== "the role" ? jobTitle : "the role");
+    const co = companyName || "our company";
+    const p = [];
+    p.push(`We are pleased to offer you the position of ${role} at ${co}, on the terms and conditions set out in this letter.`);
+    let s1 = `You will be employed on a ${EMP[empType] || "full-time"} basis`;
+    if (startDate) s1 += `, with an expected commencement date of ${fmt(startDate)}`;
+    s1 += ".";
+    if (salary.trim() !== "") s1 += ` Your gross salary will be ${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")} per month, subject to statutory deductions.`;
+    p.push(s1);
+    const extras = [];
+    if (reportingTo.trim()) extras.push(`You will report to ${reportingTo.trim()}.`);
+    if (workLocation.trim()) extras.push(`Your place of work will be ${workLocation.trim()}.`);
+    if (extras.length) p.push(extras.join(" "));
+    p.push(`${expiresAt ? `This offer remains open for your acceptance until ${fmt(expiresAt)}. ` : ""}To accept, please review the terms above and sign where indicated below.`);
+    p.push(`We are delighted at the prospect of you joining ${co} and look forward to welcoming you to the team.`);
+    return p.join("\n\n");
+  };
+  useEffect(() => {
+    if (!bodyEdited) setBody(composeBody());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, salary, currency, empType, startDate, expiresAt, reportingTo, workLocation, companyName]);
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs text-neutral-500 mb-1";
@@ -20423,9 +20453,37 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           </div>
         </div>
 
-        <label className={labelClass}>Custom note <span className="text-neutral-400">(optional)</span></label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} placeholder="Add an extra paragraph to the letter, e.g. a personal welcome or role highlights." className={`${inputClass} mb-2 resize-y`} disabled={!hasEmail} />
-        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>Aster writes the full letter from the terms above. Anything here is added as an extra paragraph.</p>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className={labelClass} style={{ marginBottom: 0 }}>Offer letter</label>
+          <div className="inline-flex rounded-lg p-0.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+            {[["write", "Write"], ["preview", "Preview"]].map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setLetterView(k)} className="text-[11px] font-semibold px-2.5 py-1 rounded-md transition-colors" style={letterView === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>{l}</button>
+            ))}
+          </div>
+        </div>
+        {letterView === "write" ? (
+          <>
+            <textarea value={body} onChange={(e) => { setBody(e.target.value); setBodyEdited(true); }} rows={11} className={`${inputClass} mb-1.5 resize-y`} style={{ lineHeight: 1.6 }} disabled={!hasEmail} />
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Edit the letter freely. The heading, greeting and signature are added automatically.</p>
+              {bodyEdited && <button type="button" onClick={() => { setBody(composeBody()); setBodyEdited(false); }} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset from terms</button>}
+            </div>
+          </>
+        ) : (
+          <div className="mb-4 rounded-xl border p-4 sm:p-5 bg-white max-h-[360px] overflow-y-auto" style={{ borderColor: "var(--line)" }}>
+            <div className="text-[13px]" style={{ color: "#33373c", lineHeight: 1.7 }}>
+              <div className="font-bold text-[15px]" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</div>
+              <div className="text-right text-xs mt-3 mb-4" style={{ color: "var(--ink-3)" }}>{new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}</div>
+              <p className="mb-3">Dear {(candidateName || "there").split(" ")[0]},</p>
+              <p className="mb-4 font-bold uppercase text-[12px] tracking-wide" style={{ color: "var(--ink)" }}>Letter of Offer: {title.trim() || (jobTitle !== "the role" ? jobTitle : "the role")}</p>
+              {(body || "").split(/\n{2,}/).filter((s) => s.trim()).map((p, i) => <p key={i} className="mb-3">{p.trim()}</p>)}
+              <p className="mt-5">Yours sincerely,</p>
+              <p className="mt-2 font-bold" style={{ color: "var(--ink)" }}>{signatoryName.trim() || companyName || "Your Company"}</p>
+              {signatoryTitle.trim() && <p className="text-xs" style={{ color: "var(--ink-2)" }}>{signatoryTitle.trim()}</p>}
+              {signatoryName.trim() && signatoryName.trim() !== (companyName || "") && <p className="text-xs" style={{ color: "var(--ink-2)" }}>{companyName}</p>}
+            </div>
+          </div>
+        )}
 
         {/* Every offer is sent for e-signature via Aster Sign. The signed PDF is
             saved back to the offer once the candidate completes signing. */}
