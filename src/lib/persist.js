@@ -329,6 +329,11 @@ export async function dbCreateOffer(companyId, { candidateId, jobId = null, term
     if (terms.startDate) row.start_date = terms.startDate;
     if (terms.expiresAt) row.expires_at = terms.expiresAt;
     if (terms.jobTitle) row.offer_job_title = terms.jobTitle;
+    // Letter fields (0112): named signatory + optional prose details.
+    if (terms.signatoryName) row.signatory_name = terms.signatoryName;
+    if (terms.signatoryTitle) row.signatory_title = terms.signatoryTitle;
+    if (terms.reportingTo) row.reporting_to = terms.reportingTo;
+    if (terms.workLocation) row.work_location = terms.workLocation;
   }
   let { data, error } = await supabase.from("offers").insert(row).select("token").single();
   // 0103 not applied yet: retry with just the base columns so the offer still sends.

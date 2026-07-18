@@ -1,6 +1,9 @@
 // Shared offer-letter model, used by both the public signing page (HTML preview
 // via aster-sign?action=view) and the signed PDF (pdf-lib in aster-sign sign).
 // One source of truth so what the candidate reads is exactly what gets signed.
+//
+// The letter reads as a standard business letter of offer: the terms are woven
+// into prose (no key-value table), with a named company signatory.
 
 export const CURRENCY_SYMBOL: Record<string, string> = { myr: "RM", usd: "$", sgd: "S$" };
 export const EMPLOYMENT_LABEL: Record<string, string> = {
@@ -19,6 +22,8 @@ export function esc(s: string): string {
 export type OfferRow = {
   base_salary: number | null; salary_currency: string | null; employment_type: string | null;
   start_date: string | null; expires_at: string | null; offer_job_title: string | null; message: string | null;
+  signatory_name?: string | null; signatory_title?: string | null;
+  reporting_to?: string | null; work_location?: string | null;
 };
 
 export type LetterModel = {
@@ -27,63 +32,81 @@ export type LetterModel = {
   jobTitle: string;
   addressLine: string;
   dateStr: string;
-  paragraphs: string[];      // the letter body, already split into paragraphs
-  terms: [string, string][]; // label / value rows
+  subject: string;          // "Letter of Offer: <Position>"
+  salutation: string;       // "Dear <First>,"
+  paragraphs: string[];     // the letter body, in prose
+  signatoryName: string;    // sign-off name (falls back to the company name)
+  signatoryTitle: string;   // sign-off designation ("" if none)
 };
 
-// The structured terms rows (Position first, then whatever was filled in).
-export function termsRows(o: OfferRow, jobTitle: string): [string, string][] {
-  const rows: [string, string][] = [["Position", jobTitle]];
+// The letter body, in prose. The stored HR note (message), if any, is inserted as
+// its own paragraph after the terms. No table: every term reads as a sentence.
+export function letterBody(o: OfferRow, m: { candidateName: string; jobTitle: string; companyName: string }): string[] {
+  const paras: string[] = [];
+  paras.push(`We are pleased to offer you the position of ${m.jobTitle} at ${m.companyName}, on the terms and conditions set out in this letter.`);
+
+  const empLabel = (EMPLOYMENT_LABEL[o.employment_type || "full_time"] || "full-time").toLowerCase();
+  let s1 = `You will be employed on a ${empLabel} basis`;
+  if (o.start_date) s1 += `, with an expected commencement date of ${fmtDate(o.start_date)}`;
+  s1 += ".";
   if (o.base_salary != null) {
     const sym = CURRENCY_SYMBOL[(o.salary_currency || "myr").toLowerCase()] || "";
-    rows.push(["Base salary", `${sym}${Number(o.base_salary).toLocaleString("en-US")}`]);
+    s1 += ` Your gross salary will be ${sym}${Number(o.base_salary).toLocaleString("en-US")} per month, subject to statutory deductions.`;
   }
-  if (o.employment_type) rows.push(["Employment type", EMPLOYMENT_LABEL[o.employment_type] || o.employment_type]);
-  if (o.start_date) rows.push(["Start date", fmtDate(o.start_date)]);
-  if (o.expires_at) rows.push(["Offer valid until", fmtDate(o.expires_at)]);
-  return rows;
-}
+  paras.push(s1);
 
-// The letter body. A stored HR message wins (split on blank lines); otherwise a
-// sensible default. Kept as plain paragraphs so both HTML and PDF can lay it out.
-export function letterParagraphs(o: OfferRow, m: { candidateName: string; jobTitle: string; companyName: string }): string[] {
+  const extras: string[] = [];
+  if (o.reporting_to && o.reporting_to.trim()) extras.push(`You will report to ${o.reporting_to.trim()}.`);
+  if (o.work_location && o.work_location.trim()) extras.push(`Your place of work will be ${o.work_location.trim()}.`);
+  if (extras.length) paras.push(extras.join(" "));
+
   if (o.message && o.message.trim()) {
-    return o.message.trim().split(/\n{2,}/).map((p) => p.replace(/\n/g, " ").trim()).filter(Boolean);
+    for (const p of o.message.trim().split(/\n{2,}/)) { const t = p.replace(/\n/g, " ").trim(); if (t) paras.push(t); }
   }
-  return [
-    `Dear ${m.candidateName},`,
-    `Following your interview, we are delighted to offer you the ${m.jobTitle} role at ${m.companyName}. The full terms of your offer are set out below.`,
-  ];
+
+  let close = "";
+  if (o.expires_at) close = `This offer remains open for your acceptance until ${fmtDate(o.expires_at)}. `;
+  close += "To accept, please review the terms above and sign where indicated below.";
+  paras.push(close);
+
+  paras.push(`We are delighted at the prospect of you joining ${m.companyName} and look forward to welcoming you to the team.`);
+  return paras;
 }
 
 export function buildLetterModel(o: OfferRow, m: { companyName: string; candidateName: string; jobTitle: string; addressLine: string; dateStr: string }): LetterModel {
+  const first = (m.candidateName || "there").split(/\s+/)[0];
   return {
     companyName: m.companyName,
     candidateName: m.candidateName,
     jobTitle: m.jobTitle,
     addressLine: m.addressLine,
     dateStr: m.dateStr,
-    paragraphs: letterParagraphs(o, m),
-    terms: termsRows(o, m.jobTitle),
+    subject: `Letter of Offer: ${m.jobTitle}`,
+    salutation: `Dear ${first},`,
+    paragraphs: letterBody(o, m),
+    signatoryName: (o.signatory_name && o.signatory_name.trim()) || m.companyName,
+    signatoryTitle: (o.signatory_title && o.signatory_title.trim()) || "",
   };
 }
 
 // HTML for the on-page preview (no signature block; the page renders that below).
-// `logo` is a data URI or null.
+// `logo` is a URL or data URI (or null).
 export function letterHtml(model: LetterModel, logo: string | null): string {
   const brand = logo
     ? `<img src="${logo}" alt="${esc(model.companyName)}" style="height:38px;max-width:230px;object-fit:contain;display:block;">`
     : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#1f2328;letter-spacing:-0.01em;">${esc(model.companyName)}</div>`;
-  const body = model.paragraphs.map((p) => `<p style="margin:0 0 15px;">${esc(p)}</p>`).join("");
-  const trs = model.terms.map(([k, v], i) =>
-    `<tr><td style="padding:11px 0;border-bottom:${i === model.terms.length - 1 ? "none" : "1px solid #eee"};color:#9a9a9a;text-transform:uppercase;letter-spacing:0.08em;font-size:10.5px;font-weight:600;width:170px;vertical-align:top;">${esc(k)}</td><td style="padding:11px 0;border-bottom:${i === model.terms.length - 1 ? "none" : "1px solid #eee"};color:#1f2328;font-weight:600;font-size:13.5px;vertical-align:top;">${esc(v)}</td></tr>`).join("");
+  const body = model.paragraphs.map((p) => `<p style="margin:0 0 14px;">${esc(p)}</p>`).join("");
+  const signatory = model.signatoryTitle
+    ? `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div><div style="color:#5b5f66;">${esc(model.signatoryTitle)}</div><div style="color:#5b5f66;">${esc(model.companyName)}</div>`
+    : `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div>${model.signatoryName !== model.companyName ? `<div style="color:#5b5f66;">${esc(model.companyName)}</div>` : ""}`;
   return `<div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#33373c;line-height:1.7;font-size:13px;">
     ${brand}
-    <div style="text-align:right;color:#9298a1;font-size:12px;margin:22px 0 22px;">Date: ${esc(model.dateStr)}</div>
+    <div style="text-align:right;color:#9298a1;font-size:12px;margin:22px 0 20px;">${esc(model.dateStr)}</div>
+    <p style="margin:0 0 12px;">${esc(model.salutation)}</p>
+    <p style="margin:0 0 16px;font-weight:700;color:#1f2328;text-transform:uppercase;letter-spacing:0.02em;font-size:12.5px;">${esc(model.subject)}</p>
     ${body}
-    <table style="width:100%;border-collapse:collapse;margin:6px 0 20px;">${trs}</table>
-    <p style="margin:0 0 15px;">To accept this offer, please review the terms above and sign below. We look forward to welcoming you to ${esc(model.companyName)}.</p>
-    <div style="margin:18px 0 0;">Warm regards,<br><span style="font-weight:700;color:#1f2328;">${esc(model.companyName)}</span></div>
-    ${model.addressLine ? `<div style="margin-top:34px;text-align:right;font-size:12px;color:#77797d;line-height:1.6;"><span style="font-weight:700;color:#1f2328;">${esc(model.companyName)}</span><br>${esc(model.addressLine)}</div>` : ""}
+    <div style="margin:22px 0 0;">Yours sincerely,</div>
+    <div style="margin-top:10px;">${signatory}</div>
+    ${model.addressLine ? `<div style="margin-top:36px;padding-top:12px;border-top:1px solid #eee;font-size:11.5px;color:#8b8e94;line-height:1.6;">${esc(model.companyName)} · ${esc(model.addressLine)}</div>` : ""}
   </div>`;
 }

@@ -86,8 +86,10 @@ async function buildSignedPdf(model: LetterModel, opts: {
     if (cur) lines.push(cur);
     return lines;
   };
+  const firstPage = page;
+  const ensure = (need: number) => { if (y < M + need) { page = doc.addPage([W, H]); y = H - M; } };
   const para = (text: string, f: typeof font, size: number, color = ink, leading = size * 1.5) => {
-    for (const ln of wrap(text, f, size)) { page.drawText(ln, { x: M, y, size, font: f, color }); y -= leading; }
+    for (const ln of wrap(text, f, size)) { ensure(leading); page.drawText(ln, { x: M, y, size, font: f, color }); y -= leading; }
   };
 
   // Letterhead: logo (or company name) + date on the right.
@@ -100,32 +102,29 @@ async function buildSignedPdf(model: LetterModel, opts: {
   } else {
     page.drawText(model.companyName, { x: M, y: y - 6, size: 17, font: bold, color: ink });
   }
-  const dateText = `Date: ${model.dateStr}`;
-  page.drawText(dateText, { x: W - M - font.widthOfTextAtSize(dateText, 10), y: y - 4, size: 10, font, color: gray });
-  y -= 44;
+  page.drawText(model.dateStr, { x: W - M - font.widthOfTextAtSize(model.dateStr, 10), y: y - 4, size: 10, font, color: gray });
+  y -= 48;
 
-  // Body paragraphs.
-  for (const p of model.paragraphs) { para(p, font, 10.5, ink, 15.5); y -= 6; }
+  // Salutation + subject line.
+  para(model.salutation, font, 10.5, ink, 15.5);
   y -= 4;
-
-  // Terms.
-  for (const [k, v] of model.terms) {
-    page.drawLine({ start: { x: M, y: y + 12 }, end: { x: W - M, y: y + 12 }, thickness: 0.5, color: line });
-    page.drawText(k.toUpperCase(), { x: M, y, size: 8.5, font: bold, color: gray });
-    const vw = wrap(v, bold, 11);
-    let vy = y + 1;
-    for (const ln of vw) { page.drawText(ln, { x: M + 175, y: vy, size: 11, font: bold, color: ink }); vy -= 14; }
-    y -= Math.max(24, vw.length * 14 + 10);
-  }
-  page.drawLine({ start: { x: M, y: y + 12 }, end: { x: W - M, y: y + 12 }, thickness: 0.5, color: line });
+  para(model.subject.toUpperCase(), bold, 10.5, ink, 15.5);
   y -= 8;
 
-  para(`To accept this offer, please review the terms above and sign below. We look forward to welcoming you to ${model.companyName}.`, font, 10.5, ink, 15.5);
-  y -= 12;
-  page.drawText("Warm regards,", { x: M, y, size: 10.5, font, color: ink }); y -= 15;
-  page.drawText(model.companyName, { x: M, y, size: 10.5, font: bold, color: ink }); y -= 40;
+  // Body paragraphs — prose, terms woven in (no table).
+  for (const p of model.paragraphs) { para(p, font, 10.5, ink, 15.5); y -= 8; }
+  y -= 6;
 
-  // Signature block.
+  // Sign-off with the named company signatory.
+  ensure(64);
+  page.drawText("Yours sincerely,", { x: M, y, size: 10.5, font, color: ink }); y -= 28;
+  page.drawText(model.signatoryName, { x: M, y, size: 10.5, font: bold, color: ink }); y -= 14;
+  if (model.signatoryTitle) { page.drawText(model.signatoryTitle, { x: M, y, size: 10, font, color: gray }); y -= 13; }
+  if (model.signatoryName !== model.companyName) { page.drawText(model.companyName, { x: M, y, size: 10, font, color: gray }); y -= 13; }
+  y -= 28;
+
+  // Candidate signature block, kept together on one page.
+  ensure(120);
   page.drawText("ACCEPTED AND AGREED", { x: M, y, size: 9, font: bold, color: gray }); y -= 30;
   if (opts.signatureType === "drawn" && opts.drawn) {
     try {
@@ -147,10 +146,10 @@ async function buildSignedPdf(model: LetterModel, opts: {
   page.drawText("SIGNATURE", { x: M, y, size: 8, font, color: gray });
   page.drawText("DATE", { x: M + 320, y, size: 8, font, color: gray });
 
-  // Footer.
+  // Footer on the first page.
   if (model.addressLine) {
-    const foot = `${model.companyName} · ${model.addressLine}`;
-    for (const ln of wrap(foot, font, 9)) { /* right-aligned */ page.drawText(ln, { x: W - M - font.widthOfTextAtSize(ln, 9), y: 54, size: 9, font, color: gray }); }
+    const foot = wrap(`${model.companyName} · ${model.addressLine}`, font, 9)[0];
+    firstPage.drawText(foot, { x: W - M - font.widthOfTextAtSize(foot, 9), y: 38, size: 9, font, color: gray });
   }
 
   // ── Certificate of completion page ─────────────────────────────────────────
@@ -200,7 +199,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: offer } = await admin.from("offers")
-      .select("id, company_id, candidate_id, status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, created_at")
+      .select("id, company_id, candidate_id, status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, signatory_name, signatory_title, reporting_to, work_location, created_at")
       .eq("token", token).maybeSingle();
     if (!offer) return json({ error: "not_found" }, 404);
 
@@ -250,7 +249,7 @@ Deno.serve(async (req) => {
     const signedAtIso = new Date().toISOString();
     const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || req.headers.get("cf-connecting-ip") || "";
     const ua = req.headers.get("user-agent") || "";
-    const docHash = await sha256Hex(JSON.stringify({ companyName, jobTitle, terms: model.terms, paragraphs: model.paragraphs, signedName, signedAtIso }));
+    const docHash = await sha256Hex(JSON.stringify({ companyName, jobTitle, subject: model.subject, paragraphs: model.paragraphs, signatory: [model.signatoryName, model.signatoryTitle], signedName, signedAtIso }));
 
     const logo = await fetchLogoBytes(comp?.logo_url || null);
     const pdf = await buildSignedPdf(model, {

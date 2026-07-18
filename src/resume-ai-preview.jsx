@@ -19970,6 +19970,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             hasEmail={hasEmail}
             defaultCurrency={preferredCurrency}
             companyName={companyName}
+            defaultSignatory={profile?.full_name || profile?.name || ""}
             onClose={() => setShowOffer(false)}
             onSend={(emailSent, terms, message) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, message); }}
           />
@@ -20295,10 +20296,8 @@ const EMPLOYMENT_TYPES = [
   { key: "internship", label: "Internship" },
 ];
 
-function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", onClose, onSend }) {
-  const initial = buildOfferDraft(candidateName, jobTitle, companyName);
-  const [subject, setSubject] = useState(initial.subject);
-  const [body, setBody] = useState(initial.body);
+function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", defaultSignatory = "", onClose, onSend }) {
+  const [body, setBody] = useState("");   // optional custom paragraph in the letter
   const [sending, setSending] = useState(false);
   // Structured offer terms. All optional: an offer can go out with any left blank.
   const [title, setTitle] = useState(jobTitle && jobTitle !== "the role" ? jobTitle : "");
@@ -20307,6 +20306,11 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [empType, setEmpType] = useState("full_time");
   const [startDate, setStartDate] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  // Letter fields: who signs for the company, plus optional prose details.
+  const [signatoryName, setSignatoryName] = useState(defaultSignatory || "");
+  const [signatoryTitle, setSignatoryTitle] = useState("");
+  const [reportingTo, setReportingTo] = useState("");
+  const [workLocation, setWorkLocation] = useState("");
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs text-neutral-500 mb-1";
@@ -20318,6 +20322,10 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     employmentType: empType,
     startDate: startDate || null,
     expiresAt: expiresAt || null,
+    signatoryName: signatoryName.trim() || null,
+    signatoryTitle: signatoryTitle.trim() || null,
+    reportingTo: reportingTo.trim() || null,
+    workLocation: workLocation.trim() || null,
   };
 
   const handleSend = (emailSent) => {
@@ -20376,9 +20384,34 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           <DatePicker value={expiresAt} onChange={setExpiresAt} placeholder="No expiry" min={dpYmd(new Date())} allowClear />
         </div>
 
-        <label className={labelClass}>Message to the candidate</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-2 resize-y`} disabled={!hasEmail} />
-        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>This is the opening of the offer letter. The terms, sign-off and signature block are added automatically.</p>
+        {/* Letter details: who signs for the company, plus optional prose fields. */}
+        <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Letter details</p>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <label className={labelClass}>Signed by</label>
+              <input value={signatoryName} onChange={(e) => setSignatoryName(e.target.value)} placeholder="e.g. Aisha Rahman" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Title</label>
+              <input value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} placeholder="e.g. HR Manager" className={inputClass} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={labelClass}>Reporting to <span className="text-neutral-400">(optional)</span></label>
+              <input value={reportingTo} onChange={(e) => setReportingTo(e.target.value)} placeholder="e.g. Head of Engineering" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Work location <span className="text-neutral-400">(optional)</span></label>
+              <input value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} placeholder="e.g. Kuala Lumpur (hybrid)" className={inputClass} />
+            </div>
+          </div>
+        </div>
+
+        <label className={labelClass}>Custom note <span className="text-neutral-400">(optional)</span></label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} placeholder="Add an extra paragraph to the letter, e.g. a personal welcome or role highlights." className={`${inputClass} mb-2 resize-y`} disabled={!hasEmail} />
+        <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>Aster writes the full letter from the terms above. Anything here is added as an extra paragraph.</p>
 
         {/* Every offer is sent for e-signature via Aster Sign. The signed PDF is
             saved back to the offer once the candidate completes signing. */}
