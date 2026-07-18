@@ -7,6 +7,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAuth } from "../AuthContext";
 import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationStage } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather } from "../components/ui";
+import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import { theme, type, space, radius } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime } from "@aster/shared";
@@ -124,8 +125,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      {/* Gradient profile header */}
+      {/* Gradient profile header with a big transparent Aster mark in the corner */}
       <LinearGradient colors={["#123AF0", "#0B2AE0", "#0A1E9E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+        <View style={styles.watermark} pointerEvents="none">
+          <AsterMark size={168} color="rgba(255,255,255,0.12)" />
+        </View>
         <SafeAreaView edges={["top"]}>
           <View style={styles.heroTop}>
             <Press onPress={() => navigation.goBack()} haptic="light" style={styles.circleBtn}>
@@ -136,23 +140,24 @@ export default function CandidateProfileScreen({ route, navigation }) {
               <Feather name="message-circle" size={19} color={theme.white} />
             </Press>
           </View>
-          <View style={styles.heroBody}>
-            <View style={styles.avatarRing}>
-              <Avatar uri={candidate?.avatarUrl} name={name} size={74} />
-            </View>
-            <Text style={styles.heroName} numberOfLines={1}>{name}</Text>
-            {parsed.currentTitle ? <Text style={styles.heroRole} numberOfLines={1}>{parsed.currentTitle}</Text> : null}
-            <View style={styles.heroPill}>
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: stageColor(stage), marginRight: 7 }} />
-              <Text style={[type.smallStrong, { color: theme.white }]}>{stageLabel(stage)}</Text>
-            </View>
-          </View>
         </SafeAreaView>
       </LinearGradient>
 
-      {/* Flat content below the curved header */}
+      {/* Content below; the avatar straddles the header edge, name sits on white */}
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
+          <View style={styles.identity}>
+            <View style={styles.avatarRing}>
+              <Avatar uri={candidate?.avatarUrl} name={name} size={84} />
+            </View>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            {parsed.currentTitle ? <Text style={styles.role} numberOfLines={1}>{parsed.currentTitle}</Text> : null}
+            <View style={[styles.pill, { backgroundColor: stageColor(stage) + "1A" }]}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: stageColor(stage), marginRight: 7 }} />
+              <Text style={[type.smallStrong, { color: theme.ink2 }]}>{stageLabel(stage)}</Text>
+            </View>
+          </View>
+
           <View style={styles.sheet}>
             {/* Quick actions */}
             <View style={{ flexDirection: "row", gap: 10 }}>
@@ -472,15 +477,16 @@ function DetailRow({ icon, value, onPress, last }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingBottom: space(9) },
+  hero: { paddingBottom: space(11), overflow: "hidden" },
+  watermark: { position: "absolute", top: 8, right: -30 },
   heroTop: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2) },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
-  heroBody: { alignItems: "center", paddingHorizontal: space(5), marginTop: space(2) },
-  avatarRing: { padding: 3, borderRadius: 46, borderWidth: 2.5, borderColor: "rgba(255,255,255,0.55)", backgroundColor: "rgba(255,255,255,0.12)" },
-  heroName: { fontFamily: "Inter_700Bold", fontSize: 22, letterSpacing: -0.3, color: theme.white, marginTop: space(3) },
-  heroRole: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: "rgba(255,255,255,0.8)", marginTop: 3 },
-  heroPill: { flexDirection: "row", alignItems: "center", marginTop: space(3), backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  sheet: { backgroundColor: theme.bg, paddingHorizontal: space(4), paddingTop: space(5), paddingBottom: space(6), minHeight: 400 },
+  identity: { alignItems: "center", paddingHorizontal: space(5) },
+  avatarRing: { marginTop: -48, padding: 4, borderRadius: 50, backgroundColor: theme.card, shadowColor: "#0A1E9E", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  name: { fontFamily: "Inter_700Bold", fontSize: 21, letterSpacing: -0.3, color: theme.ink, marginTop: space(3) },
+  role: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink3, marginTop: 3 },
+  pill: { flexDirection: "row", alignItems: "center", marginTop: space(3), paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
+  sheet: { backgroundColor: theme.bg, paddingHorizontal: space(4), paddingTop: space(5), paddingBottom: space(6), minHeight: 360 },
 
   stageTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 8 },
   detailRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3) },
