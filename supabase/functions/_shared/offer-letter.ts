@@ -94,7 +94,7 @@ export function buildLetterModel(o: OfferRow, m: { companyName: string; candidat
 // `logo` is a URL or data URI (or null).
 export function letterHtml(model: LetterModel, logo: string | null): string {
   const brand = logo
-    ? `<img src="${logo}" alt="${esc(model.companyName)}" style="height:38px;max-width:230px;object-fit:contain;display:block;">`
+    ? `<img src="${logo}" alt="${esc(model.companyName)}" style="height:48px;max-width:230px;object-fit:contain;display:block;">`
     : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#1f2328;letter-spacing:-0.01em;">${esc(model.companyName)}</div>`;
   // Render each block; a "HEADING\ntext" block shows the heading in bold caps.
   const renderBlock = (p: string): string => {
@@ -111,10 +111,12 @@ export function letterHtml(model: LetterModel, logo: string | null): string {
     ? `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div><div style="color:#5b5f66;">${esc(model.signatoryTitle)}</div><div style="color:#5b5f66;">${esc(model.companyName)}</div>`
     : `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div>${model.signatoryName !== model.companyName ? `<div style="color:#5b5f66;">${esc(model.companyName)}</div>` : ""}`;
   return `<div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#33373c;line-height:1.7;font-size:13px;">
-    ${brand}
-    <div style="text-align:right;color:#9298a1;font-size:12px;margin:22px 0 20px;">${esc(model.dateStr)}</div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #eee;margin-bottom:24px;">
+      ${brand}
+      <span style="color:#9298a1;font-size:12px;white-space:nowrap;flex-shrink:0;">${esc(model.dateStr)}</span>
+    </div>
     <p style="margin:0 0 12px;">${esc(model.salutation)}</p>
-    <p style="margin:0 0 16px;font-weight:700;color:#1f2328;text-transform:uppercase;letter-spacing:0.02em;font-size:12.5px;">${esc(model.subject)}</p>
+    <p style="margin:0 0 18px;font-weight:700;color:#1f2328;text-transform:uppercase;letter-spacing:0.02em;font-size:13px;">${esc(model.subject)}</p>
     ${body}
     <div style="margin:22px 0 0;">Yours sincerely,</div>
     <div style="margin-top:10px;">${signatory}</div>

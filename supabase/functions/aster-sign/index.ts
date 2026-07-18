@@ -92,24 +92,30 @@ async function buildSignedPdf(model: LetterModel, opts: {
     for (const ln of wrap(text, f, size)) { ensure(leading); page.drawText(ln, { x: M, y, size, font: f, color }); y -= leading; }
   };
 
-  // Letterhead: logo (or company name) + date on the right.
+  // Letterhead: a larger logo (or company name) top-left, the date top-right, a
+  // hairline rule beneath, and generous breathing room before the letter body.
+  const headTop = y;
+  let logoH = 26;
   if (opts.logo) {
     try {
       const img = opts.logo.mime.includes("png") ? await doc.embedPng(opts.logo.bytes) : await doc.embedJpg(opts.logo.bytes);
-      const h = 30, w = (img.width / img.height) * h;
-      page.drawImage(img, { x: M, y: y - h + 6, width: Math.min(w, 200), height: h });
-    } catch { page.drawText(model.companyName, { x: M, y: y - 6, size: 17, font: bold, color: ink }); }
+      logoH = 48;
+      const w = Math.min((img.width / img.height) * logoH, 230);
+      page.drawImage(img, { x: M, y: headTop - logoH, width: w, height: logoH });
+    } catch { page.drawText(model.companyName, { x: M, y: headTop - 20, size: 18, font: bold, color: ink }); logoH = 26; }
   } else {
-    page.drawText(model.companyName, { x: M, y: y - 6, size: 17, font: bold, color: ink });
+    page.drawText(model.companyName, { x: M, y: headTop - 20, size: 18, font: bold, color: ink });
   }
-  page.drawText(model.dateStr, { x: W - M - font.widthOfTextAtSize(model.dateStr, 10), y: y - 4, size: 10, font, color: gray });
-  y -= 48;
+  page.drawText(model.dateStr, { x: W - M - font.widthOfTextAtSize(model.dateStr, 10), y: headTop - 18, size: 10, font, color: gray });
+  y = headTop - logoH - 24;
+  page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.6, color: line });
+  y -= 30;
 
   // Salutation + subject line.
   para(model.salutation, font, 10.5, ink, 15.5);
-  y -= 4;
-  para(model.subject.toUpperCase(), bold, 10.5, ink, 15.5);
   y -= 8;
+  para(model.subject.toUpperCase(), bold, 11.5, ink, 16);
+  y -= 14;
 
   // Body blocks — a "HEADING\ntext" block prints the heading in bold caps.
   for (const blk of model.paragraphs) {
