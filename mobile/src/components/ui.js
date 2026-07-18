@@ -234,7 +234,7 @@ export function ScreenHeader({ title, eyebrow, onBack, right }) {
             {eyebrow ? <Text style={styles.screenEyebrow}>{String(eyebrow).toUpperCase()}</Text> : null}
             <Text style={styles.screenHeadTitle} numberOfLines={2}>{title}</Text>
           </View>
-          {right}
+          {right || <AsterMark size={30} color={theme.white} />}
         </View>
       </SafeAreaView>
     </View>
