@@ -80,8 +80,9 @@ export default function JobDetailScreen({ route, navigation }) {
   );
 
   // ---- AI Rank gating (mirrors web) ----
-  const TERMINAL = ["hired", "rejected", "declined"];
-  const activeRows = (rows || []).filter((r) => !TERMINAL.includes(r.stage));
+  // Only Applied + Shortlisted candidates are rankable.
+  const RANKABLE = ["applied", "shortlisted"];
+  const activeRows = (rows || []).filter((r) => RANKABLE.includes(r.stage));
   const canRank = activeRows.length >= 2;                 // needs 2+ candidates to compare
   const hasScores = (rows || []).some((r) => typeof r.matchScore === "number");
   const rankUnits = Math.max(1, Math.ceil(Math.min(activeRows.length, 40) / 10));
@@ -127,11 +128,6 @@ export default function JobDetailScreen({ route, navigation }) {
   };
 
   const rankLabel = ranking ? "Ranking" : rankLocked ? "Ranked" : hasScores ? "Re-run" : "AI Rank";
-  const rankSub = ranking ? "Scoring candidates against this role…"
-    : rankLocked ? "Already ranked. Unlocks when a new candidate applies."
-    : !canRank ? "Available once 2+ candidates are ready to rank."
-    : hasScores ? `Re-run to refresh scores · ${rankUnits} credit${rankUnits === 1 ? "" : "s"}`
-    : `Score every candidate against this role · ${rankUnits} credit${rankUnits === 1 ? "" : "s"}`;
 
   const header = (
     <View>
@@ -166,7 +162,6 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={[type.bodyStrong, { color: theme.ink }]}>AI Rank</Text>
-          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={2}>{rankSub}</Text>
         </View>
         <Pressable
           onPress={onRankPress}

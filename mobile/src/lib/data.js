@@ -418,8 +418,10 @@ export async function loadApplicants(companyId, jobId) {
 }
 
 // ---- AI Rank (mirrors the web per-job flow) --------------------------------
-// Terminal stages leave the active pipeline and aren't ranked.
-const RANK_TERMINAL = ["hired", "rejected", "declined"];
+// AI Rank only scores candidates still early in the pipeline: Applied and
+// Shortlisted. Once someone is interviewing / offer / hired (or rejected), they
+// are out of the ranking pool.
+const RANKABLE_STAGES = ["applied", "shortlisted"];
 
 // The last time this job was AI-Ranked (jobs.ai_ranked_at). Drives the per-job
 // lock: once ranked, AI Rank is locked for EVERYONE until a genuinely new
@@ -467,7 +469,7 @@ export async function runAiRank({ companyId, jobId, job }) {
     .select("candidate_id, stage, match_reasons")
     .eq("company_id", companyId)
     .eq("job_id", jobId);
-  const active = (apps || []).filter((a) => !RANK_TERMINAL.includes(a.stage || "applied"));
+  const active = (apps || []).filter((a) => RANKABLE_STAGES.includes(a.stage || "applied"));
   const prevReason = {};
   active.forEach((a) => { if (a.match_reasons) prevReason[a.candidate_id] = a.match_reasons; });
   const candIds = [...new Set(active.map((a) => a.candidate_id))];
