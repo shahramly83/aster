@@ -126,26 +126,6 @@ export default function DiscussionScreen({ route, navigation }) {
     if (err) { Alert.alert("Couldn't update", err); loadPoll(); }
   };
 
-  // Manager picks a slot → schedule it and close the poll.
-  const pickSlot = (slot) => {
-    Alert.alert("Schedule this interview?", `${candidateName || "Candidate"}\n${slotLabel(slot.ts, slot.end)}\n\nStarts at the beginning of the window.`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Schedule",
-        onPress: async () => {
-          try {
-            await scheduleInterview({ companyId: profile.companyId, candidateId, jobId: poll.jobId || jobId, candidateName, startIso: slot.ts, interviewerId: profile.userId, interviewerName: profile.name });
-            await closePoll(poll.id, slot.ts);
-            sendMessage({ companyId: profile.companyId, candidateId, jobId, authorId: profile.userId, body: `Interview scheduled for ${fmtInterviewTime(slot.ts, profile.timezone)}.` }).catch(() => {});
-            await Promise.all([load(), loadPoll()]);
-          } catch (e) {
-            Alert.alert("Couldn't schedule", e?.message || "You may not have permission to schedule interviews.");
-          }
-        },
-      },
-    ]);
-  };
-
   const onCreatePoll = async (slots) => {
     const res = await createPoll({ companyId: profile.companyId, candidateId, candidateName, jobId, createdBy: profile.userId, slots });
     if (res.ok) await loadPoll();
@@ -180,7 +160,7 @@ export default function DiscussionScreen({ route, navigation }) {
             ListHeaderComponent={
               <>
                 {poll ? (
-                  <PollCard poll={poll} tz={profile.timezone} manager={manager} savingSlot={savingSlot} onToggle={toggleVote} onPick={pickSlot} />
+                  <PollCard poll={poll} tz={profile.timezone} manager={manager} savingSlot={savingSlot} onToggle={toggleVote} />
                 ) : null}
                 <View style={styles.banner}>
                   <Feather name="users" size={13} color={theme.ink3} />
@@ -212,7 +192,7 @@ export default function DiscussionScreen({ route, navigation }) {
   );
 }
 
-function PollCard({ poll, tz, manager, savingSlot, onToggle, onPick }) {
+function PollCard({ poll, tz, manager, savingSlot, onToggle }) {
   const open = poll.status === "open";
   return (
     <View style={styles.pollCard}>
@@ -242,11 +222,7 @@ function PollCard({ poll, tz, manager, savingSlot, onToggle, onPick }) {
                   </Text>
                 </View>
               </Pressable>
-              {manager && open ? (
-                <Pressable onPress={() => onPick(s)} hitSlop={6} style={styles.pickBtn}>
-                  <Text style={[type.smallStrong, { color: theme.white }]}>Pick</Text>
-                </Pressable>
-              ) : chosen ? <Feather name="check-circle" size={18} color={theme.success} /> : null}
+              {chosen ? <Feather name="check-circle" size={18} color={theme.success} /> : null}
             </View>
           );
         })}
@@ -254,7 +230,7 @@ function PollCard({ poll, tz, manager, savingSlot, onToggle, onPick }) {
 
       {open ? (
         <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
-          {manager ? "Tap a slot to mark your availability, or Pick one to schedule it." : "Tap the slots you're available for."}
+          {manager ? "Everyone marks their availability. Then propose the best times to the candidate from their profile → Interview." : "Tap the slots you're available for."}
         </Text>
       ) : null}
     </View>
