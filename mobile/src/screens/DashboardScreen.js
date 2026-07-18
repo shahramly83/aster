@@ -88,6 +88,7 @@ export default function DashboardScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
       {/* Top bar (shared with Roles) */}
       <TopBar
+        mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
         right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("ProfileTab")} />}
       />

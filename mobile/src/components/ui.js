@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { theme, palette, radius, type, shadow, space } from "../theme";
 import { stageColor, stageLabel } from "@aster/shared";
+import { AsterMark } from "./Logo";
 
 // ---- Text -------------------------------------------------------------------
 // One text component that pulls from the type scale so weights/sizes stay
@@ -203,10 +204,11 @@ function greetingWord() {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
-export function TopBar({ name, subtitle, right }) {
+export function TopBar({ name, subtitle, right, mark = false }) {
   return (
     <View style={styles.topBar}>
-      <View style={{ flex: 1 }}>
+      {mark ? <AsterMark size={38} color={theme.white} /> : null}
+      <View style={{ flex: 1, marginLeft: mark ? 12 : 0 }}>
         <Text style={[type.small, { color: theme.onBrandMuted }]}>{subtitle || greetingWord()}</Text>
         <Text style={[type.h2, { color: theme.onBrand }]} numberOfLines={1}>{name || "Welcome"}</Text>
       </View>
