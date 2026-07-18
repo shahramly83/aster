@@ -49,6 +49,15 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
   const close = () => { if (!busy) { reset(); onClose(); } };
   const toggle = (start) => setSelected((prev) => { const n = new Set(prev); n.has(start) ? n.delete(start) : n.add(start); return n; });
 
+  // Reject a time range that overlaps one that's already been chosen.
+  const addExtra = ({ startIso, endIso }) => {
+    const ns = new Date(startIso).getTime(), ne = new Date(endIso).getTime();
+    const clash = chosen.some((x) => ns < new Date(x.end || x.start).getTime() && new Date(x.start).getTime() < ne);
+    if (clash) { setErr("That time overlaps one you've already picked."); return; }
+    setErr(null);
+    setExtra((p) => (p.some((x) => x.start === startIso) ? p : [...p, { start: startIso, end: endIso }]));
+  };
+
   const chosen = useMemo(() => {
     const fromPoll = pollSlots.filter((s) => selected.has(s.start)).map((s) => ({ start: s.start, end: s.end }));
     return [...fromPoll, ...extra].sort((a, b) => a.start.localeCompare(b.start));
@@ -144,7 +153,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
         onClose={() => setCalOpen(false)}
         title="Add a time"
         confirmLabel="Add time"
-        onConfirm={({ startIso, endIso }) => setExtra((p) => p.some((x) => x.start === startIso) ? p : [...p, { start: startIso, end: endIso }])}
+        onConfirm={addExtra}
       />
     </Modal>
   );

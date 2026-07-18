@@ -16,6 +16,19 @@ import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterview
 // The hiring process, in order. Offer/Hired are shown but managed on web.
 const STEPS = ["applied", "shortlisted", "interviewing", "offer", "hired"];
 
+// "Tue 12 Aug · 2:00–3:00 PM" for a proposed interview slot.
+const _WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const _MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const _hm = (iso) => { const d = new Date(iso); return `${d.getHours() % 12 === 0 ? 12 : d.getHours() % 12}:${String(d.getMinutes()).padStart(2, "0")}`; };
+const _ap = (iso) => (new Date(iso).getHours() < 12 ? "AM" : "PM");
+function slotRange(startIso, endIso) {
+  const s = new Date(startIso);
+  const date = `${_WD[s.getDay()]} ${s.getDate()} ${_MON[s.getMonth()]}`;
+  if (!endIso) return `${date} · ${_hm(startIso)} ${_ap(startIso)}`;
+  const same = _ap(startIso) === _ap(endIso);
+  return `${date} · ${_hm(startIso)}${same ? "" : ` ${_ap(startIso)}`}–${_hm(endIso)} ${_ap(endIso)}`;
+}
+
 export default function CandidateProfileScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
   const insets = useSafeAreaInsets();
@@ -356,7 +369,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   {pendingInvite.proposedSlots.map((s, i) => (
                     <View key={i} style={styles.slotRow}>
                       <Feather name="calendar" size={13} color={theme.ink4} />
-                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{fmtInterviewTime(s.start, profile.timezone)}</Text>
+                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{slotRange(s.start, s.end)}</Text>
                     </View>
                   ))}
                   {manager ? <Button title="Resend invite" icon="mail" variant="ghost" onPress={resendInvite} style={{ marginTop: space(3) }} /> : null}

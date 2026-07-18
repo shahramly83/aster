@@ -293,7 +293,13 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
         onClose={() => setCalOpen(false)}
         title="Add a time range"
         confirmLabel="Add range"
-        onConfirm={({ startIso, endIso }) => setSlots((p) => p.some((x) => x.start === startIso) ? p : [...p, { start: startIso, end: endIso }].sort((a, b) => a.start.localeCompare(b.start)))}
+        onConfirm={({ startIso, endIso }) => {
+          const ns = new Date(startIso).getTime(), ne = new Date(endIso).getTime();
+          const clash = slots.some((x) => ns < new Date(x.end || x.start).getTime() && new Date(x.start).getTime() < ne);
+          if (clash) { setErr("That range overlaps one you've already added."); return; }
+          setErr(null);
+          setSlots((p) => (p.some((x) => x.start === startIso) ? p : [...p, { start: startIso, end: endIso }].sort((a, b) => a.start.localeCompare(b.start))));
+        }}
       />
     </Modal>
   );
