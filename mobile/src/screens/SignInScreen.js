@@ -90,7 +90,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   watermark: { position: "absolute", top: -30, right: -50 },
   scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space(6), paddingVertical: space(10) },
-  welcome: { fontFamily: "Inter_700Bold", fontSize: 30, letterSpacing: -0.6, color: theme.white, textAlign: "center" },
+  welcome: { fontFamily: "Inter_700Bold", fontSize: 24, letterSpacing: -0.4, color: theme.white, textAlign: "center" },
   subtitle: { fontFamily: "Inter_500Medium", fontSize: 15, color: "rgba(255,255,255,0.8)", textAlign: "center", marginTop: 6 },
   card: { backgroundColor: theme.card, borderRadius: 24, padding: space(5), marginTop: space(7), shadowColor: "#0A1E9E", shadowOpacity: 0.28, shadowRadius: 30, shadowOffset: { width: 0, height: 16 }, elevation: 10 },
   fieldLabel: { ...type.smallStrong, color: theme.ink2, marginBottom: 8 },
