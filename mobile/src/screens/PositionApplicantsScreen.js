@@ -24,7 +24,7 @@ export default function PositionApplicantsScreen({ route, navigation }) {
   const { jobId, jobTitle } = route.params || {};
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(route.params?.initialFilter || "all");
 
   const load = useCallback(async () => {
     if (!profile) return;

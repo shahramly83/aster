@@ -78,7 +78,7 @@ export default function OpenPositionsScreen({ navigation }) {
               <RoleCard
                 job={item}
                 active={index === active}
-                onPress={() => navigation.navigate("PositionApplicants", { jobId: item.id, jobTitle: item.title })}
+                onPress={() => navigation.navigate("JobDetail", { jobId: item.id, jobTitle: item.title, job: item })}
               />
             )}
           />
