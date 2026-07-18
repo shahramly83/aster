@@ -44,7 +44,8 @@ export type LetterModel = {
 // what prints. Otherwise a standard body is generated from the terms.
 export function letterBody(o: OfferRow, m: { candidateName: string; jobTitle: string; companyName: string }): string[] {
   if (o.message && o.message.trim()) {
-    return o.message.trim().split(/\n{2,}/).map((p) => p.replace(/\n/g, " ").trim()).filter(Boolean);
+    // Keep single newlines: a "HEADING\ntext" block renders the heading in bold.
+    return o.message.trim().split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   }
   const paras: string[] = [];
   paras.push(`We are pleased to offer you the position of ${m.jobTitle} at ${m.companyName}, on the terms and conditions set out in this letter.`);
@@ -95,7 +96,17 @@ export function letterHtml(model: LetterModel, logo: string | null): string {
   const brand = logo
     ? `<img src="${logo}" alt="${esc(model.companyName)}" style="height:38px;max-width:230px;object-fit:contain;display:block;">`
     : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#1f2328;letter-spacing:-0.01em;">${esc(model.companyName)}</div>`;
-  const body = model.paragraphs.map((p) => `<p style="margin:0 0 14px;">${esc(p)}</p>`).join("");
+  // Render each block; a "HEADING\ntext" block shows the heading in bold caps.
+  const renderBlock = (p: string): string => {
+    const nl = p.indexOf("\n");
+    const head = nl > 0 ? p.slice(0, nl).trim() : "";
+    if (head && head.length <= 45 && head === head.toUpperCase() && /[A-Z]/.test(head)) {
+      const rest = esc(p.slice(nl + 1).replace(/\n/g, " ").trim());
+      return `<div style="margin:0 0 13px;"><div style="font-weight:700;font-size:11.5px;letter-spacing:0.03em;color:#1f2328;margin:0 0 3px;">${esc(head)}</div><div>${rest}</div></div>`;
+    }
+    return `<p style="margin:0 0 13px;">${esc(p.replace(/\n/g, " "))}</p>`;
+  };
+  const body = model.paragraphs.map(renderBlock).join("");
   const signatory = model.signatoryTitle
     ? `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div><div style="color:#5b5f66;">${esc(model.signatoryTitle)}</div><div style="color:#5b5f66;">${esc(model.companyName)}</div>`
     : `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div>${model.signatoryName !== model.companyName ? `<div style="color:#5b5f66;">${esc(model.companyName)}</div>` : ""}`;

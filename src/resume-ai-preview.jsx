@@ -20331,30 +20331,33 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   // The default letter body, composed from the terms (mirrors the server). It
   // stays in sync as HR fills in the terms, until they edit the letter by hand.
   const composeBody = () => {
-    const EMP = { full_time: "full-time", part_time: "part-time", contract: "contract", internship: "internship" };
     const SYM = { myr: "RM", usd: "$", sgd: "S$" };
-    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
-    const role = title.trim() || (jobTitle && jobTitle !== "the role" ? jobTitle : "the role");
-    const co = companyName || "our company";
-    const p = [];
-    p.push(`We are pleased to offer you the position of ${role} at ${co}, on the terms and conditions set out in this letter.`);
-    let s1 = `You will be employed on a ${EMP[empType] || "full-time"} basis`;
-    if (startDate) s1 += `, with an expected commencement date of ${fmt(startDate)}`;
-    s1 += ".";
-    if (salary.trim() !== "") s1 += ` Your gross salary will be ${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")} per month, subject to statutory deductions.`;
-    p.push(s1);
-    const extras = [];
-    if (reportingTo.trim()) extras.push(`You will report to ${reportingTo.trim()}.`);
-    if (workLocation.trim()) extras.push(`Your place of work will be ${workLocation.trim()}.`);
-    if (extras.length) p.push(extras.join(" "));
-    p.push(`${expiresAt ? `This offer remains open for your acceptance until ${fmt(expiresAt)}. ` : ""}To accept, please review the terms above and sign where indicated below.`);
-    p.push(`We are delighted at the prospect of you joining ${co} and look forward to welcoming you to the team.`);
-    return p.join("\n\n");
+    const fmt = (d) => { if (!d) return ""; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" }); } catch { return d; } };
+    const role = title.trim() || (jobTitle && jobTitle !== "the role" ? jobTitle : "[Position]");
+    const co = companyName || "[Company]";
+    const start = fmt(startDate) || "[start date]";
+    const pay = salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "[Basic Salary]";
+    const mgr = reportingTo.trim() || "your immediate superior";
+    const loc = workLocation.trim();
+    return [
+      `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
+      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before ${start}, failing which this offer of employment shall be null and void.`,
+      `REMUNERATION\nYou will be paid a Basic Salary of ${pay} per month with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
+      `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons for doing so. During the probationary period, the employment may be terminated by the Company or the employee by giving to the other not less than two (2) weeks' notice or two (2) weeks' salary in lieu of such notice and without assigning any reasons therefor.`,
+      `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
+      `BONUS\nIncentive bonus may be paid to you at the discretion of the Management depending on your personal performance and contribution towards the profitability of the Company.`,
+      `ANNUAL LEAVE\nYou will be entitled to annual leave as per ${co}'s HR Policies on Terms and Conditions of Service.`,
+      `TERMINATION OF EMPLOYMENT\nAfter confirmation of employment, either party maintains the right to terminate this letter of employment by giving to the other not less than two (2) calendar months' notice or salary in lieu of such notice.`,
+      `COMPANY RULES\nYour appointment shall always be subject to your compliance with any conditions of service or Company rules and practices, either express or implied, for the time being in force.`,
+      `NORMAL HOURS OF WORK\nThe normal hours of work shall be a total of 40 hours per week.${loc ? ` Your place of work will be ${loc}.` : ""} You shall be required when necessary to work beyond the normal working hours.`,
+      `You will be reporting to ${mgr} and be responsible for the duties set out in your Job Description, and for their performance, profitability, market development and budget achievement and control.`,
+      `If you are agreeable with the above terms of employment, please signify your acceptance by signing where indicated below.`,
+    ].join("\n\n");
   };
   useEffect(() => {
     if (!bodyEdited) setBody(composeBody());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, salary, currency, empType, startDate, expiresAt, reportingTo, workLocation, companyName]);
+  }, [title, salary, currency, startDate, reportingTo, workLocation, companyName]);
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs text-neutral-500 mb-1";
@@ -20463,7 +20466,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         </div>
         {letterView === "write" ? (
           <>
-            <textarea value={body} onChange={(e) => { setBody(e.target.value); setBodyEdited(true); }} rows={11} className={`${inputClass} mb-1.5 resize-y`} style={{ lineHeight: 1.6 }} disabled={!hasEmail} />
+            <textarea value={body} onChange={(e) => { setBody(e.target.value); setBodyEdited(true); }} rows={14} className={`${inputClass} mb-1.5 resize-y`} style={{ lineHeight: 1.6 }} disabled={!hasEmail} />
             <div className="flex items-center justify-between gap-2 mb-4">
               <p className="text-xs" style={{ color: "var(--ink-3)" }}>Edit the letter freely. The heading, greeting and signature are added automatically.</p>
               {bodyEdited && <button type="button" onClick={() => { setBody(composeBody()); setBodyEdited(false); }} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset from terms</button>}
@@ -20476,7 +20479,18 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               <div className="text-right text-xs mt-3 mb-4" style={{ color: "var(--ink-3)" }}>{new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}</div>
               <p className="mb-3">Dear {(candidateName || "there").split(" ")[0]},</p>
               <p className="mb-4 font-bold uppercase text-[12px] tracking-wide" style={{ color: "var(--ink)" }}>Letter of Offer: {title.trim() || (jobTitle !== "the role" ? jobTitle : "the role")}</p>
-              {(body || "").split(/\n{2,}/).filter((s) => s.trim()).map((p, i) => <p key={i} className="mb-3">{p.trim()}</p>)}
+              {(body || "").split(/\n{2,}/).filter((s) => s.trim()).map((blk, i) => {
+                const nl = blk.indexOf("\n");
+                const head = nl > 0 ? blk.slice(0, nl).trim() : "";
+                const isHead = head && head.length <= 45 && head === head.toUpperCase() && /[A-Z]/.test(head);
+                if (isHead) return (
+                  <div key={i} className="mb-3">
+                    <p className="font-bold text-[11.5px] tracking-wide mb-1" style={{ color: "var(--ink)" }}>{head}</p>
+                    <p>{blk.slice(nl + 1).replace(/\n/g, " ").trim()}</p>
+                  </div>
+                );
+                return <p key={i} className="mb-3">{blk.replace(/\n/g, " ").trim()}</p>;
+              })}
               <p className="mt-5">Yours sincerely,</p>
               <p className="mt-2 font-bold" style={{ color: "var(--ink)" }}>{signatoryName.trim() || companyName || "Your Company"}</p>
               {signatoryTitle.trim() && <p className="text-xs" style={{ color: "var(--ink-2)" }}>{signatoryTitle.trim()}</p>}

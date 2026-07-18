@@ -111,8 +111,19 @@ async function buildSignedPdf(model: LetterModel, opts: {
   para(model.subject.toUpperCase(), bold, 10.5, ink, 15.5);
   y -= 8;
 
-  // Body paragraphs — prose, terms woven in (no table).
-  for (const p of model.paragraphs) { para(p, font, 10.5, ink, 15.5); y -= 8; }
+  // Body blocks — a "HEADING\ntext" block prints the heading in bold caps.
+  for (const blk of model.paragraphs) {
+    const nl = blk.indexOf("\n");
+    const head = nl > 0 ? blk.slice(0, nl).trim() : "";
+    if (head && head.length <= 45 && head === head.toUpperCase() && /[A-Z]/.test(head)) {
+      ensure(26);
+      para(head, bold, 9.5, ink, 13);
+      para(blk.slice(nl + 1).replace(/\n/g, " ").trim(), font, 10.5, ink, 15.5);
+    } else {
+      para(blk.replace(/\n/g, " ").trim(), font, 10.5, ink, 15.5);
+    }
+    y -= 8;
+  }
   y -= 6;
 
   // Sign-off with the named company signatory.
