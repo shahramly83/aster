@@ -3,9 +3,10 @@ import { View, Text, FlatList, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
+import { useNotifications } from "../NotificationsContext";
 import { loadMyInterviews } from "../lib/data";
 import { setStatusBarStyle } from "expo-status-bar";
-import { Card, Press, Avatar, Loader, EmptyState, ScreenTitle, Feather } from "../components/ui";
+import { Card, Press, Avatar, Loader, EmptyState, ScreenTitle, HeaderActions, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { fmtInterviewTime, minutesUntil } from "@aster/shared";
@@ -14,6 +15,7 @@ const bucket = (iso) => (minutesUntil(iso) <= 12 * 60 ? "soon" : "later");
 
 export default function TodayScreen({ navigation }) {
   const { profile, manager } = useAuth();
+  const { unread } = useNotifications();
   const [items, setItems] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -40,7 +42,10 @@ export default function TodayScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle subtitle={manager ? "Interviews you're on" : `${profile?.name || "Interviewer"} · ${profile?.company}`}>
+      <ScreenTitle
+        subtitle={manager ? "Interviews you're on" : `${profile?.name || "Interviewer"} · ${profile?.company}`}
+        right={<HeaderActions light unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
+      >
         Interviews
       </ScreenTitle>
       {error ? <Text style={[type.small, { color: theme.danger, paddingHorizontal: space(5), marginBottom: 8 }]}>{error}</Text> : null}

@@ -4,17 +4,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
+import { useNotifications } from "../NotificationsContext";
 import { loadTeam } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Card, Avatar, ScreenTitle, EmptyState, Feather } from "../components/ui";
+import { Card, Avatar, ScreenTitle, HeaderActions, EmptyState, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { ROLE_LABELS } from "@aster/shared";
 
 const ROLE_ICON = { owner: "star", admin: "shield", recruiter: "user-check", interviewer: "users" };
 
-export default function TeamsScreen() {
+export default function TeamsScreen({ navigation }) {
   const { profile } = useAuth();
+  const { unread } = useNotifications();
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -29,7 +31,12 @@ export default function TeamsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle subtitle={rows ? `${rows.length} member${rows.length === 1 ? "" : "s"}` : undefined}>Team</ScreenTitle>
+      <ScreenTitle
+        subtitle={rows ? `${rows.length} member${rows.length === 1 ? "" : "s"}` : undefined}
+        right={<HeaderActions light unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
+      >
+        Team
+      </ScreenTitle>
       <FlatList
         data={rows === null ? [] : rows}
         keyExtractor={(m) => m.id}
