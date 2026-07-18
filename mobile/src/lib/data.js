@@ -839,6 +839,10 @@ export async function createPoll({ companyId, candidateId, candidateName, jobId,
     p_candidate_id: candidateId,
     p_job_id: jobId || null,
   }).then(() => {}, () => {});
+  // Push the assigned interviewers (best-effort; needs notify-poll deployed).
+  supabase.functions.invoke("notify-poll", {
+    body: { candidate_id: candidateId, job_id: jobId || null, candidate_name: candidateName || null },
+  }).then(() => {}, () => {});
   return { ok: true, id: poll.id };
 }
 
