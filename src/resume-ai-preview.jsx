@@ -7482,7 +7482,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       <div className="w-full max-w-lg rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
         <div className="mb-5 flex items-center gap-3">
           {logoUrl
-            ? <img src={logoUrl} alt={company} style={{ height: 32, maxWidth: 160, objectFit: "contain" }} />
+            ? <img src={logoUrl} alt={company} style={{ height: 52, maxWidth: 220, objectFit: "contain" }} />
             : <span className="text-lg font-bold" style={{ color: "var(--ink)" }}>{company}</span>}
         </div>
         {settled ? (

@@ -33,6 +33,14 @@ async function sha256Hex(s: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Base64-encode bytes in chunks (spreading a whole PDF into fromCharCode overflows).
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  return btoa(bin);
+}
+
 function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mime: string } | null {
   const m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl || "");
   if (!m) return null;
@@ -151,31 +159,32 @@ async function buildSignedPdf(model: LetterModel, opts: {
   y -= 28;
 
   // Candidate signature block — single column: signature, then the date below it.
-  ensure(184);
-  const sigW = 300;
+  ensure(220);
+  const sigW = 320;
+  const sigRule = rgb(0.55, 0.57, 0.6);   // thin, soft signature/date rules
   page.drawText("ACCEPTED AND AGREED", { x: M, y, size: 9, font: bold, color: gray });
-  y -= 16;
-  // Signature mark (drawn image or typed), sitting just above its line.
-  const sigLineY = y - 42;
+  y -= 22;
+  // Signature mark (drawn image or typed), larger, sitting just above its line.
+  const sigLineY = y - 58;
   if (opts.signatureType === "drawn" && opts.drawn) {
     try {
       const img = opts.drawn.mime.includes("png") ? await doc.embedPng(opts.drawn.bytes) : await doc.embedJpg(opts.drawn.bytes);
-      const h = 42, w = Math.min((img.width / img.height) * h, 260);
+      const h = 62, w = Math.min((img.width / img.height) * h, 320);
       page.drawImage(img, { x: M, y: sigLineY + 3, width: w, height: h });
-    } catch { page.drawText(opts.signedName, { x: M, y: sigLineY + 8, size: 22, font: italic, color: ink }); }
+    } catch { page.drawText(opts.signedName, { x: M, y: sigLineY + 12, size: 30, font: italic, color: ink }); }
   } else {
-    page.drawText(opts.signedName, { x: M, y: sigLineY + 8, size: 22, font: italic, color: ink });
+    page.drawText(opts.signedName, { x: M, y: sigLineY + 12, size: 30, font: italic, color: ink });
   }
-  page.drawLine({ start: { x: M, y: sigLineY }, end: { x: M + sigW, y: sigLineY }, thickness: 1.2, color: ink });
-  y = sigLineY - 14;
+  page.drawLine({ start: { x: M, y: sigLineY }, end: { x: M + sigW, y: sigLineY }, thickness: 0.6, color: sigRule });
+  y = sigLineY - 15;
   page.drawText(opts.signedName, { x: M, y, size: 11, font: bold, color: ink }); y -= 12;
-  page.drawText("SIGNATURE", { x: M, y, size: 8, font, color: gray }); y -= 36;
+  page.drawText("SIGNATURE", { x: M, y, size: 8, font, color: gray }); y -= 40;
   // Date, below the name.
   const dsigned = new Date(opts.signedAtIso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
   page.drawText(dsigned, { x: M, y, size: 11, font: bold, color: ink });
-  const dateLineY = y - 6;
-  page.drawLine({ start: { x: M, y: dateLineY }, end: { x: M + sigW, y: dateLineY }, thickness: 1.2, color: ink });
-  y = dateLineY - 14;
+  const dateLineY = y - 7;
+  page.drawLine({ start: { x: M, y: dateLineY }, end: { x: M + sigW, y: dateLineY }, thickness: 0.6, color: sigRule });
+  y = dateLineY - 15;
   page.drawText("DATE", { x: M, y, size: 8, font, color: gray });
 
   // Footer on the first page.
@@ -323,7 +332,10 @@ Deno.serve(async (req) => {
           body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.",
         });
         const tokens = { candidate_name: candidateName, job_title: jobTitle, company_name: companyName };
-        await sendEmail({ to: cand.email, subject: renderTemplate(tpl.subject, tokens), html: companyShell({ companyName, logoUrl, heading: "Welcome to the team", preview: `Welcome to ${companyName}!`, bodyHtml: emailParagraphs(renderTemplate(tpl.body, tokens)) }) }).catch((e) => console.error("welcome email", e));
+        // Attach the candidate's signed offer letter (PDF + certificate) for their records.
+        const attachments = [{ filename: "signed-offer-letter.pdf", content: bytesToBase64(pdf), contentType: "application/pdf" }];
+        const welcomeBody = `${emailParagraphs(renderTemplate(tpl.body, tokens))}<p style="margin:16px 0 0;color:#6b6b7b;font-size:13px;">A signed copy of your offer letter is attached to this email for your records.</p>`;
+        await sendEmail({ to: cand.email, subject: renderTemplate(tpl.subject, tokens), html: companyShell({ companyName, logoUrl, heading: "Welcome to the team", preview: `Welcome to ${companyName}!`, bodyHtml: welcomeBody }), attachments }).catch((e) => console.error("welcome email", e));
       }
     } catch (e) { console.error("aster-sign completion emails failed", e); }
 
