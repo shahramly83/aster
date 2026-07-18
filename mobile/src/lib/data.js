@@ -348,6 +348,21 @@ export async function loadRecentActivity(companyId, limit = 8) {
   }));
 }
 
+// The current pipeline stage for a candidate (latest application). Lets a screen
+// reached without a stage param (e.g. from a notification) show the right stage.
+export async function loadApplicationStage(companyId, candidateId) {
+  if (!companyId || !candidateId) return null;
+  const { data } = await supabase
+    .from("applications")
+    .select("stage")
+    .eq("company_id", companyId)
+    .eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.stage || null;
+}
+
 // Company-wide pipeline summary for the manager dashboard: total per stage plus
 // a few headline numbers. One lightweight query over applications.
 export async function loadPipelineSummary(companyId) {

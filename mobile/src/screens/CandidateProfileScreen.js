@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationStage } from "../lib/data";
 import { Card, Button, Avatar, Loader, SectionHeader, ScreenHeader, Feather } from "../components/ui";
 import OfferSheet from "../components/OfferSheet";
 import { theme, type, space, radius } from "../theme";
@@ -28,13 +28,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [c, sc, iv, off] = await Promise.all([
+    const [c, sc, iv, off, stg] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId),
       loadCandidateInterview(profile.companyId, candidateId),
       loadOffer(profile.companyId, candidateId),
+      loadApplicationStage(profile.companyId, candidateId),
     ]);
     setCandidate(c); setCards(sc); setScheduledAt(iv); setOffer(off);
+    if (stg) setStage(stg); // reflect the true current stage (e.g. opened from a notification)
     setApprovals(off?.id && off.approval_status ? await loadOfferApprovals(off.id) : []);
     setLoading(false);
   }, [candidateId, profile.companyId]);

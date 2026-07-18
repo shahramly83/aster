@@ -296,7 +296,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={{ flex: 1, alignItems: "center" }}>
               <AsterLogo width={96} color={theme.white} />
             </View>
-            <IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Main", { screen: "ProfileTab" })} />
+            <IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Notifications")} />
           </View>
         </SafeAreaView>
       </View>

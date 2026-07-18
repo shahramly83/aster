@@ -102,7 +102,7 @@ export default function DashboardScreen({ navigation }) {
       <TopBar
         mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
-        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("ProfileTab")} />}
+        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Notifications")} />}
       />
 
       <ScrollView
