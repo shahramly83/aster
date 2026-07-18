@@ -252,7 +252,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           <View style={styles.sheet}>
             {/* Actions */}
             <View style={styles.actions}>
-              <Button title="Discuss" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={matchReason ? { flex: 1 } : { minWidth: 220 }} />
+              <Button title="Discuss with Panel" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={matchReason ? { flex: 1.7 } : { flex: 1 }} />
               {matchReason ? (
                 <Button title="Why" icon="zap" variant="ghost" onPress={() => setWhyOpen(true)} style={{ flex: 1 }} />
               ) : null}
