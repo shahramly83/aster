@@ -91,6 +91,7 @@ export default function InterviewDetailScreen({ route, navigation }) {
         ) : null}
 
         <Button title="Fill scorecard" icon="edit-3" onPress={() => navigation.navigate("Scorecard", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName })} style={{ marginTop: space(5) }} />
+        <Button title="Discuss with panel" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName })} style={{ marginTop: space(3) }} />
       </ScrollView>
       </SafeAreaView>
     </View>
