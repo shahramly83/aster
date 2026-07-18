@@ -74,15 +74,21 @@ export default function JobDetailScreen({ route, navigation }) {
     }
   };
 
+  // Show only strong matches: weak "other"-fit applicants stay in the talent pool
+  // and aren't listed here. A manual shortlist overrides the AI and counts as strong.
+  const strongRows = useMemo(
+    () => (rows || []).filter((r) => r.fit !== "other" || r.stage === "shortlisted"),
+    [rows]
+  );
   const filtered = useMemo(
-    () => (rows || []).filter((r) => filter === "all" || r.stage === filter),
-    [rows, filter]
+    () => strongRows.filter((r) => filter === "all" || r.stage === filter),
+    [strongRows, filter]
   );
 
   // ---- AI Rank gating (mirrors web) ----
-  // Only Applied + Shortlisted candidates are rankable.
+  // Only Applied + Shortlisted strong matches are rankable.
   const RANKABLE = ["applied", "shortlisted"];
-  const activeRows = (rows || []).filter((r) => RANKABLE.includes(r.stage));
+  const activeRows = strongRows.filter((r) => RANKABLE.includes(r.stage));
   const canRank = activeRows.length >= 2;                 // needs 2+ candidates to compare
   const hasScores = (rows || []).some((r) => typeof r.matchScore === "number");
   const rankUnits = Math.max(1, Math.ceil(Math.min(activeRows.length, 40) / 10));
@@ -190,7 +196,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
           {FILTERS.map((f) => {
             const active = filter === f.key;
-            const count = f.key === "all" ? rows.length : rows.filter((r) => r.stage === f.key).length;
+            const count = f.key === "all" ? strongRows.length : strongRows.filter((r) => r.stage === f.key).length;
             return (
               <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[styles.chip, active && styles.chipActive]}>
                 <Text style={[type.smallStrong, { color: active ? theme.white : theme.ink2 }]}>{f.label}</Text>

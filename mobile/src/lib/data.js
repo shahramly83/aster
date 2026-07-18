@@ -383,7 +383,7 @@ export async function loadPipelineSummary(companyId) {
 export async function loadApplicants(companyId, jobId) {
   const { data: apps } = await supabase
     .from("applications")
-    .select("id, candidate_id, stage, match_score, created_at")
+    .select("id, candidate_id, stage, match_score, fit, created_at")
     .eq("company_id", companyId)
     .eq("job_id", jobId)
     .order("match_score", { ascending: false, nullsFirst: false });
@@ -411,6 +411,7 @@ export async function loadApplicants(companyId, jobId) {
       years: typeof p.years_of_experience === "number" ? p.years_of_experience : null,
       appliedAt: a.created_at || null,
       stage: a.stage || "applied",
+      fit: a.fit || null, // "other" = talent pool (weak fit); anything else = strong
       matchScore: typeof a.match_score === "number" ? a.match_score : null,
       avatarUrl: c.photo_path ? urlByPath[c.photo_path] || null : null,
     };
@@ -466,10 +467,13 @@ export async function runAiRank({ companyId, jobId, job }) {
   // Active pool: applications not in a terminal stage, whose candidate is parsed.
   const { data: apps } = await supabase
     .from("applications")
-    .select("candidate_id, stage, match_reasons")
+    .select("candidate_id, stage, fit, match_reasons")
     .eq("company_id", companyId)
     .eq("job_id", jobId);
-  const active = (apps || []).filter((a) => RANKABLE_STAGES.includes(a.stage || "applied"));
+  // Rankable = Applied/Shortlisted AND a strong match (a manual shortlist overrides
+  // the AI's "other" call and counts as strong).
+  const active = (apps || []).filter((a) =>
+    RANKABLE_STAGES.includes(a.stage || "applied") && (a.fit !== "other" || a.stage === "shortlisted"));
   const prevReason = {};
   active.forEach((a) => { if (a.match_reasons) prevReason[a.candidate_id] = a.match_reasons; });
   const candIds = [...new Set(active.map((a) => a.candidate_id))];
