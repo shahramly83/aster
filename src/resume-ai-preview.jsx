@@ -20515,9 +20515,11 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     const start = fmt(startDate) || "[start date]";
     const pay = salary.trim() !== "" ? `${SYM[currency] || ""}${Number(salary).toLocaleString("en-US")}` : "[Basic Salary]";
     const mgr = "your immediate superior";
+    const exp = fmt(expiresAt);   // optional: only shown when an expiry date is set
     return [
       `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
       `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before ${start}, failing which this offer of employment shall be null and void.`,
+      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until ${exp}. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
       `REMUNERATION\nYou will be paid a Basic Salary of ${pay} per month with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
       `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons for doing so. During the probationary period, the employment may be terminated by the Company or the employee by giving to the other not less than two (2) weeks' notice or two (2) weeks' salary in lieu of such notice and without assigning any reasons therefor.`,
       `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
@@ -20533,7 +20535,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   useEffect(() => {
     if (!bodyEdited) setBody(composeBody());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, salary, currency, startDate, companyName]);
+  }, [title, salary, currency, startDate, expiresAt, companyName]);
 
   const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const labelClass = "block text-xs text-neutral-500 mb-1";
