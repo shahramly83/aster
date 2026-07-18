@@ -119,11 +119,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const parsed = candidate?.parsed || {};
   const name = nameOf();
 
-  // Follow the web sequence: you schedule an interview once a candidate is
-  // shortlisted, and you can only add a scorecard once an interview exists.
+  // Follow the web sequence: schedule an interview once shortlisted, and only
+  // open scorecards once the interview has actually happened (its time is past),
+  // or the candidate has already moved past interviewing.
   const canSchedule = ["shortlisted", "interviewing"].includes(stage);
   const showInterview = !!scheduledAt || canSchedule;
-  const canScore = !!scheduledAt || ["interviewing", "offer", "hired"].includes(stage);
+  const interviewDone = !!scheduledAt && new Date(scheduledAt).getTime() < Date.now();
+  const canScore = interviewDone || ["offer", "hired"].includes(stage);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
