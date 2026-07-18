@@ -81,10 +81,15 @@ export function HeroBanner({ title, subtitle, icon = "zap", onPress, accent = th
 }
 
 // ---- Circular icon chip -----------------------------------------------------
-export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44, onPress }) {
+export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44, onPress, badge = 0 }) {
   const chip = (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
       <Feather name={name} size={size * 0.42} color={tint} />
+      {badge > 0 ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeTxt}>{badge > 9 ? "9+" : badge}</Text>
+        </View>
+      ) : null}
     </View>
   );
   if (onPress) return <Press onPress={onPress} scaleTo={0.92}>{chip}</Press>;
@@ -289,6 +294,8 @@ const styles = StyleSheet.create({
   screenHeader: { backgroundColor: theme.brand },
   screenHeaderRow: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(5) },
   screenBack: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  badge: { position: "absolute", top: -3, right: -3, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: "#F2526B", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: theme.brand },
+  badgeTxt: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 10, lineHeight: 12 },
   screenEyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.4, color: "rgba(255,255,255,0.72)", marginBottom: 5 },
   screenHeadTitle: { fontFamily: "Inter_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.3, color: theme.white },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginTop: space(2), paddingHorizontal: space(1) },

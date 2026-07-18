@@ -6,6 +6,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
+import { useNotifications } from "../NotificationsContext";
 import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, IconChip, StagePill, EmptyState, Feather } from "../components/ui";
@@ -27,6 +28,7 @@ const FILTERS = [
 
 export default function JobDetailScreen({ route, navigation }) {
   const { profile } = useAuth();
+  const { unread } = useNotifications();
   const { jobId, jobTitle, job } = route.params || {};
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -296,7 +298,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={{ flex: 1, alignItems: "center" }}>
               <AsterLogo width={96} color={theme.white} />
             </View>
-            <IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Notifications")} />
+            <IconChip name="bell" tint={theme.white} bg={theme.brandPanel} badge={unread} onPress={() => navigation.navigate("Notifications")} />
           </View>
         </SafeAreaView>
       </View>

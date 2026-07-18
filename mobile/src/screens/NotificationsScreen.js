@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
+import { useNotifications } from "../NotificationsContext";
 import { loadRecentActivity } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { ScreenHeader, EmptyState, Feather } from "../components/ui";
@@ -28,6 +29,7 @@ const DEFAULT_TYPE = { icon: "bell", tint: "#6B7280" };
 
 export default function NotificationsScreen({ navigation }) {
   const { profile } = useAuth();
+  const { markAllRead } = useNotifications();
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -36,7 +38,8 @@ export default function NotificationsScreen({ navigation }) {
     setRows(await loadRecentActivity(profile.companyId, 50));
   }, [profile]);
 
-  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
+  // Opening the screen marks everything up to now as seen (clears the bell badge).
+  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); markAllRead(); }, [markAllRead]));
   useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 

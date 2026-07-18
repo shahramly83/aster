@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
+import { useNotifications } from "../NotificationsContext";
 import { loadAnalytics, loadCredits, loadTopSources, subscribeDashboard } from "../lib/data";
 import { Press, IconChip, TopBar, Button, Loader, Feather } from "../components/ui";
 import { RingGauge, MeterBar, CreditRings } from "../components/Gauge";
@@ -48,6 +49,7 @@ function sourceIcon(name) {
 // meter and per-metric gauges. Data-forward, styled after the reference concept.
 export default function DashboardScreen({ navigation }) {
   const { profile } = useAuth();
+  const { unread } = useNotifications();
   const [a, setA] = useState(null);
   const [credits, setCredits] = useState(null);
   const [sources, setSources] = useState(null);
@@ -102,7 +104,7 @@ export default function DashboardScreen({ navigation }) {
       <TopBar
         mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
-        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Notifications")} />}
+        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} badge={unread} onPress={() => navigation.navigate("Notifications")} />}
       />
 
       <ScrollView

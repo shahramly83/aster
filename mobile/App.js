@@ -17,6 +17,7 @@ import {
 
 import * as SplashScreen from "expo-splash-screen";
 import { AuthProvider, useAuth } from "./src/AuthContext";
+import { NotificationsProvider } from "./src/NotificationsContext";
 import { isManagerRole } from "@aster/shared";
 import { linking } from "./src/lib/linking";
 import { theme } from "./src/theme";
@@ -146,14 +147,16 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer
-          linking={linking}
-          theme={navTheme}
-          fallback={<View style={{ flex: 1, backgroundColor: theme.brand }} />}
-          onStateChange={applyBar}
-        >
-          <Root />
-        </NavigationContainer>
+        <NotificationsProvider>
+          <NavigationContainer
+            linking={linking}
+            theme={navTheme}
+            fallback={<View style={{ flex: 1, backgroundColor: theme.brand }} />}
+            onStateChange={applyBar}
+          >
+            <Root />
+          </NavigationContainer>
+        </NotificationsProvider>
       </AuthProvider>
       {!splashDone ? <BrandSplash onDone={() => setSplashDone(true)} /> : null}
     </SafeAreaProvider>

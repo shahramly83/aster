@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
+import { useNotifications } from "../NotificationsContext";
 import { loadOpenPositions } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Loader, EmptyState, TopBar, IconChip, Feather } from "../components/ui";
@@ -27,6 +28,7 @@ function daysOpen(iso) {
 
 export default function OpenPositionsScreen({ navigation }) {
   const { profile, manager, assignedJobIds } = useAuth();
+  const { unread } = useNotifications();
   const [jobs, setJobs] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [active, setActive] = useState(0);
@@ -52,7 +54,7 @@ export default function OpenPositionsScreen({ navigation }) {
       <TopBar
         mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
-        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Notifications")} />}
+        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} badge={unread} onPress={() => navigation.navigate("Notifications")} />}
       />
       <Text style={styles.sectionLabel}>OPEN ROLES · {jobs.length}</Text>
 
