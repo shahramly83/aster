@@ -82,10 +82,10 @@ export default function JobDetailScreen({ route, navigation }) {
         <Text style={[type.small, { color: "rgba(255,255,255,0.75)" }]}>candidate{total === 1 ? "" : "s"} in pipeline</Text>
 
         <View style={styles.heroPipe}>
-          {total > 0 && PIPE.map((k, i) => {
+          {total > 0 && PIPE.map((k) => {
             const n = counts[k] || 0;
             if (!n) return null;
-            return <View key={k} style={{ flex: n, backgroundColor: `rgba(255,255,255,${0.95 - i * 0.15})` }} />;
+            return <View key={k} style={{ flex: n, backgroundColor: stageColor(k) }} />;
           })}
         </View>
 
