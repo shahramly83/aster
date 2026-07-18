@@ -31,7 +31,9 @@ export default function DiscussionScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
   const insets = useSafeAreaInsets();
   const kb = useKeyboardHeight();
-  const bottomPad = kb > 0 ? kb : insets.bottom;
+  // Under edge-to-edge, the reported keyboard height usually excludes the nav-bar
+  // inset, so add it back so the composer clears the keyboard fully.
+  const bottomPad = kb > 0 ? kb + insets.bottom : insets.bottom;
   const { candidateId, jobId, candidateName } = route.params || {};
   const [messages, setMessages] = useState(null);
   const [poll, setPoll] = useState(null);
