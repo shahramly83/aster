@@ -6,7 +6,7 @@ import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
 import { loadMyInterviews } from "../lib/data";
 import { setStatusBarStyle } from "expo-status-bar";
-import { Card, Press, Avatar, Loader, EmptyState, ScreenTitle, HeaderActions, Feather } from "../components/ui";
+import { Card, Press, Avatar, Loader, TopBar, HeaderActions, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { fmtInterviewTime, minutesUntil } from "@aster/shared";
@@ -40,23 +40,37 @@ export default function TodayScreen({ navigation }) {
     ...(later.length ? [{ _header: "Later" }, ...later] : []),
   ];
 
+  const firstName = profile?.name?.split(" ")[0] || "there";
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle
-        subtitle={manager ? "Interviews you're on" : `${profile?.name || "Interviewer"} · ${profile?.company}`}
-        right={<HeaderActions light unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
-      >
-        Interviews
-      </ScreenTitle>
-      {error ? <Text style={[type.small, { color: theme.danger, paddingHorizontal: space(5), marginBottom: 8 }]}>{error}</Text> : null}
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      {/* Branded blue header, consistent with Positions */}
+      <View style={{ backgroundColor: theme.brand }}>
+        <SafeAreaView edges={["top"]}>
+          <TopBar
+            mark
+            subtitle={manager ? "Interviews you're on" : "Your panel interviews"}
+            name={firstName}
+            right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
+          />
+        </SafeAreaView>
+      </View>
+
+      {error ? <Text style={[type.small, { color: theme.danger, paddingHorizontal: space(5), marginTop: space(3) }]}>{error}</Text> : null}
       <FlatList
         data={flat}
         keyExtractor={(item) => (item._header ? `h-${item._header}` : `iv-${item.id}`)}
-        contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: space(4), paddingTop: space(4), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListEmptyComponent={
-          <EmptyState icon="calendar" title="No interviews scheduled" subtitle="When you're added to an interview panel, it appears here with a reminder." />
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}><Feather name="calendar" size={40} color={theme.brand} /></View>
+            <Text style={[type.h2, { color: theme.ink, marginTop: space(5) }]}>You're all set</Text>
+            <Text style={[type.body, { color: theme.ink3, textAlign: "center", marginTop: space(2), lineHeight: 22, maxWidth: 300 }]}>
+              No interviews scheduled yet. When you're added to a panel, it shows up here with a reminder.
+            </Text>
+          </View>
         }
         renderItem={({ item }) =>
           item._header
@@ -64,7 +78,7 @@ export default function TodayScreen({ navigation }) {
             : <InterviewCard iv={item} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} />
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -103,6 +117,8 @@ function InterviewCard({ iv, onPress }) {
 }
 
 const styles = StyleSheet.create({
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: space(6), paddingBottom: space(12) },
+  emptyIcon: { width: 100, height: 100, borderRadius: 30, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   section: { ...type.label, color: theme.ink3, marginTop: space(2), marginBottom: space(3), marginLeft: space(1) },
   card: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: space(3.5) },
