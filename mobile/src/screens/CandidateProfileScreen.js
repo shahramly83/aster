@@ -169,7 +169,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {offer ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Offer</SectionHeader>
-              <OfferCard offer={offer} approvals={approvals} onViewSigned={viewSigned} />
+              <OfferCard offer={offer} approvals={approvals} onViewSigned={viewSigned} canHire={manager && stage !== "hired"} onHire={() => moveTo("hired")} />
             </View>
           ) : null}
 
@@ -351,7 +351,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   );
 }
 
-function OfferCard({ offer, approvals, onViewSigned }) {
+function OfferCard({ offer, approvals, onViewSigned, canHire, onHire }) {
   const st = offerStatus(offer);
   const cur = { myr: "RM", usd: "$", sgd: "S$" }[offer.salary_currency] || "";
   const emp = { full_time: "Full-time", part_time: "Part-time", contract: "Contract", internship: "Internship" }[offer.employment_type] || null;
@@ -382,7 +382,8 @@ function OfferCard({ offer, approvals, onViewSigned }) {
           ))}
         </View>
       ) : null}
-      {signed ? <Button title="View signed offer" icon="file-text" variant="secondary" onPress={onViewSigned} style={{ marginTop: space(3) }} /> : null}
+      {signed && canHire ? <Button title="Mark as hired" icon="award" variant="success" onPress={onHire} style={{ marginTop: space(3) }} /> : null}
+      {signed ? <Button title="View signed offer" icon="file-text" variant="secondary" onPress={onViewSigned} style={{ marginTop: space(2.5) }} /> : null}
     </Card>
   );
 }
