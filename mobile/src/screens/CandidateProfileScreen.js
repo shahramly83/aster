@@ -148,14 +148,25 @@ export default function CandidateProfileScreen({ route, navigation }) {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
           <View style={styles.identity}>
             <View style={styles.avatarRing}>
-              <Avatar uri={candidate?.avatarUrl} name={name} size={84} />
+              <Avatar uri={candidate?.avatarUrl} name={name} size={88} />
             </View>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
-            {parsed.currentTitle ? <Text style={styles.role} numberOfLines={1}>{parsed.currentTitle}</Text> : null}
-            <View style={[styles.pill, { backgroundColor: stageColor(stage) + "1A" }]}>
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: stageColor(stage), marginRight: 7 }} />
-              <Text style={[type.smallStrong, { color: theme.ink2 }]}>{stageLabel(stage)}</Text>
+            <View style={[styles.badge, { backgroundColor: stageColor(stage) }]}>
+              <Feather name="zap" size={12} color={theme.white} />
+              <Text style={styles.badgeTxt}>{stageLabel(stage)}</Text>
             </View>
+            <Text style={styles.name} numberOfLines={2}>{name}</Text>
+            {Array.isArray(parsed.skills) && parsed.skills.length ? (
+              <View style={styles.tags}>
+                {parsed.skills.slice(0, 3).map((s, i) => (
+                  <View key={i} style={styles.tag}>
+                    <Feather name="check-circle" size={13} color={theme.brand} />
+                    <Text style={styles.tagTxt} numberOfLines={1}>{String(s)}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : parsed.currentTitle ? (
+              <Text style={styles.role} numberOfLines={1}>{parsed.currentTitle}</Text>
+            ) : null}
           </View>
 
           <View style={styles.sheet}>
@@ -477,16 +488,20 @@ function DetailRow({ icon, value, onPress, last }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingBottom: space(11), overflow: "hidden" },
-  watermark: { position: "absolute", top: 8, right: -30 },
+  hero: { paddingBottom: space(11), overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 },
+  watermark: { position: "absolute", top: 6, right: -32 },
   heroTop: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2) },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
   identity: { alignItems: "center", paddingHorizontal: space(5) },
-  avatarRing: { marginTop: -48, padding: 4, borderRadius: 50, backgroundColor: theme.card, shadowColor: "#0A1E9E", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  name: { fontFamily: "Inter_700Bold", fontSize: 21, letterSpacing: -0.3, color: theme.ink, marginTop: space(3) },
-  role: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink3, marginTop: 3 },
-  pill: { flexDirection: "row", alignItems: "center", marginTop: space(3), paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  sheet: { backgroundColor: theme.bg, paddingHorizontal: space(4), paddingTop: space(5), paddingBottom: space(6), minHeight: 360 },
+  avatarRing: { marginTop: -52, padding: 5, borderRadius: 54, backgroundColor: theme.card, shadowColor: "#0A1E9E", shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  badge: { flexDirection: "row", alignItems: "center", marginTop: -13, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.pill, shadowColor: "#0A1E9E", shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  badgeTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.white, marginLeft: 6 },
+  name: { fontFamily: "Inter_700Bold", fontSize: 26, lineHeight: 31, letterSpacing: -0.5, color: theme.ink, marginTop: space(3), textAlign: "center" },
+  role: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink3, marginTop: space(2) },
+  tags: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: space(3) },
+  tag: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  tagTxt: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: theme.ink, marginLeft: 6 },
+  sheet: { backgroundColor: theme.bg, paddingHorizontal: space(4), paddingTop: space(6), paddingBottom: space(6), minHeight: 340 },
 
   stageTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 8 },
   detailRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3) },
