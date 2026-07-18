@@ -774,6 +774,98 @@ export async function signedOfferUrl(candidateId) {
   }
 }
 
+// ---- Interview availability polls ---------------------------------------------
+// A manager proposes candidate interview slots; the panel votes their
+// availability; the manager picks the winning slot (which schedules it).
+
+// Latest poll for a candidate, with per-slot vote counts, voter names and
+// whether the current user voted. Returns null if there's no poll.
+export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
+  if (!companyId || !candidateId) return null;
+  const { data: poll } = await supabase
+    .from("interview_polls")
+    .select("id, job_id, status, chosen_slot, created_by, created_at")
+    .eq("company_id", companyId)
+    .eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!poll) return null;
+
+  const [{ data: slots }, { data: votes }] = await Promise.all([
+    supabase.from("interview_poll_slots").select("id, slot_ts").eq("poll_id", poll.id).order("slot_ts", { ascending: true }),
+    supabase.from("interview_poll_votes").select("slot_id, profile_id, voter_name").eq("poll_id", poll.id),
+  ]);
+  const bySlot = {};
+  (votes || []).forEach((v) => { (bySlot[v.slot_id] ||= []).push(v); });
+
+  return {
+    id: poll.id,
+    jobId: poll.job_id,
+    status: poll.status,
+    chosenSlot: poll.chosen_slot,
+    createdBy: poll.created_by,
+    slots: (slots || []).map((s) => {
+      const vs = bySlot[s.id] || [];
+      return {
+        id: s.id,
+        ts: s.slot_ts,
+        count: vs.length,
+        voters: vs.map((v) => v.voter_name || "Teammate"),
+        mine: vs.some((v) => v.profile_id === myProfileId),
+      };
+    }),
+  };
+}
+
+// Create a poll with the given ISO slots. Managers only (RLS-enforced).
+export async function createPoll({ companyId, candidateId, jobId, createdBy, slotsIso = [] }) {
+  const clean = [...new Set(slotsIso.filter(Boolean))];
+  if (clean.length < 2) return { ok: false, error: "Add at least two dates." };
+  const { data: poll, error } = await supabase
+    .from("interview_polls")
+    .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, created_by: createdBy })
+    .select("id").single();
+  if (error || !poll) return { ok: false, error: error?.message || "Couldn't create the poll." };
+  const rows = clean.map((ts) => ({ poll_id: poll.id, company_id: companyId, slot_ts: ts }));
+  const { error: se } = await supabase.from("interview_poll_slots").insert(rows);
+  if (se) return { ok: false, error: se.message };
+  return { ok: true, id: poll.id };
+}
+
+// Toggle the current user's availability for a slot.
+export async function togglePollVote({ companyId, pollId, slotId, profileId, voterName, on }) {
+  if (on) {
+    const { error } = await supabase.from("interview_poll_votes")
+      .insert({ poll_id: pollId, slot_id: slotId, company_id: companyId, profile_id: profileId, voter_name: voterName || null });
+    // A duplicate (already voted) isn't an error worth surfacing.
+    if (error && error.code !== "23505") return error.message;
+    return null;
+  }
+  const { error } = await supabase.from("interview_poll_votes")
+    .delete().eq("slot_id", slotId).eq("profile_id", profileId);
+  return error ? error.message : null;
+}
+
+// Close a poll, recording the chosen slot time.
+export async function closePoll(pollId, chosenIso) {
+  const { error } = await supabase.from("interview_polls")
+    .update({ status: "closed", chosen_slot: chosenIso || null, closed_at: new Date().toISOString() })
+    .eq("id", pollId);
+  return error ? error.message : null;
+}
+
+// Live poll updates: reload on any vote/poll change in the company.
+let _pollChanSeq = 0;
+export function subscribePoll(companyId, onChange) {
+  const channel = supabase
+    .channel(`polls:${companyId}:${++_pollChanSeq}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "interview_poll_votes", filter: `company_id=eq.${companyId}` }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "interview_polls", filter: `company_id=eq.${companyId}` }, onChange)
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
 // ---- Candidate discussion (chat) ----------------------------------------------
 
 // Load a candidate's discussion thread, oldest first, with author names.

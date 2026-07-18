@@ -1,17 +1,25 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, FlatList, Pressable, KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
+import { View, Text, TextInput, FlatList, Pressable, Modal, KeyboardAvoidingView, Platform, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAuth } from "../AuthContext";
-import { loadMessages, sendMessage, subscribeMessages } from "../lib/data";
-import { Avatar, Loader, EmptyState, ScreenHeader, Feather } from "../components/ui";
+import {
+  loadMessages, sendMessage, subscribeMessages,
+  loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
+} from "../lib/data";
+import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
-import { relTime } from "@aster/shared";
+import { relTime, fmtInterviewTime } from "@aster/shared";
 
-// Candidate-scoped chat between the hiring manager and the interview panel.
-export default function DiscussionScreen({ route }) {
-  const { profile } = useAuth();
+// Candidate-scoped chat between the hiring manager and the interview panel, with
+// an interview availability poll pinned above the thread.
+export default function DiscussionScreen({ route, navigation }) {
+  const { profile, manager } = useAuth();
   const { candidateId, jobId, candidateName } = route.params || {};
   const [messages, setMessages] = useState(null);
+  const [poll, setPoll] = useState(null);
+  const [savingSlot, setSavingSlot] = useState(null);
+  const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
@@ -23,9 +31,13 @@ export default function DiscussionScreen({ route }) {
     scrollEnd();
   }, [candidateId]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadPoll = useCallback(async () => {
+    setPoll(await loadCandidatePoll(profile.companyId, candidateId, profile.userId));
+  }, [profile?.companyId, profile?.userId, candidateId]);
 
-  // Live updates: append inserts from anyone else (our own echo is added on send).
+  useEffect(() => { load(); loadPoll(); }, [load, loadPoll]);
+
+  // Live message inserts.
   useEffect(() => {
     const unsub = subscribeMessages(candidateId, (row) => {
       setMessages((prev) => {
@@ -37,13 +49,19 @@ export default function DiscussionScreen({ route }) {
     return unsub;
   }, [candidateId, profile?.userId]);
 
+  // Live poll/vote changes → reload the poll.
+  useEffect(() => {
+    if (!profile?.companyId) return undefined;
+    const unsub = subscribePoll(profile.companyId, () => loadPoll());
+    return unsub;
+  }, [profile?.companyId, loadPoll]);
+
   const onSend = async () => {
     const text = draft.trim();
     if (!text || sending) return;
     setDraft("");
     setSending(true);
-    // Optimistic bubble.
-    const tempId = `temp-${text.length}-${text.slice(0, 4)}`;
+    const tempId = `temp-${Date.now()}`;
     setMessages((prev) => [...(prev || []), { id: tempId, authorId: profile.userId, authorName: "You", body: text, createdAt: new Date().toISOString(), pending: true }]);
     scrollEnd();
     try {
@@ -56,46 +74,222 @@ export default function DiscussionScreen({ route }) {
     }
   };
 
+  // Toggle my availability for a slot (optimistic).
+  const toggleVote = async (slot) => {
+    if (!poll || poll.status !== "open" || savingSlot) return;
+    const on = !slot.mine;
+    setSavingSlot(slot.id);
+    setPoll((p) => ({
+      ...p,
+      slots: p.slots.map((s) => (s.id === slot.id
+        ? { ...s, mine: on, count: Math.max(0, s.count + (on ? 1 : -1)), voters: on ? [...s.voters, "You"] : s.voters.filter((v) => v !== "You") }
+        : s)),
+    }));
+    const err = await togglePollVote({ companyId: profile.companyId, pollId: poll.id, slotId: slot.id, profileId: profile.userId, voterName: profile.name, on });
+    setSavingSlot(null);
+    if (err) { Alert.alert("Couldn't update", err); loadPoll(); }
+  };
+
+  // Manager picks a slot → schedule it and close the poll.
+  const pickSlot = (slot) => {
+    Alert.alert("Schedule this interview?", `${candidateName || "Candidate"} · ${fmtInterviewTime(slot.ts, profile.timezone)}`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Schedule",
+        onPress: async () => {
+          try {
+            await scheduleInterview({ companyId: profile.companyId, candidateId, jobId: poll.jobId || jobId, candidateName, startIso: slot.ts, interviewerId: profile.userId, interviewerName: profile.name });
+            await closePoll(poll.id, slot.ts);
+            sendMessage({ companyId: profile.companyId, candidateId, jobId, authorId: profile.userId, body: `Interview scheduled for ${fmtInterviewTime(slot.ts, profile.timezone)}.` }).catch(() => {});
+            await Promise.all([load(), loadPoll()]);
+          } catch (e) {
+            Alert.alert("Couldn't schedule", e?.message || "You may not have permission to schedule interviews.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const onCreatePoll = async (slotsIso) => {
+    const res = await createPoll({ companyId: profile.companyId, candidateId, jobId, createdBy: profile.userId, slotsIso });
+    if (res.ok) await loadPoll();
+    return res;
+  };
+
+  const canCreate = manager && (!poll || poll.status === "closed");
+
   if (messages === null) return <Loader label="Loading discussion…" />;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <ScreenHeader eyebrow="Discussion" title={candidateName || "Candidate"} onBack={() => navigation.goBack()} />
+      <ScreenHeader
+        eyebrow="Discussion"
+        title={candidateName || "Candidate"}
+        onBack={() => navigation.goBack()}
+        right={canCreate ? (
+          <Press onPress={() => setComposerOpen(true)} haptic="light" style={styles.headerBtn}>
+            <Feather name="calendar" size={18} color={theme.white} />
+          </Press>
+        ) : null}
+      />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(m) => String(m.id)}
-          contentContainerStyle={{ padding: space(4), paddingBottom: space(4), flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={scrollEnd}
-          ListHeaderComponent={
-            <View style={styles.banner}>
-              <Feather name="users" size={13} color={theme.ink3} />
-              <Text style={[type.small, { color: theme.ink3, marginLeft: 6, flex: 1 }]}>
-                Private discussion about {candidateName || "this candidate"} with your panel.
-              </Text>
-            </View>
-          }
-          ListEmptyComponent={<View style={{ marginTop: space(10) }}><EmptyState icon="message-circle" title="No messages yet" subtitle="Start the conversation with your interview panel." /></View>}
-          renderItem={({ item }) => <Bubble m={item} mine={item.authorId === profile.userId} />}
-        />
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+          {poll ? (
+            <PollCard poll={poll} tz={profile.timezone} manager={manager} savingSlot={savingSlot} onToggle={toggleVote} onPick={pickSlot} />
+          ) : null}
 
-        <View style={styles.composer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Message the panel…"
-            placeholderTextColor={theme.ink4}
-            value={draft} onChangeText={setDraft} multiline
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(m) => String(m.id)}
+            contentContainerStyle={{ padding: space(4), paddingBottom: space(4), flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={scrollEnd}
+            ListHeaderComponent={
+              <View style={styles.banner}>
+                <Feather name="users" size={13} color={theme.ink3} />
+                <Text style={[type.small, { color: theme.ink3, marginLeft: 6, flex: 1 }]}>
+                  Private discussion about {candidateName || "this candidate"} with your panel.
+                </Text>
+              </View>
+            }
+            ListEmptyComponent={<View style={{ marginTop: space(8) }}><EmptyState icon="message-circle" title="No messages yet" subtitle="Start the conversation with your interview panel." /></View>}
+            renderItem={({ item }) => <Bubble m={item} mine={item.authorId === profile.userId} />}
           />
-          <Pressable onPress={onSend} disabled={!draft.trim()} style={[styles.send, !draft.trim() && { opacity: 0.4 }]}>
-            <Feather name="arrow-up" size={20} color={theme.white} />
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+
+          <View style={styles.composer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Message the panel…"
+              placeholderTextColor={theme.ink4}
+              value={draft} onChangeText={setDraft} multiline
+            />
+            <Pressable onPress={onSend} disabled={!draft.trim()} style={[styles.send, !draft.trim() && { opacity: 0.4 }]}>
+              <Feather name="arrow-up" size={20} color={theme.white} />
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
+
+      <PollComposer visible={composerOpen} tz={profile.timezone} onClose={() => setComposerOpen(false)} onCreate={onCreatePoll} />
     </View>
+  );
+}
+
+function PollCard({ poll, tz, manager, savingSlot, onToggle, onPick }) {
+  const open = poll.status === "open";
+  return (
+    <View style={styles.pollCard}>
+      <View style={styles.pollHead}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Feather name="calendar" size={15} color={theme.brand} />
+          <Text style={[type.bodyStrong, { color: theme.ink, marginLeft: 8 }]}>Interview availability</Text>
+        </View>
+        <View style={[styles.pollStatus, { backgroundColor: open ? theme.brandSoft : "#F0FDF4" }]}>
+          <Text style={[type.smallStrong, { color: open ? theme.brand : "#166534" }]}>{open ? "Open" : "Scheduled"}</Text>
+        </View>
+      </View>
+
+      <View style={{ marginTop: space(3), gap: 8 }}>
+        {poll.slots.map((s) => {
+          const chosen = !open && poll.chosenSlot === s.ts;
+          return (
+            <View key={s.id} style={[styles.slot, s.mine && open && styles.slotMine, chosen && styles.slotChosen]}>
+              <Pressable onPress={() => open && onToggle(s)} disabled={!open || !!savingSlot} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                <View style={[styles.check, (s.mine || chosen) && styles.checkOn]}>
+                  {s.mine || chosen ? <Feather name="check" size={12} color={theme.white} /> : null}
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={[type.smallStrong, { color: theme.ink }]}>{fmtInterviewTime(s.ts, tz)}</Text>
+                  <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
+                    {s.count} available{s.voters.length ? ` · ${s.voters.slice(0, 2).join(", ")}${s.count > 2 ? ` +${s.count - 2}` : ""}` : ""}
+                  </Text>
+                </View>
+              </Pressable>
+              {manager && open ? (
+                <Pressable onPress={() => onPick(s)} hitSlop={6} style={styles.pickBtn}>
+                  <Text style={[type.smallStrong, { color: theme.white }]}>Pick</Text>
+                </Pressable>
+              ) : chosen ? <Feather name="check-circle" size={18} color={theme.success} /> : null}
+            </View>
+          );
+        })}
+      </View>
+
+      {open ? (
+        <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
+          {manager ? "Tap a slot to mark your availability, or Pick one to schedule it." : "Tap the slots you're available for."}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function PollComposer({ visible, tz, onClose, onCreate }) {
+  const [slots, setSlots] = useState([]); // ISO strings
+  const [picker, setPicker] = useState(null); // null | "date" | "time"
+  const [pendingDate, setPendingDate] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const reset = () => { setSlots([]); setErr(null); setBusy(false); setPendingDate(null); setPicker(null); };
+  const close = () => { if (!busy) { reset(); onClose(); } };
+
+  const onPickChange = (event, sel) => {
+    const which = picker; setPicker(null);
+    if (event.type === "dismissed" || !sel) { setPendingDate(null); return; }
+    if (which === "date") { setPendingDate(sel); setPicker("time"); return; }
+    const d = new Date(pendingDate || new Date());
+    d.setHours(sel.getHours(), sel.getMinutes(), 0, 0);
+    setPendingDate(null);
+    setSlots((p) => [...new Set([...p, d.toISOString()])].sort());
+  };
+
+  const post = async () => {
+    setErr(null);
+    if (slots.length < 2) { setErr("Add at least two dates."); return; }
+    setBusy(true);
+    const res = await onCreate(slots);
+    setBusy(false);
+    if (res?.ok === false) { setErr(res.error || "Couldn't post the poll."); return; }
+    reset();
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
+      <View style={styles.backdrop}>
+        <Pressable style={{ flex: 1 }} onPress={close} />
+        <View style={styles.sheet}>
+          <View style={styles.handle} />
+          <View style={styles.sheetHead}>
+            <Text style={[type.h3, { color: theme.ink }]}>Propose interview dates</Text>
+            <Pressable onPress={close} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+          </View>
+          <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Add a few options — your panel marks which they can make.</Text>
+
+          {slots.map((iso) => (
+            <View key={iso} style={styles.slotChip}>
+              <Feather name="calendar" size={14} color={theme.brand} />
+              <Text style={[type.small, { color: theme.ink, flex: 1, marginLeft: 8 }]}>{fmtInterviewTime(iso, tz)}</Text>
+              <Pressable onPress={() => setSlots((s) => s.filter((x) => x !== iso))} hitSlop={6}><Feather name="x" size={15} color={theme.ink3} /></Pressable>
+            </View>
+          ))}
+
+          <Pressable onPress={() => setPicker("date")} style={styles.addSlot}>
+            <Feather name="plus" size={15} color={theme.brand} />
+            <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 6 }]}>Add a date</Text>
+          </Pressable>
+
+          {err ? <Text style={[type.small, { color: "#B42318", marginTop: space(2) }]}>{err}</Text> : null}
+          <Button title={busy ? "Posting…" : "Post poll"} icon={busy ? undefined : "send"} onPress={post} disabled={busy || slots.length < 2} style={{ marginTop: space(4) }} />
+          <SafeAreaView edges={["bottom"]} />
+        </View>
+      </View>
+      {picker ? (
+        <DateTimePicker value={pendingDate || new Date(Date.now() + 86400000)} mode={picker} minimumDate={picker === "date" ? new Date() : undefined} onChange={onPickChange} />
+      ) : null}
+    </Modal>
   );
 }
 
@@ -117,6 +311,7 @@ function Bubble({ m, mine }) {
 }
 
 const styles = StyleSheet.create({
+  headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
   banner: { flexDirection: "row", alignItems: "center", backgroundColor: theme.line2, borderRadius: radius.md, padding: 12, marginBottom: space(4) },
   row: { flexDirection: "row", marginBottom: space(4), alignItems: "flex-end" },
   rowMine: { justifyContent: "flex-end" },
@@ -127,4 +322,23 @@ const styles = StyleSheet.create({
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 10, paddingHorizontal: space(4), paddingVertical: space(3), borderTopWidth: 1, borderTopColor: theme.line, backgroundColor: theme.card },
   input: { flex: 1, maxHeight: 120, minHeight: 44, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontFamily: "Inter_400Regular", fontSize: 15, color: theme.ink },
   send: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+
+  // Poll card
+  pollCard: { backgroundColor: theme.card, borderBottomWidth: 1, borderBottomColor: theme.line, paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(4) },
+  pollHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  pollStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  slot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 11 },
+  slotMine: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
+  slotChosen: { borderColor: theme.success, backgroundColor: "#F0FDF4" },
+  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
+  checkOn: { backgroundColor: theme.brand, borderColor: theme.brand },
+  pickBtn: { marginLeft: 10, paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+
+  // Composer sheet
+  backdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(2) },
+  handle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(3) },
+  sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
+  slotChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 8 },
+  addSlot: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingVertical: 8 },
 });
