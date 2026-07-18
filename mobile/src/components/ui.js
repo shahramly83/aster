@@ -96,6 +96,19 @@ export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44,
   return chip;
 }
 
+// ---- Header actions (settings + bell) ---------------------------------------
+// The top-right cluster on the blue tab screens: a settings gear then the
+// notification bell (with an optional unread badge).
+export function HeaderActions({ unread = 0, onSettings, onBell }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <IconChip name="settings" tint={theme.white} bg={theme.brandPanel} onPress={onSettings} />
+      <View style={{ width: 10 }} />
+      <IconChip name="bell" tint={theme.white} bg={theme.brandPanel} badge={unread} onPress={onBell} />
+    </View>
+  );
+}
+
 // ---- Button -----------------------------------------------------------------
 export function Button({ title, onPress, variant = "primary", icon, disabled, loading, style, haptic = "medium" }) {
   const kinds = {

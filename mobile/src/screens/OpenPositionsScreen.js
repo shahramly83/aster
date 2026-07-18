@@ -7,7 +7,7 @@ import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
 import { loadOpenPositions } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Press, Loader, EmptyState, TopBar, IconChip, Feather } from "../components/ui";
+import { Press, Loader, EmptyState, TopBar, HeaderActions, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { JOB_STAGES, stageColor } from "@aster/shared";
 
@@ -54,7 +54,7 @@ export default function OpenPositionsScreen({ navigation }) {
       <TopBar
         mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
-        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} badge={unread} onPress={() => navigation.navigate("Notifications")} />}
+        right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
       />
       <Text style={styles.sectionLabel}>OPEN ROLES · {jobs.length}</Text>
 

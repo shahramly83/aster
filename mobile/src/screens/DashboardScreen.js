@@ -6,7 +6,7 @@ import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
 import { loadAnalytics, loadCredits, loadTopSources, subscribeDashboard } from "../lib/data";
-import { Press, IconChip, TopBar, Button, Loader, Feather } from "../components/ui";
+import { Press, IconChip, HeaderActions, TopBar, Button, Loader, Feather } from "../components/ui";
 import { RingGauge, MeterBar, CreditRings } from "../components/Gauge";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
@@ -104,7 +104,7 @@ export default function DashboardScreen({ navigation }) {
       <TopBar
         mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
-        right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} badge={unread} onPress={() => navigation.navigate("Notifications")} />}
+        right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
       />
 
       <ScrollView

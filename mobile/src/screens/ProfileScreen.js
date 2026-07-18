@@ -6,13 +6,12 @@ import { setStatusBarStyle } from "expo-status-bar";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "../AuthContext";
-import { Card, Avatar, Button, ScreenTitle, IconTile, Feather } from "../components/ui";
-import { TAB_CLEARANCE } from "../components/FloatingTabBar";
+import { Card, Avatar, Button, ScreenHeader, IconTile, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 
 const BIOMETRIC_PREF_KEY = "aster.biometric.enabled";
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { profile, manager, signOut, setBiometricEnabled } = useAuth();
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioOn, setBioOn] = useState(false);
@@ -28,12 +27,13 @@ export default function ProfileScreen() {
 
   const toggleBio = async (v) => { setBioOn(v); await setBiometricEnabled(v); };
 
-  useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); }, []));
+  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle>Settings</ScreenTitle>
-      <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: TAB_CLEARANCE }} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScreenHeader eyebrow="Account" title="Settings" onBack={navigation?.canGoBack?.() ? () => navigation.goBack() : undefined} />
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
+      <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(10) }} showsVerticalScrollIndicator={false}>
         <Card style={{ flexDirection: "row", alignItems: "center" }}>
           <Avatar name={profile?.name || profile?.email} size={56} />
           <View style={{ marginLeft: 14, flex: 1 }}>
@@ -76,7 +76,8 @@ export default function ProfileScreen() {
         <Button title="Sign out" icon="log-out" variant="ghost" onPress={signOut} style={{ marginTop: space(6) }} />
         <Text style={[type.small, { color: theme.ink4, textAlign: "center", marginTop: space(4) }]}>Aster · v0.1.0</Text>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

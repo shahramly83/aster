@@ -50,8 +50,9 @@ function Tab({ icon, label, focused, onPress }) {
   useEffect(() => {
     Animated.spring(w, { toValue: focused ? 1 : 0, useNativeDriver: false, speed: 16, bounciness: 6 }).start();
   }, [focused]);
-  // Animate the label width so the active pill grows/shrinks smoothly.
-  const labelW = w.interpolate({ inputRange: [0, 1], outputRange: [0, label.length * 7.6 + 6] });
+  // Animate the label width so the active pill grows/shrinks smoothly. Width is
+  // generous enough to hold the full word (no ellipsis).
+  const labelW = w.interpolate({ inputRange: [0, 1], outputRange: [0, label.length * 8.7 + 8] });
   return (
     <Pressable onPress={onPress} style={styles.tap} hitSlop={6}>
       <Animated.View style={[styles.item, focused && styles.itemActive]}>
@@ -76,7 +77,7 @@ const styles = StyleSheet.create({
     height: 64,
   },
   tap: { flex: 0, alignItems: "center", justifyContent: "center" },
-  item: { flexDirection: "row", alignItems: "center", height: 48, paddingHorizontal: 11, borderRadius: radius.pill },
-  itemActive: { backgroundColor: theme.brand, paddingLeft: 12, paddingRight: 13 },
-  label: { ...type.smallStrong, color: theme.white, marginLeft: 7 },
+  item: { flexDirection: "row", alignItems: "center", height: 48, paddingHorizontal: 9, borderRadius: radius.pill },
+  itemActive: { backgroundColor: theme.brand, paddingLeft: 11, paddingRight: 12 },
+  label: { ...type.smallStrong, color: theme.white, marginLeft: 6 },
 });

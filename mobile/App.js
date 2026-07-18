@@ -62,7 +62,6 @@ function ManagerTabs() {
       <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Interviews" }} />
       <Tab.Screen name="TeamsTab" component={TeamsScreen} options={{ title: "Teams" }} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Settings" }} />
     </Tab.Navigator>
   );
 }
@@ -73,7 +72,6 @@ function InterviewerTabs() {
     <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today" }} />
       <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Settings" }} />
     </Tab.Navigator>
   );
 }
@@ -119,6 +117,7 @@ function Root() {
       <Stack.Screen name="CandidateProfile" component={CandidateProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Discussion" component={DiscussionScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Settings" component={ProfileScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -139,7 +138,7 @@ export default function App() {
   // Status bar follows the active route: light on the blue Pipeline dashboard,
   // dark everywhere else (including pushed stack screens).
   // Blue-header screens use a light status bar; everything else dark.
-  const BLUE_ROUTES = ["DashboardTab", "PositionsTab", "JobDetail", "CandidateProfile", "Scorecard", "Discussion", "InterviewDetail", "Notifications"];
+  const BLUE_ROUTES = ["DashboardTab", "PositionsTab", "JobDetail", "CandidateProfile", "Scorecard", "Discussion", "InterviewDetail", "Notifications", "Settings"];
   const applyBar = (state) => {
     let r = state?.routes?.[state.index];
     while (r?.state) r = r.state.routes[r.state.index];
