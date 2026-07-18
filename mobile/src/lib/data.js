@@ -158,7 +158,7 @@ export async function resendInterviewInvite(token) {
 export async function loadCandidate(candidateId) {
   const { data } = await supabase
     .from("candidates")
-    .select("id, parsed, full_name, email, file_name, has_photo, photo_path, resume_path")
+    .select("id, parsed, full_name, email, file_name, has_photo, photo_path, resume_path, experience_insights")
     .eq("id", candidateId)
     .maybeSingle();
   if (!data) return null;
@@ -171,6 +171,7 @@ export async function loadCandidate(candidateId) {
     fileName: data.file_name || "resume.pdf",
     avatarUrl: data.photo_path ? urlByPath[data.photo_path] || null : null,
     resumeUrl: data.resume_path ? urlByPath[data.resume_path] || null : null,
+    experienceInsights: data.experience_insights || null, // stored Claude analysis, if any
   };
 }
 
@@ -179,6 +180,25 @@ export async function loadInterviewQuestions(candidateId, jobId) {
   const q = supabase.from("interview_questions").select("questions").eq("candidate_id", candidateId);
   const { data } = jobId ? await q.eq("job_id", jobId).maybeSingle() : await q.maybeSingle();
   return Array.isArray(data?.questions) ? data.questions : [];
+}
+
+// Generate AI interview questions tailored to this candidate + role, then store
+// them (one set per candidate/job) so the whole panel reads the same set. Manager
+// only (RLS: interviewers read; admins write). Mirrors the web generate flow.
+export async function generateInterviewQuestions({ companyId, candidateId, jobId, parsed, jobTitle }) {
+  if (!jobId) return { ok: false, error: "This candidate isn't linked to a role." };
+  const { data, error } = await supabase.functions.invoke("generate-interview-questions", {
+    body: { candidate: { parsed }, jobTitle: jobTitle || "the role" },
+  });
+  if (error) return { ok: false, error: error.message || "Couldn't generate questions." };
+  if (data?.error) return { ok: false, error: data.error === "insufficient_credits" ? "Out of AI question credits this cycle." : data.error };
+  const questions = Array.isArray(data?.questions) ? data.questions : [];
+  if (!questions.length) return { ok: false, error: "No questions generated. Try again." };
+  await supabase.from("interview_questions").upsert(
+    { company_id: companyId, candidate_id: candidateId, job_id: jobId, questions },
+    { onConflict: "candidate_id,job_id" },
+  );
+  return { ok: true, questions };
 }
 
 // ---- Scorecards ----------------------------------------------------------------

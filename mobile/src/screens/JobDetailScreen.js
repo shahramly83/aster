@@ -196,36 +196,6 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
       </LinearGradient>
 
-      {/* AI Rank */}
-      <View style={styles.rankBar}>
-        <View style={styles.rankIcon}>
-          <Feather name={rankLocked || (!canRank && !ranking) ? "lock" : "zap"} size={16} color={theme.brand} />
-        </View>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[type.bodyStrong, { color: theme.ink }]}>AI Rank</Text>
-        </View>
-        <Pressable
-          onPress={onRankPress}
-          disabled={ranking}
-          style={[styles.rankBtn, (rankLocked || !canRank) && styles.rankBtnMuted, ranking && { opacity: 0.7 }]}
-        >
-          {ranking ? (
-            <ActivityIndicator color={theme.white} size="small" />
-          ) : (
-            <>
-              <Feather name={rankLocked ? "lock" : "zap"} size={14} color={theme.white} />
-              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>{rankLabel}</Text>
-            </>
-          )}
-        </Pressable>
-      </View>
-      {rankNotice ? (
-        <View style={[styles.notice, rankNotice.type === "ok" ? styles.noticeOk : styles.noticeErr]}>
-          <Feather name={rankNotice.type === "ok" ? "check-circle" : "alert-circle"} size={14} color={rankNotice.type === "ok" ? "#166534" : "#B42318"} />
-          <Text style={[type.small, { color: rankNotice.type === "ok" ? "#166534" : "#B42318", marginLeft: 8, flex: 1 }]}>{rankNotice.text}</Text>
-        </View>
-      ) : null}
-
       {/* Interviewers */}
       <View style={styles.interCard}>
         <View style={styles.interHead}>
@@ -267,6 +237,36 @@ export default function JobDetailScreen({ route, navigation }) {
           </Text>
         )}
       </View>
+
+      {/* AI Rank */}
+      <View style={styles.rankBar}>
+        <View style={styles.rankIcon}>
+          <Feather name={rankLocked || (!canRank && !ranking) ? "lock" : "zap"} size={16} color={theme.brand} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={[type.bodyStrong, { color: theme.ink }]}>AI Rank</Text>
+        </View>
+        <Pressable
+          onPress={onRankPress}
+          disabled={ranking}
+          style={[styles.rankBtn, (rankLocked || !canRank) && styles.rankBtnMuted, ranking && { opacity: 0.7 }]}
+        >
+          {ranking ? (
+            <ActivityIndicator color={theme.white} size="small" />
+          ) : (
+            <>
+              <Feather name={rankLocked ? "lock" : "zap"} size={14} color={theme.white} />
+              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>{rankLabel}</Text>
+            </>
+          )}
+        </Pressable>
+      </View>
+      {rankNotice ? (
+        <View style={[styles.notice, rankNotice.type === "ok" ? styles.noticeOk : styles.noticeErr]}>
+          <Feather name={rankNotice.type === "ok" ? "check-circle" : "alert-circle"} size={14} color={rankNotice.type === "ok" ? "#166534" : "#B42318"} />
+          <Text style={[type.small, { color: rankNotice.type === "ok" ? "#166534" : "#B42318", marginLeft: 8, flex: 1 }]}>{rankNotice.text}</Text>
+        </View>
+      ) : null}
 
       {/* Filter chips */}
       {rows ? (

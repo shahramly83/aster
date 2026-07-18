@@ -4,14 +4,16 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
 import ConfirmDialog from "../components/ConfirmDialog";
+import AiInsight from "../components/AiInsight";
+import AiQuestions from "../components/AiQuestions";
 import { theme, type, space, radius, shadow } from "../theme";
-import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange } from "@aster/shared";
+import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange, deriveInsights } from "@aster/shared";
 
 // The hiring process, in order. Offer/Hired are shown but managed on web.
 const STEPS = ["applied", "shortlisted", "interviewing", "offer", "hired"];
@@ -64,24 +66,27 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [matchScore, setMatchScore] = useState(null);
   const [whyOpen, setWhyOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [questions, setQuestions] = useState([]); // AI interview questions [{category, question}]
+  const [genQ, setGenQ] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [c, sc, iv, off, meta] = await Promise.all([
+    const [c, sc, iv, off, meta, qs] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId),
       loadCandidateInterview(profile.companyId, candidateId),
       loadOffer(profile.companyId, candidateId),
       loadApplicationMeta(profile.companyId, candidateId),
+      loadInterviewQuestions(candidateId, jobId),
     ]);
-    setCandidate(c); setCards(sc); setInterview(iv); setOffer(off);
+    setCandidate(c); setCards(sc); setInterview(iv); setOffer(off); setQuestions(qs || []);
     setMlInput(iv?.meetingLink || "");
     if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
     setMatchReason(meta?.reason || null);
     setMatchScore(meta?.score ?? null);
     setApprovals(off?.id && off.approval_status ? await loadOfferApprovals(off.id) : []);
     setLoading(false);
-  }, [candidateId, profile.companyId]);
+  }, [candidateId, jobId, profile.companyId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -156,6 +161,17 @@ export default function CandidateProfileScreen({ route, navigation }) {
     Alert.alert(res.ok ? "Email resent" : "Couldn't resend", res.ok ? "The candidate got the booking link again." : (res.error || "Try again."));
   };
 
+  const genQuestions = async () => {
+    setGenQ(true);
+    const res = await generateInterviewQuestions({
+      companyId: profile.companyId, candidateId, jobId,
+      parsed: candidate?.parsed || {}, jobTitle: route.params?.jobTitle,
+    });
+    setGenQ(false);
+    if (!res.ok) { Alert.alert("Couldn't generate questions", res.error || "Try again."); return; }
+    setQuestions(res.questions);
+  };
+
   if (loading) return (
     <View style={{ flex: 1, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" }}>
       <Loader tint="#fff" />
@@ -164,6 +180,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   const parsed = candidate?.parsed || {};
   const name = nameOf();
+  // AI Insight: use the stored Claude analysis, else derive from the resume so
+  // every profile shows one (same as web).
+  const insights = candidate ? (candidate.experienceInsights || deriveInsights(candidate)) : null;
 
   // ---- Interview → decision → offer → hired state machine (web sequence) ----
   const scheduledAt = interview?.status === "scheduled" ? interview.scheduledAt : null;
@@ -245,6 +264,17 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </Pressable>
             {detailsOpen ? (
               <View>
+                {/* AI Insight — resume deep-dive (experience + employment analysis) */}
+                {insights ? (
+                  <View style={{ marginTop: space(4) }}>
+                    <View style={styles.aiHead}>
+                      <Feather name="zap" size={14} color={theme.brand} />
+                      <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INSIGHT</Text>
+                    </View>
+                    <AiInsight insights={insights} />
+                  </View>
+                ) : null}
+
                 {(() => {
                   const email = parsed.email || candidate?.email;
                   const rows = [
@@ -455,6 +485,27 @@ export default function CandidateProfileScreen({ route, navigation }) {
               )}
             </Card>
           </View>
+          ) : null}
+
+          {/* AI interview questions — tailored to the candidate + role, once the
+              interview is confirmed. Manager generates; the panel reads. */}
+          {scheduledAt ? (
+            <View style={{ marginTop: space(5) }}>
+              <View style={styles.aiHead}>
+                <Feather name="zap" size={14} color={theme.brand} />
+                <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INTERVIEW QUESTIONS</Text>
+              </View>
+              {questions.length ? (
+                <AiQuestions questions={questions} />
+              ) : manager ? (
+                <Card>
+                  <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Generate questions tailored to {nameOf().split(" ")[0]}'s resume and this role. The whole panel sees the same set.</Text>
+                  <Button title={genQ ? "Generating…" : "Generate questions"} icon={genQ ? undefined : "zap"} onPress={genQuestions} disabled={genQ} />
+                </Card>
+              ) : (
+                <Card><Text style={[type.small, { color: theme.ink3 }]}>The hiring manager will generate tailored interview questions before the call.</Text></Card>
+              )}
+            </View>
           ) : null}
 
           {/* Decision — opens once the panel has all scored */}
@@ -681,6 +732,7 @@ const styles = StyleSheet.create({
   badge: { flexDirection: "row", alignItems: "center", marginTop: -13, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.pill, shadowColor: "#0A1E9E", shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   badgeTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.white, marginLeft: 6 },
   name: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, lineHeight: 27, letterSpacing: -0.5, color: theme.ink, marginTop: space(3), textAlign: "center" },
+  aiHead: { flexDirection: "row", alignItems: "center", marginBottom: space(3), marginLeft: space(1) },
   role: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink3, marginTop: space(2) },
   tags: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: space(3) },
   tag: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
