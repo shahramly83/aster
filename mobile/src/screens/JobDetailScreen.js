@@ -1,82 +1,150 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, FlatList, ScrollView, Pressable, RefreshControl, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
-import { loadApplicants } from "../lib/data";
+import { loadApplicants, moveCandidateStage } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Press, ScreenHeader, Feather } from "../components/ui";
+import { Press, Avatar, ScreenHeader, StagePill, Loader, EmptyState, Feather } from "../components/ui";
+import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
-import { relTime } from "@aster/shared";
+import { stageColor, relTime } from "@aster/shared";
 
 const PIPE = ["applied", "shortlisted", "interviewing", "offer", "hired"];
+const SHORTLISTED_PLUS = ["shortlisted", "interviewing", "offer", "hired"];
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "applied", label: "Applied" },
+  { key: "shortlisted", label: "Shortlisted" },
+  { key: "interviewing", label: "Interview" },
+  { key: "offer", label: "Offer" },
+  { key: "hired", label: "Hired" },
+];
 
 export default function JobDetailScreen({ route, navigation }) {
   const { profile } = useAuth();
   const { jobId, jobTitle, job } = route.params || {};
-  const [applicants, setApplicants] = useState(null);
+  const [rows, setRows] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState(route.params?.initialFilter || "all");
 
   const load = useCallback(async () => {
     if (!profile) return;
-    setApplicants(await loadApplicants(profile.companyId, jobId));
+    setRows(await loadApplicants(profile.companyId, jobId));
   }, [profile, jobId]);
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
   useAutoRefresh(profile?.companyId, load);
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  // Derive counts from the live applicant list once it loads; fall back to the
-  // snapshot passed in from the Roles carousel until then.
+  // Live counts from the applicant list; fall back to the Roles snapshot until loaded.
   const counts = useMemo(() => {
-    if (!applicants) return job?.counts || {};
+    if (!rows) return job?.counts || {};
     const c = {};
-    for (const a of applicants) c[a.stage] = (c[a.stage] || 0) + 1;
+    for (const a of rows) c[a.stage] = (c[a.stage] || 0) + 1;
     return c;
-  }, [applicants, job]);
-  const total = applicants ? applicants.length : (job?.applicantCount ?? 0);
+  }, [rows, job]);
+  const total = rows ? rows.length : (job?.applicantCount ?? 0);
   const hired = counts.hired || 0;
   const toReview = (counts.interviewing || 0) + (counts.offer || 0);
 
-  const goCandidates = (filter) => navigation.navigate("PositionApplicants", { jobId, jobTitle, initialFilter: filter });
+  // Star toggles a candidate between applied and shortlisted (web-safe stage move).
+  const toggleStar = async (item) => {
+    const next = item.stage === "applied" ? "shortlisted" : item.stage === "shortlisted" ? "applied" : null;
+    if (!next) return;
+    setRows((prev) => prev.map((r) => (r.candidateId === item.candidateId ? { ...r, stage: next } : r)));
+    try {
+      await moveCandidateStage({ companyId: profile.companyId, candidateId: item.candidateId, candidateName: item.name, stage: next });
+    } catch (e) {
+      setRows((prev) => prev.map((r) => (r.candidateId === item.candidateId ? { ...r, stage: item.stage } : r)));
+      Alert.alert("Could not update", e?.message || "Please try again.");
+    }
+  };
+
+  const filtered = useMemo(
+    () => (rows || []).filter((r) => filter === "all" || r.stage === filter),
+    [rows, filter]
+  );
+
+  const header = (
+    <View>
+      {/* Hero card */}
+      <LinearGradient colors={["#123AF0", "#0B2AE0", "#0A1E9E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+        <View style={styles.openBadge}>
+          <View style={styles.openDot} />
+          <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
+        </View>
+        <Text style={styles.heroNum}>{total}</Text>
+        <Text style={[type.small, { color: "rgba(255,255,255,0.75)" }]}>candidate{total === 1 ? "" : "s"} in pipeline</Text>
+
+        <View style={styles.heroPipe}>
+          {total > 0 && PIPE.map((k, i) => {
+            const n = counts[k] || 0;
+            if (!n) return null;
+            return <View key={k} style={{ flex: n, backgroundColor: `rgba(255,255,255,${0.95 - i * 0.15})` }} />;
+          })}
+        </View>
+
+        <View style={styles.heroFoot}>
+          <HeroStat label="Hired" value={hired} />
+          <HeroStat label="To review" value={toReview} />
+          <HeroStat label="Posted" value={job?.postedAt ? relTime(job.postedAt) : "—"} small />
+        </View>
+      </LinearGradient>
+
+      {/* Filter chips */}
+      {rows ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+          {FILTERS.map((f) => {
+            const active = filter === f.key;
+            const count = f.key === "all" ? rows.length : rows.filter((r) => r.stage === f.key).length;
+            return (
+              <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[styles.chip, active && styles.chipActive]}>
+                <Text style={[type.smallStrong, { color: active ? theme.white : theme.ink2 }]}>{f.label}</Text>
+                <Text style={[type.smallStrong, { color: active ? "rgba(255,255,255,0.8)" : theme.ink4, marginLeft: 5, fontVariant: ["tabular-nums"] }]}>{count}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScreenHeader eyebrow="Role" title={jobTitle || "Role"} onBack={() => navigation.goBack()} />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(10) }} showsVerticalScrollIndicator={false}>
-          {/* Hero card — taps through to the full candidate list */}
-          <Press onPress={() => goCandidates("all")} haptic="medium" scaleTo={0.98}>
-            <LinearGradient colors={["#123AF0", "#0B2AE0", "#0A1E9E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-              <View style={styles.openBadge}>
-                <View style={styles.openDot} />
-                <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
+        {rows === null ? (
+          <>
+            {header}
+            <Loader label="Loading candidates…" />
+          </>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(r) => r.applicationId}
+            contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(10) }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
+            ListHeaderComponent={header}
+            ListEmptyComponent={
+              <View style={{ marginTop: space(8) }}>
+                <EmptyState icon="users" title="No candidates here" subtitle={filter === "all" ? "Applicants for this role will show here." : "No one in this stage yet."} />
               </View>
-              <Text style={styles.heroNum}>{total}</Text>
-              <Text style={[type.small, { color: "rgba(255,255,255,0.75)" }]}>candidate{total === 1 ? "" : "s"} in pipeline</Text>
-
-              {/* pipeline bar */}
-              <View style={styles.heroPipe}>
-                {total > 0 && PIPE.map((k, i) => {
-                  const n = counts[k] || 0;
-                  if (!n) return null;
-                  return <View key={k} style={{ flex: n, backgroundColor: `rgba(255,255,255,${0.95 - i * 0.15})` }} />;
-                })}
-              </View>
-
-              <View style={styles.heroFoot}>
-                <HeroStat label="Hired" value={hired} />
-                <HeroStat label="To review" value={toReview} />
-                <HeroStat label="Posted" value={job?.postedAt ? relTime(job.postedAt) : "—"} small />
-              </View>
-
-              <View style={styles.heroCta}>
-                <Text style={[type.smallStrong, { color: theme.white }]}>View all candidates</Text>
-                <Feather name="arrow-right" size={16} color={theme.white} style={{ marginLeft: 6 }} />
-              </View>
-            </LinearGradient>
-          </Press>
-        </ScrollView>
+            }
+            renderItem={({ item }) => (
+              <CandidateCard
+                item={item}
+                onStar={() => toggleStar(item)}
+                onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, stage: item.stage, candidateName: item.name })}
+              />
+            )}
+          />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -91,12 +159,98 @@ function HeroStat({ label, value, small }) {
   );
 }
 
+function CandidateCard({ item, onPress, onStar }) {
+  const sc = stageColor(item.stage);
+  const starred = SHORTLISTED_PLUS.includes(item.stage);
+  const canToggle = item.stage === "applied" || item.stage === "shortlisted";
+  return (
+    <Press onPress={onPress} style={{ marginBottom: space(3) }}>
+      <View style={styles.card}>
+        <View style={[styles.rail, { backgroundColor: sc }]} />
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={[styles.avatarRing, { borderColor: sc }]}>
+            <Avatar uri={item.avatarUrl} name={item.name} size={50} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 14 }}>
+            <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
+            {item.title ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.title}</Text> : null}
+            <View style={styles.metaRow}>
+              <StagePill stage={item.stage} small />
+              {item.years != null ? (
+                <View style={styles.metaPill}><Text style={[type.smallStrong, { color: theme.ink3 }]}>{item.years}y exp</Text></View>
+              ) : null}
+            </View>
+          </View>
+          <View style={{ alignItems: "center", marginLeft: 8 }}>
+            <Pressable onPress={canToggle ? onStar : undefined} disabled={!canToggle} hitSlop={8} style={{ padding: 3 }}>
+              <Ionicons name={starred ? "star" : "star-outline"} size={22} color={starred ? "#F5A623" : theme.ink4} />
+            </Pressable>
+            <View style={{ marginTop: 4 }}><MatchRing score={item.matchScore} /></View>
+          </View>
+        </View>
+
+        {item.skills && item.skills.length ? (
+          <View style={styles.skillsRow}>
+            {item.skills.map((s, i) => (
+              <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]} numberOfLines={1}>{String(s)}</Text></View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.footer}>
+          <Text style={[type.small, { color: theme.ink4 }]}>
+            {item.appliedAt ? `Applied ${relTime(item.appliedAt)}` : "In pipeline"}
+          </Text>
+          <View style={styles.viewRow}>
+            <Text style={[type.smallStrong, { color: theme.brand }]}>View profile</Text>
+            <Feather name="arrow-right" size={15} color={theme.brand} style={{ marginLeft: 5 }} />
+          </View>
+        </View>
+      </View>
+    </Press>
+  );
+}
+
+function MatchRing({ score }) {
+  if (typeof score !== "number") {
+    return <Feather name="chevron-right" size={22} color={theme.ink4} />;
+  }
+  const v = Math.round(score);
+  const color = v >= 75 ? theme.success : v >= 50 ? theme.warn : theme.ink3;
+  return (
+    <View style={styles.matchWrap}>
+      <RingFull pct={v} size={52} stroke={5} color={color} track="#EDEFF5" />
+      <View style={styles.matchCenter} pointerEvents="none">
+        <Text style={[styles.matchNum, { color: theme.ink }]}>{v}</Text>
+        <Text style={styles.matchLbl}>match</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  hero: { borderRadius: radius.xl, padding: space(5), shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
+  hero: { borderRadius: radius.xl, padding: space(5), marginTop: space(4), shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
   openBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill },
   openDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#7DE2A8", marginRight: 6 },
   heroNum: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 46, letterSpacing: -1.5, marginTop: space(4), fontVariant: ["tabular-nums"] },
   heroPipe: { flexDirection: "row", height: 8, borderRadius: radius.pill, overflow: "hidden", marginTop: space(4), gap: 2, backgroundColor: "rgba(255,255,255,0.18)" },
   heroFoot: { flexDirection: "row", justifyContent: "space-between", marginTop: space(5) },
-  heroCta: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: space(5), paddingTop: space(4), borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.18)" },
+
+  filters: { paddingVertical: space(4), gap: 8 },
+  chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
+  chipActive: { backgroundColor: theme.brand, borderColor: theme.brand },
+
+  card: { backgroundColor: theme.card, borderRadius: radius.xl, padding: space(4), paddingLeft: space(5), overflow: "hidden", shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  rail: { position: "absolute", left: 0, top: 16, bottom: 16, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
+  avatarRing: { padding: 2.5, borderRadius: 31, borderWidth: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 },
+  metaPill: { backgroundColor: theme.line2, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
+  skillsRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: space(3.5) },
+  skill: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
+  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: space(4), paddingTop: space(3), borderTopWidth: 1, borderTopColor: theme.line2 },
+  viewRow: { flexDirection: "row", alignItems: "center" },
+  matchWrap: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
+  matchCenter: { position: "absolute", alignItems: "center" },
+  matchNum: { fontFamily: "Inter_700Bold", fontSize: 15, lineHeight: 16, fontVariant: ["tabular-nums"] },
+  matchLbl: { fontFamily: "Inter_500Medium", fontSize: 8, color: theme.ink4, letterSpacing: 0.3, marginTop: 1 },
 });
