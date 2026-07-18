@@ -34,7 +34,7 @@ export default function SignInScreen() {
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {/* Brand */}
             <View style={{ alignItems: "center", marginBottom: space(6) }}>
-              <AsterLogo width={132} color={theme.white} />
+              <AsterLogo width={190} color={theme.white} />
             </View>
             <Text style={styles.welcome}>Welcome back</Text>
             <Text style={styles.subtitle}>Sign in to your Aster workspace</Text>
