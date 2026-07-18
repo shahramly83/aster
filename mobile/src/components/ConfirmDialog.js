@@ -1,8 +1,8 @@
 // A branded confirmation dialog to replace the plain native Alert. Centered
 // card, accent icon, and Cancel / Confirm actions coloured by intent.
 import React from "react";
-import { View, Text, Modal, StyleSheet } from "react-native";
-import { Button, Feather } from "./ui";
+import { View, Text, Modal, Pressable, StyleSheet } from "react-native";
+import { Feather } from "./ui";
 import { theme, type, space, radius } from "../theme";
 
 export default function ConfirmDialog({
@@ -24,8 +24,12 @@ export default function ConfirmDialog({
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <View style={styles.row}>
-            <Button title={cancelLabel} variant="ghost" onPress={onCancel} style={{ flex: 1 }} />
-            <Button title={confirmLabel} variant={variant} onPress={onConfirm} style={{ flex: 1 }} />
+            <Pressable onPress={onCancel} style={({ pressed }) => [styles.btn, styles.cancel, pressed && { opacity: 0.7 }]}>
+              <Text style={[type.bodyStrong, { color: theme.ink2 }]}>{cancelLabel}</Text>
+            </Pressable>
+            <Pressable onPress={onConfirm} style={({ pressed }) => [styles.btn, { backgroundColor: accent }, pressed && { opacity: 0.85 }]}>
+              <Text style={[type.bodyStrong, { color: theme.white }]}>{confirmLabel}</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -40,4 +44,6 @@ const styles = StyleSheet.create({
   title: { fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: -0.3, color: theme.ink, textAlign: "center" },
   message: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: theme.ink3, textAlign: "center", marginTop: space(2) },
   row: { flexDirection: "row", gap: 10, marginTop: space(5), alignSelf: "stretch" },
+  btn: { flex: 1, height: 50, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  cancel: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line },
 });
