@@ -472,7 +472,7 @@ function DetailRow({ icon, value, onPress, last }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingBottom: space(9), borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
+  hero: { paddingBottom: space(9) },
   heroTop: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2) },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
   heroBody: { alignItems: "center", paddingHorizontal: space(5), marginTop: space(2) },
