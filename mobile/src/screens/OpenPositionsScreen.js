@@ -50,6 +50,7 @@ export default function OpenPositionsScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
       {/* Same header as the Pipeline dashboard */}
       <TopBar
+        mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
         right={<IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("ProfileTab")} />}
       />
