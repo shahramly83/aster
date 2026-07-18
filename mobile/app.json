@@ -51,8 +51,8 @@
       "@react-native-community/datetimepicker"
     ],
     "extra": {
-      "supabaseUrl": "",
-      "supabaseAnonKey": ""
+      "supabaseUrl": "https://edaefharlofwhnmcbiwk.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkYWVmaGFybG9md2hubWNiaXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMDk5NDcsImV4cCI6MjA5ODg4NTk0N30.fZGe33f2KsIkvaRAjj8ZV4NAIrzWCkFPUxyE9hyYI1A"
     }
   }
 }
