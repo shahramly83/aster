@@ -149,6 +149,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
         <View style={styles.avatarRing}>
           <Avatar uri={candidate?.avatarUrl} name={name} size={88} />
         </View>
+        <View style={[styles.badge, { backgroundColor: stageColor(stage) }]}>
+          <Feather name="zap" size={12} color={theme.white} />
+          <Text style={styles.badgeTxt}>{stageLabel(stage)}</Text>
+        </View>
         <Text style={styles.name} numberOfLines={2}>{name}</Text>
       </View>
 
@@ -486,7 +490,7 @@ const styles = StyleSheet.create({
   tags: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: space(3) },
   tag: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   tagTxt: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: theme.ink, marginLeft: 6 },
-  sheet: { backgroundColor: theme.bg, paddingHorizontal: space(4), paddingTop: space(6), paddingBottom: space(6), minHeight: 340 },
+  sheet: { backgroundColor: theme.bg, paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(6), minHeight: 340 },
 
   stageTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 8 },
   detailRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3) },
