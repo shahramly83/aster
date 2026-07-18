@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -7557,6 +7557,86 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
             <p className="text-[11px] mt-3 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
               <Icon name="shield" className="w-3.5 h-3.5" /> Secured by Aster Sign. Your signature, the time and your device are recorded on the signed PDF.
             </p>
+            {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Public approval page (/approve/<token>): an approver reviews the offer letter
+// and approves or declines (with a reason). No login.
+function ApprovalScreen({ data, done, result, onAct }) {
+  const [busy, setBusy] = useState(null);      // 'approve' | 'decline' while submitting
+  const [err, setErr] = useState(null);
+  const [mode, setMode] = useState(null);      // null | 'decline'
+  const [reason, setReason] = useState("");
+  const [outcome, setOutcome] = useState(null); // 'approved' | 'declined'
+
+  const company = data?.companyName || "The team";
+  const jobTitle = data?.jobTitle || "the role";
+  const candidate = data?.candidateName || "the candidate";
+  const settledResult = outcome || (done ? result : null);
+  const settled = !!settledResult;
+
+  const act = async (action) => {
+    setErr(null); setBusy(action);
+    const res = await onAct(action, action === "decline" ? reason.trim() : undefined);
+    setBusy(null);
+    if (!res.ok) {
+      setErr(res.error === "not_your_turn" ? "An earlier approver hasn't approved this yet."
+        : res.error === "already_decided" ? "This approval was already recorded."
+        : (res.error || "Something went wrong. Please try again."));
+      return;
+    }
+    setOutcome(action === "approve" ? "approved" : "declined");
+  };
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-lg rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
+        {settled ? (
+          settledResult === "approved" ? (
+            <>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "#DCFCE7", color: "#16A34A" }}><Icon name="check" className="w-5 h-5" /></div>
+              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Approval recorded</h1>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>Thank you. You approved the offer for {candidate} ({jobTitle}). {data?.step < data?.total ? "It has moved to the next approver." : "The offer will now be sent to the candidate."}</p>
+            </>
+          ) : settledResult === "declined" ? (
+            <>
+              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer declined</h1>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>You declined the offer for {candidate} ({jobTitle}). The hiring team has been notified so they can revise it or close it out.</p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Already handled</h1>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>This approval has already been recorded. No further action is needed.</p>
+            </>
+          )
+        ) : (
+          <>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--brand)", letterSpacing: "0.06em" }}>{company}{data?.total > 1 ? ` · Approval ${data.step} of ${data.total}` : ""}</p>
+            <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer approval</h1>
+            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>Please review the offer for <strong>{candidate}</strong> ({jobTitle}), then approve or decline.</p>
+            <div className="mb-5 rounded-xl border overflow-y-auto p-4 sm:p-5" style={{ borderColor: "var(--line)", maxHeight: 340, background: "#fff" }}>
+              {data?.html ? <div dangerouslySetInnerHTML={{ __html: data.html }} /> : <p className="text-sm" style={{ color: "var(--ink-3)" }}>Loading…</p>}
+            </div>
+            {mode === "decline" ? (
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--ink-2)" }}>Reason for declining</label>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="Let the hiring team know why…" className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => act("decline")} disabled={!reason.trim() || !!busy} className="flex-1 rounded-xl text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-40" style={{ background: "#DC2626" }}>{busy === "decline" ? "Declining…" : "Confirm decline"}</button>
+                  <button onClick={() => { setMode(null); setErr(null); }} className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Back</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button onClick={() => act("approve")} disabled={!!busy} className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-50">{busy === "approve" ? "Approving…" : "Approve"}</button>
+                <button onClick={() => setMode("decline")} disabled={!!busy} className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-rose-50 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "#B42318" }}>Decline</button>
+              </div>
+            )}
             {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
           </>
         )}
@@ -19108,6 +19188,34 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     const id = stage === "offer" ? setInterval(load, 20000) : null;
     return () => { alive = false; if (id) clearInterval(id); };
   }, [candidate?.id, companyId, canPersist, stage]);
+  // Approval sequence (internal sign-off before the offer is sent to the candidate).
+  const [approvals, setApprovals] = useState([]);
+  const [approvalBusy, setApprovalBusy] = useState(false);
+  const approvalStatus = offerRec?.approval_status || null;
+  useEffect(() => {
+    let alive = true;
+    if (!canPersist || !offerRec?.id || !approvalStatus) { setApprovals([]); return; }
+    const load = () => dbListOfferApprovals(offerRec.id).then((r) => { if (alive) setApprovals(r || []); });
+    load();
+    const id = approvalStatus === "pending" ? setInterval(load, 20000) : null;
+    return () => { alive = false; if (id) clearInterval(id); };
+  }, [offerRec?.id, approvalStatus, canPersist]);
+  const reloadOffer = () => { if (canPersist && candidate?.id && companyId) dbGetOffer(companyId, candidate.id).then(setOfferRec); };
+  const closeApprovalOffer = async () => {
+    if (!offerRec?.id) return;
+    setApprovalBusy(true);
+    await dbCloseOffer(offerRec.id);
+    setApprovalBusy(false);
+    setOfferRec(null); setApprovals([]);
+    if (onSetStage) onSetStage("interviewing");
+  };
+  const resubmitApproval = async () => {
+    if (!offerRec?.token || !approvals.length) return;
+    setApprovalBusy(true);
+    const ok = await dbSubmitApproval({ offerToken: offerRec.token, approvers: approvals.map((a) => ({ email: a.approver_email, name: a.approver_name })) });
+    setApprovalBusy(false);
+    if (ok) reloadOffer();
+  };
   const offerSigned = offerRec && (!!offerRec.signed_pdf_path || offerRec.esign_status === "completed");
   const offerDeclinedRec = offerRec && (offerRec.esign_status === "declined" || offerRec.esign_status === "voided" || offerRec.status === "declined");
   const offerViewed = offerRec && offerRec.esign_status === "delivered";
@@ -19892,6 +20000,51 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     </button>
                   </div>
                 </div>
+              ) : (approvalStatus === "pending" || approvalStatus === "declined") ? (
+                <div className="mt-2">
+                  <div className="rounded-xl border p-3.5" style={{ borderColor: approvalStatus === "declined" ? "#FECDD3" : "var(--line)", background: approvalStatus === "declined" ? "#FFF1F2" : "var(--bg)" }}>
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                        {approvalStatus === "declined" ? "Offer approval declined" : "Awaiting internal approval"}
+                      </p>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1.5 shrink-0" style={approvalStatus === "declined" ? { background: "#FEE2E2", color: "#B42318" } : { background: "#FEF3C7", color: "#92400E" }}>
+                        {approvals.filter((a) => a.status === "approved").length}/{approvals.length || 0} approved
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {approvals.map((a) => {
+                        const st = a.status === "approved" ? { bg: "#DCFCE7", fg: "#166534", label: "Approved" }
+                          : a.status === "declined" ? { bg: "#FEE2E2", fg: "#B42318", label: "Declined" }
+                          : { bg: "#F1F5F9", fg: "#64748B", label: "Pending" };
+                        return (
+                          <div key={a.step} className="flex items-center gap-2.5">
+                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{a.step}</span>
+                            <span className="text-[13px] truncate flex-1" style={{ color: "var(--ink)" }}>{a.approver_name || a.approver_email}{a.approver_name ? <span className="text-neutral-400"> · {a.approver_email}</span> : null}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {approvalStatus === "declined" && approvals.find((a) => a.status === "declined")?.reason && (
+                      <p className="text-xs mt-2.5 rounded-lg px-3 py-2" style={{ background: "#fff", border: "1px solid #FECDD3", color: "#9F1239" }}>
+                        Reason: {approvals.find((a) => a.status === "declined").reason}
+                      </p>
+                    )}
+                    <p className="text-xs mt-2.5" style={{ color: "var(--ink-2)" }}>
+                      {approvalStatus === "declined" ? "Resubmit to send it round again, or close the offer." : "Each approver signs off in order. The offer is sent to the candidate once the last one approves."}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {approvalStatus === "declined" && (
+                      <button onClick={resubmitApproval} disabled={approvalBusy} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity disabled:opacity-50">
+                        {approvalBusy ? "Working…" : "Resubmit for approval"}
+                      </button>
+                    )}
+                    <button onClick={closeApprovalOffer} disabled={approvalBusy} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50 disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                      Close offer
+                    </button>
+                  </div>
+                </div>
               ) : offerStatus === "sent" ? (
                 <div className="mt-2">
                   <div className="rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -19986,7 +20139,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             companyName={companyName}
             defaultSignatory={profile?.full_name || profile?.name || ""}
             onClose={() => setShowOffer(false)}
-            onSend={(emailSent, terms, message) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, message); }}
+            onSend={(emailSent, terms, message, approvers) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, message, approvers); }}
           />
         )}
         </>)}
@@ -20323,6 +20476,8 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   // Letter fields: who signs for the company, plus optional prose details.
   const [bodyEdited, setBodyEdited] = useState(false);    // true once HR edits the letter body
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
+  const [approvers, setApprovers] = useState([]);         // ordered [{email, name}] internal sign-off
+  const hasApprovers = approvers.some((a) => a.email.trim());
 
   // The default letter body, composed from the terms (mirrors the server). It
   // stays in sync as HR fills in the terms, until they edit the letter by hand.
@@ -20368,7 +20523,8 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
   const handleSend = (emailSent) => {
     setSending(true);
-    setTimeout(() => onSend(emailSent, terms, body), emailSent ? 900 : 0);
+    const appr = approvers.filter((a) => a.email.trim());
+    setTimeout(() => onSend(emailSent, terms, body, appr), emailSent ? 900 : 0);
   };
 
   return (
@@ -20463,12 +20619,32 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           </div>
         )}
 
-        {/* Every offer is sent for e-signature via Aster Sign. The signed PDF is
-            saved back to the offer once the candidate completes signing. */}
+        {/* Approvals: ordered internal sign-off before the offer reaches the candidate. */}
+        {hasEmail && (
+          <div className="mb-4">
+            <label className={labelClass}>Approvals <span className="text-neutral-400">(optional, in order)</span></label>
+            {approvers.length > 0 && (
+              <div className="space-y-2 mb-2">
+                {approvers.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{i + 1}</span>
+                    <input value={a.email} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} placeholder="approver@company.com" className={`${inputClass} flex-1`} />
+                    <input value={a.name} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className={`${inputClass} w-28`} />
+                    <button type="button" onClick={() => setApprovers((l) => l.filter((_, j) => j !== i))} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-lg leading-none text-neutral-400 hover:bg-neutral-100 hover:text-red-500 transition-colors" aria-label="Remove approver">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={() => setApprovers((l) => [...l, { email: "", name: "" }])} className="text-xs font-medium inline-flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>+ Add approver</button>
+            <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver reviews and approves in order. The offer reaches the candidate only after the last approval." : "Add approvers to require internal sign-off before the offer reaches the candidate."}</p>
+          </div>
+        )}
+
+        {/* How the offer is delivered. */}
         {hasEmail && (
           <div className="flex items-center gap-2 mb-4 rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--ink-3)" }}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <span className="text-xs" style={{ color: "var(--ink-2)" }}>Sent for e-signature with <span className="font-medium">Aster Sign</span>. The signed PDF is saved to the offer.</span>
+            <span className="text-xs" style={{ color: "var(--ink-2)" }}>{hasApprovers ? <>Sent for <span className="font-medium">approval</span> first, then to the candidate to <span className="font-medium">sign with Aster Sign</span>.</> : <>Sent for e-signature with <span className="font-medium">Aster Sign</span>. The signed PDF is saved to the offer.</>}</span>
           </div>
         )}
 
@@ -20483,7 +20659,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           )}
           {hasEmail && (
             <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
-              {sending ? "Sending…" : "Send offer"}
+              {sending ? (hasApprovers ? "Submitting…" : "Sending…") : (hasApprovers ? "Submit for approval" : "Send offer")}
             </button>
           )}
         </div>
@@ -21921,7 +22097,7 @@ const PATH_TO_SCREEN = {
   "/schedule": "dashboard", // needs a picked booking -> fall back on refresh
   "/apply": "dashboard",     // needs a picked job -> fall back on refresh
 };
-const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "confirmEmail", "acceptInvite", "bookInterview", "publicOffer"]);
+const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "confirmEmail", "acceptInvite", "bookInterview", "publicOffer", "publicApproval"]);
 
 // Screens that only exist behind a signed-in workspace. A signed-out visitor who
 // deep-links to one of these (W4) must be sent to /login, not shown the app shell
@@ -21937,7 +22113,7 @@ const WORKSPACE_SCREENS = new Set([
 const SUBDOMAIN_ALLOWED_SCREENS = new Set([
   ...WORKSPACE_SCREENS,
   "login", "signup", "forgotPassword", "acceptInvite",
-  "apply", "bookInterview", "publicOffer",
+  "apply", "bookInterview", "publicOffer", "publicApproval",
 ]);
 
 // Each candidate profile has its own deep-linkable URL, /candidates/<id>.
@@ -22012,10 +22188,15 @@ function offerTokenFromPath(pathname) {
   const m = (pathname || "").match(/^\/offer\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
 }
+function approvalTokenFromPath(pathname) {
+  const m = (pathname || "").match(/^\/approve\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 function screenFromPathRaw(pathname) {
   if (applyJobFromPath(pathname)) return "apply";
   if (bookTokenFromPath(pathname)) return "bookInterview";
   if (offerTokenFromPath(pathname)) return "publicOffer";
+  if (approvalTokenFromPath(pathname)) return "publicApproval";
   if (candidateIdFromPath(pathname)) return "candidateProfile";
   if (applicantsJobFromPath(pathname)) return "applicants";
   if (productSlugFromPath(pathname) != null) return "product";
@@ -22272,6 +22453,7 @@ function initialHistoryFromUrl() {
   if (screen === "apply") return ["apply"]; // public apply link: standalone, no dashboard base
   if (screen === "bookInterview") return ["bookInterview"]; // public booking link: standalone
   if (screen === "publicOffer") return ["publicOffer"]; // public offer link: standalone
+  if (screen === "publicApproval") return ["publicApproval"]; // public approval link: standalone
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
   if (screen === "product") return ["landing", "product"]; // public page; Back → landing
   if (screen === "solutions") return ["landing", "solutions"]; // public page; Back → landing
@@ -22784,6 +22966,30 @@ export default function ResumeAIPreview() {
     const { data, error } = await supabase.functions.invoke("aster-sign", { body: { token: publicOffer.token, action: "sign", ...payload } });
     if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Could not record your signature." };
     setPublicOffer((p) => ({ ...p, status: "done", data: { ...p.data, status: "accepted" } }));
+    return { ok: true };
+  };
+
+  // Public offer-approval page (approver opened /approve/<token>, no login).
+  const [publicApproval, setPublicApproval] = useState(null); // { token, status, data, result }
+  useEffect(() => {
+    if (screen !== "publicApproval" || typeof window === "undefined") return;
+    const token = approvalTokenFromPath(window.location.pathname);
+    if (!token || publicApproval?.token === token) return;
+    setPublicApproval({ token, status: "loading" });
+    (async () => {
+      if (!hasSupabase) { setPublicApproval({ token, status: "notfound" }); return; }
+      const { data, error } = await supabase.functions.invoke("offer-approval", { body: { token, action: "view", origin: window.location.origin } });
+      if (error || !data?.ok) { setPublicApproval({ token, status: "notfound" }); return; }
+      setPublicApproval({ token, status: data.status === "pending" ? "ok" : "done", data, result: data.status });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
+  const actPublicApproval = async (action, reason) => {
+    if (!publicApproval?.token) return { ok: false };
+    const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+    const { data, error } = await supabase.functions.invoke("offer-approval", { body: { token: publicApproval.token, action, reason, origin } });
+    if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Something went wrong." };
+    setPublicApproval((p) => ({ ...p, status: "done", result: action === "approve" ? "approved" : "declined" }));
     return { ok: true };
   };
 
@@ -23549,20 +23755,26 @@ export default function ResumeAIPreview() {
   };
 
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
-  const sendOffer = (candidateId, emailSent, terms = null, message = null) => {
-    setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now", terms } }));
+  const sendOffer = (candidateId, emailSent, terms = null, message = null, approvers = []) => {
+    const valid = (approvers || []).filter((a) => a?.email && a.email.includes("@"));
+    const needsApproval = valid.length > 0;
+    setOffers((prev) => ({ ...prev, [candidateId]: { status: needsApproval ? "pending_approval" : "sent", emailSent, sentAt: "just now", terms } }));
     setCandidateStage(candidateId, "offer", { notify: false });
-    // Always record the offer + its terms. When the candidate has an email, send
-    // it for signature via Aster Sign (the message becomes the letter opening);
-    // with no email on file we just record the offer internally.
+    // Record the offer + terms. With approvers, submit for sequential sign-off (the
+    // candidate is emailed only after the last approval). Otherwise send it straight
+    // to the candidate for signature via Aster Sign. No email on file → record only.
     if (canPersist) {
       dbCreateOffer(companyId, { candidateId, terms }).then((token) => {
-        if (token && emailSent) {
+        if (!token) return;
+        if (needsApproval) {
+          dbSubmitApproval({ offerToken: token, approvers: valid, message });
+        } else if (emailSent) {
           const origin = typeof window !== "undefined" ? window.location.origin : undefined;
           supabase.functions.invoke("aster-sign-send", { body: { token, message, origin } }).catch(() => {});
         }
       });
-      dbLogActivity("offer_sent", `Offer sent to ${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate"}`, { candidateId });
+      const who = MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate";
+      dbLogActivity(needsApproval ? "offer_approval_requested" : "offer_sent", `Offer ${needsApproval ? "submitted for approval" : "sent"} to ${who}`, { candidateId });
     }
   };
   const respondOffer = (candidateId, accepted) => {
@@ -23811,6 +24023,29 @@ export default function ResumeAIPreview() {
     return (
       <Shell>
         <OfferScreen data={o.data} token={o.token} done={o.status === "done"} onRespond={respondPublicOffer} onSign={signPublicOffer} />
+      </Shell>
+    );
+  }
+
+  if (screen === "publicApproval") {
+    const a = publicApproval;
+    const centered = (node) => (
+      <Shell><div className="min-h-dvh flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>{node}</div></Shell>
+    );
+    if (!a || a.status === "loading") {
+      return centered(<div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid var(--line-strong)", borderTopColor: "var(--brand)" }} />);
+    }
+    if (a.status === "notfound" || !a.data) {
+      return centered(
+        <div className="text-center max-w-sm">
+          <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Approval not found</h1>
+          <p className="text-sm" style={{ color: "var(--ink-2)" }}>This approval link isn't valid. It may be out of date, or the offer was withdrawn.</p>
+        </div>
+      );
+    }
+    return (
+      <Shell>
+        <ApprovalScreen data={a.data} done={a.status === "done"} result={a.result} onAct={actPublicApproval} />
       </Shell>
     );
   }
@@ -24168,7 +24403,7 @@ export default function ResumeAIPreview() {
             companyName={company}
             companyId={companyId}
             canPersist={canPersist}
-            onSendOffer={(emailSent, terms, message) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message)}
+            onSendOffer={(emailSent, terms, message, approvers) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message, approvers)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}

@@ -351,17 +351,56 @@ export async function dbCreateOffer(companyId, { candidateId, jobId = null, term
 // the candidate profile can show its status + e-sign state after a reload.
 export async function dbGetOffer(companyId, candidateId) {
   if (!hasSupabase || !companyId || !candidateId) return null;
-  const { data, error } = await supabase
+  const cols = "id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at";
+  let { data, error } = await supabase
     .from("offers")
-    .select("status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at")
+    .select(cols)
     .eq("company_id", companyId).eq("candidate_id", candidateId)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  // Pre-approval workspace (no approval_status column): retry without it.
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data, error } = await supabase
+      .from("offers")
+      .select("id, token, status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at")
+      .eq("company_id", companyId).eq("candidate_id", candidateId)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle());
+  }
   if (error) {
     if (error.code === "42703" || error.code === "PGRST204") return null; // pre-esign columns
     console.error("dbGetOffer", error.message);
     return null;
   }
   return data || null;
+}
+
+// The approval sequence for an offer (RLS company-scoped), so the Decision panel
+// can show who's approved / pending / declined and in what order.
+export async function dbListOfferApprovals(offerId) {
+  if (!hasSupabase || !offerId) return [];
+  const { data, error } = await supabase
+    .from("offer_approvals")
+    .select("step, approver_email, approver_name, status, reason, decided_at")
+    .eq("offer_id", offerId).order("step", { ascending: true });
+  if (error) { if (error.code !== "42P01") console.error("dbListOfferApprovals", error.message); return []; }
+  return data || [];
+}
+
+// Submit an offer for sequential approval (or resubmit after a decline). approvers
+// is an ordered array of { email, name }. Returns true on success.
+export async function dbSubmitApproval({ offerToken, approvers, message = null }) {
+  if (!hasSupabase || !offerToken) return false;
+  const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+  const { data, error } = await supabase.functions.invoke("offer-approval-submit", { body: { offerToken, approvers, message, origin } });
+  if (error || data?.error) { console.error("dbSubmitApproval", data?.error || error?.message); return false; }
+  return true;
+}
+
+// Close (withdraw) an offer that's in approval: delete it (approvals cascade).
+export async function dbCloseOffer(offerId) {
+  if (!hasSupabase || !offerId) return false;
+  const { error } = await supabase.from("offers").delete().eq("id", offerId);
+  if (error) { console.error("dbCloseOffer", error.message); return false; }
+  return true;
 }
 
 // Decline + void an offer whose expiry date has passed (server-verified).
