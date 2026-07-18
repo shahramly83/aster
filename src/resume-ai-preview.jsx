@@ -20628,8 +20628,8 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 {approvers.map((a, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{i + 1}</span>
-                    <input value={a.email} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} placeholder="approver@company.com" className={`${inputClass} flex-1`} />
-                    <input value={a.name} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className={`${inputClass} w-28`} />
+                    <input type="email" value={a.email} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} placeholder="approver@company.com" className={`${inputClass.replace("w-full ", "")} flex-1 min-w-0`} />
+                    <input value={a.name} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className={`${inputClass.replace("w-full ", "")} w-32 shrink-0`} />
                     <button type="button" onClick={() => setApprovers((l) => l.filter((_, j) => j !== i))} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-lg leading-none text-neutral-400 hover:bg-neutral-100 hover:text-red-500 transition-colors" aria-label="Remove approver">×</button>
                   </div>
                 ))}
