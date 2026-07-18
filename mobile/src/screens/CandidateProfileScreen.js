@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, ScrollView, Linking, StyleSheet, Alert, Pressable, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, ScrollView, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
@@ -17,6 +17,7 @@ const STEPS = ["applied", "shortlisted", "interviewing", "offer", "hired"];
 
 export default function CandidateProfileScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
+  const insets = useSafeAreaInsets();
   const { candidateId, applicationId, jobId, candidateName } = route.params || {};
   const [candidate, setCandidate] = useState(null);
   const [cards, setCards] = useState([]);
@@ -28,6 +29,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [approvals, setApprovals] = useState([]);
   const [matchReason, setMatchReason] = useState(null);
   const [matchScore, setMatchScore] = useState(null);
+  const [whyOpen, setWhyOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -154,29 +156,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
           <View style={styles.sheet}>
-            {/* Discuss (centered) */}
-            <View style={{ alignItems: "center" }}>
-              <Button title="Discuss" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ minWidth: 220 }} />
+            {/* Actions */}
+            <View style={styles.actions}>
+              <Button title="Discuss" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={matchReason ? { flex: 1 } : { minWidth: 220 }} />
+              {matchReason ? (
+                <Button title="Why" icon="zap" variant="ghost" onPress={() => setWhyOpen(true)} style={{ flex: 1 }} />
+              ) : null}
             </View>
-
-            {/* Why this match (AI rationale) */}
-            {matchReason ? (
-              <View style={{ marginTop: space(5) }}>
-                <SectionHeader>Why this match</SectionHeader>
-                <Card>
-                  <View style={styles.whyHead}>
-                    <View style={styles.whyIcon}><Feather name="zap" size={14} color={theme.brand} /></View>
-                    <Text style={[type.smallStrong, { color: theme.ink2, flex: 1, marginLeft: 8 }]}>AI assessment</Text>
-                    {matchScore != null ? (
-                      <View style={[styles.whyScore, { backgroundColor: (matchScore >= 75 ? theme.success : matchScore >= 50 ? theme.warn : theme.ink3) + "1A" }]}>
-                        <Text style={[type.smallStrong, { color: matchScore >= 75 ? theme.success : matchScore >= 50 ? theme.warn : theme.ink3 }]}>{Math.round(matchScore)}% fit</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Text style={[type.body, { color: theme.ink2, lineHeight: 21, marginTop: space(3) }]}>{matchReason}</Text>
-                </Card>
-              </View>
-            ) : null}
 
           {/* Hiring process */}
           <View style={{ marginTop: space(5) }}>
@@ -377,6 +363,31 @@ export default function CandidateProfileScreen({ route, navigation }) {
         onConfirm={({ startIso }) => confirmSchedule(new Date(startIso))}
       />
 
+      {/* Why this match — slides up */}
+      <Modal visible={whyOpen} transparent animationType="slide" onRequestClose={() => setWhyOpen(false)} statusBarTranslucent>
+        <View style={styles.whyBackdrop}>
+          <Pressable style={{ flex: 1 }} onPress={() => setWhyOpen(false)} />
+          <View style={[styles.whySheet, { paddingBottom: insets.bottom + space(3) }]}>
+            <View style={styles.whyHandle} />
+            <View style={styles.whySheetHead}>
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                <View style={styles.whyIcon}><Feather name="zap" size={15} color={theme.brand} /></View>
+                <Text style={[type.h3, { color: theme.ink, marginLeft: 10 }]}>Why this match</Text>
+              </View>
+              {matchScore != null ? (
+                <View style={[styles.whyScore, { backgroundColor: (matchScore >= 75 ? theme.success : matchScore >= 50 ? theme.warn : theme.ink3) + "1A" }]}>
+                  <Text style={[type.smallStrong, { color: matchScore >= 75 ? theme.success : matchScore >= 50 ? theme.warn : theme.ink3 }]}>{Math.round(matchScore)}% fit</Text>
+                </View>
+              ) : null}
+            </View>
+            <ScrollView style={{ maxHeight: 360, marginTop: space(3) }} showsVerticalScrollIndicator={false}>
+              <Text style={[type.body, { color: theme.ink2, lineHeight: 22 }]}>{matchReason}</Text>
+            </ScrollView>
+            <Button title="Got it" onPress={() => setWhyOpen(false)} style={{ marginTop: space(4) }} />
+          </View>
+        </View>
+      </Modal>
+
       <OfferSheet
         visible={offerOpen}
         onClose={() => setOfferOpen(false)}
@@ -512,9 +523,13 @@ const styles = StyleSheet.create({
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
-  whyHead: { flexDirection: "row", alignItems: "center" },
-  whyIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
+  whyIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   whyScore: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  whyBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
+  whySheet: { backgroundColor: theme.card, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: space(5), paddingTop: space(3) },
+  whyHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 3, backgroundColor: theme.line, marginBottom: space(4) },
+  whySheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   offerBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
   apprRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
   apprDot: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center" },
