@@ -52,7 +52,7 @@ export default function PositionApplicantsScreen({ route, navigation }) {
               <Text style={styles.eyebrow}>
                 {rows ? `${rows.length} CANDIDATE${rows.length === 1 ? "" : "S"}` : "LOADING"}
               </Text>
-              <Text style={[type.h1, { color: theme.white }]} numberOfLines={1}>{jobTitle || "Candidates"}</Text>
+              <Text style={styles.headTitle} numberOfLines={2}>{jobTitle || "Candidates"}</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -157,9 +157,10 @@ function MatchRing({ score }) {
 
 const styles = StyleSheet.create({
   header: { backgroundColor: theme.brand },
-  headRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(5) },
+  headRow: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(5) },
   back: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2, color: "rgba(255,255,255,0.72)", marginBottom: 4 },
+  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.4, color: "rgba(255,255,255,0.72)", marginBottom: 5 },
+  headTitle: { fontFamily: "Inter_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.3, color: theme.white },
   filters: { paddingVertical: space(4), gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
   chipActive: { backgroundColor: theme.brand, borderColor: theme.brand },
