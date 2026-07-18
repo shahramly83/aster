@@ -7323,6 +7323,12 @@ function BookInterviewScreen({ data, done, onConfirm }) {
     try { return new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); }
     catch { return iso; }
   };
+  const fmtTime = (iso) => {
+    try { return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
+    catch { return ""; }
+  };
+  // "Mon, Jul 20, 9:00 AM – 9:45 AM" when an end time is known, else start only.
+  const fmtRange = (start, end) => (end ? `${fmt(start)} – ${fmtTime(end)}` : fmt(start));
 
   const pick = async (start) => {
     setErr(null); setChoosing(start);
@@ -7348,7 +7354,7 @@ function BookInterviewScreen({ data, done, onConfirm }) {
               <Icon name="check" className="w-5 h-5" />
             </div>
             <h1 className="text-xl font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>Your interview for the {jobTitle} role is booked for <strong>{fmt(confirmedStart || data.scheduled_at)}</strong>. {company} will email you the details and meeting link before the call.</p>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>Your interview for the {jobTitle} role is booked for <strong>{(() => { const st = confirmedStart || data.scheduled_at; const m = slots.find((x) => x.start === st); return fmtRange(st, m?.end); })()}</strong>. {company} will email you the details and meeting link before the call.</p>
           </div>
         ) : (
           <>
@@ -7362,7 +7368,7 @@ function BookInterviewScreen({ data, done, onConfirm }) {
                   <button key={s.start} onClick={() => pick(s.start)} disabled={!!choosing}
                     className="w-full text-left rounded-xl border px-4 py-3 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:opacity-50 flex items-center justify-between"
                     style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
-                    <span>{fmt(s.start)}</span>
+                    <span>{fmtRange(s.start, s.end)}</span>
                     {choosing === s.start ? <span className="text-xs" style={{ color: "var(--ink-3)" }}>Confirming…</span> : <Icon name="chevronRight" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />}
                   </button>
                 ))}
