@@ -22,7 +22,6 @@ const FILTERS = [
   { key: "shortlisted", label: "Shortlisted" },
   { key: "interviewing", label: "Interview" },
   { key: "offer", label: "Offer" },
-  { key: "hired", label: "Hired" },
 ];
 
 export default function JobDetailScreen({ route, navigation }) {
@@ -50,17 +49,18 @@ export default function JobDetailScreen({ route, navigation }) {
   useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  // The candidates this screen shows: strong matches only, and never rejected or
-  // declined (they're out of the running). "other"-fit applicants stay in the
+  // The candidates this screen lists: strong matches still in the running. Hired,
+  // rejected and declined all leave the list. "other"-fit applicants stay in the
   // talent pool; a manual shortlist overrides the AI and counts as strong.
+  const OUT_OF_LIST = ["hired", "rejected", "declined"];
   const strongRows = useMemo(
     () => (rows || []).filter((r) =>
-      r.stage !== "rejected" && r.stage !== "declined" && (r.fit !== "other" || r.stage === "shortlisted")),
+      !OUT_OF_LIST.includes(r.stage) && (r.fit !== "other" || r.stage === "shortlisted")),
     [rows]
   );
 
-  // Hero counts reflect exactly what's on screen (the "All" set), not the raw
-  // pipeline. Fall back to the Roles snapshot until the list loads.
+  // Hero "in pipeline" reflects exactly what's on screen (the "All" set). Hired is
+  // a separate summary stat, so it still counts everyone hired for this role.
   const counts = useMemo(() => {
     if (!rows) return job?.counts || {};
     const c = {};
@@ -68,7 +68,7 @@ export default function JobDetailScreen({ route, navigation }) {
     return c;
   }, [rows, strongRows, job]);
   const total = rows ? strongRows.length : (job?.applicantCount ?? 0);
-  const hired = counts.hired || 0;
+  const hired = rows ? rows.filter((r) => r.stage === "hired").length : (job?.counts?.hired || 0);
   const toReview = (counts.interviewing || 0) + (counts.offer || 0);
 
   // Star toggles a candidate between applied and shortlisted (web-safe stage move).
