@@ -55,7 +55,7 @@ export default function OpenPositionsScreen({ navigation }) {
         name={profile?.name?.split(" ")[0] || "Welcome"}
         right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
       />
-      <Text style={styles.sectionLabel}>OPEN ROLES{jobs ? ` · ${jobs.length}` : ""}</Text>
+      <Text style={styles.sectionLabel}>OPEN POSITIONS{jobs ? ` · ${jobs.length}` : ""}</Text>
 
       {jobs === null ? (
         <View style={{ flex: 1 }}><Loader label="Loading roles…" tint="#fff" /></View>

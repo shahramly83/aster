@@ -1,21 +1,27 @@
-// AI interview questions for a candidate + role, grouped by category. Tailored
-// by Claude (generate-interview-questions) and read by the whole panel. Tap a
-// question to copy it; Copy all copies the full set.
-import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+// AI interview questions for a candidate + role, grouped into collapsible
+// category accordions (closed by default). Tailored by Claude
+// (generate-interview-questions) and read by the whole panel. Tap a question to
+// copy it; Copy all copies the full set.
+import React, { useState } from "react";
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, Platform, UIManager } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-import { Platform } from "react-native";
 import { Feather } from "./ui";
 import { theme, type, space, radius } from "../theme";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const ORDER = ["Technical", "Experience", "Role fit", "Behavioral", "Depth check", "Collaboration", "Motivation"];
 
 export default function AiQuestions({ questions }) {
+  const [open, setOpen] = useState({}); // category -> bool, all closed by default
+
   if (!questions || !questions.length) return null;
 
-  const groups = [];
   const sorted = [...questions].sort((a, b) => ((ORDER.indexOf(a.category) + 1 || 99) - (ORDER.indexOf(b.category) + 1 || 99)));
+  const groups = [];
   for (const q of sorted) {
     const g = groups.find((x) => x.category === q.category);
     if (g) g.items.push(q.question); else groups.push({ category: q.category || "General", items: [q.question] });
@@ -26,6 +32,10 @@ export default function AiQuestions({ questions }) {
     if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
   };
   const copyAll = () => copy(sorted.map((q, i) => `${i + 1}. [${q.category}] ${q.question}`).join("\n"));
+  const toggle = (cat) => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(180, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
+    setOpen((o) => ({ ...o, [cat]: !o[cat] }));
+  };
 
   return (
     <View style={styles.card}>
@@ -39,17 +49,29 @@ export default function AiQuestions({ questions }) {
         </Pressable>
       </View>
 
-      {groups.map((g, gi) => (
-        <View key={g.category} style={gi > 0 ? { marginTop: space(3) } : null}>
-          <Text style={styles.cat}>{g.category.toUpperCase()}</Text>
-          {g.items.map((q, i) => (
-            <Pressable key={i} onPress={() => copy(q)} style={styles.qRow}>
-              <Text style={[type.small, { color: theme.ink, flex: 1, lineHeight: 19 }]}>{q}</Text>
-              <Feather name="copy" size={14} color={theme.ink4} style={{ marginLeft: 10, marginTop: 1 }} />
+      {groups.map((g, gi) => {
+        const isOpen = !!open[g.category];
+        return (
+          <View key={g.category} style={[styles.group, gi > 0 && { marginTop: 8 }]}>
+            <Pressable onPress={() => toggle(g.category)} style={styles.groupHead}>
+              <Text style={styles.cat}>{g.category.toUpperCase()}</Text>
+              <View style={styles.countPill}><Text style={styles.countTxt}>{g.items.length}</Text></View>
+              <View style={{ flex: 1 }} />
+              <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={18} color={theme.ink3} />
             </Pressable>
-          ))}
-        </View>
-      ))}
+            {isOpen ? (
+              <View style={styles.groupBody}>
+                {g.items.map((q, i) => (
+                  <Pressable key={i} onPress={() => copy(q)} style={[styles.qRow, i > 0 && styles.qDivider]}>
+                    <Text style={[type.small, { color: theme.ink, flex: 1, lineHeight: 19 }]}>{q}</Text>
+                    <Feather name="copy" size={14} color={theme.ink4} style={{ marginLeft: 10, marginTop: 1 }} />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -58,6 +80,12 @@ const styles = StyleSheet.create({
   card: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   head: { flexDirection: "row", alignItems: "center", marginBottom: space(3) },
   copyAll: { flexDirection: "row", alignItems: "center", marginLeft: 10 },
-  cat: { ...type.label, color: theme.brand, marginBottom: space(2) },
-  qRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 9, borderTopWidth: 1, borderTopColor: theme.line2 },
+  group: { borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, overflow: "hidden" },
+  groupHead: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 12, backgroundColor: theme.bg },
+  cat: { ...type.label, color: theme.brand },
+  countPill: { marginLeft: 8, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  countTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: theme.brand, fontVariant: ["tabular-nums"] },
+  groupBody: { paddingHorizontal: 12, paddingBottom: 4, backgroundColor: theme.card },
+  qRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10 },
+  qDivider: { borderTopWidth: 1, borderTopColor: theme.line2 },
 });

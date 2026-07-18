@@ -5,6 +5,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
 import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer } from "../lib/data";
@@ -42,6 +44,15 @@ export default function JobDetailScreen({ route, navigation }) {
   const [savingId, setSavingId] = useState(null);             // profile id mid assign/unassign
 
   const canManageInterviewers = ["owner", "admin"].includes((profile?.role || "").toLowerCase());
+
+  // Public apply page link (hireaster.com/apply/<jobId>), same as web.
+  const [copied, setCopied] = useState(false);
+  const copyApplyLink = async () => {
+    await Clipboard.setStringAsync(`https://hireaster.com/apply/${jobId}`);
+    setCopied(true);
+    Haptics.selectionAsync().catch(() => {});
+    setTimeout(() => setCopied(false), 1800);
+  };
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -173,9 +184,15 @@ export default function JobDetailScreen({ route, navigation }) {
     <View>
       {/* Hero card */}
       <LinearGradient colors={["#123AF0", "#0B2AE0", "#0A1E9E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-        <View style={styles.openBadge}>
-          <View style={styles.openDot} />
-          <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
+        <View style={styles.heroTopRow}>
+          <View style={styles.openBadge}>
+            <View style={styles.openDot} />
+            <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
+          </View>
+          <Pressable onPress={copyApplyLink} style={styles.applyChip} hitSlop={6}>
+            <Feather name={copied ? "check" : "link"} size={13} color={theme.white} />
+            <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>{copied ? "Copied" : "Copy apply link"}</Text>
+          </Pressable>
         </View>
         <Text style={styles.heroTitle} numberOfLines={2}>{jobTitle || "Role"}</Text>
         <Text style={styles.heroNum}>{loaded ? total : "—"}</Text>
@@ -461,7 +478,9 @@ const styles = StyleSheet.create({
   back: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
 
   hero: { borderRadius: radius.xl, padding: space(5), marginTop: space(4), shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
+  heroTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   openBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill },
+  applyChip: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill },
   openDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#7DE2A8", marginRight: 6 },
   heroTitle: { color: theme.white, fontFamily: "PlusJakartaSans_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.4, marginTop: space(4) },
   heroNum: { color: theme.white, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 46, letterSpacing: -1.5, marginTop: space(3), fontVariant: ["tabular-nums"] },
