@@ -7492,7 +7492,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
                 <Icon name="check" className="w-5 h-5" />
               </div>
               <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer signed</h1>
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}>Congratulations, and welcome to {company}! A copy of your signed offer is on file, and they'll be in touch shortly with your onboarding details and start date.</p>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>Congratulations, and welcome to {company}! A copy of your signed offer is on file, and they'll be in touch shortly with your onboarding details.</p>
             </>
           ) : (
             <>
@@ -17071,7 +17071,7 @@ const EMAIL_TEMPLATE_DEFS = [
   { key: "welcome_hired", name: "Welcome: offer signed", desc: "Sent to the candidate once they sign and accept their offer.",
     tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Welcome to {{company_name}}, {{candidate_name}}!",
-    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date." },
+    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details." },
   { key: "offer_accepted", name: "Offer signed (to your team)", desc: "Sent to your team when a candidate signs and accepts their offer.", toCompany: true,
     tokens: ["candidate_name", "job_title"],
     subject: "{{candidate_name}} accepted your offer",

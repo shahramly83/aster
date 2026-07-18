@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+/* Brand-tint every native checkbox and radio across the app (incl. public
+   signing / approval screens where the --brand token may not be in scope). */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #0B2AE0;
+}

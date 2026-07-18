@@ -31,7 +31,7 @@ const STAGE_EMAIL: Record<string, { key: string; heading: string; subject: strin
   hired: {
     key: "welcome_hired", heading: "Welcome to the team",
     subject: "Welcome to {{company_name}}, {{candidate_name}}!",
-    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.",
+    body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details.",
   },
   rejected: {
     key: "rejection", heading: "Update on your application",

@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
         if (cand?.email) {
           const tpl = await loadTemplate(admin, "welcome_hired", offer.company_id, {
             subject: "Welcome to {{company_name}}, {{candidate_name}}!",
-            body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details and start date.",
+            body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details.",
           });
           const tokens = { candidate_name: candidateName, job_title: jobTitle, company_name: companyName };
           await sendEmail({ to: cand.email, subject: renderTemplate(tpl.subject, tokens), html: companyShell({ companyName, logoUrl, heading: "Welcome to the team", preview: `Welcome to ${companyName}!`, bodyHtml: paragraphs(renderTemplate(tpl.body, tokens)) }) }).catch((e) => console.error("welcome email", e));
