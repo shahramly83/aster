@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, RefreshControl, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { loadAnalytics, loadCredits, loadTopSources, subscribeDashboard } from "../lib/data";
-import { Press, IconChip, TopBar, Loader, Feather } from "../components/ui";
+import { Press, IconChip, TopBar, Button, Loader, Feather } from "../components/ui";
 import { RingGauge, MeterBar, CreditRings } from "../components/Gauge";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
@@ -14,6 +14,17 @@ function daysUntil(iso) {
   if (!iso) return null;
   const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
   return d > 0 ? d : 0;
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function fmtDate(iso) {
+  if (!iso) return "soon";
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+function joinLabels(arr) {
+  if (arr.length <= 1) return arr[0] || "";
+  return arr.slice(0, -1).join(", ") + " and " + arr[arr.length - 1];
 }
 
 // Distinct accents for source segments (readable on the blue ground).
@@ -41,6 +52,7 @@ export default function DashboardScreen({ navigation }) {
   const [credits, setCredits] = useState(null);
   const [sources, setSources] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [creditModal, setCreditModal] = useState(null); // the credit item tapped
 
   // Brand-blue screen → light status bar while focused.
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
@@ -193,24 +205,94 @@ export default function DashboardScreen({ navigation }) {
               </View>
             </View>
             <View style={{ flex: 1, marginLeft: space(4) }}>
-              {(credits?.items || []).map((it) => (
-                <Press key={it.key} onPress={() => navigation.navigate("ProfileTab")} haptic="light" scaleTo={0.98}>
-                  <View style={styles.legendRow}>
-                    <View style={[styles.legendDot, { backgroundColor: it.color }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[type.smallStrong, { color: theme.onBrand }]} numberOfLines={1}>{it.label}</Text>
-                      <Text style={[type.small, { color: theme.onBrandMuted }]}>
-                        {it.unlimited ? "Unlimited" : `${it.remaining} of ${it.limit} left`}
-                      </Text>
+              {(credits?.items || []).map((it) => {
+                const out = !it.unlimited && it.remaining <= 0;
+                return (
+                  <Press key={it.key} onPress={() => setCreditModal(it)} haptic="light" scaleTo={0.98}>
+                    <View style={styles.legendRow}>
+                      <View style={[styles.legendDot, { backgroundColor: it.color }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[type.smallStrong, { color: theme.onBrand }]} numberOfLines={1}>{it.label}</Text>
+                        <Text style={[type.small, { color: out ? "#FFC2C2" : theme.onBrandMuted }]}>
+                          {it.unlimited ? "Unlimited" : out ? "Fully used" : `${it.remaining} of ${it.limit} left`}
+                        </Text>
+                      </View>
+                      {out ? (
+                        <View style={styles.outPill}><Text style={styles.outPillTxt}>OUT</Text></View>
+                      ) : (
+                        <Feather name="chevron-right" size={16} color={theme.onBrandFaint} />
+                      )}
                     </View>
-                  </View>
-                </Press>
-              ))}
+                  </Press>
+                );
+              })}
             </View>
           </View>
         </View>
       </ScrollView>
+
+      <CreditModal item={creditModal} credits={credits} onClose={() => setCreditModal(null)} />
     </SafeAreaView>
+  );
+}
+
+// Out-of-credits (and per-credit) detail, styled after the CreditsState concept:
+// what's used up, when it refreshes (with a progress bar), what still works, and a
+// note that plans are managed on the web.
+function CreditModal({ item, credits, onClose }) {
+  if (!item) return null;
+  const out = !item.unlimited && item.remaining <= 0;
+  const days = daysUntil(credits?.resetsAt);
+  const dateLabel = fmtDate(credits?.resetsAt);
+  const fill = days != null ? Math.max(4, Math.min(100, Math.round(((30 - days) / 30) * 100))) : 6;
+  const others = (credits?.items || [])
+    .filter((x) => x.key !== item.key && (x.unlimited || x.remaining > 0))
+    .map((x) => x.label);
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.mBackdrop}>
+        <View style={styles.mCard}>
+          <View style={styles.mTop}>
+            <View style={[styles.mIcon, { backgroundColor: out ? "#FFE7EA" : theme.brand + "14" }]}>
+              <Feather name="zap" size={22} color={out ? "#F2526B" : theme.brand} />
+            </View>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.mClose}><Feather name="x" size={18} color={theme.ink3} /></Pressable>
+          </View>
+
+          <Text style={styles.mTitle}>{out ? `Out of ${item.label} credits` : `${item.label} credits`}</Text>
+
+          <Text style={styles.mBody}>
+            {item.unlimited
+              ? `${item.label} is unlimited on your plan. `
+              : out
+                ? `Your ${item.limit} monthly ${item.label} credits are used up. They refresh on `
+                : `You have ${item.remaining} of ${item.limit} ${item.label} credits left this cycle. They refresh on `}
+            {!item.unlimited ? <Text style={{ fontFamily: "Inter_700Bold", color: theme.ink }}>{dateLabel}</Text> : null}
+            {!item.unlimited && days != null ? ` — ${days} day${days === 1 ? "" : "s"} from now.` : !item.unlimited ? "." : ""}
+          </Text>
+
+          {!item.unlimited ? (
+            <View style={styles.mBar}>
+              <View style={styles.mBarHead}>
+                <Text style={[type.smallStrong, { color: theme.ink }]}>Next refresh</Text>
+                <Text style={[type.smallStrong, { color: theme.brand }]}>{days != null ? `${days} day${days === 1 ? "" : "s"}` : "—"}</Text>
+              </View>
+              <View style={styles.mBarTrack}><View style={[styles.mBarFill, { width: `${fill}%` }]} /></View>
+            </View>
+          ) : null}
+
+          {out && others.length ? (
+            <Text style={styles.mBody}>
+              Everything else keeps working — {joinLabels(others)} still {others.length === 1 ? "has" : "have"} credits this cycle.
+            </Text>
+          ) : null}
+
+          <Button title="Got it" onPress={onClose} style={{ marginTop: space(5) }} />
+          <Text style={styles.mFoot}>Plans are managed from your Aster web dashboard.</Text>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -245,4 +327,19 @@ const styles = StyleSheet.create({
   ringCenter: { position: "absolute", alignItems: "center", justifyContent: "center" },
   legendRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2) },
   legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
+  outPill: { paddingHorizontal: 8, height: 20, borderRadius: 10, backgroundColor: "rgba(242,82,107,0.22)", alignItems: "center", justifyContent: "center" },
+  outPillTxt: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 0.6, color: "#FFC2C2" },
+
+  mBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.6)", alignItems: "center", justifyContent: "center", padding: space(5) },
+  mCard: { width: "100%", maxWidth: 400, backgroundColor: theme.card, borderRadius: 26, padding: space(5) },
+  mTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  mIcon: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  mClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center" },
+  mTitle: { fontFamily: "Inter_700Bold", fontSize: 25, letterSpacing: -0.4, color: theme.ink, marginTop: space(4) },
+  mBody: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, color: theme.ink3, marginTop: space(3) },
+  mBar: { backgroundColor: theme.brand + "0F", borderRadius: radius.lg, padding: space(4), marginTop: space(4) },
+  mBarHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  mBarTrack: { height: 8, borderRadius: radius.pill, backgroundColor: theme.brand + "22", marginTop: 12, overflow: "hidden" },
+  mBarFill: { height: "100%", borderRadius: radius.pill, backgroundColor: theme.brand },
+  mFoot: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: theme.ink4, textAlign: "center", marginTop: space(3) },
 });
