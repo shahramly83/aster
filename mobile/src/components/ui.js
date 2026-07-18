@@ -6,6 +6,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { theme, palette, radius, type, shadow, space } from "../theme";
 import { stageColor, stageLabel } from "@aster/shared";
+import { AsterMark } from "./Logo";
 
 // ---- Text -------------------------------------------------------------------
 // One text component that pulls from the type scale so weights/sizes stay
@@ -205,7 +206,8 @@ function greetingWord() {
 export function TopBar({ name, subtitle, right }) {
   return (
     <View style={styles.topBar}>
-      <View style={{ flex: 1 }}>
+      <AsterMark size={42} color={theme.white} />
+      <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={[type.small, { color: theme.onBrandMuted }]}>{subtitle || greetingWord()}</Text>
         <Text style={[type.h2, { color: theme.onBrand }]} numberOfLines={1}>{name || "Welcome"}</Text>
       </View>
