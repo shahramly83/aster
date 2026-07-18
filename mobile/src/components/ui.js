@@ -209,7 +209,7 @@ export function IconTile({ name, tint = theme.brand, size = 40 }) {
 export function SectionHeader({ children, action, onAction }) {
   return (
     <View style={styles.sectionHeader}>
-      <Text style={type.label} numberOfLines={1}>{String(children).toUpperCase()}</Text>
+      <Text style={type.label} numberOfLines={1}>{React.Children.toArray(children).join("").toUpperCase()}</Text>
       {action ? (
         <Pressable onPress={onAction} hitSlop={8}><Text style={[type.smallStrong, { color: theme.brand }]}>{action}</Text></Pressable>
       ) : null}

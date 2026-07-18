@@ -67,7 +67,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
     setErr(null);
     if (!chosen.length) { setErr("Pick at least one time to send."); return; }
     setBusy(true);
-    const attendees = [{ id: hm?.id, name: hm?.name || "", email: hm?.email || "" }];
+    const attendees = [{ id: hm?.id, name: hm?.name || "", email: hm?.email || "", hm: true }];
     try {
       const pool = await loadInterviewers(companyId, jobId);
       pool.filter((p) => p.assigned).forEach((p) => attendees.push({ id: p.id, name: p.name, email: p.email }));

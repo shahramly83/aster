@@ -141,6 +141,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   const saveMl = () => persistMl(mlInput.trim());
 
+  // Fill the field with a ready-to-use video room (Jitsi Meet, no account
+  // needed). This does NOT send — the HM reviews it and taps Share to email it.
+  const genMeetingLink = () => {
+    const rand = Math.random().toString(36).slice(2, 10);
+    const tag = (candidateId || "iv").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
+    setMlInput(`https://meet.jit.si/Aster-${tag}-${rand}`);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+  };
+
   const resendInvite = async () => {
     if (!interview?.token) return;
     const res = await resendInterviewInvite(interview.token);
@@ -173,8 +182,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
   const ratedIds = new Set(cards.map((c) => c.interviewerId));
   const panel = interview?.attendees || [];
-  const allRated = panel.length ? panel.every((p) => p.id && ratedIds.has(p.id)) : cards.length > 0;
-  const showDecision = stage === "interviewing" && interviewDone && allRated;
+  // Interviewers must submit a scorecard; the hiring manager's is optional (they
+  // can skip it). The HM is the attendee flagged hm:true (older invites: the
+  // first attendee). The decision opens once every interviewer has scored.
+  const hasHmFlag = panel.some((p) => p.hm);
+  const requiredRaters = panel.filter((p, i) => p.id && !(hasHmFlag ? p.hm : i === 0));
+  const ratedRequired = requiredRaters.filter((p) => ratedIds.has(p.id)).length;
+  const allRated = requiredRaters.length ? ratedRequired === requiredRaters.length : true;
+  const showDecision = manager && stage === "interviewing" && interviewDone && allRated;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -363,8 +378,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <Text style={[type.small, { color: theme.ink2, marginTop: 1 }]}>{fmtInterviewRange(scheduledAt, scheduledEnd, profile.timezone)}</Text>
                     </View>
                   </View>
-                  {/* Meeting link appears once the candidate has accepted. Paste the
-                      Meet/Zoom/Teams link; Share saves it and emails everyone. */}
+                  {/* Meeting link appears once the candidate has accepted. Generate a
+                      room or paste one — nothing sends until the HM taps Share. */}
                   <View style={styles.mlWrap}>
                     <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Meeting link</Text>
                     {interview?.meetingLink ? (
@@ -378,11 +393,16 @@ export default function CandidateProfileScreen({ route, navigation }) {
                           <Feather name="check-circle" size={13} color={theme.success} />
                           <Text style={[type.small, { color: theme.success, marginLeft: 6 }]}>Shared with the candidate and panel</Text>
                         </View>
-                        <Text style={[type.small, { color: theme.ink4, marginTop: 10, marginBottom: 7 }]}>Replace with your own</Text>
+                        <Text style={[type.small, { color: theme.ink4, marginTop: 10, marginBottom: 7 }]}>Replace it, then Share again</Text>
                       </>
                     ) : (
-                      <Text style={[type.small, { color: theme.ink4, marginBottom: 8 }]}>Paste the video call link, then Share to send it to the candidate and panel with a calendar invite.</Text>
+                      <Text style={[type.small, { color: theme.ink4, marginBottom: 8 }]}>Generate a room or paste your own. Nothing is sent until you tap Share.</Text>
                     )}
+                    {/* Fill-only: generates a link into the field, doesn't send. */}
+                    <Pressable onPress={genMeetingLink} style={styles.mlGen}>
+                      <Feather name="video" size={15} color={theme.brand} />
+                      <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Generate a link</Text>
+                    </Pressable>
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       <TextInput
                         value={mlInput} onChangeText={setMlInput}
@@ -391,7 +411,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
                         style={[styles.mlInput, { flex: 1 }]}
                       />
-                      <Pressable onPress={saveMl} disabled={mlSaving} style={styles.mlSave}>
+                      <Pressable onPress={saveMl} disabled={mlSaving || !mlInput.trim()} style={[styles.mlSave, (mlSaving || !mlInput.trim()) && { opacity: 0.5 }]}>
                         {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Share</Text>}
                       </Pressable>
                     </View>
@@ -440,7 +460,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {/* Panel feedback — scorecards open once an interview exists (web sequence) */}
           {(canScore || cards.length > 0) ? (
           <View style={{ marginTop: space(5) }}>
-            <SectionHeader>Panel feedback · {cards.length}</SectionHeader>
+            <SectionHeader>{requiredRaters.length ? `Panel feedback · ${ratedRequired}/${requiredRaters.length}` : "Panel feedback"}</SectionHeader>
             {cards.length === 0 ? (
               <Card><Text style={[type.small, { color: theme.ink3 }]}>No scorecards yet. Add yours after the interview.</Text></Card>
             ) : (
@@ -659,6 +679,7 @@ const styles = StyleSheet.create({
   mlWrap: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
   mlInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, height: 44, fontFamily: "Inter_500Medium", fontSize: 14, color: theme.ink },
   mlSave: { paddingHorizontal: 16, height: 44, borderRadius: radius.md, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+  mlGen: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.bg, marginBottom: 8 },
   mlChip: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
   mlChipIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.white, alignItems: "center", justifyContent: "center" },
   slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
