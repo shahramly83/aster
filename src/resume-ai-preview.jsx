@@ -2380,7 +2380,7 @@ function OfferSignPreview() {
               </span>
               <span className="block mt-0.5 pt-1 text-[9px]" style={{ borderTop: "1px solid var(--line-strong)", color: "var(--ink-3)" }}>Candidate signature</span>
             </span>
-            <span className="text-[8px] font-semibold uppercase inline-flex items-center gap-1 shrink-0 pb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}><Icon name="shield" className="w-3 h-3" /> DocuSign</span>
+            <span className="text-[8px] font-semibold uppercase inline-flex items-center gap-1 shrink-0 pb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}><Icon name="shield" className="w-3 h-3" /> Aster Sign</span>
           </div>
         </div>
       </div>
@@ -2701,7 +2701,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { icon: "upload", tag: "Intake", title: "Bulk resume upload", body: "Drop in a stack of PDFs or Word files, or a whole ZIP. Aster screens each one, pulls out the details, and flags anything it can't read for you to check." },
     { icon: "briefcase", tag: "Sourcing", title: "Apply Pages", body: "Every role gets a shareable link for LinkedIn, JobStreet, or your careers site. Each link is source-tracked, so you always know which channel your best applicants come from." },
     { icon: "chat", tag: "Messaging", title: "WhatsApp reminders", body: "Send interview confirmations and reminders over WhatsApp Business, where candidates actually reply." },
-    { icon: "offer", tag: "Offers", title: "Offers with e-signature", body: "Set the terms and Aster builds a branded offer letter, sent for signature via DocuSign. The signed PDF is saved to the candidate's profile automatically." },
+    { icon: "offer", tag: "Offers", title: "Offers with e-signature", body: "Set the terms and Aster builds a branded offer letter, sent for e-signature with Aster Sign, built in. The signed PDF is saved to the candidate's profile automatically." },
     { icon: "eye", tag: "Insights", title: "AI Experience Insights", body: "Run a deeper AI read of any resume: total and leadership experience, time at each employer, and any gaps. Saved to the candidate, so it never costs a second credit." },
     { icon: "interviewers", tag: "Collaboration", title: "Interview as a team", body: "Add teammates to any interview and everyone gets the calendar invite and the meeting link. Interviewers see only the candidates they're assessing." },
     { icon: "shield", tag: "Security", title: "Privacy by default", body: "Your candidates' data stays yours: encrypted, in your workspace, and exportable or deletable whenever you want." },
@@ -2725,7 +2725,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       { label: "WhatsApp Business reminders", free: false, starter: false, pro: true, ent: true },
     ]},
     { group: "Offers", rows: [
-      { label: "Offer letters & e-signature (DocuSign)", free: true, starter: true, pro: true, ent: true },
+      { label: "Offer letters & e-signature (built-in)", free: true, starter: true, pro: true, ent: true },
       { label: "Signed PDF stored on the profile", free: true, starter: true, pro: true, ent: true },
     ]},
     { group: "Security & support", rows: [
@@ -2758,7 +2758,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     { cat: "General", q: "How does the match score work?", a: "Aster reads each resume, compares it against the role's requirements, and gives every applicant a score with the reasons behind it, so the strongest fits rise to the top instead of getting buried on page three." },
     { cat: "General", q: "How accurate is Aster's screening?", a: "The match score is a strong first pass, not a final decision. It surfaces the best-fit candidates with reasons, so your team reviews a shortlist instead of a pile, and you always make the call." },
     { cat: "General", q: "Can I bring resumes I already have?", a: "Yes. Upload existing CVs and Aster screens and scores them the same way as new applicants, so nothing gets left behind." },
-    { cat: "General", q: "Can I send and sign offers in Aster?", a: "Yes. Set the offer terms and Aster builds a branded offer letter, then sends it for e-signature via DocuSign. The candidate signs, the signed PDF is saved to their profile, and your team is notified. An offer that passes its expiry date is voided and declined on its own." },
+    { cat: "General", q: "Can I send and sign offers in Aster?", a: "Yes. Set the offer terms and Aster builds a branded offer letter, then sends it for e-signature with Aster Sign, our built-in e-signature. The candidate signs online (typed or drawn), the signed PDF and a certificate of completion are saved to their profile, and your team is notified. No DocuSign account needed." },
     { cat: "General", q: "Do I need to change how my team hires?", a: "No. Aster fits around your existing process. Post roles, screen, and schedule the way you do today, just faster and all in one place." },
     { cat: "General", q: "How quickly can I get started?", a: "Minutes. Create your workspace, post a role or upload existing CVs, and Aster starts screening and scoring right away. There's no setup project to run first." },
     { cat: "Billing", q: "Is there a free trial?", a: "Yes. New accounts get a 14-day Scale trial with full access and no card required. Subscribe before it ends to keep your account. If you don't, the account is suspended and deleted after 30 days." },
@@ -3766,15 +3766,15 @@ const PRODUCT_PAGES = {
   offers: {
     eyebrow: "Offer Management", icon: "offer",
     title: "Close the loop", accent: "with a signed offer.",
-    subtitle: "Set the terms, and Aster builds a branded offer letter and sends it for e-signature via DocuSign. The candidate signs, the signed PDF is saved to their profile, and your team is notified, all without leaving the pipeline.",
-    chips: ["Structured terms", "E-signature via DocuSign", "Signed PDF on file"],
+    subtitle: "Set the terms, and Aster builds a branded offer letter and sends it for e-signature with Aster Sign, our built-in e-signature. The candidate signs, the signed PDF is saved to their profile, and your team is notified, all without leaving the pipeline.",
+    chips: ["Structured terms", "Built-in e-signature", "Signed PDF on file"],
     features: [
       { icon: "doc", title: "Structured offer terms", body: "Capture the real terms: base salary and currency, employment type, start date, and an optional expiry. Aster records them on the offer and builds the letter from them." },
-      { icon: "offer", title: "Sign via DocuSign", body: "Aster generates a branded offer letter and sends it through DocuSign for the candidate to review and sign. No separate document to prepare." },
-      { icon: "check", title: "Signed PDF, saved for you", body: "The moment the candidate signs, the signed letter is stored on their profile to download anytime, and your team gets the offer-accepted email." },
+      { icon: "offer", title: "Sign with Aster Sign", body: "Aster generates a branded offer letter and the candidate signs it online, typed or drawn, right from the email link. No DocuSign account, no separate document to prepare." },
+      { icon: "check", title: "Signed PDF + certificate, saved for you", body: "The moment the candidate signs, the signed letter and a certificate of completion (signer, time, IP, document hash) are stored on their profile to download anytime, and your team gets the offer-accepted email." },
       { icon: "chat", title: "Track every offer", body: "See at a glance who's been sent an offer, who's signed, declined, or let it lapse, right on the candidate profile." },
     ],
-    highlight: { title: "From final interview to signed, in one place", body: "No copying details into a separate doc, no chasing a reply in email. The terms, the letter and the signature all live where the rest of the hire does.", points: ["Terms flow straight into a branded offer letter", "The candidate signs in DocuSign, no extra tools", "An expired offer is voided and declined on its own"] },
+    highlight: { title: "From final interview to signed, in one place", body: "No copying details into a separate doc, no chasing a reply in email. The terms, the letter and the signature all live where the rest of the hire does.", points: ["Terms flow straight into a branded offer letter", "The candidate signs online in a click, no extra tools", "An expired offer is voided and declined on its own"] },
   },
   analytics: {
     eyebrow: "Analytics & Reporting", icon: "target",
@@ -7380,27 +7380,106 @@ function BookInterviewScreen({ data, done, onConfirm }) {
 // accepts or declines. No login. Responding calls the respond-offer function
 // (via onRespond), which records it and — on accept — emails the company and
 // moves the candidate to Hired.
-function OfferScreen({ data, done, onRespond }) {
-  const [busy, setBusy] = useState(null); // 'accepted' | 'declined' while submitting
+// Draw-to-sign canvas. Reports a PNG data URL (or null when cleared) via onChange.
+function SignaturePad({ onChange }) {
+  const canvasRef = useRef(null);
+  const drawing = useRef(false);
+  const dirty = useRef(false);
+  const last = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const c = canvasRef.current; if (!c) return;
+    const ratio = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    const rect = c.getBoundingClientRect();
+    c.width = Math.max(1, rect.width * ratio); c.height = Math.max(1, rect.height * ratio);
+    const ctx = c.getContext("2d");
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#0F172A";
+  }, []);
+
+  const at = (e) => {
+    const c = canvasRef.current; const rect = c.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  };
+  const start = (e) => { e.preventDefault(); drawing.current = true; last.current = at(e); };
+  const move = (e) => {
+    if (!drawing.current) return; e.preventDefault();
+    const ctx = canvasRef.current.getContext("2d"); const p = at(e);
+    ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last.current = p; dirty.current = true;
+  };
+  const end = () => { if (!drawing.current) return; drawing.current = false; if (dirty.current) onChange(canvasRef.current.toDataURL("image/png")); };
+  const clear = () => { const c = canvasRef.current; c.getContext("2d").clearRect(0, 0, c.width, c.height); dirty.current = false; onChange(null); };
+
+  return (
+    <div>
+      <canvas ref={canvasRef}
+        onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
+        onTouchStart={start} onTouchMove={move} onTouchEnd={end}
+        className="w-full rounded-xl bg-white" style={{ height: 120, border: "1px solid var(--line)", cursor: "crosshair", touchAction: "none" }} />
+      <button type="button" onClick={clear} className="text-xs mt-1.5 hover:opacity-70 transition-opacity" style={{ color: "var(--ink-3)" }}>Clear signature</button>
+    </div>
+  );
+}
+
+// Public offer page (/offer/<token>): the candidate reviews the branded letter and
+// signs it with Aster Sign (typed or drawn) — no login, no DocuSign.
+function OfferScreen({ data, token, done, onRespond, onSign }) {
+  const [busy, setBusy] = useState(null); // 'sign' | 'declined' while submitting
   const [err, setErr] = useState(null);
   const [result, setResult] = useState(data?.status && data.status !== "sent" ? data.status : null);
   const company = data?.company_name || "The team";
   const logoUrl = data?.logo_url || null;
   const jobTitle = data?.job_title || "the role";
 
-  const respond = async (response) => {
-    setErr(null); setBusy(response);
-    const res = await onRespond(response);
-    setBusy(null);
-    if (!res.ok) { setErr(res.error || "Something went wrong. Please try again."); return; }
-    setResult(response);
-  };
+  const [letter, setLetter] = useState(null); // { html, candidateName }
+  const [mode, setMode] = useState("type");    // 'type' | 'draw'
+  const [typedName, setTypedName] = useState("");
+  const [drawnPng, setDrawnPng] = useState(null);
+  const [consent, setConsent] = useState(false);
 
   const settled = done || result;
 
+  // Load the letter (and mark it viewed) once, unless already settled.
+  useEffect(() => {
+    if (settled || !token || !hasSupabase) return;
+    let alive = true;
+    (async () => {
+      const { data: r } = await supabase.functions.invoke("aster-sign", { body: { token, action: "view" } });
+      if (!alive || !r?.ok) return;
+      setLetter({ html: r.html, candidateName: r.candidateName });
+      setTypedName((n) => n || (r.candidateName && r.candidateName !== "there" ? r.candidateName : ""));
+    })();
+    return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const hasSignature = mode === "type" ? typedName.trim().length > 1 : !!drawnPng;
+  const canSign = consent && hasSignature && !busy;
+
+  const sign = async () => {
+    if (!canSign) return;
+    setErr(null); setBusy("sign");
+    const res = await onSign(mode === "type"
+      ? { signatureType: "typed", typedName: typedName.trim(), consent: true }
+      : { signatureType: "drawn", drawnPng, typedName: typedName.trim() || letter?.candidateName || "", consent: true });
+    setBusy(null);
+    if (!res.ok) { setErr(res.error === "already_settled" ? "This offer has already been signed." : (res.error || "Something went wrong. Please try again.")); return; }
+    setResult("accepted");
+  };
+
+  const decline = async () => {
+    setErr(null); setBusy("declined");
+    const res = await onRespond("declined");
+    setBusy(null);
+    if (!res.ok) { setErr(res.error || "Something went wrong. Please try again."); return; }
+    setResult("declined");
+  };
+
   return (
     <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
-      <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
+      <div className="w-full max-w-lg rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
         <div className="mb-5 flex items-center gap-3">
           {logoUrl
             ? <img src={logoUrl} alt={company} style={{ height: 32, maxWidth: 160, objectFit: "contain" }} />
@@ -7409,11 +7488,11 @@ function OfferScreen({ data, done, onRespond }) {
         {settled ? (
           (result || data.status) === "accepted" ? (
             <>
-              <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "#DCFCE7", color: "#16A34A" }}>
                 <Icon name="check" className="w-5 h-5" />
               </div>
-              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer accepted</h1>
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}>Congratulations, and welcome to {company}! They'll be in touch shortly with your onboarding details and start date.</p>
+              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer signed</h1>
+              <p className="text-sm" style={{ color: "var(--ink-2)" }}>Congratulations, and welcome to {company}! A copy of your signed offer is on file, and they'll be in touch shortly with your onboarding details and start date.</p>
             </>
           ) : (
             <>
@@ -7424,40 +7503,61 @@ function OfferScreen({ data, done, onRespond }) {
         ) : (
           <>
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>You've received an offer</h1>
-            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>{company} has offered you the <strong>{jobTitle}</strong> role. Let them know your decision below.</p>
-            {(() => {
-              const sym = { myr: "RM", usd: "$", sgd: "S$" }[(data.salary_currency || "").toLowerCase()] || "";
-              const empLabel = { full_time: "Full-time", part_time: "Part-time", contract: "Contract", internship: "Internship" }[data.employment_type] || null;
-              const fmtD = (d) => { if (!d) return null; try { return new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
-              const rows = [];
-              if (data.base_salary != null) rows.push(["Base salary", `${sym}${Number(data.base_salary).toLocaleString("en-US")}`]);
-              if (empLabel) rows.push(["Employment type", empLabel]);
-              const sd = fmtD(data.start_date); if (sd) rows.push(["Start date", sd]);
-              const ed = fmtD(data.expires_at); if (ed) rows.push(["Offer valid until", ed]);
-              if (!rows.length) return null;
-              return (
-                <div className="mb-5 rounded-xl border" style={{ borderColor: "var(--line)" }}>
-                  {rows.map(([k, v], i) => (
-                    <div key={k} className="flex items-center justify-between gap-4 px-3.5 py-2.5" style={i ? { borderTop: "1px solid var(--line)" } : undefined}>
-                      <span className="text-xs" style={{ color: "var(--ink-3)" }}>{k}</span>
-                      <span className="text-sm font-semibold text-right" style={{ color: "var(--ink)" }}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>{company} has offered you the <strong>{jobTitle}</strong> role. Review the letter, then sign to accept.</p>
+
+            {/* The branded offer letter (server-rendered, so it matches the signed PDF). */}
+            <div className="mb-5 rounded-xl border overflow-y-auto p-4 sm:p-5" style={{ borderColor: "var(--line)", maxHeight: 320, background: "#fff" }}>
+              {letter
+                ? <div dangerouslySetInnerHTML={{ __html: letter.html }} />
+                : <div className="py-8 text-center text-sm" style={{ color: "var(--ink-3)" }}>Loading your offer letter…</div>}
+            </div>
+
+            {/* Signature capture: type or draw. */}
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Your signature</p>
+            <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+              {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setMode(k)}
+                  className="text-xs font-semibold px-3.5 py-1.5 rounded-md transition-colors"
+                  style={mode === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {mode === "type" ? (
+              <div className="mb-3">
+                <input value={typedName} onChange={(e) => setTypedName(e.target.value)} placeholder="Type your full name"
+                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
+                {typedName.trim() && (
+                  <div className="mt-2 rounded-lg px-4 py-3 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff", minHeight: 56 }}>
+                    <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 26, color: "var(--brand)" }}>{typedName.trim()}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mb-3"><SignaturePad onChange={setDrawnPng} /></div>
+            )}
+
+            {/* Consent — required for a valid electronic signature. */}
+            <label className="flex items-start gap-2.5 mb-4 cursor-pointer">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 shrink-0 w-4 h-4 accent-[color:var(--brand)]" />
+              <span className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>I agree to sign this offer electronically, and I accept the terms set out in the letter above. I understand my electronic signature is legally binding.</span>
+            </label>
+
             <div className="flex gap-2">
-              <button onClick={() => respond("accepted")} disabled={!!busy}
-                className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-50">
-                {busy === "accepted" ? "Accepting…" : "Accept offer"}
+              <button onClick={sign} disabled={!canSign}
+                className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-40">
+                {busy === "sign" ? "Signing…" : "Sign & accept offer"}
               </button>
-              <button onClick={() => respond("declined")} disabled={!!busy}
-                className="flex-1 rounded-xl border text-sm font-semibold py-3 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+              <button onClick={decline} disabled={!!busy}
+                className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-neutral-50 disabled:opacity-50"
                 style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
                 {busy === "declined" ? "Declining…" : "Decline"}
               </button>
             </div>
-            {err && <p className="text-sm mt-4" style={{ color: "#B42318" }}>{err}</p>}
+            <p className="text-[11px] mt-3 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
+              <Icon name="shield" className="w-3.5 h-3.5" /> Secured by Aster Sign. Your signature, the time and your device are recorded on the signed PDF.
+            </p>
+            {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
           </>
         )}
       </div>
@@ -16884,10 +16984,10 @@ const EMAIL_TEMPLATE_DEFS = [
     tokens: ["candidate_name", "job_title", "date_time"],
     subject: "Interview scheduled: {{candidate_name}} for {{job_title}}",
     body: "{{candidate_name}} confirmed an interview for the {{job_title}} role on {{date_time}}. It's on your calendar." },
-  { key: "offer", name: "Offer email (DocuSign letter)", desc: "The note in the DocuSign email that carries the offer letter. The candidate reviews the terms and signs in DocuSign.",
+  { key: "offer", name: "Offer email (signing link)", desc: "The note in the offer email that links the candidate to their branded letter. They review the terms and sign with Aster Sign.",
     tokens: ["candidate_name", "job_title", "company_name"],
-    subject: "You've been selected for the {{job_title}} role",
-    body: "You've received an offer for the {{job_title}} role at {{company_name}}. Open the document to review the terms and sign." },
+    subject: "Your offer from {{company_name}}",
+    body: "You've received an offer for the {{job_title}} role at {{company_name}}. Review the terms and sign, it only takes a minute." },
   { key: "welcome_hired", name: "Welcome: offer signed", desc: "Sent to the candidate once they sign and accept their offer.",
     tokens: ["candidate_name", "job_title", "company_name"],
     subject: "Welcome to {{company_name}}, {{candidate_name}}!",
@@ -18981,7 +19081,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const offerStatus = offer?.status || (isHired ? "accepted" : stage === "offer" ? "sent" : null);
   const hasEmail = !!candidate?.parsed?.email;
 
-  // Live offer record from the DB (survives reload) — drives the DocuSign e-sign
+  // Live offer record from the DB (survives reload) — drives the Aster Sign e-sign
   // status + signed-letter download shown inside the Decision panel.
   const [offerRec, setOfferRec] = useState(null);
   const [offerDl, setOfferDl] = useState(false);
@@ -19764,7 +19864,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <div className="mt-2">
                   <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
                     <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Ready to hire {firstName}</p>
-                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{offerSigned ? `${firstName} signed the offer letter via DocuSign. Download it below, then mark them as hired to complete the process.` : `${firstName}'s acceptance is recorded. Mark them as hired to complete the process.`}</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>{offerSigned ? `${firstName} signed the offer letter with Aster Sign. Download it below, then mark them as hired to complete the process.` : `${firstName}'s acceptance is recorded. Mark them as hired to complete the process.`}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {offerSigned && (
@@ -19795,12 +19895,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                       {offer?.emailSent === false
                         ? "Recorded internally, no email on file. Mark the outcome here once you hear back."
                         : offerSigned
-                          ? "The candidate signed the offer letter via DocuSign. Download it below, then mark them as hired to complete the process."
+                          ? "The candidate signed the offer letter with Aster Sign. Download it below, then mark them as hired to complete the process."
                           : offerExpired
                             ? "The offer expired without a signature, so it was declined. Re-send a new offer if you'd like."
                             : offerDeclinedRec
                               ? "The candidate declined to sign the offer."
-                              : `${firstName} received the offer letter to review and sign through DocuSign. This updates automatically once they sign, decline, or the offer expires.`}
+                              : `${firstName} received the offer letter to review and sign with Aster Sign. This updates automatically once they sign, decline, or the offer expires.`}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -20231,7 +20331,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
       <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Send offer to {candidateName}</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          Set the terms below. Aster builds the offer letter and sends it to the candidate to <span className="font-medium">sign via DocuSign</span>. They stay in the Offer stage until they sign.
+          Set the terms below. Aster builds the offer letter and sends it to the candidate to <span className="font-medium">sign with Aster Sign</span>. They stay in the Offer stage until they sign.
         </p>
 
         {!hasEmail && (
@@ -20280,12 +20380,12 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={7} className={`${inputClass} mb-2 resize-y`} disabled={!hasEmail} />
         <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>This is the opening of the offer letter. The terms, sign-off and signature block are added automatically.</p>
 
-        {/* Every offer is sent through DocuSign for signature. The signed PDF is
+        {/* Every offer is sent for e-signature via Aster Sign. The signed PDF is
             saved back to the offer once the candidate completes signing. */}
         {hasEmail && (
           <div className="flex items-center gap-2 mb-4 rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--ink-3)" }}><path d="M12 15V3m0 12l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <span className="text-xs" style={{ color: "var(--ink-2)" }}>Sent for e-signature via <span className="font-medium">DocuSign</span>. The signed PDF is saved to the offer.</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--ink-3)" }}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span className="text-xs" style={{ color: "var(--ink-2)" }}>Sent for e-signature with <span className="font-medium">Aster Sign</span>. The signed PDF is saved to the offer.</span>
           </div>
         )}
 
@@ -22585,12 +22685,22 @@ export default function ResumeAIPreview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
 
-  // Candidate accepted or declined: record + notify via the respond-offer function.
+  // Candidate declined: record + notify via the respond-offer function.
   const respondPublicOffer = async (response) => {
     if (!publicOffer?.token) return { ok: false };
     const { data, error } = await supabase.functions.invoke("respond-offer", { body: { token: publicOffer.token, response } });
     if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Could not record your response." };
     setPublicOffer((p) => ({ ...p, status: "done", data: { ...p.data, status: response } }));
+    return { ok: true };
+  };
+
+  // Candidate signed (Aster Sign): submit the signature to the aster-sign
+  // function, which builds the signed PDF and notifies the team + candidate.
+  const signPublicOffer = async (payload) => {
+    if (!publicOffer?.token) return { ok: false };
+    const { data, error } = await supabase.functions.invoke("aster-sign", { body: { token: publicOffer.token, action: "sign", ...payload } });
+    if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Could not record your signature." };
+    setPublicOffer((p) => ({ ...p, status: "done", data: { ...p.data, status: "accepted" } }));
     return { ok: true };
   };
 
@@ -23360,11 +23470,14 @@ export default function ResumeAIPreview() {
     setOffers((prev) => ({ ...prev, [candidateId]: { status: "sent", emailSent, sentAt: "just now", terms } }));
     setCandidateStage(candidateId, "offer", { notify: false });
     // Always record the offer + its terms. When the candidate has an email, send
-    // it through DocuSign for signature (the message becomes the DocuSign email
-    // note); with no email on file we just record the offer internally.
+    // it for signature via Aster Sign (the message becomes the letter opening);
+    // with no email on file we just record the offer internally.
     if (canPersist) {
       dbCreateOffer(companyId, { candidateId, terms }).then((token) => {
-        if (token && emailSent) supabase.functions.invoke("docusign-send", { body: { token, message } }).catch(() => {});
+        if (token && emailSent) {
+          const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+          supabase.functions.invoke("aster-sign-send", { body: { token, message, origin } }).catch(() => {});
+        }
       });
       dbLogActivity("offer_sent", `Offer sent to ${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate"}`, { candidateId });
     }
@@ -23614,7 +23727,7 @@ export default function ResumeAIPreview() {
     }
     return (
       <Shell>
-        <OfferScreen data={o.data} done={o.status === "done"} onRespond={respondPublicOffer} />
+        <OfferScreen data={o.data} token={o.token} done={o.status === "done"} onRespond={respondPublicOffer} onSign={signPublicOffer} />
       </Shell>
     );
   }

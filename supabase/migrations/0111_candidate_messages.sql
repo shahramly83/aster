@@ -62,5 +62,10 @@ grant select, insert, delete on public.candidate_messages to authenticated;
 revoke all on function public.is_manager() from public, anon;
 grant execute on function public.is_manager() to authenticated;
 
--- Realtime: stream inserts to clients with the thread open.
-alter publication supabase_realtime add table public.candidate_messages;
+-- Realtime: stream inserts to clients with the thread open. Guarded so re-running
+-- (the table may already be a publication member) is a no-op rather than an error.
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'candidate_messages') then
+    alter publication supabase_realtime add table public.candidate_messages;
+  end if;
+end $$;
