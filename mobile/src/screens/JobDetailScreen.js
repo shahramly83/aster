@@ -60,16 +60,18 @@ export default function JobDetailScreen({ route, navigation }) {
   );
 
   // Hero "in pipeline" reflects exactly what's on screen (the "All" set). Hired is
-  // a separate summary stat, so it still counts everyone hired for this role.
+  // a separate summary stat, so it still counts everyone hired for this role. We
+  // show placeholders until the list loads rather than the Roles snapshot, so the
+  // number never flashes the full pipeline count and then drops to strong-only.
+  const loaded = rows !== null;
   const counts = useMemo(() => {
-    if (!rows) return job?.counts || {};
     const c = {};
     for (const a of strongRows) c[a.stage] = (c[a.stage] || 0) + 1;
     return c;
-  }, [rows, strongRows, job]);
-  const total = rows ? strongRows.length : (job?.applicantCount ?? 0);
-  const hired = rows ? rows.filter((r) => r.stage === "hired").length : (job?.counts?.hired || 0);
-  const toReview = (counts.interviewing || 0) + (counts.offer || 0);
+  }, [strongRows]);
+  const total = loaded ? strongRows.length : null;
+  const hired = loaded ? rows.filter((r) => r.stage === "hired").length : null;
+  const toReview = loaded ? (counts.interviewing || 0) + (counts.offer || 0) : null;
 
   // Star toggles a candidate between applied and shortlisted (web-safe stage move).
   const toggleStar = async (item) => {
@@ -147,11 +149,11 @@ export default function JobDetailScreen({ route, navigation }) {
           <View style={styles.openDot} />
           <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
         </View>
-        <Text style={styles.heroNum}>{total}</Text>
+        <Text style={styles.heroNum}>{loaded ? total : "—"}</Text>
         <Text style={[type.small, { color: "rgba(255,255,255,0.75)" }]}>candidate{total === 1 ? "" : "s"} in pipeline</Text>
 
         <View style={styles.heroPipe}>
-          {total > 0 && PIPE.map((k) => {
+          {loaded && total > 0 && PIPE.map((k) => {
             const n = counts[k] || 0;
             if (!n) return null;
             return <View key={k} style={{ flex: n, backgroundColor: stageColor(k) }} />;
@@ -159,8 +161,8 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.heroFoot}>
-          <HeroStat label="Hired" value={hired} />
-          <HeroStat label="To review" value={toReview} />
+          <HeroStat label="Hired" value={loaded ? hired : "—"} />
+          <HeroStat label="To review" value={loaded ? toReview : "—"} />
           <HeroStat label="Posted" value={job?.postedAt ? relTime(job.postedAt) : "—"} small />
         </View>
       </LinearGradient>
