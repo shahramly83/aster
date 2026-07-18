@@ -379,10 +379,13 @@ export async function loadApplicants(companyId, jobId) {
 
   return rows.map((a) => {
     const c = candById[a.candidate_id] || {};
+    const p = c.parsed || {};
     return {
       applicationId: a.id,
       candidateId: a.candidate_id,
-      name: c.parsed?.name || c.full_name || "Candidate",
+      name: p.name || c.full_name || "Candidate",
+      title: p.currentTitle || p.headline || (Array.isArray(p.experience) && p.experience[0]?.title) || null,
+      location: p.location || null,
       stage: a.stage || "applied",
       matchScore: typeof a.match_score === "number" ? a.match_score : null,
       avatarUrl: c.photo_path ? urlByPath[c.photo_path] || null : null,

@@ -110,7 +110,7 @@ function Root() {
       <Stack.Screen name="Main" component={Tabs} options={{ headerShown: false }} />
       <Stack.Screen name="InterviewDetail" component={InterviewDetailScreen} options={{ title: "Interview" }} />
       <Stack.Screen name="Scorecard" component={ScorecardScreen} options={{ title: "Scorecard" }} />
-      <Stack.Screen name="PositionApplicants" component={PositionApplicantsScreen} options={{ title: "Candidates" }} />
+      <Stack.Screen name="PositionApplicants" component={PositionApplicantsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CandidateProfile" component={CandidateProfileScreen} options={{ title: "Candidate" }} />
       <Stack.Screen name="Discussion" component={DiscussionScreen} options={({ route }) => ({ title: route.params?.candidateName || "Discussion" })} />
     </Stack.Navigator>
@@ -132,8 +132,8 @@ export default function App() {
 
   // Status bar follows the active route: light on the blue Pipeline dashboard,
   // dark everywhere else (including pushed stack screens).
-  // Blue-background tabs use a light status bar; everything else dark.
-  const BLUE_ROUTES = ["DashboardTab", "PositionsTab"];
+  // Blue-header screens use a light status bar; everything else dark.
+  const BLUE_ROUTES = ["DashboardTab", "PositionsTab", "PositionApplicants"];
   const applyBar = (state) => {
     let r = state?.routes?.[state.index];
     while (r?.state) r = r.state.routes[r.state.index];
