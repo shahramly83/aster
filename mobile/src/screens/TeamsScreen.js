@@ -72,7 +72,7 @@ export default function TeamsScreen({ navigation }) {
             <Text style={styles.eyebrow}>YOUR WORKSPACE</Text>
             <Text style={styles.title}>Team</Text>
           </View>
-          <HeaderActions light unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />
+          <HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />
         </View>
 
         {/* Role summary tiles */}
