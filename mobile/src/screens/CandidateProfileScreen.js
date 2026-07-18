@@ -10,6 +10,7 @@ import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
 import ConfirmDialog from "../components/ConfirmDialog";
+import SuccessModal from "../components/SuccessModal";
 import AiInsight from "../components/AiInsight";
 import AiQuestions from "../components/AiQuestions";
 import { theme, type, space, radius, shadow } from "../theme";
@@ -60,6 +61,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [mlSaving, setMlSaving] = useState(false);
   const [confirm, setConfirm] = useState(null); // branded confirm dialog config
   const [offerOpen, setOfferOpen] = useState(false);
+  const [offerSent, setOfferSent] = useState(null); // { title, message } for the branded success modal
   const [offer, setOffer] = useState(null);
   const [approvals, setApprovals] = useState([]);
   const [matchReason, setMatchReason] = useState(null);
@@ -619,7 +621,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
         candidateName={name}
         jobId={jobId}
         defaults={{ jobTitle: route.params?.jobTitle || "" }}
-        onSent={() => { setStage("offer"); load(); }}
+        onSent={(res) => { setStage("offer"); load(); setOfferSent({ title: res?.title || "Offer sent", message: res?.message || "" }); }}
+      />
+
+      <SuccessModal
+        visible={!!offerSent}
+        title={offerSent?.title || "Offer sent"}
+        message={offerSent?.message || ""}
+        onClose={() => setOfferSent(null)}
       />
     </View>
   );

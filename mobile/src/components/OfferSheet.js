@@ -132,15 +132,15 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     });
     setSending(false);
     if (!res.ok) { setErr(res.error || "Couldn't send the offer."); return; }
-    reset();
-    onSent?.(res);
     const msg = res.needsApproval
       ? "Sent to your approvers. The candidate is emailed to sign once everyone approves."
       : res.emailed
         ? `${candidateName || "The candidate"} has been emailed a link to review and sign.`
         : "Offer recorded.";
-    Alert.alert("Offer sent", msg);
+    reset();
     onClose();
+    // Parent shows a branded success modal (not the OS alert).
+    onSent?.({ ...res, title: res.needsApproval ? "Sent for approval" : "Offer sent", message: msg });
   };
 
   return (
