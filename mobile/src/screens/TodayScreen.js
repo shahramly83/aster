@@ -100,7 +100,7 @@ function WeekStrip({ items, tz }) {
 }
 
 export default function TodayScreen({ navigation }) {
-  const { profile, manager } = useAuth();
+  const { profile, manager, assignedJobIds } = useAuth();
   const { unread } = useNotifications();
   const [items, setItems] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -111,9 +111,9 @@ export default function TodayScreen({ navigation }) {
     if (!profile) return;
     try {
       setError("");
-      setItems(await loadMyInterviews(profile.companyId, profile.userId));
+      setItems(await loadMyInterviews(profile.companyId, profile.userId, assignedJobIds));
     } catch (e) { setError(e?.message || "Could not load interviews."); setItems([]); }
-  }, [profile]);
+  }, [profile, assignedJobIds]);
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); load(); }, [load]));
   // Tick the countdown once a minute so the hero stays honest.

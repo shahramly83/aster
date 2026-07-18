@@ -10,22 +10,26 @@ const SIGNED_URL_TTL = 3600; // seconds
 
 // Upcoming + recent interviews where I am the interviewer, newest-relevant first.
 // Returns enriched rows with candidate name, job title and resume/photo URLs.
-export async function loadMyInterviews(companyId, userId) {
+export async function loadMyInterviews(companyId, userId, assignedJobIds = []) {
   const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees";
   const base = () => supabase
     .from("interviews").select(cols)
     .eq("company_id", companyId)
     .eq("status", "scheduled");
-  // An interview is "mine" if I set it up (interviewer_id) OR I'm on the panel
-  // (in the attendees array). Panel members aren't the interviewer_id, so a
-  // single interviewer_id filter would leave their calendar empty.
-  const [mine, onPanel] = await Promise.all([
+  // An interview is "mine" if I set it up (interviewer_id), I'm on the panel
+  // snapshot (attendees), OR it's on a role I'm assigned to (job_assignments).
+  // Panel members aren't the interviewer_id, and the attendees snapshot is taken
+  // at invite time, so without the assigned-jobs check a later-added interviewer
+  // would see an empty calendar.
+  const queries = [
     base().eq("interviewer_id", userId),
     base().contains("attendees", [{ id: userId }]),
-  ]);
-  if (mine.error) throw mine.error;
+  ];
+  if (assignedJobIds && assignedJobIds.length) queries.push(base().in("job_id", assignedJobIds));
+  const results = await Promise.all(queries);
+  if (results[0].error) throw results[0].error;
   const byId = new Map();
-  for (const r of [...(mine.data || []), ...(onPanel.data || [])]) byId.set(r.id, r);
+  for (const res of results) for (const r of res.data || []) byId.set(r.id, r);
   const rows = [...byId.values()].sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
   if (!rows.length) return [];
 
