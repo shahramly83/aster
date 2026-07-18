@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, FlatList, ScrollView, Pressable, Modal, RefreshControl, ActivityIndicator, Alert, StyleSheet } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Text, TextInput, FlatList, ScrollView, Pressable, Modal, RefreshControl, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
@@ -45,10 +45,24 @@ export default function JobDetailScreen({ route, navigation }) {
 
   const canManageInterviewers = ["owner", "admin"].includes((profile?.role || "").toLowerCase());
 
-  // Public apply page link (hireaster.com/apply/<jobId>), same as web.
+  // Public apply page link on the workspace's own subdomain (<slug>.hireaster.com),
+  // with optional source tagging — mirrors the web buildLink module.
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkSource, setLinkSource] = useState("");
   const [copied, setCopied] = useState(false);
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    const s = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", (e) => setKb(e.endCoordinates?.height || 0));
+    const h = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKb(0));
+    return () => { s.remove(); h.remove(); };
+  }, []);
+  const applyBase = profile?.companySlug
+    ? `https://${profile.companySlug}.hireaster.com/apply/${jobId}`
+    : `https://hireaster.com/apply/${jobId}`;
+  const slugifySource = (s) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const applyUrl = (() => { const s = slugifySource(linkSource); return s ? `${applyBase}?source=${s}` : applyBase; })();
   const copyApplyLink = async () => {
-    await Clipboard.setStringAsync(`https://hireaster.com/apply/${jobId}`);
+    await Clipboard.setStringAsync(applyUrl);
     setCopied(true);
     Haptics.selectionAsync().catch(() => {});
     setTimeout(() => setCopied(false), 1800);
@@ -189,9 +203,9 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={styles.openDot} />
             <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
           </View>
-          <Pressable onPress={copyApplyLink} style={styles.applyChip} hitSlop={6}>
-            <Feather name={copied ? "check" : "link"} size={13} color={theme.white} />
-            <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>{copied ? "Copied" : "Copy apply link"}</Text>
+          <Pressable onPress={() => { setLinkSource(""); setCopied(false); setLinkOpen(true); }} style={styles.applyChip} hitSlop={6}>
+            <Feather name="link" size={13} color={theme.white} />
+            <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>Copy apply link</Text>
           </Pressable>
         </View>
         <Text style={styles.heroTitle} numberOfLines={2}>{jobTitle || "Role"}</Text>
@@ -351,6 +365,41 @@ export default function JobDetailScreen({ route, navigation }) {
         />
       </SafeAreaView>
 
+      {/* Share apply link — tenant subdomain + optional source tag (web parity) */}
+      <Modal visible={linkOpen} animationType="slide" transparent onRequestClose={() => setLinkOpen(false)}>
+        <View style={styles.sheetBackdrop}>
+          <Pressable style={{ flex: 1 }} onPress={() => setLinkOpen(false)} />
+          <View style={[styles.sheet, { marginBottom: kb > 0 ? kb : 0 }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHead}>
+              <Text style={[type.h3, { color: theme.ink }]}>Share apply link</Text>
+              <Pressable onPress={() => setLinkOpen(false)} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+            </View>
+            <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>Post this anywhere. Add a source to see which channel your applicants come from.</Text>
+
+            <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 7 }]}>Source (optional)</Text>
+            <TextInput
+              value={linkSource}
+              onChangeText={setLinkSource}
+              placeholder="e.g. LinkedIn, JobStreet, careers page"
+              placeholderTextColor={theme.ink4}
+              autoCapitalize="none"
+              style={styles.linkInput}
+            />
+
+            <View style={styles.linkUrlBox}>
+              <Feather name="link" size={14} color={theme.ink3} />
+              <Text style={[type.small, { color: theme.ink2, flex: 1, marginLeft: 8 }]} numberOfLines={1}>{applyUrl.replace(/^https:\/\//, "")}</Text>
+            </View>
+
+            <Pressable onPress={copyApplyLink} style={[styles.linkCopyBtn, copied && { backgroundColor: theme.success }]}>
+              <Feather name={copied ? "check" : "copy"} size={16} color={theme.white} />
+              <Text style={[type.bodyStrong, { color: theme.white, marginLeft: 8 }]}>{copied ? "Copied to clipboard" : "Copy link"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* Add-interviewers picker */}
       <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={() => setPickerOpen(false)}>
         <View style={styles.sheetBackdrop}>
@@ -505,6 +554,9 @@ const styles = StyleSheet.create({
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(15,18,40,0.45)", justifyContent: "flex-end" },
   sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(2) },
   sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  linkInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 48, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
+  linkUrlBox: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, height: 46, marginTop: space(3) },
+  linkCopyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: theme.brand, borderRadius: radius.md, height: 52, marginTop: space(4), marginBottom: space(2) },
   sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
   pickRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: theme.line2 },
   pickCheck: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
