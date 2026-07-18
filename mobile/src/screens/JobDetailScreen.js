@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
 import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Press, Avatar, ScreenHeader, StagePill, EmptyState, Feather } from "../components/ui";
+import { Press, Avatar, IconChip, StagePill, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
 import { stageColor, relTime } from "@aster/shared";
@@ -39,6 +39,10 @@ export default function JobDetailScreen({ route, navigation }) {
   const [savingId, setSavingId] = useState(null);             // profile id mid assign/unassign
 
   const canManageInterviewers = ["owner", "admin"].includes((profile?.role || "").toLowerCase());
+
+  const firstName = profile?.name?.split(" ")[0] || "Welcome";
+  const hr = new Date().getHours();
+  const greeting = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -174,6 +178,7 @@ export default function JobDetailScreen({ route, navigation }) {
           <View style={styles.openDot} />
           <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
         </View>
+        <Text style={styles.heroTitle} numberOfLines={2}>{jobTitle || "Role"}</Text>
         <Text style={styles.heroNum}>{loaded ? total : "—"}</Text>
         <Text style={[type.small, { color: "rgba(255,255,255,0.75)" }]}>candidate{total === 1 ? "" : "s"} in pipeline</Text>
 
@@ -284,7 +289,21 @@ export default function JobDetailScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <ScreenHeader eyebrow="Role" title={jobTitle || "Role"} onBack={() => navigation.goBack()} />
+      {/* Greeting header (same as Dashboard) with a back button for this pushed screen */}
+      <View style={styles.topHeader}>
+        <SafeAreaView edges={["top"]}>
+          <View style={styles.topRow}>
+            <Press onPress={() => navigation.goBack()} haptic="light" style={styles.back}>
+              <Feather name="arrow-left" size={20} color={theme.white} />
+            </Press>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={[type.small, { color: theme.onBrandMuted }]}>{greeting}</Text>
+              <Text style={[type.h2, { color: theme.onBrand }]} numberOfLines={1}>{firstName}</Text>
+            </View>
+            <IconChip name="bell" tint={theme.white} bg={theme.brandPanel} onPress={() => navigation.navigate("Main", { screen: "ProfileTab" })} />
+          </View>
+        </SafeAreaView>
+      </View>
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         {/* One persistent FlatList so the hero/AI-Rank header never remounts or
             reflows between loading and loaded (that caused the card to "stretch"). */}
@@ -439,10 +458,15 @@ function MatchRing({ score }) {
 }
 
 const styles = StyleSheet.create({
+  topHeader: { backgroundColor: theme.brand },
+  topRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2), paddingBottom: space(3) },
+  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+
   hero: { borderRadius: radius.xl, padding: space(5), marginTop: space(4), shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
   openBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill },
   openDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#7DE2A8", marginRight: 6 },
-  heroNum: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 46, letterSpacing: -1.5, marginTop: space(4), fontVariant: ["tabular-nums"] },
+  heroTitle: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.3, marginTop: space(4) },
+  heroNum: { color: theme.white, fontFamily: "Inter_700Bold", fontSize: 46, letterSpacing: -1.5, marginTop: space(3), fontVariant: ["tabular-nums"] },
   heroPipe: { flexDirection: "row", height: 8, borderRadius: radius.pill, overflow: "hidden", marginTop: space(4), gap: 2, backgroundColor: "rgba(255,255,255,0.18)" },
   heroFoot: { flexDirection: "row", justifyContent: "space-between", marginTop: space(5) },
 
