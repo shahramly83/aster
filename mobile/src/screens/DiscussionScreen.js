@@ -133,7 +133,7 @@ export default function DiscussionScreen({ route, navigation }) {
         ) : null}
       />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
           {poll ? (
             <PollCard poll={poll} tz={profile.timezone} manager={manager} savingSlot={savingSlot} onToggle={toggleVote} onPick={pickSlot} />
           ) : null}
