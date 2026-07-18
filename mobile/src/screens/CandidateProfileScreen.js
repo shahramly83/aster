@@ -143,32 +143,34 @@ export default function CandidateProfileScreen({ route, navigation }) {
         </SafeAreaView>
       </LinearGradient>
 
-      {/* Content below; the avatar straddles the header edge, name sits on white */}
+      {/* Identity block sits OUTSIDE the scroll so the avatar can overlap the
+          header edge without being clipped by the ScrollView. */}
+      <View style={styles.identity}>
+        <View style={styles.avatarRing}>
+          <Avatar uri={candidate?.avatarUrl} name={name} size={88} />
+        </View>
+        <View style={[styles.badge, { backgroundColor: stageColor(stage) }]}>
+          <Feather name="zap" size={12} color={theme.white} />
+          <Text style={styles.badgeTxt}>{stageLabel(stage)}</Text>
+        </View>
+        <Text style={styles.name} numberOfLines={2}>{name}</Text>
+        {Array.isArray(parsed.skills) && parsed.skills.length ? (
+          <View style={styles.tags}>
+            {parsed.skills.slice(0, 3).map((s, i) => (
+              <View key={i} style={styles.tag}>
+                <Feather name="check-circle" size={13} color={theme.brand} />
+                <Text style={styles.tagTxt} numberOfLines={1}>{String(s)}</Text>
+              </View>
+            ))}
+          </View>
+        ) : parsed.currentTitle ? (
+          <Text style={styles.role} numberOfLines={1}>{parsed.currentTitle}</Text>
+        ) : null}
+      </View>
+
+      {/* Scrolling content */}
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space(4) }} showsVerticalScrollIndicator={false}>
-          <View style={styles.identity}>
-            <View style={styles.avatarRing}>
-              <Avatar uri={candidate?.avatarUrl} name={name} size={88} />
-            </View>
-            <View style={[styles.badge, { backgroundColor: stageColor(stage) }]}>
-              <Feather name="zap" size={12} color={theme.white} />
-              <Text style={styles.badgeTxt}>{stageLabel(stage)}</Text>
-            </View>
-            <Text style={styles.name} numberOfLines={2}>{name}</Text>
-            {Array.isArray(parsed.skills) && parsed.skills.length ? (
-              <View style={styles.tags}>
-                {parsed.skills.slice(0, 3).map((s, i) => (
-                  <View key={i} style={styles.tag}>
-                    <Feather name="check-circle" size={13} color={theme.brand} />
-                    <Text style={styles.tagTxt} numberOfLines={1}>{String(s)}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : parsed.currentTitle ? (
-              <Text style={styles.role} numberOfLines={1}>{parsed.currentTitle}</Text>
-            ) : null}
-          </View>
-
           <View style={styles.sheet}>
             {/* Quick actions */}
             <View style={{ flexDirection: "row", gap: 10 }}>
@@ -488,12 +490,12 @@ function DetailRow({ icon, value, onPress, last }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingBottom: space(11), overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 },
+  hero: { paddingBottom: space(11), overflow: "hidden" },
   watermark: { position: "absolute", top: 6, right: -32 },
   heroTop: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(2) },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
-  identity: { alignItems: "center", paddingHorizontal: space(5) },
-  avatarRing: { marginTop: -52, padding: 5, borderRadius: 54, backgroundColor: theme.card, shadowColor: "#0A1E9E", shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  identity: { alignItems: "center", paddingHorizontal: space(5), marginTop: -52, paddingBottom: space(2) },
+  avatarRing: { padding: 5, borderRadius: 54, backgroundColor: theme.card, shadowColor: "#0A1E9E", shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   badge: { flexDirection: "row", alignItems: "center", marginTop: -13, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.pill, shadowColor: "#0A1E9E", shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   badgeTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.white, marginLeft: 6 },
   name: { fontFamily: "Inter_700Bold", fontSize: 26, lineHeight: 31, letterSpacing: -0.5, color: theme.ink, marginTop: space(3), textAlign: "center" },
