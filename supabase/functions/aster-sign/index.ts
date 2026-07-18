@@ -232,9 +232,10 @@ Deno.serve(async (req) => {
         if (!offer.esign_status || offer.esign_status === "sent") patch.viewed_at = new Date().toISOString();
         await admin.from("offers").update(patch).eq("id", offer.id);
       }
-      const logo = await fetchLogoBytes(comp?.logo_url || null);
-      const logoUri = logo ? `data:${logo.mime};base64,${btoa(String.fromCharCode(...logo.bytes))}` : null;
-      return json({ ok: true, html: letterHtml(model, logoUri), candidateName, companyName, jobTitle });
+      // The browser loads the logo URL directly, so no data URI is needed here
+      // (and building one by spreading the byte array overflows the call stack on
+      // large logos). The PDF path embeds the logo bytes separately.
+      return json({ ok: true, html: letterHtml(model, comp?.logo_url || null), candidateName, companyName, jobTitle });
     }
 
     // ── SIGN: validate, build PDF, store, settle, notify ─────────────────────
