@@ -6,6 +6,7 @@ import { setStatusBarStyle } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
 import { loadApplicants, moveCandidateStage } from "../lib/data";
+import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, StagePill, Loader, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
@@ -34,7 +35,8 @@ export default function PositionApplicantsScreen({ route, navigation }) {
     setRows(await loadApplicants(profile.companyId, jobId));
   }, [profile, jobId]);
 
-  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); load(); }, [load]));
+  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
+  useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   // Star toggles a candidate between applied and shortlisted (web-safe stage move).

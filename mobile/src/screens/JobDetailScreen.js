@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -6,6 +6,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { loadApplicants } from "../lib/data";
+import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, ScreenHeader, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { relTime } from "@aster/shared";
@@ -22,10 +23,18 @@ export default function JobDetailScreen({ route, navigation }) {
     setApplicants(await loadApplicants(profile.companyId, jobId));
   }, [profile, jobId]);
 
-  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); load(); }, [load]));
+  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
+  useAutoRefresh(profile?.companyId, load);
 
-  const counts = job?.counts || {};
-  const total = job?.applicantCount ?? (applicants ? applicants.length : 0);
+  // Derive counts from the live applicant list once it loads; fall back to the
+  // snapshot passed in from the Roles carousel until then.
+  const counts = useMemo(() => {
+    if (!applicants) return job?.counts || {};
+    const c = {};
+    for (const a of applicants) c[a.stage] = (c[a.stage] || 0) + 1;
+    return c;
+  }, [applicants, job]);
+  const total = applicants ? applicants.length : (job?.applicantCount ?? 0);
   const hired = counts.hired || 0;
   const toReview = (counts.interviewing || 0) + (counts.offer || 0);
 

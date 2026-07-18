@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { loadOpenPositions } from "../lib/data";
+import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Loader, EmptyState, TopBar, IconChip, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { JOB_STAGES, stageColor } from "@aster/shared";
@@ -39,7 +40,8 @@ export default function OpenPositionsScreen({ navigation }) {
   }, [profile, manager, assignedJobIds]);
 
   // Blue screen → light status bar.
-  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); load(); }, [load]));
+  useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
+  useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   if (jobs === null) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading roles…" /></SafeAreaView>;
