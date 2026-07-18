@@ -11,10 +11,11 @@ import { Feather } from "@expo/vector-icons";
 import { theme, type, radius, shadow } from "../theme";
 
 const ICONS = {
-  DashboardTab: "bar-chart-2",
+  DashboardTab: "activity",
   PositionsTab: "briefcase",
   TodayTab: "calendar",
-  ProfileTab: "user",
+  TeamsTab: "users",
+  ProfileTab: "settings",
 };
 
 // Content padding a scrollable tab screen should reserve so nothing hides behind
@@ -50,7 +51,7 @@ function Tab({ icon, label, focused, onPress }) {
     Animated.spring(w, { toValue: focused ? 1 : 0, useNativeDriver: false, speed: 16, bounciness: 6 }).start();
   }, [focused]);
   // Animate the label width so the active pill grows/shrinks smoothly.
-  const labelW = w.interpolate({ inputRange: [0, 1], outputRange: [0, label.length * 8.5 + 8] });
+  const labelW = w.interpolate({ inputRange: [0, 1], outputRange: [0, label.length * 7.6 + 6] });
   return (
     <Pressable onPress={onPress} style={styles.tap} hitSlop={6}>
       <Animated.View style={[styles.item, focused && styles.itemActive]}>
@@ -64,18 +65,18 @@ function Tab({ icon, label, focused, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: "transparent", paddingHorizontal: 18, paddingTop: 8 },
+  wrap: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: "transparent", paddingHorizontal: 14, paddingTop: 8 },
   bar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: theme.card,
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     height: 64,
   },
   tap: { flex: 0, alignItems: "center", justifyContent: "center" },
-  item: { flexDirection: "row", alignItems: "center", height: 48, paddingHorizontal: 13, borderRadius: radius.pill },
-  itemActive: { backgroundColor: theme.brand, paddingLeft: 14, paddingRight: 16 },
-  label: { ...type.smallStrong, color: theme.white, marginLeft: 8 },
+  item: { flexDirection: "row", alignItems: "center", height: 48, paddingHorizontal: 11, borderRadius: radius.pill },
+  itemActive: { backgroundColor: theme.brand, paddingLeft: 12, paddingRight: 13 },
+  label: { ...type.smallStrong, color: theme.white, marginLeft: 7 },
 });

@@ -32,7 +32,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top"]}>
-      <ScreenTitle>Me</ScreenTitle>
+      <ScreenTitle>Settings</ScreenTitle>
       <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: TAB_CLEARANCE }} showsVerticalScrollIndicator={false}>
         <Card style={{ flexDirection: "row", alignItems: "center" }}>
           <Avatar name={profile?.name || profile?.email} size={56} />

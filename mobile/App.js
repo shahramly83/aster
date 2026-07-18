@@ -35,6 +35,7 @@ import TodayScreen from "./src/screens/TodayScreen";
 import InterviewDetailScreen from "./src/screens/InterviewDetailScreen";
 import ScorecardScreen from "./src/screens/ScorecardScreen";
 import OpenPositionsScreen from "./src/screens/OpenPositionsScreen";
+import TeamsScreen from "./src/screens/TeamsScreen";
 import JobDetailScreen from "./src/screens/JobDetailScreen";
 import CandidateProfileScreen from "./src/screens/CandidateProfileScreen";
 import DiscussionScreen from "./src/screens/DiscussionScreen";
@@ -52,14 +53,16 @@ const navTheme = {
 const tabOptions = { headerShown: false, tabBarHideOnKeyboard: true };
 const renderTabBar = (props) => <FloatingTabBar {...props} />;
 
-// Managers get a Pipeline dashboard as home + all-roles Positions.
+// Managers get the full 5-tab set: activity dashboard, positions, interviews,
+// team and settings.
 function ManagerTabs() {
   return (
     <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
-      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: "Pipeline" }} />
-      <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Roles" }} />
+      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: "Activity" }} />
+      <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Interviews" }} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Me" }} />
+      <Tab.Screen name="TeamsTab" component={TeamsScreen} options={{ title: "Teams" }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Settings" }} />
     </Tab.Navigator>
   );
 }
@@ -70,7 +73,7 @@ function InterviewerTabs() {
     <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today" }} />
       <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Me" }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Settings" }} />
     </Tab.Navigator>
   );
 }

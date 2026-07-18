@@ -557,6 +557,21 @@ export async function loadInterviewers(companyId, jobId) {
     .sort((a, b) => (Number(b.assigned) - Number(a.assigned)) || a.name.localeCompare(b.name));
 }
 
+// The whole company team (all active members), for the Teams tab. Sorted by
+// role seniority then name. Roles: owner, admin, recruiter, interviewer.
+const ROLE_RANK = { owner: 0, admin: 1, recruiter: 2, interviewer: 3 };
+export async function loadTeam(companyId) {
+  if (!companyId) return [];
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role, status")
+    .eq("company_id", companyId)
+    .neq("status", "suspended");
+  return (data || [])
+    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: (p.role || "").toLowerCase() }))
+    .sort((a, b) => (ROLE_RANK[a.role] ?? 9) - (ROLE_RANK[b.role] ?? 9) || a.name.localeCompare(b.name));
+}
+
 // Add a teammate to a job's interviewer pool. Owner/admin-gated server-side.
 // Returns an error message, or null on success.
 export async function assignInterviewer(jobId, profileId) {
