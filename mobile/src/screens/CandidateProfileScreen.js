@@ -389,32 +389,43 @@ export default function CandidateProfileScreen({ route, navigation }) {
                           <Text style={[type.small, { color: theme.ink, flex: 1 }]} numberOfLines={1}>{interview.meetingLink}</Text>
                           <Feather name="external-link" size={15} color={theme.brand} />
                         </Pressable>
-                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
-                          <Feather name="check-circle" size={13} color={theme.success} />
-                          <Text style={[type.small, { color: theme.success, marginLeft: 6 }]}>Shared with the candidate and panel</Text>
-                        </View>
-                        <Text style={[type.small, { color: theme.ink4, marginTop: 10, marginBottom: 7 }]}>Replace it, then Share again</Text>
+                        {manager ? (
+                          <>
+                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
+                              <Feather name="check-circle" size={13} color={theme.success} />
+                              <Text style={[type.small, { color: theme.success, marginLeft: 6 }]}>Shared with the candidate and panel</Text>
+                            </View>
+                            <Text style={[type.small, { color: theme.ink4, marginTop: 10, marginBottom: 7 }]}>Replace it, then Share again</Text>
+                          </>
+                        ) : null}
                       </>
                     ) : (
-                      <Text style={[type.small, { color: theme.ink4, marginBottom: 8 }]}>Generate a room or paste your own. Nothing is sent until you tap Share.</Text>
+                      <Text style={[type.small, { color: theme.ink4, marginBottom: 8 }]}>
+                        {manager ? "Generate a room or paste your own. Nothing is sent until you tap Share." : "The hiring manager will add the meeting link before the interview."}
+                      </Text>
                     )}
-                    {/* Fill-only: generates a link into the field, doesn't send. */}
-                    <Pressable onPress={genMeetingLink} style={styles.mlGen}>
-                      <Feather name="video" size={15} color={theme.brand} />
-                      <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Generate a link</Text>
-                    </Pressable>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TextInput
-                        value={mlInput} onChangeText={setMlInput}
-                        placeholder="https://meet.google.com/…" placeholderTextColor={theme.ink4}
-                        autoCapitalize="none" keyboardType="url"
-                        onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
-                        style={[styles.mlInput, { flex: 1 }]}
-                      />
-                      <Pressable onPress={saveMl} disabled={mlSaving || !mlInput.trim()} style={[styles.mlSave, (mlSaving || !mlInput.trim()) && { opacity: 0.5 }]}>
-                        {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Share</Text>}
-                      </Pressable>
-                    </View>
+                    {/* Only the hiring manager can generate/paste/share the link. */}
+                    {manager ? (
+                      <>
+                        {/* Fill-only: generates a link into the field, doesn't send. */}
+                        <Pressable onPress={genMeetingLink} style={styles.mlGen}>
+                          <Feather name="video" size={15} color={theme.brand} />
+                          <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Generate a link</Text>
+                        </Pressable>
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <TextInput
+                            value={mlInput} onChangeText={setMlInput}
+                            placeholder="https://meet.google.com/…" placeholderTextColor={theme.ink4}
+                            autoCapitalize="none" keyboardType="url"
+                            onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
+                            style={[styles.mlInput, { flex: 1 }]}
+                          />
+                          <Pressable onPress={saveMl} disabled={mlSaving || !mlInput.trim()} style={[styles.mlSave, (mlSaving || !mlInput.trim()) && { opacity: 0.5 }]}>
+                            {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Share</Text>}
+                          </Pressable>
+                        </View>
+                      </>
+                    ) : null}
                   </View>
                 </>
               ) : pendingInvite ? (
@@ -472,7 +483,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <Text style={{ color: meta.color, fontFamily: "Inter_700Bold", fontSize: 15, fontVariant: ["tabular-nums"] }}>{averageRating(c.ratings).toFixed(1)}</Text>
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[type.smallStrong, { color: meta.color }]}>{meta.label}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Text style={[type.smallStrong, { color: theme.ink, flex: 1 }]} numberOfLines={1}>
+                          {c.interviewerId === profile.userId ? "You" : (c.interviewerName || "Panel member")}
+                        </Text>
+                        <Text style={[type.small, { color: meta.color, marginLeft: 8 }]}>{meta.label}</Text>
+                      </View>
                       {c.notes ? <Text style={[type.small, { color: theme.ink2, marginTop: 3 }]} numberOfLines={4}>{c.notes}</Text> : <Text style={[type.small, { color: theme.ink4, marginTop: 3 }]}>No notes</Text>}
                     </View>
                   </Card>

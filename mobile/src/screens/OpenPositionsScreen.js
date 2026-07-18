@@ -46,19 +46,20 @@ export default function OpenPositionsScreen({ navigation }) {
   useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  if (jobs === null) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading roles…" /></SafeAreaView>;
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
-      {/* Same header as the Pipeline dashboard */}
+      {/* Same header as the Pipeline dashboard — always visible, so loading
+          doesn't flash a full blue screen or jump the layout in. */}
       <TopBar
         mark
         name={profile?.name?.split(" ")[0] || "Welcome"}
         right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
       />
-      <Text style={styles.sectionLabel}>OPEN ROLES · {jobs.length}</Text>
+      <Text style={styles.sectionLabel}>OPEN ROLES{jobs ? ` · ${jobs.length}` : ""}</Text>
 
-      {jobs.length === 0 ? (
+      {jobs === null ? (
+        <View style={{ flex: 1 }}><Loader label="Loading roles…" /></View>
+      ) : jobs.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
           <EmptyState icon="briefcase" title="No open roles"
             subtitle={manager ? "Open a role on the web app and it'll appear here." : "You're not on any open role's panel yet."} />

@@ -179,9 +179,25 @@ export async function loadScorecards(candidateId) {
     .select("id, interviewer_id, ratings, notes, created_at")
     .eq("candidate_id", candidateId)
     .order("created_at", { ascending: false });
-  return (data || []).map((s) => ({
+  // One card per reviewer: rows are newest-first, so keep the first seen and
+  // drop any older/duplicate submissions from the same person.
+  const seen = new Set();
+  const rows = (data || []).filter((s) => {
+    if (s.interviewer_id && seen.has(s.interviewer_id)) return false;
+    if (s.interviewer_id) seen.add(s.interviewer_id);
+    return true;
+  });
+  // Resolve reviewer names so each feedback card shows who gave it.
+  const ids = [...new Set(rows.map((s) => s.interviewer_id).filter(Boolean))];
+  let names = {};
+  if (ids.length) {
+    const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+    names = Object.fromEntries((profs || []).map((p) => [p.id, p.full_name]));
+  }
+  return rows.map((s) => ({
     id: s.id,
     interviewerId: s.interviewer_id,
+    interviewerName: names[s.interviewer_id] || null,
     ratings: s.ratings || {},
     notes: s.notes || "",
     recommendation: recommendationFromRatings(s.ratings),
@@ -193,6 +209,21 @@ export async function loadScorecards(candidateId) {
 // (`job_id in assigned_job_ids()`), so callers must pass the interview's job.
 export async function submitScorecard({ companyId, userId, candidateId, jobId, ratings, notes }) {
   if (!jobId) throw new Error("A job is required to submit a scorecard.");
+  // One scorecard per interviewer per candidate: update in place if this person
+  // already scored, so repeated submits revise their card instead of piling up.
+  const { data: existing } = await supabase
+    .from("scorecards").select("id")
+    .eq("candidate_id", candidateId).eq("interviewer_id", userId)
+    .limit(1).maybeSingle();
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from("scorecards")
+      .update({ ratings, notes: notes || "", job_id: jobId })
+      .eq("id", existing.id)
+      .select("id").single();
+    if (error) throw error;
+    return data;
+  }
   const { data, error } = await supabase
     .from("scorecards")
     .insert({

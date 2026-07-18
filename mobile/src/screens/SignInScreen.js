@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, TextInput, ScrollView, StyleSheet, Platform, Pressable, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -8,8 +8,24 @@ import { Button, Feather } from "../components/ui";
 import { AsterLogo, AsterMark } from "../components/Logo";
 import { theme, type, radius, space, shadow } from "../theme";
 
+// Android edge-to-edge doesn't resize the view for the keyboard, so track its
+// height and lift the scroll content above it manually.
+function useKeyboardHeight() {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const s = Keyboard.addListener(showEvt, (e) => setH(e.endCoordinates?.height || 0));
+    const hd = Keyboard.addListener(hideEvt, () => setH(0));
+    return () => { s.remove(); hd.remove(); };
+  }, []);
+  return h;
+}
+
 export default function SignInScreen() {
   const { signIn } = useAuth();
+  const kb = useKeyboardHeight();
+  const scrollRef = useRef(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -30,13 +46,15 @@ export default function SignInScreen() {
       <View style={styles.watermark} pointerEvents="none"><AsterMark size={220} color="rgba(255,255,255,0.08)" /></View>
 
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={[styles.scroll, kb > 0 && { justifyContent: "flex-start", paddingBottom: kb + space(4) }]}
+            keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}
+          >
             {/* Brand */}
             <View style={{ alignItems: "center", marginBottom: space(6) }}>
               <AsterLogo width={190} color={theme.white} />
             </View>
-            <Text style={styles.welcome}>Welcome back</Text>
             <Text style={styles.subtitle}>Sign in to your Aster workspace</Text>
 
             {/* Card */}
@@ -63,6 +81,7 @@ export default function SignInScreen() {
                   placeholderTextColor={theme.ink4}
                   secureTextEntry={!show} textContentType="password" autoComplete="password"
                   value={password} onChangeText={setPassword} onSubmitEditing={onSubmit}
+                  onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
                 />
                 <Pressable onPress={() => setShow((s) => !s)} hitSlop={10}>
                   <Feather name={show ? "eye-off" : "eye"} size={18} color={theme.ink4} />
@@ -81,7 +100,6 @@ export default function SignInScreen() {
 
             <Text style={styles.footer}>Password reset and SSO are handled on hireaster.com</Text>
           </ScrollView>
-        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
@@ -90,8 +108,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   watermark: { position: "absolute", top: -30, right: -50 },
   scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space(6), paddingVertical: space(10) },
-  welcome: { fontFamily: "Inter_700Bold", fontSize: 24, letterSpacing: -0.4, color: theme.white, textAlign: "center" },
-  subtitle: { fontFamily: "Inter_500Medium", fontSize: 15, color: "rgba(255,255,255,0.8)", textAlign: "center", marginTop: 6 },
+  subtitle: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: "rgba(255,255,255,0.92)", textAlign: "center" },
   card: { backgroundColor: theme.card, borderRadius: 24, padding: space(5), marginTop: space(7), shadowColor: "#0A1E9E", shadowOpacity: 0.28, shadowRadius: 30, shadowOffset: { width: 0, height: 16 }, elevation: 10 },
   fieldLabel: { ...type.smallStrong, color: theme.ink2, marginBottom: 8 },
   inputWrap: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 52 },

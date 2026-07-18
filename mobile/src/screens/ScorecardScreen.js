@@ -6,6 +6,7 @@ import { Platform } from "react-native";
 import { useAuth } from "../AuthContext";
 import { submitScorecard } from "../lib/data";
 import { Card, Button, SectionHeader, ScreenHeader } from "../components/ui";
+import SuccessModal from "../components/SuccessModal";
 import { theme, type, space, radius } from "../theme";
 import { SCORE_CRITERIA, recommendationFromRatings, recommendationMeta } from "@aster/shared";
 
@@ -18,6 +19,7 @@ export default function ScorecardScreen({ route, navigation }) {
   const [ratings, setRatings] = useState({});
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
 
   const setRating = (key, val) => {
     if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
@@ -29,12 +31,13 @@ export default function ScorecardScreen({ route, navigation }) {
   const recMeta = recommendationMeta(rec);
 
   const onSubmit = async () => {
+    if (busy || done) return; // ignore rapid repeat taps
     if (!jobId) { Alert.alert("Missing role", "This scorecard isn't linked to a role, so it can't be saved."); return; }
     setBusy(true);
     try {
       await submitScorecard({ companyId: profile.companyId, userId: profile.userId, candidateId, jobId, ratings, notes });
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      Alert.alert("Scorecard submitted", `Your feedback for ${candidateName || "the candidate"} is saved.`, [{ text: "Done", onPress: () => navigation.goBack() }]);
+      setDone(true);
     } catch (e) { Alert.alert("Could not submit", e?.message || "Please try again."); }
     finally { setBusy(false); }
   };
@@ -86,10 +89,16 @@ export default function ScorecardScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        <Button title="Submit scorecard" icon="check" onPress={onSubmit} loading={busy} disabled={!allRated} haptic="success" style={{ marginTop: space(5) }} />
+        <Button title="Submit scorecard" icon="check" onPress={onSubmit} loading={busy} disabled={!allRated || busy || done} haptic="success" style={{ marginTop: space(5) }} />
         {!allRated ? <Text style={[type.small, { color: theme.ink4, textAlign: "center", marginTop: space(2) }]}>Rate all four areas to submit.</Text> : null}
       </ScrollView>
       </SafeAreaView>
+      <SuccessModal
+        visible={done}
+        title="Scorecard submitted"
+        message={`Your feedback for ${candidateName || "the candidate"} is saved.`}
+        onClose={() => { setDone(false); navigation.goBack(); }}
+      />
     </View>
   );
 }
