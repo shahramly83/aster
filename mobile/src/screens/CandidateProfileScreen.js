@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationStage } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
@@ -26,18 +26,22 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [offerOpen, setOfferOpen] = useState(false);
   const [offer, setOffer] = useState(null);
   const [approvals, setApprovals] = useState([]);
+  const [matchReason, setMatchReason] = useState(null);
+  const [matchScore, setMatchScore] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [c, sc, iv, off, stg] = await Promise.all([
+    const [c, sc, iv, off, meta] = await Promise.all([
       loadCandidate(candidateId),
       loadScorecards(candidateId),
       loadCandidateInterview(profile.companyId, candidateId),
       loadOffer(profile.companyId, candidateId),
-      loadApplicationStage(profile.companyId, candidateId),
+      loadApplicationMeta(profile.companyId, candidateId),
     ]);
     setCandidate(c); setCards(sc); setScheduledAt(iv); setOffer(off);
-    if (stg) setStage(stg); // reflect the true current stage (e.g. opened from a notification)
+    if (meta?.stage) setStage(meta.stage); // true current stage (e.g. from a notification)
+    setMatchReason(meta?.reason || null);
+    setMatchScore(meta?.score ?? null);
     setApprovals(off?.id && off.approval_status ? await loadOfferApprovals(off.id) : []);
     setLoading(false);
   }, [candidateId, profile.companyId]);
@@ -154,6 +158,25 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <View style={{ alignItems: "center" }}>
               <Button title="Discuss" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ minWidth: 220 }} />
             </View>
+
+            {/* Why this match (AI rationale) */}
+            {matchReason ? (
+              <View style={{ marginTop: space(5) }}>
+                <SectionHeader>Why this match</SectionHeader>
+                <Card>
+                  <View style={styles.whyHead}>
+                    <View style={styles.whyIcon}><Feather name="zap" size={14} color={theme.brand} /></View>
+                    <Text style={[type.smallStrong, { color: theme.ink2, flex: 1, marginLeft: 8 }]}>AI assessment</Text>
+                    {matchScore != null ? (
+                      <View style={[styles.whyScore, { backgroundColor: (matchScore >= 75 ? theme.success : matchScore >= 50 ? theme.warn : theme.ink3) + "1A" }]}>
+                        <Text style={[type.smallStrong, { color: matchScore >= 75 ? theme.success : matchScore >= 50 ? theme.warn : theme.ink3 }]}>{Math.round(matchScore)}% fit</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={[type.body, { color: theme.ink2, lineHeight: 21, marginTop: space(3) }]}>{matchReason}</Text>
+                </Card>
+              </View>
+            ) : null}
 
           {/* Hiring process */}
           <View style={{ marginTop: space(5) }}>
@@ -489,6 +512,9 @@ const styles = StyleSheet.create({
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
+  whyHead: { flexDirection: "row", alignItems: "center" },
+  whyIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  whyScore: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   offerBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
   apprRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
   apprDot: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center" },

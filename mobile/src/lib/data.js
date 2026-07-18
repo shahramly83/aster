@@ -348,19 +348,25 @@ export async function loadRecentActivity(companyId, limit = 8) {
   }));
 }
 
-// The current pipeline stage for a candidate (latest application). Lets a screen
-// reached without a stage param (e.g. from a notification) show the right stage.
-export async function loadApplicationStage(companyId, candidateId) {
+// The latest application's stage + AI match score and rationale ("Why") for a
+// candidate. Lets a screen reached without a stage param show the right stage,
+// and surfaces the same match reasoning the web shows.
+export async function loadApplicationMeta(companyId, candidateId) {
   if (!companyId || !candidateId) return null;
   const { data } = await supabase
     .from("applications")
-    .select("stage")
+    .select("stage, match_score, match_reasons")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return data?.stage || null;
+  if (!data) return null;
+  return {
+    stage: data.stage || null,
+    reason: data.match_reasons || null,
+    score: typeof data.match_score === "number" ? data.match_score : null,
+  };
 }
 
 // Company-wide pipeline summary for the manager dashboard: total per stage plus
