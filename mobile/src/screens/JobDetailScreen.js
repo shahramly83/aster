@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../AuthContext";
 import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Press, Avatar, ScreenHeader, StagePill, Loader, EmptyState, Feather } from "../components/ui";
+import { Press, Avatar, ScreenHeader, StagePill, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
 import { stageColor, relTime } from "@aster/shared";
@@ -212,33 +212,35 @@ export default function JobDetailScreen({ route, navigation }) {
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScreenHeader eyebrow="Role" title={jobTitle || "Role"} onBack={() => navigation.goBack()} />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        {rows === null ? (
-          <>
-            {header}
-            <Loader label="Loading candidates…" />
-          </>
-        ) : (
-          <FlatList
-            data={filtered}
-            keyExtractor={(r) => r.applicationId}
-            contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(10) }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
-            ListHeaderComponent={header}
-            ListEmptyComponent={
+        {/* One persistent FlatList so the hero/AI-Rank header never remounts or
+            reflows between loading and loaded (that caused the card to "stretch"). */}
+        <FlatList
+          data={rows === null ? [] : filtered}
+          keyExtractor={(r) => r.applicationId}
+          contentContainerStyle={{ paddingHorizontal: space(4), paddingBottom: space(10) }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            rows === null ? (
+              <View style={{ paddingVertical: space(10), alignItems: "center" }}>
+                <ActivityIndicator color={theme.brand} />
+                <Text style={[type.small, { color: theme.ink3, marginTop: 12 }]}>Loading candidates…</Text>
+              </View>
+            ) : (
               <View style={{ marginTop: space(8) }}>
                 <EmptyState icon="users" title="No candidates here" subtitle={filter === "all" ? "Applicants for this role will show here." : "No one in this stage yet."} />
               </View>
-            }
-            renderItem={({ item }) => (
-              <CandidateCard
-                item={item}
-                onStar={() => toggleStar(item)}
-                onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, stage: item.stage, candidateName: item.name })}
-              />
-            )}
-          />
-        )}
+            )
+          }
+          renderItem={({ item }) => (
+            <CandidateCard
+              item={item}
+              onStar={() => toggleStar(item)}
+              onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, stage: item.stage, candidateName: item.name })}
+            />
+          )}
+        />
       </SafeAreaView>
     </View>
   );
