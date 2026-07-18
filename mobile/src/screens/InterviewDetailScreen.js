@@ -40,8 +40,6 @@ export default function InterviewDetailScreen({ route, navigation }) {
 
   const parsed = candidate?.parsed || {};
   const title = parsed.currentTitle || parsed.headline || "";
-  // Scorecards only open once the interview has actually taken place.
-  const interviewDone = iv.scheduledAt && new Date(iv.scheduledAt).getTime() < Date.now();
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -92,15 +90,7 @@ export default function InterviewDetailScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        {interviewDone ? (
-          <Button title="Fill scorecard" icon="edit-3" onPress={() => navigation.navigate("Scorecard", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName })} style={{ marginTop: space(5) }} />
-        ) : (
-          <View style={styles.lockNote}>
-            <Feather name="clock" size={15} color={theme.ink3} />
-            <Text style={[type.small, { color: theme.ink3, marginLeft: 8, flex: 1 }]}>Scorecard opens after the interview takes place.</Text>
-          </View>
-        )}
-        <Button title="Discuss with panel" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName })} style={{ marginTop: space(3) }} />
+        <Button title="Discuss with panel" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName })} style={{ marginTop: space(5) }} />
       </ScrollView>
       </SafeAreaView>
     </View>
@@ -109,6 +99,5 @@ export default function InterviewDetailScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   timeBox: { flexDirection: "row", alignItems: "center", marginTop: space(4), backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 14 },
-  lockNote: { flexDirection: "row", alignItems: "center", marginTop: space(5), backgroundColor: theme.line2, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 14 },
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
 });
