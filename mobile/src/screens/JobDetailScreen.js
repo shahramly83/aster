@@ -18,6 +18,8 @@ import { theme, type, space, radius } from "../theme";
 import { stageColor, relTime } from "@aster/shared";
 
 const PIPE = ["applied", "shortlisted", "interviewing", "offer", "hired"];
+// Quick source tags for the apply link (same presets as the web link modal).
+const SOURCE_PRESETS = ["LinkedIn", "Career Page", "Referral", "JobStreet", "Facebook", "WhatsApp"];
 const SHORTLISTED_PLUS = ["shortlisted", "interviewing", "offer", "hired"];
 
 const FILTERS = [
@@ -377,14 +379,24 @@ export default function JobDetailScreen({ route, navigation }) {
             </View>
             <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>Post this anywhere. Add a source to see which channel your applicants come from.</Text>
 
-            <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 7 }]}>Source (optional)</Text>
+            <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Tag a source (optional)</Text>
+            <View style={styles.tagRow}>
+              {SOURCE_PRESETS.map((s) => {
+                const on = slugifySource(linkSource) === slugifySource(s);
+                return (
+                  <Pressable key={s} onPress={() => setLinkSource(on ? "" : s)} style={[styles.tag, on && styles.tagOn]}>
+                    <Text style={[type.smallStrong, { color: on ? theme.white : theme.ink2 }]}>{s}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             <TextInput
               value={linkSource}
               onChangeText={setLinkSource}
-              placeholder="e.g. LinkedIn, JobStreet, careers page"
+              placeholder="or type a custom source"
               placeholderTextColor={theme.ink4}
               autoCapitalize="none"
-              style={styles.linkInput}
+              style={[styles.linkInput, { marginTop: space(3) }]}
             />
 
             <View style={styles.linkUrlBox}>
@@ -554,6 +566,9 @@ const styles = StyleSheet.create({
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(15,18,40,0.45)", justifyContent: "flex-end" },
   sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(2) },
   sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: { paddingHorizontal: 14, height: 36, borderRadius: radius.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.bg, alignItems: "center", justifyContent: "center" },
+  tagOn: { backgroundColor: theme.brand, borderColor: theme.brand },
   linkInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 48, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
   linkUrlBox: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, height: 46, marginTop: space(3) },
   linkCopyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: theme.brand, borderRadius: radius.md, height: 52, marginTop: space(4), marginBottom: space(2) },

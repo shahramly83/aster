@@ -705,7 +705,7 @@ export async function loadTeam(companyId) {
     .eq("company_id", companyId)
     .neq("status", "suspended");
   return (data || [])
-    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: (p.role || "").toLowerCase() }))
+    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: (p.role || "").toLowerCase(), pending: p.status === "invited" }))
     .sort((a, b) => (ROLE_RANK[a.role] ?? 9) - (ROLE_RANK[b.role] ?? 9) || a.name.localeCompare(b.name));
 }
 
