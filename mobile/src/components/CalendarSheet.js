@@ -3,7 +3,7 @@
 // time chips. Returns a combined ISO string. Replaces the native spinner.
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, Modal, ScrollView, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Press, Feather } from "./ui";
 import { theme, type, space, radius } from "../theme";
 
@@ -26,6 +26,7 @@ function timeLabel(h, m) {
 }
 
 export default function CalendarSheet({ visible, onClose, onConfirm, title = "Pick a date & time", confirmLabel = "Confirm", minDate, initial }) {
+  const insets = useSafeAreaInsets();
   const today = startOfDay(new Date());
   const floor = minDate ? startOfDay(new Date(minDate)) : today;
   const init = initial ? new Date(initial) : null;
@@ -71,7 +72,7 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title = "Pi
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(3) }]}>
           <View style={styles.handle} />
           <View style={styles.head}>
             <Text style={[type.h3, { color: theme.ink }]}>{title}</Text>
@@ -143,7 +144,6 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title = "Pi
           </ScrollView>
 
           <Button title={ready ? confirmLabel : "Select a date & time range"} icon={ready ? "check" : undefined} onPress={confirm} disabled={!ready} style={{ marginTop: space(4) }} />
-          <SafeAreaView edges={["bottom"]} />
         </View>
       </View>
     </Modal>

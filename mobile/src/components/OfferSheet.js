@@ -5,7 +5,7 @@
 // emails the candidate a review-&-sign link or routes it through approval.
 import React, { useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { sendOffer } from "../lib/data";
 import { Button, Feather } from "./ui";
@@ -32,6 +32,7 @@ function prettyDate(iso) {
 }
 
 export default function OfferSheet({ visible, onClose, companyId, candidateId, candidateName, jobId, defaults = {}, onSent }) {
+  const insets = useSafeAreaInsets();
   const [jobTitle, setJobTitle] = useState(defaults.jobTitle || "");
   const [salary, setSalary] = useState("");
   const [currency, setCurrency] = useState(defaults.currency || "myr");
@@ -100,7 +101,7 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
       <View style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={close} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(2) }]}>
           <View style={styles.handle} />
           <View style={styles.head}>
             <View style={{ flex: 1 }}>
@@ -187,7 +188,6 @@ export default function OfferSheet({ visible, onClose, companyId, candidateId, c
             style={{ marginTop: space(3) }}
           />
           {sending ? <View style={styles.sendingOverlay}><ActivityIndicator color={theme.white} /></View> : null}
-          <SafeAreaView edges={["bottom"]} />
         </View>
       </View>
 

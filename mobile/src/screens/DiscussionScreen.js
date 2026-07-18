@@ -262,7 +262,8 @@ function PollCard({ poll, tz, manager, savingSlot, onToggle, onPick }) {
 }
 
 function PollComposer({ visible, tz, onClose, onCreate }) {
-  const [slots, setSlots] = useState([]); // ISO strings
+  const insets = useSafeAreaInsets();
+  const [slots, setSlots] = useState([]); // { start, end } ISO
   const [calOpen, setCalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -285,7 +286,7 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
       <View style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={close} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(2) }]}>
           <View style={styles.handle} />
           <View style={styles.sheetHead}>
             <Text style={[type.h3, { color: theme.ink }]}>Propose interview dates</Text>
@@ -308,7 +309,6 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
 
           {err ? <Text style={[type.small, { color: "#B42318", marginTop: space(2) }]}>{err}</Text> : null}
           <Button title={busy ? "Posting…" : "Post poll"} icon={busy ? undefined : "send"} onPress={post} disabled={busy || slots.length < 2} style={{ marginTop: space(4) }} />
-          <SafeAreaView edges={["bottom"]} />
         </View>
       </View>
 
