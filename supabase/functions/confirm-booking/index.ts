@@ -37,6 +37,19 @@ function fmt(iso: string, tz = "Asia/Kuala_Lumpur"): string {
   }
 }
 
+// "Tue, Jul 21, 2026, 9:00 AM – 9:45 AM GMT+8": date once, a start-end time range,
+// and the zone once at the end. Falls back to the single-time label on any error.
+function fmtRange(startIso: string, endIso: string, tz = "Asia/Kuala_Lumpur"): string {
+  try {
+    const s = new Date(startIso), e = new Date(endIso);
+    const datePart = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(s);
+    const t = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(d);
+    const zone = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", timeZoneName: "short" })
+      .formatToParts(s).find((p) => p.type === "timeZoneName")?.value || "";
+    return `${datePart}, ${t(s)} – ${t(e)}${zone ? ` ${zone}` : ""}`;
+  } catch { return fmt(startIso, tz); }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -81,13 +94,13 @@ Deno.serve(async (req) => {
       jobTitle = job?.title || jobTitle;
     }
     const { data: cand } = await admin.from("candidates").select("email, full_name").eq("id", iv.candidate_id).maybeSingle();
-    const dateTime = fmt(String(start), tz);
+    const slotEnd = match && (match as { end?: string }).end ? String((match as { end?: string }).end) : null;
+    // Show a start-end range when the slot's end is known, else the single time.
+    const dateTime = slotEnd ? fmtRange(String(start), slotEnd, tz) : fmt(String(start), tz);
 
     // A calendar invite (.ics) so both sides can add the interview to their own
     // calendar straight from the email. End time from the chosen slot, else +60m.
-    const endIso = (match && (match as { end?: string }).end)
-      ? String((match as { end?: string }).end)
-      : new Date(new Date(String(start)).getTime() + 60 * 60000).toISOString();
+    const endIso = slotEnd || new Date(new Date(String(start)).getTime() + 60 * 60000).toISOString();
     const ics = icsAttachment({
       uid: `${iv.id}@hireaster.com`,
       startIso: String(start), endIso,
