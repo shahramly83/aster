@@ -18880,20 +18880,33 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
           {canSeeAll && scorecards.map((sc) => {
             const r = recOf(sc.recommendation);
             return (
-              <div key={sc.id} className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-sm font-medium text-neutral-900">{sc.interviewer} <span className="text-xs text-neutral-400 font-normal">· {sc.submittedAt}</span></p>
+              <div key={sc.id} className="rounded-xl border px-3.5 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FaceAvatar name={sc.interviewer} seed={sc.interviewer} size={22} />
+                    <p className="text-sm font-medium text-neutral-900 truncate">{sc.interviewer}<span className="text-xs text-neutral-400 font-normal"> · {sc.submittedAt}</span></p>
+                  </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: r.bg, color: r.color }}>{r.label}</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-                  {SCORE_CRITERIA.map((c) => (
-                    <div key={c.key} className="rounded-lg bg-neutral-50 px-2 py-1.5">
-                      <p className="text-[11px] text-neutral-500 leading-tight">{c.label}</p>
-                      <p className="text-sm font-semibold text-neutral-900 tnum">{sc.ratings[c.key]}<span className="text-[10px] text-neutral-400">/4</span></p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                  {SCORE_CRITERIA.map((c) => {
+                    const v = sc.ratings[c.key];
+                    return (
+                      <div key={c.key}>
+                        <div className="flex items-baseline justify-between gap-1">
+                          <span className="text-[11px] text-neutral-500 truncate">{c.label}</span>
+                          <span className="text-[11px] font-semibold text-neutral-800 tnum shrink-0">{v}<span className="text-neutral-400">/4</span></span>
+                        </div>
+                        <div className="flex gap-0.5 mt-1">
+                          {[1, 2, 3, 4].map((n) => (
+                            <span key={n} className="h-1 flex-1 rounded-full" style={{ background: n <= v ? "var(--brand)" : "var(--line-strong)" }} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                {sc.notes && <p className="text-sm text-neutral-600">{sc.notes}</p>}
+                {sc.notes && <p className="text-[13px] text-neutral-600 mt-2.5 leading-snug">{sc.notes}</p>}
               </div>
             );
           })}
@@ -19285,23 +19298,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       )}
 
       <BuyCreditsModal open={buyInsightOpen} onClose={() => { setBuyInsightOpen(false); reloadPurchasedAiInsight(); }} plan={plan} kind="ai_insight" />
-      <ConfirmDialog
-        open={!!pendingDecision}
-        title="Decide without scorecards?"
-        body={`No interviewer has submitted a scorecard for this interview, so this decision won't be backed by scored feedback. You can collect scorecards in step 2 first, or continue anyway.`}
-        confirmLabel="Continue to offer"
-        onConfirm={() => { setPendingDecision(null); setShowOffer(true); }}
-        onClose={() => setPendingDecision(null)}
-      />
-      <ConfirmDialog
-        open={confirmReject}
-        tone="danger"
-        title={`Reject ${firstName}?`}
-        body={`A rejection email will be sent to ${firstName}${candidate?.parsed?.email ? ` (${candidate.parsed.email})` : ""}, letting them know they weren't selected${jobs.find((j) => j.id === contextJobId)?.title ? ` for the ${jobs.find((j) => j.id === contextJobId).title} role` : ""}. They'll move out of your active pipeline into your candidate database.`}
-        confirmLabel="Reject and send email"
-        onConfirm={() => { setConfirmReject(false); onSetStage && onSetStage("rejected"); }}
-        onClose={() => setConfirmReject(false)}
-      />
     </div>
   );
 
@@ -19385,6 +19381,24 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
   return (
     <div className="px-4 sm:px-6 py-6 sm:py-8">
+      {/* Decision confirmations, mounted at the top level so they open from any tab. */}
+      <ConfirmDialog
+        open={!!pendingDecision}
+        title="Decide without scorecards?"
+        body={`No interviewer has submitted a scorecard for this interview, so this decision won't be backed by scored feedback. You can collect scorecards in step 2 first, or continue anyway.`}
+        confirmLabel="Continue to offer"
+        onConfirm={() => { setPendingDecision(null); setShowOffer(true); }}
+        onClose={() => setPendingDecision(null)}
+      />
+      <ConfirmDialog
+        open={confirmReject}
+        tone="danger"
+        title={`Reject ${firstName}?`}
+        body={`A rejection email will be sent to ${firstName}${candidate?.parsed?.email ? ` (${candidate.parsed.email})` : ""}, letting them know they weren't selected${jobs.find((j) => j.id === contextJobId)?.title ? ` for the ${jobs.find((j) => j.id === contextJobId).title} role` : ""}. They'll move out of your active pipeline into your candidate database.`}
+        confirmLabel="Reject and send email"
+        onConfirm={() => { setConfirmReject(false); onSetStage && onSetStage("rejected"); }}
+        onClose={() => setConfirmReject(false)}
+      />
       <div className="max-w-[1400px] mx-auto">
         <BackLink onClick={() => navigate(-1)}>← Back</BackLink>
 
