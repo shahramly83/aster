@@ -11,15 +11,22 @@ const SIGNED_URL_TTL = 3600; // seconds
 // Upcoming + recent interviews where I am the interviewer, newest-relevant first.
 // Returns enriched rows with candidate name, job title and resume/photo URLs.
 export async function loadMyInterviews(companyId, userId) {
-  const { data: ivs, error } = await supabase
-    .from("interviews")
-    .select("id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees")
+  const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees";
+  const base = () => supabase
+    .from("interviews").select(cols)
     .eq("company_id", companyId)
-    .eq("interviewer_id", userId)
-    .eq("status", "scheduled")
-    .order("scheduled_at", { ascending: true });
-  if (error) throw error;
-  const rows = ivs || [];
+    .eq("status", "scheduled");
+  // An interview is "mine" if I set it up (interviewer_id) OR I'm on the panel
+  // (in the attendees array). Panel members aren't the interviewer_id, so a
+  // single interviewer_id filter would leave their calendar empty.
+  const [mine, onPanel] = await Promise.all([
+    base().eq("interviewer_id", userId),
+    base().contains("attendees", [{ id: userId }]),
+  ]);
+  if (mine.error) throw mine.error;
+  const byId = new Map();
+  for (const r of [...(mine.data || []), ...(onPanel.data || [])]) byId.set(r.id, r);
+  const rows = [...byId.values()].sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
   if (!rows.length) return [];
 
   const candIds = [...new Set(rows.map((r) => r.candidate_id).filter(Boolean))];
