@@ -7339,7 +7339,7 @@ function BookInterviewScreen({ data, done, onConfirm }) {
       <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
         <div className={`mb-5 flex items-center gap-3 ${isDone ? "justify-center" : ""}`}>
           {logoUrl
-            ? <img src={logoUrl} alt={company} style={{ height: isDone ? 56 : 32, maxWidth: isDone ? 240 : 160, objectFit: "contain" }} />
+            ? <img src={logoUrl} alt={company} style={{ height: isDone ? 56 : 52, maxWidth: isDone ? 240 : 220, objectFit: "contain" }} />
             : <span className={`font-bold ${isDone ? "text-xl" : "text-lg"}`} style={{ color: "var(--ink)" }}>{company}</span>}
         </div>
         {isDone ? (
