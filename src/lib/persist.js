@@ -351,7 +351,8 @@ export async function dbCreateOffer(companyId, { candidateId, jobId = null, term
 // the candidate profile can show its status + e-sign state after a reload.
 export async function dbGetOffer(companyId, candidateId) {
   if (!hasSupabase || !companyId || !candidateId) return null;
-  const cols = "id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at";
+  const terms = "message, base_salary, salary_currency, employment_type, start_date, offer_job_title";
+  const cols = `id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, ${terms}`;
   let { data, error } = await supabase
     .from("offers")
     .select(cols)
@@ -361,7 +362,7 @@ export async function dbGetOffer(companyId, candidateId) {
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     ({ data, error } = await supabase
       .from("offers")
-      .select("id, token, status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at")
+      .select(`id, token, status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, ${terms}`)
       .eq("company_id", companyId).eq("candidate_id", candidateId)
       .order("created_at", { ascending: false }).limit(1).maybeSingle());
   }

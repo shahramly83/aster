@@ -65,6 +65,6 @@ export async function emailApprover(
     bodyHtml: `${stepLine}<p style="margin:0 0 10px;">You've been asked to review and approve the following offer of employment for <strong>${ctx.candidateName}</strong> (${ctx.jobTitle}). Please review the letter below, then approve or decline.</p>${letter}${button("Review & respond", link)}`,
     signoff: false,
   });
-  const r = await sendEmail({ to: approval.approver_email, subject: `Approval needed: offer for ${ctx.jobTitle}`, html });
+  const r = await sendEmail({ to: approval.approver_email, subject: `Approve the ${ctx.jobTitle} offer for ${ctx.candidateName}`, html });
   return r.ok;
 }

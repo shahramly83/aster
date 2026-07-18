@@ -19209,12 +19209,22 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     setOfferRec(null); setApprovals([]);
     if (onSetStage) onSetStage("interviewing");
   };
-  const resubmitApproval = async () => {
-    if (!offerRec?.token || !approvals.length) return;
-    setApprovalBusy(true);
-    const ok = await dbSubmitApproval({ offerToken: offerRec.token, approvers: approvals.map((a) => ({ email: a.approver_email, name: a.approver_name })) });
-    setApprovalBusy(false);
-    if (ok) reloadOffer();
+  // Resubmit after a decline: reopen the offer for editing (letter, terms and
+  // approvers all editable), pre-filled from the declined offer, then send it
+  // round again. The declined offer is replaced when the revised one is sent.
+  const [resubmitData, setResubmitData] = useState(null);
+  const resubmitApproval = () => {
+    if (!offerRec) return;
+    setResubmitData({
+      body: offerRec.message || "",
+      title: offerRec.offer_job_title || "",
+      salary: offerRec.base_salary != null ? String(offerRec.base_salary) : "",
+      currency: offerRec.salary_currency || undefined,
+      empType: offerRec.employment_type || undefined,
+      startDate: offerRec.start_date || "",
+      approvers: approvals.map((a) => ({ email: a.approver_email, name: a.approver_name || "" })),
+    });
+    setShowOffer(true);
   };
   const offerSigned = offerRec && (!!offerRec.signed_pdf_path || offerRec.esign_status === "completed");
   const offerDeclinedRec = offerRec && (offerRec.esign_status === "declined" || offerRec.esign_status === "voided" || offerRec.status === "declined");
@@ -20138,8 +20148,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             defaultCurrency={preferredCurrency}
             companyName={companyName}
             defaultSignatory={profile?.full_name || profile?.name || ""}
-            onClose={() => setShowOffer(false)}
-            onSend={(emailSent, terms, message, approvers) => { setShowOffer(false); onSendOffer && onSendOffer(emailSent, terms, message, approvers); }}
+            resubmit={resubmitData}
+            onClose={() => { setShowOffer(false); setResubmitData(null); }}
+            onSend={async (emailSent, terms, message, approvers) => {
+              setShowOffer(false);
+              // Replace the declined offer so a fresh chain is created, then send.
+              if (resubmitData && offerRec?.id) { await dbCloseOffer(offerRec.id); setOfferRec(null); setApprovals([]); }
+              setResubmitData(null);
+              onSendOffer && onSendOffer(emailSent, terms, message, approvers);
+            }}
           />
         )}
         </>)}
@@ -20463,20 +20480,23 @@ const EMPLOYMENT_TYPES = [
   { key: "internship", label: "Internship" },
 ];
 
-function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", defaultSignatory = "", onClose, onSend }) {
-  const [body, setBody] = useState("");   // optional custom paragraph in the letter
+function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", defaultSignatory = "", resubmit = null, onClose, onSend }) {
+  // Resubmit after a decline: pre-fill the letter, terms and approvers from the
+  // declined offer so the hiring manager can revise before sending it round again.
+  const r = resubmit || {};
+  const [body, setBody] = useState(r.body || "");   // optional custom paragraph in the letter
   const [sending, setSending] = useState(false);
   // Structured offer terms. All optional: an offer can go out with any left blank.
-  const [title, setTitle] = useState(jobTitle && jobTitle !== "the role" ? jobTitle : "");
-  const [salary, setSalary] = useState("");
-  const [currency, setCurrency] = useState(["myr", "usd", "sgd"].includes(defaultCurrency) ? defaultCurrency : "myr");
-  const [empType, setEmpType] = useState("full_time");
-  const [startDate, setStartDate] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [title, setTitle] = useState(r.title || (jobTitle && jobTitle !== "the role" ? jobTitle : ""));
+  const [salary, setSalary] = useState(r.salary || "");
+  const [currency, setCurrency] = useState(["myr", "usd", "sgd"].includes(r.currency || defaultCurrency) ? (r.currency || defaultCurrency) : "myr");
+  const [empType, setEmpType] = useState(r.empType || "full_time");
+  const [startDate, setStartDate] = useState(r.startDate || "");
+  const [expiresAt, setExpiresAt] = useState(r.expiresAt || "");
   // Letter fields: who signs for the company, plus optional prose details.
-  const [bodyEdited, setBodyEdited] = useState(false);    // true once HR edits the letter body
+  const [bodyEdited, setBodyEdited] = useState(!!r.body);  // resubmit keeps the saved letter as-is until re-edited
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
-  const [approvers, setApprovers] = useState([]);         // ordered [{email, name}] internal sign-off
+  const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name}] internal sign-off
   const hasApprovers = approvers.some((a) => a.email.trim());
 
   // The default letter body, composed from the terms (mirrors the server). It
@@ -20531,9 +20551,11 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Send offer to {candidateName}</h2>
+        <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>{resubmit ? "Revise & resubmit offer" : `Send offer to ${candidateName}`}</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          Set the terms below. Aster builds the offer letter and sends it to the candidate to <span className="font-medium">sign with Aster Sign</span>. They stay in the Offer stage until they sign.
+          {resubmit
+            ? "Edit the letter, terms and approvers below, then send it round for approval again. This replaces the declined offer."
+            : <>Set the terms below. Aster builds the offer letter and sends it to the candidate to <span className="font-medium">sign with Aster Sign</span>. They stay in the Offer stage until they sign.</>}
         </p>
 
         {!hasEmail && (
@@ -20659,7 +20681,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           )}
           {hasEmail && (
             <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
-              {sending ? (hasApprovers ? "Submitting…" : "Sending…") : (hasApprovers ? "Submit for approval" : "Send offer")}
+              {sending ? (hasApprovers ? "Submitting…" : "Sending…") : (hasApprovers ? (resubmit ? "Resubmit for approval" : "Submit for approval") : "Send offer")}
             </button>
           )}
         </div>
