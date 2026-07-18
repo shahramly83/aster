@@ -8,7 +8,7 @@ import { loadApplicants } from "../lib/data";
 import { Press, Avatar, StagePill, Loader, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
-import { stageColor } from "@aster/shared";
+import { stageColor, relTime } from "@aster/shared";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -95,18 +95,44 @@ function CandidateCard({ item, onPress }) {
   return (
     <Press onPress={onPress} style={{ marginBottom: space(3) }}>
       <View style={styles.card}>
-        {/* stage-colored accent rail */}
         <View style={[styles.rail, { backgroundColor: sc }]} />
-        {/* avatar with stage ring */}
-        <View style={[styles.avatarRing, { borderColor: sc }]}>
-          <Avatar uri={item.avatarUrl} name={item.name} size={48} />
+        {/* top: identity + match ring */}
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={[styles.avatarRing, { borderColor: sc }]}>
+            <Avatar uri={item.avatarUrl} name={item.name} size={50} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 14 }}>
+            <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
+            {item.title ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.title}</Text> : null}
+            <View style={styles.metaRow}>
+              <StagePill stage={item.stage} small />
+              {item.years != null ? (
+                <View style={styles.metaPill}><Text style={[type.smallStrong, { color: theme.ink3 }]}>{item.years}y exp</Text></View>
+              ) : null}
+            </View>
+          </View>
+          <MatchRing score={item.matchScore} />
         </View>
-        <View style={{ flex: 1, marginLeft: 14 }}>
-          <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
-          {item.title ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.title}</Text> : null}
-          <View style={{ marginTop: 8 }}><StagePill stage={item.stage} small /></View>
+
+        {/* skills */}
+        {item.skills && item.skills.length ? (
+          <View style={styles.skillsRow}>
+            {item.skills.map((s, i) => (
+              <View key={i} style={styles.skill}><Text style={[type.small, { color: theme.ink2 }]} numberOfLines={1}>{String(s)}</Text></View>
+            ))}
+          </View>
+        ) : null}
+
+        {/* footer */}
+        <View style={styles.footer}>
+          <Text style={[type.small, { color: theme.ink4 }]}>
+            {item.appliedAt ? `Applied ${relTime(item.appliedAt)}` : "In pipeline"}
+          </Text>
+          <View style={styles.viewRow}>
+            <Text style={[type.smallStrong, { color: theme.brand }]}>View profile</Text>
+            <Feather name="arrow-right" size={15} color={theme.brand} style={{ marginLeft: 5 }} />
+          </View>
         </View>
-        <MatchRing score={item.matchScore} />
       </View>
     </Press>
   );
@@ -131,15 +157,21 @@ function MatchRing({ score }) {
 
 const styles = StyleSheet.create({
   header: { backgroundColor: theme.brand },
-  headRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(1), paddingBottom: space(5) },
+  headRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: space(5) },
   back: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2, color: "rgba(255,255,255,0.7)", marginBottom: 3 },
+  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2, color: "rgba(255,255,255,0.72)", marginBottom: 4 },
   filters: { paddingVertical: space(4), gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, height: 34, borderRadius: radius.pill, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
   chipActive: { backgroundColor: theme.brand, borderColor: theme.brand },
-  card: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.xl, padding: space(3.5), paddingLeft: space(4), overflow: "hidden", shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  rail: { position: "absolute", left: 0, top: 14, bottom: 14, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
-  avatarRing: { padding: 2.5, borderRadius: 30, borderWidth: 2 },
+  card: { backgroundColor: theme.card, borderRadius: radius.xl, padding: space(4), paddingLeft: space(5), overflow: "hidden", shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  rail: { position: "absolute", left: 0, top: 16, bottom: 16, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
+  avatarRing: { padding: 2.5, borderRadius: 31, borderWidth: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 },
+  metaPill: { backgroundColor: theme.line2, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
+  skillsRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: space(3.5) },
+  skill: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
+  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: space(4), paddingTop: space(3), borderTopWidth: 1, borderTopColor: theme.line2 },
+  viewRow: { flexDirection: "row", alignItems: "center" },
   matchWrap: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
   matchCenter: { position: "absolute", alignItems: "center" },
   matchNum: { fontFamily: "Inter_700Bold", fontSize: 15, lineHeight: 16, fontVariant: ["tabular-nums"] },
