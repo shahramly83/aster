@@ -181,6 +181,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // Every panel member (interview attendees) must submit a scorecard before the
   // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
   const ratedIds = new Set(cards.map((c) => c.interviewerId));
+  const myCard = cards.find((c) => c.interviewerId === profile.userId) || null; // this viewer's own scorecard, if any
   const panel = interview?.attendees || [];
   // Interviewers must submit a scorecard; the hiring manager's is optional (they
   // can skip it). The HM is the attendee flagged hm:true (older invites: the
@@ -496,7 +497,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
               })
             )}
             {canScore ? (
-              <Button title="Add my scorecard" icon="edit-3" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+              <Button title={myCard ? "Edit my scorecard" : "Add my scorecard"} icon="edit-3" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={{ marginTop: space(3) }} />
             ) : null}
           </View>
           ) : null}

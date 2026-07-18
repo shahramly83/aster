@@ -15,9 +15,10 @@ const SCALE_HINT = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Excellent" };
 
 export default function ScorecardScreen({ route, navigation }) {
   const { profile } = useAuth();
-  const { candidateId, jobId, candidateName } = route.params || {};
-  const [ratings, setRatings] = useState({});
-  const [notes, setNotes] = useState("");
+  const { candidateId, jobId, candidateName, existing } = route.params || {};
+  const editing = !!existing;
+  const [ratings, setRatings] = useState(existing?.ratings || {});
+  const [notes, setNotes] = useState(existing?.notes || "");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -44,10 +45,10 @@ export default function ScorecardScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <ScreenHeader eyebrow="Scorecard" title={candidateName || "Candidate"} onBack={() => navigation.goBack()} />
+      <ScreenHeader eyebrow={editing ? "Edit scorecard" : "Scorecard"} title={candidateName || "Candidate"} onBack={() => navigation.goBack()} />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(10) }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Text style={[type.small, { color: theme.ink3 }]}>Rate each area 1–4. Your card stays private until you submit.</Text>
+        <Text style={[type.small, { color: theme.ink3 }]}>{editing ? "Update your ratings below. This replaces your existing card." : "Rate each area 1–4. Your card stays private until you submit."}</Text>
 
         <View style={{ marginTop: space(5) }}>
           {SCORE_CRITERIA.map((c) => (
@@ -89,13 +90,13 @@ export default function ScorecardScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        <Button title="Submit scorecard" icon="check" onPress={onSubmit} loading={busy} disabled={!allRated || busy || done} haptic="success" style={{ marginTop: space(5) }} />
+        <Button title={editing ? "Update scorecard" : "Submit scorecard"} icon="check" onPress={onSubmit} loading={busy} disabled={!allRated || busy || done} haptic="success" style={{ marginTop: space(5) }} />
         {!allRated ? <Text style={[type.small, { color: theme.ink4, textAlign: "center", marginTop: space(2) }]}>Rate all four areas to submit.</Text> : null}
       </ScrollView>
       </SafeAreaView>
       <SuccessModal
         visible={done}
-        title="Scorecard submitted"
+        title={editing ? "Scorecard updated" : "Scorecard submitted"}
         message={`Your feedback for ${candidateName || "the candidate"} is saved.`}
         onClose={() => { setDone(false); navigation.goBack(); }}
       />
