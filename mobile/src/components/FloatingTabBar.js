@@ -70,7 +70,8 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: 6,
     backgroundColor: theme.card,
     borderRadius: radius.pill,
     paddingHorizontal: 6,
