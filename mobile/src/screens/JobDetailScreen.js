@@ -50,14 +50,24 @@ export default function JobDetailScreen({ route, navigation }) {
   useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  // Live counts from the applicant list; fall back to the Roles snapshot until loaded.
+  // The candidates this screen shows: strong matches only, and never rejected or
+  // declined (they're out of the running). "other"-fit applicants stay in the
+  // talent pool; a manual shortlist overrides the AI and counts as strong.
+  const strongRows = useMemo(
+    () => (rows || []).filter((r) =>
+      r.stage !== "rejected" && r.stage !== "declined" && (r.fit !== "other" || r.stage === "shortlisted")),
+    [rows]
+  );
+
+  // Hero counts reflect exactly what's on screen (the "All" set), not the raw
+  // pipeline. Fall back to the Roles snapshot until the list loads.
   const counts = useMemo(() => {
     if (!rows) return job?.counts || {};
     const c = {};
-    for (const a of rows) c[a.stage] = (c[a.stage] || 0) + 1;
+    for (const a of strongRows) c[a.stage] = (c[a.stage] || 0) + 1;
     return c;
-  }, [rows, job]);
-  const total = rows ? rows.length : (job?.applicantCount ?? 0);
+  }, [rows, strongRows, job]);
+  const total = rows ? strongRows.length : (job?.applicantCount ?? 0);
   const hired = counts.hired || 0;
   const toReview = (counts.interviewing || 0) + (counts.offer || 0);
 
@@ -74,12 +84,6 @@ export default function JobDetailScreen({ route, navigation }) {
     }
   };
 
-  // Show only strong matches: weak "other"-fit applicants stay in the talent pool
-  // and aren't listed here. A manual shortlist overrides the AI and counts as strong.
-  const strongRows = useMemo(
-    () => (rows || []).filter((r) => r.fit !== "other" || r.stage === "shortlisted"),
-    [rows]
-  );
   const filtered = useMemo(
     () => strongRows.filter((r) => filter === "all" || r.stage === filter),
     [strongRows, filter]
