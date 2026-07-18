@@ -4,8 +4,12 @@
 // server can fan out to this device. Safe to call on every launch.
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import { supabase } from "./supabase";
+
+// Per-device push preference. "0" = the user turned push off in Settings.
+export const PUSH_PREF_KEY = "aster.push.enabled";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -17,6 +21,9 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerForPush(userId) {
+  // Respect the user's Settings toggle: if they turned push off, don't register.
+  try { if ((await SecureStore.getItemAsync(PUSH_PREF_KEY)) === "0") return null; } catch { /* default on */ }
+
   // Push only works on a physical device.
   if (!Constants.isDevice && Constants.deviceName === undefined) {
     // Best-effort: some simulators still return a token; don't hard-fail.
