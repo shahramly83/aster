@@ -69,7 +69,7 @@ function ManagerTabs() {
 // Interviewers get the focused least-privilege experience.
 function InterviewerTabs() {
   return (
-    <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
+    <Tab.Navigator initialRouteName="PositionsTab" screenOptions={tabOptions} tabBar={renderTabBar}>
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today" }} />
       <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
     </Tab.Navigator>
