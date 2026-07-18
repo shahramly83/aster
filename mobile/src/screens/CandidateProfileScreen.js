@@ -3,12 +3,12 @@ import { View, Text, ScrollView, Linking, StyleSheet, Alert, Pressable, Activity
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAuth } from "../AuthContext";
 import { loadCandidate, loadScorecards, loadCandidateInterview, scheduleInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationStage } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
+import CalendarSheet from "../components/CalendarSheet";
 import { theme, type, space, radius } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime } from "@aster/shared";
 
@@ -22,8 +22,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [cards, setCards] = useState([]);
   const [stage, setStage] = useState(route.params?.stage || "applied");
   const [scheduledAt, setScheduledAt] = useState(null);
-  const [picker, setPicker] = useState(null); // null | "date" | "time"
-  const [schedDate, setSchedDate] = useState(null);
+  const [calOpen, setCalOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
   const [offer, setOffer] = useState(null);
   const [approvals, setApprovals] = useState([]);
@@ -89,15 +88,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
         },
       },
     ]);
-  };
-
-  const onPickerChange = (event, selected) => {
-    if (event.type === "dismissed" || !selected) { setPicker(null); return; }
-    if (picker === "date") { setSchedDate(selected); setPicker("time"); return; }
-    const d = new Date(schedDate || new Date());
-    d.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
-    setPicker(null); setSchedDate(null);
-    confirmSchedule(d);
   };
 
   const confirmSchedule = async (date) => {
@@ -211,12 +201,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     <Text style={[type.bodyStrong, { color: theme.ink }]}>Interview scheduled</Text>
                     <Text style={[type.small, { color: theme.ink2, marginTop: 1 }]}>{fmtInterviewTime(scheduledAt, profile.timezone)}</Text>
                   </View>
-                  <Pressable onPress={() => setPicker("date")} hitSlop={8}><Text style={[type.smallStrong, { color: theme.brand }]}>Change</Text></Pressable>
+                  <Pressable onPress={() => setCalOpen(true)} hitSlop={8}><Text style={[type.smallStrong, { color: theme.brand }]}>Change</Text></Pressable>
                 </View>
               ) : (
                 <>
                   <Text style={[type.small, { color: theme.ink3 }]}>No interview scheduled yet.</Text>
-                  <Button title="Schedule interview" icon="calendar" onPress={() => setPicker("date")} style={{ marginTop: space(3) }} />
+                  <Button title="Schedule interview" icon="calendar" onPress={() => setCalOpen(true)} style={{ marginTop: space(3) }} />
                 </>
               )}
             </Card>
@@ -356,15 +346,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
         </ScrollView>
       </SafeAreaView>
 
-      {picker ? (
-        <DateTimePicker
-          value={schedDate || new Date(Date.now() + 86400000)}
-          mode={picker}
-          is24Hour={false}
-          minimumDate={picker === "date" ? new Date() : undefined}
-          onChange={onPickerChange}
-        />
-      ) : null}
+      <CalendarSheet
+        visible={calOpen}
+        onClose={() => setCalOpen(false)}
+        title="Schedule interview"
+        confirmLabel="Schedule"
+        onConfirm={({ startIso }) => confirmSchedule(new Date(startIso))}
+      />
 
       <OfferSheet
         visible={offerOpen}

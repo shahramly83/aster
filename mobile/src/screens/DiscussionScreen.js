@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, FlatList, Pressable, Modal, Keyboard, Platform, Alert, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import CalendarSheet from "../components/CalendarSheet";
 import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages,
@@ -10,6 +10,20 @@ import {
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
 import { relTime, fmtInterviewTime } from "@aster/shared";
+
+// Human label for a proposed time range, e.g. "Tue 12 Aug · 2:00–3:00 PM".
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const hm = (d) => `${d.getHours() % 12 === 0 ? 12 : d.getHours() % 12}:${String(d.getMinutes()).padStart(2, "0")}`;
+const ampm = (d) => (d.getHours() < 12 ? "AM" : "PM");
+function slotLabel(startIso, endIso) {
+  const s = new Date(startIso);
+  const date = `${WD[s.getDay()]} ${s.getDate()} ${MON[s.getMonth()]}`;
+  if (!endIso) return `${date} · ${hm(s)} ${ampm(s)}`;
+  const e = new Date(endIso);
+  const sameHalf = ampm(s) === ampm(e);
+  return `${date} · ${hm(s)}${sameHalf ? "" : ` ${ampm(s)}`}–${hm(e)} ${ampm(e)}`;
+}
 
 // Tracks the on-screen keyboard height so we can pad the chat above it. Edge-to-
 // edge Android doesn't resize the window, so KeyboardAvoidingView is unreliable.
@@ -114,7 +128,7 @@ export default function DiscussionScreen({ route, navigation }) {
 
   // Manager picks a slot → schedule it and close the poll.
   const pickSlot = (slot) => {
-    Alert.alert("Schedule this interview?", `${candidateName || "Candidate"} · ${fmtInterviewTime(slot.ts, profile.timezone)}`, [
+    Alert.alert("Schedule this interview?", `${candidateName || "Candidate"}\n${slotLabel(slot.ts, slot.end)}\n\nStarts at the beginning of the window.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Schedule",
@@ -132,8 +146,8 @@ export default function DiscussionScreen({ route, navigation }) {
     ]);
   };
 
-  const onCreatePoll = async (slotsIso) => {
-    const res = await createPoll({ companyId: profile.companyId, candidateId, jobId, createdBy: profile.userId, slotsIso });
+  const onCreatePoll = async (slots) => {
+    const res = await createPoll({ companyId: profile.companyId, candidateId, jobId, createdBy: profile.userId, slots });
     if (res.ok) await loadPoll();
     return res;
   };
@@ -222,7 +236,7 @@ function PollCard({ poll, tz, manager, savingSlot, onToggle, onPick }) {
                   {s.mine || chosen ? <Feather name="check" size={12} color={theme.white} /> : null}
                 </View>
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={[type.smallStrong, { color: theme.ink }]}>{fmtInterviewTime(s.ts, tz)}</Text>
+                  <Text style={[type.smallStrong, { color: theme.ink }]}>{slotLabel(s.ts, s.end)}</Text>
                   <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
                     {s.count} available{s.voters.length ? ` · ${s.voters.slice(0, 2).join(", ")}${s.count > 2 ? ` +${s.count - 2}` : ""}` : ""}
                   </Text>
@@ -249,27 +263,16 @@ function PollCard({ poll, tz, manager, savingSlot, onToggle, onPick }) {
 
 function PollComposer({ visible, tz, onClose, onCreate }) {
   const [slots, setSlots] = useState([]); // ISO strings
-  const [picker, setPicker] = useState(null); // null | "date" | "time"
-  const [pendingDate, setPendingDate] = useState(null);
+  const [calOpen, setCalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  const reset = () => { setSlots([]); setErr(null); setBusy(false); setPendingDate(null); setPicker(null); };
+  const reset = () => { setSlots([]); setErr(null); setBusy(false); setCalOpen(false); };
   const close = () => { if (!busy) { reset(); onClose(); } };
-
-  const onPickChange = (event, sel) => {
-    const which = picker; setPicker(null);
-    if (event.type === "dismissed" || !sel) { setPendingDate(null); return; }
-    if (which === "date") { setPendingDate(sel); setPicker("time"); return; }
-    const d = new Date(pendingDate || new Date());
-    d.setHours(sel.getHours(), sel.getMinutes(), 0, 0);
-    setPendingDate(null);
-    setSlots((p) => [...new Set([...p, d.toISOString()])].sort());
-  };
 
   const post = async () => {
     setErr(null);
-    if (slots.length < 2) { setErr("Add at least two dates."); return; }
+    if (slots.length < 2) { setErr("Add at least two time ranges."); return; }
     setBusy(true);
     const res = await onCreate(slots);
     setBusy(false);
@@ -288,19 +291,19 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
             <Text style={[type.h3, { color: theme.ink }]}>Propose interview dates</Text>
             <Pressable onPress={close} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
           </View>
-          <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Add a few options — your panel marks which they can make.</Text>
+          <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Add a few time ranges — your panel marks which they can make.</Text>
 
-          {slots.map((iso) => (
-            <View key={iso} style={styles.slotChip}>
-              <Feather name="calendar" size={14} color={theme.brand} />
-              <Text style={[type.small, { color: theme.ink, flex: 1, marginLeft: 8 }]}>{fmtInterviewTime(iso, tz)}</Text>
-              <Pressable onPress={() => setSlots((s) => s.filter((x) => x !== iso))} hitSlop={6}><Feather name="x" size={15} color={theme.ink3} /></Pressable>
+          {slots.map((s) => (
+            <View key={s.start} style={styles.slotChip}>
+              <Feather name="clock" size={14} color={theme.brand} />
+              <Text style={[type.small, { color: theme.ink, flex: 1, marginLeft: 8 }]}>{slotLabel(s.start, s.end)}</Text>
+              <Pressable onPress={() => setSlots((p) => p.filter((x) => x.start !== s.start))} hitSlop={6}><Feather name="x" size={15} color={theme.ink3} /></Pressable>
             </View>
           ))}
 
-          <Pressable onPress={() => setPicker("date")} style={styles.addSlot}>
+          <Pressable onPress={() => setCalOpen(true)} style={styles.addSlot}>
             <Feather name="plus" size={15} color={theme.brand} />
-            <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 6 }]}>Add a date</Text>
+            <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 6 }]}>Add a time range</Text>
           </Pressable>
 
           {err ? <Text style={[type.small, { color: "#B42318", marginTop: space(2) }]}>{err}</Text> : null}
@@ -308,9 +311,14 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
           <SafeAreaView edges={["bottom"]} />
         </View>
       </View>
-      {picker ? (
-        <DateTimePicker value={pendingDate || new Date(Date.now() + 86400000)} mode={picker} minimumDate={picker === "date" ? new Date() : undefined} onChange={onPickChange} />
-      ) : null}
+
+      <CalendarSheet
+        visible={calOpen}
+        onClose={() => setCalOpen(false)}
+        title="Add a time range"
+        confirmLabel="Add range"
+        onConfirm={({ startIso, endIso }) => setSlots((p) => p.some((x) => x.start === startIso) ? p : [...p, { start: startIso, end: endIso }].sort((a, b) => a.start.localeCompare(b.start)))}
+      />
     </Modal>
   );
 }

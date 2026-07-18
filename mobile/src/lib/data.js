@@ -793,7 +793,7 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
   if (!poll) return null;
 
   const [{ data: slots }, { data: votes }] = await Promise.all([
-    supabase.from("interview_poll_slots").select("id, slot_ts").eq("poll_id", poll.id).order("slot_ts", { ascending: true }),
+    supabase.from("interview_poll_slots").select("id, slot_ts, slot_end").eq("poll_id", poll.id).order("slot_ts", { ascending: true }),
     supabase.from("interview_poll_votes").select("slot_id, profile_id, voter_name").eq("poll_id", poll.id),
   ]);
   const bySlot = {};
@@ -810,6 +810,7 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
       return {
         id: s.id,
         ts: s.slot_ts,
+        end: s.slot_end || null,
         count: vs.length,
         voters: vs.map((v) => v.voter_name || "Teammate"),
         mine: vs.some((v) => v.profile_id === myProfileId),
@@ -818,16 +819,16 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
   };
 }
 
-// Create a poll with the given ISO slots. Managers only (RLS-enforced).
-export async function createPoll({ companyId, candidateId, jobId, createdBy, slotsIso = [] }) {
-  const clean = [...new Set(slotsIso.filter(Boolean))];
-  if (clean.length < 2) return { ok: false, error: "Add at least two dates." };
+// Create a poll from time-range slots [{ start, end }] (ISO). Managers only.
+export async function createPoll({ companyId, candidateId, jobId, createdBy, slots = [] }) {
+  const clean = slots.filter((s) => s && s.start);
+  if (clean.length < 2) return { ok: false, error: "Add at least two time ranges." };
   const { data: poll, error } = await supabase
     .from("interview_polls")
     .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, created_by: createdBy })
     .select("id").single();
   if (error || !poll) return { ok: false, error: error?.message || "Couldn't create the poll." };
-  const rows = clean.map((ts) => ({ poll_id: poll.id, company_id: companyId, slot_ts: ts }));
+  const rows = clean.map((s) => ({ poll_id: poll.id, company_id: companyId, slot_ts: s.start, slot_end: s.end || null }));
   const { error: se } = await supabase.from("interview_poll_slots").insert(rows);
   if (se) return { ok: false, error: se.message };
   return { ok: true, id: poll.id };
