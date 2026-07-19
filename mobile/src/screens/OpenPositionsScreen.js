@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, FlatList, Dimensions, RefreshControl, StyleSheet } from "react-native";
+import { View, Text, FlatList, ScrollView, Dimensions, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
@@ -60,11 +60,15 @@ export default function OpenPositionsScreen({ navigation }) {
       {jobs === null ? (
         <View style={{ flex: 1 }}><Loader label="Loading roles…" tint="#fff" /></View>
       ) : jobs.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
-          <EmptyState icon="briefcase" title="No open positions"
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: space(5), paddingBottom: 80 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+        >
+          <EmptyState tone="brand" icon="briefcase" title="No open positions"
             subtitle={manager ? "Open a position on the Aster web app and it'll appear here, ready to review and interview." : "You're not on any interview panel yet. Once a hiring manager adds you to a position, it'll show up here."}
-            hint={manager ? "Pull down to refresh" : undefined} />
-        </View>
+            hint="Pull down to refresh" />
+        </ScrollView>
       ) : (
         <>
           <FlatList

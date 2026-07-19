@@ -300,7 +300,12 @@ export function Loader({ label, tint = theme.brand, size = 44 }) {
 // renders through this, so the whole product's "nothing here yet" moments share
 // one polished look. Fades + rises in gently on mount (skipped under Reduce
 // Motion) so it feels intentional rather than a blank gap.
-export function EmptyState({ icon = "inbox", title, subtitle, actionLabel, onAction, hint }) {
+//   tone="light"  → dark ink on a light body (the default, most screens)
+//   tone="brand"  → white type inside a translucent glass panel, for the
+//                   brand-blue screens (Open positions) so it reads as an
+//                   intentional card instead of dark text floating on blue.
+export function EmptyState({ icon = "inbox", title, subtitle, actionLabel, onAction, hint, tone = "light" }) {
+  const onBrand = tone === "brand";
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     let mounted = true;
@@ -313,17 +318,24 @@ export function EmptyState({ icon = "inbox", title, subtitle, actionLabel, onAct
   }, [anim]);
   return (
     <Animated.View style={[styles.centered, { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
-      <View style={styles.emptyMedallion}>
-        <View style={styles.emptyMedallionInner}>
-          <Feather name={icon} size={26} color={theme.brand} />
+      <View style={onBrand ? styles.emptyPanel : styles.emptyInner}>
+        <View style={onBrand ? styles.emptyMedallionBrand : styles.emptyMedallion}>
+          <View style={onBrand ? styles.emptyMedallionInnerBrand : styles.emptyMedallionInner}>
+            <Feather name={icon} size={26} color={theme.brand} />
+          </View>
         </View>
+        <Text style={[type.h2, { color: onBrand ? theme.white : theme.ink, textAlign: "center" }]}>{title}</Text>
+        {subtitle ? <Text style={[type.body, { color: onBrand ? theme.onBrandMuted : theme.ink3, marginTop: 8, textAlign: "center", maxWidth: 300 }]}>{subtitle}</Text> : null}
+        {actionLabel && onAction ? (
+          <Button title={actionLabel} onPress={onAction} variant={onBrand ? "secondary" : "primary"} style={{ marginTop: space(5), alignSelf: "center", minWidth: 200 }} />
+        ) : null}
+        {hint ? (
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: space(4) }}>
+            {onBrand ? <Feather name="arrow-down" size={13} color={theme.onBrandFaint} style={{ marginRight: 6 }} /> : null}
+            <Text style={[type.small, { color: onBrand ? theme.onBrandFaint : theme.ink4, textAlign: "center" }]}>{hint}</Text>
+          </View>
+        ) : null}
       </View>
-      <Text style={[type.h2, { color: theme.ink, textAlign: "center" }]}>{title}</Text>
-      {subtitle ? <Text style={[type.body, { color: theme.ink3, marginTop: 8, textAlign: "center", maxWidth: 300 }]}>{subtitle}</Text> : null}
-      {actionLabel && onAction ? (
-        <Button title={actionLabel} onPress={onAction} variant="primary" style={{ marginTop: space(5), alignSelf: "center", minWidth: 200 }} />
-      ) : null}
-      {hint ? <Text style={[type.small, { color: theme.ink4, marginTop: space(3), textAlign: "center" }]}>{hint}</Text> : null}
     </Animated.View>
   );
 }
@@ -351,6 +363,12 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginTop: space(2), paddingHorizontal: space(1) },
   screenTitle: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(3) },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: space(6) },
+  emptyInner: { alignItems: "center" },
   emptyMedallion: { width: 92, height: 92, borderRadius: 28, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center", marginBottom: space(5) },
   emptyMedallionInner: { width: 62, height: 62, borderRadius: 31, backgroundColor: theme.white, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.brandSoft2 },
+  // Brand (blue-background) variant: a soft glass panel so the empty state reads
+  // as an intentional card, echoing the translucent role cards on the same screen.
+  emptyPanel: { alignItems: "center", alignSelf: "center", width: "100%", maxWidth: 380, paddingVertical: space(9), paddingHorizontal: space(6), borderRadius: 28, backgroundColor: "rgba(255,255,255,0.10)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+  emptyMedallionBrand: { width: 92, height: 92, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", marginBottom: space(5), borderWidth: 1, borderColor: "rgba(255,255,255,0.24)" },
+  emptyMedallionInnerBrand: { width: 62, height: 62, borderRadius: 31, backgroundColor: theme.white, alignItems: "center", justifyContent: "center" },
 });

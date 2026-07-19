@@ -15427,23 +15427,51 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
   );
 }
 
-// Panel availability poll — web parity with the mobile app. The hiring manager
-// proposes a few time ranges; the assigned interviewers mark the ones they can
-// make, so the panel converges on times before the candidate is offered any.
-// Both roles see the same card: the HM can start/close a poll; everyone votes.
-// Round 2 (the candidate suggested their own times) shows those for the panel to
-// weigh in — the HM confirms one in the scheduler below.
-function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, booking, panelSize = 0 }) {
+// Build the "sent" invite object from chosen time ranges. Shared by the manual
+// scheduler and the panel poll so both create the invite + email the candidate
+// through exactly the same path (markInviteSent).
+function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName, hmEmail, assignedInterviewers = [] }) {
+  const proposed = slots.map((s) => ({
+    start: s.start,
+    end: s.end || new Date(new Date(s.start).getTime() + 60 * 60000).toISOString(),
+  }));
+  const durMin = proposed.length ? Math.max(1, Math.round((new Date(proposed[0].end) - new Date(proposed[0].start)) / 60000)) : 30;
+  const attendees = [
+    { id: hmId, name: hmName, email: hmEmail },
+    ...assignedInterviewers.map((iv) => ({ id: iv.id, name: iv.name || "", email: iv.email || "" })),
+  ];
+  return {
+    id: `req-${candidateId}`, candidateId, status: "sent",
+    slot_duration_minutes: durMin, proposed_slots: proposed,
+    jobTitle, jobId, interviewerName: hmName, interviewerEmail: hmEmail, attendees,
+  };
+}
+
+// Panel availability poll — the panel converges on times before the candidate is
+// offered any. The HM proposes ranges; assigned interviewers MUST mark the ones
+// they can make (the HM's own vote is optional). Once every interviewer has voted
+// (or the HM proceeds anyway), the HM selects at least two times and sends them
+// straight to the candidate from here — no separate scheduler step. Round 2 (the
+// candidate suggested their own times) shows those for the panel to weigh in; the
+// HM confirms one in the reschedule card.
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
+  const hmName = `${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim() || "You";
+  const hmEntry = interviewers.find((iv) => iv.name === hmName) || interviewers.find((iv) => iv.role === "owner");
+  const hmId = hmEntry?.id ?? "__hm__";
+  const hmEmail = hmEntry?.email || "";
 
   const [poll, setPoll] = useState(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState([]); // { start, end } ISO
-  const [busy, setBusy] = useState(null); // slotId | 'create' | 'close'
+  const [busy, setBusy] = useState(null); // slotId | 'create'
   const [err, setErr] = useState(null);
+  const [override, setOverride] = useState(false); // HM proceeds without every vote
+  const [selected, setSelected] = useState(() => new Set()); // slot ids to offer
+  const [sending, setSending] = useState(false);
 
   const load = async () => {
     if (!hasSupabase || !companyId || !candidate?.id) { setLoading(false); return; }
@@ -15487,10 +15515,34 @@ function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, bookin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, candidate?.id, currentUserId]);
 
-  // Once the interview is booked, the poll is moot — hide it (matches mobile).
-  if (booking?.status === "scheduled") return null;
+  // Tell the parent when a round-1 poll is actively running, so it hides the
+  // separate manual scheduler (the poll owns "send to candidate" while it runs).
+  const pollActive = !!poll && poll.status === "open" && poll.proposedBy !== "candidate";
+  useEffect(() => {
+    onActiveChange?.(pollActive);
+    return () => onActiveChange?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pollActive]);
+
+  const round2 = poll?.proposedBy === "candidate";
+  const requiredVoters = assignedInterviewers.filter((iv) => iv.id && iv.id !== hmId);
+  const pending = poll ? requiredVoters.filter((iv) => !poll.voterIds.includes(iv.id)) : requiredVoters;
+  const votedCount = requiredVoters.length - pending.length;
+  const complete = requiredVoters.length === 0 || pending.length === 0;
+  const canSelect = isManager && !round2 && poll?.status === "open" && (complete || override);
+
+  // Entering select mode: default to the two most-available times.
+  useEffect(() => {
+    if (canSelect && selected.size === 0 && poll?.slots?.length) {
+      const top = [...poll.slots].filter((s) => s.count > 0).sort((a, b) => b.count - a.count).slice(0, 2).map((s) => s.id);
+      if (top.length) setSelected(new Set(top));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canSelect, poll?.id]);
+
+  // Once an invite is out (or booked), the poll's job is done — hide it.
+  if (booking?.status === "scheduled" || booking?.status === "sent") return null;
   if (loading && !poll) return null;
-  // Interviewers only see the card when there's actually a poll to vote on.
   if (!poll && !isManager) return null;
 
   const addDraft = (range) => {
@@ -15519,23 +15571,28 @@ function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, bookin
     if (e) { setErr(e); return; }
     await load();
   };
-  const closePoll = async () => {
-    if (busy) return;
-    const top = [...(poll.slots || [])].sort((a, b) => b.count - a.count)[0];
-    setBusy("close"); setErr(null);
-    const e = await dbClosePanelPoll(poll.id, top?.ts || null);
-    setBusy(null);
-    if (e) { setErr(e); return; }
+  const toggleSelect = (slot) => setSelected((prev) => {
+    const n = new Set(prev); n.has(slot.id) ? n.delete(slot.id) : n.add(slot.id); return n;
+  });
+  const sendOffer = async () => {
+    const chosen = poll.slots.filter((s) => selected.has(s.id)).map((s) => ({ start: s.ts, end: s.end }));
+    if (chosen.length < 2) { setErr("Pick at least two times to offer the candidate."); return; }
+    if (sending) return;
+    setSending(true); setErr(null);
+    const sent = buildInterviewOffer({ candidateId: candidate.id, slots: chosen, jobTitle, jobId, hmId, hmName, hmEmail, assignedInterviewers });
+    try { onInviteSent?.(candidate.id, sent); } catch { /* handled by parent */ }
+    await dbClosePanelPoll(poll.id, chosen[0].start).catch(() => {});
+    onActiveChange?.(false);
+    setSending(false);
     await load();
   };
 
-  const round2 = poll?.proposedBy === "candidate";
   const maxCount = poll ? Math.max(0, ...poll.slots.map((s) => s.count)) : 0;
   const votedN = poll ? poll.voterIds.length : 0;
-  const myPicks = poll ? poll.slots.filter((s) => s.mine).length : 0;
+  const selectedCount = selected.size;
 
   return (
-    <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
+    <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: canSelect ? "var(--brand)" : "var(--line)", background: "#fff" }}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -15547,7 +15604,7 @@ function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, bookin
               {round2 ? "Candidate's suggested times" : "Panel availability"}
             </p>
             <p className="text-[11px] leading-tight" style={{ color: "var(--ink-3)" }}>
-              {round2 ? "They couldn't make the offered times" : "Which times can the panel make?"}
+              {round2 ? "They couldn't make the offered times" : canSelect ? `Pick the times to offer ${candName.split(" ")[0]}` : "Which times can the panel make?"}
             </p>
           </div>
         </div>
@@ -15588,17 +15645,55 @@ function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, bookin
         )
       )}
 
-      {/* Poll exists → slots + votes + toggle */}
+      {/* Poll exists */}
       {poll && (
         <>
-          {poll.status === "open" && (
+          {/* Vote progress (round-1, before select mode) */}
+          {poll.status === "open" && !round2 && !canSelect && requiredVoters.length > 0 && (
+            <div className="mb-2.5">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] font-medium" style={{ color: "var(--ink-2)" }}>{votedCount} of {requiredVoters.length} interviewer{requiredVoters.length === 1 ? "" : "s"} voted</p>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg)" }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${requiredVoters.length ? (votedCount / requiredVoters.length) * 100 : 0}%`, background: "var(--brand)" }} />
+              </div>
+              {pending.length > 0 && (
+                <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Waiting on {pending.slice(0, 3).map((p) => p.name).join(", ")}{pending.length > 3 ? ` +${pending.length - 3}` : ""} to vote.</p>
+              )}
+            </div>
+          )}
+          {poll.status === "open" && !round2 && !canSelect && requiredVoters.length === 0 && (
             <p className="text-[11px] mb-2.5" style={{ color: "var(--ink-3)" }}>
-              {votedN === 0 ? "No one has marked their availability yet." : `${votedN} teammate${votedN === 1 ? "" : "s"} marked their availability${panelSize > 0 ? ` of ${panelSize}` : ""}.`}
+              {votedN === 0 ? "No one has marked their availability yet." : `${votedN} teammate${votedN === 1 ? "" : "s"} marked their availability.`}
             </p>
           )}
+          {canSelect && (
+            <p className="text-[11px] mb-2.5 font-medium" style={{ color: "#067647" }}>
+              {override && pending.length > 0 ? "Proceeding without every vote. " : "Everyone's voted. "}Select at least 2 times to offer, then send.
+            </p>
+          )}
+
           <div className="space-y-1.5">
             {poll.slots.map((slot) => {
               const top = slot.count > 0 && slot.count === maxCount;
+              const isSel = selected.has(slot.id);
+              // Select mode: rows are offer checkboxes. Otherwise: vote toggles.
+              if (canSelect) {
+                return (
+                  <button key={slot.id} type="button" onClick={() => toggleSelect(slot)} className="w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors" style={isSel ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)", background: "#fff" }}>
+                    <span className="shrink-0 w-5 h-5 rounded-md border flex items-center justify-center" style={isSel ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "var(--line-strong)" }}>
+                      {isSel && <Icon name="check" className="w-3.5 h-3.5" style={{ color: "#fff" }} />}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium" style={{ color: "var(--ink)" }}>{formatSlotRange(slot.ts, slot.end)}</p>
+                      <p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>
+                        {slot.count === 0 ? "No votes" : `${slot.count} available · ${slot.voters.slice(0, 3).join(", ")}${slot.voters.length > 3 ? ` +${slot.voters.length - 3}` : ""}`}
+                        {top && <span className="font-semibold" style={{ color: "var(--brand)" }}> · Most available</span>}
+                      </p>
+                    </div>
+                  </button>
+                );
+              }
               const disabled = poll.status !== "open" || busy === slot.id;
               return (
                 <div key={slot.id} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={top ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)", background: "#fff" }}>
@@ -15623,20 +15718,31 @@ function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, bookin
             })}
           </div>
           {err && <p className="text-xs mt-2" style={{ color: "#B42318" }}>{err}</p>}
-          {poll.status === "open" && (
+
+          {/* Select mode → send straight to the candidate */}
+          {canSelect ? (
+            <div className="mt-3">
+              <button type="button" onClick={sendOffer} disabled={sending || selectedCount < 2} className="w-full rounded-xl text-sm font-semibold px-4 py-2.5 transition-all disabled:cursor-not-allowed" style={sending || selectedCount < 2 ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { background: "var(--brand)", color: "#fff" }}>
+                {sending ? "Sending…" : `Send ${selectedCount} time${selectedCount === 1 ? "" : "s"} to candidate`}
+              </button>
+              <p className="text-[11px] mt-1.5 text-center" style={{ color: "var(--ink-3)" }}>The candidate picks one, then everyone gets the calendar invite.</p>
+            </div>
+          ) : poll.status === "open" && !round2 ? (
+            <>
+              <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
+                {isManager ? "Your vote is optional. Once the interviewers vote, you'll pick times to offer." : "Mark at least 2 times you can make."}
+              </p>
+              {isManager && !complete && (
+                <button type="button" onClick={() => setOverride(true)} className="mt-1.5 text-xs font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
+                  Proceed anyway &rarr;
+                </button>
+              )}
+            </>
+          ) : poll.status === "open" && round2 ? (
             <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
-              {round2 ? (isManager ? "Confirm one of these times in the scheduler below." : "Mark at least 2 times you can make.") : `Mark at least 2 times you can make${myPicks > 0 && myPicks < 2 ? ` (you've marked ${myPicks}).` : "."}`}
+              {isManager ? "Confirm one of these times in the reschedule card below." : "Mark at least 2 times you can make."}
             </p>
-          )}
-          {/* Round-1 HM close */}
-          {poll.status === "open" && isManager && !round2 && (
-            <button type="button" onClick={closePoll} disabled={busy === "close" || maxCount === 0} className="mt-2.5 text-xs font-medium transition-colors hover:opacity-80 disabled:opacity-40" style={{ color: "var(--brand)" }}>
-              {busy === "close" ? "Closing…" : "Close poll & lock the top time"}
-            </button>
-          )}
-          {poll.status === "closed" && poll.chosenSlot && (
-            <p className="text-[11px] mt-2.5 font-medium" style={{ color: "#067647" }}>Locked: {formatSlotDisplay(poll.chosenSlot)} — offer this time below.</p>
-          )}
+          ) : null}
         </>
       )}
     </div>
@@ -15736,26 +15842,12 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
     if (slots.length === 0) return;
     setSending(true);
     setTimeout(() => {
-      const proposed = slots.map((s) => ({ start: s.start, end: s.end }));
-      const durMin = slots.length ? Math.max(1, Math.round((new Date(slots[0].end) - new Date(slots[0].start)) / 60000)) : 30;
       // The full panel: the hiring manager plus the interviewers already assigned
       // to this role. Profile ids scope the scorecard; name/email drive emails.
-      const attendees = [
-        { id: hmId, name: hmName, email: hmEmail },
-        ...assignedInterviewers.map((iv) => ({ id: iv.id, name: iv.name || "", email: iv.email || "" })),
-      ];
-      const sent = {
-        id: `req-${candidate.id}`,
-        candidateId: candidate.id,
-        status: "sent",
-        slot_duration_minutes: durMin,
-        proposed_slots: proposed,
-        jobTitle: activeJobTitle,
-        jobId: fixedJob?.id ?? jobId,
-        interviewerName: hmName,
-        interviewerEmail: hmEmail,
-        attendees,
-      };
+      const sent = buildInterviewOffer({
+        candidateId: candidate.id, slots, jobTitle: activeJobTitle,
+        jobId: fixedJob?.id ?? jobId, hmId, hmName, hmEmail, assignedInterviewers,
+      });
       // Lift to shared booking so the profile + booking page stay in sync.
       if (onInviteSent) onInviteSent(candidate.id, sent);
       setSending(false);
@@ -19535,6 +19627,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
   const booking = (contextJobId ? bookingsByJob[`${candidate?.id}:${contextJobId}`] : null) || bookingProp;
+  // While a panel availability poll is running, it owns "send to candidate", so
+  // the manual scheduler below is hidden to avoid two ways to offer times.
+  const [pollActive, setPollActive] = useState(false);
   // The caller may not hand us a stage (e.g. an interviewer opening a profile
   // from "Your Interviews"), or hands a stale snapshot. Prefer the true stage
   // from the loaded pipeline so the header/pill never wrongly reads "Applied"
@@ -20270,26 +20365,32 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         <PanelPoll
           candidate={candidate}
           jobId={contextJobId}
+          jobTitle={jobs.find((j) => j.id === contextJobId)?.title}
           profile={profile}
           companyId={companyId}
           currentUserId={currentUserId}
           booking={booking}
-          panelSize={assignedInterviewers.length}
-        />
-        <ScheduleInterviewPanel
-          candidate={candidate}
-          jobs={jobs}
           interviewers={interviewers}
-          onPreviewBooking={onPreviewBooking}
-          contextJobId={contextJobId}
-          booking={booking}
-          onInviteSent={onInviteSent}
-          profile={profile}
-          allBookings={allBookings}
-          openRequest={openRequest}
           assignedInterviewers={assignedInterviewers}
-          onSubstitute={onSubstitute}
+          onInviteSent={onInviteSent}
+          onActiveChange={setPollActive}
         />
+        {!pollActive && (
+          <ScheduleInterviewPanel
+            candidate={candidate}
+            jobs={jobs}
+            interviewers={interviewers}
+            onPreviewBooking={onPreviewBooking}
+            contextJobId={contextJobId}
+            booking={booking}
+            onInviteSent={onInviteSent}
+            profile={profile}
+            allBookings={allBookings}
+            openRequest={openRequest}
+            assignedInterviewers={assignedInterviewers}
+            onSubstitute={onSubstitute}
+          />
+        )}
         </>)}
 
         {/* AI interview questions: the hiring manager generates them once, and the
