@@ -61,6 +61,7 @@ function dayLabel(iso, tz) {
   const today = dayKey(new Date().toISOString(), tz);
   const tomorrow = dayKey(new Date(Date.now() + 86400000).toISOString(), tz);
   const k = dayKey(iso, tz);
+  if (k < today) return "Past";       // interviews that already happened group together
   if (k === today) return "Today";
   if (k === tomorrow) return "Tomorrow";
   const opts = { weekday: "long", day: "numeric", month: "short" };

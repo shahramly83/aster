@@ -28,6 +28,7 @@ import { linking } from "./src/lib/linking";
 import { theme } from "./src/theme";
 import { Loader, Button } from "./src/components/ui";
 import BrandSplash from "./src/components/BrandSplash";
+import LockScreen from "./src/components/LockScreen";
 import FloatingTabBar from "./src/components/FloatingTabBar";
 
 // Keep the native (blue) splash up until fonts are ready, then our animated
@@ -78,18 +79,6 @@ function InterviewerTabs() {
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today" }} />
       <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
     </Tab.Navigator>
-  );
-}
-
-function LockScreen() {
-  const { unlock } = useAuth();
-  React.useEffect(() => { unlock(); }, [unlock]);
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.bg, padding: 24 }}>
-      <Feather name="lock" size={30} color={theme.brand} />
-      <Text style={{ fontFamily: "Inter_700Bold", fontSize: 20, color: theme.ink, marginTop: 16, marginBottom: 16 }}>Aster is locked</Text>
-      <Button title="Unlock" icon="unlock" onPress={unlock} style={{ minWidth: 180 }} />
-    </View>
   );
 }
 
