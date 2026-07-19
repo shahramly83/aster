@@ -205,10 +205,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
     ? ((interview?.proposedSlots || []).find((s) => s?.start && new Date(s.start).getTime() === new Date(scheduledAt).getTime())?.end || null)
     : null;
   const pendingInvite = interview?.status === "sent" ? interview : null;
+  const rescheduling = interview?.status === "reschedule"; // candidate couldn't make the times, suggested their own
   const interviewDone = !!scheduledAt && new Date(scheduledAt).getTime() < Date.now();
   // Show the interview flow once the candidate reaches interviewing (or there's
   // already an invite/booking).
-  const showInterview = stage === "interviewing" || !!scheduledAt || !!pendingInvite;
+  const showInterview = stage === "interviewing" || !!scheduledAt || !!pendingInvite || rescheduling;
   const canScore = interviewDone || ["offer", "hired"].includes(stage);
   // Every panel member (interview attendees) must submit a scorecard before the
   // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
@@ -471,6 +472,29 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       </>
                     ) : null}
                   </View>
+                </>
+              ) : rescheduling ? (
+                <>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[type.bodyStrong, { color: theme.ink }]}>Candidate suggested new times</Text>
+                      <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>They couldn't make the proposed times. The panel votes on theirs, then you confirm.</Text>
+                    </View>
+                  </View>
+                  {interview?.rescheduleNote ? (
+                    <View style={styles.noteBox}>
+                      <Feather name="message-circle" size={13} color={theme.ink3} />
+                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8, flex: 1, fontStyle: "italic" }]}>&ldquo;{interview.rescheduleNote}&rdquo;</Text>
+                    </View>
+                  ) : null}
+                  {interview?.proposedSlots?.map((s, i) => (
+                    <View key={i} style={styles.slotRow}>
+                      <Feather name="calendar" size={13} color={theme.ink4} />
+                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{slotRange(s.start, s.end)}</Text>
+                    </View>
+                  ))}
+                  <Button title="Open panel chat to vote & confirm" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
                 </>
               ) : pendingInvite ? (
                 <>
@@ -781,6 +805,7 @@ const styles = StyleSheet.create({
   mlChip: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
   mlChipIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.white, alignItems: "center", justifyContent: "center" },
   slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
+  noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
   exploreToggle: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, borderWidth: 1, borderColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(3.5), marginTop: space(5), ...shadow.sm },

@@ -1115,6 +1115,19 @@ export async function closePoll(pollId, chosenIso) {
   return error ? error.message : null;
 }
 
+// HM confirms a slot from a candidate-proposed (round 2) poll. The candidate
+// already offered these times, so confirming is the same as their own booking:
+// reuse confirm-booking (schedules + emails candidate confirmation + panel) via
+// the interview token, then close the poll on the chosen slot.
+export async function confirmPollSlot({ token, pollId, startIso }) {
+  if (!token) return { ok: false, error: "This interview can't be confirmed (no booking link)." };
+  if (!startIso) return { ok: false, error: "Pick a time to confirm." };
+  const { data, error } = await supabase.functions.invoke("confirm-booking", { body: { token, start: startIso } });
+  if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Couldn't confirm the time." };
+  if (pollId) await closePoll(pollId, startIso).catch(() => {});
+  return { ok: true };
+}
+
 // Live poll updates: reload on any vote/poll change in the company.
 let _pollChanSeq = 0;
 export function subscribePoll(companyId, onChange) {

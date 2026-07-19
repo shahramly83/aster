@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, FlatList, Pressable, Modal, Keyboard, Platform, Alert, StyleSheet } from "react-native";
+import { View, Text, TextInput, FlatList, Pressable, Modal, Keyboard, Platform, Alert, ActivityIndicator, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import CalendarSheet from "../components/CalendarSheet";
 import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages,
   loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
-  loadCandidateInterview, loadInterviewers,
+  loadCandidateInterview, loadInterviewers, confirmPollSlot,
 } from "../lib/data";
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
@@ -53,6 +53,8 @@ export default function DiscussionScreen({ route, navigation }) {
   const [messages, setMessages] = useState(null);
   const [poll, setPoll] = useState(null);
   const [pollProgress, setPollProgress] = useState(null); // { voted, total, pendingNames } for the manager
+  const [interviewToken, setInterviewToken] = useState(null); // for confirming a round-2 slot
+  const [confirming, setConfirming] = useState(null); // slot ts being confirmed
   const [savingSlot, setSavingSlot] = useState(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -74,6 +76,7 @@ export default function DiscussionScreen({ route, navigation }) {
     // Once the candidate has confirmed a time, the availability poll is moot — hide it.
     const activePoll = iv?.status === "scheduled" ? null : p;
     setPoll(activePoll);
+    setInterviewToken(iv?.token || null);
     // For the manager (usually the poll creator), track whether the panel has
     // finished voting. Expected voters = assigned interviewers minus the creator.
     if (activePoll && manager && jobId) {
@@ -145,6 +148,27 @@ export default function DiscussionScreen({ route, navigation }) {
     if (err) { Alert.alert("Couldn't update", err); loadPoll(); }
   };
 
+  // HM confirms a slot from the candidate's round-2 poll → schedules the interview.
+  const confirmSlot = (slot) => {
+    Alert.alert(
+      "Confirm this time?",
+      `${slotLabel(slot.ts, slot.end)}\n\nThe candidate suggested this time, so it will be booked and everyone emailed the confirmation.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm", onPress: async () => {
+            setConfirming(slot.ts);
+            const res = await confirmPollSlot({ token: interviewToken, pollId: poll?.id, startIso: slot.ts });
+            setConfirming(null);
+            if (!res.ok) { Alert.alert("Couldn't confirm", res.error || "Try again."); return; }
+            loadPoll();
+            Alert.alert("Interview scheduled", "The candidate has been emailed the confirmation.");
+          },
+        },
+      ],
+    );
+  };
+
   const onCreatePoll = async (slots) => {
     const res = await createPoll({ companyId: profile.companyId, candidateId, candidateName, jobId, createdBy: profile.userId, slots });
     if (res.ok) await loadPoll();
@@ -179,7 +203,7 @@ export default function DiscussionScreen({ route, navigation }) {
             ListHeaderComponent={
               <>
                 {poll ? (
-                  <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} />
+                  <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} onConfirm={confirmSlot} confirming={confirming} />
                 ) : null}
                 <View style={styles.banner}>
                   <Feather name="users" size={13} color={theme.ink3} />
@@ -211,16 +235,17 @@ export default function DiscussionScreen({ route, navigation }) {
   );
 }
 
-function PollCard({ poll, tz, manager, progress, savingSlot, onToggle }) {
+function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm, confirming }) {
   const open = poll.status === "open";
+  const isCandidate = poll.proposedBy === "candidate"; // round 2: candidate suggested these
   // For the manager who ran the poll: is the panel done voting?
   const allVoted = progress && progress.total > 0 && progress.voted >= progress.total;
   return (
     <View style={styles.pollCard}>
       <View style={styles.pollHead}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Feather name="calendar" size={15} color={theme.brand} />
-          <Text style={[type.bodyStrong, { color: theme.ink, marginLeft: 8 }]}>Interview availability</Text>
+          <Feather name={isCandidate ? "user" : "calendar"} size={15} color={theme.brand} />
+          <Text style={[type.bodyStrong, { color: theme.ink, marginLeft: 8 }]}>{isCandidate ? "Candidate's suggested times" : "Interview availability"}</Text>
         </View>
         <View style={[styles.pollStatus, { backgroundColor: open ? theme.brandSoft : "#F0FDF4" }]}>
           <Text style={[type.smallStrong, { color: open ? theme.brand : "#166534" }]}>{open ? "Open" : "Scheduled"}</Text>
@@ -253,7 +278,12 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle }) {
                   </Text>
                 </View>
               </Pressable>
-              {chosen ? <Feather name="check-circle" size={18} color={theme.success} /> : null}
+              {/* Round 2: HM confirms a candidate slot directly (candidate already agreed). */}
+              {open && manager && isCandidate ? (
+                <Pressable onPress={() => onConfirm?.(s)} disabled={!!confirming} style={styles.confirmSlotBtn}>
+                  {confirming === s.ts ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmSlotTxt}>Confirm</Text>}
+                </Pressable>
+              ) : chosen ? <Feather name="check-circle" size={18} color={theme.success} /> : null}
             </View>
           );
         })}
@@ -261,10 +291,14 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle }) {
 
       {open ? (
         <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
-          {!manager
-            ? "Tap the slots you're available for."
-            : allVoted
-              ? "Everyone's in. Propose the best times to the candidate from their profile → Interview."
+          {isCandidate
+            ? (manager
+                ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
+                : "The candidate suggested these. Tap the ones you can make.")
+            : !manager
+              ? "Tap the slots you're available for."
+              : allVoted
+                ? "Everyone's in. Propose the best times to the candidate from their profile → Interview."
               : progress && progress.pendingNames?.length
                 ? `Waiting on ${progress.pendingNames.slice(0, 3).join(", ")}${progress.pendingNames.length > 3 ? ` +${progress.pendingNames.length - 3}` : ""}. Then propose the best times to the candidate.`
                 : "Panel marks their availability, then propose the best times to the candidate."}
@@ -378,6 +412,8 @@ const styles = StyleSheet.create({
   pollStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   voteProgress: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
   voteProgressDone: { backgroundColor: "#F0FDF4" },
+  confirmSlotBtn: { backgroundColor: theme.success, borderRadius: radius.pill, paddingHorizontal: 14, height: 30, minWidth: 74, alignItems: "center", justifyContent: "center" },
+  confirmSlotTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#fff" },
   slot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 11 },
   slotMine: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
   slotChosen: { borderColor: theme.success, backgroundColor: "#F0FDF4" },
