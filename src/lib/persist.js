@@ -710,7 +710,7 @@ export async function dbGetPanelPoll(companyId, candidateId, myProfileId) {
 export async function dbCreatePanelPoll({ companyId, candidateId, candidateName, jobId, createdBy, slots = [] }) {
   if (!hasSupabase) return { ok: false, error: "Not connected." };
   const clean = slots.filter((s) => s && s.start);
-  if (clean.length < 2) return { ok: false, error: "Add at least two time ranges." };
+  if (clean.length < 3) return { ok: false, error: "Add at least three time ranges." };
   const { data: poll, error } = await supabase
     .from("interview_polls")
     .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, created_by: createdBy })

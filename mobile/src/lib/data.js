@@ -1077,7 +1077,7 @@ export async function loadMyPollProgress(companyId, userId) {
 // Logs an activity so the panel is notified (Notifications feed + bell badge).
 export async function createPoll({ companyId, candidateId, candidateName, jobId, createdBy, slots = [] }) {
   const clean = slots.filter((s) => s && s.start);
-  if (clean.length < 2) return { ok: false, error: "Add at least two time ranges." };
+  if (clean.length < 3) return { ok: false, error: "Add at least three time ranges." };
   const { data: poll, error } = await supabase
     .from("interview_polls")
     .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, created_by: createdBy })

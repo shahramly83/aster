@@ -15555,7 +15555,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const removeDraft = (si) => setDraft((prev) => prev.filter((x) => x.start !== si));
 
   const startPoll = async () => {
-    if (busy || draft.length < 2) { if (draft.length < 2) setErr("Add at least two time ranges."); return; }
+    if (busy || draft.length < 3) { if (draft.length < 3) setErr("Add at least three time ranges."); return; }
     setBusy("create"); setErr(null);
     const r = await dbCreatePanelPoll({ companyId, candidateId: candidate.id, candidateName: candName, jobId, createdBy: currentUserId, slots: draft });
     setBusy(null);
@@ -15623,7 +15623,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
           </button>
         ) : (
           <div>
-            <p className="text-xs mb-2" style={{ color: "var(--ink-2)" }}>Propose a few time ranges. The panel marks the ones they can make before you offer times to {candName.split(" ")[0]}.</p>
+            <p className="text-xs mb-2" style={{ color: "var(--ink-2)" }}>Propose at least three time ranges. The panel marks the ones they can make before you offer times to {candName.split(" ")[0]}.</p>
             <DateTimePicker onAdd={addDraft} slots={draft} onRemove={removeDraft} />
             {draft.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2.5">
@@ -15636,7 +15636,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               </div>
             )}
             <div className="flex items-center gap-2 mt-3">
-              <button type="button" onClick={startPoll} disabled={busy === "create" || draft.length < 2} className="rounded-xl text-sm font-medium px-4 py-2 transition-all disabled:cursor-not-allowed" style={draft.length < 2 || busy === "create" ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { background: "var(--brand)", color: "#fff" }}>
+              <button type="button" onClick={startPoll} disabled={busy === "create" || draft.length < 3} className="rounded-xl text-sm font-medium px-4 py-2 transition-all disabled:cursor-not-allowed" style={draft.length < 3 || busy === "create" ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { background: "var(--brand)", color: "#fff" }}>
                 {busy === "create" ? "Starting…" : "Start poll"}
               </button>
               <button type="button" onClick={() => { setCreating(false); setDraft([]); setErr(null); }} className="text-sm font-medium px-2 py-2" style={{ color: "var(--ink-3)" }}>Cancel</button>

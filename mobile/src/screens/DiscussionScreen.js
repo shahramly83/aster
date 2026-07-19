@@ -58,6 +58,7 @@ export default function DiscussionScreen({ route, navigation }) {
   const [savingSlot, setSavingSlot] = useState(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [panelMembers, setPanelMembers] = useState([]); // assigned interviewers (attendees + email)
+  const [sentInterview, setSentInterview] = useState(false); // an invite is out, awaiting the candidate
   const [selected, setSelected] = useState(() => new Set()); // slot ids the HM will offer
   const [override, setOverride] = useState(false); // HM proceeds before every vote
   const [sendingOffer, setSendingOffer] = useState(false);
@@ -82,6 +83,7 @@ export default function DiscussionScreen({ route, navigation }) {
     const activePoll = (iv?.status === "scheduled" || iv?.status === "sent") ? null : p;
     setPoll(activePoll);
     setInterviewToken(iv?.token || null);
+    setSentInterview(iv?.status === "sent");
     // For the manager (usually the poll creator), track whether the panel has
     // finished voting. Expected voters = assigned interviewers minus the creator.
     if (activePoll && manager && jobId) {
@@ -218,9 +220,10 @@ export default function DiscussionScreen({ route, navigation }) {
     });
     if (!res.ok) { setSendingOffer(false); Alert.alert("Couldn't send", res.error || "Try again."); return; }
     await closePoll(poll.id, chosen[0].start).catch(() => {});
+    setSelected(new Set());
+    await loadPoll(); // hides the poll + shows the "invite sent" banner, in place
     setSendingOffer(false);
     Alert.alert("Sent to candidate", res.emailed ? `${candidateName || "The candidate"} has been emailed to pick a time.` : "Invite created. The candidate will be notified to pick a time.");
-    navigation.goBack();
   };
 
   const canCreate = manager && (!poll || poll.status === "closed");
@@ -254,6 +257,13 @@ export default function DiscussionScreen({ route, navigation }) {
                   <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} onConfirm={confirmSlot} confirming={confirming}
                     selectMode={selectMode} selected={selected} onToggleSelect={toggleSelect} onSendOffer={sendOffer} sendingOffer={sendingOffer}
                     canOverride={manager && !round2 && !allVoted && !noPanel && !override} onOverride={() => setOverride(true)} />
+                ) : sentInterview ? (
+                  <View style={[styles.banner, { backgroundColor: "#ECFDF3", borderColor: "#A7F3D0", borderWidth: 1 }]}>
+                    <Feather name="check-circle" size={14} color={theme.success} />
+                    <Text style={[type.smallStrong, { color: "#166534", marginLeft: 6, flex: 1 }]}>
+                      Invite sent. Waiting for {candidateName?.split(" ")[0] || "the candidate"} to pick a time.
+                    </Text>
+                  </View>
                 ) : null}
                 <View style={styles.banner}>
                   <Feather name="users" size={13} color={theme.ink3} />
