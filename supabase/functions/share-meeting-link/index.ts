@@ -167,7 +167,8 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, candidate: candidateSent, panel: results.filter((r) => r === "panel").length });
   } catch (e) {
-    console.error(e);
-    return json({ error: "unexpected error" }, 500);
+    console.error("share-meeting-link failed", e);
+    // Surface the real reason so we can diagnose instead of a generic 500.
+    return json({ error: `share failed: ${e instanceof Error ? e.message : String(e)}` }, 500);
   }
 });

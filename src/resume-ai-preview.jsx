@@ -15902,7 +15902,13 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
     try {
       if (hasSupabase && candidate?.id) {
         const { data, error } = await supabase.functions.invoke("share-meeting-link", { body: { candidate_id: candidate.id, job_id: contextJobId || null, meeting_link: link } });
-        const msg = data?.error || error?.message;
+        // On a non-2xx, supabase-js only gives a generic message and doesn't read
+        // the body — pull the function's real error out of error.context.
+        let msg = data?.error || null;
+        if (!msg && error) {
+          msg = error.message;
+          try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* body not JSON */ }
+        }
         if (msg) {
           // Surface the real reason instead of blaming the URL (which is valid).
           setShareErr(/no scheduled interview/i.test(msg)
