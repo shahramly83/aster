@@ -10,6 +10,7 @@
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { charge, refund } from "../_shared/meter.ts";
+import { stripDashes } from "../_shared/text.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,7 @@ const CORS = {
 const MODEL = "claude-haiku-4-5-20251001"; // fast + cheap; the read is a bounded analysis, not open-ended reasoning
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const PROMPT = `You are an expert technical recruiter reading one candidate's resume. Analyse ONLY the resume below and return a deep, honest read of their experience. Base every number on what the resume actually shows — do not inflate. If something can't be determined, use a sensible conservative value (0, null, or an empty array), never a guess.
+const PROMPT = `You are an expert technical recruiter reading one candidate's resume. Analyse ONLY the resume below and return a deep, honest read of their experience. Base every number on what the resume actually shows, do not inflate. If something can't be determined, use a sensible conservative value (0, null, or an empty array), never a guess. In any prose field (career_progression), never use em or en dashes; use commas, colons, or periods instead.
 
 Return ONLY a JSON object (no markdown, no commentary) with EXACTLY this shape:
 {
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
         longest_tenure: ea.longest_tenure && ea.longest_tenure.company
           ? { company: String(ea.longest_tenure.company).slice(0, 80), months: Math.max(0, Math.round(num(ea.longest_tenure.months))) }
           : null,
-        career_progression: String(ea.career_progression || "").slice(0, 400),
+        career_progression: stripDashes(ea.career_progression).slice(0, 400),
         employment_gaps: (Array.isArray(ea.employment_gaps) ? ea.employment_gaps : [])
           .filter((g: any) => g && g.start && g.end)
           .map((g: any) => ({ start: String(g.start).slice(0, 20), end: String(g.end).slice(0, 20), duration_months: Math.max(0, Math.round(num(g.duration_months))) })),

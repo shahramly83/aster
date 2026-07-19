@@ -9,6 +9,7 @@
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { charge, refund } from "../_shared/meter.ts";
+import { stripDashes } from "../_shared/text.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,7 @@ Rules:
 - Each question names or draws on something concrete from the resume OR the role when possible.
 - Each "category" MUST be one of: ${CATEGORIES.join(", ")}.
 - Keep each question to one or two sentences.
+- Never use em or en dashes. Use commas, colons, periods, or parentheses instead.
 - Return ONLY a JSON object, no markdown or commentary, EXACTLY this shape:
 { "questions": [ { "category": string, "question": string } ] }`;
 
@@ -84,7 +86,7 @@ Deno.serve(async (req) => {
       .filter((q: any) => q && typeof q.question === "string" && q.question.trim())
       .map((q: any) => ({
         category: allow.has(q.category) ? q.category : "Role fit",
-        question: String(q.question).trim().slice(0, 400),
+        question: stripDashes(q.question).slice(0, 400),
       }))
       .slice(0, 15);
     if (!questions.length) { await refund(paid.companyId, "interview_questions"); return json({ error: "generate_failed" }, 502); }

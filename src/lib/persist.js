@@ -756,6 +756,54 @@ export async function dbClosePanelPoll(pollId, chosenIso) {
   return error ? error.message : null;
 }
 
+// Open availability polls the signed-in user can act on — so interviewers see
+// "polls that need your vote" without hunting inside candidate profiles. RLS
+// scopes interviewers to their assigned roles. Excludes polls the user created
+// (they don't vote on their own) and candidates whose interview is already out.
+export async function dbListOpenPolls(companyId, userId) {
+  if (!hasSupabase || !companyId) return [];
+  const { data: polls, error } = await supabase
+    .from("interview_polls")
+    .select("id, candidate_id, job_id, created_by, created_at")
+    .eq("company_id", companyId).eq("status", "open")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("dbListOpenPolls", error.message); return []; }
+  let rows = (polls || []).filter((p) => p.created_by !== userId);
+  if (!rows.length) return [];
+  const allCandIds = [...new Set(rows.map((p) => p.candidate_id).filter(Boolean))];
+  const { data: iv } = await supabase
+    .from("interviews").select("candidate_id, status")
+    .eq("company_id", companyId).in("status", ["scheduled", "sent"]).in("candidate_id", allCandIds);
+  const settled = new Set((iv || []).map((s) => s.candidate_id));
+  rows = rows.filter((p) => !settled.has(p.candidate_id));
+  if (!rows.length) return [];
+  const pollIds = rows.map((p) => p.id);
+  const candIds = [...new Set(rows.map((p) => p.candidate_id).filter(Boolean))];
+  const jobIds = [...new Set(rows.map((p) => p.job_id).filter(Boolean))];
+  const [mv, cs, js] = await Promise.all([
+    supabase.from("interview_poll_votes").select("poll_id, profile_id").eq("company_id", companyId).eq("profile_id", userId).in("poll_id", pollIds),
+    candIds.length ? supabase.from("candidates").select("id, parsed, full_name").in("id", candIds) : Promise.resolve({ data: [] }),
+    jobIds.length ? supabase.from("jobs").select("id, title").in("id", jobIds) : Promise.resolve({ data: [] }),
+  ]);
+  // A voter "voted" only once they've picked >=2 times (the propose-2 rule), so a
+  // single stray tap doesn't clear the prompt.
+  const myCounts = {};
+  (mv.data || []).forEach((v) => { myCounts[v.poll_id] = (myCounts[v.poll_id] || 0) + 1; });
+  const candById = Object.fromEntries((cs.data || []).map((c) => [c.id, c]));
+  const jobTitle = Object.fromEntries((js.data || []).map((j) => [j.id, j.title]));
+  return rows.map((p) => {
+    const c = candById[p.candidate_id] || {};
+    return {
+      pollId: p.id,
+      candidateId: p.candidate_id,
+      jobId: p.job_id,
+      candidateName: c.parsed?.name || c.full_name || "Candidate",
+      jobTitle: jobTitle[p.job_id] || "Role",
+      voted: (myCounts[p.id] || 0) >= 2,
+    };
+  });
+}
+
 // HM confirms a slot from a candidate-proposed (round 2) poll: the candidate
 // already offered these times, so confirming reuses confirm-booking (schedules +
 // emails the candidate + panel) via the interview token, then closes the poll.

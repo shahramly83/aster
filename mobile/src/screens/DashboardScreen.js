@@ -271,7 +271,7 @@ function CreditModal({ item, credits, onClose }) {
                 ? `Your ${item.limit} monthly ${item.label} credits are used up. They refresh on `
                 : `You have ${item.remaining} of ${item.limit} ${item.label} credits left this cycle. They refresh on `}
             {!item.unlimited ? <Text style={{ fontFamily: "Inter_700Bold", color: theme.ink }}>{dateLabel}</Text> : null}
-            {!item.unlimited && days != null ? ` — ${days} day${days === 1 ? "" : "s"} from now.` : !item.unlimited ? "." : ""}
+            {!item.unlimited && days != null ? `, ${days} day${days === 1 ? "" : "s"} from now.` : !item.unlimited ? "." : ""}
           </Text>
 
           {!item.unlimited ? (

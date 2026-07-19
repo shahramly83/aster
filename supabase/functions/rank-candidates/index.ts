@@ -9,6 +9,7 @@
 // Secrets: ANTHROPIC_API_KEY (or "aster")   Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { chargeAiRankUnits, refundAiRankUnits } from "../_shared/meter.ts";
+import { stripDashes } from "../_shared/text.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -85,7 +86,7 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
     const allowed = new Set((candidates as any[]).map((c) => c.id));
     ranked = (ranked as any[])
       .filter((r) => r && allowed.has(r.id))
-      .map((r) => ({ id: r.id, score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), reason: String(r.reason || "").slice(0, 400) }));
+      .map((r) => ({ id: r.id, score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), reason: stripDashes(r.reason).slice(0, 400) }));
 
     return json({ ranked, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {

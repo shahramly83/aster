@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useLayoutEffect, useRef, useId, Fragment, Component } from "react";
+import { useState, useEffect, useCallback, useMemo, useLayoutEffect, useRef, useId, Fragment, Component } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -14107,7 +14107,7 @@ const candidateOutcome = (candidateId) => {
   return null;
 };
 
-function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, currentUserId = null, scorecards = {}, scheduleRequests = [], interviewers = [] }) {
+function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, currentUserId = null, companyId = null, scorecards = {}, scheduleRequests = [], interviewers = [] }) {
   const forInterviewer = isInterviewer(role);
   const booked = interviewPipelineFrom(bookings, candidates, scorecards, currentUserId, forInterviewer);
   // Pending interview requests (raised, not yet scheduled) sit at the top, so a
@@ -14163,6 +14163,8 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
           </button>
         </div>
       )}
+
+      <PendingPollsSurface companyId={companyId} currentUserId={currentUserId} profile={profile} />
 
       {forInterviewer && (
         <div className="mb-3">
@@ -14273,7 +14275,7 @@ const REQUEST_STATUS = {
   approved: { label: "Approved", bg: "#ECFDF3", color: "#067647" },
   rejected: { label: "Not approved", bg: "#FEF2F2", color: "#B42318" },
 };
-function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = null, profile, avatarUrl, activities = [], onOpenNotifications, setActiveJobId, onRequestRole }) {
+function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = null, companyId = null, profile, avatarUrl, activities = [], onOpenNotifications, setActiveJobId, onRequestRole }) {
   const myJobIds = new Set(jobAssignments.filter((a) => a.profile_id === currentUserId).map((a) => a.job_id));
   // Live roles assigned to me (approved + open). approvalStatus is undefined for
   // normal jobs, which counts as approved.
@@ -14286,6 +14288,7 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
 
   return (
     <AccountShell title="Open Positions" navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
+      <PendingPollsSurface companyId={companyId} currentUserId={currentUserId} profile={profile} />
       <div className="mb-7 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ borderColor: "#CBD6F7", background: "var(--brand-soft)" }}>
         <div className="min-w-0">
           <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Need to hire for something?</h2>
@@ -15424,6 +15427,82 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
         </div>
       )}
     </div>
+  );
+}
+
+// "Polls that need your vote" — surfaced on the Interviews tab and the
+// interviewer's landing so no one has to dig into a candidate profile to vote.
+// Voting happens inline in a modal; the list refreshes on the same realtime
+// signal the poll itself uses.
+function PendingPollsSurface({ companyId, currentUserId, profile }) {
+  const [openPolls, setOpenPolls] = useState([]);
+  const [votePoll, setVotePoll] = useState(null);
+  const loadPolls = useCallback(() => {
+    if (!hasSupabase || !companyId || !currentUserId) return;
+    dbListOpenPolls(companyId, currentUserId).then((rows) => setOpenPolls(rows || []));
+  }, [companyId, currentUserId]);
+  useEffect(() => {
+    loadPolls();
+    if (!hasSupabase || !companyId) return undefined;
+    const ch = supabase
+      .channel(`ivpolls:${companyId}:${currentUserId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "interview_polls", filter: `company_id=eq.${companyId}` }, loadPolls)
+      .on("postgres_changes", { event: "*", schema: "public", table: "interview_poll_votes", filter: `company_id=eq.${companyId}` }, loadPolls)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [companyId, currentUserId, loadPolls]);
+  const pendingVotes = openPolls.filter((p) => !p.voted);
+  if (pendingVotes.length === 0 && !votePoll) return null;
+  const close = () => { setVotePoll(null); loadPolls(); };
+  return (
+    <>
+      {pendingVotes.length > 0 && (
+        <div className="mb-5 rounded-2xl border overflow-hidden" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
+          <div className="flex items-center gap-2 px-4 pt-3.5 pb-2">
+            <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#fff", color: "var(--brand)" }}>
+              <Icon name="calendar" className="w-4 h-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>Pick your interview times</p>
+              <p className="text-[11px] leading-tight" style={{ color: "var(--ink-2)" }}>{pendingVotes.length} poll{pendingVotes.length === 1 ? "" : "s"} need{pendingVotes.length === 1 ? "s" : ""} your availability</p>
+            </div>
+          </div>
+          <div className="px-2 pb-2">
+            {pendingVotes.map((p) => (
+              <button key={p.pollId} onClick={() => setVotePoll(p)} className="w-full flex items-center justify-between gap-3 rounded-xl bg-white px-3.5 py-2.5 mt-1 text-left transition-colors hover:bg-neutral-50 border" style={{ borderColor: "var(--line)" }}>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{p.candidateName}</p>
+                  <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{p.jobTitle}</p>
+                </div>
+                <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold rounded-lg px-3 py-1.5" style={{ background: "var(--brand)", color: "#fff" }}>
+                  Vote <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {votePoll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={close}>
+          <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <p className="text-sm font-semibold text-white">Mark your availability</p>
+              <button onClick={close} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}><Icon name="close" className="w-4 h-4" /></button>
+            </div>
+            <div className="max-h-[80vh] overflow-y-auto">
+              <PanelPoll
+                candidate={{ id: votePoll.candidateId, full_name: votePoll.candidateName }}
+                jobId={votePoll.jobId}
+                profile={profile}
+                companyId={companyId}
+                currentUserId={currentUserId}
+                booking={null}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -24961,6 +25040,7 @@ export default function ResumeAIPreview() {
             profile={profile}
             jobAssignments={jobAssignments}
             currentUserId={userId}
+            companyId={companyId}
             setActiveJobId={setActiveJobId}
             scorecards={scorecards}
             scheduleRequests={scheduleRequests}
@@ -24976,6 +25056,7 @@ export default function ResumeAIPreview() {
             jobs={jobs}
             jobAssignments={jobAssignments}
             currentUserId={userId}
+            companyId={companyId}
             profile={profile}
             avatarUrl={avatarUrl}
             activities={activities}
