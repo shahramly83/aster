@@ -73,6 +73,16 @@ function timeOnly(iso, tz) {
   if (tz) opts.timeZone = tz;
   return new Intl.DateTimeFormat(undefined, opts).format(new Date(iso));
 }
+function dayNum(iso, tz) {
+  const opts = { day: "numeric" };
+  if (tz) opts.timeZone = tz;
+  return new Intl.DateTimeFormat(undefined, opts).format(new Date(iso));
+}
+function monShort(iso, tz) {
+  const opts = { month: "short" };
+  if (tz) opts.timeZone = tz;
+  return new Intl.DateTimeFormat(undefined, opts).format(new Date(iso)).toUpperCase();
+}
 
 // A week at a glance: seven days from today with a dot on any day that has an
 // interview, and today highlighted. Gives the screen rhythm and context.
@@ -269,7 +279,7 @@ export default function TodayScreen({ navigation }) {
         renderItem={({ item, index }) =>
           item._header
             ? <Text style={styles.section}>{item._header}</Text>
-            : <Rise delay={Math.min(index, 6) * 55}><TimelineCard iv={item} tz={tz} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} /></Rise>
+            : <Rise delay={Math.min(index, 6) * 55}><PastCard iv={item} tz={tz} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} /></Rise>
         }
       />
     </View>
@@ -321,18 +331,22 @@ function HeroCard({ iv, tz, onOpen }) {
 
 // A compact card in the day-grouped timeline: a time pill on the left rail, the
 // candidate on the right.
-function TimelineCard({ iv, tz, onPress }) {
+// A past (already-happened) interview: compact and quiet, with a mini date rail
+// so you can see WHEN it was — since past ones span several days under one header.
+function PastCard({ iv, tz, onPress }) {
   return (
-    <Press onPress={onPress} style={{ marginBottom: space(3) }} scaleTo={0.98}>
-      <View style={styles.tl}>
-        <View style={styles.timePill}>
-          <Text style={styles.timePillTxt}>{timeOnly(iv.scheduledAt, tz)}</Text>
+    <Press onPress={onPress} style={{ marginBottom: space(2.5) }} scaleTo={0.98}>
+      <View style={styles.past}>
+        <View style={styles.pastDate}>
+          <Text style={styles.pastDay}>{dayNum(iv.scheduledAt, tz)}</Text>
+          <Text style={styles.pastMon}>{monShort(iv.scheduledAt, tz)}</Text>
         </View>
-        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={42} />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{iv.candidateName}</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-            <Text style={[type.small, { color: theme.ink3, flexShrink: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
+        <View style={styles.pastRule} />
+        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={36} />
+        <View style={{ flex: 1, marginLeft: 11 }}>
+          <Text style={[type.smallStrong, { color: theme.ink2 }]} numberOfLines={1}>{iv.candidateName}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 1 }}>
+            <Text style={[type.small, { color: theme.ink4, flexShrink: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
             {iv.meetingLink ? (
               <View style={styles.videoTag}>
                 <Feather name="video" size={11} color={theme.brand} />
@@ -341,7 +355,7 @@ function TimelineCard({ iv, tz, onPress }) {
             ) : null}
           </View>
         </View>
-        <Feather name="chevron-right" size={20} color={theme.ink4} style={{ marginLeft: 6 }} />
+        <Feather name="chevron-right" size={18} color={theme.ink4} style={{ marginLeft: 6 }} />
       </View>
     </Press>
   );
@@ -402,6 +416,12 @@ const styles = StyleSheet.create({
   timePill: { backgroundColor: theme.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, marginRight: 12, minWidth: 62, alignItems: "center" },
   timePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.brand, fontVariant: ["tabular-nums"] },
   dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
+  // Past interview: quiet, flat card with a mini date rail on the left.
+  past: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.md, paddingVertical: space(2.5), paddingHorizontal: space(3), borderWidth: 1, borderColor: theme.line },
+  pastDate: { width: 34, alignItems: "center" },
+  pastDay: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, color: theme.ink2, lineHeight: 20 },
+  pastMon: { fontFamily: "Inter_600SemiBold", fontSize: 9.5, color: theme.ink4, letterSpacing: 0.6, marginTop: -1 },
+  pastRule: { width: 1, height: 30, backgroundColor: theme.line, marginHorizontal: 11 },
   videoTag: { flexDirection: "row", alignItems: "center", marginLeft: 8, backgroundColor: theme.brandSoft, paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.pill },
   videoTagTxt: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: theme.brand, marginLeft: 3, letterSpacing: 0.2 },
 });
