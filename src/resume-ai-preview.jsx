@@ -15877,15 +15877,23 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const validLink = /^https?:\/\/\S+$/i.test(linkInput.trim());
   const shareMeetingLink = async () => {
     const link = linkInput.trim();
-    if (!validLink || sharing) return;
+    if (!validLink) { setShareErr("Enter a full https:// meeting link (e.g. https://meet.google.com/…)."); return; }
+    if (sharing) return;
     setSharing(true); setShareErr(null);
     try {
       if (hasSupabase && candidate?.id) {
         const { data, error } = await supabase.functions.invoke("share-meeting-link", { body: { candidate_id: candidate.id, job_id: contextJobId || null, meeting_link: link } });
-        if (error || data?.error) throw new Error(data?.error || "failed");
+        const msg = data?.error || error?.message;
+        if (msg) {
+          // Surface the real reason instead of blaming the URL (which is valid).
+          setShareErr(/no scheduled interview/i.test(msg)
+            ? "This candidate doesn't have a confirmed interview time yet, so there's no one to send the link to."
+            : `Couldn't share the link: ${msg}`);
+          setSharing(false); return;
+        }
       }
       setLinkShared(true);
-    } catch { setShareErr("Couldn't share that link. Check it's a full https:// URL and try again."); }
+    } catch (e) { setShareErr(`Couldn't share the link: ${e?.message || "please try again."}`); }
     setSharing(false);
   };
   const openJobs = jobs.filter((j) => j.status === "open");

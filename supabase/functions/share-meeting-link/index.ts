@@ -64,12 +64,21 @@ Deno.serve(async (req) => {
     if (!companyId) return json({ error: "no company for this session" }, 403);
 
     // The scheduled interview for this candidate (+ job when given).
+    const cols = "id, scheduled_at, attendees, job_id";
     let q = admin.from("interviews")
-      .select("id, scheduled_at, attendees, job_id")
+      .select(cols)
       .eq("company_id", companyId).eq("candidate_id", candidate_id).eq("status", "scheduled")
       .order("scheduled_at", { ascending: false }).limit(1);
     if (job_id) q = q.eq("job_id", job_id);
-    const { data: iv } = await q.maybeSingle();
+    let { data: iv } = await q.maybeSingle();
+    // The passed job context can differ from the interview's job (e.g. opened from
+    // another list) — don't fail on that; fall back to any scheduled interview.
+    if (!iv && job_id) {
+      const r = await admin.from("interviews").select(cols)
+        .eq("company_id", companyId).eq("candidate_id", candidate_id).eq("status", "scheduled")
+        .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
+      iv = r.data;
+    }
     if (!iv) return json({ error: "no scheduled interview for this candidate" }, 404);
 
     // Persist the link.
