@@ -685,10 +685,13 @@ export async function dbSaveSeeWhy(companyId, jobId, candidateId, text) {
 // perspective (which slots they've marked). Returns null when there's no poll.
 export async function dbGetPanelPoll(companyId, candidateId, myProfileId) {
   if (!hasSupabase || !companyId || !candidateId) return null;
+  // Only an OPEN poll is "active". A closed poll is history (from a previous
+  // scheduling cycle, e.g. before a reschedule) — showing it, with live Confirm
+  // buttons, is stale and misleading, so it's treated as no poll at all.
   const { data: poll, error } = await supabase
     .from("interview_polls")
     .select("id, job_id, status, chosen_slot, created_by, proposed_by, created_at")
-    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "open")
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) { console.error("dbGetPanelPoll", error.message); return null; }
   if (!poll) return null;

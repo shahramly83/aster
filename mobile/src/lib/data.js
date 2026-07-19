@@ -980,11 +980,15 @@ export async function signedOfferUrl(candidateId) {
 // whether the current user voted. Returns null if there's no poll.
 export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
   if (!companyId || !candidateId) return null;
+  // Only an OPEN poll is "active". A closed poll is history from a previous
+  // scheduling cycle (e.g. before a reschedule) — showing it with live actions is
+  // stale and misleading, so treat it as no poll.
   const { data: poll } = await supabase
     .from("interview_polls")
     .select("id, job_id, status, chosen_slot, created_by, proposed_by, created_at")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
+    .eq("status", "open")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
