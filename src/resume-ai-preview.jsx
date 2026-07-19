@@ -2448,6 +2448,103 @@ function PrivacyPreview() {
   );
 }
 
+// AI Experience Insights: a deeper AI read of a resume. The card scans the CV,
+// then counts up total & leadership experience, reveals a per-employer tenure
+// timeline, and flags a gap for follow-up. Loops while in view.
+function InsightsPreview() {
+  const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ref = useRef(null);
+  const EMPLOYERS = [
+    { co: "Grab", tenure: "3 yrs 2 mo", w: 100, lead: true },
+    { co: "Shopee", tenure: "2 yrs 5 mo", w: 74 },
+    { co: "Fave", tenure: "1 yr 8 mo", w: 52 },
+  ];
+  const TOTAL = 8, LEAD = 3;
+  const [scanning, setScanning] = useState(!reduce);
+  const [rows, setRows] = useState(reduce ? EMPLOYERS.length : 0);
+  const [gap, setGap] = useState(reduce);
+  const [total, setTotal] = useState(reduce ? TOTAL : 0);
+  const [lead, setLead] = useState(reduce ? LEAD : 0);
+
+  useEffect(() => {
+    if (reduce) return;
+    const el = ref.current;
+    if (!el) return;
+    let timers = [], cancelled = false, started = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const countTo = (setter, target, startMs, dur) => {
+      for (let i = 1; i <= target; i++) at(startMs + Math.round((dur * i) / target), () => setter(i));
+    };
+    const run = () => {
+      if (cancelled) return;
+      setScanning(true); setRows(0); setGap(false); setTotal(0); setLead(0);
+      at(900, () => setScanning(false));           // scan sweep finishes
+      countTo(setTotal, TOTAL, 950, 820);          // numbers tick up
+      countTo(setLead, LEAD, 1150, 620);
+      EMPLOYERS.forEach((_, i) => at(1550 + i * 260, () => setRows(i + 1)));
+      const gapAt = 1550 + EMPLOYERS.length * 260 + 240;
+      at(gapAt, () => setGap(true));
+      at(gapAt + 3200, run);                        // hold, then loop
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting && !started) { started = true; run(); obs.disconnect(); } });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => { cancelled = true; timers.forEach(clearTimeout); obs.disconnect(); };
+  }, [reduce]);
+
+  return (
+    <div ref={ref} className="w-full">
+      <div className="relative overflow-hidden rounded-2xl bg-white shadow-soft p-4" style={{ border: "1px solid var(--line)" }}>
+        {scanning && <div className="scan-line pointer-events-none absolute inset-x-0 z-10" style={{ height: 22, background: "linear-gradient(180deg, transparent, rgba(var(--brand-rgb),0.12), transparent)" }} />}
+        <div className="flex items-center gap-2.5 mb-3.5">
+          <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="eye" className="w-4 h-4" /></span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-neutral-900 truncate">amira_hassan_cv.pdf</p>
+            <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>{scanning ? "Reading experience…" : "AI Experience Insights"}</p>
+          </div>
+        </div>
+        {/* Total & leadership experience, counting up */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {[["Total experience", total, "var(--ink)"], ["Leadership", lead, "var(--brand)"]].map(([label, val, color]) => (
+            <div key={label} className="rounded-xl px-3 py-2.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+              <p className="text-[9px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>{label}</p>
+              <p className="font-display font-bold tnum leading-none mt-1" style={{ color, fontSize: "1.4rem" }}>{val}<span className="text-[11px] font-semibold ml-0.5" style={{ color: "var(--ink-3)" }}>yrs</span></p>
+            </div>
+          ))}
+        </div>
+        {/* Per-employer tenure timeline */}
+        <div className="space-y-1.5">
+          {EMPLOYERS.map((e, i) => {
+            const on = i < rows;
+            return (
+              <div key={e.co} style={{ opacity: on ? 1 : 0, transform: on ? "none" : "translateY(4px)", transition: "opacity .35s ease, transform .35s ease" }}>
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  <span className="text-[11px] font-semibold inline-flex items-center gap-1.5 truncate" style={{ color: "var(--ink)" }}>
+                    {e.co}
+                    {e.lead && <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)", letterSpacing: "0.03em" }}>Lead</span>}
+                  </span>
+                  <span className="text-[10px] shrink-0 tnum" style={{ color: "var(--ink-3)" }}>{e.tenure}</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+                  <div className="h-full rounded-full" style={{ width: on ? `${e.w}%` : "0%", background: e.lead ? "var(--brand)" : "var(--line-strong)", transition: "width .6s cubic-bezier(.22,1,.36,1)" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Gap flagged for follow-up */}
+        <div className="mt-3" style={{ opacity: gap ? 1 : 0, transform: gap ? "none" : "translateY(4px)", transition: "opacity .35s ease, transform .35s ease" }}>
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+            <Icon name="clock" className="w-3.5 h-3.5 shrink-0" style={{ color: "#C2620C" }} />
+            <span className="text-[11px] leading-snug" style={{ color: "#9A3412" }}>5-month gap in 2023, noted for follow-up</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WhatsAppPreview() {
   const ref = useRef(null);
   // 0 empty · 1 reminder in · 2 candidate typing · 3 reply (grey ticks) · 4 read (blue ticks)
@@ -2637,28 +2734,6 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
     if (!child) return;
     el.scrollTo({ left: child.offsetLeft - (el.clientWidth - child.offsetWidth) / 2, behavior: "smooth" });
   };
-  // Layered depth: the "One shared pipeline" grey panel comes to rest with its
-  // bottom half tucked behind the section below it. We pull the next section up
-  // by half the panel's measured height (recomputed on resize), and let z-index
-  // stack the next section over the panel.
-  const nextSectionRef = useRef(null);
-  useEffect(() => {
-    const next = nextSectionRef.current;
-    const panel = next && next.parentElement && next.parentElement.querySelector("[data-pipeline-panel]");
-    if (!panel || !next) return;
-    const apply = () => {
-      // Only overlap on the wide (side-by-side) layout; on stacked mobile the
-      // panel is very tall and a 50% pull would swallow whole sections.
-      const wide = typeof window !== "undefined" && window.innerWidth >= 1024;
-      next.style.marginTop = wide ? `-${Math.round(panel.offsetHeight * 0.5)}px` : "";
-    };
-    apply();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
-    if (ro) ro.observe(panel);
-    window.addEventListener("resize", apply);
-    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", apply); };
-  }, []);
-
   const prefersReduced = () =>
     typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [shown, setShown] = useState(prefersReduced);
@@ -3162,9 +3237,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
             </div>
           </Reveal>
 
-          {/* 4 · One shared pipeline, light row, visual left. Slides up on scroll
-              and rests with its bottom half tucked behind the section below it. */}
-          <Reveal delay={60} data-pipeline-panel className="pipeline-rise rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff", position: "relative", zIndex: 1 }}>
+          {/* 4 · One shared pipeline, light row, visual left. Slides up on scroll. */}
+          <Reveal delay={60} className="pipeline-rise rounded-3xl overflow-hidden border grid grid-cols-1 lg:grid-cols-2 items-stretch" style={{ borderColor: "var(--line)", background: "#fff" }}>
             <div className="p-6 sm:p-8 lg:p-10 flex items-center justify-center order-2 lg:order-1 border-t lg:border-t-0 lg:border-r" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
               <PipelinePreview />
             </div>
@@ -3181,9 +3255,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
           </Reveal>
         </div>
 
-        {/* More capabilities, full-width alternating rows, continuing the big rows above.
-            Sits above the pipeline panel and is pulled up (via JS) to overlap its bottom half. */}
-        <div ref={nextSectionRef} className="relative space-y-4 sm:space-y-5 mt-4 sm:mt-5" style={{ zIndex: 2 }}>
+        {/* More capabilities, full-width alternating rows, continuing the big rows above. */}
+        <div className="space-y-4 sm:space-y-5 mt-4 sm:mt-5">
           {moreFeatures.map((f, i) => {
             const visualRight = i % 2 === 0; // alternate the preview side, row by row
             return (
@@ -3242,6 +3315,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                       return <TeamInterviewPreview />;
                     case "shield":
                       return <PrivacyPreview />;
+                    case "eye":
+                      return <InsightsPreview />;
                     default:
                       return <span className="pv-item" style={{ color: "var(--brand)" }}><Icon name={f.icon} className="w-6 h-6" /></span>;
                   }
