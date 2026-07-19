@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadOpenPositions } from "../lib/data";
+import { loadOpenPositions, loadOpenPolls } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Loader, EmptyState, TopBar, HeaderActions, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
@@ -30,15 +30,20 @@ export default function OpenPositionsScreen({ navigation }) {
   const { profile, manager, assignedJobIds } = useAuth();
   const { unread } = useNotifications();
   const [jobs, setJobs] = useState(null);
+  const [polls, setPolls] = useState([]); // open availability polls awaiting my vote
   const [refreshing, setRefreshing] = useState(false);
   const [active, setActive] = useState(0);
   const listRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const all = await loadOpenPositions(profile.companyId, { manager, assignedJobIds });
+    const [all, openPolls] = await Promise.all([
+      loadOpenPositions(profile.companyId, { manager, assignedJobIds }),
+      loadOpenPolls(profile.companyId, profile.userId),
+    ]);
     // Open roles only.
     setJobs(all.filter((r) => r.status === "open"));
+    setPolls((openPolls || []).filter((p) => !p.voted)); // only ones I haven't answered
   }, [profile, manager, assignedJobIds]);
 
   // Blue screen → light status bar.
@@ -55,6 +60,27 @@ export default function OpenPositionsScreen({ navigation }) {
         name={profile?.name?.split(" ")[0] || "Welcome"}
         right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
       />
+      {/* Availability polls awaiting my vote — tap goes straight to the poll chat */}
+      {polls.length ? (
+        <View style={styles.pollCard}>
+          <View style={styles.pollHead}>
+            <Feather name="bar-chart-2" size={15} color={theme.white} />
+            <Text style={styles.pollTitle}>Pick your interview times</Text>
+            <View style={styles.pollBadge}><Text style={styles.pollBadgeTxt}>{polls.length}</Text></View>
+          </View>
+          {polls.slice(0, 4).map((p) => (
+            <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={styles.pollRow}>
+              <View style={styles.pollAvatar}><Feather name="calendar" size={15} color={theme.white} /></View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.pollName} numberOfLines={1}>{p.candidateName}</Text>
+                <Text style={styles.pollSub} numberOfLines={1}>{p.jobTitle} · tap to vote on times</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.7)" />
+            </Press>
+          ))}
+        </View>
+      ) : null}
+
       <Text style={styles.sectionLabel}>OPEN POSITIONS{jobs ? ` · ${jobs.length}` : ""}</Text>
 
       {jobs === null ? (
@@ -171,6 +197,15 @@ const CARD_H = Math.min(500, Math.round(Dimensions.get("window").height * 0.60))
 
 const styles = StyleSheet.create({
   sectionLabel: { color: theme.onBrandMuted, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.2, paddingHorizontal: space(5), paddingTop: space(1), paddingBottom: space(1) },
+  pollCard: { marginHorizontal: space(4), marginTop: space(3), marginBottom: space(2), backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", borderRadius: radius.card, padding: space(3) },
+  pollHead: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(1), paddingBottom: space(2) },
+  pollTitle: { fontFamily: "Inter_700Bold", fontSize: 13, color: theme.white, marginLeft: 8, flex: 1 },
+  pollBadge: { backgroundColor: "#fff", borderRadius: radius.pill, minWidth: 22, height: 22, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
+  pollBadgeTxt: { fontFamily: "Inter_700Bold", fontSize: 12, color: theme.brand, fontVariant: ["tabular-nums"] },
+  pollRow: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.10)", borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 10, marginTop: 6 },
+  pollAvatar: { width: 34, height: 34, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  pollName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: theme.white },
+  pollSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 1 },
   card: { width: CARD_W, height: CARD_H, borderRadius: 28, padding: space(5), backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   statusPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.20)" },

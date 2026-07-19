@@ -973,6 +973,43 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
   };
 }
 
+// Open availability polls the signed-in user can see (RLS scopes interviewers to
+// their assigned roles), with whether they've already voted — so the app can
+// surface "polls that need your vote" and jump straight to the candidate chat.
+export async function loadOpenPolls(companyId, userId) {
+  if (!companyId) return [];
+  const { data: polls } = await supabase
+    .from("interview_polls")
+    .select("id, candidate_id, job_id, created_at")
+    .eq("company_id", companyId)
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+  const rows = polls || [];
+  if (!rows.length) return [];
+  const pollIds = rows.map((p) => p.id);
+  const candIds = [...new Set(rows.map((p) => p.candidate_id).filter(Boolean))];
+  const jobIds = [...new Set(rows.map((p) => p.job_id).filter(Boolean))];
+  const [mv, cs, js] = await Promise.all([
+    supabase.from("interview_poll_votes").select("poll_id").eq("company_id", companyId).eq("profile_id", userId).in("poll_id", pollIds),
+    candIds.length ? supabase.from("candidates").select("id, parsed, full_name, photo_path").in("id", candIds) : Promise.resolve({ data: [] }),
+    jobIds.length ? supabase.from("jobs").select("id, title").in("id", jobIds) : Promise.resolve({ data: [] }),
+  ]);
+  const voted = new Set((mv.data || []).map((v) => v.poll_id));
+  const candById = Object.fromEntries((cs.data || []).map((c) => [c.id, c]));
+  const jobTitle = Object.fromEntries((js.data || []).map((j) => [j.id, j.title]));
+  return rows.map((p) => {
+    const c = candById[p.candidate_id] || {};
+    return {
+      pollId: p.id,
+      candidateId: p.candidate_id,
+      jobId: p.job_id,
+      candidateName: c.parsed?.name || c.full_name || "Candidate",
+      jobTitle: jobTitle[p.job_id] || "Role",
+      voted: voted.has(p.id),
+    };
+  });
+}
+
 // Create a poll from time-range slots [{ start, end }] (ISO). Managers only.
 // Logs an activity so the panel is notified (Notifications feed + bell badge).
 export async function createPoll({ companyId, candidateId, candidateName, jobId, createdBy, slots = [] }) {
