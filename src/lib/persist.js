@@ -661,3 +661,110 @@ export async function dbSaveSeeWhy(companyId, jobId, candidateId, text) {
     .eq("company_id", companyId).eq("job_id", jobId).eq("candidate_id", candidateId);
   if (error) console.error("dbSaveSeeWhy", error.message);
 }
+
+// ---- Interview availability polls (web parity with the mobile app) ------------
+// The hiring manager runs a panel poll (proposes a few time ranges); the assigned
+// interviewers mark the ones they can make. A panelist counts as "voted" only
+// once they've picked >=2 ranges, matching the propose-2 rule the candidate sees.
+
+// Load the candidate's latest poll with its slots and votes, from the viewer's
+// perspective (which slots they've marked). Returns null when there's no poll.
+export async function dbGetPanelPoll(companyId, candidateId, myProfileId) {
+  if (!hasSupabase || !companyId || !candidateId) return null;
+  const { data: poll, error } = await supabase
+    .from("interview_polls")
+    .select("id, job_id, status, chosen_slot, created_by, proposed_by, created_at")
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) { console.error("dbGetPanelPoll", error.message); return null; }
+  if (!poll) return null;
+  const [{ data: slots }, { data: votes }] = await Promise.all([
+    supabase.from("interview_poll_slots").select("id, slot_ts, slot_end").eq("poll_id", poll.id).order("slot_ts", { ascending: true }),
+    supabase.from("interview_poll_votes").select("slot_id, profile_id, voter_name").eq("poll_id", poll.id),
+  ]);
+  const bySlot = {};
+  (votes || []).forEach((v) => { (bySlot[v.slot_id] ||= []).push(v); });
+  const byProfile = {};
+  (votes || []).forEach((v) => { byProfile[v.profile_id] = (byProfile[v.profile_id] || 0) + 1; });
+  return {
+    id: poll.id,
+    jobId: poll.job_id,
+    status: poll.status,
+    chosenSlot: poll.chosen_slot,
+    createdBy: poll.created_by,
+    proposedBy: poll.proposed_by || "panel", // 'panel' (round 1) | 'candidate' (round 2)
+    voterIds: Object.keys(byProfile).filter((id) => byProfile[id] >= 2),
+    slots: (slots || []).map((s) => {
+      const vs = bySlot[s.id] || [];
+      return {
+        id: s.id, ts: s.slot_ts, end: s.slot_end || null,
+        count: vs.length,
+        voters: vs.map((v) => v.voter_name || "Teammate"),
+        mine: vs.some((v) => v.profile_id === myProfileId),
+      };
+    }),
+  };
+}
+
+// Create a panel poll from time ranges [{ start, end }] (ISO). Managers only.
+export async function dbCreatePanelPoll({ companyId, candidateId, candidateName, jobId, createdBy, slots = [] }) {
+  if (!hasSupabase) return { ok: false, error: "Not connected." };
+  const clean = slots.filter((s) => s && s.start);
+  if (clean.length < 2) return { ok: false, error: "Add at least two time ranges." };
+  const { data: poll, error } = await supabase
+    .from("interview_polls")
+    .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, created_by: createdBy })
+    .select("id").single();
+  if (error || !poll) return { ok: false, error: error?.message || "Couldn't create the poll." };
+  const rows = clean.map((s) => ({ poll_id: poll.id, company_id: companyId, slot_ts: s.start, slot_end: s.end || null }));
+  const { error: se } = await supabase.from("interview_poll_slots").insert(rows);
+  if (se) return { ok: false, error: se.message };
+  // Notify the panel (activity feed + push), best-effort — mirrors the mobile app.
+  supabase.rpc("log_activity", {
+    p_type: "interview_poll",
+    p_title: `Interview availability poll · ${candidateName || "candidate"}`,
+    p_description: `Mark the times you can make (${clean.length} options).`,
+    p_candidate_id: candidateId,
+    p_job_id: jobId || null,
+  }).then(() => {}, () => {});
+  supabase.functions.invoke("notify-poll", {
+    body: { candidate_id: candidateId, job_id: jobId || null, candidate_name: candidateName || null },
+  }).then(() => {}, () => {});
+  return { ok: true, id: poll.id };
+}
+
+// Toggle the viewer's availability for one slot.
+export async function dbTogglePollVote({ companyId, pollId, slotId, profileId, voterName, on }) {
+  if (!hasSupabase) return "Not connected.";
+  if (on) {
+    const { error } = await supabase.from("interview_poll_votes")
+      .insert({ poll_id: pollId, slot_id: slotId, company_id: companyId, profile_id: profileId, voter_name: voterName || null });
+    if (error && error.code !== "23505") return error.message; // duplicate is fine
+    return null;
+  }
+  const { error } = await supabase.from("interview_poll_votes")
+    .delete().eq("slot_id", slotId).eq("profile_id", profileId);
+  return error ? error.message : null;
+}
+
+// Close a poll, recording the chosen time.
+export async function dbClosePanelPoll(pollId, chosenIso) {
+  if (!hasSupabase) return "Not connected.";
+  const { error } = await supabase.from("interview_polls")
+    .update({ status: "closed", chosen_slot: chosenIso || null, closed_at: new Date().toISOString() })
+    .eq("id", pollId);
+  return error ? error.message : null;
+}
+
+// HM confirms a slot from a candidate-proposed (round 2) poll: the candidate
+// already offered these times, so confirming reuses confirm-booking (schedules +
+// emails the candidate + panel) via the interview token, then closes the poll.
+export async function dbConfirmPollSlot({ token, pollId, startIso }) {
+  if (!hasSupabase) return { ok: false, error: "Not connected." };
+  if (!token) return { ok: false, error: "This interview can't be confirmed (no booking link)." };
+  if (!startIso) return { ok: false, error: "Pick a time to confirm." };
+  const { data, error } = await supabase.functions.invoke("confirm-booking", { body: { token, start: startIso } });
+  if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Couldn't confirm the time." };
+  if (pollId) await dbClosePanelPoll(pollId, startIso).catch(() => {});
+  return { ok: true };
+}

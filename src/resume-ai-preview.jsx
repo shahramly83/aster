@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -15427,6 +15427,199 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
   );
 }
 
+// Panel availability poll — web parity with the mobile app. The hiring manager
+// proposes a few time ranges; the assigned interviewers mark the ones they can
+// make, so the panel converges on times before the candidate is offered any.
+// Both roles see the same card: the HM can start/close a poll; everyone votes.
+// Round 2 (the candidate suggested their own times) shows those for the panel to
+// weigh in — the HM confirms one in the scheduler below.
+function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, booking, panelSize = 0 }) {
+  const isManager = !isInterviewer(profile?.role);
+  const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
+  const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
+
+  const [poll, setPoll] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState([]); // { start, end } ISO
+  const [busy, setBusy] = useState(null); // slotId | 'create' | 'close'
+  const [err, setErr] = useState(null);
+
+  const load = async () => {
+    if (!hasSupabase || !companyId || !candidate?.id) { setLoading(false); return; }
+    const p = await dbGetPanelPoll(companyId, candidate.id, currentUserId);
+    setPoll(p); setLoading(false);
+  };
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!hasSupabase || !companyId || !candidate?.id) { if (alive) setLoading(false); return; }
+      const p = await dbGetPanelPoll(companyId, candidate.id, currentUserId);
+      if (alive) { setPoll(p); setLoading(false); }
+    })();
+    const refresh = () => { if (document.visibilityState === "visible") load(); };
+    window.addEventListener("focus", refresh);
+    const id = setInterval(refresh, 45000);
+    return () => { alive = false; window.removeEventListener("focus", refresh); clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, candidate?.id, currentUserId]);
+
+  // Once the interview is booked, the poll is moot — hide it (matches mobile).
+  if (booking?.status === "scheduled") return null;
+  if (loading && !poll) return null;
+  // Interviewers only see the card when there's actually a poll to vote on.
+  if (!poll && !isManager) return null;
+
+  const addDraft = (range) => {
+    if (!range?.start || !range?.end) return;
+    const s = new Date(range.start), e = new Date(range.end);
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e <= s) return;
+    const si = s.toISOString(), ei = e.toISOString();
+    setDraft((prev) => (prev.some((x) => x.start === si) ? prev : [...prev, { start: si, end: ei }].sort((a, b) => a.start.localeCompare(b.start))));
+  };
+  const removeDraft = (si) => setDraft((prev) => prev.filter((x) => x.start !== si));
+
+  const startPoll = async () => {
+    if (busy || draft.length < 2) { if (draft.length < 2) setErr("Add at least two time ranges."); return; }
+    setBusy("create"); setErr(null);
+    const r = await dbCreatePanelPoll({ companyId, candidateId: candidate.id, candidateName: candName, jobId, createdBy: currentUserId, slots: draft });
+    setBusy(null);
+    if (!r.ok) { setErr(r.error); return; }
+    setCreating(false); setDraft([]);
+    await load();
+  };
+  const toggle = async (slot) => {
+    if (busy) return;
+    setBusy(slot.id); setErr(null);
+    const e = await dbTogglePollVote({ companyId, pollId: poll.id, slotId: slot.id, profileId: currentUserId, voterName: myName, on: !slot.mine });
+    setBusy(null);
+    if (e) { setErr(e); return; }
+    await load();
+  };
+  const closePoll = async () => {
+    if (busy) return;
+    const top = [...(poll.slots || [])].sort((a, b) => b.count - a.count)[0];
+    setBusy("close"); setErr(null);
+    const e = await dbClosePanelPoll(poll.id, top?.ts || null);
+    setBusy(null);
+    if (e) { setErr(e); return; }
+    await load();
+  };
+
+  const round2 = poll?.proposedBy === "candidate";
+  const maxCount = poll ? Math.max(0, ...poll.slots.map((s) => s.count)) : 0;
+  const votedN = poll ? poll.voterIds.length : 0;
+  const myPicks = poll ? poll.slots.filter((s) => s.mine).length : 0;
+
+  return (
+    <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: "var(--line)", background: "#fff" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+            <Icon name="calendar" className="w-4 h-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>
+              {round2 ? "Candidate's suggested times" : "Panel availability"}
+            </p>
+            <p className="text-[11px] leading-tight" style={{ color: "var(--ink-3)" }}>
+              {round2 ? "They couldn't make the offered times" : "Which times can the panel make?"}
+            </p>
+          </div>
+        </div>
+        {poll && (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={poll.status === "open" ? { background: "#ECFDF3", color: "#067647" } : { background: "var(--bg)", color: "var(--ink-3)" }}>
+            {poll.status === "open" ? "Open" : "Closed"}
+          </span>
+        )}
+      </div>
+
+      {/* No poll yet → HM can start one */}
+      {!poll && isManager && (
+        !creating ? (
+          <button type="button" onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
+            <Icon name="plus" className="w-4 h-4" /> Run a panel availability poll
+          </button>
+        ) : (
+          <div>
+            <p className="text-xs mb-2" style={{ color: "var(--ink-2)" }}>Propose a few time ranges. The panel marks the ones they can make before you offer times to {candName.split(" ")[0]}.</p>
+            <DateTimePicker onAdd={addDraft} slots={draft} onRemove={removeDraft} />
+            {draft.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2.5">
+                {draft.map((s) => (
+                  <span key={s.start} className="inline-flex items-center gap-1.5 text-xs rounded-full text-white px-3 py-1.5" style={{ background: "var(--brand)" }}>
+                    {formatSlotRange(s.start, s.end)}
+                    <button type="button" onClick={() => removeDraft(s.start)} aria-label="Remove time" className="text-white/70 hover:text-white"><Icon name="close" className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2 mt-3">
+              <button type="button" onClick={startPoll} disabled={busy === "create" || draft.length < 2} className="rounded-xl text-sm font-medium px-4 py-2 transition-all disabled:cursor-not-allowed" style={draft.length < 2 || busy === "create" ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { background: "var(--brand)", color: "#fff" }}>
+                {busy === "create" ? "Starting…" : "Start poll"}
+              </button>
+              <button type="button" onClick={() => { setCreating(false); setDraft([]); setErr(null); }} className="text-sm font-medium px-2 py-2" style={{ color: "var(--ink-3)" }}>Cancel</button>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* Poll exists → slots + votes + toggle */}
+      {poll && (
+        <>
+          {poll.status === "open" && (
+            <p className="text-[11px] mb-2.5" style={{ color: "var(--ink-3)" }}>
+              {votedN === 0 ? "No one has marked their availability yet." : `${votedN} teammate${votedN === 1 ? "" : "s"} marked their availability${panelSize > 0 ? ` of ${panelSize}` : ""}.`}
+            </p>
+          )}
+          <div className="space-y-1.5">
+            {poll.slots.map((slot) => {
+              const top = slot.count > 0 && slot.count === maxCount;
+              const disabled = poll.status !== "open" || busy === slot.id;
+              return (
+                <div key={slot.id} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={top ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)", background: "#fff" }}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium" style={{ color: "var(--ink)" }}>{formatSlotRange(slot.ts, slot.end)}</p>
+                    <p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>
+                      {slot.count === 0 ? "No votes yet" : `${slot.count} available · ${slot.voters.slice(0, 3).join(", ")}${slot.voters.length > 3 ? ` +${slot.voters.length - 3}` : ""}`}
+                      {top && <span className="font-semibold" style={{ color: "var(--brand)" }}> · Most available</span>}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggle(slot)}
+                    disabled={disabled}
+                    className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 transition-all disabled:opacity-50"
+                    style={slot.mine ? { background: "#16A34A", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+                  >
+                    {slot.mine ? <><Icon name="check" className="w-3 h-3" /> I can make it</> : "Mark available"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {err && <p className="text-xs mt-2" style={{ color: "#B42318" }}>{err}</p>}
+          {poll.status === "open" && (
+            <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
+              {round2 ? (isManager ? "Confirm one of these times in the scheduler below." : "Mark at least 2 times you can make.") : `Mark at least 2 times you can make${myPicks > 0 && myPicks < 2 ? ` (you've marked ${myPicks}).` : "."}`}
+            </p>
+          )}
+          {/* Round-1 HM close */}
+          {poll.status === "open" && isManager && !round2 && (
+            <button type="button" onClick={closePoll} disabled={busy === "close" || maxCount === 0} className="mt-2.5 text-xs font-medium transition-colors hover:opacity-80 disabled:opacity-40" style={{ color: "var(--brand)" }}>
+              {busy === "close" ? "Closing…" : "Close poll & lock the top time"}
+            </button>
+          )}
+          {poll.status === "closed" && poll.chosenSlot && (
+            <p className="text-[11px] mt-2.5 font-medium" style={{ color: "#067647" }}>Locked: {formatSlotDisplay(poll.chosenSlot)} — offer this time below.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute }) {
   const [replacing, setReplacing] = useState(null); // attendee id being swapped out
   // Meeting link: the HM pastes the video-call URL they made and shares it with
@@ -19829,6 +20022,19 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <RequestInterviewControl applicationId={applicationId} openRequest={openRequest} requesterName={requesterName} onRequest={onRequestScheduling} />
               )
             )}
+            {/* Interviewers vote on the panel availability poll here (if one is running). */}
+            {contextJobId && profileTab === "interview" && isInterviewer(profile?.role) && (
+              <div className="mt-3">
+                <PanelPoll
+                  candidate={candidate}
+                  jobId={contextJobId}
+                  profile={profile}
+                  companyId={companyId}
+                  currentUserId={currentUserId}
+                  booking={booking}
+                />
+              </div>
+            )}
             {/* Profile tab: AI insights + résumé sections. */}
             {(!contextJobId || profileTab === "profile") && (<>
             {aiInsightsCard}
@@ -20038,6 +20244,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <p className="text-sm" style={{ color: "var(--ink)" }}><span className="font-semibold">{requesterName === "you" ? "You" : requesterName}</span> requested an interview with this candidate. Set it up below.</p>
           </div>
         )}
+        <PanelPoll
+          candidate={candidate}
+          jobId={contextJobId}
+          profile={profile}
+          companyId={companyId}
+          currentUserId={currentUserId}
+          booking={booking}
+          panelSize={assignedInterviewers.length}
+        />
         <ScheduleInterviewPanel
           candidate={candidate}
           jobs={jobs}
