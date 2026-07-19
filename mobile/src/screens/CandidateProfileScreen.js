@@ -70,6 +70,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [proposeOpen, setProposeOpen] = useState(false);
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
+  const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
   const [confirm, setConfirm] = useState(null); // branded confirm dialog config
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerSent, setOfferSent] = useState(null); // { title, message } for the branded success modal
@@ -155,6 +156,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     Keyboard.dismiss();
     const who = [res.candidate ? "the candidate" : null, res.panel ? `${res.panel} panel member${res.panel === 1 ? "" : "s"}` : null].filter(Boolean).join(" and ");
     Alert.alert("Link shared", who ? `Sent to ${who} with a calendar invite.` : "Meeting link saved.");
+    setReplacingLink(false);
     load();
   };
 
@@ -449,13 +451,17 @@ export default function CandidateProfileScreen({ route, navigation }) {
                           <Feather name="external-link" size={15} color={theme.brand} />
                         </Pressable>
                         {manager ? (
-                          <>
-                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
                               <Feather name="check-circle" size={13} color={theme.success} />
-                              <Text style={[type.small, { color: theme.success, marginLeft: 6 }]}>Shared with the candidate and panel</Text>
+                              <Text style={[type.small, { color: theme.success, marginLeft: 6 }]} numberOfLines={1}>Shared with candidate & panel</Text>
                             </View>
-                            <Text style={[type.small, { color: theme.ink4, marginTop: 10, marginBottom: 7 }]}>Replace it, then Share again</Text>
-                          </>
+                            {!replacingLink ? (
+                              <Pressable onPress={() => { setMlInput(""); setReplacingLink(true); }} hitSlop={8} style={{ marginLeft: 10 }}>
+                                <Text style={[type.smallStrong, { color: theme.brand }]}>Replace</Text>
+                              </Pressable>
+                            ) : null}
+                          </View>
                         ) : null}
                       </>
                     ) : (
@@ -463,9 +469,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         {manager ? "Generate a room or paste your own. Nothing is sent until you tap Share." : "The hiring manager will add the meeting link before the interview."}
                       </Text>
                     )}
-                    {/* Only the hiring manager can generate/paste/share the link. */}
-                    {manager ? (
-                      <>
+                    {/* Edit controls: only for the HM, and (once a link is shared) only
+                        after they tap Replace — so the shared state stays uncluttered. */}
+                    {manager && (!interview?.meetingLink || replacingLink) ? (
+                      <View style={{ marginTop: interview?.meetingLink ? 12 : 0 }}>
                         {/* Fill-only: generates a link into the field, doesn't send. */}
                         <Pressable onPress={genMeetingLink} style={styles.mlGen}>
                           <Feather name="video" size={15} color={theme.brand} />
@@ -483,7 +490,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
                             {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Share</Text>}
                           </Pressable>
                         </View>
-                      </>
+                        {interview?.meetingLink ? (
+                          <Pressable onPress={() => { setReplacingLink(false); setMlInput(""); Keyboard.dismiss(); }} hitSlop={6} style={{ marginTop: 8, alignSelf: "flex-start" }}>
+                            <Text style={[type.small, { color: theme.ink3 }]}>Cancel</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     ) : null}
                   </View>
 
@@ -497,9 +509,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
                           <Feather name="refresh-cw" size={14} color={theme.warn} />
                           <Text style={[type.smallStrong, { color: theme.warn, marginLeft: 6 }]}>Reschedule</Text>
                         </Pressable>
-                        <Pressable onPress={() => setNoShowDismissed(true)} style={[styles.noShowBtn, styles.noShowProceed]}>
+                        <Pressable onPress={() => setNoShowDismissed(true)} style={[styles.noShowBtn, styles.noShowProceed, { flex: 1.5 }]}>
                           <Feather name="check" size={14} color="#fff" />
-                          <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]}>Proceed to scoring</Text>
+                          <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]} numberOfLines={1}>Proceed to scoring</Text>
                         </Pressable>
                       </View>
                     </View>
