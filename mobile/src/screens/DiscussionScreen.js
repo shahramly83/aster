@@ -6,7 +6,7 @@ import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages,
   loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
-  loadCandidateInterview, loadInterviewers, confirmPollSlot,
+  loadCandidateInterview, loadInterviewers, confirmPollSlot, createInterviewInvite,
 } from "../lib/data";
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
@@ -57,6 +57,10 @@ export default function DiscussionScreen({ route, navigation }) {
   const [confirming, setConfirming] = useState(null); // slot ts being confirmed
   const [savingSlot, setSavingSlot] = useState(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [panelMembers, setPanelMembers] = useState([]); // assigned interviewers (attendees + email)
+  const [selected, setSelected] = useState(() => new Set()); // slot ids the HM will offer
+  const [override, setOverride] = useState(false); // HM proceeds before every vote
+  const [sendingOffer, setSendingOffer] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
@@ -73,8 +77,9 @@ export default function DiscussionScreen({ route, navigation }) {
       loadCandidatePoll(profile.companyId, candidateId, profile.userId),
       loadCandidateInterview(profile.companyId, candidateId),
     ]);
-    // Once the candidate has confirmed a time, the availability poll is moot — hide it.
-    const activePoll = iv?.status === "scheduled" ? null : p;
+    // Once an invite is out (sent) or a time is booked (scheduled), the panel
+    // availability poll is moot — hide it. A reschedule keeps its round-2 poll.
+    const activePoll = (iv?.status === "scheduled" || iv?.status === "sent") ? null : p;
     setPoll(activePoll);
     setInterviewToken(iv?.token || null);
     // For the manager (usually the poll creator), track whether the panel has
@@ -82,6 +87,7 @@ export default function DiscussionScreen({ route, navigation }) {
     if (activePoll && manager && jobId) {
       const pool = await loadInterviewers(profile.companyId, jobId).catch(() => []);
       const panel = pool.filter((m) => m.assigned && m.id !== activePoll.createdBy);
+      setPanelMembers(panel);
       const votedIds = new Set(activePoll.voterIds || []);
       const pending = panel.filter((m) => !votedIds.has(m.id));
       setPollProgress({ voted: panel.length - pending.length, total: panel.length, pendingNames: pending.map((m) => m.name) });
@@ -175,6 +181,48 @@ export default function DiscussionScreen({ route, navigation }) {
     return res;
   };
 
+  // Round-1: interviewers MUST vote (the HM's own vote is optional). Once they've
+  // all voted — or there are none, or the HM overrides — the HM selects >=2 times
+  // and sends them straight to the candidate from here.
+  const round2 = poll?.proposedBy === "candidate";
+  const allVoted = pollProgress && pollProgress.total > 0 && pollProgress.voted >= pollProgress.total;
+  const noPanel = pollProgress && pollProgress.total === 0;
+  const selectMode = manager && !round2 && poll?.status === "open" && (allVoted || noPanel || override);
+
+  // Default to the two most-available times when entering select mode.
+  useEffect(() => {
+    if (selectMode && poll && selected.size === 0) {
+      const top = [...poll.slots].filter((s) => s.count > 0).sort((a, b) => b.count - a.count).slice(0, 2).map((s) => s.id);
+      if (top.length) setSelected(new Set(top));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectMode, poll?.id]);
+
+  const toggleSelect = (slot) => setSelected((prev) => {
+    const n = new Set(prev); n.has(slot.id) ? n.delete(slot.id) : n.add(slot.id); return n;
+  });
+
+  const sendOffer = async () => {
+    if (!poll || sendingOffer) return;
+    const chosen = poll.slots.filter((s) => selected.has(s.id)).map((s) => ({ start: s.ts, end: s.end }));
+    if (chosen.length < 2) { Alert.alert("Pick at least two", "Select at least two times to offer the candidate."); return; }
+    setSendingOffer(true);
+    const attendees = [
+      { id: profile.userId, name: profile.name || "You", email: profile.email || "" },
+      ...panelMembers.map((m) => ({ id: m.id, name: m.name, email: m.email || "" })),
+    ];
+    const res = await createInterviewInvite({
+      companyId: profile.companyId, candidateId, jobId,
+      interviewerName: profile.name || "the hiring team", interviewerEmail: profile.email || "",
+      slots: chosen, attendees,
+    });
+    if (!res.ok) { setSendingOffer(false); Alert.alert("Couldn't send", res.error || "Try again."); return; }
+    await closePoll(poll.id, chosen[0].start).catch(() => {});
+    setSendingOffer(false);
+    Alert.alert("Sent to candidate", res.emailed ? `${candidateName || "The candidate"} has been emailed to pick a time.` : "Invite created. The candidate will be notified to pick a time.");
+    navigation.goBack();
+  };
+
   const canCreate = manager && (!poll || poll.status === "closed");
 
   if (messages === null) return <Loader label="Loading discussion…" />;
@@ -203,7 +251,9 @@ export default function DiscussionScreen({ route, navigation }) {
             ListHeaderComponent={
               <>
                 {poll ? (
-                  <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} onConfirm={confirmSlot} confirming={confirming} />
+                  <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} onConfirm={confirmSlot} confirming={confirming}
+                    selectMode={selectMode} selected={selected} onToggleSelect={toggleSelect} onSendOffer={sendOffer} sendingOffer={sendingOffer}
+                    canOverride={manager && !round2 && !allVoted && !noPanel && !override} onOverride={() => setOverride(true)} />
                 ) : null}
                 <View style={styles.banner}>
                   <Feather name="users" size={13} color={theme.ink3} />
@@ -235,13 +285,16 @@ export default function DiscussionScreen({ route, navigation }) {
   );
 }
 
-function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm, confirming }) {
+function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm, confirming,
+  selectMode = false, selected, onToggleSelect, onSendOffer, sendingOffer, canOverride, onOverride }) {
   const open = poll.status === "open";
   const isCandidate = poll.proposedBy === "candidate"; // round 2: candidate suggested these
   // For the manager who ran the poll: is the panel done voting?
   const allVoted = progress && progress.total > 0 && progress.voted >= progress.total;
+  const maxCount = Math.max(0, ...poll.slots.map((s) => s.count));
+  const selCount = selected ? selected.size : 0;
   return (
-    <View style={styles.pollCard}>
+    <View style={[styles.pollCard, selectMode && { borderColor: theme.brand, borderWidth: 1.5 }]}>
       <View style={styles.pollHead}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Feather name={isCandidate ? "user" : "calendar"} size={15} color={theme.brand} />
@@ -253,7 +306,7 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
       </View>
 
       {/* Manager sees voting progress (they created it, so they don't vote). */}
-      {open && manager && progress && progress.total > 0 ? (
+      {open && manager && !selectMode && progress && progress.total > 0 ? (
         <View style={[styles.voteProgress, allVoted && styles.voteProgressDone]}>
           <Feather name={allVoted ? "check-circle" : "clock"} size={14} color={allVoted ? theme.success : theme.brand} />
           <Text style={[type.smallStrong, { color: allVoted ? theme.success : theme.ink, marginLeft: 8, flex: 1 }]}>
@@ -261,25 +314,37 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
           </Text>
         </View>
       ) : null}
+      {selectMode ? (
+        <Text style={[type.smallStrong, { color: theme.success, marginTop: space(2) }]}>
+          {progress && progress.pendingNames?.length ? "Proceeding without every vote. " : "Everyone's voted. "}Pick at least 2 times to offer.
+        </Text>
+      ) : null}
 
       <View style={{ marginTop: space(3), gap: 8 }}>
         {poll.slots.map((s) => {
           const chosen = !open && poll.chosenSlot === s.ts;
+          const picked = selectMode ? !!(selected && selected.has(s.id)) : (s.mine && open);
+          const top = s.count > 0 && s.count === maxCount;
           return (
-            <View key={s.id} style={[styles.slot, s.mine && open && styles.slotMine, chosen && styles.slotChosen]}>
-              <Pressable onPress={() => open && onToggle(s)} disabled={!open || !!savingSlot} style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                <View style={[styles.check, (s.mine || chosen) && styles.checkOn]}>
-                  {s.mine || chosen ? <Feather name="check" size={12} color={theme.white} /> : null}
+            <View key={s.id} style={[styles.slot, picked && styles.slotMine, chosen && styles.slotChosen]}>
+              <Pressable
+                onPress={() => (selectMode ? onToggleSelect?.(s) : (open && onToggle(s)))}
+                disabled={selectMode ? false : (!open || !!savingSlot)}
+                style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+              >
+                <View style={[styles.check, (picked || chosen) && styles.checkOn]}>
+                  {picked || chosen ? <Feather name="check" size={12} color={theme.white} /> : null}
                 </View>
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={[type.smallStrong, { color: theme.ink }]}>{slotLabel(s.ts, s.end)}</Text>
                   <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
                     {s.count} available{s.voters.length ? ` · ${s.voters.slice(0, 2).join(", ")}${s.count > 2 ? ` +${s.count - 2}` : ""}` : ""}
+                    {top ? <Text style={{ color: theme.brand }}>{"  ·  Most available"}</Text> : null}
                   </Text>
                 </View>
               </Pressable>
               {/* Round 2: HM confirms a candidate slot directly (candidate already agreed). */}
-              {open && manager && isCandidate ? (
+              {!selectMode && open && manager && isCandidate ? (
                 <Pressable onPress={() => onConfirm?.(s)} disabled={!!confirming} style={styles.confirmSlotBtn}>
                   {confirming === s.ts ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmSlotTxt}>Confirm</Text>}
                 </Pressable>
@@ -289,20 +354,31 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
         })}
       </View>
 
-      {open ? (
-        <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
-          {isCandidate
-            ? (manager
-                ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
-                : "The candidate suggested these. Tap at least 2 you can make.")
-            : !manager
-              ? "Tap at least 2 times you can make."
-              : allVoted
-                ? "Everyone's in. Propose the best times to the candidate from their profile → Interview."
-              : progress && progress.pendingNames?.length
-                ? `Waiting on ${progress.pendingNames.slice(0, 3).join(", ")}${progress.pendingNames.length > 3 ? ` +${progress.pendingNames.length - 3}` : ""}. Then propose the best times to the candidate.`
-                : "Panel marks their availability, then propose the best times to the candidate."}
-        </Text>
+      {/* Select mode → send straight to the candidate. */}
+      {selectMode ? (
+        <>
+          <Button title={`Send ${selCount} time${selCount === 1 ? "" : "s"} to candidate`} onPress={onSendOffer} loading={sendingOffer} disabled={selCount < 2} style={{ marginTop: space(3) }} />
+          <Text style={[type.small, { color: theme.ink4, marginTop: space(2), textAlign: "center" }]}>The candidate picks one, then everyone gets the calendar invite.</Text>
+        </>
+      ) : open ? (
+        <>
+          <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
+            {isCandidate
+              ? (manager
+                  ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
+                  : "The candidate suggested these. Tap at least 2 you can make.")
+              : !manager
+                ? "Tap at least 2 times you can make."
+                : progress && progress.pendingNames?.length
+                  ? `Your vote is optional. Waiting on ${progress.pendingNames.slice(0, 3).join(", ")}${progress.pendingNames.length > 3 ? ` +${progress.pendingNames.length - 3}` : ""} to vote, then you'll pick times to offer.`
+                  : "Your vote is optional. Once the panel votes, you'll pick times to offer."}
+          </Text>
+          {canOverride ? (
+            <Pressable onPress={onOverride} hitSlop={8} style={{ marginTop: space(2) }}>
+              <Text style={[type.smallStrong, { color: theme.brand }]}>Proceed anyway →</Text>
+            </Pressable>
+          ) : null}
+        </>
       ) : null}
     </View>
   );

@@ -24,11 +24,20 @@ export function AuthProvider({ children }) {
 
   const hydrate = useCallback(async () => {
     const s = await loadSession();
-    setProfile(s);
     if (s) {
-      const ids = await loadAssignedJobIds(s.companyId, s.userId);
+      // Resolve the panel assignments BEFORE exposing the profile. An
+      // interviewer's Open Positions are scoped to assignedJobIds, so if profile
+      // went live first the screen would load with an empty id list and flash
+      // "No open positions" before the real roles arrived. Setting both together
+      // means the screen stays on its loader until we actually know the answer.
+      let ids = [];
+      try { ids = await loadAssignedJobIds(s.companyId, s.userId); } catch (e) { console.error("[hydrate] assignments:", e?.message || e); }
       setAssignedJobIds(ids);
+      setProfile(s);
       registerForPush(s.userId).catch(() => {});
+    } else {
+      setProfile(null);
+      setAssignedJobIds([]);
     }
     return s;
   }, []);
