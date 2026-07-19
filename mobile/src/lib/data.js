@@ -77,10 +77,10 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = []) {
 export async function loadCandidateInterview(companyId, candidateId) {
   const { data } = await supabase
     .from("interviews")
-    .select("id, status, scheduled_at, proposed_slots, token, meeting_link, attendees, created_at")
+    .select("id, status, scheduled_at, proposed_slots, token, meeting_link, attendees, reschedule_note, created_at")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
-    .in("status", ["scheduled", "sent"])
+    .in("status", ["scheduled", "sent", "reschedule"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -93,6 +93,7 @@ export async function loadCandidateInterview(companyId, candidateId) {
     token: data.token || null,
     meetingLink: data.meeting_link || null,
     attendees: Array.isArray(data.attendees) ? data.attendees : [],
+    rescheduleNote: data.reschedule_note || null,
   };
 }
 
@@ -938,7 +939,7 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
   if (!companyId || !candidateId) return null;
   const { data: poll } = await supabase
     .from("interview_polls")
-    .select("id, job_id, status, chosen_slot, created_by, created_at")
+    .select("id, job_id, status, chosen_slot, created_by, proposed_by, created_at")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
     .order("created_at", { ascending: false })
@@ -959,6 +960,7 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
     status: poll.status,
     chosenSlot: poll.chosen_slot,
     createdBy: poll.created_by,
+    proposedBy: poll.proposed_by || "panel", // 'panel' (round 1) | 'candidate' (round 2)
     voterIds: [...new Set((votes || []).map((v) => v.profile_id))], // who has voted (any slot)
     slots: (slots || []).map((s) => {
       const vs = bySlot[s.id] || [];
