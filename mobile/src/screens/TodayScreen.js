@@ -145,20 +145,14 @@ export default function TodayScreen({ navigation }) {
     </View>
   );
 
-  // Soonest first. The very next one becomes the hero; the rest group by day.
+  // Every UPCOMING interview shows as the same prominent hero card (soonest
+  // first), so they all look consistent. PAST interviews sink to a compact "Past"
+  // list at the bottom so old ones never bury the real upcoming ones.
   const sorted = [...items].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
-  const upcoming = sorted.filter((i) => minutesUntil(i.scheduledAt) > -75);
-  const next = upcoming[0] || null;
-  const rest = sorted.filter((i) => i !== next);
-
-  // Group the remainder by day for a timeline feel.
-  const groups = [];
-  for (const iv of rest) {
-    const label = dayLabel(iv.scheduledAt, tz);
-    const g = groups.find((x) => x.label === label);
-    if (g) g.items.push(iv); else groups.push({ label, items: [iv] });
-  }
-  const flat = groups.flatMap((g) => [{ _header: g.label }, ...g.items]);
+  const isUpcoming = (i) => minutesUntil(i.scheduledAt) > -75;
+  const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
+  const past = sorted.filter((i) => !isUpcoming(i)).reverse();  // compact rows, most-recent first
+  const flat = past.length ? [{ _header: "Past" }, ...past] : [];
 
   const weekCount = items.filter((i) => { const m = minutesUntil(i.scheduledAt); return m > -75 && m < 60 * 24 * 7; }).length;
 
@@ -245,20 +239,24 @@ export default function TodayScreen({ navigation }) {
               </Rise>
             ) : null}
             {items.length ? <Rise><WeekStrip items={items} tz={tz} /></Rise> : null}
-            {next ? (
-              <Rise delay={90} style={{ marginBottom: rest.length ? space(5) : 0 }}>
+            {upcoming.length ? (
+              <Rise delay={90} style={{ marginBottom: past.length ? space(5) : 0 }}>
                 <View style={styles.upNextRow}>
                   <Text style={styles.eyebrow}>UP NEXT</Text>
                   {weekCount > 1 ? <Text style={styles.weekPill}>{weekCount} this week</Text> : null}
                 </View>
-                <HeroCard iv={next} tz={tz}
-                  onOpen={() => navigation.navigate("InterviewDetail", { interviewId: next.id, iv: next })} />
+                {upcoming.map((iv, i) => (
+                  <View key={iv.id} style={{ marginBottom: i < upcoming.length - 1 ? space(3) : 0 }}>
+                    <HeroCard iv={iv} tz={tz}
+                      onOpen={() => navigation.navigate("InterviewDetail", { interviewId: iv.id, iv })} />
+                  </View>
+                ))}
               </Rise>
             ) : null}
           </View>
         }
         ListEmptyComponent={
-          (next || polls.length || myPolls.length) ? null : (
+          (upcoming.length || polls.length || myPolls.length) ? null : (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}><Feather name="calendar" size={40} color={theme.brand} /></View>
               <Text style={[type.h2, { color: theme.ink, marginTop: space(5) }]}>You're all set</Text>
