@@ -15459,8 +15459,31 @@ function PanelPoll({ candidate, jobId, profile, companyId, currentUserId, bookin
     })();
     const refresh = () => { if (document.visibilityState === "visible") load(); };
     window.addEventListener("focus", refresh);
-    const id = setInterval(refresh, 45000);
+    const id = setInterval(refresh, 45000); // safety net behind realtime
     return () => { alive = false; window.removeEventListener("focus", refresh); clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, candidate?.id, currentUserId]);
+
+  // Realtime: reload the poll the instant a vote, slot or the poll itself changes,
+  // so every panelist sees availability fill in live. RLS scopes the stream.
+  useEffect(() => {
+    if (!hasSupabase || !companyId || !candidate?.id) return;
+    let timer = null;
+    const reload = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const p = await dbGetPanelPoll(companyId, candidate.id, currentUserId);
+        setPoll(p);
+      }, 250);
+    };
+    const flt = `company_id=eq.${companyId}`;
+    const ch = supabase
+      .channel(`poll:${companyId}:${candidate.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "interview_poll_votes", filter: flt }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "interview_polls", filter: flt }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "interview_poll_slots", filter: flt }, reload)
+      .subscribe();
+    return () => { clearTimeout(timer); supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, candidate?.id, currentUserId]);
 
@@ -23748,9 +23771,8 @@ export default function ResumeAIPreview() {
 
   // Keep the open workspace fresh without a manual reload. New applicants land in
   // the DB from the public apply flow while the recruiter is elsewhere in the app,
-  // so re-hydrate when the tab regains focus or becomes visible, and poll gently
-  // while it's open and visible. (No Supabase realtime publication is configured,
-  // so this is the reliable path; it replaces "refresh the page to see them".)
+  // so re-hydrate when the tab regains focus or becomes visible. The interval is a
+  // safety net behind the realtime subscription below (covers a dropped socket).
   useEffect(() => {
     if (!hasSupabase || !canPersist || !companyId) return;
     const refresh = () => { if (document.visibilityState === "visible") hydrateWorkspace(companyId); };
@@ -23762,6 +23784,31 @@ export default function ResumeAIPreview() {
       document.removeEventListener("visibilitychange", refresh);
       clearInterval(id);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPersist, companyId]);
+
+  // Realtime: subscribe to the company's collaborative tables and re-hydrate the
+  // workspace the moment anything changes (a new applicant, a stage move, an
+  // interview booked/rescheduled, a poll vote, a notification). RLS scopes the
+  // stream to rows this user can see. Coalesced so a burst of changes triggers a
+  // single refetch, and only while the tab is visible.
+  useEffect(() => {
+    if (!hasSupabase || !canPersist || !companyId) return;
+    let timer = null;
+    const bump = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (document.visibilityState === "visible") hydrateWorkspace(companyId); }, 600);
+    };
+    const flt = `company_id=eq.${companyId}`;
+    const channel = supabase
+      .channel(`ws:${companyId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: flt }, bump)
+      .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: flt }, bump)
+      .on("postgres_changes", { event: "*", schema: "public", table: "interviews", filter: flt }, bump)
+      .on("postgres_changes", { event: "*", schema: "public", table: "activity_log", filter: flt }, bump)
+      .on("postgres_changes", { event: "*", schema: "public", table: "candidates", filter: flt }, bump)
+      .subscribe();
+    return () => { clearTimeout(timer); supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPersist, companyId]);
 
