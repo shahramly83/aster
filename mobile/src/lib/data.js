@@ -1021,6 +1021,49 @@ export async function loadOpenPolls(companyId, userId) {
   });
 }
 
+// Polls the signed-in user created (open, candidate not yet confirmed) with how
+// many of the panel have voted — so the HM can track completion from the
+// Interviews tab without opening each candidate chat.
+export async function loadMyPollProgress(companyId, userId) {
+  if (!companyId) return [];
+  const { data: polls } = await supabase
+    .from("interview_polls")
+    .select("id, candidate_id, job_id, created_at")
+    .eq("company_id", companyId).eq("status", "open").eq("created_by", userId)
+    .order("created_at", { ascending: false });
+  const rows = polls || [];
+  if (!rows.length) return [];
+  const pollIds = rows.map((p) => p.id);
+  const candIds = [...new Set(rows.map((p) => p.candidate_id).filter(Boolean))];
+  const jobIds = [...new Set(rows.map((p) => p.job_id).filter(Boolean))];
+  const [sched, cs, js, votes, assigns] = await Promise.all([
+    supabase.from("interviews").select("candidate_id").eq("company_id", companyId).eq("status", "scheduled").in("candidate_id", candIds),
+    candIds.length ? supabase.from("candidates").select("id, parsed, full_name").in("id", candIds) : Promise.resolve({ data: [] }),
+    jobIds.length ? supabase.from("jobs").select("id, title").in("id", jobIds) : Promise.resolve({ data: [] }),
+    supabase.from("interview_poll_votes").select("poll_id, profile_id").in("poll_id", pollIds),
+    jobIds.length ? supabase.from("job_assignments").select("job_id, profile_id").eq("company_id", companyId).in("job_id", jobIds) : Promise.resolve({ data: [] }),
+  ]);
+  const confirmed = new Set((sched.data || []).map((s) => s.candidate_id));
+  const candById = Object.fromEntries((cs.data || []).map((c) => [c.id, c]));
+  const jobTitle = Object.fromEntries((js.data || []).map((j) => [j.id, j.title]));
+  const assignedByJob = {};
+  (assigns.data || []).forEach((a) => { (assignedByJob[a.job_id] ||= new Set()).add(a.profile_id); });
+  const votersByPoll = {};
+  (votes.data || []).forEach((v) => { (votersByPoll[v.poll_id] ||= new Set()).add(v.profile_id); });
+  return rows.filter((p) => !confirmed.has(p.candidate_id)).map((p) => {
+    const panel = [...(assignedByJob[p.job_id] || new Set())].filter((id) => id !== userId); // exclude the creator
+    const voters = votersByPoll[p.id] || new Set();
+    const c = candById[p.candidate_id] || {};
+    return {
+      pollId: p.id, candidateId: p.candidate_id, jobId: p.job_id,
+      candidateName: c.parsed?.name || c.full_name || "Candidate",
+      jobTitle: jobTitle[p.job_id] || "Role",
+      voted: panel.filter((id) => voters.has(id)).length,
+      total: panel.length,
+    };
+  });
+}
+
 // Create a poll from time-range slots [{ start, end }] (ISO). Managers only.
 // Logs an activity so the panel is notified (Notifications feed + bell badge).
 export async function createPoll({ companyId, candidateId, candidateName, jobId, createdBy, slots = [] }) {

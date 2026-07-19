@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadMyInterviews, loadOpenPolls } from "../lib/data";
+import { loadMyInterviews, loadOpenPolls, loadMyPollProgress } from "../lib/data";
 import { setStatusBarStyle } from "expo-status-bar";
 import { Press, Avatar, Loader, TopBar, HeaderActions, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
@@ -104,7 +104,8 @@ export default function TodayScreen({ navigation }) {
   const { profile, manager, assignedJobIds } = useAuth();
   const { unread } = useNotifications();
   const [items, setItems] = useState(null);
-  const [polls, setPolls] = useState([]); // open availability polls awaiting my vote
+  const [polls, setPolls] = useState([]); // open polls awaiting MY vote (interviewer)
+  const [myPolls, setMyPolls] = useState([]); // polls I created + panel voting progress (manager)
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [, force] = useState(0);
@@ -113,12 +114,14 @@ export default function TodayScreen({ navigation }) {
     if (!profile) return;
     try {
       setError("");
-      const [ivs, openPolls] = await Promise.all([
+      const [ivs, openPolls, mine] = await Promise.all([
         loadMyInterviews(profile.companyId, profile.userId, assignedJobIds),
         loadOpenPolls(profile.companyId, profile.userId),
+        loadMyPollProgress(profile.companyId, profile.userId),
       ]);
       setItems(ivs);
       setPolls((openPolls || []).filter((p) => !p.voted));
+      setMyPolls(mine || []);
     } catch (e) { setError(e?.message || "Could not load interviews."); setItems([]); }
   }, [profile, assignedJobIds]);
 
@@ -178,6 +181,40 @@ export default function TodayScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListHeaderComponent={
           <View>
+            {/* Polls I ran — panel voting progress (manager), tap opens the chat */}
+            {myPolls.length ? (
+              <Rise style={{ marginBottom: space(4) }}>
+                <Text style={styles.pollEyebrow}>YOUR AVAILABILITY POLLS</Text>
+                <View style={styles.pollCard}>
+                  {myPolls.slice(0, 6).map((p, i) => {
+                    const done = p.total > 0 && p.voted >= p.total;
+                    const pct = p.total > 0 ? p.voted / p.total : 0;
+                    return (
+                      <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
+                        <Avatar name={p.candidateName} size={38} />
+                        <View style={{ flex: 1, marginLeft: 11 }}>
+                          <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{p.candidateName}</Text>
+                          <View style={styles.progressTrack}>
+                            <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : theme.brand }]} />
+                          </View>
+                        </View>
+                        <View style={{ alignItems: "flex-end", marginLeft: 10 }}>
+                          {done ? (
+                            <View style={styles.donePill}><Feather name="check" size={11} color="#fff" /><Text style={styles.donePillTxt}>All in</Text></View>
+                          ) : (
+                            <>
+                              <Text style={styles.progressCount}>{p.voted}/{p.total}</Text>
+                              <Text style={styles.progressLabel}>voted</Text>
+                            </>
+                          )}
+                        </View>
+                      </Press>
+                    );
+                  })}
+                </View>
+              </Rise>
+            ) : null}
+
             {/* Availability polls awaiting my vote — tap opens the poll chat */}
             {polls.length ? (
               <Rise style={{ marginBottom: space(4) }}>
@@ -220,7 +257,7 @@ export default function TodayScreen({ navigation }) {
           </View>
         }
         ListEmptyComponent={
-          (next || polls.length) ? null : (
+          (next || polls.length || myPolls.length) ? null : (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}><Feather name="calendar" size={40} color={theme.brand} /></View>
               <Text style={[type.h2, { color: theme.ink, marginTop: space(5) }]}>You're all set</Text>
@@ -335,6 +372,12 @@ const styles = StyleSheet.create({
   pollRowDiv: { borderTopWidth: 1, borderTopColor: theme.line2 },
   votePill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: theme.brand, borderRadius: radius.pill, paddingHorizontal: 13, height: 32 },
   votePillTxt: { fontFamily: "Inter_700Bold", fontSize: 13, color: "#fff" },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: theme.line2, marginTop: 7, overflow: "hidden" },
+  progressFill: { height: 6, borderRadius: 3 },
+  progressCount: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, color: theme.ink, fontVariant: ["tabular-nums"] },
+  progressLabel: { fontFamily: "Inter_500Medium", fontSize: 10.5, color: theme.ink4, marginTop: -1 },
+  donePill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: theme.success, borderRadius: radius.pill, paddingHorizontal: 10, height: 26 },
+  donePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12, color: "#fff" },
   upNextRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginLeft: space(1) },
   eyebrow: { ...type.label, color: theme.ink3 },
   weekPill: { ...type.smallStrong, color: theme.brand, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5, overflow: "hidden" },
