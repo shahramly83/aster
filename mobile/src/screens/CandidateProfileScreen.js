@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -81,6 +81,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [questions, setQuestions] = useState([]); // AI interview questions [{category, question}]
   const [genQ, setGenQ] = useState(false);
+  const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule prompt
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -183,6 +184,19 @@ export default function CandidateProfileScreen({ route, navigation }) {
     setGenQ(false);
     if (!res.ok) { Alert.alert("Couldn't generate questions", res.error || "Try again."); return; }
     setQuestions(res.questions);
+  };
+
+  const doReschedule = () => {
+    setConfirm({
+      title: "Reschedule interview?",
+      message: `This clears the scheduled time so you can run a fresh availability poll and propose new times to ${nameOf().split(" ")[0]}.`,
+      confirmLabel: "Reschedule",
+      onConfirm: async () => {
+        const res = await rescheduleInterview(profile.companyId, candidateId);
+        if (!res.ok) { Alert.alert("Couldn't reschedule", res.error || "Try again."); return; }
+        setNoShowDismissed(false); load();
+      },
+    });
   };
 
   if (loading) return (
@@ -472,30 +486,64 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       </>
                     ) : null}
                   </View>
-                </>
-              ) : rescheduling ? (
-                <>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[type.bodyStrong, { color: theme.ink }]}>Candidate suggested new times</Text>
-                      <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>They couldn't make the proposed times. The panel votes on theirs, then you confirm.</Text>
-                    </View>
-                  </View>
-                  {interview?.rescheduleNote ? (
-                    <View style={styles.noteBox}>
-                      <Feather name="message-circle" size={13} color={theme.ink3} />
-                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8, flex: 1, fontStyle: "italic" }]}>&ldquo;{interview.rescheduleNote}&rdquo;</Text>
+
+                  {/* After the interview time passes: was it a no-show (reschedule) or done (score)? */}
+                  {interviewDone && manager && !noShowDismissed ? (
+                    <View style={styles.noShow}>
+                      <Text style={[type.smallStrong, { color: theme.ink }]}>Did the interview happen?</Text>
+                      <Text style={[type.small, { color: theme.ink3, marginTop: 2, marginBottom: space(3) }]}>If it was a no-show or needs another time, reschedule. Otherwise go ahead and score.</Text>
+                      <View style={{ flexDirection: "row", gap: 10 }}>
+                        <Pressable onPress={doReschedule} style={[styles.noShowBtn, styles.noShowReschedule]}>
+                          <Feather name="refresh-cw" size={14} color={theme.warn} />
+                          <Text style={[type.smallStrong, { color: theme.warn, marginLeft: 6 }]}>Reschedule</Text>
+                        </Pressable>
+                        <Pressable onPress={() => setNoShowDismissed(true)} style={[styles.noShowBtn, styles.noShowProceed]}>
+                          <Feather name="check" size={14} color="#fff" />
+                          <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]}>Proceed to scoring</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   ) : null}
-                  {interview?.proposedSlots?.map((s, i) => (
-                    <View key={i} style={styles.slotRow}>
-                      <Feather name="calendar" size={13} color={theme.ink4} />
-                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{slotRange(s.start, s.end)}</Text>
-                    </View>
-                  ))}
-                  <Button title="Open panel chat to vote & confirm" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
                 </>
+              ) : rescheduling ? (
+                interview?.proposedSlots?.length ? (
+                  /* Round 2: candidate suggested their own times → panel votes, HM confirms */
+                  <>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink }]}>Candidate suggested new times</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>They couldn't make the proposed times. The panel votes on theirs, then you confirm.</Text>
+                      </View>
+                    </View>
+                    {interview?.rescheduleNote ? (
+                      <View style={styles.noteBox}>
+                        <Feather name="message-circle" size={13} color={theme.ink3} />
+                        <Text style={[type.small, { color: theme.ink2, marginLeft: 8, flex: 1, fontStyle: "italic" }]}>&ldquo;{interview.rescheduleNote}&rdquo;</Text>
+                      </View>
+                    ) : null}
+                    {interview.proposedSlots.map((s, i) => (
+                      <View key={i} style={styles.slotRow}>
+                        <Feather name="calendar" size={13} color={theme.ink4} />
+                        <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{slotRange(s.start, s.end)}</Text>
+                      </View>
+                    ))}
+                    <Button title="Open panel chat to vote & confirm" icon="message-circle" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                  </>
+                ) : (
+                  /* HM-initiated reschedule (e.g. no-show): run a fresh poll */
+                  <>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink }]}>Rescheduling</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Run a fresh panel availability poll, then propose new times.</Text>
+                      </View>
+                    </View>
+                    <Button title="1 · Panel availability" icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                    {manager ? <Button title="2 · Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} /> : null}
+                  </>
+                )
               ) : pendingInvite ? (
                 <>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -806,6 +854,10 @@ const styles = StyleSheet.create({
   mlChipIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.white, alignItems: "center", justifyContent: "center" },
   slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
+  noShow: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
+  noShowBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md },
+  noShowReschedule: { borderWidth: 1, borderColor: theme.warn, backgroundColor: theme.card },
+  noShowProceed: { backgroundColor: theme.brand },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
   exploreToggle: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, borderWidth: 1, borderColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(3.5), marginTop: space(5), ...shadow.sm },

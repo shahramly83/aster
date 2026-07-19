@@ -294,9 +294,9 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
           {isCandidate
             ? (manager
                 ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
-                : "The candidate suggested these. Tap the ones you can make.")
+                : "The candidate suggested these. Tap at least 2 you can make.")
             : !manager
-              ? "Tap the slots you're available for."
+              ? "Tap at least 2 times you can make."
               : allVoted
                 ? "Everyone's in. Propose the best times to the candidate from their profile → Interview."
               : progress && progress.pendingNames?.length

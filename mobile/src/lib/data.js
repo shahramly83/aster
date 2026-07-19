@@ -961,7 +961,13 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
     chosenSlot: poll.chosen_slot,
     createdBy: poll.created_by,
     proposedBy: poll.proposed_by || "panel", // 'panel' (round 1) | 'candidate' (round 2)
-    voterIds: [...new Set((votes || []).map((v) => v.profile_id))], // who has voted (any slot)
+    // A panelist counts as "voted" only once they've picked >=2 times (so there's
+    // real overlap to work with), matching the propose-2 rule.
+    voterIds: (() => {
+      const byProfile = {};
+      (votes || []).forEach((v) => { byProfile[v.profile_id] = (byProfile[v.profile_id] || 0) + 1; });
+      return Object.keys(byProfile).filter((id) => byProfile[id] >= 2);
+    })(),
     slots: (slots || []).map((s) => {
       const vs = bySlot[s.id] || [];
       return {
@@ -1050,17 +1056,18 @@ export async function loadMyPollProgress(companyId, userId) {
   const jobTitle = Object.fromEntries((js.data || []).map((j) => [j.id, j.title]));
   const assignedByJob = {};
   (assigns.data || []).forEach((a) => { (assignedByJob[a.job_id] ||= new Set()).add(a.profile_id); });
-  const votersByPoll = {};
-  (votes.data || []).forEach((v) => { (votersByPoll[v.poll_id] ||= new Set()).add(v.profile_id); });
+  // Count votes per (poll, profile); a panelist "voted" only with >=2 picks.
+  const countByPoll = {};
+  (votes.data || []).forEach((v) => { (countByPoll[v.poll_id] ||= {}); countByPoll[v.poll_id][v.profile_id] = (countByPoll[v.poll_id][v.profile_id] || 0) + 1; });
   return rows.filter((p) => !confirmed.has(p.candidate_id)).map((p) => {
     const panel = [...(assignedByJob[p.job_id] || new Set())].filter((id) => id !== userId); // exclude the creator
-    const voters = votersByPoll[p.id] || new Set();
+    const counts = countByPoll[p.id] || {};
     const c = candById[p.candidate_id] || {};
     return {
       pollId: p.id, candidateId: p.candidate_id, jobId: p.job_id,
       candidateName: c.parsed?.name || c.full_name || "Candidate",
       jobTitle: jobTitle[p.job_id] || "Role",
-      voted: panel.filter((id) => voters.has(id)).length,
+      voted: panel.filter((id) => (counts[id] || 0) >= 2).length,
       total: panel.length,
     };
   });
@@ -1113,6 +1120,21 @@ export async function closePoll(pollId, chosenIso) {
     .update({ status: "closed", chosen_slot: chosenIso || null, closed_at: new Date().toISOString() })
     .eq("id", pollId);
   return error ? error.message : null;
+}
+
+// Reschedule a scheduled interview (e.g. a no-show): reset it to a fresh
+// scheduling cycle so the HM runs a new panel poll. Empty proposed_slots marks
+// it as HM-initiated (vs a candidate-proposed reschedule, which keeps slots).
+export async function rescheduleInterview(companyId, candidateId) {
+  const { data } = await supabase.from("interviews").select("id")
+    .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
+    .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data) return { ok: false, error: "No scheduled interview to reschedule." };
+  const { error } = await supabase.from("interviews").update({
+    status: "reschedule", scheduled_at: null, proposed_slots: [], meeting_link: null,
+    reschedule_note: null, reschedule_at: new Date().toISOString(),
+  }).eq("id", data.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 // HM confirms a slot from a candidate-proposed (round 2) poll. The candidate
