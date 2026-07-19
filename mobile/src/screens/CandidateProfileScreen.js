@@ -6,6 +6,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
+import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
 import OfferSheet from "../components/OfferSheet";
 import ProposeTimesSheet from "../components/ProposeTimesSheet";
@@ -284,7 +285,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     parsed.years_of_experience != null && { icon: "briefcase", value: `${parsed.years_of_experience} years of experience` },
                     parsed.salary_expectation && { icon: "dollar-sign", value: String(parsed.salary_expectation) },
                     email && { icon: "mail", value: email, onPress: () => Linking.openURL(`mailto:${email}`) },
-                    parsed.phone && { icon: "phone", value: parsed.phone, onPress: () => Linking.openURL(`tel:${parsed.phone}`) },
+                    parsed.phone && { icon: "phone", value: parsed.phone, onPress: () => Linking.openURL(`tel:${parsed.phone}`), whatsapp: parsed.phone.replace(/[^\d]/g, "") },
                     parsed.linkedin_url && { icon: "linkedin", value: "LinkedIn profile", onPress: () => Linking.openURL(parsed.linkedin_url) },
                     parsed.portfolio_url && { icon: "globe", value: "Portfolio", onPress: () => Linking.openURL(parsed.portfolio_url) },
                   ].filter(Boolean);
@@ -720,13 +721,18 @@ function ProcessStepper({ stage }) {
   );
 }
 
-function DetailRow({ icon, value, onPress, last }) {
+function DetailRow({ icon, value, onPress, whatsapp, last }) {
   const Wrap = onPress ? Pressable : View;
   return (
     <Wrap onPress={onPress} style={[styles.detailRow, !last && styles.detailDivider]}>
       <Feather name={icon} size={16} color={theme.ink3} />
       <Text style={[type.small, { color: onPress ? theme.brand : theme.ink2, flex: 1, marginLeft: 12 }]} numberOfLines={1}>{value}</Text>
-      {onPress ? <Feather name="external-link" size={14} color={theme.ink4} /> : null}
+      {whatsapp ? (
+        <Pressable onPress={() => Linking.openURL(`https://wa.me/${whatsapp}`)} hitSlop={8} style={styles.waBtn}>
+          <Ionicons name="logo-whatsapp" size={15} color="#fff" />
+          <Text style={styles.waTxt}>WhatsApp</Text>
+        </Pressable>
+      ) : onPress ? <Feather name="external-link" size={14} color={theme.ink4} /> : null}
     </Wrap>
   );
 }
@@ -751,6 +757,8 @@ const styles = StyleSheet.create({
   stageTag: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginTop: 8 },
   detailRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(3) },
   detailDivider: { borderBottomWidth: 1, borderBottomColor: theme.line2 },
+  waBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#25D366", borderRadius: radius.pill, paddingHorizontal: 10, height: 28 },
+  waTxt: { fontFamily: "Inter_700Bold", fontSize: 12, color: "#fff" },
   timelineItem: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
   certRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2.5) },
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
