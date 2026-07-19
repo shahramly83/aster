@@ -984,7 +984,16 @@ export async function loadOpenPolls(companyId, userId) {
     .eq("company_id", companyId)
     .eq("status", "open")
     .order("created_at", { ascending: false });
-  const rows = polls || [];
+  let rows = polls || [];
+  if (!rows.length) return [];
+  // Drop polls whose candidate has already confirmed an interview — the poll is
+  // moot once a time is booked.
+  const allCandIds = [...new Set(rows.map((p) => p.candidate_id).filter(Boolean))];
+  const { data: sched } = await supabase
+    .from("interviews").select("candidate_id")
+    .eq("company_id", companyId).eq("status", "scheduled").in("candidate_id", allCandIds);
+  const confirmed = new Set((sched || []).map((s) => s.candidate_id));
+  rows = rows.filter((p) => !confirmed.has(p.candidate_id));
   if (!rows.length) return [];
   const pollIds = rows.map((p) => p.id);
   const candIds = [...new Set(rows.map((p) => p.candidate_id).filter(Boolean))];

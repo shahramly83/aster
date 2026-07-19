@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadMyInterviews } from "../lib/data";
+import { loadMyInterviews, loadOpenPolls } from "../lib/data";
 import { setStatusBarStyle } from "expo-status-bar";
 import { Press, Avatar, Loader, TopBar, HeaderActions, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
@@ -103,6 +103,7 @@ export default function TodayScreen({ navigation }) {
   const { profile, manager, assignedJobIds } = useAuth();
   const { unread } = useNotifications();
   const [items, setItems] = useState(null);
+  const [polls, setPolls] = useState([]); // open availability polls awaiting my vote
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [, force] = useState(0);
@@ -111,7 +112,12 @@ export default function TodayScreen({ navigation }) {
     if (!profile) return;
     try {
       setError("");
-      setItems(await loadMyInterviews(profile.companyId, profile.userId, assignedJobIds));
+      const [ivs, openPolls] = await Promise.all([
+        loadMyInterviews(profile.companyId, profile.userId, assignedJobIds),
+        loadOpenPolls(profile.companyId, profile.userId),
+      ]);
+      setItems(ivs);
+      setPolls((openPolls || []).filter((p) => !p.voted));
     } catch (e) { setError(e?.message || "Could not load interviews."); setItems([]); }
   }, [profile, assignedJobIds]);
 
@@ -171,6 +177,34 @@ export default function TodayScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListHeaderComponent={
           <View>
+            {/* Availability polls awaiting my vote — tap opens the poll chat */}
+            {polls.length ? (
+              <Rise style={{ marginBottom: space(4) }}>
+                <Text style={styles.pollEyebrow}>NEEDS YOUR INPUT</Text>
+                <View style={styles.pollCard}>
+                  <View style={styles.pollHead}>
+                    <View style={styles.pollHeadIcon}><Feather name="calendar" size={16} color="#fff" /></View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={styles.pollTitle}>Pick your interview times</Text>
+                      <Text style={styles.pollSubtitle}>{polls.length} candidate{polls.length === 1 ? "" : "s"} waiting on your availability</Text>
+                    </View>
+                  </View>
+                  {polls.slice(0, 5).map((p, i) => (
+                    <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
+                      <Avatar name={p.candidateName} size={38} />
+                      <View style={{ flex: 1, marginLeft: 11 }}>
+                        <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{p.candidateName}</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{p.jobTitle}</Text>
+                      </View>
+                      <View style={styles.votePill}>
+                        <Feather name="check-circle" size={13} color="#fff" />
+                        <Text style={styles.votePillTxt}>Vote</Text>
+                      </View>
+                    </Press>
+                  ))}
+                </View>
+              </Rise>
+            ) : null}
             {items.length ? <Rise><WeekStrip items={items} tz={tz} /></Rise> : null}
             {next ? (
               <Rise delay={90} style={{ marginBottom: rest.length ? space(5) : 0 }}>
@@ -185,7 +219,7 @@ export default function TodayScreen({ navigation }) {
           </View>
         }
         ListEmptyComponent={
-          next ? null : (
+          (next || polls.length) ? null : (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}><Feather name="calendar" size={40} color={theme.brand} /></View>
               <Text style={[type.h2, { color: theme.ink, marginTop: space(5) }]}>You're all set</Text>
@@ -290,6 +324,16 @@ const styles = StyleSheet.create({
   weekNumTxt: { fontFamily: "Inter_700Bold", fontSize: 14, color: theme.ink2, fontVariant: ["tabular-nums"] },
   weekDotBase: { width: 5, height: 5, borderRadius: 3, marginTop: 5, backgroundColor: "transparent" },
   weekDotOn: { backgroundColor: theme.brand },
+  pollEyebrow: { ...type.label, color: theme.brand, marginBottom: space(2), marginLeft: space(1) },
+  pollCard: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  pollHead: { flexDirection: "row", alignItems: "center", marginBottom: space(2) },
+  pollHeadIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+  pollTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 16, letterSpacing: -0.3, color: theme.ink },
+  pollSubtitle: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: theme.ink3, marginTop: 2 },
+  pollRow: { flexDirection: "row", alignItems: "center", paddingVertical: 11 },
+  pollRowDiv: { borderTopWidth: 1, borderTopColor: theme.line2 },
+  votePill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: theme.brand, borderRadius: radius.pill, paddingHorizontal: 13, height: 32 },
+  votePillTxt: { fontFamily: "Inter_700Bold", fontSize: 13, color: "#fff" },
   upNextRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginLeft: space(1) },
   eyebrow: { ...type.label, color: theme.ink3 },
   weekPill: { ...type.smallStrong, color: theme.brand, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5, overflow: "hidden" },

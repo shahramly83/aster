@@ -6,6 +6,7 @@ import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages,
   loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
+  loadCandidateInterview,
 } from "../lib/data";
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
@@ -65,7 +66,12 @@ export default function DiscussionScreen({ route, navigation }) {
   }, [candidateId]);
 
   const loadPoll = useCallback(async () => {
-    setPoll(await loadCandidatePoll(profile.companyId, candidateId, profile.userId));
+    const [p, iv] = await Promise.all([
+      loadCandidatePoll(profile.companyId, candidateId, profile.userId),
+      loadCandidateInterview(profile.companyId, candidateId),
+    ]);
+    // Once the candidate has confirmed a time, the availability poll is moot — hide it.
+    setPoll(iv?.status === "scheduled" ? null : p);
   }, [profile?.companyId, profile?.userId, candidateId]);
 
   useEffect(() => { load(); loadPoll(); }, [load, loadPoll]);
