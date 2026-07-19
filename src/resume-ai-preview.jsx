@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
@@ -19707,7 +19707,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -19754,6 +19754,15 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [showOffer, setShowOffer] = useState(false);
   // Profile / Interview tabs on the candidate profile (only shown in a job pipeline).
   const [profileTab, setProfileTab] = useState(initialTab || (isInterviewer(profile?.role) ? "interview" : "profile"));
+  const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule/score prompt
+  const [rescheduling, setRescheduling] = useState(false);
+  const doNoShowReschedule = async () => {
+    if (rescheduling) return;
+    setRescheduling(true);
+    await (onReschedule?.(candidate.id, contextJobId) || Promise.resolve());
+    setRescheduling(false);
+    setNoShowDismissed(true);
+  };
   const [pendingDecision, setPendingDecision] = useState(null); // 'offer' awaiting skip-scorecards confirm
   const [confirmReject, setConfirmReject] = useState(false);     // reject double-confirm (sends an email)
   // Database-view invite: pick an open role, draft a re-engagement email, and
@@ -20495,9 +20504,26 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         )}
 
+        {/* After the interview time passes: was it a no-show (reschedule) or done
+            (score)? Mirrors the mobile prompt. */}
+        {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && (
+          <div className="mt-4 rounded-2xl tool-card act-shadow px-5 py-4">
+            <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Did the interview happen?</h2>
+            <p className="text-xs mt-1 mb-3.5" style={{ color: "var(--ink-3)" }}>If it was a no-show or needs another time, reschedule. Otherwise go ahead and score.</p>
+            <div className="flex flex-wrap gap-2.5">
+              <button onClick={doNoShowReschedule} disabled={rescheduling} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium border transition-colors hover:bg-amber-50 disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FCD34D", background: "#fff" }}>
+                <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "Reschedule"}
+              </button>
+              <button onClick={() => setIvStep(2)} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: "var(--brand)" }}>
+                <Icon name="check" className="w-4 h-4" /> Proceed to scoring
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Step 1, after the interview: the hiring manager ticks who actually
             attended. Only those interviewers need to score before Decision unlocks. */}
-        {isManagerView && ivStep === 1 && interviewPast && interviewerAttendees.length > 0 && (
+        {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && interviewerAttendees.length > 0 && (
           <div className="mt-4 rounded-2xl tool-card act-shadow px-5 py-4">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide">Who attended</h2>
@@ -24384,6 +24410,20 @@ export default function ResumeAIPreview() {
 
   // HR sent the invite (times proposed, awaiting candidate). On a live workspace,
   // persist the interview-invite row and email the candidate a link to /book/<token>.
+  // No-show / needs-another-time: reset the interview to a fresh scheduling cycle
+  // so the HM can propose new times. Returns { ok }.
+  const rescheduleNoShow = async (candidateId, jobId = null) => {
+    const rebooking = { status: "reschedule", jobId: jobId || null, request: { proposed_slots: [] }, confirmedSlot: null, token: null, candidateProposed: false, provider: defaultProvider };
+    setBookings((prev) => ({ ...prev, [candidateId]: rebooking }));
+    setBookingsByJob((prev) => ({ ...prev, [`${candidateId}:${jobId || ""}`]: rebooking }));
+    if (canPersist) {
+      const res = await dbRescheduleInterview(companyId, candidateId);
+      if (companyId) hydrateWorkspace(companyId);
+      return res;
+    }
+    return { ok: true };
+  };
+
   const markInviteSent = (candidateId, request) => {
     const sentBooking = { status: "sent", jobId: request.jobId || null, request, confirmedSlot: null, provider: defaultProvider };
     setBookings((prev) => ({ ...prev, [candidateId]: sentBooking }));
@@ -25099,6 +25139,7 @@ export default function ResumeAIPreview() {
             contextJobId={viewCandidateJobId || (activeCandidate ? (bookings[activeCandidate.id]?.jobId ?? bookings[activeCandidate.id]?.request?.jobId ?? null) : null)}
             initialStage={viewCandidateStage}
             initialTab={viewCandidateTab}
+            onReschedule={rescheduleNoShow}
             // Bookings are stored per candidate; only surface it under the role it
             // belongs to, so the same candidate viewed under a different position
             // doesn't inherit another role's interview.

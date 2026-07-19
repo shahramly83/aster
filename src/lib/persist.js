@@ -824,6 +824,22 @@ export async function dbListOpenPolls(companyId, userId) {
   });
 }
 
+// Reschedule a scheduled interview (e.g. a no-show): reset it to a fresh
+// scheduling cycle so the HM can propose new times. Empty proposed_slots marks it
+// HM-initiated (vs a candidate-proposed reschedule, which keeps the slots).
+export async function dbRescheduleInterview(companyId, candidateId) {
+  if (!hasSupabase || !companyId || !candidateId) return { ok: false, error: "Not connected." };
+  const { data } = await supabase.from("interviews").select("id")
+    .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
+    .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data) return { ok: false, error: "No scheduled interview to reschedule." };
+  const { error } = await supabase.from("interviews").update({
+    status: "reschedule", scheduled_at: null, proposed_slots: [], meeting_link: null,
+    reschedule_note: null, reschedule_at: new Date().toISOString(),
+  }).eq("id", data.id);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
 // HM confirms a slot from a candidate-proposed (round 2) poll: the candidate
 // already offered these times, so confirming reuses confirm-booking (schedules +
 // emails the candidate + panel) via the interview token, then closes the poll.
