@@ -66,10 +66,18 @@ export default function TeamsScreen({ navigation }) {
   useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
+  // Match web: invites are gated to the admin's own email domain when set — you
+  // type only the name and we append @<domain>. Blocks personal/out-of-domain.
+  const tenantDomain = (profile?.email || "").split("@")[1]?.toLowerCase() || "";
+  const inviteFullEmail = (tenantDomain ? `${inviteEmail.trim()}@${tenantDomain}` : inviteEmail.trim()).toLowerCase();
+  const inviteValid = tenantDomain ? /^[^\s@]+$/.test(inviteEmail.trim()) : /^\S+@\S+\.\S+$/.test(inviteFullEmail);
+
   const openInvite = () => { setInviteEmail(""); setInviteRole("interviewer"); setInviteErr(null); setInviteOpen(true); };
   const sendInvite = async () => {
-    setInviteErr(null); setSending(true);
-    const res = await inviteTeammate({ email: inviteEmail, role: inviteRole });
+    setInviteErr(null);
+    if (!inviteValid) { setInviteErr(tenantDomain ? `Enter the name before @${tenantDomain}.` : "Enter a valid work email address."); return; }
+    setSending(true);
+    const res = await inviteTeammate({ email: inviteFullEmail, role: inviteRole });
     setSending(false);
     if (!res.ok) { setInviteErr(res.error || "Couldn't send the invite."); return; }
     Keyboard.dismiss();
@@ -221,12 +229,27 @@ export default function TeamsScreen({ navigation }) {
             <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>They'll get an email with a link to join your workspace.</Text>
 
             <Text style={styles.fieldLabel}>Email</Text>
-            <TextInput
-              value={inviteEmail} onChangeText={setInviteEmail}
-              placeholder="teammate@company.com" placeholderTextColor={theme.ink4}
-              autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress"
-              style={styles.input}
-            />
+            {tenantDomain ? (
+              <>
+                <View style={styles.emailRow}>
+                  <TextInput
+                    value={inviteEmail} onChangeText={setInviteEmail}
+                    placeholder="name" placeholderTextColor={theme.ink4}
+                    autoCapitalize="none" autoCorrect={false} keyboardType="email-address"
+                    style={[styles.input, { flex: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRightWidth: 0 }]}
+                  />
+                  <View style={styles.domainChip}><Text style={[type.smallStrong, { color: theme.ink3 }]}>@{tenantDomain}</Text></View>
+                </View>
+                <Text style={[type.small, { color: theme.ink4, marginTop: 6 }]}>Only teammates on your <Text style={{ color: theme.ink2, fontFamily: "Inter_600SemiBold" }}>@{tenantDomain}</Text> domain can be invited.</Text>
+              </>
+            ) : (
+              <TextInput
+                value={inviteEmail} onChangeText={setInviteEmail}
+                placeholder="teammate@company.com" placeholderTextColor={theme.ink4}
+                autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress"
+                style={styles.input}
+              />
+            )}
 
             <Text style={[styles.fieldLabel, { marginTop: space(4) }]}>Role</Text>
             <View style={{ gap: 10 }}>
@@ -252,7 +275,7 @@ export default function TeamsScreen({ navigation }) {
               <View style={styles.errRow}><Feather name="alert-circle" size={14} color="#B42318" /><Text style={[type.small, { color: "#B42318", marginLeft: 8, flex: 1 }]}>{inviteErr}</Text></View>
             ) : null}
 
-            <Button title={sending ? "Sending…" : "Send invite"} icon={sending ? undefined : "send"} onPress={sendInvite} disabled={sending || !inviteEmail.trim()} style={{ marginTop: space(5) }} />
+            <Button title={sending ? "Sending…" : "Send invite"} icon={sending ? undefined : "send"} onPress={sendInvite} disabled={sending || !inviteValid} style={{ marginTop: space(5) }} />
           </View>
         </View>
       </Modal>
@@ -276,6 +299,8 @@ const styles = StyleSheet.create({
   sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
   fieldLabel: { ...type.smallStrong, color: theme.ink2, marginBottom: 7 },
   input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 48, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
+  emailRow: { flexDirection: "row", alignItems: "stretch" },
+  domainChip: { justifyContent: "center", paddingHorizontal: 12, backgroundColor: theme.line2, borderWidth: 1, borderColor: theme.line, borderTopRightRadius: radius.md, borderBottomRightRadius: radius.md },
   roleOpt: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 12, backgroundColor: theme.bg },
   roleOptOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
   roleOptIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center" },
