@@ -1,7 +1,7 @@
 // Aster UI primitives. The visual language of the app lives here: Inter type,
 // soft elevation, tactile press feedback (scale + haptics), and vector icons.
 import React, { useEffect, useRef } from "react";
-import { View, Text, Pressable, ActivityIndicator, Image, StyleSheet, Animated, Easing, Platform } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, Image, StyleSheet, Animated, Easing, Platform, AccessibilityInfo } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -295,13 +295,36 @@ export function Loader({ label, tint = theme.brand, size = 44 }) {
   );
 }
 
-export function EmptyState({ icon = "inbox", title, subtitle }) {
+// A calm, on-brand empty state: a layered brand medallion (not a flat gray box),
+// a clear title/subtitle, and an optional primary action. Every list in the app
+// renders through this, so the whole product's "nothing here yet" moments share
+// one polished look. Fades + rises in gently on mount (skipped under Reduce
+// Motion) so it feels intentional rather than a blank gap.
+export function EmptyState({ icon = "inbox", title, subtitle, actionLabel, onAction, hint }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled?.().then((reduce) => {
+      if (!mounted) return;
+      if (reduce) { anim.setValue(1); return; }
+      Animated.timing(anim, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }).catch(() => anim.setValue(1));
+    return () => { mounted = false; };
+  }, [anim]);
   return (
-    <View style={styles.centered}>
-      <View style={styles.emptyIcon}><Feather name={icon} size={26} color={theme.ink4} /></View>
-      <Text style={[type.h3, { color: theme.ink, textAlign: "center" }]}>{title}</Text>
-      {subtitle ? <Text style={[type.small, { color: theme.ink3, marginTop: 6, textAlign: "center", maxWidth: 280 }]}>{subtitle}</Text> : null}
-    </View>
+    <Animated.View style={[styles.centered, { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
+      <View style={styles.emptyMedallion}>
+        <View style={styles.emptyMedallionInner}>
+          <Feather name={icon} size={26} color={theme.brand} />
+        </View>
+      </View>
+      <Text style={[type.h2, { color: theme.ink, textAlign: "center" }]}>{title}</Text>
+      {subtitle ? <Text style={[type.body, { color: theme.ink3, marginTop: 8, textAlign: "center", maxWidth: 300 }]}>{subtitle}</Text> : null}
+      {actionLabel && onAction ? (
+        <Button title={actionLabel} onPress={onAction} variant="primary" style={{ marginTop: space(5), alignSelf: "center", minWidth: 200 }} />
+      ) : null}
+      {hint ? <Text style={[type.small, { color: theme.ink4, marginTop: space(3), textAlign: "center" }]}>{hint}</Text> : null}
+    </Animated.View>
   );
 }
 
@@ -328,5 +351,6 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginTop: space(2), paddingHorizontal: space(1) },
   screenTitle: { flexDirection: "row", alignItems: "center", paddingHorizontal: space(5), paddingTop: space(2), paddingBottom: space(3) },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: space(6) },
-  emptyIcon: { width: 60, height: 60, borderRadius: radius.lg, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center", marginBottom: space(4) },
+  emptyMedallion: { width: 92, height: 92, borderRadius: 28, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center", marginBottom: space(5) },
+  emptyMedallionInner: { width: 62, height: 62, borderRadius: 31, backgroundColor: theme.white, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.brandSoft2 },
 });

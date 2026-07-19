@@ -168,7 +168,13 @@ export default function TeamsScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} progressViewOffset={40} />}
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: "center", paddingTop: space(12) }}>
-            <EmptyState icon="users" title="No teammates yet" subtitle={canInvite ? "Invite a teammate to get started." : "Invite teammates from the Aster web app and they'll appear here."} />
+            <EmptyState
+              icon="users"
+              title="No teammates yet"
+              subtitle={canInvite ? "Build your interview panel. Invite a teammate and they'll get an email to join your workspace." : "Your panel is empty for now. Owners and admins can invite teammates from the Aster web app, and they'll appear here."}
+              actionLabel={canInvite ? "Invite a teammate" : undefined}
+              onAction={canInvite ? openInvite : undefined}
+            />
           </View>
         }
         ListFooterComponent={rows.length ? (

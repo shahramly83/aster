@@ -61,8 +61,9 @@ export default function OpenPositionsScreen({ navigation }) {
         <View style={{ flex: 1 }}><Loader label="Loading roles…" tint="#fff" /></View>
       ) : jobs.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
-          <EmptyState icon="briefcase" title="No open roles"
-            subtitle={manager ? "Open a role on the web app and it'll appear here." : "You're not on any open role's panel yet."} />
+          <EmptyState icon="briefcase" title="No open positions"
+            subtitle={manager ? "Open a position on the Aster web app and it'll appear here, ready to review and interview." : "You're not on any interview panel yet. Once a hiring manager adds you to a position, it'll show up here."}
+            hint={manager ? "Pull down to refresh" : undefined} />
         </View>
       ) : (
         <>
