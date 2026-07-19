@@ -155,16 +155,22 @@ export default function TodayScreen({ navigation }) {
     </View>
   );
 
+  // Pending interviews (no booked time yet): awaiting the candidate's pick, or
+  // needing new times after a reschedule. They have no date so they can't sit in
+  // the timeline — they head a "Needs your action" list instead.
+  const pending = items.filter((i) => i.status === "sent" || i.status === "reschedule" || !i.scheduledAt);
+  const timelined = items.filter((i) => i.status === "scheduled" && i.scheduledAt);
+
   // Every UPCOMING interview shows as the same prominent hero card (soonest
   // first), so they all look consistent. PAST interviews sink to a compact "Past"
   // list at the bottom so old ones never bury the real upcoming ones.
-  const sorted = [...items].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+  const sorted = [...timelined].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
   const isUpcoming = (i) => minutesUntil(i.scheduledAt) > -75;
   const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
   const past = sorted.filter((i) => !isUpcoming(i)).reverse();  // compact rows, most-recent first
   const flat = past.length ? [{ _header: "Past" }, ...past] : [];
 
-  const weekCount = items.filter((i) => { const m = minutesUntil(i.scheduledAt); return m > -75 && m < 60 * 24 * 7; }).length;
+  const weekCount = timelined.filter((i) => { const m = minutesUntil(i.scheduledAt); return m > -75 && m < 60 * 24 * 7; }).length;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -248,7 +254,31 @@ export default function TodayScreen({ navigation }) {
                 </View>
               </Rise>
             ) : null}
-            {items.length ? <Rise><WeekStrip items={items} tz={tz} /></Rise> : null}
+            {/* Interviews needing action: awaiting the candidate, or needing new
+                times after a reschedule. No booked time yet, so they sit up here. */}
+            {pending.length ? (
+              <Rise style={{ marginBottom: space(4) }}>
+                <Text style={styles.pollEyebrow}>NEEDS YOUR ACTION</Text>
+                <View style={styles.pollCard}>
+                  {pending.map((iv, i) => {
+                    const resch = iv.status === "reschedule";
+                    return (
+                      <Press key={iv.id} onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
+                        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={38} />
+                        <View style={{ flex: 1, marginLeft: 11 }}>
+                          <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{iv.candidateName}</Text>
+                          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
+                        </View>
+                        <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
+                          <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "New times" : "Awaiting"}</Text>
+                        </View>
+                      </Press>
+                    );
+                  })}
+                </View>
+              </Rise>
+            ) : null}
+            {timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
             {upcoming.length ? (
               <Rise delay={90} style={{ marginBottom: past.length ? space(5) : 0 }}>
                 <View style={styles.upNextRow}>
@@ -266,7 +296,7 @@ export default function TodayScreen({ navigation }) {
           </View>
         }
         ListEmptyComponent={
-          (upcoming.length || polls.length || myPolls.length) ? null : (
+          (upcoming.length || pending.length || polls.length || myPolls.length) ? null : (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}><Feather name="calendar" size={40} color={theme.brand} /></View>
               <Text style={[type.h2, { color: theme.ink, marginTop: space(5) }]}>You're all set</Text>
@@ -384,6 +414,7 @@ const styles = StyleSheet.create({
   pollRow: { flexDirection: "row", alignItems: "center", paddingVertical: 11 },
   pollRowDiv: { borderTopWidth: 1, borderTopColor: theme.line2 },
   votePill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: theme.brand, borderRadius: radius.pill, paddingHorizontal: 13, height: 32 },
+  actionPill: { borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5, marginLeft: 8 },
   votePillTxt: { fontFamily: "Inter_700Bold", fontSize: 13, color: "#fff" },
   progressTrack: { height: 6, borderRadius: 3, backgroundColor: theme.line2, marginTop: 7, overflow: "hidden" },
   progressFill: { height: 6, borderRadius: 3 },

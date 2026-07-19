@@ -12,10 +12,13 @@ const SIGNED_URL_TTL = 3600; // seconds
 // Returns enriched rows with candidate name, job title and resume/photo URLs.
 export async function loadMyInterviews(companyId, userId, assignedJobIds = [], manager = false) {
   const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees";
+  // Everything in the interview process: confirmed (scheduled), awaiting the
+  // candidate's pick (sent), and needs-new-times (reschedule) — so a rescheduled
+  // interview doesn't vanish from the tab.
   const base = () => supabase
     .from("interviews").select(cols)
     .eq("company_id", companyId)
-    .eq("status", "scheduled");
+    .in("status", ["scheduled", "sent", "reschedule"]);
   let rows;
   if (manager) {
     // Owners/admins oversee hiring, so they see EVERY scheduled interview in the
@@ -73,6 +76,7 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
       jobId: iv.job_id,
       candidateName: c.parsed?.name || c.full_name || "Candidate",
       jobTitle: jobTitle[iv.job_id] || "Interview",
+      status: iv.status, // scheduled | sent | reschedule
       scheduledAt: iv.scheduled_at,
       provider: iv.provider || "google",
       meetingLink: iv.meeting_link || null,

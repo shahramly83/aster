@@ -14097,6 +14097,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 const INTERVIEW_STAGE_META = {
   requested:          { label: "Awaiting scheduling", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
   awaiting_candidate: { label: "Awaiting candidate", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
+  reschedule:         { label: "Needs new times",   bg: "#FEF2F2", color: "#B42318", dot: "#F97316" },
   confirmed:          { label: "Upcoming Interview", bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
   scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
@@ -14106,7 +14107,7 @@ const INTERVIEW_STAGE_META = {
   rejected:           { label: "Not selected",       bg: "#FEF2F2", color: "#B42318", dot: "#DC2626" },
 };
 // Priority orders the list so the cards that need action sit at the top.
-const INTERVIEW_STAGE_ORDER = { requested: -1, awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4, offer: 5, hired: 6, rejected: 7 };
+const INTERVIEW_STAGE_ORDER = { reschedule: -2, requested: -1, awaiting_score: 0, confirmed: 1, awaiting_candidate: 2, completed: 3, scored: 4, offer: 5, hired: 6, rejected: 7 };
 // The candidate's dominant pipeline stage (from the loaded pipeline), if it has
 // moved beyond the interview itself. Once they're at offer, hired or turned down,
 // that trumps the interview-process status ("Scored"/"Confirmed"/etc.) everywhere,
@@ -14134,7 +14135,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
 
   // Order the list with the furthest-along outcomes first (Hired, Offer, ...) and
   // let the user filter by stage.
-  const STAGE_PRIORITY = { confirmed: 0, awaiting_candidate: 1, requested: 2, completed: 3, awaiting_score: 4, scored: 5, offer: 6, hired: 7, rejected: 8 };
+  const STAGE_PRIORITY = { reschedule: -1, confirmed: 0, awaiting_candidate: 1, requested: 2, completed: 3, awaiting_score: 4, scored: 5, offer: 6, hired: 7, rejected: 8 };
   const [ivFilter, setIvFilter] = useState("all");
   const stageCounts = interviews.reduce((m, iv) => { m[iv.stage] = (m[iv.stage] || 0) + 1; return m; }, {});
   const presentStages = Object.keys(stageCounts).sort((a, b) => (STAGE_PRIORITY[a] ?? 9) - (STAGE_PRIORITY[b] ?? 9));
@@ -14921,7 +14922,7 @@ function scheduledInterviewsFrom(bookings, candidates) {
 function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUserId = null, forInterviewer = false) {
   const now = Date.now();
   const rows = Object.entries(bookings || {})
-    .filter(([, b]) => b && (b.status === "sent" || (b.status === "scheduled" && b.confirmedSlot?.start)))
+    .filter(([, b]) => b && (b.status === "sent" || b.status === "reschedule" || (b.status === "scheduled" && b.confirmedSlot?.start)))
     .map(([candidateId, b]) => {
       const cand = candidates.find((c) => c.id === candidateId);
       const start = b.confirmedSlot?.start ? new Date(b.confirmedSlot.start) : null;
@@ -14930,6 +14931,7 @@ function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUse
       const outcome = candidateOutcome(candidateId);
       let stage;
       if (outcome) stage = outcome;
+      else if (b.status === "reschedule") stage = "reschedule";
       else if (b.status === "sent") stage = "awaiting_candidate";
       else if (start && start.getTime() > now) stage = "confirmed";
       else if (forInterviewer) {
