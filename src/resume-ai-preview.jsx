@@ -7495,7 +7495,7 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
             <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
               <Icon name="check" className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Thanks — we&apos;ll be in touch</h1>
+            <h1 className="text-xl font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Thanks, we&apos;ll be in touch</h1>
             <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>We&apos;ve shared your suggested times with the interview panel for the {jobTitle} role. {company} will email you to confirm the one that works for everyone.</p>
           </div>
         ) : mode === "propose" ? (
@@ -7518,7 +7518,7 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
               </div>
             )}
             <p className="text-xs mt-2.5" style={{ color: "var(--ink-3)" }}>
-              {windows.length === 0 ? "Pick a day, then a start and end time." : windows.length === 1 ? "Add at least one more window so the panel has options." : `${windows.length} windows added — the panel will confirm one.`}
+              {windows.length === 0 ? "Pick a day, then a start and end time." : windows.length === 1 ? "Add at least one more window so the panel has options." : `${windows.length} windows added, the panel will confirm one.`}
             </p>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything to add? (optional, e.g. mornings are best)" className="w-full rounded-xl border px-3 py-2.5 text-sm mt-4 resize-none" style={{ borderColor: "var(--line)", color: "var(--ink)" }} />
             {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
@@ -15856,7 +15856,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             </>
           ) : poll.status === "open" && round2 ? (
             <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
-              {isManager ? "The candidate agreed to these times. The panel's votes show who else can make it — confirm one to book it." : "Mark the candidate's times you can make."}
+              {isManager ? "The candidate agreed to these times. The panel's votes show who else can make it. Confirm one to book it." : "Mark the candidate's times you can make."}
             </p>
           ) : null}
         </>
@@ -15944,7 +15944,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const [confirmingSlot, setConfirmingSlot] = useState(null);
   const [rescheduleErr, setRescheduleErr] = useState(null);
   const confirmReschedule = async (start) => {
-    if (!booking?.token) { setRescheduleErr("Missing booking link — confirm in the mobile app."); return; }
+    if (!booking?.token) { setRescheduleErr("Missing booking link. Confirm in the mobile app."); return; }
     setRescheduleErr(null); setConfirmingSlot(start);
     const { data, error } = await supabase.functions.invoke("confirm-booking", { body: { token: booking.token, start } });
     setConfirmingSlot(null);

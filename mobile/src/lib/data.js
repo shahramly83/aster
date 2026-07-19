@@ -158,6 +158,24 @@ export async function createInterviewInvite({ companyId, candidateId, jobId, int
   return { ok: true, token: data.token, emailed, skipped };
 }
 
+// Confirmed interviews across the company, each with the panel's profile ids and
+// the booked time range — so a scheduler can grey out times a panel member is
+// already committed to and never double-book a person.
+export async function loadBookedSlots(companyId) {
+  if (!companyId) return [];
+  const { data } = await supabase
+    .from("interviews")
+    .select("candidate_id, scheduled_at, attendees, proposed_slots")
+    .eq("company_id", companyId).eq("status", "scheduled");
+  return (data || []).filter((iv) => iv.scheduled_at).map((iv) => {
+    const start = iv.scheduled_at;
+    const slot = (Array.isArray(iv.proposed_slots) ? iv.proposed_slots : []).find((s) => s.start === start);
+    const end = slot?.end || new Date(new Date(start).getTime() + 30 * 60000).toISOString();
+    const attendeeIds = (Array.isArray(iv.attendees) ? iv.attendees : []).map((a) => a.id).filter(Boolean);
+    return { candidateId: iv.candidate_id, start, end, attendeeIds };
+  });
+}
+
 // Re-send the booking email for an existing invite token.
 export async function resendInterviewInvite(token) {
   if (!token) return { ok: false };

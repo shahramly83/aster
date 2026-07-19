@@ -6,7 +6,7 @@ import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages,
   loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
-  loadCandidateInterview, loadInterviewers, confirmPollSlot, createInterviewInvite,
+  loadCandidateInterview, loadInterviewers, confirmPollSlot, createInterviewInvite, loadBookedSlots,
 } from "../lib/data";
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
@@ -59,6 +59,7 @@ export default function DiscussionScreen({ route, navigation }) {
   const [composerOpen, setComposerOpen] = useState(false);
   const [panelMembers, setPanelMembers] = useState([]); // assigned interviewers (attendees + email)
   const [sentInterview, setSentInterview] = useState(false); // an invite is out, awaiting the candidate
+  const [blockedSlots, setBlockedSlots] = useState([]); // times a panel member is already booked
   const [selected, setSelected] = useState(() => new Set()); // slot ids the HM will offer
   const [override, setOverride] = useState(false); // HM proceeds before every vote
   const [sendingOffer, setSendingOffer] = useState(false);
@@ -99,6 +100,20 @@ export default function DiscussionScreen({ route, navigation }) {
   }, [profile?.companyId, profile?.userId, candidateId, manager, jobId]);
 
   useEffect(() => { load(); loadPoll(); }, [load, loadPoll]);
+
+  // Times this panel is already committed to (confirmed interviews, any other
+  // candidate/position) so the poll composer's calendar can grey them out.
+  useEffect(() => {
+    if (!manager || !profile?.companyId || !jobId) return;
+    (async () => {
+      const [pool, booked] = await Promise.all([
+        loadInterviewers(profile.companyId, jobId).catch(() => []),
+        loadBookedSlots(profile.companyId).catch(() => []),
+      ]);
+      const panelIds = new Set([profile.userId, ...pool.filter((p) => p.assigned).map((p) => p.id)].filter(Boolean));
+      setBlockedSlots(booked.filter((b) => b.candidateId !== candidateId && b.attendeeIds.some((id) => panelIds.has(id))).map((b) => ({ start: b.start, end: b.end })));
+    })();
+  }, [manager, profile?.companyId, profile?.userId, jobId, candidateId]);
 
   // Keep the latest message + input visible when the keyboard opens.
   useEffect(() => { if (kb) scrollEnd(); }, [kb]);
@@ -290,7 +305,7 @@ export default function DiscussionScreen({ route, navigation }) {
           </View>
       </View>
 
-      <PollComposer visible={composerOpen} tz={profile.timezone} onClose={() => setComposerOpen(false)} onCreate={onCreatePoll} />
+      <PollComposer visible={composerOpen} tz={profile.timezone} onClose={() => setComposerOpen(false)} onCreate={onCreatePoll} blocked={blockedSlots} />
     </View>
   );
 }
@@ -394,7 +409,7 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
   );
 }
 
-function PollComposer({ visible, tz, onClose, onCreate }) {
+function PollComposer({ visible, tz, onClose, onCreate, blocked = [] }) {
   const insets = useSafeAreaInsets();
   const [slots, setSlots] = useState([]); // { start, end } ISO
   const [calOpen, setCalOpen] = useState(false);
@@ -450,6 +465,7 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
         onClose={() => setCalOpen(false)}
         title="Add a time range"
         confirmLabel="Add range"
+        blocked={blocked}
         onConfirm={({ startIso, endIso }) => {
           const ns = new Date(startIso).getTime(), ne = new Date(endIso).getTime();
           const clash = slots.some((x) => ns < new Date(x.end || x.start).getTime() && new Date(x.start).getTime() < ne);

@@ -68,12 +68,23 @@ Deno.serve(async (req) => {
     if (!iv) return json({ error: "not found" }, 404);
 
     const slots = Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [];
-    const match = slots.find((s: { start?: string }) => s && s.start === start);
+    // Match on the instant, not the exact string: a poll slot comes from a
+    // timestamptz ("...+00:00") while proposed_slots hold ISO "...Z" — same time,
+    // different text — so string equality would wrongly reject a valid slot.
+    const sameInstant = (a?: string, b?: string) => {
+      if (!a || !b) return false;
+      const ta = new Date(a).getTime(), tb = new Date(b).getTime();
+      return !Number.isNaN(ta) && ta === tb;
+    };
+    const match = slots.find((s: { start?: string }) => s && sameInstant(s.start, start));
     if (!match && iv.status !== "scheduled") return json({ error: "that time is no longer offered" }, 409);
+    // Persist the candidate-facing ISO form when we have it, so scheduled_at lines
+    // up with proposed_slots.
+    const confirmedStart = (match as { start?: string } | undefined)?.start || start;
 
     // Persist the confirmed time (idempotent: a repeat confirm is a no-op update).
     if (iv.status !== "scheduled") {
-      await admin.from("interviews").update({ scheduled_at: start, status: "scheduled" }).eq("id", iv.id);
+      await admin.from("interviews").update({ scheduled_at: confirmedStart, status: "scheduled" }).eq("id", iv.id);
       // Advance the candidate's pipeline stage, unless already further along.
       await admin.from("applications").update({ stage: "interviewing" })
         .eq("company_id", iv.company_id).eq("candidate_id", iv.candidate_id)

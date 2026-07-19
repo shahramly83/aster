@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, Modal, ScrollView, Alert, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { createInterviewInvite, loadInterviewers, loadCandidatePoll } from "../lib/data";
+import { createInterviewInvite, loadInterviewers, loadCandidatePoll, loadBookedSlots } from "../lib/data";
 import { Button, Feather } from "./ui";
 import CalendarSheet from "./CalendarSheet";
 import { theme, type, space, radius } from "../theme";
@@ -30,20 +30,30 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
   const [calOpen, setCalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [blocked, setBlocked] = useState([]); // {start,end} a panel member is already booked
 
-  // Pull the panel poll each time the sheet opens, ranked by availability.
+  // Pull the panel poll each time the sheet opens, ranked by availability, plus
+  // the times this panel is already committed to (so the calendar can grey them out).
   useEffect(() => {
     if (!visible) return;
     (async () => {
-      const poll = await loadCandidatePoll(companyId, candidateId, hm?.id).catch(() => null);
+      const [poll, pool, booked] = await Promise.all([
+        loadCandidatePoll(companyId, candidateId, hm?.id).catch(() => null),
+        loadInterviewers(companyId, jobId).catch(() => []),
+        loadBookedSlots(companyId).catch(() => []),
+      ]);
       const slots = (poll?.slots || [])
         .map((s) => ({ start: s.ts, end: s.end, count: s.count }))
         .sort((a, b) => b.count - a.count);
       setPollSlots(slots);
       // Pre-tick the slots at least one interviewer can make.
       setSelected(new Set(slots.filter((s) => s.count > 0).map((s) => s.start)));
+      // Block any time a member of THIS panel already has a confirmed interview
+      // (any other candidate, any position) — no double-booking a person.
+      const panelIds = new Set([hm?.id, ...pool.filter((p) => p.assigned).map((p) => p.id)].filter(Boolean));
+      setBlocked(booked.filter((b) => b.candidateId !== candidateId && b.attendeeIds.some((id) => panelIds.has(id))).map((b) => ({ start: b.start, end: b.end })));
     })();
-  }, [visible, companyId, candidateId, hm?.id]);
+  }, [visible, companyId, candidateId, jobId, hm?.id]);
 
   const reset = () => { setExtra([]); setErr(null); setBusy(false); setCalOpen(false); };
   const close = () => { if (!busy) { reset(); onClose(); } };
@@ -154,6 +164,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
         title="Add a time"
         confirmLabel="Add time"
         onConfirm={addExtra}
+        blocked={blocked}
       />
     </Modal>
   );

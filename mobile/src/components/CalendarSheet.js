@@ -28,7 +28,7 @@ function timeLabel(h, m) {
 const WD_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const ymdOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-export default function CalendarSheet({ visible, onClose, onConfirm, title, confirmLabel = "Confirm", minDate, initial, mode = "datetime" }) {
+export default function CalendarSheet({ visible, onClose, onConfirm, title, confirmLabel = "Confirm", minDate, initial, mode = "datetime", blocked = [] }) {
   const insets = useSafeAreaInsets();
   const dateOnly = mode === "date";
   const today = startOfDay(new Date());
@@ -42,11 +42,30 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
   const [to, setTo] = useState(null);
 
   const mins = (t) => (t ? t.h * 60 + t.m : -1);
+
+  // 30-min marks on the selected day a panel member is already booked for
+  // (confirmed interviews). A start can't land on one, and a range can't span one.
+  const blockedMins = useMemo(() => {
+    const set = new Set();
+    if (!day) return set;
+    for (const r of blocked || []) {
+      const s = new Date(r.start), e = new Date(r.end);
+      if (!sameDay(s, day)) continue;
+      const sM = s.getHours() * 60 + s.getMinutes(), eM = e.getHours() * 60 + e.getMinutes();
+      for (let m = sM; m < eM; m += 30) set.add(m);
+    }
+    return set;
+  }, [blocked, day]);
+  const fromBlocked = (t) => blockedMins.has(mins(t));
+  const rangeBlocked = (endT) => { for (let m = mins(from); m < mins(endT); m += 30) if (blockedMins.has(m)) return true; return false; };
+
   const pickFrom = (t) => {
+    if (fromBlocked(t)) return;
     setFrom(t);
-    if (!to || mins(to) <= mins(t)) {
+    if (!to || mins(to) <= mins(t) || rangeBlocked(to)) {
       const endMin = mins(t) + 60;
-      setTo(TIME_SLOTS.find((s) => mins(s) === endMin) || TIME_SLOTS[TIME_SLOTS.length - 1]);
+      const next = TIME_SLOTS.find((s) => mins(s) === endMin && !blockedMins.has(mins(s) - 30));
+      setTo(next || null);
     }
   };
 
@@ -149,9 +168,10 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
                 {TIME_SLOTS.map((t, i) => {
                   const on = from && mins(from) === mins(t);
+                  const disabled = fromBlocked(t);
                   return (
-                    <Pressable key={i} onPress={() => pickFrom(t)} style={[styles.timeChip, on && styles.timeChipOn]}>
-                      <Text style={[styles.timeTxt, on && { color: theme.white }]}>{timeLabel(t.h, t.m)}</Text>
+                    <Pressable key={i} onPress={() => pickFrom(t)} disabled={disabled} style={[styles.timeChip, on && styles.timeChipOn, disabled && { opacity: 0.3 }]}>
+                      <Text style={[styles.timeTxt, on && { color: theme.white }, disabled && { textDecorationLine: "line-through" }]}>{timeLabel(t.h, t.m)}</Text>
                     </Pressable>
                   );
                 })}
@@ -160,7 +180,7 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
               <Text style={styles.timeHead}>TO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, paddingRight: space(2) }}>
                 {TIME_SLOTS.map((t, i) => {
-                  const disabled = mins(t) <= mins(from);
+                  const disabled = mins(t) <= mins(from) || rangeBlocked(t);
                   const on = to && mins(to) === mins(t);
                   return (
                     <Pressable key={i} onPress={() => !disabled && setTo(t)} disabled={disabled} style={[styles.timeChip, on && styles.timeChipOn, disabled && { opacity: 0.35 }]}>
@@ -169,6 +189,9 @@ export default function CalendarSheet({ visible, onClose, onConfirm, title, conf
                   );
                 })}
               </ScrollView>
+              {blockedMins.size > 0 ? (
+                <Text style={[type.small, { color: theme.ink4, marginTop: space(2) }]}>Greyed-out times are when a panel member is already interviewing.</Text>
+              ) : null}
             </>
           ) : null}
 
