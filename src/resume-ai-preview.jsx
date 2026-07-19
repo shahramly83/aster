@@ -7422,24 +7422,30 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
   const [err, setErr] = useState(null);
   const [confirmedStart, setConfirmedStart] = useState(data?.scheduled_at || null);
   const [mode, setMode] = useState("pick"); // 'pick' | 'propose' | 'declined'
-  const [windows, setWindows] = useState(["", ""]); // datetime-local strings (min 2)
+  const [windows, setWindows] = useState([]); // proposed { start, end } local "YYYY-MM-DDTHH:mm"
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const company = data?.company_name || "The team";
   const logoUrl = data?.logo_url || null;
   const jobTitle = data?.job_title || "the role";
   const slots = Array.isArray(data?.proposed_slots) ? data.proposed_slots : [];
-  // Keep the candidate's suggested windows the same length as the times HR offered.
-  const durMs = slots[0]?.end ? (new Date(slots[0].end) - new Date(slots[0].start)) : 60 * 60000;
 
-  const validWindows = windows.map((w) => w && w.trim()).filter(Boolean);
+  const addWindow = (range) => {
+    if (!range?.start || !range?.end) return;
+    setWindows((prev) => (prev.some((x) => x.start === range.start) ? prev : [...prev, range].sort((a, b) => a.start.localeCompare(b.start))));
+  };
+  const removeWindow = (start) => setWindows((prev) => prev.filter((x) => x.start !== start));
+  // Local "YYYY-MM-DDTHH:mm" → a readable label in the candidate's own timezone.
+  const fmtWindow = (localStart, localEnd) => {
+    const s = new Date(localStart), e = new Date(localEnd);
+    const day = s.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    const t = (d) => d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    return `${day}, ${t(s)} - ${t(e)}`;
+  };
   const sendProposal = async () => {
     setErr(null);
-    if (validWindows.length < 2) { setErr("Please suggest at least two times that work for you."); return; }
-    const built = validWindows.map((w) => {
-      const start = new Date(w);
-      return { start: start.toISOString(), end: new Date(start.getTime() + durMs).toISOString() };
-    });
+    if (windows.length < 2) { setErr("Please suggest at least two times that work for you."); return; }
+    const built = windows.map((w) => ({ start: new Date(w.start).toISOString(), end: new Date(w.end).toISOString() }));
     setSending(true);
     const res = await onDecline(built, note.trim());
     setSending(false);
@@ -7495,22 +7501,28 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
         ) : mode === "propose" ? (
           <>
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Suggest times that work for you</h1>
-            <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>Add at least two windows you&apos;re free for the <strong>{jobTitle}</strong> interview, and {company} will confirm one with the panel.</p>
-            <div className="space-y-2">
-              {windows.map((w, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input type="datetime-local" value={w} onChange={(e) => setWindows((prev) => prev.map((x, idx) => (idx === i ? e.target.value : x)))}
-                    className="flex-1 min-w-0 rounded-xl border px-3 py-2.5 text-sm" style={{ borderColor: "var(--line)", color: "var(--ink)" }} />
-                  {windows.length > 2
-                    ? <button type="button" aria-label="Remove time" onClick={() => setWindows((prev) => prev.filter((_, idx) => idx !== i))} className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
-                    : <span className="w-8 shrink-0" />}
-                </div>
-              ))}
-            </div>
-            <button type="button" onClick={() => setWindows((prev) => [...prev, ""])} className="text-sm font-medium mt-2.5" style={{ color: "var(--brand)" }}>+ Add another time</button>
+            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>Add at least two windows you&apos;re free for the <strong>{jobTitle}</strong> interview, and {company} will confirm one with the panel.</p>
+            <DateTimePicker onAdd={addWindow} slots={windows} onRemove={removeWindow}
+              title="Add a time you're free" subtitle="Pick a day, then a start and end time you can make the interview." triggerLabel="Add a time you're free…" />
+            {windows.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {windows.map((w) => (
+                  <div key={w.start} className="flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5" style={{ borderColor: "var(--line)", background: "var(--brand-soft)" }}>
+                    <span className="inline-flex items-center gap-2 text-sm font-medium min-w-0" style={{ color: "var(--ink)" }}>
+                      <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />
+                      <span className="truncate">{fmtWindow(w.start, w.end)}</span>
+                    </span>
+                    <button type="button" onClick={() => removeWindow(w.start)} aria-label="Remove time" className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/60 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs mt-2.5" style={{ color: "var(--ink-3)" }}>
+              {windows.length === 0 ? "Pick a day, then a start and end time." : windows.length === 1 ? "Add at least one more window so the panel has options." : `${windows.length} windows added — the panel will confirm one.`}
+            </p>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything to add? (optional, e.g. mornings are best)" className="w-full rounded-xl border px-3 py-2.5 text-sm mt-4 resize-none" style={{ borderColor: "var(--line)", color: "var(--ink)" }} />
             {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
-            <button onClick={sendProposal} disabled={sending || validWindows.length < 2} className="w-full mt-4 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand)" }}>{sending ? "Sending…" : "Send my times"}</button>
+            <button onClick={sendProposal} disabled={sending || windows.length < 2} className="w-full mt-4 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand)" }}>{sending ? "Sending…" : "Send my times"}</button>
             <button type="button" onClick={() => { setMode("pick"); setErr(null); }} className="w-full mt-2 text-sm font-medium py-1.5" style={{ color: "var(--ink-3)" }}>Back to the offered times</button>
           </>
         ) : (
@@ -15227,7 +15239,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
 // time, and it emits { start, end } as local "YYYY-MM-DDTHH:mm" strings.
 // `takenRanges` (ISO {start,end}, already-confirmed interviews for this position)
 // are disabled so the same slot can't be booked for two candidates.
-function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
+function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, title = "Offer interview times", subtitle = "Pick a day and a start and end time, then Add time. Offer two or three, the candidate books whichever one suits them.", triggerLabel = "Add an interview time…" }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -15324,7 +15336,7 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
         style={{ "--tw-ring-color": "var(--brand)" }}
       >
         <Icon name="calendar" className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />
-        <span className={summary ? "text-neutral-900" : "text-neutral-400"}>{summary || "Add an interview time…"}</span>
+        <span className={summary ? "text-neutral-900" : "text-neutral-400"}>{summary || triggerLabel}</span>
         <span className="ml-auto shrink-0 inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--brand)" }}><Icon name="plus" className="w-3.5 h-3.5" /> Add</span>
       </button>
 
@@ -15337,8 +15349,8 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove }) {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Offer interview times</h3>
-                <p className="text-xs mt-0.5 text-neutral-500">Pick a day and a start and end time, then Add time. Offer two or three, the candidate books whichever one suits them.</p>
+                <h3 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{title}</h3>
+                <p className="text-xs mt-0.5 text-neutral-500">{subtitle}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="shrink-0 -mr-1 -mt-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 text-neutral-400"><Icon name="close" className="w-4 h-4" /></button>
             </div>
