@@ -332,16 +332,16 @@ function TimelineCard({ iv, tz, onPress }) {
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{iv.candidateName}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-            <Text style={[type.small, { color: theme.ink3 }]} numberOfLines={1}>{iv.jobTitle}</Text>
+            <Text style={[type.small, { color: theme.ink3, flexShrink: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
             {iv.meetingLink ? (
-              <>
-                <View style={styles.dot} />
-                <Feather name="video" size={13} color={theme.brand} />
-              </>
+              <View style={styles.videoTag}>
+                <Feather name="video" size={11} color={theme.brand} />
+                <Text style={styles.videoTagTxt}>Video</Text>
+              </View>
             ) : null}
           </View>
         </View>
-        <Feather name="chevron-right" size={20} color={theme.ink4} />
+        <Feather name="chevron-right" size={20} color={theme.ink4} style={{ marginLeft: 6 }} />
       </View>
     </Press>
   );
@@ -402,4 +402,6 @@ const styles = StyleSheet.create({
   timePill: { backgroundColor: theme.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, marginRight: 12, minWidth: 62, alignItems: "center" },
   timePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.brand, fontVariant: ["tabular-nums"] },
   dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
+  videoTag: { flexDirection: "row", alignItems: "center", marginLeft: 8, backgroundColor: theme.brandSoft, paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.pill },
+  videoTagTxt: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: theme.brand, marginLeft: 3, letterSpacing: 0.2 },
 });
