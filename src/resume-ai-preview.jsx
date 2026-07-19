@@ -14097,7 +14097,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 const INTERVIEW_STAGE_META = {
   requested:          { label: "Awaiting scheduling", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
   awaiting_candidate: { label: "Awaiting candidate", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
-  confirmed:          { label: "Confirmed",          bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
+  confirmed:          { label: "Upcoming Interview", bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
   scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   completed:          { label: "Interview completed",    bg: "#F1F5F9", color: "#475569", dot: "#94A3B8" },
@@ -14134,7 +14134,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
 
   // Order the list with the furthest-along outcomes first (Hired, Offer, ...) and
   // let the user filter by stage.
-  const STAGE_PRIORITY = { hired: 0, offer: 1, scored: 2, completed: 3, awaiting_score: 4, confirmed: 5, awaiting_candidate: 6, requested: 7, rejected: 8 };
+  const STAGE_PRIORITY = { confirmed: 0, awaiting_candidate: 1, requested: 2, completed: 3, awaiting_score: 4, scored: 5, offer: 6, hired: 7, rejected: 8 };
   const [ivFilter, setIvFilter] = useState("all");
   const stageCounts = interviews.reduce((m, iv) => { m[iv.stage] = (m[iv.stage] || 0) + 1; return m; }, {});
   const presentStages = Object.keys(stageCounts).sort((a, b) => (STAGE_PRIORITY[a] ?? 9) - (STAGE_PRIORITY[b] ?? 9));
@@ -14216,7 +14216,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
               return (
                 <button
                   key={iv.candidateId}
-                  onClick={() => onViewCandidate(iv.candidateId, job?.id ?? null)}
+                  onClick={() => onViewCandidate(iv.candidateId, job?.id ?? null, null, "interview")}
                   className="w-full text-left rounded-2xl bg-white act-shadow border p-4 sm:p-5 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-4"
                   style={{ borderColor: "var(--line)" }}
                 >
@@ -19699,7 +19699,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -19745,7 +19745,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     : null;
   const [showOffer, setShowOffer] = useState(false);
   // Profile / Interview tabs on the candidate profile (only shown in a job pipeline).
-  const [profileTab, setProfileTab] = useState(isInterviewer(profile?.role) ? "interview" : "profile");
+  const [profileTab, setProfileTab] = useState(initialTab || (isInterviewer(profile?.role) ? "interview" : "profile"));
   const [pendingDecision, setPendingDecision] = useState(null); // 'offer' awaiting skip-scorecards confirm
   const [confirmReject, setConfirmReject] = useState(false);     // reject double-confirm (sends an email)
   // Database-view invite: pick an open role, draft a re-engagement email, and
@@ -23253,6 +23253,7 @@ export default function ResumeAIPreview() {
   const [viewCandidateId, setViewCandidateId] = useState(() => (typeof window !== "undefined" ? candidateIdFromPath(window.location.pathname) : null));
   const [viewCandidateJobId, setViewCandidateJobId] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("job") : null));
   const [viewCandidateStage, setViewCandidateStage] = useState(null);
+  const [viewCandidateTab, setViewCandidateTab] = useState(null); // open the profile on a specific tab
   const [candidateFilter, setCandidateFilter] = useState(null);
   const [jobStatusFilter, setJobStatusFilter] = useState(null);
   const [interviewers, setInterviewers] = useState(INITIAL_INTERVIEWERS);
@@ -24281,10 +24282,11 @@ export default function ResumeAIPreview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const viewCandidate = (candidateId, jobId = null, stage = null) => {
+  const viewCandidate = (candidateId, jobId = null, stage = null, tab = null) => {
     setViewCandidateId(candidateId);
     setViewCandidateJobId(jobId);
     setViewCandidateStage(stage);
+    setViewCandidateTab(tab);
     // Keep the job in the URL so a refresh restores the pipeline context (the
     // scheduling / questions / scorecard panels all key off it).
     navigate("candidateProfile", jobId ? `/candidates/${candidateId}?job=${encodeURIComponent(jobId)}` : `/candidates/${candidateId}`);
@@ -25088,6 +25090,7 @@ export default function ResumeAIPreview() {
             // interview history still show for hired/interviewed candidates.
             contextJobId={viewCandidateJobId || (activeCandidate ? (bookings[activeCandidate.id]?.jobId ?? bookings[activeCandidate.id]?.request?.jobId ?? null) : null)}
             initialStage={viewCandidateStage}
+            initialTab={viewCandidateTab}
             // Bookings are stored per candidate; only surface it under the role it
             // belongs to, so the same candidate viewed under a different position
             // doesn't inherit another role's interview.

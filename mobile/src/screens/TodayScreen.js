@@ -258,7 +258,7 @@ export default function TodayScreen({ navigation }) {
                 {upcoming.map((iv, i) => (
                   <View key={iv.id} style={{ marginBottom: i < upcoming.length - 1 ? space(3) : 0 }}>
                     <HeroCard iv={iv} tz={tz}
-                      onOpen={() => navigation.navigate("InterviewDetail", { interviewId: iv.id, iv })} />
+                      onOpen={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
                   </View>
                 ))}
               </Rise>
@@ -279,7 +279,7 @@ export default function TodayScreen({ navigation }) {
         renderItem={({ item, index }) =>
           item._header
             ? <Text style={styles.section}>{item._header}</Text>
-            : <Rise delay={Math.min(index, 6) * 55}><PastCard iv={item} tz={tz} onPress={() => navigation.navigate("InterviewDetail", { interviewId: item.id, iv: item })} /></Rise>
+            : <Rise delay={Math.min(index, 6) * 55}><PastCard iv={item} tz={tz} onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, jobId: item.jobId, candidateName: item.candidateName, jobTitle: item.jobTitle })} /></Rise>
         }
       />
     </View>

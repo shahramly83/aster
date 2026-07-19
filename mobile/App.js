@@ -38,7 +38,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 import SignInScreen from "./src/screens/SignInScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import TodayScreen from "./src/screens/TodayScreen";
-import InterviewDetailScreen from "./src/screens/InterviewDetailScreen";
 import ScorecardScreen from "./src/screens/ScorecardScreen";
 import OpenPositionsScreen from "./src/screens/OpenPositionsScreen";
 import TeamsScreen from "./src/screens/TeamsScreen";
@@ -109,7 +108,6 @@ function Root() {
       }}
     >
       <Stack.Screen name="Main" component={Tabs} options={{ headerShown: false }} />
-      <Stack.Screen name="InterviewDetail" component={InterviewDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Scorecard" component={ScorecardScreen} options={{ headerShown: false }} />
       <Stack.Screen name="JobDetail" component={JobDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CandidateProfile" component={CandidateProfileScreen} options={{ headerShown: false }} />
@@ -139,7 +137,7 @@ export default function App() {
   // Status bar follows the active route: light on the blue Pipeline dashboard,
   // dark everywhere else (including pushed stack screens).
   // Blue-header screens use a light status bar; everything else dark.
-  const BLUE_ROUTES = ["DashboardTab", "PositionsTab", "JobDetail", "CandidateProfile", "Scorecard", "Discussion", "InterviewDetail", "Notifications", "Settings"];
+  const BLUE_ROUTES = ["DashboardTab", "PositionsTab", "JobDetail", "CandidateProfile", "Scorecard", "Discussion", "Notifications", "Settings"];
   const applyBar = (state) => {
     let r = state?.routes?.[state.index];
     while (r?.state) r = r.state.routes[r.state.index];
