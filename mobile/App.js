@@ -95,7 +95,11 @@ function LockScreen() {
 
 function Root() {
   const { booting, signedIn, locked, profile } = useAuth();
-  if (booting) return <Loader label="Loading Aster…" />;
+  if (booting) return (
+    <View style={{ flex: 1, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" }}>
+      <Loader tint="#fff" label="Loading Aster…" />
+    </View>
+  );
   if (!signedIn) {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
