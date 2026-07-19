@@ -14098,7 +14098,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 const INTERVIEW_STAGE_META = {
   requested:          { label: "Awaiting scheduling", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
   awaiting_candidate: { label: "Awaiting candidate", bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
-  reschedule:         { label: "Needs new times",   bg: "#FEF2F2", color: "#B42318", dot: "#F97316" },
+  reschedule:         { label: "Reschedule",         bg: "#FEF2F2", color: "#B42318", dot: "#F97316" },
   confirmed:          { label: "Upcoming Interview", bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
   awaiting_score:     { label: "Awaiting your scorecard", bg: "#EFF6FF", color: "#1E40AF", dot: "#3B82F6" },
   scored:             { label: "Scored",             bg: "#ECFDF3", color: "#067647", dot: "#12B76A" },
@@ -14251,6 +14251,10 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                       ) : iv.stage === "requested" ? (
                         <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
                           <Icon name="userPlus" className="w-3 h-3" /> {iv.requestedByMe ? "Requested by you" : `Requested by ${iv.requestedByName}`}, awaiting the hiring manager to schedule
+                        </span>
+                      ) : iv.stage === "reschedule" ? (
+                        <span className="text-xs flex items-center gap-1" style={{ color: "#B42318" }}>
+                          <Icon name="refresh" className="w-3 h-3" /> {iv.previousAt ? `Rescheduled from ${formatSlotDisplay(iv.previousAt)} — propose new times` : "Rescheduled — propose new times"}
                         </span>
                       ) : (
                         <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
@@ -14945,6 +14949,7 @@ function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUse
         jobTitle: b.request?.jobTitle || "Interview",
         interviewerName: b.request?.interviewerName || null,
         stage,
+        previousAt: b.previousAt || null,
         start,
         month: start ? start.toLocaleString("en-US", { month: "short" }) : null,
         day: start ? String(start.getDate()) : null,
