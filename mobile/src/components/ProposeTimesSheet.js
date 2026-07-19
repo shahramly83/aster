@@ -65,7 +65,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
 
   const send = async () => {
     setErr(null);
-    if (!chosen.length) { setErr("Pick at least one time to send."); return; }
+    if (chosen.length < 2) { setErr("Pick at least two times for the candidate to choose from."); return; }
     setBusy(true);
     const attendees = [{ id: hm?.id, name: hm?.name || "", email: hm?.email || "", hm: true }];
     try {
@@ -144,7 +144,7 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
           </ScrollView>
 
           {err ? <Text style={[type.small, { color: "#B42318", marginTop: space(2) }]}>{err}</Text> : null}
-          <Button title={busy ? "Sending…" : `Send ${chosen.length || ""} time${chosen.length === 1 ? "" : "s"} to candidate`} icon={busy ? undefined : "send"} onPress={send} disabled={busy || !chosen.length} style={{ marginTop: space(4) }} />
+          <Button title={busy ? "Sending…" : `Send ${chosen.length || ""} time${chosen.length === 1 ? "" : "s"} to candidate`} icon={busy ? undefined : "send"} onPress={send} disabled={busy || chosen.length < 2} style={{ marginTop: space(4) }} />
         </View>
       </View>
 

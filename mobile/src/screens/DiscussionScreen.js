@@ -286,7 +286,7 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
 
   const post = async () => {
     setErr(null);
-    if (slots.length < 2) { setErr("Add at least two time ranges."); return; }
+    if (slots.length < 3) { setErr("Propose at least three time ranges."); return; }
     setBusy(true);
     const res = await onCreate(slots);
     setBusy(false);
@@ -321,7 +321,7 @@ function PollComposer({ visible, tz, onClose, onCreate }) {
           </Pressable>
 
           {err ? <Text style={[type.small, { color: "#B42318", marginTop: space(2) }]}>{err}</Text> : null}
-          <Button title={busy ? "Posting…" : "Post poll"} icon={busy ? undefined : "send"} onPress={post} disabled={busy || slots.length < 2} style={{ marginTop: space(4) }} />
+          <Button title={busy ? "Posting…" : "Post poll"} icon={busy ? undefined : "send"} onPress={post} disabled={busy || slots.length < 3} style={{ marginTop: space(4) }} />
         </View>
       </View>
 
