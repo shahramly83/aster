@@ -184,7 +184,7 @@ export default function TodayScreen({ navigation }) {
             {/* Polls I ran — panel voting progress (manager), tap opens the chat */}
             {myPolls.length ? (
               <Rise style={{ marginBottom: space(4) }}>
-                <Text style={styles.pollEyebrow}>YOUR AVAILABILITY POLLS</Text>
+                <Text style={styles.pollEyebrow}>TEAM AVAILABILITY POLL</Text>
                 <View style={styles.pollCard}>
                   {myPolls.slice(0, 6).map((p, i) => {
                     const done = p.total > 0 && p.voted >= p.total;
