@@ -251,25 +251,37 @@ export async function dbSaveEmailTemplate(companyId, key, { subject, body }) {
 // interviewer's name/email are denormalised for notifications instead.
 export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = null, interviewerName = null, interviewerEmail = null, proposedSlots = [], provider = "google", attendees = [] }) {
   if (!hasSupabase || !companyId || !candidateId) return null;
-  const { data, error } = await supabase
-    .from("interviews")
-    .insert({
-      company_id: companyId,
-      candidate_id: candidateId,
-      job_id: jobId,
-      interviewer_name: interviewerName,
-      interviewer_email: interviewerEmail,
-      proposed_slots: proposedSlots,
-      provider,
-      status: "sent",
-      attendees,
-    })
-    .select("token")
-    .single();
-  if (error) { console.error("dbCreateInterviewInvite", error.message); return null; }
+  const fields = {
+    interviewer_name: interviewerName, interviewer_email: interviewerEmail,
+    proposed_slots: proposedSlots, provider, status: "sent", attendees,
+    scheduled_at: null, meeting_link: null,
+  };
+  // Reuse an existing non-confirmed interview for this candidate+job (a reschedule
+  // row, or a prior 'sent' invite) rather than spawning a duplicate row — that
+  // double-listed the candidate and split the flow. Keep previous_at so a
+  // rescheduled invite still knows the original date.
+  let sel = supabase.from("interviews").select("id, previous_at")
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .in("status", ["reschedule", "sent"]).order("created_at", { ascending: false }).limit(1);
+  if (jobId) sel = sel.eq("job_id", jobId);
+  const { data: existing } = await sel.maybeSingle();
+  let token = null;
+  if (existing) {
+    const { data, error } = await supabase.from("interviews")
+      .update({ ...fields, previous_at: existing.previous_at || null }).eq("id", existing.id)
+      .select("token").single();
+    if (error) { console.error("dbCreateInterviewInvite update", error.message); return null; }
+    token = data?.token || null;
+  } else {
+    const { data, error } = await supabase.from("interviews")
+      .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, ...fields })
+      .select("token").single();
+    if (error) { console.error("dbCreateInterviewInvite", error.message); return null; }
+    token = data?.token || null;
+  }
   // Sending times (whether from a poll or set directly) moves them to "Interview".
   advanceToInterviewing(companyId, candidateId, jobId);
-  return data?.token || null;
+  return token;
 }
 
 // Advance a candidate's pipeline stage to "interviewing" — forward-only, so it

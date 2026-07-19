@@ -147,31 +147,43 @@ async function advanceToInterviewing(companyId, candidateId, jobId) {
 export async function createInterviewInvite({ companyId, candidateId, jobId, interviewerName, interviewerEmail, slots = [], attendees = [] }) {
   const proposed = (slots || []).filter((s) => s && s.start).map((s) => ({ start: s.start, end: s.end }));
   if (!proposed.length) return { ok: false, error: "Add at least one time." };
-  const { data, error } = await supabase
-    .from("interviews")
-    .insert({
-      company_id: companyId,
-      candidate_id: candidateId,
-      job_id: jobId || null,
-      interviewer_name: interviewerName || null,
-      interviewer_email: interviewerEmail || null,
-      proposed_slots: proposed,
-      provider: "google",
-      status: "sent",
-      attendees,
-    })
-    .select("token").single();
-  if (error || !data?.token) return { ok: false, error: error?.message || "Couldn't create the invite." };
+  const fields = {
+    interviewer_name: interviewerName || null, interviewer_email: interviewerEmail || null,
+    proposed_slots: proposed, provider: "google", status: "sent", attendees,
+    scheduled_at: null, meeting_link: null,
+  };
+  // Reuse an existing non-confirmed interview for this candidate+job (a reschedule
+  // row, or a prior 'sent' invite) instead of creating a duplicate row. Keep
+  // previous_at so a rescheduled invite still knows the original date.
+  let sel = supabase.from("interviews").select("id, previous_at")
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .in("status", ["reschedule", "sent"]).order("created_at", { ascending: false }).limit(1);
+  if (jobId) sel = sel.eq("job_id", jobId);
+  const { data: existing } = await sel.maybeSingle();
+  let token = null;
+  if (existing) {
+    const { data, error } = await supabase.from("interviews")
+      .update({ ...fields, previous_at: existing.previous_at || null }).eq("id", existing.id)
+      .select("token").single();
+    if (error || !data?.token) return { ok: false, error: error?.message || "Couldn't update the invite." };
+    token = data.token;
+  } else {
+    const { data, error } = await supabase.from("interviews")
+      .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, ...fields })
+      .select("token").single();
+    if (error || !data?.token) return { ok: false, error: error?.message || "Couldn't create the invite." };
+    token = data.token;
+  }
 
   // Sending times (from a poll or set directly) moves them into "Interview".
   advanceToInterviewing(companyId, candidateId, jobId);
   let emailed = false, skipped = null;
   try {
-    const { data: em, error: ee } = await supabase.functions.invoke("send-interview-invite", { body: { token: data.token } });
+    const { data: em, error: ee } = await supabase.functions.invoke("send-interview-invite", { body: { token } });
     skipped = em?.skipped || null;
     emailed = !ee && !em?.error && !skipped;
   } catch { /* best-effort email */ }
-  return { ok: true, token: data.token, emailed, skipped };
+  return { ok: true, token, emailed, skipped };
 }
 
 // Confirmed interviews across the company, each with the panel's profile ids and
