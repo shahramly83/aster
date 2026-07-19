@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
-import { AsterMark } from "./Logo";
+import { AsterMark, AsterLogo } from "./Logo";
 import { Feather } from "./ui";
 import { theme } from "../theme";
 
@@ -37,18 +37,13 @@ export default function LockScreen() {
       <View style={styles.watermark} pointerEvents="none"><AsterMark size={230} color="rgba(255,255,255,0.07)" /></View>
 
       <SafeAreaView style={styles.center}>
-        <View style={styles.brandRow}>
-          <AsterMark size={30} color="#fff" />
-          <Text style={styles.brand}>ASTER</Text>
-        </View>
-
         <View style={styles.bioWrap}>
           <Animated.View style={[styles.pulseRing, ring(p1)]} />
           <Animated.View style={[styles.pulseRing, ring(p2)]} />
           <View style={styles.bioCircle}><Feather name="lock" size={36} color="#fff" /></View>
         </View>
 
-        <Text style={styles.title}>Aster is locked</Text>
+        <AsterLogo width={168} color="#fff" />
         <Text style={styles.subtitle}>Verify it's you to continue.</Text>
 
         <Pressable onPress={unlock} style={({ pressed }) => [styles.btn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}>
@@ -63,13 +58,10 @@ export default function LockScreen() {
 const styles = StyleSheet.create({
   watermark: { position: "absolute", top: -34, right: -46 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
-  brandRow: { position: "absolute", top: 12, flexDirection: "row", alignItems: "center", gap: 10 },
-  brand: { fontFamily: "Inter_700Bold", fontSize: 18, letterSpacing: 4, color: "#fff" },
-  bioWrap: { width: 150, height: 150, alignItems: "center", justifyContent: "center", marginBottom: 40 },
+  bioWrap: { width: 150, height: 150, alignItems: "center", justifyContent: "center", marginBottom: 44 },
   pulseRing: { position: "absolute", width: 96, height: 96, borderRadius: 48, borderWidth: 2, borderColor: "rgba(255,255,255,0.5)" },
   bioCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", alignItems: "center", justifyContent: "center" },
-  title: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 26, letterSpacing: -0.5, color: "#fff", textAlign: "center" },
-  subtitle: { fontFamily: "Inter_500Medium", fontSize: 15, color: "rgba(255,255,255,0.82)", textAlign: "center", marginTop: 8 },
+  subtitle: { fontFamily: "Inter_500Medium", fontSize: 15, color: "rgba(255,255,255,0.82)", textAlign: "center", marginTop: 16 },
   btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: "#fff", borderRadius: 16, height: 54, paddingHorizontal: 40, marginTop: 44, minWidth: 200, shadowColor: "#0A1E9E", shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   btnTxt: { fontFamily: "Inter_700Bold", fontSize: 16, color: theme.brand },
 });
