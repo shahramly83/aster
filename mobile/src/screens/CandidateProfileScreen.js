@@ -549,7 +549,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={[type.bodyStrong, { color: theme.ink }]}>Rescheduling</Text>
-                        <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Run a fresh panel availability poll, then propose new times.</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
+                          {interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}Run a fresh panel availability poll, then propose new times.
+                        </Text>
                       </View>
                     </View>
                     <Button title="1 · Panel availability" icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />

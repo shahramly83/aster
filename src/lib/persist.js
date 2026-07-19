@@ -832,13 +832,14 @@ export async function dbListOpenPolls(companyId, userId) {
 // HM-initiated (vs a candidate-proposed reschedule, which keeps the slots).
 export async function dbRescheduleInterview(companyId, candidateId) {
   if (!hasSupabase || !companyId || !candidateId) return { ok: false, error: "Not connected." };
-  const { data } = await supabase.from("interviews").select("id")
+  const { data } = await supabase.from("interviews").select("id, scheduled_at, previous_at")
     .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
     .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
   if (!data) return { ok: false, error: "No scheduled interview to reschedule." };
   const { error } = await supabase.from("interviews").update({
     status: "reschedule", scheduled_at: null, proposed_slots: [], meeting_link: null,
     reschedule_note: null, reschedule_at: new Date().toISOString(),
+    previous_at: data.scheduled_at || data.previous_at || null, // remember the original time
   }).eq("id", data.id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }

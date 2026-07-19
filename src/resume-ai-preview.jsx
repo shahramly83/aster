@@ -403,7 +403,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at, ai_ranked_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
-    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note").eq("company_id", companyId),
+    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note, previous_at").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
@@ -573,6 +573,7 @@ async function loadWorkspaceData(companyId) {
         token: iv.token || null,
         candidateProposed: proposed.length > 0,
         rescheduleNote: iv.reschedule_note || null,
+        previousAt: iv.previous_at || null,
         request: {
           candidateId: iv.candidate_id,
           candidateName: candNameById[iv.candidate_id] || null,
@@ -15719,6 +15720,17 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
           </span>
         )}
       </div>
+
+      {/* Reschedule context: this poll is finding times for an interview that
+          didn't go ahead. Remark + the original date. */}
+      {booking?.status === "reschedule" && (
+        <div className="mb-3 rounded-xl px-3 py-2 flex items-start gap-2" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
+          <Icon name="refresh" className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#B42318" }} />
+          <p className="text-[11px] leading-relaxed" style={{ color: "#B42318" }}>
+            <span className="font-semibold">Rescheduled interview.</span>{booking?.previousAt ? ` The original was ${formatSlotDisplay(booking.previousAt)} — these times replace it.` : " Finding new times to replace the original."}
+          </p>
+        </div>
+      )}
 
       {/* No poll yet → HM can start one */}
       {!poll && isManager && (

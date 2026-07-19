@@ -92,7 +92,7 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
 export async function loadCandidateInterview(companyId, candidateId) {
   const { data } = await supabase
     .from("interviews")
-    .select("id, status, scheduled_at, proposed_slots, token, meeting_link, attendees, reschedule_note, created_at")
+    .select("id, status, scheduled_at, proposed_slots, token, meeting_link, attendees, reschedule_note, previous_at, created_at")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
     .in("status", ["scheduled", "sent", "reschedule"])
@@ -109,6 +109,7 @@ export async function loadCandidateInterview(companyId, candidateId) {
     meetingLink: data.meeting_link || null,
     attendees: Array.isArray(data.attendees) ? data.attendees : [],
     rescheduleNote: data.reschedule_note || null,
+    previousAt: data.previous_at || null, // original time before it was rescheduled
   };
 }
 
@@ -1182,13 +1183,14 @@ export async function closePoll(pollId, chosenIso) {
 // scheduling cycle so the HM runs a new panel poll. Empty proposed_slots marks
 // it as HM-initiated (vs a candidate-proposed reschedule, which keeps slots).
 export async function rescheduleInterview(companyId, candidateId) {
-  const { data } = await supabase.from("interviews").select("id")
+  const { data } = await supabase.from("interviews").select("id, scheduled_at, previous_at")
     .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
     .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
   if (!data) return { ok: false, error: "No scheduled interview to reschedule." };
   const { error } = await supabase.from("interviews").update({
     status: "reschedule", scheduled_at: null, proposed_slots: [], meeting_link: null,
     reschedule_note: null, reschedule_at: new Date().toISOString(),
+    previous_at: data.scheduled_at || data.previous_at || null, // remember the original time
   }).eq("id", data.id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }

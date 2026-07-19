@@ -270,7 +270,7 @@ export default function TodayScreen({ navigation }) {
                           <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
                         </View>
                         <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
-                          <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "New times" : "Awaiting"}</Text>
+                          <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "Reschedule" : "Awaiting"}</Text>
                         </View>
                       </Press>
                     );
