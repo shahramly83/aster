@@ -6,7 +6,7 @@ import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages,
   loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
-  loadCandidateInterview,
+  loadCandidateInterview, loadInterviewers,
 } from "../lib/data";
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
@@ -52,6 +52,7 @@ export default function DiscussionScreen({ route, navigation }) {
   const { candidateId, jobId, candidateName } = route.params || {};
   const [messages, setMessages] = useState(null);
   const [poll, setPoll] = useState(null);
+  const [pollProgress, setPollProgress] = useState(null); // { voted, total, pendingNames } for the manager
   const [savingSlot, setSavingSlot] = useState(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -71,8 +72,20 @@ export default function DiscussionScreen({ route, navigation }) {
       loadCandidateInterview(profile.companyId, candidateId),
     ]);
     // Once the candidate has confirmed a time, the availability poll is moot — hide it.
-    setPoll(iv?.status === "scheduled" ? null : p);
-  }, [profile?.companyId, profile?.userId, candidateId]);
+    const activePoll = iv?.status === "scheduled" ? null : p;
+    setPoll(activePoll);
+    // For the manager (usually the poll creator), track whether the panel has
+    // finished voting. Expected voters = assigned interviewers minus the creator.
+    if (activePoll && manager && jobId) {
+      const pool = await loadInterviewers(profile.companyId, jobId).catch(() => []);
+      const panel = pool.filter((m) => m.assigned && m.id !== activePoll.createdBy);
+      const votedIds = new Set(activePoll.voterIds || []);
+      const pending = panel.filter((m) => !votedIds.has(m.id));
+      setPollProgress({ voted: panel.length - pending.length, total: panel.length, pendingNames: pending.map((m) => m.name) });
+    } else {
+      setPollProgress(null);
+    }
+  }, [profile?.companyId, profile?.userId, candidateId, manager, jobId]);
 
   useEffect(() => { load(); loadPoll(); }, [load, loadPoll]);
 
@@ -166,7 +179,7 @@ export default function DiscussionScreen({ route, navigation }) {
             ListHeaderComponent={
               <>
                 {poll ? (
-                  <PollCard poll={poll} tz={profile.timezone} manager={manager} savingSlot={savingSlot} onToggle={toggleVote} />
+                  <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} />
                 ) : null}
                 <View style={styles.banner}>
                   <Feather name="users" size={13} color={theme.ink3} />
@@ -198,8 +211,10 @@ export default function DiscussionScreen({ route, navigation }) {
   );
 }
 
-function PollCard({ poll, tz, manager, savingSlot, onToggle }) {
+function PollCard({ poll, tz, manager, progress, savingSlot, onToggle }) {
   const open = poll.status === "open";
+  // For the manager who ran the poll: is the panel done voting?
+  const allVoted = progress && progress.total > 0 && progress.voted >= progress.total;
   return (
     <View style={styles.pollCard}>
       <View style={styles.pollHead}>
@@ -211,6 +226,16 @@ function PollCard({ poll, tz, manager, savingSlot, onToggle }) {
           <Text style={[type.smallStrong, { color: open ? theme.brand : "#166534" }]}>{open ? "Open" : "Scheduled"}</Text>
         </View>
       </View>
+
+      {/* Manager sees voting progress (they created it, so they don't vote). */}
+      {open && manager && progress && progress.total > 0 ? (
+        <View style={[styles.voteProgress, allVoted && styles.voteProgressDone]}>
+          <Feather name={allVoted ? "check-circle" : "clock"} size={14} color={allVoted ? theme.success : theme.brand} />
+          <Text style={[type.smallStrong, { color: allVoted ? theme.success : theme.ink, marginLeft: 8, flex: 1 }]}>
+            {allVoted ? "All panelists have voted" : `${progress.voted} of ${progress.total} panelists voted`}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={{ marginTop: space(3), gap: 8 }}>
         {poll.slots.map((s) => {
@@ -236,7 +261,13 @@ function PollCard({ poll, tz, manager, savingSlot, onToggle }) {
 
       {open ? (
         <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
-          {manager ? "Everyone marks their availability. Then propose the best times to the candidate from their profile → Interview." : "Tap the slots you're available for."}
+          {!manager
+            ? "Tap the slots you're available for."
+            : allVoted
+              ? "Everyone's in. Propose the best times to the candidate from their profile → Interview."
+              : progress && progress.pendingNames?.length
+                ? `Waiting on ${progress.pendingNames.slice(0, 3).join(", ")}${progress.pendingNames.length > 3 ? ` +${progress.pendingNames.length - 3}` : ""}. Then propose the best times to the candidate.`
+                : "Panel marks their availability, then propose the best times to the candidate."}
         </Text>
       ) : null}
     </View>
@@ -345,6 +376,8 @@ const styles = StyleSheet.create({
   pollCard: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, padding: space(4), marginBottom: space(4) },
   pollHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   pollStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  voteProgress: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
+  voteProgressDone: { backgroundColor: "#F0FDF4" },
   slot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 11 },
   slotMine: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
   slotChosen: { borderColor: theme.success, backgroundColor: "#F0FDF4" },

@@ -959,6 +959,7 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
     status: poll.status,
     chosenSlot: poll.chosen_slot,
     createdBy: poll.created_by,
+    voterIds: [...new Set((votes || []).map((v) => v.profile_id))], // who has voted (any slot)
     slots: (slots || []).map((s) => {
       const vs = bySlot[s.id] || [];
       return {
@@ -980,11 +981,12 @@ export async function loadOpenPolls(companyId, userId) {
   if (!companyId) return [];
   const { data: polls } = await supabase
     .from("interview_polls")
-    .select("id, candidate_id, job_id, created_at")
+    .select("id, candidate_id, job_id, created_by, created_at")
     .eq("company_id", companyId)
     .eq("status", "open")
     .order("created_at", { ascending: false });
-  let rows = polls || [];
+  // The person who created the poll doesn't vote on it — don't prompt them.
+  let rows = (polls || []).filter((p) => p.created_by !== userId);
   if (!rows.length) return [];
   // Drop polls whose candidate has already confirmed an interview — the poll is
   // moot once a time is booked.
