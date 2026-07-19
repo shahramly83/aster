@@ -7417,7 +7417,7 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
 // link, sees the times HR proposed, and picks one. No login. Confirming calls the
 // confirm-booking function (via onConfirm), which persists the slot + emails the
 // interviewer and candidate.
-function BookInterviewScreen({ data, done, onConfirm, onDecline }) {
+function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = false }) {
   const [choosing, setChoosing] = useState(null); // slot start being confirmed
   const [err, setErr] = useState(null);
   const [confirmedStart, setConfirmedStart] = useState(data?.scheduled_at || null);
@@ -7469,7 +7469,7 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline }) {
   const isDone = done || confirmedStart;
 
   return (
-    <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
+    <div className={embedded ? "flex justify-center" : "min-h-dvh flex items-center justify-center px-5 py-12"} style={embedded ? undefined : { background: "var(--bg)" }}>
       <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
         <div className={`mb-5 flex items-center gap-3 ${isDone ? "justify-center" : ""}`}>
           {logoUrl
@@ -16195,24 +16195,12 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   );
 }
 
+// Admin "Preview" of the candidate booking page. Renders the REAL candidate
+// component (BookInterviewScreen) so the preview can never drift from what the
+// candidate actually sees — including the "None of these times work" option.
+// Confirming here books on the candidate's behalf (existing behaviour); declining
+// is a preview-only no-op that just shows the candidate's decline confirmation.
 function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, company = "" }) {
-  const [stage, setStage] = useState("picking"); // picking | confirming | confirmed
-  const [confirmedSlot, setConfirmedSlot] = useState(null);
-
-  // Company branding for this public page: the uploaded logo, else a mark + name.
-  const companyHeader = (
-    <div className="flex items-center gap-3 mb-6">
-      {logoUrl ? (
-        <img src={logoUrl} alt={company ? `${company} logo` : "Company logo"} className="h-14 object-contain" style={{ maxWidth: 240 }} />
-      ) : (
-        <>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-5 h-5" /></div>
-          {company && <span className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>{company}</span>}
-        </>
-      )}
-    </div>
-  );
-
   if (!request) {
     return (
       <div className="px-4 sm:px-6 py-8 sm:py-10">
@@ -16224,37 +16212,19 @@ function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, co
     );
   }
 
-  const handlePick = (slot) => {
-    setStage("confirming");
-    setTimeout(() => {
-      setConfirmedSlot(slot);
-      setStage("confirmed");
-      // Propagate the confirmation back so the profile locks scheduling and
-      // unlocks interview questions.
-      if (onConfirm) onConfirm(slot);
-    }, 1200);
+  const data = {
+    company_name: company || request.interviewerName || "The team",
+    logo_url: logoUrl,
+    job_title: request.jobTitle || "the role",
+    proposed_slots: request.proposed_slots || [],
+    scheduled_at: null,
   };
-
-  if (stage === "confirmed" && confirmedSlot) {
-    return (
-      <div className="px-4 sm:px-6 py-8 sm:py-10">
-        <div className="max-w-2xl mx-auto">
-          <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
-          <div className="mt-6 flex justify-center">{companyHeader}</div>
-          <div className="text-center max-w-sm mx-auto mt-8">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
-              <span className="text-emerald-600 text-xl">✓</span>
-            </div>
-            <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
-            <p className="text-sm text-neutral-600 mb-3">{formatSlotRange(confirmedSlot.start, confirmedSlot.end)}</p>
-            <p className="text-sm text-neutral-600">
-              A calendar invite has been sent to your email with the video call link.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const previewConfirm = async (start) => {
+    const slot = (request.proposed_slots || []).find((s) => s.start === start) || { start };
+    onConfirm?.(slot);
+    return { ok: true };
+  };
+  const previewDecline = async () => ({ ok: true }); // preview only — no backend call
 
   return (
     <div className="px-4 sm:px-6 py-8 sm:py-10">
@@ -16262,29 +16232,10 @@ function SchedulePickerScreen({ navigate, request, onConfirm, logoUrl = null, co
         <BackLink onClick={() => navigate(-1)}>← Exit preview (admin only)</BackLink>
         <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 mb-6">
           <p className="text-xs text-indigo-700">
-            Below is what the candidate sees. A public page, no login, reached only through the job's link.
+            Below is exactly what the candidate sees. A public page, no login, reached only through the job's link.
           </p>
         </div>
-        {companyHeader}
-        <h1 className="text-xl sm:text-2xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Interview: {request.jobTitle}</h1>
-        <p className="text-sm text-neutral-600 mb-6">
-          With {company || request.interviewerName} · {request.slot_duration_minutes} minutes. Choose whichever time works best for you.
-        </p>
-
-        <div className="space-y-2">
-          {request.proposed_slots.map((slot) => (
-            <button
-              key={slot.start}
-              onClick={() => handlePick(slot)}
-              disabled={stage === "confirming"}
-              className="block w-full text-left rounded-2xl bg-white act-shadow card-hover disabled:opacity-50 px-5 py-4 border border-[color:var(--line)]"
-            >
-              <p className="text-neutral-900 font-medium">{formatSlotRange(slot.start, slot.end)}</p>
-            </button>
-          ))}
-        </div>
-
-        {stage === "confirming" && <p className="text-sm text-neutral-500 mt-4">Confirming your slot…</p>}
+        <BookInterviewScreen data={data} done={false} onConfirm={previewConfirm} onDecline={previewDecline} embedded />
       </div>
     </div>
   );

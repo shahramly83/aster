@@ -116,6 +116,18 @@ export async function shareMeetingLink(companyId, candidateId, jobId, link) {
 // Propose several interview times to the candidate (web-parity dbCreateInterview
 // Invite): insert a "sent" interviews row with proposed_slots [{start,end}] and a
 // booking token, then email the candidate a /book link (send-interview-invite).
+// Advance a candidate's pipeline stage to "interviewing" — forward-only, so it
+// never regresses someone already at interviewing/offer/hired. Job-scoped when a
+// job is known. Best-effort.
+async function advanceToInterviewing(companyId, candidateId, jobId) {
+  if (!companyId || !candidateId) return;
+  let q = supabase.from("applications").update({ stage: "interviewing" })
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .in("stage", ["applied", "shortlisted"]);
+  if (jobId) q = q.eq("job_id", jobId);
+  await q.then(() => {}, () => {});
+}
+
 export async function createInterviewInvite({ companyId, candidateId, jobId, interviewerName, interviewerEmail, slots = [], attendees = [] }) {
   const proposed = (slots || []).filter((s) => s && s.start).map((s) => ({ start: s.start, end: s.end }));
   if (!proposed.length) return { ok: false, error: "Add at least one time." };
@@ -135,6 +147,8 @@ export async function createInterviewInvite({ companyId, candidateId, jobId, int
     .select("token").single();
   if (error || !data?.token) return { ok: false, error: error?.message || "Couldn't create the invite." };
 
+  // Sending times (from a poll or set directly) moves them into "Interview".
+  advanceToInterviewing(companyId, candidateId, jobId);
   let emailed = false, skipped = null;
   try {
     const { data: em, error: ee } = await supabase.functions.invoke("send-interview-invite", { body: { token: data.token } });
@@ -1086,6 +1100,8 @@ export async function createPoll({ companyId, candidateId, candidateName, jobId,
   const rows = clean.map((s) => ({ poll_id: poll.id, company_id: companyId, slot_ts: s.start, slot_end: s.end || null }));
   const { error: se } = await supabase.from("interview_poll_slots").insert(rows);
   if (se) return { ok: false, error: se.message };
+  // Starting to coordinate an interview moves the candidate into "Interview".
+  advanceToInterviewing(companyId, candidateId, jobId);
   supabase.rpc("log_activity", {
     p_type: "interview_poll",
     p_title: `Interview availability poll · ${candidateName || "candidate"}`,

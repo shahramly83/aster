@@ -267,7 +267,21 @@ export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = 
     .select("token")
     .single();
   if (error) { console.error("dbCreateInterviewInvite", error.message); return null; }
+  // Sending times (whether from a poll or set directly) moves them to "Interview".
+  advanceToInterviewing(companyId, candidateId, jobId);
   return data?.token || null;
+}
+
+// Advance a candidate's pipeline stage to "interviewing" — forward-only, so it
+// never regresses someone already at interviewing/offer/hired. Job-scoped when a
+// job is known. Best-effort; a failure just leaves the stage where it was.
+function advanceToInterviewing(companyId, candidateId, jobId) {
+  if (!hasSupabase || !companyId || !candidateId) return;
+  let q = supabase.from("applications").update({ stage: "interviewing" })
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .in("stage", ["applied", "shortlisted"]);
+  if (jobId) q = q.eq("job_id", jobId);
+  q.then(() => {}, () => {});
 }
 
 // Record which panel members actually attended the interview, by marking each
@@ -719,6 +733,9 @@ export async function dbCreatePanelPoll({ companyId, candidateId, candidateName,
   const rows = clean.map((s) => ({ poll_id: poll.id, company_id: companyId, slot_ts: s.start, slot_end: s.end || null }));
   const { error: se } = await supabase.from("interview_poll_slots").insert(rows);
   if (se) return { ok: false, error: se.message };
+  // Starting to coordinate an interview moves the candidate into "Interview".
+  // Forward-only: never pull someone back from offer/hired/interviewing.
+  advanceToInterviewing(companyId, candidateId, jobId);
   // Notify the panel (activity feed + push), best-effort — mirrors the mobile app.
   supabase.rpc("log_activity", {
     p_type: "interview_poll",
