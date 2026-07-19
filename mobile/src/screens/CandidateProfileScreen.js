@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -104,6 +104,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
   }, [candidateId, jobId, profile.companyId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Realtime: reflect interview changes (booked, rescheduled, meeting link shared)
+  // made elsewhere — e.g. on desktop — without needing a manual refresh.
+  useEffect(() => {
+    if (!profile?.companyId) return undefined;
+    return subscribeInterviews(profile.companyId, () => load());
+  }, [profile?.companyId, load]);
 
   const nameOf = () => candidate?.name || candidateName || "Candidate";
 

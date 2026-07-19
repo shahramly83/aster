@@ -1231,6 +1231,18 @@ export function subscribePoll(companyId, onChange) {
   return () => { supabase.removeChannel(channel); };
 }
 
+// Live interview changes (scheduled / sent / reschedule / meeting link) so the
+// mobile app reflects desktop actions without a manual refresh. RLS scopes it.
+let _ivChanSeq = 0;
+export function subscribeInterviews(companyId, onChange) {
+  if (!companyId) return () => {};
+  const channel = supabase
+    .channel(`interviews:${companyId}:${++_ivChanSeq}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "interviews", filter: `company_id=eq.${companyId}` }, onChange)
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
 // ---- Candidate discussion (chat) ----------------------------------------------
 
 // Load a candidate's discussion thread, oldest first, with author names.

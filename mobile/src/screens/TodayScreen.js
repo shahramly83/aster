@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadMyInterviews, loadOpenPolls, loadMyPollProgress } from "../lib/data";
+import { loadMyInterviews, loadOpenPolls, loadMyPollProgress, subscribeInterviews, subscribePoll } from "../lib/data";
 import { setStatusBarStyle } from "expo-status-bar";
 import { Press, Avatar, Loader, TopBar, HeaderActions, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
@@ -136,6 +136,14 @@ export default function TodayScreen({ navigation }) {
   }, [profile, assignedJobIds, manager]);
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); load(); }, [load]));
+  // Realtime: reload when interviews or polls change (e.g. a desktop action), so
+  // the tab stays live without a manual pull-to-refresh.
+  useEffect(() => {
+    if (!profile?.companyId) return undefined;
+    const unsubIv = subscribeInterviews(profile.companyId, () => load());
+    const unsubPoll = subscribePoll(profile.companyId, () => load());
+    return () => { unsubIv(); unsubPoll(); };
+  }, [profile?.companyId, load]);
   // Tick the countdown once a minute so the hero stays honest.
   useEffect(() => { const t = setInterval(() => force((n) => n + 1), 60000); return () => clearInterval(t); }, []);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
