@@ -403,7 +403,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at, ai_ranked_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
-    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots").eq("company_id", companyId),
+    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
@@ -551,6 +551,32 @@ async function loadWorkspaceData(companyId) {
           candidateId: iv.candidate_id,
           candidateName: candNameById[iv.candidate_id] || null,
           status: "sent",
+          jobId: iv.job_id,
+          jobTitle: jobTitle[iv.job_id] || "Interview",
+          interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer",
+          interviewerEmail: iv.interviewer_email || null,
+          proposed_slots: proposed,
+          slot_duration_minutes: durMin,
+          attendees,
+        },
+      });
+    }
+    // The candidate couldn't make the offered times and suggested their own (or
+    // the HM hit reschedule). Surface it so the profile can show/confirm.
+    if (iv.status === "reschedule") {
+      const proposed = Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [];
+      const durMin = proposed.length ? (Math.max(1, Math.round((new Date(proposed[0].end) - new Date(proposed[0].start)) / 60000)) || 30) : 30;
+      putBooking(iv.candidate_id, iv.job_id, {
+        status: "reschedule",
+        jobId: iv.job_id,
+        confirmedSlot: null,
+        token: iv.token || null,
+        candidateProposed: proposed.length > 0,
+        rescheduleNote: iv.reschedule_note || null,
+        request: {
+          candidateId: iv.candidate_id,
+          candidateName: candNameById[iv.candidate_id] || null,
+          status: "reschedule",
           jobId: iv.job_id,
           jobTitle: jobTitle[iv.job_id] || "Interview",
           interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer",
@@ -15461,8 +15487,22 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   // Shared booking (from the root) is the source of truth once an invite has
   // gone out, it survives navigating to the candidate's booking page and back,
   // and reflects the candidate confirming a time.
-  const bookingStatus = booking?.status; // undefined | 'sent' | 'scheduled'
+  const bookingStatus = booking?.status; // undefined | 'sent' | 'scheduled' | 'reschedule'
   const sentRequest = booking?.request;
+
+  // Reschedule: the candidate declined the offered times and suggested their own
+  // (candidateProposed) — the HM confirms one directly (same as the candidate
+  // booking it). The panel poll itself lives in the mobile app.
+  const [confirmingSlot, setConfirmingSlot] = useState(null);
+  const [rescheduleErr, setRescheduleErr] = useState(null);
+  const confirmReschedule = async (start) => {
+    if (!booking?.token) { setRescheduleErr("Missing booking link — confirm in the mobile app."); return; }
+    setRescheduleErr(null); setConfirmingSlot(start);
+    const { data, error } = await supabase.functions.invoke("confirm-booking", { body: { token: booking.token, start } });
+    setConfirmingSlot(null);
+    if (error || data?.error) { setRescheduleErr(data?.error || error?.message || "Couldn't confirm that time."); return; }
+    onInviteSent?.();
+  };
 
   // The hiring manager proposes interview times manually (one or more). No
   // calendar connection: they pick each time and add it to the list.
@@ -15598,6 +15638,41 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           )}
         </div>
         </>
+      ) : bookingStatus === "reschedule" && !selfSchedule ? (
+        booking.candidateProposed ? (
+          <div className="rounded-xl bg-white border px-3.5 py-3" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#F59E0B" }} />
+              <span className="text-xs font-semibold" style={{ color: "#92400E" }}>Candidate suggested new times</span>
+            </div>
+            <p className="text-xs mb-2.5" style={{ color: "#92400E" }}>They couldn&apos;t make the offered times. Confirm one below (the panel votes in the mobile app).</p>
+            {booking.rescheduleNote && <p className="text-xs italic mb-2.5" style={{ color: "#92400E" }}>&ldquo;{booking.rescheduleNote}&rdquo;</p>}
+            <div className="space-y-1.5">
+              {sentRequest.proposed_slots.map((slot) => (
+                <div key={slot.start} className="flex items-center justify-between gap-2 rounded-lg bg-white border px-3 py-2" style={{ borderColor: "var(--line)" }}>
+                  <span className="text-xs font-medium" style={{ color: "var(--ink)" }}>{formatSlotRange(slot.start, slot.end)}</span>
+                  <button onClick={() => confirmReschedule(slot.start)} disabled={!!confirmingSlot} className="text-xs font-semibold text-white rounded-md px-3 py-1 disabled:opacity-50" style={{ background: "#16A34A" }}>
+                    {confirmingSlot === slot.start ? "Confirming…" : "Confirm"}
+                  </button>
+                </div>
+              ))}
+            </div>
+            {rescheduleErr && <p className="text-xs mt-2" style={{ color: "#B42318" }}>{rescheduleErr}</p>}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed p-4" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
+            <div className="flex items-start gap-2.5">
+              <span className="shrink-0 mt-0.5" style={{ color: "#F59E0B" }}><Icon name="clock" className="w-4 h-4" /></span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>Rescheduling</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Propose new times below to send the candidate a fresh invite.</p>
+                <button type="button" onClick={() => setSelfSchedule(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
+                  <Icon name="calendar" className="w-4 h-4" /> Propose new times
+                </button>
+              </div>
+            </div>
+          </div>
+        )
       ) : bookingStatus === "sent" ? (
         <div className="rounded-xl bg-white border border-neutral-200 px-3.5 py-3">
           <div className="flex items-center justify-between gap-2 mb-2">
