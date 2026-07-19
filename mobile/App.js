@@ -63,7 +63,7 @@ const renderTabBar = (props) => <FloatingTabBar {...props} />;
 function ManagerTabs() {
   return (
     <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
-      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: "Activity" }} />
+      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ title: "Analytics" }} />
       <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Interviews" }} />
       <Tab.Screen name="TeamsTab" component={TeamsScreen} options={{ title: "Team" }} />
