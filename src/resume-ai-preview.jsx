@@ -15915,11 +15915,21 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const activeJobTitle = fixedJob?.title ?? openJobs.find((j) => j.id === jobId)?.title;
 
-  // Times already booked (confirmed) for OTHER candidates on this same position,
-  // so the picker can disable them and stop two candidates taking one slot.
+  // Times this panel can't take: block a slot whenever ANYONE on the current
+  // panel (the hiring manager + the assigned interviewers) is already committed
+  // to a CONFIRMED interview at that time — for any other candidate, on ANY
+  // position. That stops the real conflict (a person double-booked), not just two
+  // candidates on the same role. Falls back to same-position blocking for older
+  // bookings that predate stored attendees.
   const activeJobId = fixedJob?.id ?? jobId;
+  const panelIds = new Set([hmId, ...assignedInterviewers.map((iv) => iv.id)].filter(Boolean));
   const takenRanges = Object.entries(allBookings)
-    .filter(([cid, b]) => cid !== candidate.id && b?.status === "scheduled" && b?.confirmedSlot?.start && (b.jobId ?? b.request?.jobId) === activeJobId)
+    .filter(([cid, b]) => {
+      if (cid === candidate.id || b?.status !== "scheduled" || !b?.confirmedSlot?.start) return false;
+      const attendees = Array.isArray(b.attendees) ? b.attendees : [];
+      if (attendees.length) return attendees.some((a) => panelIds.has(a.id)); // person-level conflict
+      return (b.jobId ?? b.request?.jobId) === activeJobId; // legacy fallback
+    })
     .map(([, b]) => ({ start: b.confirmedSlot.start, end: b.confirmedSlot.end }));
 
   // Shared booking (from the root) is the source of truth once an invite has
