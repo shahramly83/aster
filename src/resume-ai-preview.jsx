@@ -7316,14 +7316,35 @@ function AcceptInviteScreen({ invite, onAuthed, navigate, logoUrl }) {
 // link, sees the times HR proposed, and picks one. No login. Confirming calls the
 // confirm-booking function (via onConfirm), which persists the slot + emails the
 // interviewer and candidate.
-function BookInterviewScreen({ data, done, onConfirm }) {
+function BookInterviewScreen({ data, done, onConfirm, onDecline }) {
   const [choosing, setChoosing] = useState(null); // slot start being confirmed
   const [err, setErr] = useState(null);
   const [confirmedStart, setConfirmedStart] = useState(data?.scheduled_at || null);
+  const [mode, setMode] = useState("pick"); // 'pick' | 'propose' | 'declined'
+  const [windows, setWindows] = useState(["", ""]); // datetime-local strings (min 2)
+  const [note, setNote] = useState("");
+  const [sending, setSending] = useState(false);
   const company = data?.company_name || "The team";
   const logoUrl = data?.logo_url || null;
   const jobTitle = data?.job_title || "the role";
   const slots = Array.isArray(data?.proposed_slots) ? data.proposed_slots : [];
+  // Keep the candidate's suggested windows the same length as the times HR offered.
+  const durMs = slots[0]?.end ? (new Date(slots[0].end) - new Date(slots[0].start)) : 60 * 60000;
+
+  const validWindows = windows.map((w) => w && w.trim()).filter(Boolean);
+  const sendProposal = async () => {
+    setErr(null);
+    if (validWindows.length < 2) { setErr("Please suggest at least two times that work for you."); return; }
+    const built = validWindows.map((w) => {
+      const start = new Date(w);
+      return { start: start.toISOString(), end: new Date(start.getTime() + durMs).toISOString() };
+    });
+    setSending(true);
+    const res = await onDecline(built, note.trim());
+    setSending(false);
+    if (!res.ok) { setErr(res.error || "Couldn't send your times. Please try again."); return; }
+    setMode("declined");
+  };
 
   const fmt = (iso) => {
     try { return new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); }
@@ -7362,23 +7383,55 @@ function BookInterviewScreen({ data, done, onConfirm }) {
             <h1 className="text-xl font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Interview confirmed</h1>
             <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>Your interview for the {jobTitle} role is booked for <strong>{(() => { const st = confirmedStart || data.scheduled_at; const m = slots.find((x) => x.start === st); return fmtRange(st, m?.end); })()}</strong>. {company} will email you the details and meeting link before the call.</p>
           </div>
+        ) : mode === "declined" ? (
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+              <Icon name="check" className="w-5 h-5" />
+            </div>
+            <h1 className="text-xl font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Thanks — we&apos;ll be in touch</h1>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>We&apos;ve shared your suggested times with the interview panel for the {jobTitle} role. {company} will email you to confirm the one that works for everyone.</p>
+          </div>
+        ) : mode === "propose" ? (
+          <>
+            <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Suggest times that work for you</h1>
+            <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>Add at least two windows you&apos;re free for the <strong>{jobTitle}</strong> interview, and {company} will confirm one with the panel.</p>
+            <div className="space-y-2">
+              {windows.map((w, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input type="datetime-local" value={w} onChange={(e) => setWindows((prev) => prev.map((x, idx) => (idx === i ? e.target.value : x)))}
+                    className="flex-1 min-w-0 rounded-xl border px-3 py-2.5 text-sm" style={{ borderColor: "var(--line)", color: "var(--ink)" }} />
+                  {windows.length > 2
+                    ? <button type="button" aria-label="Remove time" onClick={() => setWindows((prev) => prev.filter((_, idx) => idx !== i))} className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+                    : <span className="w-8 shrink-0" />}
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => setWindows((prev) => [...prev, ""])} className="text-sm font-medium mt-2.5" style={{ color: "var(--brand)" }}>+ Add another time</button>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything to add? (optional, e.g. mornings are best)" className="w-full rounded-xl border px-3 py-2.5 text-sm mt-4 resize-none" style={{ borderColor: "var(--line)", color: "var(--ink)" }} />
+            {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
+            <button onClick={sendProposal} disabled={sending || validWindows.length < 2} className="w-full mt-4 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand)" }}>{sending ? "Sending…" : "Send my times"}</button>
+            <button type="button" onClick={() => { setMode("pick"); setErr(null); }} className="w-full mt-2 text-sm font-medium py-1.5" style={{ color: "var(--ink-3)" }}>Back to the offered times</button>
+          </>
         ) : (
           <>
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Pick a time for your interview</h1>
             <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{company} would like to interview you for the <strong>{jobTitle}</strong> role. Choose a time that works for you.</p>
             {slots.length === 0 ? (
-              <p className="text-sm" style={{ color: "var(--ink-3)" }}>No times are available right now. Please reply to the invite email.</p>
+              <button type="button" onClick={() => setMode("propose")} className="w-full rounded-xl py-3 text-sm font-semibold text-white" style={{ background: "var(--brand)" }}>Suggest times that work for you</button>
             ) : (
-              <div className="space-y-2">
-                {slots.map((s) => (
-                  <button key={s.start} onClick={() => pick(s.start)} disabled={!!choosing}
-                    className="w-full text-left rounded-xl border px-4 py-3 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:opacity-50 flex items-center justify-between"
-                    style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
-                    <span>{fmtRange(s.start, s.end)}</span>
-                    {choosing === s.start ? <span className="text-xs" style={{ color: "var(--ink-3)" }}>Confirming…</span> : <Icon name="chevronRight" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="space-y-2">
+                  {slots.map((s) => (
+                    <button key={s.start} onClick={() => pick(s.start)} disabled={!!choosing}
+                      className="w-full text-left rounded-xl border px-4 py-3 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:opacity-50 flex items-center justify-between"
+                      style={{ borderColor: "var(--line)", color: "var(--ink)" }}>
+                      <span>{fmtRange(s.start, s.end)}</span>
+                      {choosing === s.start ? <span className="text-xs" style={{ color: "var(--ink-3)" }}>Confirming…</span> : <Icon name="chevronRight" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => { setMode("propose"); setErr(null); }} className="w-full mt-3 text-sm font-medium py-2.5 rounded-xl border transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>None of these times work</button>
+              </>
             )}
             {err && <p className="text-sm mt-4" style={{ color: "#B42318" }}>{err}</p>}
           </>
@@ -22991,6 +23044,15 @@ export default function ResumeAIPreview() {
     return { ok: true };
   };
 
+  // Candidate can't make any offered time: send their own suggested windows.
+  // decline-booking turns them into a panel poll and notifies the team.
+  const declinePublicBooking = async (slots, note) => {
+    if (!publicBooking?.token) return { ok: false };
+    const { data, error } = await supabase.functions.invoke("decline-booking", { body: { token: publicBooking.token, slots, note } });
+    if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Couldn't send your times." };
+    return { ok: true };
+  };
+
   // Public offer accept/decline page (candidate opened /offer/<token>, no login).
   const [publicOffer, setPublicOffer] = useState(null); // { token, status: loading|notfound|ok|done, data? }
   useEffect(() => {
@@ -24057,7 +24119,7 @@ export default function ResumeAIPreview() {
     }
     return (
       <Shell>
-        <BookInterviewScreen data={b.data} done={b.status === "done"} onConfirm={confirmPublicBooking} />
+        <BookInterviewScreen data={b.data} done={b.status === "done"} onConfirm={confirmPublicBooking} onDecline={declinePublicBooking} />
       </Shell>
     );
   }
