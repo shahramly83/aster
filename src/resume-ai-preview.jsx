@@ -1249,9 +1249,8 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBl
       if (off) return;
       const row = Array.isArray(data) ? data[0] : data;
       setWsBrand(row ? { name: row.name, logoUrl: row.logo_url || null, domain: row.domain || null } : null);
-      // Pre-fill the email with the company's domain (e.g. @onlazy.com) so a
-      // person only types their username. Only when the field is still empty.
-      if (row?.domain) setEmail((cur) => (cur ? cur : `@${row.domain}`));
+      // The domain renders as a fixed suffix in the email field (below), so the
+      // person types only their username — nothing to pre-fill into the input.
     });
     return () => { off = true; };
   }, [wsSlug]);
@@ -1403,7 +1402,14 @@ function LoginScreen({ onAuthed, navigate, logoUrl, ssoEnabled = false, onJoinBl
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
             <div>
               <label htmlFor="li-email" className={labelDark} style={{ color: "var(--ink)" }}>Email</label>
-              <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} onFocus={(e) => { if (wsBrand?.domain && e.target.value === `@${wsBrand.domain}`) { try { e.target.setSelectionRange(0, 0); } catch { /* noop */ } } }} placeholder={wsBrand?.domain ? `you@${wsBrand.domain}` : "you@company.com"} className={fieldDark} style={fieldDarkStyle} />
+              {wsBrand?.domain ? (
+                <div className="w-full rounded-xl flex items-stretch overflow-hidden focus-within:ring-2" style={{ background: "#fff", border: "1px solid var(--line-strong)", "--tw-ring-color": "var(--brand)" }}>
+                  <input id="li-email" name="email" autoComplete="username" value={email.replace(/@.*$/, "")} onChange={(e) => { setEmail(`${e.target.value.replace(/@/g, "").replace(/\s/g, "")}@${wsBrand.domain}`); setErr(null); }} placeholder="you" className="flex-1 min-w-0 bg-transparent px-3.5 py-3 text-sm focus:outline-none placeholder:text-[color:var(--ink-3)]" style={{ color: "var(--ink)" }} />
+                  <span className="flex items-center px-3.5 text-sm select-none whitespace-nowrap" style={{ background: "#EFEFF3", color: "var(--ink-3)", borderLeft: "1px solid var(--line-strong)" }}>@{wsBrand.domain}</span>
+                </div>
+              ) : (
+                <input id="li-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} placeholder="you@company.com" className={fieldDark} style={fieldDarkStyle} />
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
