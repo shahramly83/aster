@@ -15563,6 +15563,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const [override, setOverride] = useState(false); // HM proceeds without every vote
   const [selected, setSelected] = useState(() => new Set()); // slot ids to offer
   const [sending, setSending] = useState(false);
+  const [confirmingTs, setConfirmingTs] = useState(null); // round-2 slot being confirmed
 
   const load = async () => {
     if (!hasSupabase || !companyId || !candidate?.id) { setLoading(false); return; }
@@ -15675,6 +15676,17 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     await dbClosePanelPoll(poll.id, chosen[0].start).catch(() => {});
     onActiveChange?.(false);
     setSending(false);
+    await load();
+  };
+  // Round 2: the candidate already agreed to these times, so the HM confirms one
+  // directly from this card — no separate reschedule card.
+  const confirmSlot = async (slot) => {
+    if (confirmingTs) return;
+    setConfirmingTs(slot.ts); setErr(null);
+    const r = await dbConfirmPollSlot({ token: booking?.token, pollId: poll.id, startIso: slot.ts });
+    setConfirmingTs(null);
+    if (!r.ok) { setErr(r.error); return; }
+    onActiveChange?.(false);
     await load();
   };
 
@@ -15795,15 +15807,28 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                       {top && <span className="font-semibold" style={{ color: "var(--brand)" }}> · Most available</span>}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggle(slot)}
-                    disabled={disabled}
-                    className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 transition-all disabled:opacity-50"
-                    style={slot.mine ? { background: "#16A34A", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
-                  >
-                    {slot.mine ? <><Icon name="check" className="w-3 h-3" /> I can make it</> : "Mark available"}
-                  </button>
+                  {round2 && isManager ? (
+                    // Round 2: the candidate agreed to these times — the HM confirms one here.
+                    <button
+                      type="button"
+                      onClick={() => confirmSlot(slot)}
+                      disabled={!!confirmingTs}
+                      className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-white rounded-lg px-3 py-1.5 transition-all disabled:opacity-50"
+                      style={{ background: "#16A34A" }}
+                    >
+                      {confirmingTs === slot.ts ? "Confirming…" : "Confirm"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggle(slot)}
+                      disabled={disabled}
+                      className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 transition-all disabled:opacity-50"
+                      style={slot.mine ? { background: "#16A34A", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+                    >
+                      {slot.mine ? <><Icon name="check" className="w-3 h-3" /> I can make it</> : "Mark available"}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -15831,7 +15856,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             </>
           ) : poll.status === "open" && round2 ? (
             <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
-              {isManager ? "Confirm one of these times in the reschedule card below." : "Mark at least 2 times you can make."}
+              {isManager ? "The candidate agreed to these times. The panel's votes show who else can make it — confirm one to book it." : "Mark the candidate's times you can make."}
             </p>
           ) : null}
         </>
@@ -20417,7 +20442,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onInviteSent={onInviteSent}
           onActiveChange={setPollActive}
         />
-        {!pollActive && (
+        {!pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (
           <ScheduleInterviewPanel
             candidate={candidate}
             jobs={jobs}

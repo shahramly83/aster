@@ -975,12 +975,14 @@ export async function loadCandidatePoll(companyId, candidateId, myProfileId) {
     chosenSlot: poll.chosen_slot,
     createdBy: poll.created_by,
     proposedBy: poll.proposed_by || "panel", // 'panel' (round 1) | 'candidate' (round 2)
-    // A panelist counts as "voted" only once they've picked >=2 times (so there's
-    // real overlap to work with), matching the propose-2 rule.
+    // Who counts as "voted": on a round-1 panel poll they need >=2 picks (so there's
+    // real overlap to propose from); on a round-2 candidate poll the candidate only
+    // offered a couple of specific times, so marking even one is a valid vote.
     voterIds: (() => {
+      const need = poll.proposed_by === "candidate" ? 1 : 2;
       const byProfile = {};
       (votes || []).forEach((v) => { byProfile[v.profile_id] = (byProfile[v.profile_id] || 0) + 1; });
-      return Object.keys(byProfile).filter((id) => byProfile[id] >= 2);
+      return Object.keys(byProfile).filter((id) => byProfile[id] >= need);
     })(),
     slots: (slots || []).map((s) => {
       const vs = bySlot[s.id] || [];
@@ -1050,7 +1052,7 @@ export async function loadMyPollProgress(companyId, userId) {
   if (!companyId) return [];
   const { data: polls } = await supabase
     .from("interview_polls")
-    .select("id, candidate_id, job_id, created_at")
+    .select("id, candidate_id, job_id, proposed_by, created_at")
     .eq("company_id", companyId).eq("status", "open").eq("created_by", userId)
     .order("created_at", { ascending: false });
   const rows = polls || [];
@@ -1076,12 +1078,13 @@ export async function loadMyPollProgress(companyId, userId) {
   return rows.filter((p) => !confirmed.has(p.candidate_id)).map((p) => {
     const panel = [...(assignedByJob[p.job_id] || new Set())].filter((id) => id !== userId); // exclude the creator
     const counts = countByPoll[p.id] || {};
+    const need = p.proposed_by === "candidate" ? 1 : 2; // candidate polls: any pick counts
     const c = candById[p.candidate_id] || {};
     return {
       pollId: p.id, candidateId: p.candidate_id, jobId: p.job_id,
       candidateName: c.parsed?.name || c.full_name || "Candidate",
       jobTitle: jobTitle[p.job_id] || "Role",
-      voted: panel.filter((id) => (counts[id] || 0) >= 2).length,
+      voted: panel.filter((id) => (counts[id] || 0) >= need).length,
       total: panel.length,
     };
   });

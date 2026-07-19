@@ -700,6 +700,9 @@ export async function dbGetPanelPoll(companyId, candidateId, myProfileId) {
   (votes || []).forEach((v) => { (bySlot[v.slot_id] ||= []).push(v); });
   const byProfile = {};
   (votes || []).forEach((v) => { byProfile[v.profile_id] = (byProfile[v.profile_id] || 0) + 1; });
+  // Round-1 panel poll needs >=2 picks (overlap); a round-2 candidate poll only
+  // offers a couple of set times, so marking even one counts as a vote.
+  const need = poll.proposed_by === "candidate" ? 1 : 2;
   return {
     id: poll.id,
     jobId: poll.job_id,
@@ -707,7 +710,7 @@ export async function dbGetPanelPoll(companyId, candidateId, myProfileId) {
     chosenSlot: poll.chosen_slot,
     createdBy: poll.created_by,
     proposedBy: poll.proposed_by || "panel", // 'panel' (round 1) | 'candidate' (round 2)
-    voterIds: Object.keys(byProfile).filter((id) => byProfile[id] >= 2),
+    voterIds: Object.keys(byProfile).filter((id) => byProfile[id] >= need),
     slots: (slots || []).map((s) => {
       const vs = bySlot[s.id] || [];
       return {
@@ -781,7 +784,7 @@ export async function dbListOpenPolls(companyId, userId) {
   if (!hasSupabase || !companyId) return [];
   const { data: polls, error } = await supabase
     .from("interview_polls")
-    .select("id, candidate_id, job_id, created_by, created_at")
+    .select("id, candidate_id, job_id, created_by, proposed_by, created_at")
     .eq("company_id", companyId).eq("status", "open")
     .order("created_at", { ascending: false });
   if (error) { console.error("dbListOpenPolls", error.message); return []; }
@@ -816,7 +819,7 @@ export async function dbListOpenPolls(companyId, userId) {
       jobId: p.job_id,
       candidateName: c.parsed?.name || c.full_name || "Candidate",
       jobTitle: jobTitle[p.job_id] || "Role",
-      voted: (myCounts[p.id] || 0) >= 2,
+      voted: (myCounts[p.id] || 0) >= (p.proposed_by === "candidate" ? 1 : 2),
     };
   });
 }
