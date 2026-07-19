@@ -115,7 +115,7 @@ export default function TodayScreen({ navigation }) {
     try {
       setError("");
       const [ivs, openPolls, mine] = await Promise.all([
-        loadMyInterviews(profile.companyId, profile.userId, assignedJobIds),
+        loadMyInterviews(profile.companyId, profile.userId, assignedJobIds, manager),
         loadOpenPolls(profile.companyId, profile.userId),
         loadMyPollProgress(profile.companyId, profile.userId),
       ]);
@@ -123,7 +123,7 @@ export default function TodayScreen({ navigation }) {
       setPolls((openPolls || []).filter((p) => !p.voted));
       setMyPolls(mine || []);
     } catch (e) { setError(e?.message || "Could not load interviews."); setItems([]); }
-  }, [profile, assignedJobIds]);
+  }, [profile, assignedJobIds, manager]);
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("dark"); load(); }, [load]));
   // Tick the countdown once a minute so the hero stays honest.

@@ -10,27 +10,38 @@ const SIGNED_URL_TTL = 3600; // seconds
 
 // Upcoming + recent interviews where I am the interviewer, newest-relevant first.
 // Returns enriched rows with candidate name, job title and resume/photo URLs.
-export async function loadMyInterviews(companyId, userId, assignedJobIds = []) {
+export async function loadMyInterviews(companyId, userId, assignedJobIds = [], manager = false) {
   const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees";
   const base = () => supabase
     .from("interviews").select(cols)
     .eq("company_id", companyId)
     .eq("status", "scheduled");
-  // An interview is "mine" if I set it up (interviewer_id), I'm on the panel
-  // snapshot (attendees), OR it's on a role I'm assigned to (job_assignments).
-  // Panel members aren't the interviewer_id, and the attendees snapshot is taken
-  // at invite time, so without the assigned-jobs check a later-added interviewer
-  // would see an empty calendar.
-  const queries = [
-    base().eq("interviewer_id", userId),
-    base().contains("attendees", [{ id: userId }]),
-  ];
-  if (assignedJobIds && assignedJobIds.length) queries.push(base().in("job_id", assignedJobIds));
-  const results = await Promise.all(queries);
-  if (results[0].error) throw results[0].error;
-  const byId = new Map();
-  for (const res of results) for (const r of res.data || []) byId.set(r.id, r);
-  const rows = [...byId.values()].sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+  let rows;
+  if (manager) {
+    // Owners/admins oversee hiring, so they see EVERY scheduled interview in the
+    // company (RLS already permits it) — not only the panels they personally sit
+    // on. Without this, an admin who didn't set up a given interview and isn't an
+    // attendee would see an empty calendar.
+    const res = await base();
+    if (res.error) throw res.error;
+    rows = res.data || [];
+  } else {
+    // Interviewers: an interview is "mine" if I set it up (interviewer_id), I'm on
+    // the panel snapshot (attendees), OR it's on a role I'm assigned to. The
+    // attendees snapshot is taken at invite time, so the assigned-jobs check keeps
+    // a later-added interviewer from seeing an empty calendar.
+    const queries = [
+      base().eq("interviewer_id", userId),
+      base().contains("attendees", [{ id: userId }]),
+    ];
+    if (assignedJobIds && assignedJobIds.length) queries.push(base().in("job_id", assignedJobIds));
+    const results = await Promise.all(queries);
+    if (results[0].error) throw results[0].error;
+    const byId = new Map();
+    for (const res of results) for (const r of res.data || []) byId.set(r.id, r);
+    rows = [...byId.values()];
+  }
+  rows.sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
   if (!rows.length) return [];
 
   const candIds = [...new Set(rows.map((r) => r.candidate_id).filter(Boolean))];
