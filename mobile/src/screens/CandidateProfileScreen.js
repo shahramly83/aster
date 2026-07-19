@@ -39,6 +39,16 @@ function useKeyboardHeight() {
   return h;
 }
 
+// Normalize a phone number for a wa.me link: digits only, with a leading local
+// "0" converted to Malaysia's +60 country code (and a 00 international prefix
+// stripped), so local numbers still open a WhatsApp chat.
+function waNumber(phone) {
+  let d = String(phone || "").replace(/[^\d]/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("0")) d = "60" + d.slice(1);
+  return d;
+}
+
 function slotRange(startIso, endIso) {
   const s = new Date(startIso);
   const date = `${_WD[s.getDay()]} ${s.getDate()} ${_MON[s.getMonth()]}`;
@@ -285,7 +295,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     parsed.years_of_experience != null && { icon: "briefcase", value: `${parsed.years_of_experience} years of experience` },
                     parsed.salary_expectation && { icon: "dollar-sign", value: String(parsed.salary_expectation) },
                     email && { icon: "mail", value: email, onPress: () => Linking.openURL(`mailto:${email}`) },
-                    parsed.phone && { icon: "phone", value: parsed.phone, onPress: () => Linking.openURL(`tel:${parsed.phone}`), whatsapp: parsed.phone.replace(/[^\d]/g, "") },
+                    parsed.phone && { icon: "phone", value: parsed.phone, onPress: () => Linking.openURL(`tel:${parsed.phone}`), whatsapp: waNumber(parsed.phone) },
                     parsed.linkedin_url && { icon: "linkedin", value: "LinkedIn profile", onPress: () => Linking.openURL(parsed.linkedin_url) },
                     parsed.portfolio_url && { icon: "globe", value: "Portfolio", onPress: () => Linking.openURL(parsed.portfolio_url) },
                   ].filter(Boolean);
