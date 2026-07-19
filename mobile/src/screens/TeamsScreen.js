@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, RefreshControl, StyleSheet, Animated, Easing } from "react-native";
+import { View, Text, FlatList, RefreshControl, StyleSheet, Animated, Easing, Modal, Pressable, TextInput, Keyboard, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadTeam } from "../lib/data";
+import { loadTeam, inviteTeammate } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Avatar, HeaderActions, TopBar, Loader, EmptyState, Feather } from "../components/ui";
+import { Avatar, HeaderActions, TopBar, Button, Loader, EmptyState, Feather } from "../components/ui";
+import SuccessModal from "../components/SuccessModal";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { ROLE_LABELS } from "@aster/shared";
@@ -41,6 +42,21 @@ export default function TeamsScreen({ navigation }) {
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Invite flow (owner/admin only — the RPC also enforces this server-side).
+  const canInvite = ["owner", "admin"].includes((profile?.role || "").toLowerCase());
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("interviewer");
+  const [sending, setSending] = useState(false);
+  const [inviteErr, setInviteErr] = useState(null);
+  const [inviteDone, setInviteDone] = useState(null); // { title, message }
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    const s = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", (e) => setKb(e.endCoordinates?.height || 0));
+    const h = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKb(0));
+    return () => { s.remove(); h.remove(); };
+  }, []);
+
   const load = useCallback(async () => {
     if (!profile) return;
     setRows(await loadTeam(profile.companyId));
@@ -49,6 +65,21 @@ export default function TeamsScreen({ navigation }) {
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
   useAutoRefresh(profile?.companyId, load);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+
+  const openInvite = () => { setInviteEmail(""); setInviteRole("interviewer"); setInviteErr(null); setInviteOpen(true); };
+  const sendInvite = async () => {
+    setInviteErr(null); setSending(true);
+    const res = await inviteTeammate({ email: inviteEmail, role: inviteRole });
+    setSending(false);
+    if (!res.ok) { setInviteErr(res.error || "Couldn't send the invite."); return; }
+    Keyboard.dismiss();
+    setInviteOpen(false);
+    load();
+    setInviteDone({
+      title: res.reactivated ? "Teammate reactivated" : "Invite sent",
+      message: res.reactivated ? `${res.email} was already on Aster and has been re-added to your workspace.` : `${res.email} has been emailed an invite to join your workspace as ${inviteRole === "admin" ? "a hiring manager" : "an interviewer"}.`,
+    });
+  };
 
   // Group members by role, in seniority order, for a sectioned list.
   const groups = [];
@@ -109,19 +140,33 @@ export default function TeamsScreen({ navigation }) {
       <FlatList
         data={flat}
         keyExtractor={(item) => (item._section ? `s-${item._section}` : `m-${item.id}`)}
-        ListHeaderComponent={Header}
+        ListHeaderComponent={
+          <>
+            {Header}
+            {canInvite ? (
+              <Pressable onPress={openInvite} style={styles.inviteCta}>
+                <View style={styles.inviteIcon}><Feather name="user-plus" size={16} color={theme.brand} /></View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[type.bodyStrong, { color: theme.ink }]}>Invite teammate</Text>
+                  <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Add a hiring manager or interviewer by email</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={theme.ink4} />
+              </Pressable>
+            ) : null}
+          </>
+        }
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} progressViewOffset={40} />}
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: "center", paddingTop: space(12) }}>
-            <EmptyState icon="users" title="No teammates yet" subtitle="Invite teammates from the Aster web app and they'll appear here." />
+            <EmptyState icon="users" title="No teammates yet" subtitle={canInvite ? "Invite a teammate to get started." : "Invite teammates from the Aster web app and they'll appear here."} />
           </View>
         }
         ListFooterComponent={rows.length ? (
           <View style={styles.footer}>
             <Feather name="info" size={13} color={theme.ink4} />
-            <Text style={[type.small, { color: theme.ink4, marginLeft: 8, flex: 1 }]}>Invite and manage teammates from the Aster web app.</Text>
+            <Text style={[type.small, { color: theme.ink4, marginLeft: 8, flex: 1 }]}>Manage roles and seats from the Aster web app.</Text>
           </View>
         ) : null}
         renderItem={({ item, index }) => {
@@ -162,11 +207,81 @@ export default function TeamsScreen({ navigation }) {
           );
         }}
       />
+
+      {/* Invite teammate sheet */}
+      <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)} statusBarTranslucent>
+        <View style={styles.backdrop}>
+          <Pressable style={{ flex: 1 }} onPress={() => !sending && setInviteOpen(false)} />
+          <View style={[styles.sheet, { marginBottom: kb > 0 ? kb : 0 }]}>
+            <View style={styles.handle} />
+            <View style={styles.sheetHead}>
+              <Text style={[type.h3, { color: theme.ink }]}>Invite teammate</Text>
+              <Pressable onPress={() => !sending && setInviteOpen(false)} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
+            </View>
+            <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>They'll get an email with a link to join your workspace.</Text>
+
+            <Text style={styles.fieldLabel}>Email</Text>
+            <TextInput
+              value={inviteEmail} onChangeText={setInviteEmail}
+              placeholder="teammate@company.com" placeholderTextColor={theme.ink4}
+              autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress"
+              style={styles.input}
+            />
+
+            <Text style={[styles.fieldLabel, { marginTop: space(4) }]}>Role</Text>
+            <View style={{ gap: 10 }}>
+              {[
+                { k: "interviewer", label: "Interviewer", desc: "Joins panels, scores candidates on assigned roles", icon: "users" },
+                { k: "admin", label: "Hiring Manager", desc: "Full access: runs roles, offers and hiring", icon: "shield" },
+              ].map((r) => {
+                const on = inviteRole === r.k;
+                return (
+                  <Pressable key={r.k} onPress={() => setInviteRole(r.k)} style={[styles.roleOpt, on && styles.roleOptOn]}>
+                    <View style={[styles.roleOptIcon, on && { backgroundColor: theme.brand }]}><Feather name={r.icon} size={15} color={on ? "#fff" : theme.ink3} /></View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[type.smallStrong, { color: theme.ink }]}>{r.label}</Text>
+                      <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>{r.desc}</Text>
+                    </View>
+                    <View style={[styles.radio, on && styles.radioOn]}>{on ? <Feather name="check" size={12} color="#fff" /> : null}</View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {inviteErr ? (
+              <View style={styles.errRow}><Feather name="alert-circle" size={14} color="#B42318" /><Text style={[type.small, { color: "#B42318", marginLeft: 8, flex: 1 }]}>{inviteErr}</Text></View>
+            ) : null}
+
+            <Button title={sending ? "Sending…" : "Send invite"} icon={sending ? undefined : "send"} onPress={sendInvite} disabled={sending || !inviteEmail.trim()} style={{ marginTop: space(5) }} />
+          </View>
+        </View>
+      </Modal>
+
+      <SuccessModal
+        visible={!!inviteDone}
+        title={inviteDone?.title || "Invite sent"}
+        message={inviteDone?.message || ""}
+        onClose={() => setInviteDone(null)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  inviteCta: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), marginHorizontal: space(4), marginTop: space(4), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  inviteIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  backdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(6) },
+  handle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(3) },
+  sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
+  fieldLabel: { ...type.smallStrong, color: theme.ink2, marginBottom: 7 },
+  input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 48, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
+  roleOpt: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 12, backgroundColor: theme.bg },
+  roleOptOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
+  roleOptIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center" },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: theme.line, alignItems: "center", justifyContent: "center" },
+  radioOn: { backgroundColor: theme.brand, borderColor: theme.brand },
+  errRow: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), borderRadius: radius.md, backgroundColor: "#FEF3F2", borderWidth: 1, borderColor: "#FECDCA" },
   summaryWrap: { paddingHorizontal: space(5), paddingBottom: space(5), paddingTop: space(1) },
   heroSub: { fontFamily: "Inter_500Medium", fontSize: 14, color: "rgba(255,255,255,0.82)" },
   summary: { flexDirection: "row", gap: 10 },
