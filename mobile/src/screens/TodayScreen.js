@@ -194,6 +194,7 @@ export default function TodayScreen({ navigation }) {
                         <Avatar name={p.candidateName} size={38} />
                         <View style={{ flex: 1, marginLeft: 11 }}>
                           <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{p.candidateName}</Text>
+                          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>Candidate · {p.jobTitle}</Text>
                           <View style={styles.progressTrack}>
                             <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : theme.brand }]} />
                           </View>
