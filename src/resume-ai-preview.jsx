@@ -8603,6 +8603,11 @@ function AvatarMenu({ avatarUrl, profile, navigate, onSignOut, variant = "rail" 
       top = Math.min(Math.max(PAD, r.top + r.height / 2 - MENU_H / 2), window.innerHeight - MENU_H - PAD);
       left = r.right + GAP;
       if (left + MENU_W > window.innerWidth - PAD) left = Math.max(PAD, r.left - MENU_W - GAP);
+    } else if (variant === "topbar") {
+      // Below the top-bar avatar, right-aligned to it; flip above if it would clip.
+      left = Math.min(Math.max(PAD, r.right - MENU_W), window.innerWidth - MENU_W - PAD);
+      top = r.bottom + GAP;
+      if (top + MENU_H > window.innerHeight - PAD) top = Math.max(PAD, r.top - MENU_H - GAP);
     } else {
       // Below the avatar row; flip above it if the bottom would clip; clamp x.
       left = Math.min(Math.max(PAD, r.left), window.innerWidth - MENU_W - PAD);
@@ -8628,7 +8633,15 @@ function AvatarMenu({ avatarUrl, profile, navigate, onSignOut, variant = "rail" 
   useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   const go = (key) => { setOpen(false); navigate(key); };
-  const doSignOut = () => { setOpen(false); onSignOut && onSignOut(); };
+  const doSignOut = async () => {
+    setOpen(false);
+    if (onSignOut) { onSignOut(); return; }
+    // The topbar variant isn't threaded an onSignOut through every screen, so it
+    // signs out directly and hard-navigates — a fresh load resets all workspace
+    // state so nothing leaks to the next person in this tab.
+    try { await supabase.auth.signOut(); } catch { /* ignore */ }
+    if (typeof window !== "undefined") window.location.assign("/login");
+  };
 
   const menu = open && pos && typeof document !== "undefined" && createPortal(
     <>
@@ -8664,6 +8677,28 @@ function AvatarMenu({ avatarUrl, profile, navigate, onSignOut, variant = "rail" 
     </>,
     document.body
   );
+
+  if (variant === "topbar") {
+    // The existing page-header avatar (top-right). Hover or tap opens the menu;
+    // it no longer links straight to the profile.
+    return (
+      <div className="relative" onMouseEnter={openMenu} onMouseLeave={scheduleClose}>
+        <button
+          ref={btnRef}
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          aria-haspopup="menu" aria-expanded={open} aria-label="Account menu" title={fullName}
+          className="shrink-0 rounded-full transition-opacity hover:opacity-90"
+        >
+          {avatarUrl && !failed ? (
+            <img src={avatarUrl} alt="You" onError={() => setFailed(true)} className="w-10 h-10 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
+          ) : (
+            <span className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold font-display" style={{ background: ac.bg, color: ac.color, border: "1px solid var(--line)" }}>{init}</span>
+          )}
+        </button>
+        {menu}
+      </div>
+    );
+  }
 
   if (variant === "rail") {
     return (
@@ -8719,8 +8754,20 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         </button>
       </div>
 
-      <div className="pb-5 md:pb-6">
-        <AvatarMenu avatarUrl={avatarUrl} profile={profile} navigate={go} onSignOut={onSignOut} variant="drawer" />
+      <div className="flex items-center gap-2 pb-5 md:pb-6">
+        <div className="flex-1 min-w-0">
+          <SidebarProfile avatarUrl={avatarUrl} navigate={go} profile={profile} />
+        </div>
+        <button
+          onClick={onSignOut}
+          className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+          style={{ color: "var(--ink-2)", border: "1px solid var(--line)" }}
+          aria-label="Log out"
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
+        >
+          <Icon name="logout" className="w-5 h-5" />
+        </button>
       </div>
 
       <nav className="space-y-1 mt-2 pb-1">
@@ -8865,13 +8912,11 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
       <nav className="flex-1 flex flex-col gap-1.5 w-full">
         {navItemsForRole(profile?.role).map(railBtn)}
       </nav>
+      {/* Profile + Log out live in the page-header avatar dropdown (top-right),
+          not here, so the rail stays focused on navigation. */}
       <div className="flex flex-col gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--line)" }}>
         {isOwner(profile?.role) && railBtn({ key: "billing", label: "Billing", icon: "card" })}
         {!isInterviewer(profile?.role) && railBtn({ key: "settings", label: "Settings", icon: "settings" })}
-        {/* Profile + Log out live in the avatar dropdown (hover on desktop, tap on
-            touch). It's portaled out of this overflow-hidden rail and clamped to
-            the viewport so it always shows in full. */}
-        <AvatarMenu avatarUrl={avatarUrl} profile={profile} navigate={navigate} onSignOut={onSignOut} variant="rail" />
       </div>
       {activeHint && hintPos && typeof document !== "undefined" && createPortal(
         showProfileHint ? (
@@ -9205,11 +9250,7 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
           onActivityClick={onActivityClick}
         />
         {navigate && (
-          <button onClick={() => navigate("profile")} aria-label="Your profile" title={nm || "Profile"} className="shrink-0 hover:opacity-90 transition-opacity">
-            {avatarUrl
-              ? <img src={avatarUrl} alt="You" className="w-10 h-10 rounded-full object-cover" style={{ border: "1px solid var(--line)" }} />
-              : <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold font-display" style={{ background: avatarColors(nm || "you").bg, color: avatarColors(nm || "you").color, border: "1px solid var(--line)" }}>{ini}</div>}
-          </button>
+          <AvatarMenu avatarUrl={avatarUrl} profile={profile} navigate={navigate} variant="topbar" />
         )}
       </div>
     </div>
