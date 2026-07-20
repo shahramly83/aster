@@ -204,7 +204,7 @@ export default function TodayScreen({ navigation }) {
                 soonest interviews as a swipeable card carousel (slide left/right). */}
             {timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
             {upcoming.length ? (
-              <Rise style={{ marginBottom: space(3) }}>
+              <Rise style={{ marginBottom: space(2.5) }}>
                 <View style={styles.upNextRow}>
                   <Text style={styles.eyebrow}>UP NEXT</Text>
                   {weekCount > 1 ? <Text style={styles.weekPill}>{weekCount} this week</Text> : null}
@@ -324,7 +324,7 @@ export default function TodayScreen({ navigation }) {
         }
         ListFooterComponent={
           past.length ? (
-            <Rise style={{ marginTop: space(3) }}>
+            <Rise style={{ marginTop: space(1) }}>
               <Text style={styles.section}>PAST</Text>
               <Carousel cardWidth={width - space(4) * 2} gap={space(3)}>
                 {past.map((iv) => (
@@ -503,7 +503,7 @@ function PastCard({ iv, tz, onPress }) {
 const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: space(6), paddingBottom: space(12) },
   emptyIcon: { width: 100, height: 100, borderRadius: 30, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
-  section: { ...type.label, color: theme.ink3, marginTop: space(2), marginBottom: space(3), marginLeft: space(1) },
+  section: { ...type.label, color: theme.ink3, marginTop: space(1), marginBottom: space(1.5), marginLeft: space(1) },
 
   week: { flexDirection: "row", justifyContent: "space-between", backgroundColor: theme.card, borderRadius: radius.card, paddingVertical: space(2), paddingHorizontal: space(2), marginBottom: space(2.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   weekDay: { alignItems: "center", flex: 1 },
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
   donePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12, color: "#fff" },
   upNextRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginLeft: space(1) },
   eyebrow: { ...type.label, color: theme.ink3 },
-  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: space(3) },
+  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: space(2) },
   dot2: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.line },
   dot2On: { width: 18, backgroundColor: theme.brand },
   upRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: space(2.5) },
