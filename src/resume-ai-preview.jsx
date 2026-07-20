@@ -9398,14 +9398,16 @@ function avatarColors(seed) {
 // image can't load (offline / blocked). Seed is the name unless overridden.
 // When no explicit fallback color is passed, the initials chip is tinted with a
 // per-name color from AVATAR_COLORS so default photos vary across people.
-function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style = {}, fontScale = 0.36, fallbackBg, fallbackColor }) {
+function FaceAvatar({ src, name, seed, gender, size = 40, className = "", style = {}, fontScale = 0.36, fallbackBg, fallbackColor, initialsOnly = false }) {
   const [failed, setFailed] = useState(false);
   const ov = name ? FACE_OVERRIDES[name] : null;
   const photo = src || (ov && ov.src) || null;
   const g = gender || (ov && ov.gender) || undefined;
   const key = seed != null ? seed : name;
   const pal = avatarColors((key != null && key !== "") ? key : name);
-  if (failed || (!photo && (key == null || key === ""))) {
+  // initialsOnly: real teammates (e.g. scorecard authors) must never get a
+  // generated stock face — with no real photo they fall back to their initials.
+  if (failed || (!photo && (initialsOnly || key == null || key === ""))) {
     return (
       <div
         className={`rounded-full flex items-center justify-center font-semibold font-display shrink-0 ${className}`}
@@ -19760,7 +19762,7 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
               <div key={sc.id} className="rounded-xl border px-3.5 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
                 <div className="flex items-center justify-between gap-2 mb-2.5">
                   <div className="flex items-center gap-2 min-w-0">
-                    <FaceAvatar name={sc.interviewer} seed={sc.interviewer} size={22} />
+                    <FaceAvatar name={sc.interviewer} seed={sc.interviewer} size={22} initialsOnly />
                     <p className="text-sm font-medium text-neutral-900 truncate">{sc.interviewer}<span className="text-xs text-neutral-400 font-normal"> · {sc.submittedAt}</span></p>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: r.bg, color: r.color }}>{r.label}</span>
@@ -20788,7 +20790,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <Icon name="lock" className="w-4 h-4" style={{ color: "#B45309" }} />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>Decision locked · waiting on {attendedInterviewers.length - scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length - scoredCount === 1 ? "" : "s"}</p>
+                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>Decision locked · waiting on {attendedInterviewers.length - scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"}</p>
                     <p className="text-xs mt-1" style={{ color: "#B45309" }}>Every interviewer has to submit their scorecard before you can make a decision. Your own scorecard is optional.</p>
                     <div className="flex flex-wrap gap-1.5 mt-2.5">
                       {attendedInterviewers.map((a) => {

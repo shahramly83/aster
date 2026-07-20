@@ -675,7 +675,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
                   <View style={styles.lockCircle}><Feather name="lock" size={16} color="#B45309" /></View>
                   <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={[type.smallStrong, { color: "#92400E" }]}>Decision locked. Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} interviewer{requiredRaters.length - ratedRequired === 1 ? "" : "s"}</Text>
+                    <Text style={[type.smallStrong, { color: "#92400E" }]}>Decision locked. Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} interviewer{requiredRaters.length === 1 ? "" : "s"}</Text>
                     <Text style={[type.small, { color: "#B45309", marginTop: 4 }]}>Every interviewer has to submit their scorecard before you can make a decision. Your own scorecard is optional.</Text>
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
                       {requiredRaters.map((p) => {
