@@ -3,6 +3,129 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "where-candidates-drop-off-and-how-to-fix-each-leak",
+    "title": "Where candidates drop off, and how to fix each leak",
+    "category": "recruiting-ops",
+    "excerpt": "Most pipelines lose good people at predictable points. Here's where drop-off happens and what to do about each stage.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-07-20",
+    "readMins": 5,
+    "tags": [
+      "pipeline",
+      "candidate-experience",
+      "recruiting-metrics",
+      "conversion"
+    ],
+    "body": [
+      {
+        "p": "You can run a great sourcing campaign, write a sharp job post, and still end up with three finalists instead of the eight you hoped for. The reason usually isn't the top of the funnel. It's the leaks: the quiet points where a candidate who would have said yes stops replying, ghosts a scheduling link, or takes the other offer while you're still lining up a debrief."
+      },
+      {
+        "p": "Drop-off is normal. Some of it is healthy, because not every applicant should reach the final round. But a lot of it is avoidable, and it's almost always tied to something you control: **speed, clarity, or effort you're asking of the candidate.** Here's where people leave, stage by stage, and what actually moves the number."
+      },
+      {
+        "h": "Apply to first response"
+      },
+      {
+        "p": "The first leak is the one most teams never measure: how long an applicant waits to hear anything at all. A resume submitted on Tuesday that gets a first human reply the following Monday has already cooled. Strong candidates apply in batches, and the team that responds first gets the conversation."
+      },
+      {
+        "p": "This is the stage where screening speed pays off directly. If it takes a person two weeks to read the pile, the candidate at the top of that pile has been in three other processes the whole time. When every resume is read and ranked as it arrives, you can reach your strongest applicants in a day instead of two."
+      },
+      {
+        "ul": [
+          "Set a target for time to first response and track it, not just time-to-hire.",
+          "Send a real acknowledgement at apply, not silence until someone reviews.",
+          "Reach the top of your ranked list first, while interest is highest."
+        ]
+      },
+      {
+        "quote": "The team that replies first isn't luckier. They just made the candidate wait less."
+      },
+      {
+        "h": "Screen to first interview"
+      },
+      {
+        "p": "Once you've decided someone is worth talking to, the scheduling step quietly kills momentum. The classic pattern: an email offering three times, the candidate replies with two that no longer work, you counter, they travel, and a week evaporates for a call that should have taken fifteen minutes to book."
+      },
+      {
+        "p": "Every round of back-and-forth is a chance to lose someone. Self-scheduling fixes most of it. One link, the candidate picks a slot that works, and the calendar invite with the video link is created automatically. **The goal is zero emails between \"let's talk\" and a booked slot.**"
+      },
+      {
+        "note": "Every extra email in scheduling is a place a candidate can go quiet. Removing the back-and-forth is one of the cheapest conversion wins you have.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "First interview to the rest of the process"
+      },
+      {
+        "p": "Here the leak flips direction. A lot of candidates drop because they don't know what happens next. They finished a good first call, heard \"we'll be in touch,\" and got nothing for eight days. In that silence they assume the worst and re-engage with other companies."
+      },
+      {
+        "p": "You don't need to promise an outcome to keep someone warm. You need to be honest about the shape of the process:"
+      },
+      {
+        "ul": [
+          "Tell them how many more steps there are and roughly how long each takes.",
+          "Give a real date for when they'll hear back, then hit it.",
+          "If a decision slips, say so before the deadline, not after."
+        ]
+      },
+      {
+        "p": "Predictability is a feature. A candidate who knows they'll hear on Thursday will wait until Thursday. A candidate who's guessing will not."
+      },
+      {
+        "h": "Interview to decision"
+      },
+      {
+        "p": "This is where internal drag shows up as external loss. The interviews are done, the feedback is scattered across inboxes and heads, and nobody wants to be the one to force a call. Meanwhile the candidate is a real person deciding between you and someone who already moved."
+      },
+      {
+        "p": "The fix is process, not urgency theater. Collect structured feedback right after each interview instead of waiting for a meeting. Keep the whole pipeline on one shared board so the current state is obvious to everyone, and no candidate is buried under a hundred unread messages. When the debrief happens, people arrive with written notes instead of vague impressions, and the decision takes minutes."
+      },
+      {
+        "p": "A shared pipeline also surfaces the stuck ones. If a strong candidate has been sitting in \"interviewed\" for six days, that should be visible at a glance, not something you discover when they withdraw."
+      },
+      {
+        "h": "Offer to accept"
+      },
+      {
+        "p": "The last leak is the most expensive, because you've already spent all the work getting here. Offers fall through for a few repeatable reasons: the compensation was never really aligned, the process took so long the candidate lost enthusiasm, or a competing offer arrived first and yours came a week later."
+      },
+      {
+        "p": "Most of this is prevented earlier. Talk about salary range and expectations before the final round, not after. Keep the whole timeline tight so the candidate still feels the interest they felt on day one. And when you're ready to say yes, say it fast. **An offer that arrives two days after the decision beats one that arrives two weeks after, every time.**"
+      },
+      {
+        "h": "How to find your own leaks"
+      },
+      {
+        "p": "You can't fix what you don't measure, and you don't need a complicated dashboard to start. Look at your last few filled roles and count how many candidates moved from each stage to the next. The stage with the steepest drop that shouldn't be steep is your first project."
+      },
+      {
+        "ul": [
+          "Conversion rate between each stage, not just overall applicant-to-hire.",
+          "Median time spent in each stage, so you can see where things stall.",
+          "Where withdrawals happen: candidates who pulled out tell you more than candidates you rejected."
+        ]
+      },
+      {
+        "p": "Be honest about which drops are healthy. Cutting an applicant pool from 46 to a shortlist of 3 is the system working. Losing two of your three finalists to slow scheduling is the system leaking. The number to chase is the ratio of good candidates who stay in the process, not the raw count at the top."
+      },
+      {
+        "h": "What this adds up to"
+      },
+      {
+        "p": "None of these fixes is dramatic on its own. Reply a day sooner. Drop the scheduling emails. Tell people what's next. Get feedback in writing the same day. Send the offer fast. Each one saves a handful of candidates, and together they change how many finalists you actually reach."
+      },
+      {
+        "p": "AI helps most at the two ends that scale poorly with human time: reading and ranking every resume so you reach the right people early, and handling the scheduling so nobody waits on an inbox. The middle, the judgment and the honesty with candidates, stays yours. That's the right division of labor: let the tooling remove the delays, and spend your attention on the decisions that actually need a person."
+      }
+    ]
+  },
+  {
     "slug": "write-a-job-post-your-ai-screener-can-actually-rank-against",
     "title": "Write a job post your AI screener can actually rank against",
     "category": "ai-hiring",
