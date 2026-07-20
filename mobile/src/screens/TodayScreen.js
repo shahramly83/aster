@@ -201,7 +201,7 @@ export default function TodayScreen({ navigation }) {
           <View>
             {/* Polls I ran — panel voting progress (manager), tap opens the chat */}
             {myPolls.length ? (
-              <Rise style={{ marginBottom: space(3) }}>
+              <Rise style={{ marginBottom: space(2.5) }}>
                 <Text style={styles.pollEyebrow}>TEAM AVAILABILITY POLL</Text>
                 <View style={styles.pollCard}>
                   {myPolls.slice(0, 6).map((p, i) => {
@@ -209,9 +209,9 @@ export default function TodayScreen({ navigation }) {
                     const pct = p.total > 0 ? p.voted / p.total : 0;
                     return (
                       <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
-                        <Avatar name={p.candidateName} size={38} />
+                        <Avatar name={p.candidateName} size={32} />
                         <View style={{ flex: 1, marginLeft: 11 }}>
-                          <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{p.candidateName}</Text>
+                          <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{p.candidateName}</Text>
                           <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>Candidate · {p.jobTitle}</Text>
                           <View style={styles.progressTrack}>
                             <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : theme.brand }]} />
@@ -236,7 +236,7 @@ export default function TodayScreen({ navigation }) {
 
             {/* Availability polls awaiting my vote — tap opens the poll chat */}
             {polls.length ? (
-              <Rise style={{ marginBottom: space(3) }}>
+              <Rise style={{ marginBottom: space(2.5) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR INPUT</Text>
                 <View style={styles.pollCard}>
                   <View style={styles.pollHead}>
@@ -248,9 +248,9 @@ export default function TodayScreen({ navigation }) {
                   </View>
                   {polls.slice(0, 5).map((p, i) => (
                     <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
-                      <Avatar name={p.candidateName} size={38} />
+                      <Avatar name={p.candidateName} size={32} />
                       <View style={{ flex: 1, marginLeft: 11 }}>
-                        <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{p.candidateName}</Text>
+                        <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{p.candidateName}</Text>
                         <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{p.jobTitle}</Text>
                       </View>
                       <View style={styles.votePill}>
@@ -265,16 +265,16 @@ export default function TodayScreen({ navigation }) {
             {/* Interviews needing action: awaiting the candidate, or needing new
                 times after a reschedule. No booked time yet, so they sit up here. */}
             {pending.length ? (
-              <Rise style={{ marginBottom: space(3) }}>
+              <Rise style={{ marginBottom: space(2.5) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR ACTION</Text>
                 <View style={styles.pollCard}>
                   {pending.map((iv, i) => {
                     const resch = iv.status === "reschedule";
                     return (
                       <Press key={iv.id} onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
-                        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={38} />
+                        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={32} />
                         <View style={{ flex: 1, marginLeft: 11 }}>
-                          <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{iv.candidateName}</Text>
+                          <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{iv.candidateName}</Text>
                           <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
                         </View>
                         <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
@@ -376,9 +376,9 @@ function UpcomingRow({ iv, tz, divider, onPress }) {
   const cd = countdown(iv.scheduledAt);
   return (
     <Press onPress={onPress} style={[styles.upRow, divider && styles.pollRowDiv]} scaleTo={0.98}>
-      <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={38} />
+      <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={32} />
       <View style={{ flex: 1, marginLeft: 11 }}>
-        <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{iv.candidateName}</Text>
+        <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{iv.candidateName}</Text>
         <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{timeOnly(iv.scheduledAt, tz)} · {iv.jobTitle}</Text>
       </View>
       <View style={[styles.upCount, cd.live && { backgroundColor: theme.success }]}>
@@ -426,18 +426,18 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 100, height: 100, borderRadius: 30, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   section: { ...type.label, color: theme.ink3, marginTop: space(2), marginBottom: space(3), marginLeft: space(1) },
 
-  week: { flexDirection: "row", justifyContent: "space-between", backgroundColor: theme.card, borderRadius: radius.card, paddingVertical: space(2.5), paddingHorizontal: space(2), marginBottom: space(3.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  week: { flexDirection: "row", justifyContent: "space-between", backgroundColor: theme.card, borderRadius: radius.card, paddingVertical: space(2), paddingHorizontal: space(2), marginBottom: space(2.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   weekDay: { alignItems: "center", flex: 1 },
   weekWd: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.ink4, textTransform: "uppercase" },
-  weekNum: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 5 },
+  weekNum: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4 },
   weekNumToday: { backgroundColor: theme.brand },
   weekNumHas: { backgroundColor: theme.brandSoft },
   weekNumTxt: { fontFamily: "Inter_700Bold", fontSize: 13, color: theme.ink2, fontVariant: ["tabular-nums"] },
   weekDotBase: { width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: "transparent" },
   weekDotOn: { backgroundColor: theme.brand },
-  pollEyebrow: { ...type.label, color: theme.brand, marginBottom: space(2), marginLeft: space(1) },
-  pollCard: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(3.5), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
-  pollHead: { flexDirection: "row", alignItems: "center", marginBottom: space(2) },
+  pollEyebrow: { ...type.label, color: theme.brand, marginBottom: space(1.5), marginLeft: space(1) },
+  pollCard: { backgroundColor: theme.card, borderRadius: radius.card, paddingHorizontal: space(3.5), paddingVertical: space(1), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  pollHead: { flexDirection: "row", alignItems: "center", marginBottom: space(1), marginTop: space(2) },
   pollHeadIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
   pollTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 16, letterSpacing: -0.3, color: theme.ink },
   pollSubtitle: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: theme.ink3, marginTop: 2 },
@@ -459,19 +459,19 @@ const styles = StyleSheet.create({
   upCountTxt: { fontFamily: "Inter_700Bold", fontSize: 11.5, color: theme.brand, letterSpacing: 0.2 },
   weekPill: { ...type.smallStrong, color: theme.brand, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5, overflow: "hidden" },
 
-  hero: { borderRadius: 24, padding: space(4), overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  hero: { borderRadius: 22, padding: space(3.5), overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.26, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   heroMark: { position: "absolute", top: -26, right: -30 },
   countChip: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.pill, paddingHorizontal: 12, height: 30 },
   countChipLive: { backgroundColor: "#16A34A" },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
   countTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#fff", marginLeft: 7, letterSpacing: 0.2 },
   heroAvatar: { borderRadius: 30, borderWidth: 2, borderColor: "rgba(255,255,255,0.5)" },
-  heroName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 19, letterSpacing: -0.4, color: "#fff" },
+  heroName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 18, letterSpacing: -0.4, color: "#fff" },
   heroRole: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: "rgba(255,255,255,0.82)", marginTop: 1 },
   heroTimeRow: { flexDirection: "row", alignItems: "center", marginTop: space(3), backgroundColor: "rgba(255,255,255,0.12)", alignSelf: "flex-start", borderRadius: radius.md, paddingHorizontal: 11, paddingVertical: 7 },
   heroTime: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#fff", marginLeft: 8 },
   heroTimeInline: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.9)", marginLeft: 6 },
-  heroActions: { marginTop: space(3.5) },
+  heroActions: { marginTop: space(3) },
   joinBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderRadius: radius.md, height: 46 },
   joinTxt: { fontFamily: "Inter_700Bold", fontSize: 15, color: theme.brand, marginLeft: 8 },
   detailsBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.md, height: 46 },
