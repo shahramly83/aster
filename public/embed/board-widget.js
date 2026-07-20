@@ -245,7 +245,7 @@
   }
 
   function poweredBy() {
-    return '<div class="ab-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">Aster</a></div>';
+    return '<div class="ab-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">hireaster.com</a></div>';
   }
 
   function autoMount() {

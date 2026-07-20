@@ -187,7 +187,7 @@
       '<input class="aster-hp" type="text" id="' + id + '-website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">' +
       '<button id="' + id + '-submit" type="button">Submit application</button>' +
       '<div class="aster-msg" id="' + id + '-msg" style="display:none"></div>' +
-      '<div class="aster-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">Aster</a></div>';
+      '<div class="aster-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">hireaster.com</a></div>';
 
     var $ = function (s) { return root.querySelector("#" + id + "-" + s); };
     var fileInput = $("input"),
@@ -278,7 +278,7 @@
 
         if (res.ok && data && data.ok) {
           root.innerHTML = '<div class="aster-msg ok" style="display:block">Thanks. Your application is in and the team will be in touch about next steps.</div>' +
-            '<div class="aster-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">Aster</a></div>';
+            '<div class="aster-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">hireaster.com</a></div>';
           if (typeof cfg.onSuccess === "function") {
             try { cfg.onSuccess({ candidateId: data.candidate_id, fit: data.fit }); } catch (e) {}
           }

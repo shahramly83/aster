@@ -13073,7 +13073,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                           <p className="text-[10px] mt-0.5" style={{ color: "#9096a2" }}>PDF or Word (.docx), up to 10 MB</p>
                         </div>
                         <div className="rounded-lg text-center text-xs font-semibold py-2.5 text-white" style={{ background: embedAccent }}>Submit application</div>
-                        <p className="text-[10px] text-center mt-2" style={{ color: "#9096a2" }}>Powered by Aster</p>
+                        <p className="text-[10px] text-center mt-2" style={{ color: "#9096a2" }}>Powered by <a href="https://hireaster.com" target="_blank" rel="noopener noreferrer" style={{ color: "#9096a2", textDecoration: "underline" }}>hireaster.com</a></p>
                       </div>
                     ) : (
                       <div>
@@ -13100,7 +13100,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                             );
                           });
                         })()}
-                        <p className="text-[10px] text-center mt-2" style={{ color: "#9096a2" }}>Powered by Aster</p>
+                        <p className="text-[10px] text-center mt-2" style={{ color: "#9096a2" }}>Powered by <a href="https://hireaster.com" target="_blank" rel="noopener noreferrer" style={{ color: "#9096a2", textDecoration: "underline" }}>hireaster.com</a></p>
                       </div>
                     )}
                   </div>
