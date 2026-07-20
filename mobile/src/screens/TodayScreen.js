@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, RefreshControl, StyleSheet, Linking, Animated, Easing } from "react-native";
+import { View, Text, FlatList, RefreshControl, StyleSheet, Linking, Animated, Easing, ScrollView, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
@@ -150,6 +150,7 @@ export default function TodayScreen({ navigation }) {
 
   const tz = profile?.timezone;
   const firstName = profile?.name?.split(" ")[0] || "there";
+  const { width } = useWindowDimensions();
 
   if (items === null) return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -199,6 +200,24 @@ export default function TodayScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListHeaderComponent={
           <View>
+            {/* UP NEXT leads the screen: the soonest interviews as a swipeable
+                card carousel (slide left/right), then a week overview. */}
+            {upcoming.length ? (
+              <Rise style={{ marginBottom: space(3) }}>
+                <View style={styles.upNextRow}>
+                  <Text style={styles.eyebrow}>UP NEXT</Text>
+                  {weekCount > 1 ? <Text style={styles.weekPill}>{weekCount} this week</Text> : null}
+                </View>
+                <Carousel cardWidth={width - space(4) * 2 - (upcoming.length > 1 ? 30 : 0)}>
+                  {upcoming.map((iv) => (
+                    <HeroCard key={iv.id} iv={iv} tz={tz}
+                      onOpen={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
+                  ))}
+                </Carousel>
+              </Rise>
+            ) : null}
+            {timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
+
             {/* Polls I ran — panel voting progress (manager), tap opens the chat */}
             {myPolls.length ? (
               <Rise style={{ marginBottom: space(2.5) }}>
@@ -267,42 +286,23 @@ export default function TodayScreen({ navigation }) {
             {pending.length ? (
               <Rise style={{ marginBottom: space(2.5) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR ACTION</Text>
-                <View style={styles.pollCard}>
-                  {pending.map((iv, i) => {
+                <Carousel cardWidth={(width - space(4) * 2) * (pending.length > 1 ? 0.72 : 1)} gap={space(2.5)}>
+                  {pending.map((iv) => {
                     const resch = iv.status === "reschedule";
                     return (
-                      <Press key={iv.id} onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
-                        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={32} />
-                        <View style={{ flex: 1, marginLeft: 11 }}>
-                          <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{iv.candidateName}</Text>
-                          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
+                      <Press key={iv.id} onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} style={styles.actionCard} scaleTo={0.98}>
+                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                          <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={40} />
+                          <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
+                            <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "Reschedule" : "Awaiting"}</Text>
+                          </View>
                         </View>
-                        <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
-                          <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "Reschedule" : "Awaiting"}</Text>
-                        </View>
+                        <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15, marginTop: 11 }]} numberOfLines={1}>{iv.candidateName}</Text>
+                        <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{iv.jobTitle}</Text>
                       </Press>
                     );
                   })}
-                </View>
-              </Rise>
-            ) : null}
-            {timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
-            {upcoming.length ? (
-              <Rise delay={90} style={{ marginBottom: past.length ? space(5) : 0 }}>
-                <View style={styles.upNextRow}>
-                  <Text style={styles.eyebrow}>UP NEXT</Text>
-                  {weekCount > 1 ? <Text style={styles.weekPill}>{weekCount} this week</Text> : null}
-                </View>
-                <HeroCard iv={upcoming[0]} tz={tz}
-                  onOpen={() => navigation.navigate("CandidateProfile", { candidateId: upcoming[0].candidateId, jobId: upcoming[0].jobId, candidateName: upcoming[0].candidateName, jobTitle: upcoming[0].jobTitle })} />
-                {upcoming.length > 1 ? (
-                  <View style={[styles.pollCard, { marginTop: space(3), paddingVertical: space(1) }]}>
-                    {upcoming.slice(1).map((iv, i) => (
-                      <UpcomingRow key={iv.id} iv={iv} tz={tz} divider={i > 0}
-                        onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
-                    ))}
-                  </View>
-                ) : null}
+                </Carousel>
               </Rise>
             ) : null}
           </View>
@@ -324,6 +324,38 @@ export default function TodayScreen({ navigation }) {
             : <Rise delay={Math.min(index, 6) * 55}><PastCard iv={item} tz={tz} onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, jobId: item.jobId, candidateName: item.candidateName, jobTitle: item.jobTitle })} /></Rise>
         }
       />
+    </View>
+  );
+}
+
+// A horizontal, snapping card swiper with paging dots. Cards are sized to leave a
+// peek of the next one, so it reads as a carousel you can slide left to right.
+// With a single card it just renders it (no rail, no dots).
+function Carousel({ children, cardWidth, gap = space(3) }) {
+  const kids = React.Children.toArray(children).filter(Boolean);
+  const [idx, setIdx] = useState(0);
+  if (kids.length <= 1) return <View>{kids}</View>;
+  const step = cardWidth + gap;
+  return (
+    <View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={step}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={(e) => setIdx(Math.max(0, Math.round(e.nativeEvent.contentOffset.x / step)))}
+        contentContainerStyle={{ paddingRight: space(2) }}
+      >
+        {kids.map((c, i) => (
+          <View key={i} style={{ width: cardWidth, marginRight: i < kids.length - 1 ? gap : 0 }}>{c}</View>
+        ))}
+      </ScrollView>
+      <View style={styles.dots}>
+        {kids.map((_, i) => <View key={i} style={[styles.dot2, i === idx && styles.dot2On]} />)}
+      </View>
     </View>
   );
 }
@@ -445,6 +477,7 @@ const styles = StyleSheet.create({
   pollRowDiv: { borderTopWidth: 1, borderTopColor: theme.line2 },
   votePill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: theme.brand, borderRadius: radius.pill, paddingHorizontal: 13, height: 32 },
   actionPill: { borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5, marginLeft: 8 },
+  actionCard: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(3.5), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   votePillTxt: { fontFamily: "Inter_700Bold", fontSize: 13, color: "#fff" },
   progressTrack: { height: 6, borderRadius: 3, backgroundColor: theme.line2, marginTop: 7, overflow: "hidden" },
   progressFill: { height: 6, borderRadius: 3 },
@@ -454,6 +487,9 @@ const styles = StyleSheet.create({
   donePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12, color: "#fff" },
   upNextRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginLeft: space(1) },
   eyebrow: { ...type.label, color: theme.ink3 },
+  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: space(3) },
+  dot2: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.line },
+  dot2On: { width: 18, backgroundColor: theme.brand },
   upRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: space(2.5) },
   upCount: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 10, height: 26, marginLeft: 8 },
   upCountTxt: { fontFamily: "Inter_700Bold", fontSize: 11.5, color: theme.brand, letterSpacing: 0.2 },
