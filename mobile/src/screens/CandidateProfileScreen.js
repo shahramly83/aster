@@ -469,7 +469,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
           {tab === "interview" ? (<>
           {/* Did the interview happen? — leads the Interview tab once the time has
-              passed. Proceed to scoring dismisses it; Reschedule runs the flow. */}
+              passed. Proceed to scorecards dismisses it; Reschedule runs the flow. */}
           {interviewDone && manager && !noShowDismissed ? (
             <View style={[styles.noShow, { marginTop: space(5) }]}>
               <Text style={[type.smallStrong, { color: theme.ink }]}>Did the interview happen?</Text>
@@ -481,7 +481,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 </Pressable>
                 <Pressable onPress={() => setNoShowDismissed(true)} style={[styles.noShowBtn, styles.noShowProceed, { flex: 1.5 }]}>
                   <Feather name="check" size={14} color="#fff" />
-                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]} numberOfLines={1}>Proceed to scoring</Text>
+                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]} numberOfLines={1}>Proceed to scorecards</Text>
                 </Pressable>
               </View>
             </View>

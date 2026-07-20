@@ -8388,6 +8388,7 @@ function Icon({ name, className = "w-5 h-5", style }) {
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
     calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
     check: <><path d="M5 12l4.5 4.5L19 7" /></>,
+    refresh: <><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></>,
     star: <><path d="M12 3l2.7 6 6.3.5-4.8 4.2 1.5 6.3L12 17l-5.7 3 1.5-6.3L3 9.5 9.3 9z" /></>,
     info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></>,
     menu: <><path d="M3 6h18M3 12h18M3 18h18" /></>,
@@ -20639,7 +20640,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
         {/* Did the interview happen? Leads step 1 once the interview time has
             passed, so the manager acts on it before anything else. Reschedule runs
-            the current flow; Proceed to scoring dismisses this and moves on. */}
+            the current flow; Proceed to scorecards dismisses this and moves on. */}
         {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && (
           <div className="mt-2 mb-4 rounded-2xl border bg-white act-shadow p-5" style={{ borderColor: "var(--line)" }}>
             <div className="flex items-start gap-3.5">
@@ -20689,7 +20690,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "Reschedule"}
                   </button>
                   <button onClick={() => { setNoShowDismissed(true); setIvStep(2); }} className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 8px 20px -8px rgba(var(--brand-rgb),0.65)" }}>
-                    <Icon name="check" className="w-4 h-4" /> Proceed to scoring
+                    <Icon name="check" className="w-4 h-4" /> Proceed to scorecards
                   </button>
                 </div>
               </div>
