@@ -8086,7 +8086,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
             <FaceAvatar name="Farah Adya" gender="women" size={34} className="border-2" style={{ borderColor: "#0B2AE0" }} />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-white truncate">Farah Adya</p>
-              <p className="text-[12px] truncate" style={{ color: "rgba(255,255,255,0.8)" }}>Head of Talent, Northwind</p>
+              <p className="text-[12px] truncate" style={{ color: "rgba(255,255,255,0.8)" }}>Head of Talent, Maju Group</p>
             </div>
             <div className="ml-auto flex items-center gap-2 pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.2)" }}>
               <div className="flex -space-x-2">
