@@ -14037,7 +14037,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <button onClick={() => { setQuery(""); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>
               </div>
             )}
-            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name.` : "Your database is empty.") : (<>
+            {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name.` : "Your database is empty.", null) : (<>
               <div className="grid sm:grid-cols-2 gap-3">
                 {browseItems.map((c) => browseCard(c))}
                 {lockedList.length > 0 && (
@@ -14144,7 +14144,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               </div>
             )}
             {!matchScores ? (candidates.length === 0
-                ? emptyState("Your database is empty", "Skills and industries are drawn from your candidates' profiles. Import resumes first, then filter by skill, industry or experience level.", "matching")
+                ? emptyState("Your database is empty", "Import resumes to search by skill, industry or experience.", null)
                 : emptyState("Find your best fit candidates", "", null))
               : list.length === 0 ? emptyState("No matches found", "No candidates fit those criteria. Try broadening the skills, industry or experience level.", "matching")
               : ranked ? rankedList : plainList}
@@ -24198,13 +24198,17 @@ export default function ResumeAIPreview() {
     // keeps every read that already cost a credit.
     setInsightsCache((prev) => ({ ...prev, ...(data.experienceInsights || {}) }));
     setOffers(data.offers || {});
-    setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt, { hiredDates }));  // derived feed as an instant fallback
-    // Authoritative feed: the real event log (0106). Replaces the derived feed
-    // once it has entries; a fresh workspace with no logged events keeps the
-    // derived summary until events start landing.
-    if (companyId) dbListActivity(companyId).then((rows) => {
-      if (rows.length) setActivities(rows.map((r) => mapActivityRow(r, opts.seenAt ?? activitiesSeenAt)));
-    });
+    // Authoritative feed: the real event log (0106). A real workspace shows ONLY
+    // its own logged events — empty until they land — never the derived/demo
+    // summary, which could otherwise surface a sample event (e.g. a fake
+    // "Candidate hired · A candidate") on a brand-new, empty workspace. The
+    // derived feed is kept only for the unauthenticated marketing preview.
+    if (companyId) {
+      setActivities([]);
+      dbListActivity(companyId).then((rows) => setActivities(rows.map((r) => mapActivityRow(r, opts.seenAt ?? activitiesSeenAt))));
+    } else {
+      setActivities(buildActivities(opts.seenAt ?? activitiesSeenAt, { hiredDates }));
+    }
     setWorkspaceLive(true);            // real ids now in play → writes persist
   };
 
