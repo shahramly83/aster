@@ -8137,7 +8137,8 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {!isEnterprise && <CurrencyDropdown value={cur} onChange={setCur} />}
+              {/* Currency isn't changeable during sign-up; it follows the price
+                  shown on pricing. It can still be set later in Settings. */}
               <button onClick={goToPricing} className="text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors hover:bg-neutral-50" style={{ color: "var(--ink)", border: "1px solid var(--line-strong)" }}>Change</button>
             </div>
           </div>
