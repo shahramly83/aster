@@ -20595,6 +20595,24 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         )}
 
+        {/* Did the interview happen? Leads step 1 once the interview time has
+            passed, so the manager acts on it before anything else. Reschedule runs
+            the current flow; Proceed to scoring dismisses this and moves on. */}
+        {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && (
+          <div className="mt-2 mb-4 rounded-2xl tool-card act-shadow px-5 py-4">
+            <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Did the interview happen?</h2>
+            <p className="text-xs mt-1 mb-3.5" style={{ color: "var(--ink-3)" }}>If it was a no-show or needs another time, reschedule. Otherwise go ahead and score.</p>
+            <div className="flex flex-wrap gap-2.5">
+              <button onClick={doNoShowReschedule} disabled={rescheduling} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium border transition-colors hover:bg-amber-50 disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FCD34D", background: "#fff" }}>
+                <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "Reschedule"}
+              </button>
+              <button onClick={() => { setNoShowDismissed(true); setIvStep(2); }} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: "var(--brand)" }}>
+                <Icon name="check" className="w-4 h-4" /> Proceed to scoring
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Scheduling + AI interview questions are owner / hiring-manager actions. */}
         {isManagerView && ivStep === 1 && (<>
         {openRequest && !isBooked && (
@@ -20634,40 +20652,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         )}
         </>)}
 
-        {/* AI interview questions: the hiring manager generates them once, and the
-            whole interview panel reads the same set. In the manager's stepped card
-            they live in step 1; interviewers always see them. */}
-        {(!isManagerView || ivStep === 1) && (
-          <div className="mt-4">
-            <InterviewQuestionsPanel
-              candidate={candidate}
-              jobs={jobs}
-              contextJobId={contextJobId}
-              isScheduled={questionsUnlocked}
-              savedQuestions={savedQuestions}
-              onGenerate={onGenerateQuestions}
-              canGenerate={!isInterviewer(profile?.role)}
-            />
-          </div>
-        )}
-
-        {/* After the interview time passes: was it a no-show (reschedule) or done
-            (score)? Mirrors the mobile prompt. */}
-        {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && (
-          <div className="mt-4 rounded-2xl tool-card act-shadow px-5 py-4">
-            <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Did the interview happen?</h2>
-            <p className="text-xs mt-1 mb-3.5" style={{ color: "var(--ink-3)" }}>If it was a no-show or needs another time, reschedule. Otherwise go ahead and score.</p>
-            <div className="flex flex-wrap gap-2.5">
-              <button onClick={doNoShowReschedule} disabled={rescheduling} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium border transition-colors hover:bg-amber-50 disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FCD34D", background: "#fff" }}>
-                <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "Reschedule"}
-              </button>
-              <button onClick={() => setIvStep(2)} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: "var(--brand)" }}>
-                <Icon name="check" className="w-4 h-4" /> Proceed to scoring
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Step 1, after the interview: the hiring manager ticks who actually
             attended. Only those interviewers need to score before Decision unlocks. */}
         {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && interviewerAttendees.length > 0 && (
@@ -20699,6 +20683,23 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* AI interview questions live LAST in step 1: the hiring manager generates
+            them once and the whole panel reads the same set. Interviewers always
+            see them. */}
+        {(!isManagerView || ivStep === 1) && (
+          <div className="mt-4">
+            <InterviewQuestionsPanel
+              candidate={candidate}
+              jobs={jobs}
+              contextJobId={contextJobId}
+              isScheduled={questionsUnlocked}
+              savedQuestions={savedQuestions}
+              onGenerate={onGenerateQuestions}
+              canGenerate={!isInterviewer(profile?.role)}
+            />
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator, Keyboard, Platform } from "react-native";
+import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator, Keyboard, Platform, Animated } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
@@ -84,6 +84,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [genQ, setGenQ] = useState(false);
   const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule prompt
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("profile"); // interview page sub-tabs: profile | interview | feedback
+  const tabInit = useRef(false); // only auto-pick the default tab once, so a manual switch sticks
+  const tabAnim = useRef(new Animated.Value(1)).current; // fade + slide when switching tabs
 
   const load = useCallback(async () => {
     const [c, sc, iv, off, meta, qs] = await Promise.all([
@@ -110,6 +113,22 @@ export default function CandidateProfileScreen({ route, navigation }) {
     if (!profile?.companyId) return undefined;
     return subscribeInterviews(profile.companyId, () => load());
   }, [profile?.companyId, load]);
+
+  // Land on the tab that matters for where the candidate is: the interview work
+  // while interviewing, the outcome once there's an offer, else their profile.
+  // Only auto-picks once (guarded by tabInit) so a manual switch isn't overridden.
+  useEffect(() => {
+    if (tabInit.current || loading) return;
+    tabInit.current = true;
+    setTab(stage === "offer" || stage === "hired" ? "feedback" : stage === "interviewing" ? "interview" : "profile");
+  }, [loading, stage]);
+
+  const switchTab = (t) => {
+    if (t === tab) return;
+    setTab(t);
+    tabAnim.setValue(0);
+    Animated.timing(tabAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  };
 
   const nameOf = () => candidate?.name || candidateName || "Candidate";
 
@@ -292,6 +311,22 @@ export default function CandidateProfileScreen({ route, navigation }) {
               ) : null}
             </View>
 
+            {/* Interview page sub-tabs: split the dense stack into Profile /
+                Interview / Feedback so only one section shows at a time. */}
+            <View style={styles.segbar}>
+              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Feedback"]].map(([k, lbl]) => {
+                const on = tab === k;
+                return (
+                  <Pressable key={k} onPress={() => switchTab(k)} style={[styles.segItem, on && styles.segItemOn]} hitSlop={4}>
+                    <Text style={[type.smallStrong, { color: on ? "#fff" : theme.ink2 }]}>{lbl}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Animated.View style={{ opacity: tabAnim, transform: [{ translateX: tabAnim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
+
+            {tab === "profile" ? (<>
             {/* Candidate details — collapsed by default to keep the hiring flow clean */}
             <Pressable onPress={() => setDetailsOpen((o) => !o)} style={styles.exploreToggle}>
               <View style={styles.exploreIcon}><Feather name="file-text" size={16} color={theme.brand} /></View>
@@ -422,12 +457,33 @@ export default function CandidateProfileScreen({ route, navigation }) {
               ) : null}
             </Card>
           </View>
+          </>) : null}
 
-          {/* Offer (created + sent from mobile; signed on the hosted Aster Sign page) */}
-          {offer ? (
+          {/* Offer lives with the outcome, under Feedback. */}
+          {tab === "feedback" && offer ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Offer</SectionHeader>
               <OfferCard offer={offer} approvals={approvals} onViewSigned={viewSigned} canHire={manager && stage !== "hired"} onHire={() => moveTo("hired")} />
+            </View>
+          ) : null}
+
+          {tab === "interview" ? (<>
+          {/* Did the interview happen? — leads the Interview tab once the time has
+              passed. Proceed to scoring dismisses it; Reschedule runs the flow. */}
+          {interviewDone && manager && !noShowDismissed ? (
+            <View style={[styles.noShow, { marginTop: space(5) }]}>
+              <Text style={[type.smallStrong, { color: theme.ink }]}>Did the interview happen?</Text>
+              <Text style={[type.small, { color: theme.ink3, marginTop: 2, marginBottom: space(3) }]}>If it was a no-show or needs another time, reschedule. Otherwise go ahead and score.</Text>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <Pressable onPress={doReschedule} style={[styles.noShowBtn, styles.noShowReschedule]}>
+                  <Feather name="refresh-cw" size={14} color={theme.warn} />
+                  <Text style={[type.smallStrong, { color: theme.warn, marginLeft: 6 }]}>Reschedule</Text>
+                </Pressable>
+                <Pressable onPress={() => setNoShowDismissed(true)} style={[styles.noShowBtn, styles.noShowProceed, { flex: 1.5 }]}>
+                  <Feather name="check" size={14} color="#fff" />
+                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]} numberOfLines={1}>Proceed to scoring</Text>
+                </Pressable>
+              </View>
             </View>
           ) : null}
 
@@ -504,24 +560,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       </View>
                     ) : null}
                   </View>
-
-                  {/* After the interview time passes: was it a no-show (reschedule) or done (score)? */}
-                  {interviewDone && manager && !noShowDismissed ? (
-                    <View style={styles.noShow}>
-                      <Text style={[type.smallStrong, { color: theme.ink }]}>Did the interview happen?</Text>
-                      <Text style={[type.small, { color: theme.ink3, marginTop: 2, marginBottom: space(3) }]}>If it was a no-show or needs another time, reschedule. Otherwise go ahead and score.</Text>
-                      <View style={{ flexDirection: "row", gap: 10 }}>
-                        <Pressable onPress={doReschedule} style={[styles.noShowBtn, styles.noShowReschedule]}>
-                          <Feather name="refresh-cw" size={14} color={theme.warn} />
-                          <Text style={[type.smallStrong, { color: theme.warn, marginLeft: 6 }]}>Reschedule</Text>
-                        </Pressable>
-                        <Pressable onPress={() => setNoShowDismissed(true)} style={[styles.noShowBtn, styles.noShowProceed, { flex: 1.5 }]}>
-                          <Feather name="check" size={14} color="#fff" />
-                          <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]} numberOfLines={1}>Proceed to scoring</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  ) : null}
                 </>
               ) : rescheduling ? (
                 interview?.proposedSlots?.length ? (
@@ -613,6 +651,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </View>
           ) : null}
 
+          {/* Interview tab empty: candidate isn't at the interview stage yet. */}
+          {!showInterview && !(interviewDone && manager && !noShowDismissed) ? (
+            <Card style={{ marginTop: space(5) }}><Text style={[type.small, { color: theme.ink3 }]}>Move the candidate to the interview stage to get the panel's availability and propose times.</Text></Card>
+          ) : null}
+          </>) : null}
+
+          {tab === "feedback" ? (<>
           {/* Decision — opens once the panel has all scored */}
           {showDecision ? (
             <View style={{ marginTop: space(5) }}>
@@ -683,12 +728,20 @@ export default function CandidateProfileScreen({ route, navigation }) {
           ) : null}
 
 
+          {/* Feedback tab empty: nothing to score or decide yet. */}
+          {!offer && !showDecision && !(manager && stage === "interviewing" && interviewDone && requiredRaters.length > 0 && !allRated) && !(canScore || cards.length > 0) ? (
+            <Card style={{ marginTop: space(5) }}><Text style={[type.small, { color: theme.ink3 }]}>Scorecards and the hiring decision appear here once the interview has happened.</Text></Card>
+          ) : null}
+
           {/* Reject */}
           {manager && stage !== "rejected" && stage !== "hired" && stage !== "declined" ? (
             <Pressable onPress={reject} style={{ alignSelf: "center", marginTop: space(7), padding: 8 }}>
               <Text style={[type.smallStrong, { color: theme.danger }]}>Reject candidate</Text>
             </Pressable>
           ) : null}
+          </>) : null}
+
+          </Animated.View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -889,6 +942,9 @@ const styles = StyleSheet.create({
   certRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2.5) },
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  segbar: { flexDirection: "row", backgroundColor: theme.bg, borderRadius: radius.pill, padding: 4, marginTop: space(4), borderWidth: 1, borderColor: theme.line },
+  segItem: { flex: 1, alignItems: "center", justifyContent: "center", height: 38, borderRadius: radius.pill },
+  segItemOn: { backgroundColor: theme.brand },
   decisionLock: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, padding: 14 },
   lockCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center" },
   raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
