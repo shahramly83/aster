@@ -12991,7 +12991,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
       {linkJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeLinkModal} />
-          <div className="relative w-full max-w-md rounded-2xl bg-white p-5 act-shadow border border-[color:var(--line)]">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-5 act-shadow border border-[color:var(--line)] max-h-[88vh] overflow-y-auto">
             <h2 className="text-lg font-bold font-display mb-3" style={{ color: "var(--ink)" }}>
               {linkTab === "embed" ? "Embed on your site" : "Share application link"}
             </h2>
