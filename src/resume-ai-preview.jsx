@@ -19937,13 +19937,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // (or there are no interviewer attendees to wait on, e.g. a solo interview).
   const allScored = attendedInterviewers.length === 0 || scoredCount >= attendedInterviewers.length;
   const anyScored = (scorecards || []).length > 0;
-  // A solo interview has NO interviewer panel to score. The hiring manager can
-  // always add their own scorecard, and can SKIP the step to unlock Decision
-  // without waiting on the panel (skip works whether or not there's a panel).
+  // A solo interview has NO interviewer panel to score. Only THEN can the hiring
+  // manager skip straight to Decision — the skip waives the HM's own scorecard,
+  // not the panel's. When there ARE interviewers, Decision stays locked until
+  // every one of them has scored; skipping doesn't bypass that.
   const soloInterview = interviewerAttendees.length === 0;
   const [scorecardsSkipped, setScorecardsSkipped] = useState(false);
   const scorecardsUnlocked = interviewPast;
-  const decisionUnlocked = interviewPast && (scorecardsSkipped || (soloInterview ? anyScored : allScored));
+  const decisionUnlocked = interviewPast && (soloInterview ? (scorecardsSkipped || anyScored) : allScored);
   // Which step opens first. If Decision is already unlocked (the panel has scored,
   // or the manager skipped), open straight on Decision so a reload doesn't drop
   // back to Scorecards. Otherwise land on Scorecards after the interview, or
@@ -20615,7 +20616,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             ) : (
               <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--ink-2)" }}>
                 <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
-                <span>{scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " Add your own scorecard, or skip to the decision below."}</span>
+                <span>{scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " The decision unlocks once every interviewer has scored — your own scorecard is optional."}</span>
               </div>
             )}
             <ScorecardPanel
@@ -20628,7 +20629,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               attendees={booking?.attendees || []}
               isManager={true}
               allowSelfScore={true}
-              onSkip={!decisionUnlocked ? () => { setScorecardsSkipped(true); setIvStep(3); } : null}
+              onSkip={(!decisionUnlocked && soloInterview) ? () => { setScorecardsSkipped(true); setIvStep(3); } : null}
             />
           </div>
         )}
