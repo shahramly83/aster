@@ -209,7 +209,7 @@ export default function TodayScreen({ navigation }) {
                   <Text style={styles.eyebrow}>UP NEXT</Text>
                   {weekCount > 1 ? <Text style={styles.weekPill}>{weekCount} this week</Text> : null}
                 </View>
-                <Carousel cardWidth={width - space(4) * 2 - (upcoming.length > 1 ? 30 : 0)}>
+                <Carousel cardWidth={width - space(4) * 2}>
                   {upcoming.map((iv) => (
                     <HeroCard key={iv.id} iv={iv} tz={tz}
                       onOpen={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
@@ -301,7 +301,7 @@ export default function TodayScreen({ navigation }) {
             {pending.length ? (
               <Rise style={{ marginBottom: space(2.5) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR ACTION</Text>
-                <Carousel cardWidth={(width - space(4) * 2) * (pending.length > 1 ? 0.72 : 1)} gap={space(2.5)}>
+                <Carousel cardWidth={width - space(4) * 2} gap={space(3)}>
                   {pending.map((iv) => {
                     const resch = iv.status === "reschedule";
                     return (
@@ -326,7 +326,7 @@ export default function TodayScreen({ navigation }) {
           past.length ? (
             <Rise style={{ marginTop: space(3) }}>
               <Text style={styles.section}>PAST</Text>
-              <Carousel cardWidth={(width - space(4) * 2) * (past.length > 1 ? 0.56 : 1)} gap={space(2.5)}>
+              <Carousel cardWidth={width - space(4) * 2} gap={space(3)}>
                 {past.map((iv) => (
                   <PastCardMini key={iv.id} iv={iv} tz={tz}
                     onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
