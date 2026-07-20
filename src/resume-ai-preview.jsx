@@ -8515,10 +8515,11 @@ function AnimatedAsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "upload", label: "Resume Upload", icon: "upload" },
   { key: "jobs", label: "Job Postings", icon: "jobs" },
-  { key: "search", label: "Candidate Search", icon: "search" },
+  { key: "search", label: "Talent Pool", icon: "search" },
+  { key: "upload", label: "Resume Upload", icon: "upload" },
   { key: "interviewers", label: "Team", icon: "interviewers" },
+  { key: "interviews", label: "Scheduled Interviews", icon: "calendar" },
 ];
 
 // Role-based access (interviewer least-privilege). An interviewer only works with
@@ -8570,6 +8571,144 @@ function SidebarProfile({ avatarUrl, navigate, profile }) {
   );
 }
 
+// Avatar with a Profile / Log out dropdown. Replaces the old click-straight-to-
+// profile avatar: hovering (desktop) or tapping (touch / mobile-responsive) opens
+// a small menu. It is portaled to document.body so the rail's overflow-hidden
+// can't clip it, and its position is clamped to stay within the viewport.
+//   variant="rail"   → desktop icon rail: opens to the right, vertically centred.
+//   variant="drawer" → mobile-responsive drawer: opens below the avatar row.
+function AvatarMenu({ avatarUrl, profile, navigate, onSignOut, variant = "rail" }) {
+  const realName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim();
+  const fullName = realName || "Your profile";
+  const roleLabel = profile?.role || "";
+  const init = realName ? initials(realName) : "U";
+  const ac = avatarColors(realName || "you");
+  const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const closeTimer = useRef(null);
+  const MENU_W = 224;
+
+  const measure = () => {
+    const el = btnRef.current;
+    if (!el || typeof window === "undefined") return;
+    const r = el.getBoundingClientRect();
+    const MENU_H = 140, GAP = 12, PAD = 10;
+    let top, left;
+    if (variant === "rail") {
+      // Beside the rail, centred on the avatar; flip to the left edge if it would
+      // spill off-screen, and clamp vertically so it never leaves the window.
+      top = Math.min(Math.max(PAD, r.top + r.height / 2 - MENU_H / 2), window.innerHeight - MENU_H - PAD);
+      left = r.right + GAP;
+      if (left + MENU_W > window.innerWidth - PAD) left = Math.max(PAD, r.left - MENU_W - GAP);
+    } else {
+      // Below the avatar row; flip above it if the bottom would clip; clamp x.
+      left = Math.min(Math.max(PAD, r.left), window.innerWidth - MENU_W - PAD);
+      top = r.bottom + GAP;
+      if (top + MENU_H > window.innerHeight - PAD) top = Math.max(PAD, r.top - MENU_H - GAP);
+    }
+    setPos({ top, left });
+  };
+
+  const openMenu = () => { clearTimeout(closeTimer.current); measure(); setOpen(true); };
+  const scheduleClose = () => { clearTimeout(closeTimer.current); closeTimer.current = setTimeout(() => setOpen(false), 150); };
+
+  useEffect(() => {
+    if (!open) { setShown(false); return undefined; }
+    const raf = requestAnimationFrame(() => setShown(true));
+    const reflow = () => measure();
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("resize", reflow);
+    window.addEventListener("scroll", reflow, true);
+    window.addEventListener("keydown", onKey);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", reflow); window.removeEventListener("scroll", reflow, true); window.removeEventListener("keydown", onKey); };
+  }, [open]);
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
+
+  const go = (key) => { setOpen(false); navigate(key); };
+  const doSignOut = () => { setOpen(false); onSignOut && onSignOut(); };
+
+  const menu = open && pos && typeof document !== "undefined" && createPortal(
+    <>
+      {/* Tap-away closer for touch: transparent, under the menu. */}
+      <div className="fixed inset-0" style={{ zIndex: 119 }} onClick={() => setOpen(false)} />
+      <div
+        onMouseEnter={() => clearTimeout(closeTimer.current)}
+        onMouseLeave={scheduleClose}
+        role="menu"
+        aria-label="Account menu"
+        className="fixed rounded-2xl bg-white p-1.5 transition-[opacity,transform] duration-150 motion-reduce:transition-none"
+        style={{ top: pos.top, left: pos.left, width: MENU_W, zIndex: 120, border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(15,27,51,0.4)", opacity: shown ? 1 : 0, transform: shown ? "translateY(0) scale(1)" : "translateY(-4px) scale(0.98)" }}
+      >
+        <div className="flex items-center gap-2.5 px-2.5 py-2">
+          {avatarUrl && !failed ? (
+            <img src={avatarUrl} alt="" onError={() => setFailed(true)} className="w-9 h-9 rounded-full object-cover" />
+          ) : (
+            <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold" style={{ background: ac.bg, color: ac.color }}>{init}</span>
+          )}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{fullName}</p>
+            {roleLabel ? <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{roleLabel}</p> : null}
+          </div>
+        </div>
+        <div className="h-px my-1" style={{ background: "var(--line)" }} />
+        <button role="menuitem" onClick={() => go("profile")} className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors" style={{ color: "var(--ink-2)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--brand-soft)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--ink-2)"; }}>
+          <Icon name="user" className="w-4 h-4 shrink-0" /> Profile
+        </button>
+        <button role="menuitem" onClick={doSignOut} className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors" style={{ color: "var(--ink-2)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.color = "#DC2626"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--ink-2)"; }}>
+          <Icon name="logout" className="w-4 h-4 shrink-0" /> Log out
+        </button>
+      </div>
+    </>,
+    document.body
+  );
+
+  if (variant === "rail") {
+    return (
+      <div className="w-full" onMouseEnter={openMenu} onMouseLeave={scheduleClose}>
+        <button
+          ref={btnRef}
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          aria-haspopup="menu" aria-expanded={open} title={fullName}
+          className="relative w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3 gap-0 group-hover:gap-3 transition-all duration-200"
+        >
+          {avatarUrl && !failed ? (
+            <img src={avatarUrl} alt="You" onError={() => setFailed(true)} className="w-8 h-8 rounded-full object-cover shrink-0" style={{ border: "2px solid var(--line)" }} />
+          ) : (
+            <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: ac.bg, color: ac.color }}>{init}</span>
+          )}
+          <span className="min-w-0 flex-1 text-left max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200">
+            <span className="block text-sm font-medium truncate leading-tight" style={{ color: "var(--ink)" }}>{fullName}</span>
+            {roleLabel ? <span className="block text-[11px] truncate leading-tight" style={{ color: "var(--ink-3)" }}>{roleLabel}</span> : null}
+          </span>
+        </button>
+        {menu}
+      </div>
+    );
+  }
+
+  // drawer (mobile-responsive): full-width row, tap toggles the menu.
+  return (
+    <>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-haspopup="menu" aria-expanded={open} className="w-full flex items-center gap-3">
+        {avatarUrl && !failed ? (
+          <img src={avatarUrl} alt="You" onError={() => setFailed(true)} className="w-11 h-11 rounded-full object-cover ring-4 ring-[#EAEEFE]" />
+        ) : (
+          <span className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold ring-4 ring-[#EAEEFE]" style={{ background: ac.bg, color: ac.color }}>{init}</span>
+        )}
+        <span className="min-w-0 flex-1 text-left">
+          <span className="block text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{fullName}</span>
+          {roleLabel ? <span className="block text-xs truncate" style={{ color: "var(--ink-2)" }}>{roleLabel}</span> : null}
+        </span>
+        <Icon name="chevronDown" className="w-4 h-4 shrink-0 transition-transform" style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none" }} />
+      </button>
+      {menu}
+    </>
+  );
+}
+
 function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNavigate, profile, unreadCount = 0 }) {
   const go = (key) => { navigate(key); if (onNavigate) onNavigate(); };
   return (
@@ -8580,20 +8719,8 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         </button>
       </div>
 
-      <div className="flex items-center gap-2 pb-5 md:pb-6">
-        <div className="flex-1 min-w-0">
-          <SidebarProfile avatarUrl={avatarUrl} navigate={go} profile={profile} />
-        </div>
-        <button
-          onClick={onSignOut}
-          className="md:hidden shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ color: "var(--ink-2)", border: "1px solid var(--line)" }}
-          aria-label="Log out"
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
-        >
-          <Icon name="logout" className="w-5 h-5" />
-        </button>
+      <div className="pb-5 md:pb-6">
+        <AvatarMenu avatarUrl={avatarUrl} profile={profile} navigate={go} onSignOut={onSignOut} variant="drawer" />
       </div>
 
       <nav className="space-y-1 mt-2 pb-1">
@@ -8629,8 +8756,8 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
         {/* Billing is the owner's alone: the plan, the card, cancellation and every
             invoice. A hiring manager gets Settings but not Billing. */}
         {(isInterviewer(profile?.role) ? [] : [
-          { key: "settings", label: "Settings", icon: "settings" },
           ...(isOwner(profile?.role) ? [{ key: "billing", label: "Billing", icon: "card" }] : []),
+          { key: "settings", label: "Settings", icon: "settings" },
         ]).map((item) => {
           const on = active === item.key;
           return (
@@ -8647,23 +8774,13 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
             </button>
           );
         })}
-        <button
-          onClick={onSignOut}
-          className="hidden md:flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
-          style={{ color: "var(--ink-2)" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--brand)"; e.currentTarget.style.background = "var(--brand-soft)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-2)"; e.currentTarget.style.background = "transparent"; }}
-        >
-          <Icon name="logout" className="w-5 h-5 shrink-0" />
-          <span>Log out</span>
-        </button>
       </div>
     </div>
   );
 }
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
-function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace = false, onSignOut, unreadCount = 0, profile }) {
+function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace = false, onSignOut, unreadCount = 0, profile, avatarUrl = null }) {
   // First-run onboarding coach marks (managers only, on the dashboard, per user):
   //   1. Complete your profile, so apply pages show accurate company details.
   //   2. After the profile is saved (ProfileScreen sets the flag and redirects
@@ -8749,21 +8866,12 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
         {navItemsForRole(profile?.role).map(railBtn)}
       </nav>
       <div className="flex flex-col gap-1.5 pt-4 mt-4 w-full" style={{ borderTop: "1px solid var(--line)" }}>
-        {railBtn({ key: "profile", label: "Profile", icon: "user" })}
         {isOwner(profile?.role) && railBtn({ key: "billing", label: "Billing", icon: "card" })}
         {!isInterviewer(profile?.role) && railBtn({ key: "settings", label: "Settings", icon: "settings" })}
-        <button
-          onClick={onSignOut}
-          title="Log out"
-          aria-label="Log out"
-          className="w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-all duration-200"
-          style={{ color: "var(--ink-2)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
-        >
-          <Icon name="logout" className="w-5 h-5 shrink-0" />
-          <span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200">Log out</span>
-        </button>
+        {/* Profile + Log out live in the avatar dropdown (hover on desktop, tap on
+            touch). It's portaled out of this overflow-hidden rail and clamped to
+            the viewport so it always shows in full. */}
+        <AvatarMenu avatarUrl={avatarUrl} profile={profile} navigate={navigate} onSignOut={onSignOut} variant="rail" />
       </div>
       {activeHint && hintPos && typeof document !== "undefined" && createPortal(
         showProfileHint ? (
@@ -14218,7 +14326,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
               return (
                 <button
                   key={iv.candidateId}
-                  onClick={() => onViewCandidate(iv.candidateId, job?.id ?? null, null, "interview")}
+                  onClick={() => onViewCandidate(iv.candidateId, iv.jobId ?? job?.id ?? null, null, "interview")}
                   className="w-full text-left rounded-2xl bg-white act-shadow border p-4 sm:p-5 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-4"
                   style={{ borderColor: "var(--line)" }}
                 >
@@ -14254,7 +14362,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
                         </span>
                       ) : iv.stage === "reschedule" ? (
                         <span className="text-xs flex items-center gap-1" style={{ color: "#B42318" }}>
-                          <Icon name="refresh" className="w-3 h-3" /> {iv.previousAt ? `Rescheduled from ${formatSlotDisplay(iv.previousAt)} — propose new times` : "Rescheduled — propose new times"}
+                          <Icon name="refresh" className="w-3 h-3" /> {iv.previousAt ? `Rescheduled from ${formatSlotDisplay(iv.previousAt)}. Propose new times` : "Rescheduled. Propose new times"}
                         </span>
                       ) : (
                         <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
@@ -14946,6 +15054,10 @@ function interviewPipelineFrom(bookings, candidates, scorecards = {}, currentUse
       return {
         candidateId,
         candidateName: cand?.parsed?.name || b.request?.candidateName || cand?.name || "Candidate",
+        // Carry the real job id so the card can open the profile's Interview tab
+        // directly. Matching by title alone breaks when the title is the "Interview"
+        // fallback or doesn't match a job exactly, dropping the click to Profile.
+        jobId: b.jobId ?? b.request?.jobId ?? null,
         jobTitle: b.request?.jobTitle || "Interview",
         interviewerName: b.request?.interviewerName || null,
         stage,
@@ -15732,7 +15844,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
         <div className="mb-3 rounded-xl px-3 py-2 flex items-start gap-2" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
           <Icon name="refresh" className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#B42318" }} />
           <p className="text-[11px] leading-relaxed" style={{ color: "#B42318" }}>
-            <span className="font-semibold">Rescheduled interview.</span>{booking?.previousAt ? ` The original was ${formatSlotDisplay(booking.previousAt)} — these times replace it.` : " Finding new times to replace the original."}
+            <span className="font-semibold">Rescheduled interview.</span>{booking?.previousAt ? ` The original was ${formatSlotDisplay(booking.previousAt)}. These times replace it.` : " Finding new times to replace the original."}
           </p>
         </div>
       )}
@@ -15867,12 +15979,12 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               {isManager ? (
                 <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Your vote is optional. Once the interviewers vote, you'll pick times to offer.</p>
               ) : myPicks >= 2 ? (
-                <p className="text-[11px] mt-2.5 font-medium inline-flex items-center gap-1" style={{ color: "#067647" }}><Icon name="check" className="w-3.5 h-3.5" /> You've marked {myPicks} times — your availability is in.</p>
+                <p className="text-[11px] mt-2.5 font-medium inline-flex items-center gap-1" style={{ color: "#067647" }}><Icon name="check" className="w-3.5 h-3.5" /> You've marked {myPicks} times. Your availability is in.</p>
               ) : (
                 <div className="mt-2.5 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
                   <Icon name="clock" className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#B45309" }} />
                   <p className="text-[11px] leading-relaxed" style={{ color: "#92400E" }}>
-                    {myPicks === 0 ? "Mark at least 2 times you can make — the panel needs overlap to book." : "You've only marked 1. Pick at least one more, or your availability won't count."}
+                    {myPicks === 0 ? "Mark at least 2 times you can make. The panel needs overlap to book." : "You've only marked 1. Pick at least one more, or your availability won't count."}
                   </p>
                 </div>
               )}
@@ -20613,10 +20725,35 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   <button onClick={() => { setScorecardsSkipped(true); setIvStep(3); }} className="shrink-0 text-sm font-medium rounded-lg px-3 py-1.5 border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>Skip &rarr;</button>
                 )}
               </div>
+            ) : allScored ? (
+              <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "#A7F3D0", background: "#F0FDF4", color: "#166534" }}>
+                <Icon name="check" className="w-4 h-4 shrink-0" style={{ color: "#16A34A" }} />
+                <span>All {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} have scored. You can move to the decision now.</span>
+              </div>
             ) : (
-              <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--ink-2)" }}>
-                <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} />
-                <span>{scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} scored.{allScored ? " You can move to the decision." : " The decision unlocks once every interviewer has scored — your own scorecard is optional."}</span>
+              <div className="mb-3 rounded-xl border px-4 py-3.5" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "#FEF3C7" }}>
+                    <Icon name="lock" className="w-4 h-4" style={{ color: "#B45309" }} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>Decision locked · waiting on {attendedInterviewers.length - scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length - scoredCount === 1 ? "" : "s"}</p>
+                    <p className="text-xs mt-1" style={{ color: "#B45309" }}>Every interviewer has to submit their scorecard before you can make a decision. Your own scorecard is optional.</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      {attendedInterviewers.map((a) => {
+                        const done = scoredIds.has(a.id);
+                        return (
+                          <span key={a.id} className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full pl-1 pr-2.5 py-0.5 border" style={{ borderColor: done ? "#A7F3D0" : "#FDE68A", background: done ? "#F0FDF4" : "#fff", color: done ? "#166534" : "#92400E" }}>
+                            <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: done ? "#16A34A" : "#F59E0B" }}>
+                              <Icon name={done ? "check" : "clock"} className="w-2.5 h-2.5 text-white" />
+                            </span>
+                            {a.name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             <ScorecardPanel

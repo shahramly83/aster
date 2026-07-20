@@ -623,6 +623,30 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 <Button title="Decline candidate" icon="x" variant="danger" onPress={reject} style={{ marginTop: space(2.5) }} />
               </Card>
             </View>
+          ) : (manager && stage === "interviewing" && interviewDone && requiredRaters.length > 0 && !allRated) ? (
+            <View style={{ marginTop: space(5) }}>
+              <SectionHeader>Decision</SectionHeader>
+              <View style={styles.decisionLock}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <View style={styles.lockCircle}><Feather name="lock" size={16} color="#B45309" /></View>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={[type.smallStrong, { color: "#92400E" }]}>Decision locked. Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} interviewer{requiredRaters.length - ratedRequired === 1 ? "" : "s"}</Text>
+                    <Text style={[type.small, { color: "#B45309", marginTop: 4 }]}>Every interviewer has to submit their scorecard before you can make a decision. Your own scorecard is optional.</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                      {requiredRaters.map((p) => {
+                        const done = ratedIds.has(p.id);
+                        return (
+                          <View key={p.id} style={[styles.raterChip, { borderColor: done ? "#A7F3D0" : "#FDE68A", backgroundColor: done ? "#F0FDF4" : "#fff" }]}>
+                            <View style={[styles.raterDot, { backgroundColor: done ? "#16A34A" : "#F59E0B" }]}><Feather name={done ? "check" : "clock"} size={9} color="#fff" /></View>
+                            <Text style={[type.small, { color: done ? "#166534" : "#92400E", fontFamily: "Inter_500Medium" }]}>{p.name || "Interviewer"}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
           ) : null}
 
           {/* Panel feedback — scorecards open once an interview exists (web sequence) */}
@@ -865,6 +889,10 @@ const styles = StyleSheet.create({
   certRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2.5) },
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  decisionLock: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, padding: 14 },
+  lockCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center" },
+  raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
+  raterDot: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   mlWrap: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
   mlInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, height: 44, fontFamily: "Inter_500Medium", fontSize: 14, color: theme.ink },

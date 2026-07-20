@@ -392,13 +392,13 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
             myPicks >= 2 ? (
               <View style={{ flexDirection: "row", alignItems: "center", marginTop: space(3) }}>
                 <Feather name="check-circle" size={13} color={theme.success} />
-                <Text style={[type.smallStrong, { color: theme.success, marginLeft: 6, flex: 1 }]}>You've marked {myPicks} times — your availability is in.</Text>
+                <Text style={[type.smallStrong, { color: theme.success, marginLeft: 6, flex: 1 }]}>You've marked {myPicks} times. Your availability is in.</Text>
               </View>
             ) : (
               <View style={styles.voteWarn}>
                 <Feather name="clock" size={14} color={theme.warn} />
                 <Text style={[type.small, { color: "#92400E", marginLeft: 8, flex: 1 }]}>
-                  {myPicks === 0 ? "Tap at least 2 times you can make — the panel needs overlap to book." : "You've only marked 1. Tap at least one more, or your availability won't count."}
+                  {myPicks === 0 ? "Tap at least 2 times you can make. The panel needs overlap to book." : "You've only marked 1. Tap at least one more, or your availability won't count."}
                 </Text>
               </View>
             )
