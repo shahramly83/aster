@@ -4,7 +4,7 @@ import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { PRODUCT_LONGFORM, SOLUTION_LONGFORM } from "./marketing-content";
 import { BLOG_CATEGORIES, BLOG_POSTS, GLOSSARY_TERMS } from "./resources-content";
 import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_ALTERNATIVES } from "./comparison-content";
-import { supabase, hasSupabase } from "./lib/supabase";
+import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
 import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
@@ -11944,7 +11944,7 @@ const closingChip = (days) => {
   return { style: { background: "rgba(255,255,255,0.7)", color: "var(--ink-2)" }, label: `Closes in ${days}d` };
 };
 
-function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {}, onCloseJob = () => {}, onReopenJob = () => {}, applicantParseUsage = { used: 0, limit: null } }) {
+function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, onPreviewApply, plan = "launch", keptJobId, profile, avatarUrl = null, activities = [], onOpenNotifications, canPersist = false, companyId = null, companySlug = null, userId = null, jobPostUsage = { used: 0, limit: null, resetsAt: null }, jobPostBlocked = false, onConsumeJobPost, onDecideRequest = () => {}, onCloseJob = () => {}, onReopenJob = () => {}, applicantParseUsage = { used: 0, limit: null } }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(jobStatusFilter || "all"); // all | open | closed
   const [filterOpen, setFilterOpen] = useState(false);
@@ -11995,6 +11995,49 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
   const [linkJob, setLinkJob] = useState(null); // job object or null
   const [linkSource, setLinkSource] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  // "Embed on your site" tab inside the same modal. `linkTab` toggles between the
+  // shareable link and the copy-paste widget snippet; `embedScope` picks the
+  // single-role apply form vs the whole-workspace job board; `embedAccent` is the
+  // brand colour the customer can tweak (drives buttons/rings in the widget).
+  const [linkTab, setLinkTab] = useState("link");        // "link" | "embed"
+  const [embedScope, setEmbedScope] = useState("role");  // "role" | "board"
+  const [embedAccent, setEmbedAccent] = useState("#0B2AE0");
+  const [embedCopied, setEmbedCopied] = useState(false);
+
+  // Absolute, publicly reachable values for the snippet. In mock mode (no keys)
+  // fall back to clearly-labelled placeholders the customer replaces.
+  const EMBED_ORIGIN = SITE_ORIGIN; // widgets are hosted at hireaster.com/embed/*
+  const embedUrl = supabaseUrl || "https://YOUR-PROJECT.supabase.co";
+  const embedKey = supabaseAnonKey || "YOUR_SUPABASE_ANON_KEY";
+
+  // Build the exact <script> snippet for the current scope, pre-filled with this
+  // workspace's real values so the customer can paste it as-is.
+  const buildEmbed = (job, scope, accent) => {
+    if (scope === "board") {
+      return [
+        '<div id="aster-board"></div>',
+        `<script src="${EMBED_ORIGIN}/embed/board-widget.js"`,
+        `  data-aster-url="${embedUrl}"`,
+        `  data-aster-key="${embedKey}"`,
+        `  data-aster-slug="${companySlug || "your-workspace-slug"}"`,
+        '  data-aster-target="#aster-board"',
+        '  data-aster-source="Careers Page"',
+        `  data-aster-accent="${accent}"`,
+        "  defer><\/script>",
+      ].join("\n");
+    }
+    return [
+      '<div id="aster-apply"></div>',
+      `<script src="${EMBED_ORIGIN}/embed/apply-widget.js"`,
+      `  data-aster-url="${embedUrl}"`,
+      `  data-aster-key="${embedKey}"`,
+      `  data-aster-job="${job ? job.id : "THE-JOB-UUID"}"`,
+      '  data-aster-target="#aster-apply"',
+      '  data-aster-source="Company Website"',
+      `  data-aster-accent="${accent}"`,
+      "  defer><\/script>",
+    ].join("\n");
+  };
 
   const [confirmDeleteJob, setConfirmDeleteJob] = useState(null); // draft pending deletion
   const [limitPrompt, setLimitPrompt] = useState(false);          // reopen/publish blocked at limit
@@ -12079,6 +12122,31 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
     setLinkJob(job);
     setLinkSource("");
     setLinkCopied(false);
+    setLinkTab("link");
+    setEmbedScope("role");
+    setEmbedCopied(false);
+  };
+
+  // Copy an arbitrary string to the clipboard with the same modern-API-then-
+  // textarea fallback as the tagged link copy. Returns true on success.
+  const copyText = async (text) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch { /* fall through */ }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch { return false; }
+  };
+
+  const copyEmbed = async () => {
+    const ok = await copyText(buildEmbed(linkJob, embedScope, embedAccent));
+    setEmbedCopied(ok ? "ok" : "fail");
+    if (ok) setTimeout(() => setEmbedCopied(false), 1500);
   };
   // Closing the link modal during onboarding reveals the final "where candidates
   // land" bubble. Advancing on close (not open) keeps the bubble hidden while the
@@ -12924,7 +12992,97 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeLinkModal} />
           <div className="relative w-full max-w-md rounded-2xl bg-white p-5 act-shadow border border-[color:var(--line)]">
-            <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Share application link</h2>
+            <h2 className="text-lg font-bold font-display mb-3" style={{ color: "var(--ink)" }}>
+              {linkTab === "embed" ? "Embed on your site" : "Share application link"}
+            </h2>
+
+            {/* Tab switch: shareable link vs copy-paste widget snippet. */}
+            <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: "var(--bg)" }}>
+              {[["link", "Share link"], ["embed", "Embed on your site"]].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setLinkTab(key)}
+                  className="flex-1 text-sm font-medium rounded-lg px-3 py-1.5 transition-colors"
+                  style={linkTab === key
+                    ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }
+                    : { color: "var(--ink-3)" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {linkTab === "embed" ? (
+              <div>
+                <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+                  Paste this into your own website to let people apply without leaving your page. Applicants land in Aster, parsed and ranked.
+                </p>
+
+                {/* Scope: this one role, or a live list of every open role. */}
+                <div className="flex gap-1.5 mb-4">
+                  {[["role", "This role"], ["board", "All open roles"]].map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setEmbedScope(key)}
+                      className="flex-1 text-sm rounded-xl px-3 py-2 border transition-colors"
+                      style={embedScope === key
+                        ? { background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand)" }
+                        : { color: "var(--ink-2)", borderColor: "var(--line-strong)" }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {embedScope === "board" && !companySlug && (
+                  <p className="text-xs mb-3 rounded-lg px-3 py-2" style={{ background: "#FFF3E6", color: "#A15A12" }}>
+                    Set your workspace address (slug) in Settings so the board can list your roles. The snippet uses a placeholder until then.
+                  </p>
+                )}
+
+                {/* Brand colour, editable. Drives the widget's buttons and rings. */}
+                <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Brand colour</label>
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="color"
+                    value={embedAccent}
+                    onChange={(e) => setEmbedAccent(e.target.value)}
+                    aria-label="Brand colour"
+                    className="w-9 h-9 rounded-lg border border-[color:var(--line-strong)] bg-white p-0.5 cursor-pointer"
+                  />
+                  <input
+                    value={embedAccent}
+                    onChange={(e) => setEmbedAccent(e.target.value)}
+                    className="w-32 rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                  />
+                  <span className="text-xs" style={{ color: "var(--ink-3)" }}>Match your site</span>
+                </div>
+
+                <div className="rounded-xl bg-neutral-900 px-3 py-3 mb-1 overflow-x-auto">
+                  <pre className="text-[11px] leading-relaxed select-all whitespace-pre" style={{ color: "#E6E8EF", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{buildEmbed(linkJob, embedScope, embedAccent)}</pre>
+                </div>
+                {embedCopied === "fail" && (
+                  <p className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>Couldn't copy automatically. Select the snippet above and copy it.</p>
+                )}
+
+                <div className="flex items-center justify-end gap-2 mt-5">
+                  <button
+                    onClick={closeLinkModal}
+                    className="text-sm rounded-xl px-4 py-2 transition-colors"
+                    style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+                  >
+                    Done
+                  </button>
+                  <button
+                    onClick={copyEmbed}
+                    className="text-sm font-semibold rounded-xl brand-gradient text-white px-4 py-2 transition-opacity hover:opacity-90"
+                  >
+                    {embedCopied === "ok" ? "Copied ✓" : "Copy embed code"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <div>
             <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
               Add where you're posting this so you can see which channels bring in the best applicants. Leave it blank for a plain link.
             </p>
@@ -12988,6 +13146,8 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 {linkCopied === "ok" ? "Copied ✓" : "Copy job URL"}
               </button>
             </div>
+            </div>
+            )}
           </div>
         </div>
       )}
@@ -23642,6 +23802,9 @@ export default function ResumeAIPreview() {
   // User profile, the greeting, sidebar and settings all read from this.
   const [profile, setProfile] = useState({ firstName: "Shah", lastName: "Ramly", role: "Hiring Manager" });
   const [company, setCompany] = useState("Oryx Studio");
+  // Workspace subdomain slug (<slug>.hireaster.com). Powers the "Embed on your
+  // site" board snippet, which lists this workspace's open roles by slug.
+  const [companySlug, setCompanySlug] = useState(null);
   // Company billing details (address + registration number), edited on the
   // Profile screen and shown on invoices. Hydrated from the companies row.
   const [companyAddress, setCompanyAddress] = useState("");
@@ -24073,6 +24236,7 @@ export default function ResumeAIPreview() {
     if (sess) {
       setProfile(sess.profile);
       setCompany(sess.company);
+      setCompanySlug(sess.companySlug || null);
       setCompanyLogoUrl(sess.logoUrl || null);
       setCompanyAddress(sess.address || "");
       setCompanyAddressParts(sess.addressParts || { ...EMPTY_ADDRESS });
@@ -25294,6 +25458,7 @@ export default function ResumeAIPreview() {
             onOpenNotifications={markActivitiesRead}
             canPersist={canPersist}
             companyId={companyId}
+            companySlug={companySlug}
             userId={userId}
             jobPostUsage={jobPostUsage}
             jobPostBlocked={jobPostBlocked}

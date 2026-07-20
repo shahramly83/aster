@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aster Apply Widget — Example</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; color: #1a1a1a; background: #f6f7f9; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 48px 20px; }
+    h1 { font-size: 22px; }
+    .card { background: #fff; border: 1px solid #e6e8ee; border-radius: 14px; padding: 28px; margin-top: 20px; }
+    code { background: #eef0f4; padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+    pre { background: #1e2230; color: #e6e8ef; padding: 16px; border-radius: 10px; overflow: auto; font-size: 13px; }
+    .muted { color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Careers at Acme — Senior Engineer</h1>
+    <p class="muted">This is a sample of a customer's own careers page. The apply form below is the Aster widget. Applicants flow straight into the Acme workspace in Aster, parsed and ranked.</p>
+
+    <div class="card">
+      <!-- 1. A container for the form -->
+      <div id="aster-apply"></div>
+
+      <!-- 2. The widget script. Swap in your real values. -->
+      <script
+        src="/embed/apply-widget.js"
+        data-aster-url="https://YOUR-PROJECT.supabase.co"
+        data-aster-key="YOUR_SUPABASE_ANON_KEY"
+        data-aster-job="00000000-0000-0000-0000-000000000000"
+        data-aster-target="#aster-apply"
+        data-aster-source="Acme Careers Page"
+        data-aster-accent="#5A78F8"
+        defer></script>
+    </div>
+
+    <h1 style="margin-top:40px;font-size:18px">Where the values come from</h1>
+    <ul class="muted" style="line-height:1.7">
+      <li><code>data-aster-url</code> and <code>data-aster-key</code>: your Supabase project URL and its public anon key (safe to expose in the browser).</li>
+      <li><code>data-aster-job</code>: the UUID of the role you posted in Aster. Copy it from the role in your workspace.</li>
+      <li><code>data-aster-source</code>: any label. It shows on the Applicants page so you can see which channel each applicant came from.</li>
+      <li><code>data-aster-accent</code>: optional hex colour to match your brand.</li>
+    </ul>
+
+    <h1 style="margin-top:40px;font-size:20px">Full job board (live list of all open roles)</h1>
+    <p class="muted">This renders every open role in the workspace, straight from Aster. New roles appear automatically, and clicking one opens the apply form inline. No hardcoded job UUIDs.</p>
+
+    <div class="card">
+      <div id="aster-board"></div>
+      <script
+        src="/embed/board-widget.js"
+        data-aster-url="https://YOUR-PROJECT.supabase.co"
+        data-aster-key="YOUR_SUPABASE_ANON_KEY"
+        data-aster-slug="your-workspace-slug"
+        data-aster-target="#aster-board"
+        data-aster-source="Acme Careers Page"
+        data-aster-accent="#5A78F8"
+        defer></script>
+    </div>
+
+    <h1 style="margin-top:32px;font-size:18px">Matching your brand colour</h1>
+    <p class="muted">Set <code>data-aster-accent</code> (or <code>accent</code> in the programmatic form) to any hex colour. It drives the buttons, focus rings, and hover states in both widgets. For example <code>data-aster-accent="#0F9D58"</code> for green.</p>
+
+    <h1 style="margin-top:32px;font-size:18px">Programmatic version (many roles on one page)</h1>
+    <pre>&lt;script src="/embed/apply-widget.js" defer&gt;&lt;/script&gt;
+&lt;div id="role-a"&gt;&lt;/div&gt;
+&lt;script&gt;
+  window.addEventListener('DOMContentLoaded', function () {
+    AsterApply.mount('#role-a', {
+      supabaseUrl: 'https://YOUR-PROJECT.supabase.co',
+      anonKey: 'YOUR_SUPABASE_ANON_KEY',
+      jobId: 'THE-JOB-UUID',
+      source: 'Acme Careers Page',
+      onSuccess: function (res) { console.log('applied', res.candidateId, res.fit); }
+    });
+  });
+&lt;/script&gt;</pre>
+  </div>
+</body>
+</html>
