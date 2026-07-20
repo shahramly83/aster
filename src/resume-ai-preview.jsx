@@ -13058,6 +13058,54 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   <span className="text-xs" style={{ color: "var(--ink-3)" }}>Match your site</span>
                 </div>
 
+                {/* Live preview: a faithful, non-interactive mock of what the
+                    widget renders on the customer's site, driven by the chosen
+                    accent + scope and this workspace's real role data. */}
+                <p className="text-[11px] uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-3)" }}>Preview</p>
+                <div className="rounded-xl border border-[color:var(--line)] p-4 mb-4" style={{ background: "#F6F7F9" }}>
+                  <div className="rounded-xl bg-white p-4 mx-auto" style={{ maxWidth: 360 }}>
+                    {embedScope === "role" ? (
+                      <div>
+                        <p className="text-sm font-bold mb-3" style={{ color: "#1a1a1a" }}>{(linkJob && linkJob.title) || "This role"}</p>
+                        <p className="text-[11px] font-semibold mb-1" style={{ color: "#1a1a1a" }}>Apply with your resume</p>
+                        <div className="rounded-lg border border-dashed text-center py-4 mb-3" style={{ borderColor: "#cfd2da" }}>
+                          <p className="text-[11px]" style={{ color: "#555" }}>Click to upload or drop your resume here</p>
+                          <p className="text-[10px] mt-0.5" style={{ color: "#9096a2" }}>PDF or Word (.docx), up to 10 MB</p>
+                        </div>
+                        <div className="rounded-lg text-center text-xs font-semibold py-2.5 text-white" style={{ background: embedAccent }}>Submit application</div>
+                        <p className="text-[10px] text-center mt-2" style={{ color: "#9096a2" }}>Powered by Aster</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm font-bold mb-3" style={{ color: "#1a1a1a" }}>Open roles</p>
+                        {(() => {
+                          const sample = jobs.filter((j) => j.status === "open").slice(0, 2);
+                          if (!sample.length) return <p className="text-xs text-center py-3" style={{ color: "#9096a2" }}>Your open roles will appear here.</p>;
+                          return sample.map((j) => {
+                            const chips = [j.department, j.location, (j.employment_type || "").replace(/_/g, "-")].filter(Boolean);
+                            return (
+                              <div key={j.id} className="rounded-lg border p-3 mb-2 flex items-start justify-between gap-3" style={{ borderColor: "#e6e8ee" }}>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold truncate" style={{ color: "#1a1a1a" }}>{j.title}</p>
+                                  {chips.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {chips.map((c, i) => (
+                                        <span key={i} className="text-[10px] rounded-full px-2 py-0.5" style={{ background: "#f1f3f7", color: "#4b5162" }}>{c}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-[11px] font-semibold text-white rounded-lg px-3 py-1.5 shrink-0" style={{ background: embedAccent }}>Apply</span>
+                              </div>
+                            );
+                          });
+                        })()}
+                        <p className="text-[10px] text-center mt-2" style={{ color: "#9096a2" }}>Powered by Aster</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="rounded-xl bg-neutral-900 px-3 py-3 mb-1 overflow-x-auto">
                   <pre className="text-[11px] leading-relaxed select-all whitespace-pre" style={{ color: "#E6E8EF", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{buildEmbed(linkJob, embedScope, embedAccent)}</pre>
                 </div>

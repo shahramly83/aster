@@ -172,13 +172,12 @@
 
     var id = "aster" + (++uid);
     root.classList.add("aster-apply");
+    // Resume-only: the endpoint reads the applicant's name, email, phone and the
+    // rest straight from the CV, so asking for them again would be redundant. Just
+    // take the file.
     root.innerHTML =
-      '<label for="' + id + '-name">Full name</label>' +
-      '<input id="' + id + '-name" type="text" autocomplete="name" placeholder="Jane Doe">' +
-      '<label for="' + id + '-email">Email</label>' +
-      '<input id="' + id + '-email" type="email" autocomplete="email" placeholder="jane@example.com">' +
-      '<label>Resume</label>' +
-      '<div class="aster-drop" id="' + id + '-drop">Click to upload or drop your file here' +
+      '<label>Apply with your resume</label>' +
+      '<div class="aster-drop" id="' + id + '-drop">Click to upload or drop your resume here' +
         '<div class="aster-file" id="' + id + '-file"></div>' +
         '<div style="font-size:11px;color:#9096a2;margin-top:4px">PDF or Word (.docx), up to 10 MB</div>' +
       '</div>' +
@@ -191,7 +190,7 @@
       '<div class="aster-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">Aster</a></div>';
 
     var $ = function (s) { return root.querySelector("#" + id + "-" + s); };
-    var nameEl = $("name"), emailEl = $("email"), fileInput = $("input"),
+    var fileInput = $("input"),
         drop = $("drop"), fileLabel = $("file"), submitBtn = $("submit"),
         msg = $("msg"), hp = $("website");
     var chosen = null;
@@ -232,10 +231,7 @@
 
     submitBtn.addEventListener("click", async function () {
       clearMsg();
-      var name = nameEl.value.trim();
-      var email = emailEl.value.trim();
       if (!chosen) { showMsg("err", "Please attach your resume."); return; }
-      if (!email) { showMsg("err", "Please enter your email."); return; }
 
       submitBtn.disabled = true;
       var label = submitBtn.textContent;
@@ -255,8 +251,6 @@
             original_base64: await fileToBase64(chosen),
             original_ext: "docx",
             filename: chosen.name,
-            name: name || null,
-            email: email || null,
             source: cfg.source || "Company Website",
             website: hp.value, // honeypot
           };
@@ -265,8 +259,6 @@
             job_id: cfg.jobId,
             resume_base64: await fileToBase64(chosen),
             filename: chosen.name,
-            name: name || null,
-            email: email || null,
             source: cfg.source || "Company Website",
             website: hp.value, // honeypot
           };
@@ -285,8 +277,7 @@
         try { data = await res.json(); } catch (e) { /* non-JSON */ }
 
         if (res.ok && data && data.ok) {
-          root.innerHTML = '<div class="aster-msg ok" style="display:block">Thanks, ' +
-            (name ? name.split(" ")[0] : "") + '. Your application is in and the team will be in touch about next steps.</div>' +
+          root.innerHTML = '<div class="aster-msg ok" style="display:block">Thanks. Your application is in and the team will be in touch about next steps.</div>' +
             '<div class="aster-powered">Powered by <a href="https://hireaster.com" target="_blank" rel="noopener">Aster</a></div>';
           if (typeof cfg.onSuccess === "function") {
             try { cfg.onSuccess({ candidateId: data.candidate_id, fit: data.fit }); } catch (e) {}
