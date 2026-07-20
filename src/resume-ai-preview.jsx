@@ -20684,11 +20684,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-2.5 mt-4">
-                  <button onClick={doNoShowReschedule} disabled={rescheduling} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium border transition-colors hover:bg-amber-50 disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FCD34D", background: "#fff" }}>
+                <div className="flex flex-wrap items-center gap-2.5 mt-4">
+                  <button onClick={doNoShowReschedule} disabled={rescheduling} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border transition-all hover:shadow-sm active:scale-[0.98] disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FDE68A", background: "#FFFBEB" }}>
                     <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "Reschedule"}
                   </button>
-                  <button onClick={() => { setNoShowDismissed(true); setIvStep(2); }} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: "var(--brand)" }}>
+                  <button onClick={() => { setNoShowDismissed(true); setIvStep(2); }} className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 8px 20px -8px rgba(var(--brand-rgb),0.65)" }}>
                     <Icon name="check" className="w-4 h-4" /> Proceed to scoring
                   </button>
                 </div>
