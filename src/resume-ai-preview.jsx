@@ -8516,10 +8516,11 @@ function AnimatedAsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
   { key: "jobs", label: "Job Postings", icon: "jobs" },
+  { key: "interviews", label: "Interviews", icon: "calendar" },
   { key: "search", label: "Talent Pool", icon: "search" },
   { key: "upload", label: "Resume Upload", icon: "upload" },
+  // Team sits last in the workflow group, just above the Billing / Settings divider.
   { key: "interviewers", label: "Team", icon: "interviewers" },
-  { key: "interviews", label: "Scheduled Interviews", icon: "calendar" },
 ];
 
 // Role-based access (interviewer least-privilege). An interviewer only works with
