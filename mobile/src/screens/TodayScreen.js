@@ -193,15 +193,16 @@ export default function TodayScreen({ navigation }) {
       {error ? <Text style={[type.small, { color: theme.danger, paddingHorizontal: space(5), marginTop: space(3) }]}>{error}</Text> : null}
 
       <FlatList
-        data={flat}
+        data={[]}
         keyExtractor={(item) => (item._header ? `h-${item._header}` : `iv-${item.id}`)}
         contentContainerStyle={{ paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListHeaderComponent={
           <View>
-            {/* UP NEXT leads the screen: the soonest interviews as a swipeable
-                card carousel (slide left/right), then a week overview. */}
+            {/* Week overview sits at the very top for calendar context, then the
+                soonest interviews as a swipeable card carousel (slide left/right). */}
+            {timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
             {upcoming.length ? (
               <Rise style={{ marginBottom: space(3) }}>
                 <View style={styles.upNextRow}>
@@ -216,40 +217,54 @@ export default function TodayScreen({ navigation }) {
                 </Carousel>
               </Rise>
             ) : null}
-            {timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
 
-            {/* Polls I ran — panel voting progress (manager), tap opens the chat */}
+            {/* Polls I ran — panel voting progress (manager). Each candidate is its
+                own card with an amber urgency accent + "waiting on N" until the
+                whole panel has voted, then it flips green (ready to schedule). */}
             {myPolls.length ? (
               <Rise style={{ marginBottom: space(2.5) }}>
-                <Text style={styles.pollEyebrow}>TEAM AVAILABILITY POLL</Text>
-                <View style={styles.pollCard}>
-                  {myPolls.slice(0, 6).map((p, i) => {
-                    const done = p.total > 0 && p.voted >= p.total;
-                    const pct = p.total > 0 ? p.voted / p.total : 0;
-                    return (
-                      <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
-                        <Avatar name={p.candidateName} size={32} />
-                        <View style={{ flex: 1, marginLeft: 11 }}>
-                          <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{p.candidateName}</Text>
-                          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>Candidate · {p.jobTitle}</Text>
-                          <View style={styles.progressTrack}>
-                            <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : theme.brand }]} />
+                <View style={styles.pollEyebrowRow}>
+                  <Text style={styles.pollEyebrow}>TEAM AVAILABILITY POLL</Text>
+                  {(() => { const w = myPolls.filter((p) => !(p.total > 0 && p.voted >= p.total)).length; return w > 0 ? (
+                    <View style={styles.urgentPill}><Feather name="clock" size={11} color="#B45309" /><Text style={styles.urgentPillTxt}>{w} waiting</Text></View>
+                  ) : null; })()}
+                </View>
+                {myPolls.slice(0, 6).map((p) => {
+                  const done = p.total > 0 && p.voted >= p.total;
+                  const pct = p.total > 0 ? p.voted / p.total : 0;
+                  const remaining = Math.max(0, p.total - p.voted);
+                  return (
+                    <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollItemCard, !done && styles.pollItemUrgent]} scaleTo={0.98}>
+                      <View style={[styles.pollAccent, { backgroundColor: done ? theme.success : "#F59E0B" }]} />
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Avatar name={p.candidateName} size={34} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{p.candidateName}</Text>
+                            <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{p.jobTitle}</Text>
                           </View>
-                        </View>
-                        <View style={{ alignItems: "flex-end", marginLeft: 10 }}>
                           {done ? (
                             <View style={styles.donePill}><Feather name="check" size={11} color="#fff" /><Text style={styles.donePillTxt}>All in</Text></View>
                           ) : (
-                            <>
+                            <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
                               <Text style={styles.progressCount}>{p.voted}/{p.total}</Text>
                               <Text style={styles.progressLabel}>voted</Text>
-                            </>
+                            </View>
                           )}
                         </View>
-                      </Press>
-                    );
-                  })}
-                </View>
+                        <View style={[styles.progressTrack, { marginTop: 10 }]}>
+                          <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : "#F59E0B" }]} />
+                        </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
+                          <Feather name={done ? "check-circle" : "clock"} size={12} color={done ? theme.success : "#B45309"} />
+                          <Text style={[type.smallStrong, { color: done ? theme.success : "#B45309", marginLeft: 6 }]} numberOfLines={1}>
+                            {done ? "Everyone voted, ready to schedule" : `Waiting on ${remaining} interviewer${remaining === 1 ? "" : "s"} to vote`}
+                          </Text>
+                        </View>
+                      </View>
+                    </Press>
+                  );
+                })}
               </Rise>
             ) : null}
 
@@ -307,8 +322,21 @@ export default function TodayScreen({ navigation }) {
             ) : null}
           </View>
         }
+        ListFooterComponent={
+          past.length ? (
+            <Rise style={{ marginTop: space(3) }}>
+              <Text style={styles.section}>PAST</Text>
+              <Carousel cardWidth={(width - space(4) * 2) * (past.length > 1 ? 0.56 : 1)} gap={space(2.5)}>
+                {past.map((iv) => (
+                  <PastCardMini key={iv.id} iv={iv} tz={tz}
+                    onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
+                ))}
+              </Carousel>
+            </Rise>
+          ) : null
+        }
         ListEmptyComponent={
-          (upcoming.length || pending.length || polls.length || myPolls.length) ? null : (
+          (upcoming.length || pending.length || polls.length || myPolls.length || past.length) ? null : (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}><Feather name="calendar" size={40} color={theme.brand} /></View>
               <Text style={[type.h2, { color: theme.ink, marginTop: space(5) }]}>You're all set</Text>
@@ -318,11 +346,7 @@ export default function TodayScreen({ navigation }) {
             </View>
           )
         }
-        renderItem={({ item, index }) =>
-          item._header
-            ? <Text style={styles.section}>{item._header}</Text>
-            : <Rise delay={Math.min(index, 6) * 55}><PastCard iv={item} tz={tz} onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, jobId: item.jobId, candidateName: item.candidateName, jobTitle: item.jobTitle })} /></Rise>
-        }
+        renderItem={() => null}
       />
     </View>
   );
@@ -421,6 +445,29 @@ function UpcomingRow({ iv, tz, divider, onPress }) {
   );
 }
 
+// Compact past-interview card for the horizontal Past carousel: date top-right,
+// avatar, candidate + role, and a Video tag when it was a video call.
+function PastCardMini({ iv, tz, onPress }) {
+  return (
+    <Press onPress={onPress} style={styles.pastMini} scaleTo={0.98}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={36} />
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={styles.pastDay}>{dayNum(iv.scheduledAt, tz)}</Text>
+          <Text style={styles.pastMon}>{monShort(iv.scheduledAt, tz)}</Text>
+        </View>
+      </View>
+      <Text style={[type.smallStrong, { color: theme.ink2, marginTop: 10 }]} numberOfLines={1}>{iv.candidateName}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
+        <Text style={[type.small, { color: theme.ink4, flexShrink: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
+        {iv.meetingLink ? (
+          <View style={styles.videoTag}><Feather name="video" size={11} color={theme.brand} /><Text style={styles.videoTagTxt}>Video</Text></View>
+        ) : null}
+      </View>
+    </Press>
+  );
+}
+
 // A compact card in the day-grouped timeline: a time pill on the left rail, the
 // candidate on the right.
 // A past (already-happened) interview: compact and quiet, with a mini date rail
@@ -468,6 +515,12 @@ const styles = StyleSheet.create({
   weekDotBase: { width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: "transparent" },
   weekDotOn: { backgroundColor: theme.brand },
   pollEyebrow: { ...type.label, color: theme.brand, marginBottom: space(1.5), marginLeft: space(1) },
+  pollEyebrowRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1.5), marginHorizontal: space(1) },
+  urgentPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
+  urgentPillTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#B45309" },
+  pollItemCard: { flexDirection: "row", backgroundColor: theme.card, borderRadius: radius.card, padding: space(3), marginBottom: space(2), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  pollItemUrgent: { borderWidth: 1, borderColor: "#FDE68A" },
+  pollAccent: { width: 4, borderRadius: 2, alignSelf: "stretch", marginRight: space(3) },
   pollCard: { backgroundColor: theme.card, borderRadius: radius.card, paddingHorizontal: space(3.5), paddingVertical: space(1), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   pollHead: { flexDirection: "row", alignItems: "center", marginBottom: space(1), marginTop: space(2) },
   pollHeadIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
@@ -518,6 +571,7 @@ const styles = StyleSheet.create({
   timePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.brand, fontVariant: ["tabular-nums"] },
   dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
   // Past interview: quiet, flat card with a mini date rail on the left.
+  pastMini: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(3), borderWidth: 1, borderColor: theme.line },
   past: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.md, paddingVertical: space(2.5), paddingHorizontal: space(3), borderWidth: 1, borderColor: theme.line },
   pastDate: { width: 34, alignItems: "center" },
   pastDay: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, color: theme.ink2, lineHeight: 20 },
