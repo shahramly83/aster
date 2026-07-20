@@ -32,8 +32,9 @@ Deno.serve(async (req) => {
     const { data: { user } } = await admin.auth.getUser(token);
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { candidate_id, job_id, preview } = await req.json();
+    const { candidate_id, job_id, preview, mentioned_ids } = await req.json();
     if (!candidate_id) return json({ error: "candidate_id required" }, 400);
+    const mentionedInput = Array.isArray(mentioned_ids) ? mentioned_ids.filter((x: unknown) => typeof x === "string") : [];
 
     const { data: caller } = await admin.from("profiles").select("company_id, full_name").eq("id", user.id).maybeSingle();
     const companyId = caller?.company_id;
@@ -51,21 +52,30 @@ Deno.serve(async (req) => {
     }
     recipients.delete(user.id); // don't notify the author
 
+    // Tagged teammates get a distinct "mentioned you" push instead of the
+    // generic one. Only honour mentions of people actually on the thread (a
+    // client can't tag someone into a conversation they can't see), and never
+    // the author. A mentioned person is pushed once, as a mention.
+    const mentioned = new Set(mentionedInput.filter((id: string) => recipients.has(id)));
+    mentioned.forEach((id) => recipients.delete(id)); // avoid a double push
+
     const { data: cand } = await admin.from("candidates").select("full_name, parsed").eq("id", candidate_id).maybeSingle();
     const candName = cand?.parsed?.name || cand?.full_name || "a candidate";
-    const authorName = (caller?.full_name || "Someone").split(" ")[0];
+    const authorFull = caller?.full_name || "Someone";
+    const authorName = authorFull.split(" ")[0];
+    const body = String(preview || "New message").slice(0, 140);
+    const data = { url: `aster://candidate/${candidate_id}` };
 
-    await Promise.all(
-      [...recipients].map((uid) =>
-        pushToUser(admin, uid, {
-          title: `${authorName} · ${candName}`,
-          body: String(preview || "New message").slice(0, 140),
-          data: { url: `aster://candidate/${candidate_id}` },
-        })
-      )
-    );
+    await Promise.all([
+      ...[...mentioned].map((uid) =>
+        pushToUser(admin, uid, { title: `${authorName} mentioned you`, body: `${candName}: ${body}`, data })
+      ),
+      ...[...recipients].map((uid) =>
+        pushToUser(admin, uid, { title: `${authorName} · ${candName}`, body, data })
+      ),
+    ]);
 
-    return json({ ok: true, notified: recipients.size });
+    return json({ ok: true, notified: recipients.size + mentioned.size, mentioned: mentioned.size });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error" }, 500);

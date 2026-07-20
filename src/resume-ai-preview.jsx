@@ -9572,8 +9572,8 @@ function ActivityRow({ icon = "bell", accent = "#0B2AE0", title, desc, time, onC
         <Icon name={icon} className="w-5 h-5" />
       </span>
       <div className="min-w-0 flex-1 py-0.5">
-        <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{title}</p>
-        <p className="text-xs truncate mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>{desc}</p>
+        <p className="text-sm font-semibold line-clamp-2" style={{ color: "var(--ink)" }}>{title}</p>
+        <p className="text-xs line-clamp-2 mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>{desc}</p>
       </div>
       <span className="text-[11px] shrink-0 mt-1 tnum" style={{ color: "var(--ink-3)" }}>{time}</span>
     </button>

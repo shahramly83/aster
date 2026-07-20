@@ -1249,7 +1249,7 @@ export function subscribeInterviews(companyId, onChange) {
 export async function loadMessages(candidateId) {
   const { data } = await supabase
     .from("candidate_messages")
-    .select("id, author_id, body, created_at")
+    .select("id, author_id, body, created_at, mentioned_ids")
     .eq("candidate_id", candidateId)
     .order("created_at", { ascending: true });
   const rows = data || [];
@@ -1265,21 +1265,44 @@ export async function loadMessages(candidateId) {
     authorName: nameById[m.author_id]?.name || "Teammate",
     authorRole: nameById[m.author_id]?.role || null,
     body: m.body,
+    mentionedIds: Array.isArray(m.mentioned_ids) ? m.mentioned_ids : [],
     createdAt: m.created_at,
   }));
 }
 
-// Post a message, then best-effort push the rest of the panel.
-export async function sendMessage({ companyId, candidateId, jobId, authorId, body }) {
+// Everyone who can be @mentioned in a candidate's thread: the managers plus the
+// role's assigned interviewers (the same audience notify-message pushes to),
+// minus the person composing. Returns [{ id, name, email, role }].
+export async function loadThreadParticipants(companyId, jobId, exceptId) {
+  if (!companyId) return [];
+  const [{ data: profs }, { data: assigns }] = await Promise.all([
+    supabase.from("profiles").select("id, full_name, email, role, status").eq("company_id", companyId).neq("status", "suspended"),
+    jobId
+      ? supabase.from("job_assignments").select("profile_id").eq("company_id", companyId).eq("job_id", jobId)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const assigned = new Set((assigns || []).map((a) => a.profile_id));
+  const isManager = (r) => ["owner", "admin", "recruiter"].includes((r || "").toLowerCase());
+  return (profs || [])
+    .filter((p) => p.id !== exceptId && (isManager(p.role) || assigned.has(p.id)))
+    .map((p) => ({ id: p.id, name: p.full_name || p.email || "Teammate", email: p.email || "", role: p.role }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Post a message, then best-effort push the rest of the panel. `mentionedIds`
+// are the tagged teammates: notify-message gives them a distinct "mentioned
+// you" push instead of the generic one.
+export async function sendMessage({ companyId, candidateId, jobId, authorId, body, mentionedIds = [] }) {
   const text = (body || "").trim();
   if (!text) return null;
+  const mentions = [...new Set((mentionedIds || []).filter(Boolean))];
   const { data, error } = await supabase
     .from("candidate_messages")
-    .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, author_id: authorId, body: text })
-    .select("id, author_id, body, created_at")
+    .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId || null, author_id: authorId, body: text, mentioned_ids: mentions })
+    .select("id, author_id, body, created_at, mentioned_ids")
     .single();
   if (error) throw error;
-  supabase.functions.invoke("notify-message", { body: { candidate_id: candidateId, job_id: jobId || null, preview: text } }).catch(() => {});
+  supabase.functions.invoke("notify-message", { body: { candidate_id: candidateId, job_id: jobId || null, preview: text, mentioned_ids: mentions } }).catch(() => {});
   return data;
 }
 

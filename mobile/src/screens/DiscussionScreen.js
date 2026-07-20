@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import CalendarSheet from "../components/CalendarSheet";
 import { useAuth } from "../AuthContext";
 import {
-  loadMessages, sendMessage, subscribeMessages,
+  loadMessages, sendMessage, subscribeMessages, loadThreadParticipants,
   loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
   loadCandidateInterview, loadInterviewers, confirmPollSlot, createInterviewInvite, loadBookedSlots,
 } from "../lib/data";
@@ -24,6 +24,34 @@ function slotLabel(startIso, endIso) {
   const e = new Date(endIso);
   const sameHalf = ampm(s) === ampm(e);
   return `${date} · ${hm(s)}${sameHalf ? "" : ` ${ampm(s)}`}–${hm(e)} ${ampm(e)}`;
+}
+
+// ---- @mentions ---------------------------------------------------------------
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// The teammates actually tagged in `text` = those whose "@Full Name" appears in
+// it. Scanning the final text (rather than trusting what was picked) means a
+// mention the author deleted is dropped, and a manually typed one is caught.
+function resolveMentions(text, participants) {
+  if (!text || !participants?.length) return [];
+  return participants
+    .filter((p) => new RegExp(`@${escapeRe(p.name)}\\b`, "i").test(text))
+    .map((p) => p.id);
+}
+// Split a message body into plain / mention runs so the bubble can highlight the
+// "@Name" tokens for people on the thread.
+function splitMentions(text, participants) {
+  if (!text || !participants?.length) return [{ mention: false, text }];
+  const names = participants.map((p) => p.name).sort((a, b) => b.length - a.length); // longest first
+  const re = new RegExp(`@(?:${names.map(escapeRe).join("|")})\\b`, "gi");
+  const out = [];
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push({ mention: false, text: text.slice(last, m.index) });
+    out.push({ mention: true, text: m[0] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ mention: false, text: text.slice(last) });
+  return out;
 }
 
 // Tracks the on-screen keyboard height so we can pad the chat above it. Edge-to-
@@ -65,7 +93,33 @@ export default function DiscussionScreen({ route, navigation }) {
   const [sendingOffer, setSendingOffer] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [participants, setParticipants] = useState([]); // teammates who can be @mentioned
+  const [cursor, setCursor] = useState(0);              // composer caret position
   const listRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // The current "@query" the caret is sitting in (a single space-free token
+  // right after an @), or null. Drives the mention picker.
+  const mentionQuery = (() => {
+    const before = draft.slice(0, cursor);
+    const m = before.match(/(?:^|\s)@([^@\s]*)$/);
+    return m ? m[1] : null;
+  })();
+  const suggestions = mentionQuery == null ? [] : participants.filter((p) => {
+    const q = mentionQuery.toLowerCase();
+    return !q || p.name.toLowerCase().startsWith(q) || p.name.toLowerCase().split(" ").some((w) => w.startsWith(q));
+  }).slice(0, 6);
+
+  // Replace the in-progress "@query" with the picked teammate's "@Full Name ".
+  const insertMention = (member) => {
+    const atIdx = cursor - (mentionQuery?.length || 0) - 1; // position of the "@"
+    if (atIdx < 0) return;
+    const next = `${draft.slice(0, atIdx)}@${member.name} ${draft.slice(cursor)}`;
+    const caret = atIdx + member.name.length + 2; // after "@Name "
+    setDraft(next);
+    setCursor(caret);
+    requestAnimationFrame(() => inputRef.current?.setNativeProps?.({ selection: { start: caret, end: caret } }));
+  };
 
   const scrollEnd = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
 
@@ -101,6 +155,12 @@ export default function DiscussionScreen({ route, navigation }) {
 
   useEffect(() => { load(); loadPoll(); }, [load, loadPoll]);
 
+  // Teammates who can be @mentioned in this thread (managers + assigned panel).
+  useEffect(() => {
+    if (!profile?.companyId) return;
+    loadThreadParticipants(profile.companyId, jobId, profile.userId).then(setParticipants).catch(() => {});
+  }, [profile?.companyId, profile?.userId, jobId]);
+
   // Times this panel is already committed to (confirmed interviews, any other
   // candidate/position) so the poll composer's calendar can grey them out.
   useEffect(() => {
@@ -123,7 +183,7 @@ export default function DiscussionScreen({ route, navigation }) {
     const unsub = subscribeMessages(candidateId, (row) => {
       setMessages((prev) => {
         if (!prev || prev.some((m) => m.id === row.id)) return prev;
-        return [...prev, { id: row.id, authorId: row.author_id, authorName: row.author_id === profile.userId ? "You" : "Teammate", body: row.body, createdAt: row.created_at }];
+        return [...prev, { id: row.id, authorId: row.author_id, authorName: row.author_id === profile.userId ? "You" : "Teammate", body: row.body, mentionedIds: Array.isArray(row.mentioned_ids) ? row.mentioned_ids : [], createdAt: row.created_at }];
       });
       scrollEnd();
     });
@@ -140,13 +200,15 @@ export default function DiscussionScreen({ route, navigation }) {
   const onSend = async () => {
     const text = draft.trim();
     if (!text || sending) return;
+    const mentionedIds = resolveMentions(text, participants);
     setDraft("");
+    setCursor(0);
     setSending(true);
     const tempId = `temp-${Date.now()}`;
-    setMessages((prev) => [...(prev || []), { id: tempId, authorId: profile.userId, authorName: "You", body: text, createdAt: new Date().toISOString(), pending: true }]);
+    setMessages((prev) => [...(prev || []), { id: tempId, authorId: profile.userId, authorName: "You", body: text, mentionedIds, createdAt: new Date().toISOString(), pending: true }]);
     scrollEnd();
     try {
-      const saved = await sendMessage({ companyId: profile.companyId, candidateId, jobId, authorId: profile.userId, body: text });
+      const saved = await sendMessage({ companyId: profile.companyId, candidateId, jobId, authorId: profile.userId, body: text, mentionedIds });
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: saved?.id || m.id, pending: false } : m)));
     } catch (e) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, failed: true, pending: false } : m)));
@@ -243,6 +305,10 @@ export default function DiscussionScreen({ route, navigation }) {
 
   const canCreate = manager && (!poll || poll.status === "closed");
 
+  // Names to highlight in bubbles: the mentionable teammates plus me, so a
+  // message that tags me shows my own "@name" lit up too.
+  const mentionNames = profile ? [...participants, { id: profile.userId, name: profile.name || "You" }] : participants;
+
   if (messages === null) return <Loader label="Loading discussion…" />;
 
   return (
@@ -289,15 +355,38 @@ export default function DiscussionScreen({ route, navigation }) {
               </>
             }
             ListEmptyComponent={<View style={{ marginTop: space(8) }}><EmptyState icon="message-circle" title="No messages yet" subtitle="Start the conversation with your interview panel." /></View>}
-            renderItem={({ item }) => <Bubble m={item} mine={item.authorId === profile.userId} />}
+            renderItem={({ item }) => (
+              <Bubble
+                m={item}
+                mine={item.authorId === profile.userId}
+                participants={mentionNames}
+                meMentioned={Array.isArray(item.mentionedIds) && item.mentionedIds.includes(profile.userId)}
+              />
+            )}
           />
 
+          {suggestions.length > 0 ? (
+            <View style={styles.mentionBox}>
+              {suggestions.map((p, i) => (
+                <Pressable key={p.id} onPress={() => insertMention(p)} style={[styles.mentionRow, i > 0 && styles.mentionRowDiv]}>
+                  <Avatar name={p.name} size={30} />
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text style={[type.smallStrong, { color: theme.ink }]} numberOfLines={1}>{p.name}</Text>
+                    {p.role ? <Text style={[type.small, { color: theme.ink4, fontSize: 11, textTransform: "capitalize" }]}>{p.role}</Text> : null}
+                  </View>
+                  <Feather name="at-sign" size={14} color={theme.ink4} />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           <View style={styles.composer}>
             <TextInput
+              ref={inputRef}
               style={styles.input}
-              placeholder="Message the panel…"
+              placeholder="Message the panel… use @ to tag"
               placeholderTextColor={theme.ink4}
               value={draft} onChangeText={setDraft} multiline
+              onSelectionChange={(e) => setCursor(e.nativeEvent.selection.start)}
             />
             <Pressable onPress={onSend} disabled={!draft.trim()} style={[styles.send, !draft.trim() && { opacity: 0.4 }]}>
               <Feather name="arrow-up" size={20} color={theme.white} />
@@ -493,14 +582,25 @@ function PollComposer({ visible, tz, onClose, onCreate, blocked = [] }) {
   );
 }
 
-function Bubble({ m, mine }) {
+function Bubble({ m, mine, participants = [], meMentioned = false }) {
+  const runs = splitMentions(m.body, participants);
   return (
     <View style={[styles.row, mine ? styles.rowMine : styles.rowTheir]}>
       {!mine ? <Avatar name={m.authorName} size={30} /> : null}
       <View style={{ maxWidth: "78%", marginLeft: mine ? 0 : 8 }}>
         {!mine ? <Text style={[type.smallStrong, { color: theme.ink3, marginBottom: 3, marginLeft: 4 }]}>{m.authorName}</Text> : null}
-        <View style={[styles.bubble, mine ? styles.mine : styles.their]}>
-          <Text style={[type.body, { color: mine ? theme.white : theme.ink }]}>{m.body}</Text>
+        {meMentioned && !mine ? (
+          <View style={styles.mentionedTag}>
+            <Feather name="at-sign" size={10} color={theme.brand} />
+            <Text style={[type.small, { color: theme.brand, fontSize: 10.5, fontFamily: "Inter_600SemiBold", marginLeft: 3 }]}>Mentioned you</Text>
+          </View>
+        ) : null}
+        <View style={[styles.bubble, mine ? styles.mine : styles.their, meMentioned && !mine && styles.theirMentioned]}>
+          <Text style={[type.body, { color: mine ? theme.white : theme.ink }]}>
+            {runs.map((run, i) => (run.mention
+              ? <Text key={i} style={{ fontFamily: "Inter_700Bold", color: mine ? theme.white : theme.brand }}>{run.text}</Text>
+              : run.text))}
+          </Text>
         </View>
         <Text style={[type.small, { color: theme.ink4, fontSize: 11, marginTop: 3, textAlign: mine ? "right" : "left", marginHorizontal: 4 }]}>
           {m.failed ? "Failed to send" : m.pending ? "Sending…" : relTime(m.createdAt)}
@@ -519,6 +619,12 @@ const styles = StyleSheet.create({
   bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.lg },
   mine: { backgroundColor: theme.brand, borderBottomRightRadius: 4 },
   their: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderBottomLeftRadius: 4 },
+  // @mention picker (sits above the composer) + tagged-message accents
+  mentionBox: { backgroundColor: theme.card, borderTopWidth: 1, borderTopColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(1) },
+  mentionRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9 },
+  mentionRowDiv: { borderTopWidth: 1, borderTopColor: theme.line2 },
+  mentionedTag: { flexDirection: "row", alignItems: "center", marginBottom: 3, marginLeft: 4 },
+  theirMentioned: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 10, paddingHorizontal: space(4), paddingVertical: space(3), borderTopWidth: 1, borderTopColor: theme.line, backgroundColor: theme.card },
   input: { flex: 1, maxHeight: 120, minHeight: 44, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontFamily: "Inter_400Regular", fontSize: 15, color: theme.ink },
   send: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
