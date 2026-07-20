@@ -18232,7 +18232,7 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
           : <AsterMark className="w-10 h-10 mx-auto mb-4" />}
 
         <h1 className="font-display font-bold text-xl" style={{ color: "var(--ink)" }}>
-          {churned ? "Your subscription has ended" : suspended ? "Your trial has ended" : "Workspace scheduled for deletion"}
+          {churned ? "Your subscription has ended" : suspended ? "Subscribe to unlock your workspace" : "Workspace scheduled for deletion"}
         </h1>
 
         {suspended ? (
@@ -18240,7 +18240,7 @@ function DeletedWorkspaceScreen({ info, logoUrl, onRestore, onSignOut }) {
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-2)" }}>
               {churned
                 ? <>{name} is locked because the subscription was cancelled. Subscribe to unlock it again.</>
-                : <>{name} is suspended because the 14-day Scale trial ended without a subscription. Subscribe to unlock it again.</>}
+                : <>{name} needs an active subscription to unlock. Choose a plan below to get started.</>}
             </p>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
               Nothing has been lost. Your candidates, jobs, and remaining credits are kept{dateStr ? <> until <span className="font-semibold" style={{ color: "var(--ink)" }}>{dateStr}</span></> : ""}
