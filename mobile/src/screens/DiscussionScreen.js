@@ -318,6 +318,7 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
   const allVoted = progress && progress.total > 0 && progress.voted >= progress.total;
   const maxCount = Math.max(0, ...poll.slots.map((s) => s.count));
   const selCount = selected ? selected.size : 0;
+  const myPicks = poll.slots.filter((s) => s.mine).length; // this interviewer's own marks
   return (
     <View style={[styles.pollCard, selectMode && { borderColor: theme.brand, borderWidth: 1.5 }]}>
       <View style={styles.pollHead}>
@@ -387,17 +388,31 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
         </>
       ) : open ? (
         <>
-          <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
-            {isCandidate
-              ? (manager
-                  ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
-                  : "The candidate suggested these. Tap at least 2 you can make.")
-              : !manager
-                ? "Tap at least 2 times you can make."
+          {(!manager && !isCandidate) ? (
+            myPicks >= 2 ? (
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: space(3) }}>
+                <Feather name="check-circle" size={13} color={theme.success} />
+                <Text style={[type.smallStrong, { color: theme.success, marginLeft: 6, flex: 1 }]}>You've marked {myPicks} times — your availability is in.</Text>
+              </View>
+            ) : (
+              <View style={styles.voteWarn}>
+                <Feather name="clock" size={14} color={theme.warn} />
+                <Text style={[type.small, { color: "#92400E", marginLeft: 8, flex: 1 }]}>
+                  {myPicks === 0 ? "Tap at least 2 times you can make — the panel needs overlap to book." : "You've only marked 1. Tap at least one more, or your availability won't count."}
+                </Text>
+              </View>
+            )
+          ) : (
+            <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
+              {isCandidate
+                ? (manager
+                    ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
+                    : "The candidate suggested these. Tap at least 2 you can make.")
                 : progress && progress.pendingNames?.length
                   ? `Your vote is optional. Waiting on ${progress.pendingNames.slice(0, 3).join(", ")}${progress.pendingNames.length > 3 ? ` +${progress.pendingNames.length - 3}` : ""} to vote, then you'll pick times to offer.`
                   : "Your vote is optional. Once the panel votes, you'll pick times to offer."}
-          </Text>
+            </Text>
+          )}
           {canOverride ? (
             <Pressable onPress={onOverride} hitSlop={8} style={{ marginTop: space(2) }}>
               <Text style={[type.smallStrong, { color: theme.brand }]}>Proceed anyway →</Text>
@@ -514,6 +529,7 @@ const styles = StyleSheet.create({
   pollStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   voteProgress: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
   voteProgressDone: { backgroundColor: "#F0FDF4" },
+  voteWarn: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
   confirmSlotBtn: { backgroundColor: theme.success, borderRadius: radius.pill, paddingHorizontal: 14, height: 30, minWidth: 74, alignItems: "center", justifyContent: "center" },
   confirmSlotTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#fff" },
   slot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 11 },

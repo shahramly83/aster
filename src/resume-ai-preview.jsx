@@ -15864,9 +15864,18 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             </div>
           ) : poll.status === "open" && !round2 ? (
             <>
-              <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
-                {isManager ? "Your vote is optional. Once the interviewers vote, you'll pick times to offer." : "Mark at least 2 times you can make."}
-              </p>
+              {isManager ? (
+                <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Your vote is optional. Once the interviewers vote, you'll pick times to offer.</p>
+              ) : myPicks >= 2 ? (
+                <p className="text-[11px] mt-2.5 font-medium inline-flex items-center gap-1" style={{ color: "#067647" }}><Icon name="check" className="w-3.5 h-3.5" /> You've marked {myPicks} times — your availability is in.</p>
+              ) : (
+                <div className="mt-2.5 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+                  <Icon name="clock" className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#B45309" }} />
+                  <p className="text-[11px] leading-relaxed" style={{ color: "#92400E" }}>
+                    {myPicks === 0 ? "Mark at least 2 times you can make — the panel needs overlap to book." : "You've only marked 1. Pick at least one more, or your availability won't count."}
+                  </p>
+                </div>
+              )}
               {isManager && !complete && (
                 <button type="button" onClick={() => setOverride(true)} className="mt-1.5 text-xs font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
                   Proceed anyway &rarr;
