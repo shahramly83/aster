@@ -8967,12 +8967,14 @@ function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace
             aria-label={railOpen ? "Collapse menu" : "Expand menu"}
             aria-expanded={railOpen}
             title={railOpen ? "Collapse menu" : "Expand menu"}
-            className="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-7 h-7 rounded-lg flex items-center justify-center bg-white transition-shadow hover:shadow-lg"
-            style={{ border: "1px solid var(--line)", boxShadow: "0 4px 12px -4px rgba(15,27,51,0.22)" }}
+            className="absolute top-1/2 right-2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center transition-opacity hover:opacity-70"
           >
+            {/* 4x4 dot grid (16 dots), no chip background. */}
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-              {[[6, 6], [12, 6], [18, 6], [6, 12], [18, 12], [6, 18], [12, 18], [18, 18]].map(([cx, cy], i) => (
-                <circle key={i} cx={cx} cy={cy} r="1.7" fill={railOpen ? "var(--brand)" : "var(--ink-3)"} />
+              {[4.5, 9.5, 14.5, 19.5].flatMap((cy) =>
+                [4.5, 9.5, 14.5, 19.5].map((cx) => [cx, cy])
+              ).map(([cx, cy], i) => (
+                <circle key={i} cx={cx} cy={cy} r="1.5" fill={railOpen ? "var(--brand)" : "var(--ink-3)"} />
               ))}
             </svg>
           </button>
