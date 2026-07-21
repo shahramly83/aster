@@ -952,9 +952,12 @@ const BRAND_STYLES = `
 .hairline { height: 1px; background: linear-gradient(90deg, transparent, var(--line-strong) 20%, var(--line-strong) 80%, transparent); }
 .hairline-dark { height: 1px; background: linear-gradient(90deg, transparent, var(--navy-line) 15%, var(--navy-line) 85%, transparent); }
 
-/* Card lift on hover */
-.card-lift { transition: transform .24s cubic-bezier(.22,1,.36,1), box-shadow .24s ease, border-color .24s ease; will-change: transform; }
-.card-lift:hover { transform: translateY(-3px); box-shadow: 0 20px 44px -22px rgba(18,19,42,.24); border-color: var(--line-strong); }
+/* Card lift on hover. will-change is scoped to :hover so the steady-state
+   dashboard carries NO permanently GPU-promoted layers: a standing
+   will-change:transform layer re-rasters on every window restore and makes
+   nearby text (the card titles) shimmer/vibrate at fractional display scaling. */
+.card-lift { transition: transform .24s cubic-bezier(.22,1,.36,1), box-shadow .24s ease, border-color .24s ease; }
+.card-lift:hover { transform: translateY(-3px); box-shadow: 0 20px 44px -22px rgba(18,19,42,.24); border-color: var(--line-strong); will-change: transform; }
 
 /* Soft layered shadows */
 .shadow-soft { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 10px 34px -20px rgba(18,19,42,.20); }
@@ -986,8 +989,11 @@ const BRAND_STYLES = `
 /* Bars fill from 0 to their value on load */
 @keyframes barGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes barGrowY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-.bar-grow-x { animation: barGrowX 1s cubic-bezier(.22,1,.36,1) both; transform-origin: left center; will-change: transform; }
-.bar-grow-y { animation: barGrowY 0.9s cubic-bezier(.22,1,.36,1) both; transform-origin: bottom center; will-change: transform; }
+/* One-shot entrance bars: no will-change. The animation runs once, but a
+   standing will-change:transform would leave the bars on a permanent GPU layer
+   that re-rasters on window restore and shimmers the title cards above them. */
+.bar-grow-x { animation: barGrowX 1s cubic-bezier(.22,1,.36,1) both; transform-origin: left center; }
+.bar-grow-y { animation: barGrowY 0.9s cubic-bezier(.22,1,.36,1) both; transform-origin: bottom center; }
 @media (prefers-reduced-motion: reduce) { .bar-grow-x, .bar-grow-y { animation: none; } }
 
 /* Firework burst (celebration) */
