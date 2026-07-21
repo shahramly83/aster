@@ -6891,27 +6891,129 @@ const LEGAL_CONTACT = "legal@hireaster.com";
 const LEGAL = {
   privacy: {
     title: "Privacy policy",
-    summary: "What personal data Aster collects, why, how long we keep it, and the rights you and your candidates have.",
-    sections: [
-      { h: "What we collect", p: "Account and workspace data you provide, and candidate data: resumes and the skills, experience and contact details extracted from them." },
-      { h: "How we use it", p: "To run your hiring: screening, scoring and ranking candidates, scheduling interviews, and operating your pipeline. We don't sell personal data or use candidate data to train foundation models." },
-      { h: "Legal bases (GDPR)", p: "We process personal data to perform our contract with you, to meet legitimate interests in operating the service, and with consent where it is required." },
-      { h: "Retention", p: "We keep data for as long as your workspace is active. Deleting a candidate or your workspace removes it, with backups ageing out on a fixed cycle." },
-      { h: "Your rights", p: "Access, export and deletion are available in-app. To exercise data subject rights or ask a privacy question, contact us." },
-      { h: "Sharing & subprocessors", p: "We share data only with the vendors that help us run Aster, listed on our Subprocessors page, each under a data processing agreement." },
+    full: true,
+    updated: "21 July 2026",
+    summary: "This policy explains what personal data Aster collects, why we process it, who we share it with, how long we keep it, and the rights you and your candidates have.",
+    intro: "Aster is an AI-assisted hiring platform. We help employers screen resumes, rank applicants, and run their interview pipeline. Protecting the personal data that passes through Aster is central to what we do. This Privacy Policy describes how Oryx Digital Sdn Bhd, trading as Aster (\"Aster\", \"we\", \"us\"), a company incorporated in Malaysia, handles personal data across our marketing site, web and mobile apps, and related services (together, the \"Service\"). By using the Service you confirm you have read and understood this policy.",
+    body: [
+      { h: "1. The two roles Aster plays", p: [
+        "Aster processes personal data in two distinct capacities, and your rights differ depending on which applies:",
+        "Controller. For data about our customers and their users, such as the account, workspace, billing, and support information an employer gives us to open and run an account, Aster is the data controller and decides how that data is used.",
+        "Processor. For candidate data, meaning the resumes and applicant information an employer uploads or collects through Aster, the employer is the controller and Aster is the processor. We handle that data only on the employer's documented instructions and to provide the Service. If you are a candidate and want to exercise your rights, contact the employer you applied to first; we will support them in responding.",
+      ] },
+      { h: "2. Information we collect", p: ["We collect the following categories of personal data:"], list: [
+        "Account and workspace data: name, work email, company, role, workspace settings, and the users an admin invites.",
+        "Billing data: plan, subscription status, and billing contact. Card details are handled by our payment processor; Aster never stores full card numbers.",
+        "Candidate data: resumes and the structured skills, experience, education, and contact details extracted from them, plus application status and any notes or scores a hiring team adds.",
+        "Interview and scheduling data: proposed times, bookings, and calendar or meeting links when you connect Google or Microsoft.",
+        "Support data: the content of tickets and messages you send us, and the account context needed to resolve them.",
+        "Usage and device data: log data, IP address, browser or device type, and product analytics about how the Service is used.",
+      ] },
+      { h: "3. How we use personal data", p: ["We use personal data to:"], list: [
+        "Provide the Service: screen resumes, score and rank candidates against the roles you set, schedule interviews, and run your hiring pipeline.",
+        "Operate and secure our platform, including authentication, fraud prevention, audit logging, and troubleshooting.",
+        "Bill for paid plans and manage subscriptions and credits.",
+        "Provide support and respond to your requests.",
+        "Improve the Service through aggregated analytics, and send service and, where permitted, marketing communications you can opt out of.",
+        "Comply with legal obligations and enforce our agreements.",
+      ] },
+      { h: "4. AI processing and human oversight", p: [
+        "Aster uses AI models to read resumes into structured data and to score and rank candidates against the role you define. These outputs are decision support, not automated decisions made without human involvement. Every hiring decision is made by your team, and we ask that you apply human judgement to each one.",
+        "We do not use candidate data to train foundation models, and our AI subprocessor is contractually bound not to train its models on the data we send it.",
+      ] },
+      { h: "5. Legal bases for processing", p: ["We process personal data in accordance with Malaysia's Personal Data Protection Act 2010 (PDPA) and, where our customers or their candidates are in those regions, the EU and UK GDPR. Depending on the framework, we rely on the following bases:"], list: [
+        "Performance of a contract: to provide the Service to the customer and manage their account.",
+        "Consent: where required, for example certain cookies, marketing, and processing of personal data under the PDPA, which you can withdraw at any time.",
+        "Legitimate interests: to operate, secure, and improve the Service, provided those interests are not overridden by your rights.",
+        "Legal obligation: to meet tax, accounting, and other legal requirements.",
+        "For candidate data processed on an employer's behalf, the employer is responsible for establishing the lawful basis for that processing.",
+      ] },
+      { h: "6. Sharing and subprocessors", p: [
+        "We do not sell personal data. We share it only where necessary to run the Service:",
+        "Subprocessors: the vendors that host, power, and support Aster, each bound by a data processing agreement and reviewed for security before we onboard them. The current list, what each does, and where they process data are on our Subprocessors page.",
+        "Integrations you enable: when you connect Google or Microsoft for scheduling, relevant data is shared with that provider to create bookings and invites.",
+        "Legal and safety: where we are required by law, or to protect the rights, safety, and security of Aster, our customers, or the public.",
+        "Business transfers: if Aster is involved in a merger, acquisition, or sale of assets, personal data may transfer as part of that transaction, subject to this policy.",
+      ] },
+      { h: "7. International transfers", p: [
+        "Aster and our subprocessors may process personal data in regions outside your own, including the European Union and the United States. Where data moves across borders, we rely on appropriate safeguards such as the Standard Contractual Clauses approved by the European Commission and equivalent UK mechanisms.",
+      ] },
+      { h: "8. Data retention", p: [
+        "We keep account and workspace data for as long as your workspace is active and as needed to provide the Service. Candidate data is retained on behalf of, and under the instructions of, the employer that controls it.",
+        "Deleting a candidate or closing your workspace removes the associated data from our live systems, and backups age out on a fixed cycle. We may retain limited information longer where required for legal, tax, security, or dispute-resolution purposes.",
+      ] },
+      { h: "9. How we protect your data", p: [
+        "We apply technical and organisational measures appropriate to the sensitivity of the data, including encryption in transit and at rest, role-based access controls, workspace isolation, audit logging, and regular review of our security practices. No system is perfectly secure, but we work continuously to protect the data you trust us with.",
+      ] },
+      { h: "10. Your rights", p: [
+        "Depending on where you live, you may have the right to access, correct, export, delete, or restrict the processing of your personal data, to object to certain processing, and to withdraw consent. Access, export, and deletion of workspace and candidate data are available directly in the app.",
+        "To exercise a right or ask a privacy question about data for which Aster is the controller, contact us using the details below. If your data was uploaded to Aster by an employer, we will refer your request to that employer as the controller. You also have the right to complain to your local data protection authority.",
+      ] },
+      { h: "11. Cookies and similar technologies", p: [
+        "We use essential cookies to sign you in and keep the app working, and analytics and preference cookies to understand and improve the Service. You can control non-essential cookies through your browser or our cookie controls. See our Cookie Policy for detail.",
+      ] },
+      { h: "12. Children", p: [
+        "The Service is intended for use by employers and working-age candidates. It is not directed at children, and we do not knowingly collect personal data from anyone under 16. If you believe a child has provided us data, contact us and we will delete it.",
+      ] },
+      { h: "13. Changes to this policy", p: [
+        "We may update this policy as the Service and the law evolve. When we make material changes we will update the date above and, where appropriate, notify you in-app or by email. Your continued use of the Service after an update means you accept the revised policy.",
+      ] },
+      { h: "14. Contact us", p: [
+        "For privacy questions, data subject requests, or a copy of our Data Processing Agreement, email " + LEGAL_CONTACT + ". We aim to respond to every request within the timeframes required by applicable law.",
+      ] },
     ],
     related: ["dpa", "cookies", "subprocessors"],
   },
   terms: {
     title: "Terms of service",
-    summary: "The agreement between your organisation and Aster for using the platform.",
-    sections: [
-      { h: "The agreement", p: "By creating a workspace or using Aster you agree to these terms on behalf of your organisation." },
-      { h: "Your account", p: "You're responsible for your workspace, your users, and keeping credentials secure. You must have the right to upload the candidate data you add." },
-      { h: "Acceptable use", p: "Use Aster lawfully and as intended. Prohibited uses are described in our Acceptable Use Policy." },
-      { h: "Plans & billing", p: "Paid plans renew each cycle. Limits and features by plan are shown on the pricing page and in-app." },
-      { h: "Availability & changes", p: "We work to keep Aster available and may update the service. We'll give reasonable notice of material changes to these terms." },
-      { h: "Liability & termination", p: "Either party may end the agreement per these terms. Liability is limited to the extent permitted by law." },
+    full: true,
+    updated: "21 July 2026",
+    summary: "These terms form the agreement between your organisation and Aster for accessing and using our platform, including our web and mobile apps.",
+    intro: "These Terms of Service (\"Terms\") govern your access to and use of Aster's marketing site, web application, mobile applications, and related services (together, the \"Service\"), provided by Oryx Digital Sdn Bhd, trading as Aster (\"Aster\", \"we\", \"us\"), a company incorporated in Malaysia. By creating a workspace, downloading our app, or otherwise using the Service, you agree to these Terms. If you are agreeing on behalf of an organisation, you confirm you have authority to bind that organisation, and \"you\" refers to that organisation.",
+    body: [
+      { h: "1. The agreement", p: [
+        "These Terms, together with any order, plan, or policy referenced here, form a binding agreement between you and Aster. If you do not agree, do not use the Service.",
+      ] },
+      { h: "2. Eligibility and accounts", p: [
+        "You must be at least 18 and able to form a binding contract to use the Service. You are responsible for your workspace, the users you invite, the accuracy of the information you provide, and keeping login credentials secure. Notify us promptly of any unauthorised use of your account.",
+      ] },
+      { h: "3. Your data and candidate data", p: [
+        "You retain all rights to the data you upload, including candidate resumes and applicant information. You grant Aster the rights needed to host and process that data to provide the Service.",
+        "You are responsible for having a lawful basis and the right to upload and process the candidate data you add, and for using Aster in line with applicable employment, privacy, and anti-discrimination law. Our handling of personal data is described in our Privacy Policy and Data Processing Agreement.",
+      ] },
+      { h: "4. Acceptable use", p: [
+        "You must use the Service lawfully and as intended. You may not attempt to breach security, disrupt the Service, scrape at scale, reverse engineer the platform, or use it to store or transmit unlawful, harmful, or infringing content. Prohibited uses are described in our Acceptable Use Policy, which forms part of these Terms.",
+      ] },
+      { h: "5. AI outputs", p: [
+        "Aster uses AI to screen resumes and to score and rank candidates against the roles you define. These outputs are decision support only. You are responsible for reviewing them and applying human judgement to every hiring decision. Aster does not guarantee that any score, ranking, or extracted detail is complete or free of error.",
+      ] },
+      { h: "6. Plans, billing, and credits", p: [
+        "Paid plans and any purchased credits are described on our pricing page and in-app. Subscriptions renew automatically each cycle unless cancelled before renewal, and fees are non-refundable except where required by law. Purchases made through the Apple App Store or Google Play are also subject to that store's terms, and are billed and refunded through the store. We may change pricing on reasonable notice, effective from your next renewal.",
+      ] },
+      { h: "7. Third-party services", p: [
+        "The Service integrates with third parties such as Google, Microsoft, and payment and infrastructure providers. Your use of those integrations is subject to their own terms, and Aster is not responsible for third-party services.",
+      ] },
+      { h: "8. Availability and changes to the Service", p: [
+        "We work to keep the Service available and reliable, but we do not guarantee uninterrupted access. We may update, add, or remove features over time. We will give reasonable notice of material changes that adversely affect your use.",
+      ] },
+      { h: "9. Intellectual property", p: [
+        "Aster and its licensors own all rights in the Service, including software, design, and trademarks. Subject to these Terms, we grant you a limited, non-exclusive, non-transferable right to use the Service during your subscription. You may not copy, modify, or create derivative works of the Service except as expressly permitted.",
+      ] },
+      { h: "10. Termination", p: [
+        "You may stop using the Service and close your workspace at any time. We may suspend or terminate access if you materially breach these Terms, fail to pay, or use the Service in a way that risks harm to Aster or others. On termination, your right to use the Service ends and we will handle your data as described in our Privacy Policy.",
+      ] },
+      { h: "11. Disclaimers", p: [
+        "The Service is provided \"as is\" and \"as available\". To the maximum extent permitted by law, Aster disclaims all warranties, express or implied, including fitness for a particular purpose and non-infringement. Aster does not warrant that the Service will be error-free or that its AI outputs will meet any particular hiring standard.",
+      ] },
+      { h: "12. Limitation of liability", p: [
+        "To the maximum extent permitted by law, Aster will not be liable for indirect, incidental, special, or consequential damages, or for lost profits or data. Our total liability arising out of or relating to the Service is limited to the amount you paid us in the twelve months before the event giving rise to the claim.",
+      ] },
+      { h: "13. Governing law and changes to these Terms", p: [
+        "These Terms are governed by the laws of Malaysia, without regard to conflict-of-laws rules, and the courts of Malaysia have non-exclusive jurisdiction over any dispute, subject to any mandatory consumer protections available to you locally. We may update these Terms from time to time; when we make material changes we will update the date above and, where appropriate, notify you. Continued use of the Service after an update means you accept the revised Terms.",
+      ] },
+      { h: "14. Contact us", p: [
+        "Questions about these Terms can be sent to " + LEGAL_CONTACT + ".",
+      ] },
     ],
     related: ["aup", "privacy", "dpa"],
   },
@@ -6983,7 +7085,11 @@ function LegalScreen({ slug = "privacy", navigate, goProduct, goSolution, goBlog
           </div>
           <div className="flex items-center gap-3 flex-wrap mb-3">
             <h1 className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "clamp(1.9rem, 4vw, 2.8rem)", lineHeight: 1.1, letterSpacing: "-0.03em" }}>{d.title}</h1>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#92400E" }} /> Draft, pending legal review</span>
+            {d.full ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "#ECFDF5", color: "#047857" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#047857" }} /> Last updated {d.updated}</span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#92400E" }} /> Draft, pending legal review</span>
+            )}
           </div>
           <p className="text-base sm:text-lg leading-relaxed max-w-2xl" style={{ color: "var(--ink-2)" }}>{d.summary}</p>
         </div>
@@ -6992,7 +7098,31 @@ function LegalScreen({ slug = "privacy", navigate, goProduct, goSolution, goBlog
       {/* Body */}
       <section className="py-12 sm:py-16" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          {d.table ? (
+          {d.full ? (
+            <div className="max-w-3xl">
+              {d.intro && <p className="text-[15px] sm:text-base leading-relaxed mb-10" style={{ color: "var(--ink-2)" }}>{d.intro}</p>}
+              <div className="flex flex-col gap-9">
+                {d.body.map((s) => (
+                  <div key={s.h}>
+                    <h2 className="font-display font-semibold text-lg sm:text-xl mb-2.5" style={{ color: "var(--ink)", letterSpacing: "-0.01em" }}>{s.h}</h2>
+                    {s.p.map((para, i) => (
+                      <p key={i} className="text-sm sm:text-[15px] leading-relaxed" style={{ color: "var(--ink-2)", marginTop: i ? "0.75rem" : 0 }}>{para}</p>
+                    ))}
+                    {s.list && (
+                      <ul className="mt-3 flex flex-col gap-2">
+                        {s.list.map((li, i) => (
+                          <li key={i} className="flex gap-2.5 text-sm sm:text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                            <span className="shrink-0 mt-2 w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} />
+                            <span>{li}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : d.table ? (
             <div className="rounded-2xl overflow-hidden act-shadow" style={{ border: "1px solid var(--line)", background: "#fff" }}>
               <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-3 text-[11px] font-semibold uppercase" style={{ background: "#F5F7FA", color: "var(--ink-3)", letterSpacing: "0.06em", borderBottom: "1px solid var(--line)" }}>
                 <span className="col-span-3">Subprocessor</span><span className="col-span-7">What they do</span><span className="col-span-2">Region</span>
@@ -7020,11 +7150,11 @@ function LegalScreen({ slug = "privacy", navigate, goProduct, goSolution, goBlog
           )}
           {d.note && <p className="mt-8 text-sm leading-relaxed max-w-3xl" style={{ color: "var(--ink-2)" }}>{d.note}</p>}
 
-          {/* Honest scaffold notice + contact / DPA CTA */}
-          <div className="mt-10 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
+          {/* Contact / DPA CTA (full docs: questions box; scaffolds: honest summary notice) */}
+          <div className="mt-12 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between max-w-3xl" style={{ background: "var(--brand-soft)", border: "1px solid #DCE4F7" }}>
             <div className="max-w-xl">
-              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>This is a plain-English summary, not the full terms.</p>
-              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>For the complete, current document{d.cta ? " or a signed copy" : ""}, contact our team.</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{d.full ? "Questions about this policy?" : "This is a plain-English summary, not the full terms."}</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{d.full ? `Email our team at ${LEGAL_CONTACT} and we'll help.` : `For the complete, current document${d.cta ? " or a signed copy" : ""}, contact our team.`}</p>
             </div>
             <a href={`mailto:${LEGAL_CONTACT}?subject=${encodeURIComponent(d.cta || d.title)}`} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl brand-gradient text-white transition-opacity hover:opacity-90">{d.cta || "Contact legal"} <Icon name="arrowUpRight" className="w-4 h-4" /></a>
           </div>
@@ -8967,14 +9097,14 @@ function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace
             aria-label={railOpen ? "Collapse menu" : "Expand menu"}
             aria-expanded={railOpen}
             title={railOpen ? "Collapse menu" : "Expand menu"}
-            className="absolute top-1/2 right-2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center transition-opacity hover:opacity-70"
+            className="absolute top-1/2 right-0.5 -translate-y-1/2 z-10 w-5 h-14 flex items-center justify-center transition-opacity hover:opacity-70"
           >
-            {/* 4x4 dot grid (16 dots), no chip background. */}
-            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-              {[4.5, 9.5, 14.5, 19.5].flatMap((cy) =>
-                [4.5, 9.5, 14.5, 19.5].map((cx) => [cx, cy])
+            {/* Vertical dotted grip handle (2 x 6), no chip background, hard against the rail edge. */}
+            <svg width="6" height="30" viewBox="0 0 6 30" aria-hidden="true">
+              {[2.5, 7.5, 12.5, 17.5, 22.5, 27.5].flatMap((cy) =>
+                [1.5, 4.5].map((cx) => [cx, cy])
               ).map(([cx, cy], i) => (
-                <circle key={i} cx={cx} cy={cy} r="1.5" fill={railOpen ? "var(--brand)" : "var(--ink-3)"} />
+                <circle key={i} cx={cx} cy={cy} r="1" fill={railOpen ? "var(--brand)" : "var(--ink-3)"} />
               ))}
             </svg>
           </button>
@@ -25426,9 +25556,7 @@ export default function ResumeAIPreview() {
       ? "dashboard"
       : screen === "applicants"
         ? "jobs"
-        : screen === "interviews"
-          ? "interviewers"
-          : screen;
+        : screen;
 
   return (
     <Shell>
