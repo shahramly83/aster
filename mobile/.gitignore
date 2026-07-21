@@ -4,3 +4,9 @@ dist/
 web-build/
 .env
 *.log
+
+# Store submission secrets — never commit these
+google-play-service-account.json
+*.p8
+*.mobileprovision
+*.keystore
