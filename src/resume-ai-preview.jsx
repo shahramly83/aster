@@ -8836,7 +8836,7 @@ function SidebarContent({ navigate, active, avatarUrl, onSignOut, logoUrl, onNav
 }
 
 // Narrow icon-only rail (fintech style). Active item = filled brand square.
-function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace = false, onSignOut, unreadCount = 0, profile, avatarUrl = null }) {
+function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace = false, onSignOut, unreadCount = 0, profile, avatarUrl = null, open = false }) {
   // First-run onboarding coach marks (managers only, on the dashboard, per user):
   //   1. Complete your profile, so apply pages show accurate company details.
   //   2. After the profile is saved (ProfileScreen sets the flag and redirects
@@ -8894,7 +8894,7 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
         title={item.label}
         aria-label={item.label}
         aria-current={on ? "page" : undefined}
-        className={`relative w-full h-11 rounded-xl flex items-center justify-center group-hover:justify-start group-hover:px-3.5 gap-0 group-hover:gap-3 transition-[gap,padding,justify-content,color] duration-300 ${item.key === activeHint ? "tour-pulse" : ""}`}
+        className={`relative w-full h-11 rounded-xl flex items-center transition-[gap,padding,justify-content,color] duration-300 ${open ? "justify-start px-3.5 gap-3" : "justify-center gap-0"} ${item.key === activeHint ? "tour-pulse" : ""}`}
         style={{ color: on ? "#fff" : "var(--ink-2)" }}
         onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--brand)"; }}
         onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
@@ -8906,15 +8906,15 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
             <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full brand-gradient text-white text-[9px] font-semibold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
           )}
         </span>
-        <span className="relative text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[10rem] overflow-hidden opacity-0 group-hover:opacity-100" style={{ transition: "opacity 300ms ease, max-width 360ms cubic-bezier(0.22, 1, 0.36, 1)", transitionDelay: `${60 + i * 26}ms` }}>{item.label}</span>
+        <span className={`relative text-sm font-medium whitespace-nowrap overflow-hidden ${open ? "max-w-[10rem] opacity-100" : "max-w-0 opacity-0"}`} style={{ transition: "opacity 300ms ease, max-width 360ms cubic-bezier(0.22, 1, 0.36, 1)", transitionDelay: `${60 + i * 26}ms` }}>{item.label}</span>
       </button>
     );
   };
   return (
     <div className="flex flex-col h-full w-full px-3">
-      <button onClick={() => navigate(homeForRole(profile?.role))} aria-label="Aster home" className="mb-8 h-11 flex items-center justify-center group-hover:justify-start group-hover:px-3 gap-0 group-hover:gap-2.5 shrink-0 transition-all duration-200">
+      <button onClick={() => navigate(homeForRole(profile?.role))} aria-label="Aster home" className={`mb-8 h-11 flex items-center shrink-0 transition-all duration-200 ${open ? "justify-start px-3 gap-2.5" : "justify-center gap-0"}`}>
         <AnimatedAsterMark className="w-11 h-11 shrink-0" />
-        <svg viewBox="311 268.1 305.7 55.9" className="h-[18px] w-auto shrink-0 max-w-0 group-hover:max-w-[9rem] overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-200" role="img" aria-label="Aster" fill="var(--brand)">
+        <svg viewBox="311 268.1 305.7 55.9" className={`h-[18px] w-auto shrink-0 overflow-hidden transition-all duration-200 ${open ? "max-w-[9rem] opacity-100" : "max-w-0 opacity-0"}`} role="img" aria-label="Aster" fill="var(--brand)">
           <path d={ASTER_WORDMARK_PATH} />
         </svg>
       </button>
@@ -8949,14 +8949,33 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
 
 function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace = false, avatarUrl, onSignOut, logoUrl, profile, unreadCount = 0, activities = [], onOpenNotifications, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Desktop rail: collapsed to icons by default, expands to a labelled drawer
+  // when the user clicks the dot-grid handle on its right edge (was hover-driven,
+  // which expanded/reflowed the content column unintentionally on pointer pass).
+  const [railOpen, setRailOpen] = useState(false);
 
   return (
     <div className="min-h-screen md:p-4" style={{ background: "#1B1C22" }}>
       <div className="md:flex md:gap-4 md:items-start">
-        {/* Desktop icon rail: collapsed to 76px, expands to a labelled drawer on hover
-            and pushes the content across (in-flow, not an overlay). */}
-        <aside className="group hidden md:flex w-[76px] hover:w-[236px] shrink-0 flex-col py-5 rounded-[26px] overflow-hidden sticky top-4 self-start hover:shadow-[0_26px_64px_-30px_rgba(15,27,51,0.32)]" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)", transition: "width 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease" }}>
-          <IconSidebar navigate={navigate} active={active} onDashboard={onDashboard} isFreshWorkspace={isFreshWorkspace} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
+        {/* Desktop icon rail: collapsed to 76px, expands to a labelled drawer on
+            click and pushes the content across (in-flow, not an overlay). */}
+        <aside className={`relative hidden md:flex ${railOpen ? "w-[236px] shadow-[0_26px_64px_-30px_rgba(15,27,51,0.32)]" : "w-[76px]"} shrink-0 flex-col py-5 rounded-[26px] sticky top-4 self-start`} style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)", transition: "width 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease" }}>
+          <IconSidebar navigate={navigate} active={active} onDashboard={onDashboard} isFreshWorkspace={isFreshWorkspace} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} open={railOpen} />
+          {/* Dot-grid toggle, straddling the right edge at vertical centre. */}
+          <button
+            onClick={() => setRailOpen((o) => !o)}
+            aria-label={railOpen ? "Collapse menu" : "Expand menu"}
+            aria-expanded={railOpen}
+            title={railOpen ? "Collapse menu" : "Expand menu"}
+            className="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-7 h-7 rounded-lg flex items-center justify-center bg-white transition-shadow hover:shadow-lg"
+            style={{ border: "1px solid var(--line)", boxShadow: "0 4px 12px -4px rgba(15,27,51,0.22)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+              {[[6, 6], [12, 6], [18, 6], [6, 12], [18, 12], [6, 18], [12, 18], [18, 18]].map(([cx, cy], i) => (
+                <circle key={i} cx={cx} cy={cy} r="1.7" fill={railOpen ? "var(--brand)" : "var(--ink-3)"} />
+              ))}
+            </svg>
+          </button>
         </aside>
 
         {/* Mobile drawer, keeps the labelled nav */}
