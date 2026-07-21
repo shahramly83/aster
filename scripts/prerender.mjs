@@ -50,7 +50,7 @@ const ROUTES = [
   // Trust & security
   "/trust", "/trust/compliance",
   // Legal
-  "/legal/privacy", "/legal/terms", "/legal/dpa", "/legal/cookies", "/legal/aup", "/legal/subprocessors",
+  "/legal/privacy", "/legal/terms", "/legal/dpa", "/legal/cookies", "/legal/aup", "/legal/subprocessors", "/legal/data-deletion",
   // Support / onboarding
   "/getting-started",
 ];

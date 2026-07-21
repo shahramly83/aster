@@ -7054,6 +7054,34 @@ const LEGAL = {
     ],
     related: ["terms", "privacy"],
   },
+  "data-deletion": {
+    title: "Data deletion",
+    full: true,
+    updated: "21 July 2026",
+    summary: "How to request deletion of your Aster account and the personal data associated with it, what we delete, what we keep, and for how long.",
+    intro: "This page explains how to delete your data from Aster, the AI-assisted hiring platform operated by Oryx Digital Sdn Bhd (\"Aster\"), including the Aster mobile app. It covers who can request deletion, the exact steps to take, and what is removed or retained.",
+    body: [
+      { h: "1. Who can request deletion", p: [
+        "Account holders (recruiters, hiring managers, and workspace admins) can delete their own account and workspace data.",
+        "Candidates: the resumes and applicant data in Aster are controlled by the employer you applied to, not by Aster. To have that data deleted, contact the employer directly, or email us and we will pass your request to the relevant employer as the data controller.",
+      ] },
+      { h: "2. How to request deletion", p: ["You can delete your data in either of the following ways:"], list: [
+        "In the app: open the Aster mobile app or hireaster.com, go to your Profile or Workspace settings, and use the delete option to remove a candidate, or to close and delete your workspace and account.",
+        "By email: send a deletion request to " + LEGAL_CONTACT + " from the email address on your account, with the subject \"Delete my data\". We will verify your identity and process the request. We aim to respond within 30 days.",
+      ] },
+      { h: "3. What is deleted", p: [
+        "When you delete your account or workspace, we remove the personal data associated with it from our live systems. This includes your account and profile details, workspace content, and the candidate data (resumes and extracted skills, experience, and contact details) held in that workspace.",
+      ] },
+      { h: "4. What is kept, and for how long", p: [
+        "Backups: deleted data may persist in encrypted backups until they age out on a fixed cycle, within 30 days.",
+        "Legal and financial records: we may retain a limited amount of data, such as billing and transaction records, for as long as required to meet legal, tax, accounting, security, or dispute-resolution obligations. This data is not used for any other purpose and is deleted when no longer required.",
+      ] },
+      { h: "5. Contact", p: [
+        "For any question about deleting your data, email " + LEGAL_CONTACT + ". See our Privacy Policy for the full detail on how we handle personal data.",
+      ] },
+    ],
+    related: ["privacy", "terms"],
+  },
   subprocessors: {
     title: "Subprocessors",
     summary: "The vendors that help us run Aster, what each does, and where they process data. Each is bound by a data processing agreement and reviewed for security before we onboard them.",
@@ -23466,7 +23494,7 @@ function trustInfoFromPath(pathname) {
 }
 // Legal center: /legal/<slug>. Closed slug list; no bare /legal index.
 function legalInfoFromPath(pathname) {
-  const m = (pathname || "").match(/^\/legal\/(privacy|terms|dpa|cookies|aup|subprocessors)$/);
+  const m = (pathname || "").match(/^\/legal\/(privacy|terms|dpa|cookies|aup|subprocessors|data-deletion)$/);
   return m ? { slug: m[1] } : null;
 }
 // Applicants: /applicants (first job) and /applicants/<jobId> so a specific
@@ -23688,6 +23716,10 @@ const PAGE_META = {
   "/legal/subprocessors": {
     title: "Subprocessors | Aster Legal",
     description: "The vendors Aster uses to run the product, what each does, and where they process data: Supabase, Vercel, Anthropic, Google and Microsoft.",
+  },
+  "/legal/data-deletion": {
+    title: "Data Deletion | Aster",
+    description: "How to request deletion of your Aster account and data, what gets deleted, what is kept, and how long backups take to age out.",
   },
   "/getting-started": {
     title: "Getting Started with Aster: From Zero to First Hire",
