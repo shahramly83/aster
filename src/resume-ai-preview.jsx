@@ -24536,10 +24536,31 @@ export default function ResumeAIPreview() {
     if (!hasSupabase) return; // restoring stays false → mock/marketing renders as-is
     let cancelled = false;
     let handled = null; // guard so the same user isn't restored twice
+    // Safety net for the mid-auth-transition hold below: if the expected session
+    // never materialises (expired/invalid confirmation or handoff tokens), fall
+    // through to the login form instead of holding the splash forever.
+    let authFallbackTimer = null;
+    const clearAuthFallback = () => { if (authFallbackTimer) { clearTimeout(authFallbackTimer); authFallbackTimer = null; } };
 
     const applySession = async (session) => {
       if (cancelled) return;
       if (!session) {
+        // Mid-auth-transition (just clicked an email-confirmation link, or landed
+        // via a cross-subdomain handoff): onAuthStateChange fires INITIAL_SESSION
+        // with null BEFORE the URL tokens are consumed, so the real session lands
+        // a beat later via SIGNED_IN. Clearing the splash now would flash the login
+        // page in that gap (the "transit in login page" bug). Hold the splash and
+        // wait for SIGNED_IN, with a timeout so bad tokens still reach the form.
+        if (authTransitionPending) {
+          if (!authFallbackTimer) {
+            authFallbackTimer = setTimeout(() => {
+              if (cancelled) return;
+              setRestoring(false);
+              if (typeof window !== "undefined" && WORKSPACE_SCREENS.has(screenFromPath(window.location.pathname))) navigate("login");
+            }, 8000);
+          }
+          return;
+        }
         setRestoring(false);
         // W4: no session. If this load deep-linked into a workspace-only screen,
         // send the visitor to /login rather than leaving the app shell to render
@@ -24549,6 +24570,7 @@ export default function ResumeAIPreview() {
         }
         return;
       }
+      clearAuthFallback(); // a real session arrived: cancel the fall-through-to-login timer
       const email = session.user.email || "";
       // Google / Microsoft (any non-password) sign-ins are restricted to work
       // domains. hd/tenant hints don't hard-block personal accounts, so we
@@ -24704,7 +24726,7 @@ export default function ResumeAIPreview() {
     // If we arrived via a cross-subdomain handoff (#ws_at/#ws_rt), restore that
     // session now; setSession fires SIGNED_IN above, which runs applySession.
     consumeHandoffTokens();
-    return () => { cancelled = true; subscription.unsubscribe(); };
+    return () => { cancelled = true; clearAuthFallback(); subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
