@@ -10213,7 +10213,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     ? "Your workspace is suspended when the trial ends. Subscribe to keep your jobs and candidates live."
                     : "Full Scale access during the trial. Subscribe before it ends to keep everything running."}
                 </p>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(15,27,51,0.10)" }}>
+                {/* Thin on purpose. On day one the bar is 100% full, so any real
+                    height reads as a solid rule drawn across the dashboard. */}
+                <div className="h-0.5 rounded-full overflow-hidden" style={{ background: "rgba(15,27,51,0.10)" }}>
                   <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: tone.accent }} />
                 </div>
               </div>
