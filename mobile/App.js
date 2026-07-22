@@ -74,7 +74,10 @@ function ManagerTabs() {
 // Interviewers get the focused least-privilege experience.
 function InterviewerTabs() {
   return (
-    <Tab.Navigator initialRouteName="PositionsTab" screenOptions={tabOptions} tabBar={renderTabBar}>
+    // Land on Today: an interviewer opens the app to see what they owe — a poll
+    // to vote in, an interview about to start. Positions is reference material
+    // they go looking for, not the reason they opened the app.
+    <Tab.Navigator screenOptions={tabOptions} tabBar={renderTabBar}>
       <Tab.Screen name="TodayTab" component={TodayScreen} options={{ title: "Today" }} />
       <Tab.Screen name="PositionsTab" component={OpenPositionsScreen} options={{ title: "Positions" }} />
     </Tab.Navigator>
