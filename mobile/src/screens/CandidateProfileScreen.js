@@ -324,12 +324,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
             {/* Interview page sub-tabs: split the dense stack into Profile /
                 Interview / Feedback so only one section shows at a time. */}
             <View style={styles.segbar}>
-              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Feedback"]].map(([k, lbl]) => {
+              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecard"]].map(([k, lbl]) => {
                 const on = tab === k;
-                // The Interview tab has nothing to show until the candidate is
-                // actually at interview, so it stays locked before then rather
-                // than opening an empty scheduling surface on a fresh applicant.
-                const locked = k === "interview" && !INTERVIEW_UNLOCKED.includes(stage);
+                // Neither tab has anything to show until the candidate is
+                // actually at interview: one would open an empty scheduling
+                // surface, the other a scorecard for an interview that hasn't
+                // happened. Lock both rather than let a fresh applicant land on
+                // a blank screen. "Scorecard" over "Feedback" because that is
+                // what the tab actually contains.
+                const locked = (k === "interview" || k === "feedback") && !INTERVIEW_UNLOCKED.includes(stage);
                 return (
                   <Pressable
                     key={k}
@@ -626,7 +629,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         </Text>
                       </View>
                     </View>
-                    <Button title="1 · Panel availability" icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                    <Button title={manager ? "1 · Vote" : "Vote"} icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
                     {manager ? <Button title="2 · Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} /> : null}
                   </>
                 )
@@ -649,8 +652,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 </>
               ) : (
                 <>
-                  <Text style={[type.small, { color: theme.ink3 }]}>Get the panel's availability, then propose a few times for the candidate to choose from.</Text>
-                  <Button title="1 · Panel availability" icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
+                  {/* Two different jobs read this card. The manager collects the
+                      availability and proposes the times; the interviewer only
+                      supplies their own. One instruction can't serve both. */}
+                  <Text style={[type.small, { color: theme.ink3 }]}>
+                    {manager
+                      ? "Get the panel's availability, then propose a few times for the candidate to choose from."
+                      : "Mark the times you can make so the panel can find an overlap."}
+                  </Text>
+                  <Button title={manager ? "1 · Vote" : "Vote"} icon="users" variant="secondary" onPress={() => navigation.navigate("Discussion", { candidateId, jobId, candidateName: name })} style={{ marginTop: space(3) }} />
                   {manager ? <Button title="2 · Propose times to candidate" icon="calendar" onPress={() => setProposeOpen(true)} style={{ marginTop: space(2.5) }} /> : null}
                 </>
               )}

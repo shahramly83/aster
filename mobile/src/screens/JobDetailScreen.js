@@ -29,7 +29,7 @@ const FILTERS = [
 ];
 
 export default function JobDetailScreen({ route, navigation }) {
-  const { profile } = useAuth();
+  const { profile, manager } = useAuth();
   // Bottom-sheet padding must clear the Android navigation bar. Two traps here:
   // an empty <SafeAreaView edges={["bottom"]}/> spacer collapses to nothing, and
   // a React Native <Modal> renders in its OWN window on Android, so the inset
@@ -225,10 +225,15 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={styles.openDot} />
             <Text style={[type.smallStrong, { color: theme.white }]}>Open</Text>
           </View>
-          <Pressable onPress={() => { setLinkSource(""); setCopied(false); setLinkOpen(true); }} style={styles.applyChip} hitSlop={6}>
-            <Feather name="link" size={13} color={theme.white} />
-            <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>Copy apply link</Text>
-          </Pressable>
+          {/* Advertising the role is the hiring manager's job. An interviewer is
+              here to assess the people already in the pipeline, and handing them
+              a public apply link invites sourcing nobody asked them to do. */}
+          {manager ? (
+            <Pressable onPress={() => { setLinkSource(""); setCopied(false); setLinkOpen(true); }} style={styles.applyChip} hitSlop={6}>
+              <Feather name="link" size={13} color={theme.white} />
+              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>Copy apply link</Text>
+            </Pressable>
+          ) : null}
         </View>
         <Text style={styles.heroTitle} numberOfLines={2}>{jobTitle || "Role"}</Text>
         <Text style={styles.heroNum}>{loaded ? total : "—"}</Text>
