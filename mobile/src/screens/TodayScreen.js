@@ -119,6 +119,11 @@ export default function TodayScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [, force] = useState(0);
+  // Segmented tabs. The screen used to stack every section in one long scroll,
+  // so a manager had to scroll past polls to reach past interviews. Splitting it
+  // means each view is one screenful. "poll" covers both poll surfaces: the ones
+  // I opened (panel progress) and the ones waiting on my own vote.
+  const [tab, setTab] = useState("next");
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -194,48 +199,91 @@ export default function TodayScreen({ navigation }) {
 
       <FlatList
         data={[]}
+        // flex:1 makes the list take exactly the space left under the header.
+        // Without it the list sized to its (tall) content and rode up over the
+        // header, which is what clipped the blue behind the tab pills.
+        style={{ flex: 1 }}
         keyExtractor={(item) => (item._header ? `h-${item._header}` : `iv-${item.id}`)}
-        contentContainerStyle={{ paddingHorizontal: space(4), paddingTop: space(3), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: space(4), paddingTop: space(6), paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} />}
         ListHeaderComponent={
           <View>
+            {/* Tabs live INSIDE the scroll content. Pinning them above the list
+                kept mis-measuring against the header and left the pills straddling
+                the blue/grey edge. As list content they simply flow with the
+                layout, so they can never overlap the week strip or the cards. */}
+            <View style={styles.tabsWrap}>
+              {[
+                { k: "next", label: "Up next", n: upcoming.length },
+                { k: "poll", label: "Poll", n: myPolls.length + polls.length },
+                { k: "action", label: "Action", n: pending.length },
+                { k: "past", label: "Past", n: past.length },
+              ].map((t) => {
+                const on = tab === t.k;
+                return (
+                  <Press key={t.k} onPress={() => setTab(t.k)} haptic="light" style={{ flex: 1 }} scaleTo={0.96}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={`${t.label}, ${t.n}`}>
+                    <View style={[styles.tab, on && styles.tabOn]}>
+                      <Text style={[styles.tabTxt, on && styles.tabTxtOn]} numberOfLines={1}>{t.label}</Text>
+                      {/* Always render the count, including 0. Hiding it at zero
+                          changed the pill's content width, so the row resized as
+                          counts changed. A steady "0" keeps all four uniform. */}
+                      <View style={[styles.tabCount, on && styles.tabCountOn]}>
+                        <Text style={[styles.tabCountTxt, on && styles.tabCountTxtOn]}>{t.n > 9 ? "9+" : t.n}</Text>
+                      </View>
+                    </View>
+                  </Press>
+                );
+              })}
+            </View>
+
             {/* Week overview sits at the very top for calendar context, then the
                 soonest interviews as a swipeable card carousel (slide left/right). */}
-            {timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
-            {upcoming.length ? (
-              <Rise style={{ marginBottom: space(2.5) }}>
+            {tab === "next" && timelined.length ? <Rise><WeekStrip items={timelined} tz={tz} /></Rise> : null}
+            {tab === "next" && upcoming.length ? (
+              <Rise style={{ marginBottom: space(6) }}>
                 <View style={styles.upNextRow}>
                   <Text style={styles.eyebrow}>UP NEXT</Text>
                   {weekCount > 1 ? <Text style={styles.weekPill}>{weekCount} this week</Text> : null}
                 </View>
-                <Carousel cardWidth={width - space(4) * 2}>
+                {/* Stacked, not a carousel: every upcoming interview is visible
+                    at once. A horizontal slider hid the rest behind a swipe, so
+                    a packed week only ever showed one card. */}
+                <View style={{ gap: space(4) }}>
                   {upcoming.map((iv) => (
                     <HeroCard key={iv.id} iv={iv} tz={tz}
                       onOpen={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} />
                   ))}
-                </Carousel>
+                </View>
               </Rise>
             ) : null}
 
             {/* Polls I ran — panel voting progress (manager). Each candidate is its
                 own card with an amber urgency accent + "waiting on N" until the
                 whole panel has voted, then it flips green (ready to schedule). */}
-            {myPolls.length ? (
-              <Rise style={{ marginBottom: space(2.5) }}>
+            {tab === "poll" && myPolls.length ? (
+              <Rise style={{ marginBottom: space(6) }}>
                 <View style={styles.pollEyebrowRow}>
                   <Text style={styles.pollEyebrow}>TEAM AVAILABILITY POLL</Text>
-                  {(() => { const w = myPolls.filter((p) => !(p.total > 0 && p.voted >= p.total)).length; return w > 0 ? (
+                  {(() => { const w = myPolls.filter((p) => p.total > 0 && p.voted < p.total).length; return w > 0 ? (
                     <View style={styles.urgentPill}><Feather name="clock" size={11} color="#B45309" /><Text style={styles.urgentPillTxt}>{w} waiting</Text></View>
                   ) : null; })()}
                 </View>
                 {myPolls.slice(0, 6).map((p) => {
+                  // total === 0 means NO interviewers are assigned to this role,
+                  // so nobody can ever vote. That is a blocked poll, not pending
+                  // work: show it neutrally and name the actual blocker instead
+                  // of claiming we're "waiting on 0 interviewers".
+                  const noPanel = !p.total;
                   const done = p.total > 0 && p.voted >= p.total;
                   const pct = p.total > 0 ? p.voted / p.total : 0;
                   const remaining = Math.max(0, p.total - p.voted);
                   return (
-                    <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollItemCard, !done && styles.pollItemUrgent]} scaleTo={0.98}>
-                      <View style={[styles.pollAccent, { backgroundColor: done ? theme.success : "#F59E0B" }]} />
+                    <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollItemCard, !done && !noPanel && styles.pollItemUrgent, noPanel && styles.pollItemMuted]} scaleTo={0.98}>
+                      <View style={[styles.pollAccent, { backgroundColor: noPanel ? theme.line : done ? theme.success : "#F59E0B" }]} />
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
                           <Avatar name={p.candidateName} size={34} />
@@ -243,7 +291,7 @@ export default function TodayScreen({ navigation }) {
                             <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{p.candidateName}</Text>
                             <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{p.jobTitle}</Text>
                           </View>
-                          {done ? (
+                          {noPanel ? null : done ? (
                             <View style={styles.donePill}><Feather name="check" size={11} color="#fff" /><Text style={styles.donePillTxt}>All in</Text></View>
                           ) : (
                             <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
@@ -252,13 +300,17 @@ export default function TodayScreen({ navigation }) {
                             </View>
                           )}
                         </View>
-                        <View style={[styles.progressTrack, { marginTop: 10 }]}>
-                          <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : "#F59E0B" }]} />
-                        </View>
+                        {noPanel ? null : (
+                          <View style={[styles.progressTrack, { marginTop: 10 }]}>
+                            <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : "#F59E0B" }]} />
+                          </View>
+                        )}
                         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
-                          <Feather name={done ? "check-circle" : "clock"} size={12} color={done ? theme.success : "#B45309"} />
-                          <Text style={[type.smallStrong, { color: done ? theme.success : "#B45309", marginLeft: 6 }]} numberOfLines={1}>
-                            {done ? "Everyone voted, ready to schedule" : `Waiting on ${remaining} interviewer${remaining === 1 ? "" : "s"} to vote`}
+                          <Feather name={noPanel ? "user-x" : done ? "check-circle" : "clock"} size={12} color={noPanel ? theme.ink3 : done ? theme.success : "#B45309"} />
+                          <Text style={[type.smallStrong, { color: noPanel ? theme.ink3 : done ? theme.success : "#B45309", marginLeft: 6 }]} numberOfLines={1}>
+                            {noPanel
+                              ? "No interviewers on this role yet"
+                              : done ? "Everyone voted, ready to schedule" : `Waiting on ${remaining} interviewer${remaining === 1 ? "" : "s"} to vote`}
                           </Text>
                         </View>
                       </View>
@@ -269,8 +321,8 @@ export default function TodayScreen({ navigation }) {
             ) : null}
 
             {/* Availability polls awaiting my vote — tap opens the poll chat */}
-            {polls.length ? (
-              <Rise style={{ marginBottom: space(2.5) }}>
+            {tab === "poll" && polls.length ? (
+              <Rise style={{ marginBottom: space(6) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR INPUT</Text>
                 <View style={styles.pollCard}>
                   <View style={styles.pollHead}>
@@ -298,8 +350,8 @@ export default function TodayScreen({ navigation }) {
             ) : null}
             {/* Interviews needing action: awaiting the candidate, or needing new
                 times after a reschedule. No booked time yet, so they sit up here. */}
-            {pending.length ? (
-              <Rise style={{ marginBottom: space(2.5) }}>
+            {tab === "action" && pending.length ? (
+              <Rise style={{ marginBottom: space(6) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR ACTION</Text>
                 <Carousel cardWidth={width - space(4) * 2} gap={space(3)}>
                   {pending.map((iv) => {
@@ -320,10 +372,36 @@ export default function TodayScreen({ navigation }) {
                 </Carousel>
               </Rise>
             ) : null}
+
+            {/* Per-tab empty state. With tabs a section can be empty while the
+                others have work in them, so the global "You're all set" below
+                isn't enough — it only fires when the whole screen is empty. */}
+            {(() => {
+              const anything = upcoming.length || pending.length || polls.length || myPolls.length || past.length;
+              if (!anything) return null; // whole screen empty: ListEmptyComponent owns it
+              const n = tab === "next" ? upcoming.length
+                : tab === "poll" ? myPolls.length + polls.length
+                : tab === "action" ? pending.length
+                : past.length;
+              if (n) return null;
+              const copy = {
+                next: { icon: "calendar", title: "Nothing coming up", sub: "Confirmed interviews appear here with a countdown and a join link." },
+                poll: { icon: "check-circle", title: "No open polls", sub: "Availability polls you run, or that need your vote, show up here." },
+                action: { icon: "clock", title: "Nothing needs you", sub: "Interviews waiting on a candidate reply, or needing new times, land here." },
+                past: { icon: "archive", title: "No past interviews", sub: "Interviews that already happened are kept here for reference." },
+              }[tab];
+              return (
+                <View style={styles.tabEmpty}>
+                  <View style={styles.emptyIcon}><Feather name={copy.icon} size={32} color={theme.brand} /></View>
+                  <Text style={[type.h3, { color: theme.ink, marginTop: space(4) }]}>{copy.title}</Text>
+                  <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2), lineHeight: 20 }]}>{copy.sub}</Text>
+                </View>
+              );
+            })()}
           </View>
         }
         ListFooterComponent={
-          past.length ? (
+          tab === "past" && past.length ? (
             <Rise style={{ marginTop: space(1) }}>
               <Text style={styles.section}>PAST</Text>
               <Carousel cardWidth={width - space(4) * 2} gap={space(3)}>
@@ -505,7 +583,7 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 100, height: 100, borderRadius: 30, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
   section: { ...type.label, color: theme.ink3, marginTop: space(1), marginBottom: space(1.5), marginLeft: space(1) },
 
-  week: { flexDirection: "row", justifyContent: "space-between", backgroundColor: theme.card, borderRadius: radius.card, paddingVertical: space(2), paddingHorizontal: space(2), marginBottom: space(2.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  week: { flexDirection: "row", justifyContent: "space-between", backgroundColor: theme.card, borderRadius: radius.card, paddingVertical: space(2), paddingHorizontal: space(2), marginBottom: space(5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   weekDay: { alignItems: "center", flex: 1 },
   weekWd: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.ink4, textTransform: "uppercase" },
   weekNum: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4 },
@@ -520,6 +598,11 @@ const styles = StyleSheet.create({
   urgentPillTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#B45309" },
   pollItemCard: { flexDirection: "row", backgroundColor: theme.card, borderRadius: radius.card, padding: space(3), marginBottom: space(2), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   pollItemUrgent: { borderWidth: 1, borderColor: "#FDE68A" },
+  // Blocked (no panel) cards drop the amber urgency border, which used to be the
+  // only thing anchoring the card edge — without it the bare Android elevation
+  // shadow reads as an offset halo. Keep a neutral border so the card stays
+  // contained while still looking inactive rather than urgent.
+  pollItemMuted: { borderWidth: 1, borderColor: theme.line2 },
   pollAccent: { width: 4, borderRadius: 2, alignSelf: "stretch", marginRight: space(3) },
   pollCard: { backgroundColor: theme.card, borderRadius: radius.card, paddingHorizontal: space(3.5), paddingVertical: space(1), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   pollHead: { flexDirection: "row", alignItems: "center", marginBottom: space(1), marginTop: space(2) },
@@ -540,6 +623,39 @@ const styles = StyleSheet.create({
   donePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12, color: "#fff" },
   upNextRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(3), marginLeft: space(1) },
   eyebrow: { ...type.label, color: theme.ink3 },
+
+  // ---- segmented tabs (Up next / Poll / Action / Past) ----
+  // Segmented control inside the blue header. Transparent wrap (inherits the
+  // brand blue), 8dp touch spacing, and a 4/8dp vertical rhythm.
+  // Segmented control, first row of the scroll content. 8dp touch spacing and
+  // 24dp clear below so the week strip is never crowded against it.
+  tabsWrap: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginBottom: space(6),
+  },
+  tab: {
+    // 46dp clears Apple's 44pt and sits in Material's 48dp band. The old 38dp
+    // was under both minimums, which is a real tap-accuracy problem.
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    height: 46, borderRadius: radius.pill, paddingHorizontal: 8,
+    // Solid card surface with dark text: readable on the grey page in every
+    // state. The earlier white-on-blue treatment vanished against grey.
+    backgroundColor: theme.card,
+    borderWidth: 1, borderColor: theme.line2,
+  },
+  tabOn: { backgroundColor: theme.brand, borderColor: theme.brand },
+  tabTxt: { ...type.smallStrong, color: theme.ink2 },
+  tabTxtOn: { color: theme.white },
+  tabCount: {
+    marginLeft: 5, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9,
+    backgroundColor: theme.line2, alignItems: "center", justifyContent: "center",
+  },
+  tabCountOn: { backgroundColor: "rgba(255,255,255,0.28)" },
+  // Tabular figures so 1 and 4 occupy the same width, keeping the pills steady
+  // as counts change instead of nudging by a pixel each refresh.
+  tabCountTxt: { ...type.smallStrong, fontSize: 11, color: theme.ink2, fontVariant: ["tabular-nums"] },
+  tabCountTxtOn: { color: theme.white },
+  tabEmpty: { alignItems: "center", paddingVertical: space(12), paddingHorizontal: space(6) },
   dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: space(2) },
   dot2: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.line },
   dot2On: { width: 18, backgroundColor: theme.brand },

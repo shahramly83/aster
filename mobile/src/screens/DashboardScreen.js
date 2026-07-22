@@ -96,6 +96,16 @@ export default function DashboardScreen({ navigation }) {
   if (!a) return <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }}><Loader label="Loading analytics…" /></SafeAreaView>;
 
   const healthLabel = a.health >= 66 ? "Healthy" : a.health >= 40 ? "Fair" : a.total ? "Needs work" : "No data yet";
+  // Band the meter so the score reads at a glance: green healthy, amber fair,
+  // red needs work — driven by the SAME thresholds as healthLabel so the colour
+  // and the wording can never disagree. Brighter tints than the base theme
+  // colours because this bar sits on the brand blue. An empty workspace stays
+  // neutral rather than red: "no data" is not a critical pipeline.
+  const healthColor = !a.total
+    ? theme.onBrandMuted
+    : a.health >= 66 ? "#34D399"   // green  · healthy
+    : a.health >= 40 ? "#FBBF24"   // amber  · fair
+    : "#FB7185";                   // red    · needs work
   const resetDays = credits ? daysUntil(credits.resetsAt) : null;
 
   return (
@@ -126,7 +136,7 @@ export default function DashboardScreen({ navigation }) {
             <Text style={[type.h3, { color: theme.onBrandMuted, marginBottom: 8, marginLeft: 8 }]}>/ 100 · {healthLabel}</Text>
           </View>
           <View style={{ marginTop: space(3) }}>
-            <MeterBar pct={a.health} color={theme.white} track={theme.brandTrack} ticks={38} height={26} />
+            <MeterBar pct={a.health} color={healthColor} track={theme.brandTrack} ticks={38} height={26} />
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
               <Text style={[type.small, { color: theme.onBrandFaint }]}>Low</Text>
               <Text style={[type.small, { color: theme.onBrandFaint }]}>High</Text>

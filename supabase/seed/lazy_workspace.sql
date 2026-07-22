@@ -24,6 +24,8 @@ declare
   -- (always free) and published below only up to that cap.
   v_limit int; v_open int := 0; v_job uuid;
   owner_name text; owner_email text;
+  panel_id uuid;      -- a real panel member (not the poll creator) to cast votes
+  panel_n  int := 0;  -- how many interviewers got assigned to each role
   p1 uuid; p2 uuid; s1 uuid; s2 uuid; s3 uuid; s4 uuid; s5 uuid;
   a1 uuid; a2 uuid; a3 uuid; a4 uuid; a5 uuid; a6 uuid; a7 uuid; a8 uuid; a9 uuid; a10 uuid;
   a11 uuid; a12 uuid; a13 uuid; a14 uuid; a15 uuid; a16 uuid; a17 uuid; a18 uuid; a19 uuid; a20 uuid;
@@ -150,6 +152,34 @@ loop
     v_open := v_open + 1;
   end loop;
   raise notice 'Published % of 6 roles (plan cap %)', v_open, v_limit;
+
+  -- ---------- interviewer panels (job_assignments) ----------
+  -- A poll's panel is derived from job_assignments MINUS the poll's creator. With
+  -- no rows here every poll reports "waiting on 0 interviewers to vote" and can
+  -- never complete, because there is literally nobody who can vote. Assign every
+  -- active teammate (except the owner, who creates the polls) to each role.
+  -- Cascades off jobs, so the wipe above clears these automatically.
+  insert into public.job_assignments (job_id, profile_id, company_id, assigned_by)
+  select j.id, p.id, co.id, owner_id
+  from public.jobs j
+  cross join public.profiles p
+  where j.company_id = co.id
+    and p.company_id = co.id
+    and p.status = 'active'
+    and p.id <> owner_id
+  on conflict (job_id, profile_id) do nothing;
+
+  -- Pick one panel member to cast the poll votes below. Votes from the creator
+  -- do not count (they're filtered out of the panel), which is why the seeded
+  -- poll previously showed 0 votes even though rows existed.
+  select p.id into panel_id
+    from public.profiles p
+    where p.company_id = co.id and p.status = 'active' and p.id <> owner_id
+    order by p.created_at limit 1;
+  select count(*) into panel_n
+    from public.profiles p
+    where p.company_id = co.id and p.status = 'active' and p.id <> owner_id;
+  raise notice 'Assigned % interviewer(s) to each role', panel_n;
 
   -- ---------- candidates (parsed resumes) ----------
   insert into public.candidates (company_id, full_name, email, phone, location, summary, years_experience, skills, file_name, status, has_photo, parsed) values
@@ -387,10 +417,17 @@ loop
   insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
   (p1, co.id, now() + interval '8 days 5 hours', now() + interval '8 days 6 hours') returning id into s3;
 
-  -- The owner has voted for the first two slots; the poll is still open.
-  insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name) values
-  (p1, s1, co.id, owner_id, owner_name),
-  (p1, s2, co.id, owner_id, owner_name);
+  -- A real panel member has voted for two slots (a manager poll needs >=2 picks
+  -- to count that person as "voted"), so the card shows genuine progress. Votes
+  -- from the creator are excluded from the panel, so they would count for nothing.
+  if panel_id is not null then
+    insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name)
+    select p1, s1, co.id, panel_id, coalesce(pr.full_name, 'Interviewer') from public.profiles pr where pr.id = panel_id
+    on conflict (slot_id, profile_id) do nothing;
+    insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name)
+    select p1, s2, co.id, panel_id, coalesce(pr.full_name, 'Interviewer') from public.profiles pr where pr.id = panel_id
+    on conflict (slot_id, profile_id) do nothing;
+  end if;
 
   insert into public.interview_polls (company_id, candidate_id, job_id, created_by, status, chosen_slot, created_at, closed_at)
   values (co.id, a1, j1, owner_id, 'closed', now() + interval '1 day 4 hours', now() - interval '6 days', now() - interval '4 days')
@@ -401,8 +438,11 @@ loop
   insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
   (p2, co.id, now() + interval '2 days 7 hours', now() + interval '2 days 8 hours') returning id into s5;
 
-  insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name) values
-  (p2, s4, co.id, owner_id, owner_name);
+  if panel_id is not null then
+    insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name)
+    select p2, s4, co.id, panel_id, coalesce(pr.full_name, 'Interviewer') from public.profiles pr where pr.id = panel_id
+    on conflict (slot_id, profile_id) do nothing;
+  end if;
 
   -- ---------- offers ----------
   -- Mirrors the application stages above: 'offer' stage -> a sent offer awaiting
