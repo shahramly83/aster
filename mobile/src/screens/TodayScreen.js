@@ -390,11 +390,28 @@ export default function TodayScreen({ navigation }) {
                 action: { icon: "clock", title: "Nothing needs you", sub: "Interviews waiting on a candidate reply, or needing new times, land here." },
                 past: { icon: "archive", title: "No past interviews", sub: "Interviews that already happened are kept here for reference." },
               }[tab];
+              // An empty tab should point at where the work actually is, not just
+              // say "nothing here". Offer the fullest other tab as a one-tap exit.
+              const counts = { next: upcoming.length, poll: myPolls.length + polls.length, action: pending.length, past: past.length };
+              const labels = { next: "Up next", poll: "Poll", action: "Action", past: "Past" };
+              const suggest = Object.keys(counts)
+                .filter((k) => k !== tab && counts[k] > 0)
+                .sort((a, b) => counts[b] - counts[a])[0];
               return (
                 <View style={styles.tabEmpty}>
-                  <View style={styles.emptyIcon}><Feather name={copy.icon} size={32} color={theme.brand} /></View>
-                  <Text style={[type.h3, { color: theme.ink, marginTop: space(4) }]}>{copy.title}</Text>
-                  <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2), lineHeight: 20 }]}>{copy.sub}</Text>
+                  <View style={styles.emptyIcon}><Feather name={copy.icon} size={28} color={theme.brand} /></View>
+                  <Text style={[type.h3, { color: theme.ink, marginTop: space(4), textAlign: "center" }]}>{copy.title}</Text>
+                  <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2), lineHeight: 20, maxWidth: 280 }]}>{copy.sub}</Text>
+                  {suggest ? (
+                    <Press onPress={() => setTab(suggest)} haptic="light" style={{ marginTop: space(5) }} scaleTo={0.96}
+                      accessibilityRole="button" accessibilityLabel={`View ${labels[suggest]}, ${counts[suggest]}`}>
+                      <View style={styles.emptyBtn}>
+                        <Text style={styles.emptyBtnTxt}>View {labels[suggest]}</Text>
+                        <View style={styles.emptyBtnCount}><Text style={styles.emptyBtnCountTxt}>{counts[suggest]}</Text></View>
+                        <Feather name="arrow-right" size={14} color={theme.white} style={{ marginLeft: 6 }} />
+                      </View>
+                    </Press>
+                  ) : null}
                 </View>
               );
             })()}
@@ -655,7 +672,20 @@ const styles = StyleSheet.create({
   // as counts change instead of nudging by a pixel each refresh.
   tabCountTxt: { ...type.smallStrong, fontSize: 11, color: theme.ink2, fontVariant: ["tabular-nums"] },
   tabCountTxtOn: { color: theme.white },
-  tabEmpty: { alignItems: "center", paddingVertical: space(12), paddingHorizontal: space(6) },
+  // Centred in a generous band instead of floating near the top with a void
+  // underneath, which is what made the empty tab read as unfinished.
+  tabEmpty: { alignItems: "center", justifyContent: "center", minHeight: 360, paddingHorizontal: space(6) },
+  emptyBtn: {
+    flexDirection: "row", alignItems: "center",
+    height: 46, paddingHorizontal: space(5), borderRadius: radius.pill,
+    backgroundColor: theme.brand,
+  },
+  emptyBtnTxt: { ...type.smallStrong, color: theme.white },
+  emptyBtnCount: {
+    marginLeft: 8, minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.28)", alignItems: "center", justifyContent: "center",
+  },
+  emptyBtnCountTxt: { ...type.smallStrong, fontSize: 11, color: theme.white, fontVariant: ["tabular-nums"] },
   dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: space(2) },
   dot2: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.line },
   dot2On: { width: 18, backgroundColor: theme.brand },
