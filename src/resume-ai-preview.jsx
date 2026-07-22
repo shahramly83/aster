@@ -8693,7 +8693,8 @@ const NAV_ITEMS = [
   { key: "search", label: "Talent Pool", icon: "search" },
   { key: "upload", label: "Resume Upload", icon: "upload" },
   // Team sits last in the workflow group, just above the Billing / Settings divider.
-  { key: "interviewers", label: "Team", icon: "interviewers" },
+  // The "interviewers" glyph is a calendar, which collided with Interviews above.
+  { key: "interviewers", label: "Team", icon: "userPlus" },
 ];
 
 // Role-based access (interviewer least-privilege). An interviewer only works with
