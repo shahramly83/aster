@@ -23,6 +23,9 @@ import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterview
 // through. It is spliced back in below only for a candidate who is actually
 // sitting in that stage, so data the web app set still renders honestly.
 const STEPS = ["applied", "interviewing", "offer", "hired"];
+// Stages at or beyond interview. Offer/hired stay unlocked so a completed
+// record remains readable after the fact.
+const INTERVIEW_UNLOCKED = ["interviewing", "offer", "hired"];
 const stepsFor = (stage) =>
   stage === "shortlisted" ? ["applied", "shortlisted", "interviewing", "offer", "hired"] : STEPS;
 
@@ -91,6 +94,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule prompt
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile"); // interview page sub-tabs: profile | interview | feedback
+  const [lockNote, setLockNote] = useState(false); // shown when the locked tab is tapped
   const tabInit = useRef(false); // only auto-pick the default tab once, so a manual switch sticks
   const tabAnim = useRef(new Animated.Value(1)).current; // fade + slide when switching tabs
 
@@ -322,13 +326,31 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <View style={styles.segbar}>
               {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Feedback"]].map(([k, lbl]) => {
                 const on = tab === k;
+                // The Interview tab has nothing to show until the candidate is
+                // actually at interview, so it stays locked before then rather
+                // than opening an empty scheduling surface on a fresh applicant.
+                const locked = k === "interview" && !INTERVIEW_UNLOCKED.includes(stage);
                 return (
-                  <Pressable key={k} onPress={() => switchTab(k)} style={[styles.segItem, on && styles.segItemOn]} hitSlop={4}>
+                  <Pressable
+                    key={k}
+                    onPress={() => (locked ? setLockNote(true) : switchTab(k))}
+                    style={[styles.segItem, on && styles.segItemOn, locked && { opacity: 0.45 }]}
+                    hitSlop={4}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: on, disabled: locked }}
+                    accessibilityLabel={locked ? `${lbl}, locked until the candidate moves to interview` : lbl}
+                  >
+                    {locked ? <Feather name="lock" size={11} color={theme.ink3} style={{ marginRight: 4 }} /> : null}
                     <Text style={[type.smallStrong, { color: on ? "#fff" : theme.ink2 }]}>{lbl}</Text>
                   </Pressable>
                 );
               })}
             </View>
+            {lockNote ? (
+              <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2) }]}>
+                Move {nameOf().split(" ")[0]} to interview to open this tab.
+              </Text>
+            ) : null}
 
             <Animated.View style={{ opacity: tabAnim, transform: [{ translateX: tabAnim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
 
@@ -950,7 +972,7 @@ const styles = StyleSheet.create({
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   segbar: { flexDirection: "row", backgroundColor: theme.bg, borderRadius: radius.pill, padding: 4, marginTop: space(4), borderWidth: 1, borderColor: theme.line },
-  segItem: { flex: 1, alignItems: "center", justifyContent: "center", height: 38, borderRadius: radius.pill },
+  segItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", height: 38, borderRadius: radius.pill },
   segItemOn: { backgroundColor: theme.brand },
   decisionLock: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, padding: 14 },
   lockCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center" },
