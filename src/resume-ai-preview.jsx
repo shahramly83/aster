@@ -7680,7 +7680,7 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
             {/* The times already offered are blocked out. The candidate is here
                 because none of them worked, so re-proposing one just sends the
                 panel back where it started. */}
-            <DateTimePicker onAdd={addWindow} slots={windows} onRemove={removeWindow} takenRanges={slots}
+            <DateTimePicker onAdd={addWindow} slots={windows} onRemove={removeWindow} takenRanges={slots} minSlots={2}
               title="Add a time you're free" subtitle="Pick a day, then a start and end time you can make the interview." triggerLabel="Add a time you're free…" />
             {windows.length > 0 && (
               <div className="mt-3 space-y-2">
@@ -7701,6 +7701,16 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything to add? (optional, e.g. mornings are best)" className="w-full rounded-xl border px-3 py-2.5 text-sm mt-4 resize-none" style={{ borderColor: "var(--line)", color: "var(--ink)" }} />
             {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
             <button onClick={sendProposal} disabled={sending || windows.length < 2} className="w-full mt-4 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand)" }}>{sending ? "Sending…" : "Send my times"}</button>
+            {/* Say why the button is dead. The rule was enforced but never
+                explained at the point it bites, so one window looked like a
+                broken Send rather than an unmet requirement. */}
+            {windows.length < 2 && (
+              <p className="text-xs text-center mt-2" style={{ color: "#B45309" }}>
+                {windows.length === 0
+                  ? "Add two times to send."
+                  : "One more time to go. Two options give the panel a chance of matching one."}
+              </p>
+            )}
             <button type="button" onClick={() => { setMode("pick"); setErr(null); }} className="w-full mt-2 text-sm font-medium py-1.5" style={{ color: "var(--ink-3)" }}>Back to the offered times</button>
           </>
         ) : (
@@ -16016,7 +16026,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
 // time, and it emits { start, end } as local "YYYY-MM-DDTHH:mm" strings.
 // `takenRanges` (ISO {start,end}, already-confirmed interviews for this position)
 // are disabled so the same slot can't be booked for two candidates.
-function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, title = "Offer interview times", subtitle = "Pick a day and a start and end time, then Add time. Offer two or three, the candidate books whichever one suits them.", triggerLabel = "Add an interview time…" }) {
+function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, minSlots = 0, title = "Offer interview times", subtitle = "Pick a day and a start and end time, then Add time. Offer two or three, the candidate books whichever one suits them.", triggerLabel = "Add an interview time…" }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -16215,7 +16225,20 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, title =
           )}
 
           <div className="flex items-center justify-between gap-3 border-t border-neutral-100 pt-3">
-            <span className="text-xs text-neutral-500 min-w-0 truncate">{summary ? `Ready to add: ${summary}` : slots.length ? `${slots.length} time${slots.length === 1 ? "" : "s"} added` : "Pick a day, then a start and end time"}</span>
+            {/* When there is a minimum, the footer counts towards it. A bare
+                "1 time added" left the candidate staring at a dead Send button
+                with nothing saying why. */}
+            {(() => {
+              const short = minSlots > 0 && slots.length < minSlots;
+              const text = summary
+                ? `Ready to add: ${summary}`
+                : short
+                  ? `${slots.length} of ${minSlots} minimum. Add ${minSlots - slots.length} more.`
+                  : slots.length
+                    ? `${slots.length} time${slots.length === 1 ? "" : "s"} added`
+                    : "Pick a day, then a start and end time";
+              return <span className={`text-xs min-w-0 truncate ${short && !summary ? "font-medium" : ""}`} style={{ color: short && !summary ? "#B45309" : "var(--ink-3)" }}>{text}</span>;
+            })()}
             <div className="flex items-center gap-2 shrink-0">
               <button type="button" onClick={() => setOpen(false)} className="rounded-xl border text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Close window</button>
               <button type="button" onClick={commit} disabled={!canAdd} className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-opacity shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)]">Add time</button>
