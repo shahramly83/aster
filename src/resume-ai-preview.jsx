@@ -14946,11 +14946,11 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
             <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No any position assigned yet</p>
           </div>
         ) : (
-          {/* The card used to carry a title and "1 applicant", which is nothing
-              to look at and nothing to act on. It now shows the shape of the
-              pipeline: how many people are at each live stage, as a proportional
-              bar plus counts. An interviewer can tell at a glance whether a role
-              is a pile of unread CVs or three people mid-interview. */}
+          // The card used to carry a title and "1 applicant", which is nothing to
+          // look at and nothing to act on. It now shows the shape of the pipeline:
+          // how many people are at each live stage, as a proportional bar plus
+          // counts, so an interviewer can tell a pile of unread CVs from three
+          // people mid-interview without opening it.
           <div className="grid gap-3 sm:grid-cols-2">
             {assigned.map((j) => {
               const rows = APPLICANTS_BY_JOB[j.id] || [];
