@@ -720,8 +720,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       candidate's court; matches the same card on web. */}
                   <View style={styles.track}>
                     {[
+                      // Same wording as web. "They" was ambiguous on a screen
+                      // that also talks about the panel; "Sent" stays short
+                      // because three full labels won't fit a phone width.
                       { label: "Sent", state: "done" },
-                      { label: "They pick", state: "now" },
+                      { label: "Candidate picks", state: "now" },
                       { label: "Confirmed", state: "todo" },
                     ].map((s, i, arr) => (
                       <React.Fragment key={s.label}>
