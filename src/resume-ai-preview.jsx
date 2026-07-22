@@ -20760,7 +20760,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -20789,6 +20789,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [showPdf, setShowPdf] = useState(false);
   // AI Experience Insights are metered per plan, like AI match runs.
   const insightsLimit = planLimits(plan).aiInsightsPerMonth;
+  const questionsLimit = planLimits(plan).interviewQuestionsPerMonth;
+  const questionsUnlimited = questionsLimit === Infinity;
   const insightsUnlimited = insightsLimit === Infinity;
   const insightsLeft = Math.max(0, insightsLimit - aiInsightsUsed);
   const outOfInsights = !insightsUnlimited && insightsLeft <= 0;
@@ -22010,6 +22012,29 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   upgradeLabel: "Upgrade for more",
                   purchased: purchasedAiInsight,
                   onBuyCredits: () => setBuyInsightOpen(true),
+                })}
+              />
+            )}
+            {/* AI Questions, directly under AI Insights. Both are per-generation
+                credits spent from this screen, so the two balances belong
+                together. No Buy credits: question top-ups are not sold (they are
+                not in CREDIT_KINDS and the DB meters them monthly-only), so a
+                button here would lead nowhere. Interviewers see the count but
+                not Upgrade, since billing is not their call. */}
+            {!questionsUnlimited && (
+              <UsageMeter
+                plan={plan}
+                title="AI Questions"
+                hint={isInterviewer(profile?.role)
+                  ? "Each generated set uses one of the workspace's credits, shared across the team. The panel reads one set per candidate and role."
+                  : "Each generated set uses one credit. Your plan includes a set number, which reset every 30 days from your signup date."}
+                used={questionsUsed} limit={questionsLimit} unit=""
+                danger={questionsUsed >= questionsLimit}
+                resetLabel={insightResetLabel}
+                {...(isInterviewer(profile?.role) ? {} : {
+                  onManage: () => navigate("billing"),
+                  onUpgrade: () => navigate("billing"),
+                  upgradeLabel: "Upgrade for more",
                 })}
               />
             )}
@@ -24588,6 +24613,7 @@ export default function ResumeAIPreview() {
   // moment a role is published or closed. Kept as a prop for the job screens.
   const consumeJobPost = () => {};
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
+  const [questionsUsed, setQuestionsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
   const [insightsCache, setInsightsCache] = useState({});
   // See Why (Option B): its own metered credit, charged once per candidate and
@@ -25032,7 +25058,14 @@ export default function ResumeAIPreview() {
       }).catch((e) => console.error("get_ai_rank_usage threw:", e));
       // AI Insight credits. Never hydrated before 0046 added the counter, so the
       // cap silently reset to zero on every page load.
-      supabase.rpc("get_ai_insight_usage").then(({ data, error }) => {
+      // AI Question credits, so the meter on the candidate profile reflects the
+      // same counter bump_interview_questions enforces.
+      supabase.rpc("get_interview_q_usage").then(({ data, error }) => {
+        if (error) { console.error("get_interview_q_usage failed:", error.message || error); return; }
+        const row = Array.isArray(data) ? data?.[0] : data;
+        if (row && typeof row.used === "number") setQuestionsUsed(row.used);
+      }).catch((e) => console.error("get_interview_q_usage threw:", e));
+            supabase.rpc("get_ai_insight_usage").then(({ data, error }) => {
         if (error) { console.error("get_ai_insight_usage failed:", error.message || error); return; }
         const row = Array.isArray(data) ? data?.[0] : data;
         if (row && typeof row.used === "number") setAiInsightsUsed(row.used);
@@ -26319,6 +26352,7 @@ export default function ResumeAIPreview() {
             onAssignInterviewer={assignInterviewer}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
+            questionsUsed={questionsUsed}
             insightsCache={insightsCache}
             setInsightsCache={setInsightsCache}
           />
