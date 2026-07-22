@@ -395,23 +395,60 @@ export default function TodayScreen({ navigation }) {
             {tab === "action" && pending.length ? (
               <Rise style={{ marginBottom: space(6) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR ACTION</Text>
-                <Carousel cardWidth={width - space(4) * 2} gap={space(3)}>
-                  {pending.map((iv) => {
-                    const resch = iv.status === "reschedule";
-                    return (
-                      <Press key={iv.id} onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })} style={styles.actionCard} scaleTo={0.98}>
-                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                          <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={40} />
-                          <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
-                            <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "Reschedule" : "Awaiting"}</Text>
-                          </View>
+                {/* Stacked, not a carousel: two or three blocked interviews are
+                    a to-do list, and hiding the second one off-screen is how it
+                    gets forgotten. Same card as the poll prompt, so everything
+                    that needs you looks like one kind of thing. */}
+                {pending.map((iv) => {
+                  const resch = iv.status === "reschedule";
+                  const slots = iv.proposedSlots || [];
+                  const first = iv.candidateName?.split(" ")[0] || "They";
+                  return (
+                    <View key={iv.id} style={styles.pollCard}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={44} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={styles.pollName} numberOfLines={2}>{iv.candidateName}</Text>
+                          <Text style={styles.pollRole} numberOfLines={1}>{iv.jobTitle}</Text>
                         </View>
-                        <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15, marginTop: 11 }]} numberOfLines={1}>{iv.candidateName}</Text>
-                        <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{iv.jobTitle}</Text>
+                        <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
+                          <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "Reschedule" : "Awaiting"}</Text>
+                        </View>
+                      </View>
+
+                      {/* Name the blocker. "Awaiting" alone never said awaiting
+                          what, or whose move it is. */}
+                      <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: space(3) }}>
+                        <Feather name={resch ? "refresh-cw" : "clock"} size={13} color={resch ? "#B42318" : "#B45309"} style={{ marginTop: 2 }} />
+                        <Text style={[type.small, { color: resch ? "#B42318" : "#B45309", marginLeft: 7, flex: 1, lineHeight: 18 }]}>
+                          {resch
+                            ? `${first} couldn't make the times offered. Propose new ones.`
+                            : `Waiting for ${first} to pick one of the times you offered.`}
+                        </Text>
+                      </View>
+
+                      {!resch && slots.length ? (
+                        <View style={styles.slotWrap}>
+                          {slots.slice(0, 3).map((s) => (
+                            <View key={s.start} style={styles.slotChip}>
+                              <Text style={styles.slotChipTxt}>{fmtInterviewTime(s.start, tz)}</Text>
+                            </View>
+                          ))}
+                          {slots.length > 3 ? <Text style={styles.slotMore}>+{slots.length - 3} more</Text> : null}
+                        </View>
+                      ) : null}
+
+                      <Press
+                        onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })}
+                        haptic="medium"
+                        style={styles.pollCta}
+                      >
+                        <Feather name={resch ? "calendar" : "mail"} size={16} color="#fff" />
+                        <Text style={styles.pollCtaTxt}>{resch ? "Propose new times" : "Open interview"}</Text>
                       </Press>
-                    );
-                  })}
-                </Carousel>
+                    </View>
+                  );
+                })}
               </Rise>
             ) : null}
 

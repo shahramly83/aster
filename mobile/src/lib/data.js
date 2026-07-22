@@ -11,7 +11,9 @@ const SIGNED_URL_TTL = 3600; // seconds
 // Upcoming + recent interviews where I am the interviewer, newest-relevant first.
 // Returns enriched rows with candidate name, job title and resume/photo URLs.
 export async function loadMyInterviews(companyId, userId, assignedJobIds = [], manager = false) {
-  const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees";
+  // proposed_slots so the Action card can show which times are outstanding
+  // rather than only that something is outstanding. Same row, no extra query.
+  const cols = "id, candidate_id, job_id, scheduled_at, status, provider, meeting_link, attendees, proposed_slots";
   // Everything in the interview process: confirmed (scheduled), awaiting the
   // candidate's pick (sent), and needs-new-times (reschedule) — so a rescheduled
   // interview doesn't vanish from the tab.
@@ -78,6 +80,7 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
       jobTitle: jobTitle[iv.job_id] || "Interview",
       status: iv.status, // scheduled | sent | reschedule
       scheduledAt: iv.scheduled_at,
+      proposedSlots: Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [],
       provider: iv.provider || "google",
       meetingLink: iv.meeting_link || null,
       avatarUrl: c.photo_path ? urlByPath[c.photo_path] || null : null,

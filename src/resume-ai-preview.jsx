@@ -10317,20 +10317,57 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Every candidate counted in the status they're in right now, across all roles: the forward stages (Applied, Shortlisted, Interview, Offer), Hired, and the two exits, Declined (they said no) and Rejected (you said no).")}
-                      <div className="flex items-end justify-between gap-1.5 flex-1 min-h-[128px] pt-8">
-                        {funnel.map((f) => {
-                          const bg = JOURNEY_BAR_GRAD[f.label] || "linear-gradient(180deg,#C6D1FA,#9FB2F0)";
-                          return (
-                            <div key={f.label} className="flex-1 min-w-0 flex flex-col items-center justify-end gap-2 h-full">
-                              <div className="relative w-full flex-1 flex items-end">
-                                <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 -translate-y-full text-xs font-bold font-display tnum" style={{ color: "var(--ink)" }}>{f.value}</span>
-                                <div className="w-full rounded-lg bar-grow-y" style={{ height: `${Math.max((f.value / fmax) * 100, 6)}%`, background: bg }} />
-                              </div>
-                              <span className="text-[9px] text-center leading-tight" style={{ color: "var(--ink-3)" }}>{f.label}</span>
+                      {/* Drawn as a journey, not a bar chart. Bars compared seven
+                          stages by height, which is unreadable at small counts
+                          (one candidate makes six stubs and one spike) and put
+                          Declined and Rejected in the row as though they came
+                          after Hired. They are exits from any stage, not later
+                          stages, so they sit below the path instead of on it. */}
+                      {(() => {
+                        const path = funnel.filter((f) => f.tone !== "exit");
+                        const exits = funnel.filter((f) => f.tone === "exit");
+                        return (
+                          <div className="flex-1 flex flex-col justify-center pt-4">
+                            <div className="flex items-start">
+                              {path.map((f, i) => {
+                                const has = f.value > 0;
+                                const win = f.tone === "win";
+                                const fill = !has ? "var(--bg)" : win ? "#16A34A" : "var(--brand)";
+                                return (
+                                  <React.Fragment key={f.label}>
+                                    <div className="flex flex-col items-center gap-1.5 shrink-0" style={{ width: 54 }}>
+                                      <span
+                                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold tnum transition-colors"
+                                        style={has
+                                          ? { background: fill, color: "#fff" }
+                                          : { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" }}
+                                      >
+                                        {f.value}
+                                      </span>
+                                      <span className="text-[9px] text-center leading-tight" style={{ color: has ? "var(--ink-2)" : "var(--ink-3)" }}>{f.label}</span>
+                                    </div>
+                                    {/* The connector fills only once people have
+                                        actually reached the next stage, so the
+                                        line shows how far the pipeline runs. */}
+                                    {i < path.length - 1 && (
+                                      <span className="flex-1 h-0.5 mt-[18px] rounded-full min-w-2" style={{ background: path[i + 1].value > 0 ? "var(--brand)" : "var(--line)" }} />
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
-                      </div>
+                            <div className="flex items-center gap-4 mt-4 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
+                              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Left the process</span>
+                              {exits.map((f) => (
+                                <span key={f.label} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
+                                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: f.value > 0 ? "#94A3B8" : "var(--line-strong)" }} />
+                                  {f.label} <span className="font-semibold tnum" style={{ color: "var(--ink)" }}>{f.value}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead(
