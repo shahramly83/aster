@@ -7,7 +7,7 @@ import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
 import { loadMyInterviews, loadOpenPolls, loadMyPollProgress, subscribeInterviews, subscribePoll } from "../lib/data";
 import { setStatusBarStyle } from "expo-status-bar";
-import { Press, Avatar, Loader, TopBar, HeaderActions, Feather } from "../components/ui";
+import { Press, Avatar, Loader, EmptyState, TopBar, HeaderActions, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius, shadow } from "../theme";
 import { fmtInterviewTime, minutesUntil } from "@aster/shared";
@@ -424,21 +424,22 @@ export default function TodayScreen({ navigation }) {
               const suggest = Object.keys(counts)
                 .filter((k) => k !== tab && counts[k] > 0)
                 .sort((a, b) => counts[b] - counts[a])[0];
+              // Same EmptyState as Open Positions: the medallion, heading and
+              // subtitle carry it. This screen had its own hand-rolled version
+              // with a flat icon chip and smaller type, so two empty screens in
+              // the same app looked like they came from different products.
               return (
                 <View style={styles.tabEmpty}>
-                  <View style={styles.emptyIcon}><Feather name={copy.icon} size={28} color={theme.brand} /></View>
-                  <Text style={[type.h3, { color: theme.ink, marginTop: space(4), textAlign: "center" }]}>{copy.title}</Text>
-                  <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2), lineHeight: 20, maxWidth: 280 }]}>{copy.sub}</Text>
-                  {suggest ? (
-                    <Press onPress={() => setTab(suggest)} haptic="light" style={{ marginTop: space(5) }} scaleTo={0.96}
-                      accessibilityRole="button" accessibilityLabel={`View ${labels[suggest]}, ${counts[suggest]}`}>
-                      <View style={styles.emptyBtn}>
-                        <Text style={styles.emptyBtnTxt}>View {labels[suggest]}</Text>
-                        <View style={styles.emptyBtnCount}><Text style={styles.emptyBtnCountTxt}>{counts[suggest]}</Text></View>
-                        <Feather name="arrow-right" size={14} color={theme.white} style={{ marginLeft: 6 }} />
-                      </View>
-                    </Press>
-                  ) : null}
+                  <EmptyState
+                    icon={copy.icon}
+                    title={copy.title}
+                    subtitle={copy.sub}
+                    // An empty tab should point at where the work actually is,
+                    // rather than just saying "nothing here".
+                    actionLabel={suggest ? `View ${labels[suggest]} · ${counts[suggest]}` : undefined}
+                    onAction={suggest ? () => setTab(suggest) : undefined}
+                    hint={suggest ? undefined : "Pull down to refresh"}
+                  />
                 </View>
               );
             })()}
@@ -460,11 +461,12 @@ export default function TodayScreen({ navigation }) {
         ListEmptyComponent={
           (upcoming.length || pending.length || polls.length || myPolls.length || past.length) ? null : (
             <View style={styles.empty}>
-              <View style={styles.emptyIcon}><Feather name="calendar" size={40} color={theme.brand} /></View>
-              <Text style={[type.h2, { color: theme.ink, marginTop: space(5) }]}>You're all set</Text>
-              <Text style={[type.body, { color: theme.ink3, textAlign: "center", marginTop: space(2), lineHeight: 22, maxWidth: 300 }]}>
-                No interviews scheduled yet. When you're added to a panel, it shows up here with a reminder.
-              </Text>
+              <EmptyState
+                icon="calendar"
+                title="You're all set"
+                subtitle="No interviews scheduled yet. When you're added to a panel, it shows up here with a reminder."
+                hint="Pull down to refresh"
+              />
             </View>
           )
         }
