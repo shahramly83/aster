@@ -10334,7 +10334,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                                 const win = f.tone === "win";
                                 const fill = !has ? "var(--bg)" : win ? "#16A34A" : "var(--brand)";
                                 return (
-                                  <React.Fragment key={f.label}>
+                                  <Fragment key={f.label}>
                                     <div className="flex flex-col items-center gap-1.5 shrink-0" style={{ width: 54 }}>
                                       <span
                                         className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold tnum transition-colors"
@@ -10352,7 +10352,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                                     {i < path.length - 1 && (
                                       <span className="flex-1 h-0.5 mt-[18px] rounded-full min-w-2" style={{ background: path[i + 1].value > 0 ? "var(--brand)" : "var(--line)" }} />
                                     )}
-                                  </React.Fragment>
+                                  </Fragment>
                                 );
                               })}
                             </div>
@@ -17054,7 +17054,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             <div className="rounded-xl bg-white border border-neutral-200 px-4 py-3.5">
               <div className="flex items-center gap-2 mb-3.5">
                 {steps.map((s, i) => (
-                  <React.Fragment key={s.label}>
+                  <Fragment key={s.label}>
                     <span className="inline-flex items-center gap-1.5 shrink-0">
                       <span className="relative flex h-2 w-2">
                         {s.current && <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "var(--brand)" }} />}
@@ -17063,7 +17063,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
                       <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: s.done ? "#16A34A" : s.current ? "var(--brand)" : "var(--ink-3)" }}>{s.label}</span>
                     </span>
                     {i < steps.length - 1 && <span className="flex-1 h-px min-w-3" style={{ background: "var(--line)" }} />}
-                  </React.Fragment>
+                  </Fragment>
                 ))}
               </div>
 
