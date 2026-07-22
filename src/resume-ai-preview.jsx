@@ -15853,10 +15853,23 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
     setTimeout(() => setCopiedAll(false), 1500);
   };
 
-  // Previously hidden until the interview was booked. Preparing is exactly what
-  // you do before a booking exists, and the panel votes on times days ahead, so
-  // the gate withheld the questions during the only window there was time to
-  // read them.
+  // Locked until the candidate has actually confirmed a time. Offered times get
+  // declined and polls stall, so a set generated against an interview that never
+  // happens is a credit spent for nothing. Everything else about the feature is
+  // open from here: the whole panel can generate, not just the hiring manager.
+  if (!isScheduled) {
+    return (
+      <div className="mb-6 rounded-2xl tool-card act-shadow px-5 py-4">
+        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Interview Questions</h2>
+        <div className="flex items-start gap-2 mt-2">
+          <Icon name="clock" className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-neutral-500">
+            Available once {candidate?.parsed?.name?.split(" ")[0] || "the candidate"} confirms a time. Anyone on the panel can generate them then.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const visible = pool ? pool.slice(0, visibleCount) : [];
   const hasMore = pool && visibleCount < pool.length;

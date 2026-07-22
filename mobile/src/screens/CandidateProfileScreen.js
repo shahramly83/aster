@@ -777,7 +777,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
           ) : null}
 
           {/* AI interview questions — tailored to the candidate + role, once the
-              interview is confirmed. Manager generates; the panel reads. */}
+              interview is confirmed. Anyone on the panel can generate; the set is
+              shared, so the first to do it pays and everyone reads the same one.
+              Replacing it stays with the hiring manager on web. */}
           {scheduledAt ? (
             <View style={{ marginTop: space(5) }}>
               <View style={styles.aiHead}>
