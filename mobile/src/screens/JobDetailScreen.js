@@ -349,7 +349,12 @@ export default function JobDetailScreen({ route, navigation }) {
       <Modal visible={linkOpen} animationType="slide" transparent onRequestClose={() => setLinkOpen(false)}>
         <View style={styles.sheetBackdrop}>
           <Pressable style={{ flex: 1 }} onPress={() => setLinkOpen(false)} />
-          <View style={[styles.sheet, { paddingBottom: sheetPadBottom, marginBottom: kb > 0 ? kb : 0 }]}>
+          {/* iOS does NOT resize the window for the keyboard, so the sheet has to
+              be lifted manually. Android DOES resize (softwareKeyboardLayoutMode
+              "resize"), which already floats a flex-end sheet above the keyboard —
+              adding the lift there too shoved it up a second keyboard height and
+              pushed the title and source chips off-screen. */}
+          <View style={[styles.sheet, { paddingBottom: sheetPadBottom, marginBottom: Platform.OS === "ios" && kb > 0 ? kb : 0 }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHead}>
               <Text style={[type.h3, { color: theme.ink }]}>Share apply link</Text>
