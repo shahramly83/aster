@@ -94,7 +94,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule prompt
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile"); // interview page sub-tabs: profile | interview | feedback
-  const [lockNote, setLockNote] = useState(false); // shown when the locked tab is tapped
+  const [lockNote, setLockNote] = useState(null); // message shown when a locked tab is tapped
   const tabInit = useRef(false); // only auto-pick the default tab once, so a manual switch sticks
   const tabAnim = useRef(new Animated.Value(1)).current; // fade + slide when switching tabs
 
@@ -326,22 +326,28 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <View style={styles.segbar}>
               {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecard"]].map(([k, lbl]) => {
                 const on = tab === k;
-                // Neither tab has anything to show until the candidate is
-                // actually at interview: one would open an empty scheduling
-                // surface, the other a scorecard for an interview that hasn't
-                // happened. Lock both rather than let a fresh applicant land on
-                // a blank screen. "Scorecard" over "Feedback" because that is
-                // what the tab actually contains.
-                const locked = (k === "interview" || k === "feedback") && !INTERVIEW_UNLOCKED.includes(stage);
+                // The two tabs unlock on different things, and conflating them
+                // was wrong: reaching the interview stage only means an
+                // interview is being arranged. Scorecard stays shut until one
+                // has actually happened (canScore), or the candidate is already
+                // past it, so nobody is asked to rate a conversation they
+                // haven't had. "Scorecard" over "Feedback" because that is what
+                // the tab contains.
+                const locked = k === "interview"
+                  ? !INTERVIEW_UNLOCKED.includes(stage)
+                  : k === "feedback" ? !canScore : false;
+                const lockReason = k === "feedback"
+                  ? `The scorecard opens once ${nameOf().split(" ")[0]}'s interview has taken place.`
+                  : `Move ${nameOf().split(" ")[0]} to interview to open this tab.`;
                 return (
                   <Pressable
                     key={k}
-                    onPress={() => (locked ? setLockNote(true) : switchTab(k))}
+                    onPress={() => (locked ? setLockNote(lockReason) : switchTab(k))}
                     style={[styles.segItem, on && styles.segItemOn, locked && { opacity: 0.45 }]}
                     hitSlop={4}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: on, disabled: locked }}
-                    accessibilityLabel={locked ? `${lbl}, locked until the candidate moves to interview` : lbl}
+                    accessibilityLabel={locked ? `${lbl}, locked. ${lockReason}` : lbl}
                   >
                     {locked ? <Feather name="lock" size={11} color={theme.ink3} style={{ marginRight: 4 }} /> : null}
                     <Text style={[type.smallStrong, { color: on ? "#fff" : theme.ink2 }]}>{lbl}</Text>
@@ -351,7 +357,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </View>
             {lockNote ? (
               <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2) }]}>
-                Move {nameOf().split(" ")[0]} to interview to open this tab.
+                {lockNote}
               </Text>
             ) : null}
 
