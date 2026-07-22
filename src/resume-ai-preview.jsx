@@ -22009,7 +22009,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 down, so their first sign of the cap was a run being refused.
                 Buying stays manager-only: billing is not their call, so they get
                 the count without the upgrade and top-up actions. */}
-            {!insightsUnlimited && (
+            {/* Each meter shows on the tab whose action spends it: Insights with
+                the resume on Profile, Questions with the interview prep on
+                Interview. Stacking both on every tab meant one was always a
+                number with nothing on screen to spend it. */}
+            {!insightsUnlimited && (!contextJobId || profileTab === "profile") && (
               <UsageMeter
                 plan={plan}
                 title="AI Insights"
@@ -22034,7 +22038,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 not in CREDIT_KINDS and the DB meters them monthly-only), so a
                 button here would lead nowhere. Interviewers see the count but
                 not Upgrade, since billing is not their call. */}
-            {!questionsUnlimited && (
+            {!questionsUnlimited && contextJobId && profileTab === "interview" && (
               <UsageMeter
                 plan={plan}
                 title="AI Questions"
