@@ -657,18 +657,24 @@ export default function CandidateProfileScreen({ route, navigation }) {
                           <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Create a Jitsi Meet room</Text>
                           <Text style={[type.small, { color: theme.ink4, marginLeft: 6 }]}>no account needed</Text>
                         </Pressable>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <TextInput
-                            value={mlInput} onChangeText={setMlInput}
-                            placeholder="or paste a Meet, Zoom or Teams link" placeholderTextColor={theme.ink4}
-                            autoCapitalize="none" keyboardType="url"
-                            onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
-                            style={[styles.mlInput, { flex: 1 }]}
-                          />
-                          <Pressable onPress={saveMl} disabled={mlSaving || !mlInput.trim()} style={[styles.mlSave, (mlSaving || !mlInput.trim()) && { opacity: 0.5 }]}>
-                            {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Share</Text>}
-                          </Pressable>
-                        </View>
+                        {/* Share sits below, not beside. Sharing a row with the
+                            field left too little width for a URL: the
+                            placeholder truncated mid-sentence and a pasted link
+                            showed only its first few characters. */}
+                        <TextInput
+                          value={mlInput} onChangeText={setMlInput}
+                          placeholder="or paste a Meet, Zoom or Teams link" placeholderTextColor={theme.ink4}
+                          autoCapitalize="none" keyboardType="url"
+                          onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
+                          style={styles.mlInput}
+                        />
+                        <Pressable
+                          onPress={saveMl}
+                          disabled={mlSaving || !mlInput.trim()}
+                          style={[styles.mlSave, { marginTop: 8 }, (mlSaving || !mlInput.trim()) && { opacity: 0.5 }]}
+                        >
+                          {mlSaving ? <ActivityIndicator size="small" color={theme.white} /> : <Text style={[type.smallStrong, { color: theme.white }]}>Share with candidate and panel</Text>}
+                        </Pressable>
                         {interview?.meetingLink ? (
                           <Pressable onPress={() => { setReplacingLink(false); setMlInput(""); Keyboard.dismiss(); }} hitSlop={6} style={{ marginTop: 8, alignSelf: "flex-start" }}>
                             <Text style={[type.small, { color: theme.ink3 }]}>Cancel</Text>
