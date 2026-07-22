@@ -10201,23 +10201,32 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               ? { accent: "#D97706", soft: "#FFFBEB", line: "#FCD34D", ink: "#92400E" }
               : { accent: "var(--brand)", soft: "var(--brand-soft)", line: "#CBD8F5", ink: "var(--ink)" };
           return (
-            <div className="mb-5 rounded-2xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4" style={{ background: tone.soft, border: `1px solid ${tone.line}` }}>
-              {/* The number is the message, so it gets the weight. */}
-              <div className="flex items-baseline gap-2 shrink-0">
-                <span className="text-3xl font-bold leading-none tabular-nums" style={{ color: tone.accent }}>{left}</span>
-                <span className="text-sm font-semibold" style={{ color: tone.ink }}>day{left === 1 ? "" : "s"} left</span>
+            <div className="mb-5 rounded-2xl px-4 sm:px-5 py-4 flex items-center gap-4" style={{ background: tone.soft, border: `1px solid ${tone.line}` }}>
+              {/* The countdown is a ring around the number, not a bar. Stretched
+                  across a full-width banner a bar reads as a rule underlining the
+                  sentence, whatever its height; a ring keeps the meter attached
+                  to the figure it describes and takes no horizontal room. */}
+              <div className="relative shrink-0 w-14 h-14">
+                <svg viewBox="0 0 44 44" className="w-14 h-14 -rotate-90" aria-hidden="true">
+                  <circle cx="22" cy="22" r="19" fill="none" strokeWidth="3.5" stroke="rgba(15,27,51,0.10)" />
+                  <circle
+                    cx="22" cy="22" r="19" fill="none" strokeWidth="3.5" stroke={tone.accent} strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 19}
+                    strokeDashoffset={2 * Math.PI * 19 * (1 - pct / 100)}
+                    style={{ transition: "stroke-dashoffset 600ms ease" }}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-lg font-bold tabular-nums" style={{ color: tone.accent }}>{left}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs mb-2" style={{ color: tone.ink }}>
+                <p className="text-sm font-semibold leading-tight" style={{ color: tone.ink }}>
+                  {left === 1 ? "Last day of your free trial" : `${left} days left in your free trial`}
+                </p>
+                <p className="text-xs leading-tight mt-1" style={{ color: tone.ink, opacity: 0.75 }}>
                   {left <= 3
-                    ? "Your workspace is suspended when the trial ends. Subscribe to keep your jobs and candidates live."
+                    ? "Your workspace is suspended when it ends. Subscribe to keep your jobs and candidates live."
                     : "Full Scale access during the trial. Subscribe before it ends to keep everything running."}
                 </p>
-                {/* Thin on purpose. On day one the bar is 100% full, so any real
-                    height reads as a solid rule drawn across the dashboard. */}
-                <div className="h-0.5 rounded-full overflow-hidden" style={{ background: "rgba(15,27,51,0.10)" }}>
-                  <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: tone.accent }} />
-                </div>
               </div>
               <button
                 onClick={() => navigate("billing")}

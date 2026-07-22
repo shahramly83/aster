@@ -289,40 +289,55 @@ export default function TodayScreen({ navigation }) {
                   const done = p.total > 0 && p.voted >= p.total;
                   const pct = p.total > 0 ? p.voted / p.total : 0;
                   const remaining = Math.max(0, p.total - p.voted);
+                  const status = noPanel ? theme.ink3 : done ? theme.success : "#B45309";
                   return (
-                    <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollItemCard, !done && !noPanel && styles.pollItemUrgent, noPanel && styles.pollItemMuted]} scaleTo={0.98}>
-                      <View style={[styles.pollAccent, { backgroundColor: noPanel ? theme.line : done ? theme.success : "#F59E0B" }]} />
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Avatar name={p.candidateName} size={34} />
-                          <View style={{ flex: 1, marginLeft: 10 }}>
-                            <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{p.candidateName}</Text>
-                            <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{p.jobTitle}</Text>
-                          </View>
-                          {noPanel ? null : done ? (
-                            <View style={styles.donePill}><Feather name="check" size={11} color="#fff" /><Text style={styles.donePillTxt}>All in</Text></View>
-                          ) : (
-                            <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
-                              <Text style={styles.progressCount}>{p.voted}/{p.total}</Text>
-                              <Text style={styles.progressLabel}>voted</Text>
-                            </View>
-                          )}
+                    // Same card as the interviewer's poll prompt: person first,
+                    // room to breathe, one full-width action. The manager's used
+                    // to be a compact accent-striped row, so the two halves of
+                    // the same feature looked unrelated. Only the middle differs,
+                    // because what a manager needs to know is panel progress, not
+                    // which times to pick.
+                    <View key={p.pollId} style={styles.pollCard}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Avatar name={p.candidateName} size={44} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={styles.pollName} numberOfLines={2}>{p.candidateName}</Text>
+                          <Text style={styles.pollRole} numberOfLines={1}>{p.jobTitle}</Text>
                         </View>
-                        {noPanel ? null : (
-                          <View style={[styles.progressTrack, { marginTop: 10 }]}>
-                            <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : "#F59E0B" }]} />
+                        {noPanel ? null : done ? (
+                          <View style={styles.donePill}><Feather name="check" size={11} color="#fff" /><Text style={styles.donePillTxt}>All in</Text></View>
+                        ) : (
+                          <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
+                            <Text style={styles.progressCount}>{p.voted}/{p.total}</Text>
+                            <Text style={styles.progressLabel}>voted</Text>
                           </View>
                         )}
-                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
-                          <Feather name={noPanel ? "user-x" : done ? "check-circle" : "clock"} size={12} color={noPanel ? theme.ink3 : done ? theme.success : "#B45309"} />
-                          <Text style={[type.smallStrong, { color: noPanel ? theme.ink3 : done ? theme.success : "#B45309", marginLeft: 6 }]} numberOfLines={1}>
-                            {noPanel
-                              ? "No interviewers on this role yet"
-                              : done ? "Everyone voted, ready to schedule" : `Waiting on ${remaining} interviewer${remaining === 1 ? "" : "s"} to vote`}
-                          </Text>
-                        </View>
                       </View>
-                    </Press>
+
+                      {noPanel ? null : (
+                        <View style={[styles.progressTrack, { marginTop: space(3.5) }]}>
+                          <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: done ? theme.success : "#F59E0B" }]} />
+                        </View>
+                      )}
+
+                      <View style={{ flexDirection: "row", alignItems: "center", marginTop: space(2) }}>
+                        <Feather name={noPanel ? "user-x" : done ? "check-circle" : "clock"} size={12} color={status} />
+                        <Text style={[type.smallStrong, { color: status, marginLeft: 6, flex: 1 }]} numberOfLines={2}>
+                          {noPanel
+                            ? "No interviewers on this role yet"
+                            : done ? "Everyone voted, ready to schedule" : `Waiting on ${remaining} interviewer${remaining === 1 ? "" : "s"} to vote`}
+                        </Text>
+                      </View>
+
+                      <Press
+                        onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })}
+                        haptic="medium"
+                        style={styles.pollCta}
+                      >
+                        <Feather name={done ? "calendar" : "bar-chart-2"} size={16} color="#fff" />
+                        <Text style={styles.pollCtaTxt}>{done ? "Pick times to offer" : "Open poll"}</Text>
+                      </Press>
+                    </View>
                   );
                 })}
               </Rise>
