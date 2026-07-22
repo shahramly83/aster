@@ -88,10 +88,13 @@ export default function ConfirmDialog({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
+  // No scrim. The sheet's own elevation and the screen edge are enough to
+  // separate it, and dimming the work behind made the prompt feel heavier than
+  // the question it usually asks.
+  backdrop: { flex: 1, justifyContent: "flex-end" },
   // ~Half the screen: tall enough for the question to breathe, short enough that
   // the work behind it stays on screen.
-  screen: { minHeight: "48%", backgroundColor: theme.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: space(5), paddingTop: space(3) },
+  screen: { minHeight: "48%", backgroundColor: theme.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: space(5), paddingTop: space(3), shadowColor: "#0A0E28", shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 24 },
   grabber: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
   body: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: space(4) },
   medallion: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: space(4) },
