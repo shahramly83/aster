@@ -539,7 +539,7 @@ export async function loadCredits(plan) {
     items: [
       mk("rank", "AI Rank", "zap", "#7DE2A8", rank, lim.aiRunsPerMonth),
       mk("insight", "AI Insights", "activity", "#A9B8FF", insight, lim.aiInsightsPerMonth),
-      mk("iq", "Interview Q's", "help-circle", "#FFD27D", iq, lim.interviewQuestionsPerMonth),
+      mk("iq", "AI Questions", "help-circle", "#FFD27D", iq, lim.interviewQuestionsPerMonth),
       mk("screen", "Screening", "user-check", "#FFFFFF", appl, lim.parseApplicant),
     ],
   };

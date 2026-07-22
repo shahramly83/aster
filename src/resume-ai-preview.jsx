@@ -10039,7 +10039,7 @@ const JOURNEY_BAR_GRAD = {
   Rejected:    JOURNEY_GREY,
 };
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, company = "Your workspace" }) {
+function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, questionsUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   // "Upcoming" excludes interviews whose slot has already passed: once the time
@@ -10480,6 +10480,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     { label: "Bulk upload screening", used: parseUsage.used, limit: parseUsage.limit ?? L.resumeUploads },
                     { label: "AI Rank credits", used: matchRunsUsed, limit: L.aiRunsPerMonth },
                     { label: "AI Insights credits", used: aiInsightsUsed, limit: L.aiInsightsPerMonth },
+                    { label: "AI Questions credits", used: questionsUsed, limit: L.interviewQuestionsPerMonth },
                   ];
                   const anyReached = items.some((it) => it.limit !== Infinity && it.used >= it.limit);
                   return (
@@ -26173,6 +26174,7 @@ export default function ResumeAIPreview() {
             applicantParseUsage={applicantParseUsage}
             matchRunsUsed={matchRunsUsed}
             aiInsightsUsed={aiInsightsUsed}
+            questionsUsed={questionsUsed}
             company={company}
           />
         )}
