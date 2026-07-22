@@ -310,31 +310,35 @@ export default function DiscussionScreen({ route, navigation }) {
   const myMarks = poll?.status === "open" ? poll.slots.filter((s) => s.mine) : [];
   const strandedMark = myMarks.length === 1 ? myMarks[0] : null;
 
+  // The pending navigation, parked while the guard sheet is up. Holding the
+  // action (rather than a boolean) means we replay the exact intent afterwards,
+  // so back, swipe-back and a deep-link jump each resume where they meant to go.
+  const [blockedNav, setBlockedNav] = useState(null);
+  const [clearing, setClearing] = useState(false);
+  const leavingRef = useRef(false); // set once we're the ones dispatching, so the guard stands down
+
   useEffect(() => {
     if (!strandedMark) return;
     const stop = navigation.addListener("beforeRemove", (e) => {
+      if (leavingRef.current) return; // we're the ones navigating; let it through
       e.preventDefault(); // covers header back, hardware back and the swipe gesture
-      Alert.alert(
-        "Mark one more time",
-        "You've only marked one slot, so it can't overlap with anyone else's and won't count. Tap at least one more.",
-        [
-          { text: "Keep marking", style: "cancel" },
-          {
-            // Always leave a way out: someone who genuinely has one slot free
-            // shouldn't be trapped, they just shouldn't leave a vote that lies.
-            text: "Clear my mark and leave",
-            style: "destructive",
-            onPress: async () => {
-              await toggleVote(strandedMark);
-              navigation.dispatch(e.data.action);
-            },
-          },
-        ],
-      );
+      setBlockedNav(e.data.action);
     });
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, strandedMark?.id]);
+
+  const clearAndLeave = async () => {
+    if (!strandedMark || clearing) return;
+    setClearing(true);
+    await toggleVote(strandedMark);
+    setClearing(false);
+    leavingRef.current = true;
+    const action = blockedNav;
+    setBlockedNav(null);
+    if (action) navigation.dispatch(action);
+    else navigation.goBack();
+  };
 
   const canCreate = manager && (!poll || poll.status === "closed");
 
@@ -428,7 +432,63 @@ export default function DiscussionScreen({ route, navigation }) {
       </View>
 
       <PollComposer visible={composerOpen} tz={profile.timezone} onClose={() => setComposerOpen(false)} onCreate={onCreatePoll} blocked={blockedSlots} />
+      <LoneMarkSheet
+        visible={!!blockedNav}
+        slot={strandedMark}
+        clearing={clearing}
+        onKeepMarking={() => setBlockedNav(null)}
+        onClearAndLeave={clearAndLeave}
+      />
     </View>
+  );
+}
+
+// Guard shown when someone tries to leave with exactly one time marked. A native
+// Alert was doing this job, but it renders as a system dialog: no room for the
+// slot itself, stacked equal-weight buttons, and none of the app's own type or
+// colour. This is the same bottom sheet the composer uses, so the block reads as
+// part of Aster rather than an OS interruption.
+function LoneMarkSheet({ visible, slot, clearing, onKeepMarking, onClearAndLeave }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onKeepMarking} statusBarTranslucent>
+      {/* Tapping the scrim resolves to "keep marking": the safe option, and the
+          one that leaves their vote intact. No drag handle — this sheet is a
+          decision, and a handle would promise a swipe-to-dismiss that can't be
+          honoured here. */}
+      <Pressable style={styles.backdrop} onPress={onKeepMarking} accessibilityLabel="Dismiss and keep marking times">
+        <Pressable style={[styles.guardSheet, { paddingBottom: Math.max(insets.bottom, 12) + space(3) }]} onPress={() => {}}>
+          <View style={styles.guardIcon}>
+            <Feather name="clock" size={20} color={theme.warn} />
+          </View>
+          {/* The title carries the instruction outright. An explanatory paragraph
+              under it just delayed the one thing they need to do. */}
+          <Text style={[type.h3, { color: theme.ink, textAlign: "center" }]}>Mark at least 2 times</Text>
+
+          {/* Name the slot they actually marked: "clear my mark" should never be
+              an abstract bet on what the app remembers. */}
+          {slot ? (
+            <View style={styles.guardSlot}>
+              <Feather name="check-circle" size={14} color={theme.brand} />
+              <Text style={[type.smallStrong, { color: theme.ink2, marginLeft: 8, flex: 1 }]} numberOfLines={2}>
+                {slotLabel(slot.ts, slot.end)}
+              </Text>
+            </View>
+          ) : null}
+
+          <Button title="Keep marking" onPress={onKeepMarking} style={{ marginTop: space(4) }} />
+          <Press onPress={onClearAndLeave} disabled={clearing} haptic="light" style={{ marginTop: space(1) }}>
+            <View style={styles.guardLeave}>
+              {clearing ? (
+                <ActivityIndicator size="small" color={theme.danger} />
+              ) : (
+                <Text style={[type.bodyStrong, { color: theme.danger }]}>Clear my mark and leave</Text>
+              )}
+            </View>
+          </Press>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -688,4 +748,11 @@ const styles = StyleSheet.create({
   sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
   slotChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 8 },
   addSlot: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingVertical: 8 },
+
+  // Lone-mark guard sheet
+  guardSheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(5) },
+  guardIcon: { alignSelf: "center", width: 44, height: 44, borderRadius: 22, backgroundColor: theme.warnBg, alignItems: "center", justifyContent: "center", marginBottom: space(3) },
+  guardSlot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, marginTop: space(4) },
+  // 48dp min touch target, and enough separation that "leave" is never a slip.
+  guardLeave: { minHeight: 48, alignItems: "center", justifyContent: "center" },
 });
