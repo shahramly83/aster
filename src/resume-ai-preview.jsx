@@ -9,6 +9,9 @@ import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
 import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
+// Same rule the mobile app enforces, so a poll can't demand different things on
+// the two clients.
+import { minAvailabilityMarks, isAvailabilityIncomplete } from "../shared/poll.js";
 
 // Keep a click-opened popover inside the viewport: measure the trigger on open
 // and, when there isn't room below for the menu, flip it above the trigger.
@@ -16019,6 +16022,8 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, title =
 function PendingPollsSurface({ companyId, currentUserId, profile }) {
   const [openPolls, setOpenPolls] = useState([]);
   const [votePoll, setVotePoll] = useState(null);
+  const [marks, setMarks] = useState({ myPicks: 0, minMarks: 2, incomplete: false });
+  const [nudge, setNudge] = useState(false); // tried to close a half-finished vote
   const loadPolls = useCallback(() => {
     if (!hasSupabase || !companyId || !currentUserId) return;
     dbListOpenPolls(companyId, currentUserId).then((rows) => setOpenPolls(rows || []));
@@ -16035,7 +16040,13 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
   }, [companyId, currentUserId, loadPolls]);
   const pendingVotes = openPolls.filter((p) => !p.voted);
   if (pendingVotes.length === 0 && !votePoll) return null;
-  const close = () => { setVotePoll(null); loadPolls(); };
+  // Closing on a started-but-unusable vote leaves a mark that can never overlap,
+  // so hold the modal and say what's missing. Confirming discards nothing: their
+  // marks stay saved, they just come back to finish.
+  const close = () => {
+    if (marks.incomplete) { setNudge(true); return; }
+    setVotePoll(null); setNudge(false); loadPolls();
+  };
   return (
     <>
       {pendingVotes.length > 0 && (
@@ -16056,7 +16067,10 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
                   <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{p.candidateName}</p>
                   <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{p.jobTitle}</p>
                 </div>
-                <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold rounded-lg px-3 py-1.5" style={{ background: "var(--brand)", color: "#fff" }}>
+                {/* Red, not brand: this is the one card on the screen that is
+                    blocking someone else's scheduling, and in brand blue it read
+                    as just another link. */}
+                <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold rounded-lg px-3 py-1.5" style={{ background: "#DC2626", color: "#fff" }}>
                   Vote <Icon name="chevronRight" className="w-3.5 h-3.5" />
                 </span>
               </button>
@@ -16071,6 +16085,15 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
               <p className="text-sm font-semibold text-white">Mark your availability</p>
               <button onClick={close} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}><Icon name="close" className="w-4 h-4" /></button>
             </div>
+            {nudge && (
+              <div className="mb-2 rounded-xl px-3.5 py-2.5 flex items-start gap-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+                <Icon name="clock" className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#B45309" }} />
+                <p className="text-xs leading-relaxed flex-1" style={{ color: "#92400E" }}>
+                  <span className="font-semibold">Mark at least {marks.minMarks} slot{marks.minMarks === 1 ? "" : "s"}.</span>{" "}
+                  You've marked {marks.myPicks}, which can't overlap with the rest of the panel.
+                </p>
+              </div>
+            )}
             <div className="max-h-[80vh] overflow-y-auto">
               <PanelPoll
                 candidate={{ id: votePoll.candidateId, full_name: votePoll.candidateName }}
@@ -16079,6 +16102,7 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
                 companyId={companyId}
                 currentUserId={currentUserId}
                 booking={null}
+                onMarksChange={setMarks}
               />
             </div>
           </div>
@@ -16115,7 +16139,7 @@ function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onMarksChange }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -16198,6 +16222,14 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   // which is why the missing declaration crashed the interviewer's vote modal
   // and nothing else.
   const myPicks = poll?.slots?.filter((s) => s.mine).length ?? 0;
+  const minMarks = minAvailabilityMarks(poll?.slots?.length ?? 0);
+  const marksIncomplete = isAvailabilityIncomplete(myPicks, poll?.slots?.length ?? 0);
+  // Report upward so the surface that owns the dismiss control can refuse to
+  // close on a half-finished vote. PanelPoll owns the poll state, so nobody else
+  // can work this out for themselves.
+  useEffect(() => {
+    onMarksChange?.({ myPicks, minMarks, incomplete: marksIncomplete && !isManager });
+  }, [myPicks, minMarks, marksIncomplete, isManager, onMarksChange]);
 
   // A poll with nobody to vote in it is a dead end, and the panel is set on the
   // job, not the candidate — so let the manager fix it here instead of sending
@@ -16535,13 +16567,15 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             <>
               {isManager ? (
                 <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Your vote is optional. Once the interviewers vote, you'll pick times to offer.</p>
-              ) : myPicks >= 2 ? (
-                <p className="text-[11px] mt-2.5 font-medium inline-flex items-center gap-1" style={{ color: "#067647" }}><Icon name="check" className="w-3.5 h-3.5" /> You've marked {myPicks} times. Your availability is in.</p>
+              ) : myPicks >= minMarks ? (
+                <p className="text-[11px] mt-2.5 font-medium inline-flex items-center gap-1" style={{ color: "#067647" }}><Icon name="check" className="w-3.5 h-3.5" /> You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}. Your availability is in.</p>
               ) : (
                 <div className="mt-2.5 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
                   <Icon name="clock" className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#B45309" }} />
                   <p className="text-[11px] leading-relaxed" style={{ color: "#92400E" }}>
-                    {myPicks === 0 ? "Mark at least 2 times you can make. The panel needs overlap to book." : "You've only marked 1. Pick at least one more, or your availability won't count."}
+                    {myPicks === 0
+                      ? `Mark at least ${minMarks} slot${minMarks === 1 ? "" : "s"} you can make. The panel needs overlap to book.`
+                      : `You've marked ${myPicks} of ${minMarks}. Pick at least one more, or your availability won't count.`}
                   </p>
                 </div>
               )}

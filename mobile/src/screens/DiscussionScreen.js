@@ -10,7 +10,7 @@ import {
 } from "../lib/data";
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
 import { theme, type, space, radius } from "../theme";
-import { relTime, fmtInterviewTime } from "@aster/shared";
+import { relTime, fmtInterviewTime, minAvailabilityMarks, isAvailabilityIncomplete } from "@aster/shared";
 
 // Human label for a proposed time range, e.g. "Tue 12 Aug · 2:00–3:00 PM".
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -308,7 +308,8 @@ export default function DiscussionScreen({ route, navigation }) {
   // to count. The card says so, but a warning you can walk away from is exactly
   // what people walk away from — so hold the screen until they finish or undo.
   const myMarks = poll?.status === "open" ? poll.slots.filter((s) => s.mine) : [];
-  const strandedMark = myMarks.length === 1 ? myMarks[0] : null;
+  const minMarks = minAvailabilityMarks(poll?.slots?.length ?? 0);
+  const marksIncomplete = isAvailabilityIncomplete(myMarks.length, poll?.slots?.length ?? 0);
 
   // The pending navigation, parked while the guard sheet is up. Holding the
   // action (rather than a boolean) means we replay the exact intent afterwards,
@@ -318,7 +319,7 @@ export default function DiscussionScreen({ route, navigation }) {
   const leavingRef = useRef(false); // set once we're the ones dispatching, so the guard stands down
 
   useEffect(() => {
-    if (!strandedMark) return;
+    if (!marksIncomplete) return;
     const stop = navigation.addListener("beforeRemove", (e) => {
       if (leavingRef.current) return; // we're the ones navigating; let it through
       e.preventDefault(); // covers header back, hardware back and the swipe gesture
@@ -326,12 +327,14 @@ export default function DiscussionScreen({ route, navigation }) {
     });
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation, strandedMark?.id]);
+  }, [navigation, marksIncomplete]);
 
   const clearAndLeave = async () => {
-    if (!strandedMark || clearing) return;
+    if (clearing) return;
     setClearing(true);
-    await toggleVote(strandedMark);
+    // Clear every mark, not just one: below the minimum they are all unusable,
+    // and leaving a subset behind would recreate the state we just blocked on.
+    for (const m of myMarks) await toggleVote(m);
     setClearing(false);
     leavingRef.current = true;
     const action = blockedNav;
@@ -434,7 +437,8 @@ export default function DiscussionScreen({ route, navigation }) {
       <PollComposer visible={composerOpen} tz={profile.timezone} onClose={() => setComposerOpen(false)} onCreate={onCreatePoll} blocked={blockedSlots} />
       <LoneMarkSheet
         visible={!!blockedNav}
-        slot={strandedMark}
+        marks={myMarks}
+        minMarks={minMarks}
         clearing={clearing}
         onKeepMarking={() => setBlockedNav(null)}
         onClearAndLeave={clearAndLeave}
@@ -448,7 +452,7 @@ export default function DiscussionScreen({ route, navigation }) {
 // slot itself, stacked equal-weight buttons, and none of the app's own type or
 // colour. This is the same bottom sheet the composer uses, so the block reads as
 // part of Aster rather than an OS interruption.
-function LoneMarkSheet({ visible, slot, clearing, onKeepMarking, onClearAndLeave }) {
+function LoneMarkSheet({ visible, marks = [], minMarks = 2, clearing, onKeepMarking, onClearAndLeave }) {
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onKeepMarking} statusBarTranslucent>
@@ -463,18 +467,20 @@ function LoneMarkSheet({ visible, slot, clearing, onKeepMarking, onClearAndLeave
           </View>
           {/* The title carries the instruction outright. An explanatory paragraph
               under it just delayed the one thing they need to do. */}
-          <Text style={[type.h3, { color: theme.ink, textAlign: "center" }]}>Mark at least 2 times</Text>
+          <Text style={[type.h3, { color: theme.ink, textAlign: "center" }]}>
+            Mark at least {minMarks} slot{minMarks === 1 ? "" : "s"}
+          </Text>
 
-          {/* Name the slot they actually marked: "clear my mark" should never be
-              an abstract bet on what the app remembers. */}
-          {slot ? (
-            <View style={styles.guardSlot}>
+          {/* Name the slots they actually marked: "clear my marks" should never
+              be an abstract bet on what the app remembers. */}
+          {marks.map((slot) => (
+            <View key={slot.id} style={styles.guardSlot}>
               <Feather name="check-circle" size={14} color={theme.brand} />
               <Text style={[type.smallStrong, { color: theme.ink2, marginLeft: 8, flex: 1 }]} numberOfLines={2}>
                 {slotLabel(slot.ts, slot.end)}
               </Text>
             </View>
-          ) : null}
+          ))}
 
           <Button title="Keep marking" onPress={onKeepMarking} style={{ marginTop: space(4) }} />
           <Press onPress={onClearAndLeave} disabled={clearing} haptic="light" style={{ marginTop: space(1) }}>
@@ -482,7 +488,9 @@ function LoneMarkSheet({ visible, slot, clearing, onKeepMarking, onClearAndLeave
               {clearing ? (
                 <ActivityIndicator size="small" color={theme.danger} />
               ) : (
-                <Text style={[type.bodyStrong, { color: theme.danger }]}>Clear my mark and leave</Text>
+                <Text style={[type.bodyStrong, { color: theme.danger }]}>
+                  Clear my {marks.length === 1 ? "mark" : "marks"} and leave
+                </Text>
               )}
             </View>
           </Press>
@@ -501,6 +509,7 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
   const maxCount = Math.max(0, ...poll.slots.map((s) => s.count));
   const selCount = selected ? selected.size : 0;
   const myPicks = poll.slots.filter((s) => s.mine).length; // this interviewer's own marks
+  const minPicks = minAvailabilityMarks(poll.slots.length);
   return (
     <View style={[styles.pollCard, selectMode && { borderColor: theme.brand, borderWidth: 1.5 }]}>
       <View style={styles.pollHead}>
@@ -574,16 +583,18 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
       ) : open ? (
         <>
           {(!manager && !isCandidate) ? (
-            myPicks >= 2 ? (
+            myPicks >= minPicks ? (
               <View style={{ flexDirection: "row", alignItems: "center", marginTop: space(3) }}>
                 <Feather name="check-circle" size={13} color={theme.success} />
-                <Text style={[type.smallStrong, { color: theme.success, marginLeft: 6, flex: 1 }]}>You've marked {myPicks} times. Your availability is in.</Text>
+                <Text style={[type.smallStrong, { color: theme.success, marginLeft: 6, flex: 1 }]}>You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}. Your availability is in.</Text>
               </View>
             ) : (
               <View style={styles.voteWarn}>
                 <Feather name="clock" size={14} color={theme.warn} />
                 <Text style={[type.small, { color: "#92400E", marginLeft: 8, flex: 1 }]}>
-                  {myPicks === 0 ? "Tap at least 2 times you can make. The panel needs overlap to book." : "You've only marked 1. Tap at least one more, or your availability won't count."}
+                  {myPicks === 0
+                    ? `Tap at least ${minPicks} slot${minPicks === 1 ? "" : "s"} you can make. The panel needs overlap to book.`
+                    : `You've marked ${myPicks} of ${minPicks}. Tap at least one more, or your availability won't count.`}
                 </Text>
               </View>
             )
