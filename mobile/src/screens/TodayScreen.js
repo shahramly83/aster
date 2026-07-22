@@ -9,7 +9,7 @@ import { loadMyInterviews, loadOpenPolls, loadMyPollProgress, subscribeInterview
 import { setStatusBarStyle } from "expo-status-bar";
 import { Press, Avatar, Loader, TopBar, HeaderActions, Feather } from "../components/ui";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
-import { theme, type, space, radius } from "../theme";
+import { theme, type, space, radius, shadow } from "../theme";
 import { fmtInterviewTime, minutesUntil } from "@aster/shared";
 
 // Fade + rise entrance, staggered by index for a lively first paint.
@@ -213,7 +213,15 @@ export default function TodayScreen({ navigation }) {
                 kept mis-measuring against the header and left the pills straddling
                 the blue/grey edge. As list content they simply flow with the
                 layout, so they can never overlap the week strip or the cards. */}
-            <View style={styles.tabsWrap}>
+            {/* Negative margins + matching padding so the row bleeds to the screen
+                edges: a pill scrolling away should slide under the edge, not stop
+                short at the list's gutter. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.tabsScroll}
+              contentContainerStyle={styles.tabsWrap}
+            >
               {[
                 { k: "next", label: "Up next", n: upcoming.length },
                 { k: "poll", label: "Poll", n: myPolls.length + polls.length },
@@ -238,7 +246,7 @@ export default function TodayScreen({ navigation }) {
                   </Press>
                 );
               })}
-            </View>
+            </ScrollView>
 
             {/* Week overview sits at the very top for calendar context, then the
                 soonest interviews as a swipeable card carousel (slide left/right). */}
@@ -324,28 +332,47 @@ export default function TodayScreen({ navigation }) {
             {tab === "poll" && polls.length ? (
               <Rise style={{ marginBottom: space(6) }}>
                 <Text style={styles.pollEyebrow}>NEEDS YOUR INPUT</Text>
-                <View style={styles.pollCard}>
-                  <View style={styles.pollHead}>
-                    <View style={styles.pollHeadIcon}><Feather name="calendar" size={16} color="#fff" /></View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.pollTitle}>Pick your interview times</Text>
-                      <Text style={styles.pollSubtitle}>{polls.length} candidate{polls.length === 1 ? "" : "s"} waiting on your availability</Text>
+                {/* One card per person rather than a titled panel wrapping a list
+                    of rows. The old header said "Pick your interview times" and
+                    then repeated the count, spending the card's best space on
+                    restating its own name; the person and the times they're
+                    waiting on are the content. Each card is self-contained, so
+                    two pending requests read as two things to do. */}
+                {polls.slice(0, 5).map((p) => (
+                  <View key={p.pollId} style={styles.pollCard}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Avatar name={p.candidateName} size={44} />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        {/* Two lines, not one with an ellipsis: a truncated name
+                            is the one thing on this card that must not be. */}
+                        <Text style={styles.pollName} numberOfLines={2}>{p.candidateName}</Text>
+                        <Text style={styles.pollRole} numberOfLines={1}>{p.jobTitle}</Text>
+                      </View>
                     </View>
-                  </View>
-                  {polls.slice(0, 5).map((p, i) => (
-                    <Press key={p.pollId} onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })} style={[styles.pollRow, i > 0 && styles.pollRowDiv]}>
-                      <Avatar name={p.candidateName} size={32} />
-                      <View style={{ flex: 1, marginLeft: 11 }}>
-                        <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]} numberOfLines={1}>{p.candidateName}</Text>
-                        <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{p.jobTitle}</Text>
+
+                    {p.slots?.length ? (
+                      <View style={styles.slotWrap}>
+                        {p.slots.slice(0, 3).map((ts) => (
+                          <View key={ts} style={styles.slotChip}>
+                            <Text style={styles.slotChipTxt}>{fmtInterviewTime(ts, tz)}</Text>
+                          </View>
+                        ))}
+                        {p.slots.length > 3 ? (
+                          <Text style={styles.slotMore}>+{p.slots.length - 3} more</Text>
+                        ) : null}
                       </View>
-                      <View style={styles.votePill}>
-                        <Feather name="check-circle" size={13} color="#fff" />
-                        <Text style={styles.votePillTxt}>Vote</Text>
-                      </View>
+                    ) : null}
+
+                    <Press
+                      onPress={() => navigation.navigate("Discussion", { candidateId: p.candidateId, jobId: p.jobId, candidateName: p.candidateName })}
+                      haptic="medium"
+                      style={styles.pollCta}
+                    >
+                      <Feather name="check-circle" size={16} color="#fff" />
+                      <Text style={styles.pollCtaTxt}>Mark your availability</Text>
                     </Press>
-                  ))}
-                </View>
+                  </View>
+                ))}
               </Rise>
             ) : null}
             {/* Interviews needing action: awaiting the candidate, or needing new
@@ -621,12 +648,31 @@ const styles = StyleSheet.create({
   // contained while still looking inactive rather than urgent.
   pollItemMuted: { borderWidth: 1, borderColor: theme.line2 },
   pollAccent: { width: 4, borderRadius: 2, alignSelf: "stretch", marginRight: space(3) },
-  pollCard: { backgroundColor: theme.card, borderRadius: radius.card, paddingHorizontal: space(3.5), paddingVertical: space(1), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
-  pollHead: { flexDirection: "row", alignItems: "center", marginBottom: space(1), marginTop: space(2) },
-  pollHeadIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
-  pollTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 16, letterSpacing: -0.3, color: theme.ink },
-  pollSubtitle: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: theme.ink3, marginTop: 2 },
-  pollRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9 },
+  // Generous padding and a large radius: the card carries one person, so it can
+  // afford to breathe instead of packing rows into a panel.
+  pollCard: {
+    backgroundColor: theme.card, borderRadius: 26,
+    paddingHorizontal: space(4), paddingVertical: space(4),
+    marginBottom: space(3),
+    shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 }, elevation: 3,
+  },
+  pollName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, lineHeight: 22, letterSpacing: -0.3, color: theme.ink },
+  pollRole: { fontFamily: "Inter_400Regular", fontSize: 13, color: theme.ink3, marginTop: 2 },
+  // The times being asked about, so the answer is often obvious without opening
+  // anything.
+  slotWrap: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7, marginTop: space(3.5) },
+  slotChip: { backgroundColor: theme.bg, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7 },
+  slotChipTxt: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink2 },
+  slotMore: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: theme.ink4 },
+  // Full width, so the action is unmissable and thumb-reachable rather than a
+  // small pill wedged at the end of a row.
+  pollCta: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: theme.brand, borderRadius: 16, height: 50, marginTop: space(4),
+  },
+  pollCtaTxt: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" },
+  // Still used by the "up next" rows below, which stack inside one card.
   pollRowDiv: { borderTopWidth: 1, borderTopColor: theme.line2 },
   votePill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: theme.brand, borderRadius: radius.pill, paddingHorizontal: 13, height: 32 },
   actionPill: { borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5, marginLeft: 8 },
@@ -646,21 +692,38 @@ const styles = StyleSheet.create({
   // brand blue), 8dp touch spacing, and a 4/8dp vertical rhythm.
   // Segmented control, first row of the scroll content. 8dp touch spacing and
   // 24dp clear below so the week strip is never crowded against it.
-  tabsWrap: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    marginBottom: space(6),
-  },
+  // Scrolls horizontally: four labels with counts do not fit a phone width, and
+  // shrinking them to fit is what produced the cramped 38dp pills this replaced.
+  // The reference does the same — its fourth tab is deliberately half off-screen,
+  // which is also the affordance that says "there is more this way".
+  // Bleed to both screen edges so a pill scrolling away slides under the edge
+  // rather than stopping short at the list's gutter.
+  tabsScroll: { marginHorizontal: -space(4), marginBottom: space(6) },
+  tabsWrap: { alignItems: "center", gap: 10, paddingHorizontal: space(4) },
   tab: {
-    // 46dp clears Apple's 44pt and sits in Material's 48dp band. The old 38dp
-    // was under both minimums, which is a real tap-accuracy problem.
+    // 50dp clears Apple's 44pt and Material's 48dp band. The old 38dp was under
+    // both minimums, which is a real tap-accuracy problem.
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    height: 46, borderRadius: radius.pill, paddingHorizontal: 8,
-    // Solid card surface with dark text: readable on the grey page in every
-    // state. The earlier white-on-blue treatment vanished against grey.
+    height: 50, borderRadius: 25, paddingHorizontal: 15,
     backgroundColor: theme.card,
-    borderWidth: 1, borderColor: theme.line2,
+    // No elevation on the unselected pills. Android paints the elevation shadow
+    // from shadowColor, so any real spread bloomed into a grey rectangle behind
+    // each one — the halos in the last build. White on the warm grey page is
+    // already separation enough; the iOS shadow values stay for the softer look
+    // there, where they render as an actual blur rather than an outline.
+    shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 }, elevation: 0,
   },
-  tabOn: { backgroundColor: theme.brand, borderColor: theme.brand },
+  // Only the selected pill lifts, and it lifts against its own brand colour so
+  // the shadow reads as depth rather than dirt. Kept blue rather than the
+  // reference's near-black: this row shares a screen with the AI Rank button and
+  // the week strip, which already use brand as "active", and a black pill would
+  // introduce a second competing accent.
+  tabOn: {
+    backgroundColor: theme.brand,
+    shadowColor: theme.brand, shadowOpacity: 0.34, shadowRadius: 9,
+    shadowOffset: { width: 0, height: 4 }, elevation: 4,
+  },
   tabTxt: { ...type.smallStrong, color: theme.ink2 },
   tabTxtOn: { color: theme.white },
   tabCount: {
