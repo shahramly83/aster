@@ -17002,21 +17002,62 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           </div>
         )
       ) : bookingStatus === "sent" ? (
-        <div className="rounded-xl bg-white border border-neutral-200 px-3.5 py-3">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-medium inline-flex items-center gap-1.5" style={{ color: "#16A34A" }}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#22C55E" }} /> Invite sent · waiting for a pick
-            </span>
-            <button onClick={() => onPreviewBooking(sentRequest)} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Preview →</button>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {sentRequest.proposed_slots.map((slot) => (
-              <span key={slot.start} className="text-[11px] rounded-full bg-neutral-100 border border-neutral-200 px-2.5 py-0.5 text-neutral-700">
-                {formatSlotRange(slot.start, slot.end)}
-              </span>
-            ))}
-          </div>
-        </div>
+        /* A handoff, so it is drawn as one: a three-step tracker showing the ball
+           is in the candidate's court, then the times we actually offered. The
+           slots used to be pill-shaped chips of run-together text, which is the
+           least readable form for a date and buried the substance of the card. */
+        (() => {
+          const first = (candidate?.parsed?.name || "").split(" ")[0] || "the candidate";
+          const steps = [
+            { label: "Invite sent", done: true },
+            { label: "Candidate picks", current: true },
+            { label: "Confirmed", done: false },
+          ];
+          return (
+            <div className="rounded-xl bg-white border border-neutral-200 px-4 py-3.5">
+              <div className="flex items-center gap-2 mb-3.5">
+                {steps.map((s, i) => (
+                  <React.Fragment key={s.label}>
+                    <span className="inline-flex items-center gap-1.5 shrink-0">
+                      <span className="relative flex h-2 w-2">
+                        {s.current && <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "var(--brand)" }} />}
+                        <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: s.done ? "#16A34A" : s.current ? "var(--brand)" : "var(--line-strong)" }} />
+                      </span>
+                      <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: s.done ? "#16A34A" : s.current ? "var(--brand)" : "var(--ink-3)" }}>{s.label}</span>
+                    </span>
+                    {i < steps.length - 1 && <span className="flex-1 h-px min-w-3" style={{ background: "var(--line)" }} />}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              <p className="text-sm font-semibold mb-2.5" style={{ color: "var(--ink)" }}>Waiting for {first} to pick one of these</p>
+
+              {/* Date tiles: weekday and date on top, the window underneath, so a
+                  time is scannable at a glance instead of one long string. */}
+              <div className="flex flex-wrap gap-2">
+                {sentRequest.proposed_slots.map((slot) => {
+                  const s = new Date(slot.start);
+                  const e = slot.end ? new Date(slot.end) : null;
+                  const t = (d) => d.toLocaleString("en-US", withTz({ hour: "numeric", minute: "2-digit" }));
+                  return (
+                    <div key={slot.start} className="rounded-xl px-3 py-2" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--brand)", letterSpacing: "0.04em" }}>
+                        {s.toLocaleString("en-US", withTz({ weekday: "short", month: "short", day: "numeric" }))}
+                      </p>
+                      <p className="text-xs font-medium mt-0.5 tabular-nums" style={{ color: "var(--ink)" }}>
+                        {t(s)}{e ? ` – ${t(e)}` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button onClick={() => onPreviewBooking(sentRequest)} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                <Icon name="mail" className="w-3.5 h-3.5" /> Preview the invite they received
+              </button>
+            </div>
+          );
+        })()
       ) : !fixedJob && openJobs.length === 0 ? (
         <p className="text-sm text-neutral-500">No open jobs to schedule against.</p>
       ) : interviewers.length === 0 ? (
