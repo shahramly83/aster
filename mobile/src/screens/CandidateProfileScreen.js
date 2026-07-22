@@ -716,19 +716,43 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 )
               ) : pendingInvite ? (
                 <>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={styles.ivIcon}><Feather name="clock" size={18} color={theme.warn} /></View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[type.bodyStrong, { color: theme.ink }]}>Waiting on the candidate</Text>
-                      <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>{pendingInvite.proposedSlots.length} time{pendingInvite.proposedSlots.length === 1 ? "" : "s"} proposed. They'll pick one.</Text>
-                    </View>
+                  {/* A handoff, drawn as one. Three steps show the ball is in the
+                      candidate's court; matches the same card on web. */}
+                  <View style={styles.track}>
+                    {[
+                      { label: "Sent", state: "done" },
+                      { label: "They pick", state: "now" },
+                      { label: "Confirmed", state: "todo" },
+                    ].map((s, i, arr) => (
+                      <React.Fragment key={s.label}>
+                        <View style={{ alignItems: "center" }}>
+                          <View style={[styles.trackDot, {
+                            backgroundColor: s.state === "done" ? theme.success : s.state === "now" ? theme.brand : theme.line,
+                          }]} />
+                          <Text style={[styles.trackTxt, {
+                            color: s.state === "done" ? theme.success : s.state === "now" ? theme.brand : theme.ink4,
+                          }]}>{s.label}</Text>
+                        </View>
+                        {i < arr.length - 1 ? <View style={styles.trackLine} /> : null}
+                      </React.Fragment>
+                    ))}
                   </View>
-                  {pendingInvite.proposedSlots.map((s, i) => (
-                    <View key={i} style={styles.slotRow}>
-                      <Feather name="calendar" size={13} color={theme.ink4} />
-                      <Text style={[type.small, { color: theme.ink2, marginLeft: 8 }]}>{slotRange(s.start, s.end)}</Text>
-                    </View>
-                  ))}
+
+                  <Text style={[type.bodyStrong, { color: theme.ink, marginTop: space(3) }]}>
+                    Waiting for {nameOf().split(" ")[0]} to pick one of these
+                  </Text>
+
+                  {/* Date tiles rather than a run-together line: the weekday and
+                      date sit above the window, so a time is scannable. */}
+                  <View style={styles.tileWrap}>
+                    {pendingInvite.proposedSlots.map((s, i) => (
+                      <View key={i} style={styles.slotTile}>
+                        <Text style={styles.slotTileDay}>{fmtInterviewTime(s.start, profile?.timezone).split(",").slice(0, 2).join(",")}</Text>
+                        <Text style={styles.slotTileTime}>{slotRange(s.start, s.end).split("·").slice(-1)[0].trim()}</Text>
+                      </View>
+                    ))}
+                  </View>
+
                   {manager ? <Button title="Resend invite" icon="mail" variant="ghost" onPress={resendInvite} style={{ marginTop: space(3) }} /> : null}
                 </>
               ) : (
@@ -1080,6 +1104,17 @@ const styles = StyleSheet.create({
   mlChip: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
   mlChipIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: theme.white, alignItems: "center", justifyContent: "center" },
   slotRow: { flexDirection: "row", alignItems: "center", marginTop: space(2.5), marginLeft: 50 },
+  // Handoff tracker
+  track: { flexDirection: "row", alignItems: "flex-start" },
+  trackDot: { width: 9, height: 9, borderRadius: 5, marginBottom: 5 },
+  trackTxt: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
+  trackLine: { flex: 1, height: 1, backgroundColor: theme.line, marginTop: 4, marginHorizontal: 6 },
+  // Offered times, one tile each. A pill of run-together text is the least
+  // readable shape for a date, and it buried the substance of the card.
+  tileWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: space(3) },
+  slotTile: { backgroundColor: theme.bg, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 9 },
+  slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
+  slotTileTime: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink, marginTop: 2 },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
   noShow: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
   noShowBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md },

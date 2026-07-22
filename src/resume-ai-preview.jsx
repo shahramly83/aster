@@ -20311,7 +20311,7 @@ function InsightsDisplay({ insights }) {
         <p className="text-[13px] font-medium" style={{ color: accent ? "var(--brand)" : "var(--ink-2)" }}>{label}</p>
         {sub && <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>}
       </div>
-      <p className={`shrink-0 tabular-nums font-semibold ${accent ? "text-lg" : "text-sm"}`} style={{ color: accent ? "var(--brand)" : "var(--ink)" }}>{value}</p>
+      <p className="shrink-0 tabular-nums font-semibold text-sm" style={{ color: accent ? "var(--brand)" : "var(--ink)" }}>{value}</p>
     </div>
   );
   const FlagRow = ({ label, yes }) => (

@@ -102,8 +102,10 @@ const styles = StyleSheet.create({
   rowLabel: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink2, lineHeight: 19 },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: theme.ink4, marginTop: 1 },
   rowValue: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, color: theme.ink, fontVariant: ["tabular-nums"], textAlign: "right" },
-  // The headline figure earns emphasis from size and colour, not a filled box.
-  rowValueAccent: { fontSize: 19, color: theme.brand },
+  // Colour alone carries the emphasis. A larger size pushed the first figure off
+  // the baseline every other value lines up on, which read as a misalignment
+  // rather than as emphasis.
+  rowValueAccent: { color: theme.brand },
   flagVal: { flexDirection: "row", alignItems: "center", gap: 5 },
   flagTxt: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
   // Stronger than the row hairlines, so the section break outranks them.
