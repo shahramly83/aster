@@ -16349,7 +16349,11 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
           )}
           {canSelect && (
             <p className="text-[11px] mb-2.5 font-medium" style={{ color: "#067647" }}>
-              {override && pending.length > 0 ? "Proceeding without every vote. " : "Everyone's voted. "}Select at least 2 times to offer, then send.
+              {/* No "Everyone's voted." claim: this line shows whenever selection
+                  is unlocked, which includes polls where the only votes came from
+                  the organiser, so it could assert a consensus that never happened.
+                  The panel status is already reported above; keep this to the action. */}
+              {override && pending.length > 0 ? "Proceeding without every vote. " : ""}Select at least 2 times to offer, then send.
             </p>
           )}
 

@@ -431,7 +431,10 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
       ) : null}
       {selectMode ? (
         <Text style={[type.smallStrong, { color: theme.success, marginTop: space(2) }]}>
-          {progress && progress.pendingNames?.length ? "Proceeding without every vote. " : "Everyone's voted. "}Pick at least 2 times to offer.
+          {/* Same as web: drop the "Everyone's voted." claim. It shows whenever
+              selection unlocks, including polls whose only votes came from the
+              organiser, so it could assert a consensus that never happened. */}
+          {progress && progress.pendingNames?.length ? "Proceeding without every vote. " : ""}Pick at least 2 times to offer.
         </Text>
       ) : null}
 
