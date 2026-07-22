@@ -15019,14 +15019,18 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
 
                   {live.length > 0 ? (
                     <>
-                      {/* One track split by stage, so the mix is legible without
-                          reading any numbers. */}
-                      <div className="flex gap-0.5 mt-3.5 h-1.5 rounded-full overflow-hidden">
-                        {live.map((s) => (
-                          <span key={s.key} style={{ width: `${(s.n / total) * 100}%`, background: s.color }} />
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5">
+                      {/* The split bar only earns its place when there is a mix to
+                          show. With everyone at one stage it stretches to 100% and
+                          becomes a coloured rule across the card, saying nothing
+                          the labelled count below doesn't already say. */}
+                      {live.length > 1 && (
+                        <div className="flex gap-0.5 mt-3.5 h-1 rounded-full overflow-hidden">
+                          {live.map((s) => (
+                            <span key={s.key} style={{ width: `${(s.n / total) * 100}%`, background: s.color }} />
+                          ))}
+                        </div>
+                      )}
+                      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${live.length > 1 ? "mt-2.5" : "mt-3"}`}>
                         {live.map((s) => (
                           <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "var(--ink-2)" }}>
                             <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
