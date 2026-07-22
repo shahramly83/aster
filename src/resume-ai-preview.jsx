@@ -20065,33 +20065,50 @@ function InsightsDisplay({ insights }) {
   const ea = insights.employment_analysis;
   const heading = (t) => <h3 className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{t}</h3>;
 
+  // One fact per line, matching the mobile layout. Each figure used to sit in
+  // its own filled, bordered tile inside an already-bordered card, two or three
+  // to a row: box-in-box chrome that cost more space than the numbers, and
+  // narrow columns that truncated real labels like "Software Development".
+  const Row = ({ label, value, sub, accent, last }) => (
+    <div className="flex items-center justify-between gap-3 py-2.5" style={last ? undefined : { borderBottom: "1px solid var(--line)" }}>
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium" style={{ color: accent ? "var(--brand)" : "var(--ink-2)" }}>{label}</p>
+        {sub && <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>}
+      </div>
+      <p className={`shrink-0 tabular-nums font-semibold ${accent ? "text-lg" : "text-sm"}`} style={{ color: accent ? "var(--brand)" : "var(--ink)" }}>{value}</p>
+    </div>
+  );
+  const FlagRow = ({ label, yes, last }) => (
+    <div className="flex items-center justify-between gap-3 py-2.5" style={last ? undefined : { borderBottom: "1px solid var(--line)" }}>
+      <p className="text-[13px] font-medium" style={{ color: "var(--ink-2)" }}>{label}</p>
+      {/* Icon plus word, never colour alone. */}
+      <span className="shrink-0 inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: yes ? "#16A34A" : "var(--ink-3)" }}>
+        <Icon name={yes ? "check" : "close"} className="w-3.5 h-3.5" /> {yes ? "Yes" : "No"}
+      </span>
+    </div>
+  );
+
   return (
     <div className="space-y-3">
       <div>
         {heading("Experience insights")}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <InsightTile label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
-          <InsightTile label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
-          {ei.domain_experience.map((d) => (
-            <InsightTile key={d.domain} label={`${d.domain}`} value={fmtYears(d.years)} />
-          ))}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-          <InsightFlag label="Startup" yes={ei.startup_experience} />
-          <InsightFlag label="Enterprise" yes={ei.enterprise_experience} />
-          <InsightFlag label="Remote work" yes={ei.remote_work_mentioned} />
-        </div>
+        <Row label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
+        <Row label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
+        {ei.domain_experience.map((d) => (
+          <Row key={d.domain} label={d.domain} value={fmtYears(d.years)} />
+        ))}
+        <FlagRow label="Startup" yes={ei.startup_experience} />
+        <FlagRow label="Enterprise" yes={ei.enterprise_experience} />
+        <FlagRow label="Remote work" yes={ei.remote_work_mentioned} last />
       </div>
 
       <div className="pt-3" style={{ borderTop: "1px solid var(--line)" }}>
         {heading("Employment analysis")}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <InsightTile label="Employers" value={String(ea.number_of_employers)} />
-          <InsightTile label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
-          {ea.longest_tenure && (
-            <InsightTile label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} />
-          )}
-        </div>
+        <Row label="Employers" value={String(ea.number_of_employers)} />
+        <Row label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
+        {ea.longest_tenure && (
+          <Row label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} last />
+        )}
         {ea.career_progression && (
           <div className="mt-2 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
             <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
