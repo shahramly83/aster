@@ -16791,6 +16791,67 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   );
 }
 
+// Times are with the candidate and nobody on the team can move it forward. Drawn
+// as the handoff it is: a three-step tracker, then the times actually offered.
+// Shared by the hiring manager's scheduling panel and the interviewer's read-only
+// view, so both halves of the same moment look the same. `onPreview` is omitted
+// for interviewers, who have no business resending someone else's invite.
+function InviteHandoffCard({ firstName, slots = [], onPreview }) {
+  const steps = [
+    { label: "Invite sent", done: true },
+    { label: "Candidate picks", current: true },
+    { label: "Confirmed", done: false },
+  ];
+  return (
+    <div className="rounded-xl bg-white border border-neutral-200 px-4 py-3.5">
+      <div className="flex items-center gap-2 mb-3.5">
+        {steps.map((s, i) => (
+          <Fragment key={s.label}>
+            <span className="inline-flex items-center gap-1.5 shrink-0">
+              <span className="relative flex h-2 w-2">
+                {s.current && <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "var(--brand)" }} />}
+                <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: s.done ? "#16A34A" : s.current ? "var(--brand)" : "var(--line-strong)" }} />
+              </span>
+              <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: s.done ? "#16A34A" : s.current ? "var(--brand)" : "var(--ink-3)" }}>{s.label}</span>
+            </span>
+            {i < steps.length - 1 && <span className="flex-1 h-px min-w-3" style={{ background: "var(--line)" }} />}
+          </Fragment>
+        ))}
+      </div>
+
+      <p className="text-sm font-semibold mb-2.5" style={{ color: "var(--ink)" }}>Waiting for {firstName} to pick one of these</p>
+
+      {/* Date tiles: weekday and date on top, the window underneath, so a time is
+          scannable at a glance instead of one long string. */}
+      <div className="flex flex-wrap gap-2">
+        {slots.map((slot) => {
+          const s = new Date(slot.start);
+          const e = slot.end ? new Date(slot.end) : null;
+          const t = (d) => d.toLocaleString("en-US", withTz({ hour: "numeric", minute: "2-digit" }));
+          return (
+            <div key={slot.start} className="rounded-xl px-3 py-2" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--brand)", letterSpacing: "0.04em" }}>
+                {s.toLocaleString("en-US", withTz({ weekday: "short", month: "short", day: "numeric" }))}
+              </p>
+              <p className="text-xs font-medium mt-0.5 tabular-nums" style={{ color: "var(--ink)" }}>
+                {t(s)}{e ? ` – ${t(e)}` : ""}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {onPreview ? (
+        <button onClick={onPreview} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+          <Icon name="mail" className="w-3.5 h-3.5" /> Preview the invite they received
+        </button>
+      ) : (
+        <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>You'll be added to the invite once they choose.</p>
+      )}
+    </div>
+  );
+}
+
 function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute }) {
   const [replacing, setReplacing] = useState(null); // attendee id being swapped out
   // Meeting link: the HM pastes the video-call URL they made and shares it with
@@ -17048,62 +17109,11 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           </div>
         )
       ) : bookingStatus === "sent" ? (
-        /* A handoff, so it is drawn as one: a three-step tracker showing the ball
-           is in the candidate's court, then the times we actually offered. The
-           slots used to be pill-shaped chips of run-together text, which is the
-           least readable form for a date and buried the substance of the card. */
-        (() => {
-          const first = (candidate?.parsed?.name || "").split(" ")[0] || "the candidate";
-          const steps = [
-            { label: "Invite sent", done: true },
-            { label: "Candidate picks", current: true },
-            { label: "Confirmed", done: false },
-          ];
-          return (
-            <div className="rounded-xl bg-white border border-neutral-200 px-4 py-3.5">
-              <div className="flex items-center gap-2 mb-3.5">
-                {steps.map((s, i) => (
-                  <Fragment key={s.label}>
-                    <span className="inline-flex items-center gap-1.5 shrink-0">
-                      <span className="relative flex h-2 w-2">
-                        {s.current && <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "var(--brand)" }} />}
-                        <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: s.done ? "#16A34A" : s.current ? "var(--brand)" : "var(--line-strong)" }} />
-                      </span>
-                      <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: s.done ? "#16A34A" : s.current ? "var(--brand)" : "var(--ink-3)" }}>{s.label}</span>
-                    </span>
-                    {i < steps.length - 1 && <span className="flex-1 h-px min-w-3" style={{ background: "var(--line)" }} />}
-                  </Fragment>
-                ))}
-              </div>
-
-              <p className="text-sm font-semibold mb-2.5" style={{ color: "var(--ink)" }}>Waiting for {first} to pick one of these</p>
-
-              {/* Date tiles: weekday and date on top, the window underneath, so a
-                  time is scannable at a glance instead of one long string. */}
-              <div className="flex flex-wrap gap-2">
-                {sentRequest.proposed_slots.map((slot) => {
-                  const s = new Date(slot.start);
-                  const e = slot.end ? new Date(slot.end) : null;
-                  const t = (d) => d.toLocaleString("en-US", withTz({ hour: "numeric", minute: "2-digit" }));
-                  return (
-                    <div key={slot.start} className="rounded-xl px-3 py-2" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--brand)", letterSpacing: "0.04em" }}>
-                        {s.toLocaleString("en-US", withTz({ weekday: "short", month: "short", day: "numeric" }))}
-                      </p>
-                      <p className="text-xs font-medium mt-0.5 tabular-nums" style={{ color: "var(--ink)" }}>
-                        {t(s)}{e ? ` – ${t(e)}` : ""}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <button onClick={() => onPreviewBooking(sentRequest)} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-                <Icon name="mail" className="w-3.5 h-3.5" /> Preview the invite they received
-              </button>
-            </div>
-          );
-        })()
+        <InviteHandoffCard
+          firstName={(candidate?.parsed?.name || "").split(" ")[0] || "the candidate"}
+          slots={sentRequest.proposed_slots}
+          onPreview={() => onPreviewBooking(sentRequest)}
+        />
       ) : !fixedJob && openJobs.length === 0 ? (
         <p className="text-sm text-neutral-500">No open jobs to schedule against.</p>
       ) : interviewers.length === 0 ? (
@@ -21270,22 +21280,20 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     </div>
                   </div>
                 )
-              ) : booking?.status === "sent" || booking?.status === "reschedule" ? (
-                /* Already being arranged. isBooked only covers 'scheduled', so
-                   these two fell through to "Request interview" and asked an
-                   interviewer to request an interview that was already in
-                   flight, with times sitting in the candidate's inbox. */
+              ) : booking?.status === "sent" ? (
+                /* The same card the hiring manager sees, minus the actions. A
+                   plain amber banner said the same words but showed none of the
+                   times, so an interviewer couldn't tell what had been offered
+                   or how close the interview was. isBooked only covers
+                   'scheduled', which is why this state used to fall through to
+                   "Request interview" and invite a duplicate request. */
+                <InviteHandoffCard firstName={firstName} slots={booking?.request?.proposed_slots || []} />
+              ) : booking?.status === "reschedule" ? (
                 <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
                   <span className="shrink-0 mt-0.5" style={{ color: "#B45309" }}><Icon name="clock" className="w-5 h-5" /></span>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
-                      {booking.status === "sent" ? `Waiting for ${firstName} to pick a time` : `${firstName} asked to reschedule`}
-                    </p>
-                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#92400E" }}>
-                      {booking.status === "sent"
-                        ? "Times have been offered. You'll be added to the invite once they choose one."
-                        : "The hiring manager is arranging new times. You'll be notified once it's booked."}
-                    </p>
+                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>{firstName} asked to reschedule</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#92400E" }}>The hiring manager is arranging new times. You'll be notified once it's booked.</p>
                   </div>
                 </div>
               ) : (
