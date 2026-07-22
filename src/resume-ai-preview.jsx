@@ -7677,7 +7677,10 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
           <>
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Suggest times that work for you</h1>
             <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>Add at least two windows you&apos;re free for the <strong>{jobTitle}</strong> interview, and {company} will confirm one with the panel.</p>
-            <DateTimePicker onAdd={addWindow} slots={windows} onRemove={removeWindow}
+            {/* The times already offered are blocked out. The candidate is here
+                because none of them worked, so re-proposing one just sends the
+                panel back where it started. */}
+            <DateTimePicker onAdd={addWindow} slots={windows} onRemove={removeWindow} takenRanges={slots}
               title="Add a time you're free" subtitle="Pick a day, then a start and end time you can make the interview." triggerLabel="Add a time you're free…" />
             {windows.length > 0 && (
               <div className="mt-3 space-y-2">
@@ -16043,8 +16046,12 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, title =
   const stepMonth = (delta) => { const d = new Date(viewYear, viewMonth + delta, 1); setViewYear(d.getFullYear()); setViewMonth(d.getMonth()); };
   const atStartMonth = viewYear === today0.getFullYear() && viewMonth === today0.getMonth();
 
+  // Business hours only. 7am-9pm offered slots nobody schedules an interview in,
+  // and every extra row is more scrolling to reach the ones people actually use.
+  // The end of the last interview can be 5pm, so the To column runs to 17:00.
+  const DAY_START = 9 * 60, DAY_END = 17 * 60;
   const times = [];
-  for (let m = 7 * 60; m <= 21 * 60; m += 30) times.push(m);
+  for (let m = DAY_START; m <= DAY_END; m += 30) times.push(m);
   const timeLabel = (m) => {
     const h = Math.floor(m / 60), mm = m % 60;
     const h12 = ((h + 11) % 12) + 1;
@@ -16147,15 +16154,20 @@ function DateTimePicker({ onAdd, takenRanges = [], slots = [], onRemove, title =
                 {days.map((d, i) => {
                   const inMonth = d.getMonth() === viewMonth;
                   const isPast = d < today0;
+                  // Interviews are not run at the weekend, and offering Saturday
+                  // only invites a time the panel will have to decline.
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                  const blocked = isPast || isWeekend;
                   const isTodayCell = sameDay(d, today0);
                   const isSel = sameDay(d, selDate);
                   return (
                     <button
                       key={i}
                       type="button"
-                      disabled={isPast}
+                      disabled={blocked}
+                      title={isWeekend && !isPast ? "Weekends aren't available" : undefined}
                       onClick={() => { setSelDate(new Date(d.getFullYear(), d.getMonth(), d.getDate())); setFromMin(null); setToMin(null); }}
-                      className={`h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors ${isPast ? "text-neutral-300 cursor-not-allowed" : inMonth ? "text-neutral-800 hover:bg-[color:var(--brand-soft)]" : "text-neutral-300 hover:bg-neutral-50"}`}
+                      className={`h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors ${blocked ? "text-neutral-300 cursor-not-allowed" : inMonth ? "text-neutral-800 hover:bg-[color:var(--brand-soft)]" : "text-neutral-300 hover:bg-neutral-50"}`}
                       style={isSel ? { background: "var(--brand)", color: "#fff", fontWeight: 600 } : isTodayCell ? { boxShadow: "inset 0 0 0 1.5px var(--brand)", color: "var(--brand)", fontWeight: 600 } : undefined}
                     >
                       {d.getDate()}
