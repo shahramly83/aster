@@ -9690,6 +9690,7 @@ const ACTIVITY_META = {
   scorecard:           { icon: "check",    accent: "#0B2AE0", dotColor: "bg-blue-500",    target: { screen: "candidates" } },
   role_requested:      { icon: "briefcase",accent: "#6366F1", dotColor: "bg-indigo-500",  target: { screen: "jobs" } },
   teammate_joined:     { icon: "userPlus", accent: "#0EA5E9", dotColor: "bg-sky-500",     target: { screen: "interviewers" } },
+  poll_vote:           { icon: "calendar", accent: "#0B2AE0", dotColor: "bg-blue-500",    target: { screen: "interviews" } },
 };
 // Map an activity_log row to the bell's feed-item shape.
 function mapActivityRow(row, seenAt = null) {

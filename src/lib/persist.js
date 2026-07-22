@@ -775,6 +775,10 @@ export async function dbTogglePollVote({ companyId, pollId, slotId, profileId, v
     const { error } = await supabase.from("interview_poll_votes")
       .insert({ poll_id: pollId, slot_id: slotId, company_id: companyId, profile_id: profileId, voter_name: voterName || null });
     if (error && error.code !== "23505") return error.message; // duplicate is fine
+    // Tell whoever opened the poll. The function decides whether this tap was
+    // the one that made the vote count, so it fires once per voter rather than
+    // once per slot ticked. Fire-and-forget: the vote is already saved.
+    supabase.functions.invoke("notify-poll-vote", { body: { poll_id: pollId } }).catch(() => {});
     return null;
   }
   const { error } = await supabase.from("interview_poll_votes")
