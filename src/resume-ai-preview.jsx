@@ -16111,7 +16111,7 @@ function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -16127,6 +16127,8 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const [busy, setBusy] = useState(null); // slotId | 'create'
   const [err, setErr] = useState(null);
   const [override, setOverride] = useState(false); // HM proceeds without every vote
+  const [addingPanel, setAddingPanel] = useState(false); // panel picker open
+  const [assignBusy, setAssignBusy] = useState(null); // profileId being assigned
   const [selected, setSelected] = useState(() => new Set()); // slot ids to offer
   const [sending, setSending] = useState(false);
   const [confirmingTs, setConfirmingTs] = useState(null); // round-2 slot being confirmed
@@ -16188,6 +16190,21 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const votedCount = requiredVoters.length - pending.length;
   const complete = requiredVoters.length === 0 || pending.length === 0;
   const canSelect = isManager && !round2 && poll?.status === "open" && (complete || override);
+
+  // A poll with nobody to vote in it is a dead end, and the panel is set on the
+  // job, not the candidate — so let the manager fix it here instead of sending
+  // them off to the applicant list. Teammates already on the role are excluded.
+  const assignedIds = new Set(assignedInterviewers.map((iv) => iv.id));
+  const addablePanel = interviewers.filter((iv) => iv.id && isInterviewer(iv.role) && !assignedIds.has(iv.id) && iv.id !== hmId);
+  const canEditPanel = isManager && !!jobId && !!onAssignInterviewer;
+
+  const addToPanel = async (iv) => {
+    setAssignBusy(iv.id);
+    const error = await onAssignInterviewer(jobId, iv.id);
+    setAssignBusy(null);
+    if (error) { setErr(error); return; }
+    setAddingPanel(false);
+  };
 
   // Entering select mode: default to the two most-available times.
   useEffect(() => {
@@ -16277,12 +16294,79 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             </p>
           </div>
         </div>
-        {poll && (
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={poll.status === "open" ? { background: "#ECFDF3", color: "#067647" } : { background: "var(--bg)", color: "var(--ink-3)" }}>
-            {poll.status === "open" ? "Open" : "Closed"}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {poll && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={poll.status === "open" ? { background: "#ECFDF3", color: "#067647" } : { background: "var(--bg)", color: "var(--ink-3)" }}>
+              {poll.status === "open" ? "Open" : "Closed"}
+            </span>
+          )}
+          {canEditPanel && !round2 && (
+            <button
+              type="button"
+              onClick={() => { setErr(null); setAddingPanel((v) => !v); }}
+              title="Add an interviewer to this role"
+              aria-label="Add an interviewer to this role"
+              aria-expanded={addingPanel}
+              className="w-8 h-8 rounded-lg border flex items-center justify-center transition-colors hover:bg-[color:var(--bg)]"
+              style={{ borderColor: addingPanel ? "var(--brand)" : "var(--line)", color: addingPanel ? "var(--brand)" : "var(--ink-2)" }}
+            >
+              <Icon name="userPlus" className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Who is actually being polled. Without this the poll reports "0 of 0
+          voted" with no way to see why, and no way to fix it. */}
+      {canEditPanel && (
+        <div className="mb-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {assignedInterviewers.map((iv) => (
+              <span key={iv.id} className="inline-flex items-center gap-1.5 text-[11px] rounded-full border px-2 py-1" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-semibold" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
+                {iv.name}
+              </span>
+            ))}
+            {assignedInterviewers.length === 0 && (
+              <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+                No interviewers on this role yet, so a poll would have nobody to vote in it.{" "}
+                <button type="button" onClick={() => { setErr(null); setAddingPanel(true); }} className="font-medium underline" style={{ color: "var(--brand)" }}>Add one</button>
+              </p>
+            )}
+          </div>
+
+          {addingPanel && (
+            <div className="mt-2 rounded-xl border p-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              {addablePanel.length === 0 ? (
+                <p className="text-[11px] px-1 py-1" style={{ color: "var(--ink-3)" }}>
+                  {interviewers.some((iv) => isInterviewer(iv.role))
+                    ? "Everyone with the interviewer role is already on this panel."
+                    : "No teammates have the interviewer role yet. Invite one from Team settings."}
+                </p>
+              ) : (
+                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                  {addablePanel.map((iv) => (
+                    <button
+                      key={iv.id}
+                      type="button"
+                      disabled={assignBusy === iv.id}
+                      onClick={() => addToPanel(iv)}
+                      className="w-full flex items-center gap-2 text-left rounded-lg px-2 py-1.5 transition-colors hover:bg-white disabled:opacity-50"
+                    >
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-medium truncate" style={{ color: "var(--ink)" }}>{iv.name}</span>
+                        {iv.email && <span className="block text-[10px] truncate" style={{ color: "var(--ink-3)" }}>{iv.email}</span>}
+                      </span>
+                      <span className="text-[11px] font-medium shrink-0" style={{ color: "var(--brand)" }}>{assignBusy === iv.id ? "Adding…" : "Add"}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Reschedule context: this poll is finding times for an interview that
           didn't go ahead. Remark + the original date. */}
@@ -20303,7 +20387,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -21125,6 +21209,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           assignedInterviewers={assignedInterviewers}
           onInviteSent={onInviteSent}
           onActiveChange={setPollActive}
+          onAssignInterviewer={onAssignInterviewer}
         />
         {!pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (
           <ScheduleInterviewPanel
@@ -25852,6 +25937,7 @@ export default function ResumeAIPreview() {
             activities={activities}
             onOpenNotifications={markActivitiesRead}
             jobAssignments={jobAssignments}
+            onAssignInterviewer={assignInterviewer}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
             insightsCache={insightsCache}
