@@ -246,7 +246,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const name = nameOf();
   // AI Insight: use the stored Claude analysis, else derive from the resume so
   // every profile shows one (same as web).
-  const insights = candidate ? (candidate.experienceInsights || deriveInsights(candidate)) : null;
+  // Two very different things used to share one "AI INSIGHT" banner: a stored
+  // Claude analysis, and deriveInsights() — local arithmetic over the parsed CV
+  // (regex on titles, summed durations, hardcoded company lists). No model runs
+  // for the second, so calling it AI overstated it and left people wondering
+  // what they'd been charged for. Keep the fallback, label it for what it is.
+  const aiInsights = candidate?.experienceInsights || null;
+  const insights = aiInsights || (candidate ? deriveInsights(candidate) : null);
+  const insightsAreAi = !!aiInsights;
 
   // ---- Interview → decision → offer → hired state machine (web sequence) ----
   const scheduledAt = interview?.status === "scheduled" ? interview.scheduledAt : null;
@@ -376,8 +383,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 {insights ? (
                   <View style={{ marginTop: space(4) }}>
                     <View style={styles.aiHead}>
-                      <Feather name="zap" size={14} color={theme.brand} />
-                      <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INSIGHT</Text>
+                      <Feather name={insightsAreAi ? "zap" : "file-text"} size={14} color={insightsAreAi ? theme.brand : theme.ink4} />
+                      <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>
+                        {insightsAreAi ? "AI INSIGHT" : "FROM THE RESUME"}
+                      </Text>
                     </View>
                     <AiInsight insights={insights} />
                   </View>

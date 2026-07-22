@@ -7,23 +7,31 @@ import { fmtYears, fmtMonths } from "@aster/shared";
 import { Feather } from "./ui";
 import { theme, type, space, radius } from "../theme";
 
-function Tile({ label, value, sub, accent }) {
+// One fact per line: label left, value right. Every figure used to sit in its
+// own filled, bordered tile inside an already-bordered card, two to a row —
+// box-in-box chrome that cost more space than the numbers did, and squeezed the
+// labels until real ones truncated ("Software Developm…"). A row gives the label
+// the full width and lets type carry the hierarchy instead.
+function Row({ label, value, sub, accent, last }) {
   return (
-    <View style={[styles.tile, accent && styles.tileAccent]}>
-      <Text style={[styles.tileLabel, accent && { color: theme.brand }]} numberOfLines={1}>{label}</Text>
-      <Text style={[styles.tileValue, accent && { color: theme.brand }]} numberOfLines={1}>{value}</Text>
-      {sub ? <Text style={styles.tileSub} numberOfLines={1}>{sub}</Text> : null}
+    <View style={[styles.row, last && { borderBottomWidth: 0 }]}>
+      <View style={{ flex: 1, paddingRight: 12 }}>
+        <Text style={[styles.rowLabel, accent && { color: theme.brand }]}>{label}</Text>
+        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+      </View>
+      <Text style={[styles.rowValue, accent && styles.rowValueAccent]}>{value}</Text>
     </View>
   );
 }
 
-function Flag({ label, yes }) {
+function Flag({ label, yes, last }) {
   return (
-    <View style={styles.flag}>
-      <Text style={styles.flagLabel} numberOfLines={1}>{label}</Text>
-      <View style={[styles.flagPill, yes ? styles.flagYes : styles.flagNo]}>
-        <Feather name={yes ? "check" : "x"} size={11} color={yes ? "#166534" : theme.ink3} />
-        <Text style={[styles.flagPillTxt, { color: yes ? "#166534" : theme.ink3 }]}>{yes ? "Yes" : "No"}</Text>
+    <View style={[styles.row, last && { borderBottomWidth: 0 }]}>
+      <Text style={[styles.rowLabel, { flex: 1, paddingRight: 12 }]}>{label}</Text>
+      {/* Icon + word, never colour alone. */}
+      <View style={styles.flagVal}>
+        <Feather name={yes ? "check" : "x"} size={13} color={yes ? theme.success : theme.ink4} />
+        <Text style={[styles.flagTxt, { color: yes ? theme.success : theme.ink3 }]}>{yes ? "Yes" : "No"}</Text>
       </View>
     </View>
   );
@@ -41,29 +49,23 @@ export default function AiInsight({ insights }) {
   return (
     <View style={styles.card}>
       <GroupLabel>EXPERIENCE INSIGHTS</GroupLabel>
-      <View style={styles.grid}>
-        <Tile label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
-        <Tile label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
-        {(ei.domain_experience || []).map((d) => (
-          <Tile key={d.domain} label={d.domain} value={fmtYears(d.years)} />
-        ))}
-      </View>
-      <View style={styles.grid}>
-        <Flag label="Startup" yes={ei.startup_experience} />
-        <Flag label="Enterprise" yes={ei.enterprise_experience} />
-        <Flag label="Remote work" yes={ei.remote_work_mentioned} />
-      </View>
+      <Row label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
+      <Row label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
+      {(ei.domain_experience || []).map((d) => (
+        <Row key={d.domain} label={d.domain} value={fmtYears(d.years)} />
+      ))}
+      <Flag label="Startup" yes={ei.startup_experience} />
+      <Flag label="Enterprise" yes={ei.enterprise_experience} />
+      <Flag label="Remote work" yes={ei.remote_work_mentioned} last />
 
       <View style={styles.divider} />
 
       <GroupLabel>EMPLOYMENT ANALYSIS</GroupLabel>
-      <View style={styles.grid}>
-        <Tile label="Employers" value={String(ea.number_of_employers)} />
-        <Tile label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
-        {ea.longest_tenure ? (
-          <Tile label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} />
-        ) : null}
-      </View>
+      <Row label="Employers" value={String(ea.number_of_employers)} />
+      <Row label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
+      {ea.longest_tenure ? (
+        <Row label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} last />
+      ) : null}
 
       {ea.career_progression ? (
         <View style={styles.progression}>
@@ -89,24 +91,24 @@ export default function AiInsight({ insights }) {
   );
 }
 
-const GAP = 8;
 const styles = StyleSheet.create({
   card: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  groupLabel: { ...type.label, color: theme.ink4, marginBottom: space(2) },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP, marginBottom: GAP },
-  tile: { flexGrow: 1, flexBasis: "30%", minWidth: 96, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10 },
-  tileAccent: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
-  tileLabel: { fontFamily: "Inter_500Medium", fontSize: 11, color: theme.ink3 },
-  tileValue: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 16, color: theme.ink, marginTop: 3, fontVariant: ["tabular-nums"] },
-  tileSub: { fontFamily: "Inter_400Regular", fontSize: 11, color: theme.ink3, marginTop: 1 },
-  flag: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexGrow: 1, flexBasis: "30%", minWidth: 96, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10 },
-  flagLabel: { fontFamily: "Inter_500Medium", fontSize: 11, color: theme.ink3, flexShrink: 1 },
-  flagPill: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
-  flagYes: { backgroundColor: "#DCFCE7" },
-  flagNo: { backgroundColor: theme.line2 },
-  flagPillTxt: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
-  divider: { height: 1, backgroundColor: theme.line2, marginVertical: space(3) },
-  progression: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: theme.brandSoft, borderWidth: 1, borderColor: theme.brand, borderRadius: radius.md, padding: 12, marginTop: 2 },
+  groupLabel: { ...type.label, color: theme.ink4, marginBottom: space(1) },
+  // A hairline between rows is the only separator: enough to scan by, without
+  // drawing a container around every number.
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line2 },
+  // No numberOfLines: a real domain name ("Furniture Manufacturing") should wrap
+  // rather than truncate, and on a row it has the width to do so.
+  rowLabel: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink2, lineHeight: 19 },
+  rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: theme.ink4, marginTop: 1 },
+  rowValue: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, color: theme.ink, fontVariant: ["tabular-nums"], textAlign: "right" },
+  // The headline figure earns emphasis from size and colour, not a filled box.
+  rowValueAccent: { fontSize: 19, color: theme.brand },
+  flagVal: { flexDirection: "row", alignItems: "center", gap: 5 },
+  flagTxt: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
+  // Stronger than the row hairlines, so the section break outranks them.
+  divider: { height: 1, backgroundColor: theme.line, marginTop: space(3), marginBottom: space(3) },
+  progression: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: theme.brandSoft, borderRadius: radius.md, padding: 12, marginTop: space(3) },
   progressionTxt: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, color: theme.ink2 },
   gaps: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, padding: 12, marginTop: space(3) },
   gapsTitle: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: "#92400E", marginBottom: 3 },
