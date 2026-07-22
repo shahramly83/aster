@@ -23,6 +23,8 @@ declare
   -- scale 5, elite 10, enterprise unlimited). Roles are inserted as drafts
   -- (always free) and published below only up to that cap.
   v_limit int; v_open int := 0; v_job uuid;
+  owner_name text; owner_email text;
+  p1 uuid; p2 uuid; s1 uuid; s2 uuid; s3 uuid; s4 uuid; s5 uuid;
   a1 uuid; a2 uuid; a3 uuid; a4 uuid; a5 uuid; a6 uuid; a7 uuid; a8 uuid; a9 uuid; a10 uuid;
   a11 uuid; a12 uuid; a13 uuid; a14 uuid; a15 uuid; a16 uuid; a17 uuid; a18 uuid; a19 uuid; a20 uuid;
 begin
@@ -31,7 +33,9 @@ for co in
   where c.id = '7aa5103a-3e9b-4c6c-b306-032bc6a513e8'  -- Lazy Sdn Bhd (tenant@onlazy.com)
 loop
   -- Prefer the owner as author/interviewer; fall back to any profile.
-  select id into owner_id from public.profiles
+  select id, coalesce(full_name, 'Hiring Manager'), coalesce(email, 'hiring@onlazy.com')
+    into owner_id, owner_name, owner_email
+    from public.profiles
     where company_id = co.id order by (role = 'owner') desc, created_at limit 1;
 
   -- ---------- wipe existing workspace (clean re-seed) ----------
@@ -307,12 +311,59 @@ loop
   (co.id,a20,j8,'applied',89,to_jsonb('React Native plus native Android depth; strong release experience.'::text),'LinkedIn','strong');
 
   -- ---------- interviews ----------
-  insert into public.interviews (company_id, candidate_id, job_id, interviewer_id, scheduled_at, status, provider) values
-  (co.id,a1,j1,owner_id, now() + interval '1 day 4 hours','scheduled','google'),
-  (co.id,a7,j3,owner_id, now() + interval '2 days 2 hours','scheduled','google'),
-  (co.id,a11,j5,owner_id, now() + interval '3 days 1 hour','scheduled','google'),
-  (co.id,a14,j7,owner_id, now() + interval '4 days 3 hours','scheduled','google'),
-  (co.id,a17,j2,owner_id, now() + interval '5 days 2 hours','scheduled','google');
+  -- Full coverage for the Interviews tab:
+  --   * UP NEXT   - status 'scheduled', scheduled_at in the future
+  --   * PAST      - status 'scheduled', scheduled_at behind now (the tab derives
+  --                 "past" from the timestamp, there is no separate status)
+  --   * AWAITING  - status 'sent', scheduled_at null + proposed_slots offered to
+  --                 the candidate, who has not picked a time yet
+  --   * RESCHEDULE- status 'reschedule', the candidate could not make the offered
+  --                 times and suggested their own (previous_at keeps the old date)
+  -- proposed_slots is [{start,end}] with ISO-8601 Z strings, which is what the
+  -- scheduling panel parses.
+  insert into public.interviews (company_id, candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, meeting_link, attendees, proposed_slots, reschedule_note, previous_at) values
+  -- Up next (the three nearest, then two more)
+  (co.id,a1,j1,owner_id,owner_name,owner_email, now() + interval '1 day 4 hours','scheduled','google','https://meet.google.com/ast-fron-001',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)), '[]'::jsonb, null, null),
+  (co.id,a7,j3,owner_id,owner_name,owner_email, now() + interval '2 days 2 hours','scheduled','google','https://meet.google.com/ast-desg-002',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)), '[]'::jsonb, null, null),
+  (co.id,a11,j5,owner_id,owner_name,owner_email, now() + interval '3 days 1 hour','scheduled','google','https://meet.google.com/ast-back-003',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)), '[]'::jsonb, null, null),
+  (co.id,a14,j7,owner_id,owner_name,owner_email, now() + interval '4 days 3 hours','scheduled','google','https://meet.google.com/ast-mktg-004',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)), '[]'::jsonb, null, null),
+  (co.id,a17,j2,owner_id,owner_name,owner_email, now() + interval '5 days 2 hours','scheduled','google','https://meet.google.com/ast-wpdv-005',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)), '[]'::jsonb, null, null),
+  -- Past (already happened; these are the ones with scorecards)
+  (co.id,a10,j6,owner_id,owner_name,owner_email, now() - interval '24 days 2 hours','scheduled','google','https://meet.google.com/ast-qaen-101',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email,'attended',true)), '[]'::jsonb, null, null),
+  (co.id,a8,j4,owner_id,owner_name,owner_email, now() - interval '41 days 3 hours','scheduled','google','https://meet.google.com/ast-tale-102',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email,'attended',true)), '[]'::jsonb, null, null),
+  (co.id,a6,j2,owner_id,owner_name,owner_email, now() - interval '9 days 5 hours','scheduled','google','https://meet.google.com/ast-wpdv-103',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email,'attended',true)), '[]'::jsonb, null, null),
+  (co.id,a9,j5,owner_id,owner_name,owner_email, now() - interval '4 days 1 hour','scheduled','google','https://meet.google.com/ast-back-104',
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email,'attended',true)), '[]'::jsonb, null, null),
+  -- Awaiting the candidate: times offered, no reply yet
+  (co.id,a3,j1,owner_id,owner_name,owner_email, null,'sent','google',null,
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)),
+    jsonb_build_array(
+      jsonb_build_object('start', to_char((now() + interval '6 days 2 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'end', to_char((now() + interval '6 days 3 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+      jsonb_build_object('start', to_char((now() + interval '7 days 4 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'end', to_char((now() + interval '7 days 5 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+      jsonb_build_object('start', to_char((now() + interval '8 days 1 hour')  at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'end', to_char((now() + interval '8 days 2 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+    ), null, null),
+  (co.id,a16,j3,owner_id,owner_name,owner_email, null,'sent','google',null,
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)),
+    jsonb_build_array(
+      jsonb_build_object('start', to_char((now() + interval '5 days 6 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'end', to_char((now() + interval '5 days 7 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+      jsonb_build_object('start', to_char((now() + interval '6 days 8 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'end', to_char((now() + interval '6 days 9 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+    ), null, null),
+  -- Candidate could not make the offered times and proposed their own
+  (co.id,a12,j6,owner_id,owner_name,owner_email, null,'reschedule','google',null,
+    jsonb_build_array(jsonb_build_object('id',owner_id,'name',owner_name,'email',owner_email)),
+    jsonb_build_array(
+      jsonb_build_object('start', to_char((now() + interval '9 days 3 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'end', to_char((now() + interval '9 days 4 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+      jsonb_build_object('start', to_char((now() + interval '10 days 2 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'),'end', to_char((now() + interval '10 days 3 hours') at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+    ),
+    'Clashes with my current notice period handover. Could we do later in the week?', now() + interval '2 days 6 hours');
 
   -- ---------- scorecards ----------
   insert into public.scorecards (company_id, candidate_id, job_id, interviewer_id, ratings, notes) values
@@ -321,6 +372,37 @@ loop
   (co.id,a9,j5,owner_id, jsonb_build_object('technical',5,'communication',4,'cultureFit',4,'experience',5),'Excellent depth on query tuning and API design. Strong offer candidate.'),
   (co.id,a10,j6,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',5,'experience',4),'Great automation instincts and ownership. Hired.'),
   (co.id,a7,j3,owner_id, jsonb_build_object('technical',4,'communication',5,'cultureFit',4,'experience',4),'Research-led and articulate. Portfolio backs up the claims.');
+
+  -- ---------- interview polls (panel "which time works?" requests) ----------
+  -- One OPEN poll still collecting votes, and one CLOSED poll that landed on a
+  -- chosen slot. Polls cascade off candidates, so the wipe above clears them.
+  insert into public.interview_polls (company_id, candidate_id, job_id, created_by, status, created_at)
+  values (co.id, a4, j5, owner_id, 'open', now() - interval '2 days')
+  returning id into p1;
+
+  insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
+  (p1, co.id, now() + interval '6 days 2 hours', now() + interval '6 days 3 hours') returning id into s1;
+  insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
+  (p1, co.id, now() + interval '7 days 3 hours', now() + interval '7 days 4 hours') returning id into s2;
+  insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
+  (p1, co.id, now() + interval '8 days 5 hours', now() + interval '8 days 6 hours') returning id into s3;
+
+  -- The owner has voted for the first two slots; the poll is still open.
+  insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name) values
+  (p1, s1, co.id, owner_id, owner_name),
+  (p1, s2, co.id, owner_id, owner_name);
+
+  insert into public.interview_polls (company_id, candidate_id, job_id, created_by, status, chosen_slot, created_at, closed_at)
+  values (co.id, a1, j1, owner_id, 'closed', now() + interval '1 day 4 hours', now() - interval '6 days', now() - interval '4 days')
+  returning id into p2;
+
+  insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
+  (p2, co.id, now() + interval '1 day 4 hours', now() + interval '1 day 5 hours') returning id into s4;
+  insert into public.interview_poll_slots (poll_id, company_id, slot_ts, slot_end) values
+  (p2, co.id, now() + interval '2 days 7 hours', now() + interval '2 days 8 hours') returning id into s5;
+
+  insert into public.interview_poll_votes (poll_id, slot_id, company_id, profile_id, voter_name) values
+  (p2, s4, co.id, owner_id, owner_name);
 
   -- ---------- offers ----------
   -- Mirrors the application stages above: 'offer' stage -> a sent offer awaiting
@@ -357,7 +439,11 @@ loop
   (co.id,'offer_declined','Bryan Lee declined the offer','Backend Engineer offer was turned down',a13,j5,null, now() - interval '9 days'),
   (co.id,'new_application','Ong Wei Jie applied','Applied for Senior Frontend Engineer (React)',a15,j1,null, now() - interval '8 days'),
   (co.id,'new_application','Sofia Ahmad applied','Applied for Product Designer (UI/UX)',a16,j3,null, now() - interval '6 days'),
+  (co.id,'interview_requested','Times sent to Siti Rahman','Senior Frontend Engineer (React), 3 slots offered',a3,j1,owner_id, now() - interval '4 days'),
+  (co.id,'interview_requested','Panel poll opened for Marcus Lim','Backend Engineer (Node.js), waiting on panel votes',a4,j5,owner_id, now() - interval '2 days 4 hours'),
   (co.id,'offer_sent','Offer sent to Kevin Wong','WordPress Developer, RM 6,500 / month',a6,j2,owner_id, now() - interval '2 days'),
+  (co.id,'interview_requested','Aisha Latif proposed new times','QA Engineer, candidate could not make the offered slots',a12,j6,null, now() - interval '1 day 8 hours'),
+  (co.id,'interview_requested','Times sent to Sofia Ahmad','Product Designer (UI/UX), 2 slots offered',a16,j3,owner_id, now() - interval '20 hours'),
   (co.id,'interview_scheduled','Interview scheduled with Amira Hassan','Senior Frontend Engineer (React), tomorrow',a1,j1,owner_id, now() - interval '1 day'),
   (co.id,'offer_sent','Offer sent to Hafiz Ibrahim','Backend Engineer (Node.js), RM 13,000 / month',a9,j5,owner_id, now() - interval '8 hours'),
   (co.id,'new_application','Grace Lim applied','Applied for Mobile Engineer (React Native)',a20,j8,null, now() - interval '3 hours');
