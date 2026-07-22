@@ -54,9 +54,11 @@ export default function AiQuestions({ questions }) {
         return (
           <View key={g.category} style={[styles.group, gi > 0 && { marginTop: 8 }]}>
             <Pressable onPress={() => toggle(g.category)} style={styles.groupHead}>
-              <Text style={styles.cat}>{g.category.toUpperCase()}</Text>
+              {/* Count sits on the right, beside the chevron. Trailing the
+                  category label put it at a different x on every row, so the
+                  numbers never lined up and the eye had to hunt for each one. */}
+              <Text style={[styles.cat, { flex: 1 }]} numberOfLines={1}>{g.category.toUpperCase()}</Text>
               <View style={styles.countPill}><Text style={styles.countTxt}>{g.items.length}</Text></View>
-              <View style={{ flex: 1 }} />
               <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={18} color={theme.ink3} />
             </Pressable>
             {isOpen ? (
@@ -83,7 +85,8 @@ const styles = StyleSheet.create({
   group: { borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, overflow: "hidden" },
   groupHead: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 12, backgroundColor: theme.bg },
   cat: { ...type.label, color: theme.brand },
-  countPill: { marginLeft: 8, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  // minWidth keeps a 1 and a 12 the same width, so the pills form a clean column.
+  countPill: { marginRight: 8, minWidth: 24, alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   countTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: theme.brand, fontVariant: ["tabular-nums"] },
   groupBody: { paddingHorizontal: 12, paddingBottom: 4, backgroundColor: theme.card },
   qRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10 },

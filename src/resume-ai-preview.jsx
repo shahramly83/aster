@@ -16971,6 +16971,16 @@ function InviteHandoffCard({ firstName, slots = [], onPreview }) {
   );
 }
 
+// A ready-to-use video room, so a manager without a Meet/Zoom/Teams link to hand
+// isn't stuck. Jitsi needs no account or install at either end, which is what
+// makes it safe to hand a candidate. Named per candidate so two interviews never
+// land in the same room.
+function makeMeetingRoom(candidateId) {
+  const rand = Math.random().toString(36).slice(2, 10);
+  const tag = String(candidateId || "iv").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
+  return `https://meet.jit.si/Aster-${tag}-${rand}`;
+}
+
 function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBooking, contextJobId, booking, onInviteSent, profile, allBookings = {}, openRequest = null, assignedInterviewers = [], onSubstitute }) {
   const [replacing, setReplacing] = useState(null); // attendee id being swapped out
   // Meeting link: the HM pastes the video-call URL they made and shares it with
@@ -17165,8 +17175,21 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
         <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
           <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Meeting link</p>
           <p className="text-[11px] mt-1 mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-            Now that the time is set, create your video call (Google Meet, Zoom or Teams) and paste the link here. Aster sends it to the candidate and each interviewer, with a note written for each.
+            Paste a link from Google Meet, Zoom or Teams, or have Aster create one. Either way it goes to the candidate and each interviewer, with a note written for each.
           </p>
+          {/* Generate matches the mobile app, which had this and desktop did not.
+              It names the platform: the room is a Jitsi Meet room, which needs no
+              account on either side, and calling it a generic "link" left people
+              guessing what they were about to send a candidate. */}
+          <button
+            type="button"
+            onClick={() => { setLinkInput(makeMeetingRoom(candidate?.id)); setLinkShared(false); setShareErr(null); }}
+            className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-colors hover:bg-[color:var(--brand-soft)]"
+            style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}
+          >
+            <Icon name="link" className="w-3.5 h-3.5" /> Create a Jitsi Meet room
+            <span className="font-normal" style={{ color: "var(--ink-3)" }}>· no account needed</span>
+          </button>
           <div className="flex items-center gap-2">
             <input
               type="url"
