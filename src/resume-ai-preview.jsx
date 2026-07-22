@@ -9150,35 +9150,17 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
 
 function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace = false, avatarUrl, onSignOut, logoUrl, profile, unreadCount = 0, activities = [], onOpenNotifications, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Desktop rail: collapsed to icons by default, expands to a labelled drawer
-  // when the user clicks the dot-grid handle on its right edge (was hover-driven,
-  // which expanded/reflowed the content column unintentionally on pointer pass).
-  const [railOpen, setRailOpen] = useState(false);
 
   return (
     <div className="min-h-screen md:p-4" style={{ background: "#1B1C22" }}>
       <div className="md:flex md:gap-4 md:items-start">
-        {/* Desktop icon rail: collapsed to 76px, expands to a labelled drawer on
-            click and pushes the content across (in-flow, not an overlay). */}
-        <aside className={`relative hidden md:flex ${railOpen ? "w-[236px] shadow-[0_26px_64px_-30px_rgba(15,27,51,0.32)]" : "w-[76px]"} shrink-0 flex-col py-5 rounded-[26px] sticky top-4 self-start`} style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)", transition: "width 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease" }}>
-          <IconSidebar navigate={navigate} active={active} onDashboard={onDashboard} isFreshWorkspace={isFreshWorkspace} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} open={railOpen} />
-          {/* Dot-grid toggle, straddling the right edge at vertical centre. */}
-          <button
-            onClick={() => setRailOpen((o) => !o)}
-            aria-label={railOpen ? "Collapse menu" : "Expand menu"}
-            aria-expanded={railOpen}
-            title={railOpen ? "Collapse menu" : "Expand menu"}
-            className="absolute top-1/2 right-0.5 -translate-y-1/2 z-10 w-5 h-14 flex items-center justify-center transition-opacity hover:opacity-70"
-          >
-            {/* Vertical dotted grip handle (2 x 6), no chip background, hard against the rail edge. */}
-            <svg width="6" height="30" viewBox="0 0 6 30" aria-hidden="true">
-              {[2.5, 7.5, 12.5, 17.5, 22.5, 27.5].flatMap((cy) =>
-                [1.5, 4.5].map((cx) => [cx, cy])
-              ).map(([cx, cy], i) => (
-                <circle key={i} cx={cx} cy={cy} r="1" fill={railOpen ? "var(--brand)" : "var(--ink-3)"} />
-              ))}
-            </svg>
-          </button>
+        {/* Desktop icon rail: a fixed 76px strip of icons. It used to expand to a
+            236px labelled drawer via a dot-grid handle, which pushed the whole
+            content column across and reflowed the page. The hover labels do that
+            job now without moving anything, so the handle and the expanded state
+            are both gone. */}
+        <aside className="relative hidden md:flex w-[76px] shrink-0 flex-col py-5 rounded-[26px] sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)" }}>
+          <IconSidebar navigate={navigate} active={active} onDashboard={onDashboard} isFreshWorkspace={isFreshWorkspace} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
         </aside>
 
         {/* Mobile drawer, keeps the labelled nav */}
