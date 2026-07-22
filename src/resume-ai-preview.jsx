@@ -15776,7 +15776,10 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
   const p = candidate.parsed;
 
   const generate = async () => {
-    if (persisted || !canGenerate) return; // generate once
+    // Regenerating is allowed: a first pass can miss the mark, and the row is
+    // overwritten rather than duplicated, so the panel still reads one set. It
+    // costs another credit, which the confirm below makes explicit.
+    if (!canGenerate || generating) return;
     setGenerating(true);
     const roleTitle = activeJob?.title ?? "this role";
     // Real AI generation, tailored to this candidate + role. Falls back to the
@@ -15829,20 +15832,10 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
     setTimeout(() => setCopiedAll(false), 1500);
   };
 
-  // Questions only become available once the interview is actually scheduled.
-  if (!isScheduled) {
-    return (
-      <div className="mb-6 rounded-2xl tool-card act-shadow px-5 py-4">
-        <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wide mb-1">Interview Questions</h2>
-        <div className="flex items-start gap-2 mt-2">
-          <Icon name="clock" className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-neutral-500">
-            Available once the interview is scheduled.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Previously hidden until the interview was booked. Preparing is exactly what
+  // you do before a booking exists, and the panel votes on times days ahead, so
+  // the gate withheld the questions during the only window there was time to
+  // read them.
 
   const visible = pool ? pool.slice(0, visibleCount) : [];
   const hasMore = pool && visibleCount < pool.length;
@@ -15951,6 +15944,19 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
               </button>
             )}
             <span className="text-xs" style={{ color: "var(--ink-3)" }}>{visible.length} of {pool.length} shown</span>
+            {/* Regenerate. A first pass can miss the mark, and there was no way
+                to ask for a better one. Costs a credit, so it says so and
+                confirms rather than firing on a stray click. */}
+            {canGenerate && (
+              <button
+                onClick={() => { if (window.confirm("Generate a new set of questions? This replaces the current set for the whole panel and uses one credit.")) generate(); }}
+                disabled={generating}
+                className="ml-auto text-xs font-medium inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-[color:var(--brand-soft)] disabled:opacity-50"
+                style={{ color: "var(--brand)" }}
+              >
+                <Icon name="refresh" className="w-3.5 h-3.5" /> {generating ? "Regenerating…" : "Regenerate"}
+              </button>
+            )}
           </div>
         </>
       )}
@@ -21619,6 +21625,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             see them. */}
         {(!isManagerView || ivStep === 1) && (
           <div className="mt-4">
+            {/* canGenerate is open to interviewers now. They are the ones walking
+                into the room, and questions are stored per candidate+role, so the
+                first person to generate pays and the whole panel reads the same
+                set: there is no second charge to guard against. */}
             <InterviewQuestionsPanel
               candidate={candidate}
               jobs={jobs}
@@ -21626,7 +21636,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               isScheduled={questionsUnlocked}
               savedQuestions={savedQuestions}
               onGenerate={onGenerateQuestions}
-              canGenerate={!isInterviewer(profile?.role)}
+              canGenerate
             />
           </div>
         )}

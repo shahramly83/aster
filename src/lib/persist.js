@@ -553,8 +553,11 @@ export async function dbSaveInterviewQuestions(companyId, userId, { candidateId,
   if (!hasSupabase || !companyId || !candidateId || !jobId) return "Not connected to a live workspace.";
   const { error } = await supabase
     .from("interview_questions")
+    // Overwrite on conflict. ignoreDuplicates dropped the new set on the floor,
+    // so regenerating spent a credit and changed nothing. One row per
+    // candidate+job either way, so the panel still reads a single set.
     .upsert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, questions: questions || [], generated_by: userId || null },
-            { onConflict: "candidate_id,job_id", ignoreDuplicates: true });
+            { onConflict: "candidate_id,job_id" });
   if (error) { console.error("dbSaveInterviewQuestions", error.message); return error.message || "Couldn't save the questions."; }
   return null;
 }

@@ -785,14 +785,37 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INTERVIEW QUESTIONS</Text>
               </View>
               {questions.length ? (
-                <AiQuestions questions={questions} />
-              ) : manager ? (
+                <>
+                  <AiQuestions questions={questions} />
+                  {/* A first pass can miss the mark and there was no way to ask
+                      for a better one. Replaces the set for the whole panel and
+                      costs a credit, so it confirms first. */}
+                  <Press
+                    onPress={() => Alert.alert(
+                      "Generate a new set?",
+                      "This replaces the current questions for the whole panel and uses one credit.",
+                      [{ text: "Cancel", style: "cancel" }, { text: "Regenerate", onPress: genQuestions }],
+                    )}
+                    disabled={genQ}
+                    haptic="light"
+                    style={{ marginTop: space(3) }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10 }}>
+                      <Feather name="refresh-cw" size={14} color={theme.brand} />
+                      <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 7 }]}>{genQ ? "Regenerating…" : "Regenerate questions"}</Text>
+                    </View>
+                  </Press>
+                </>
+              ) : (
+                // Open to interviewers too: they are the ones walking into the
+                // room. Questions are stored per candidate+role, so the first
+                // person to generate pays and the whole panel reads the same
+                // set. Waiting on the hiring manager only meant turning up
+                // unprepared when they hadn't got to it.
                 <Card>
                   <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Generate questions tailored to {nameOf().split(" ")[0]}'s resume and this role. The whole panel sees the same set.</Text>
                   <Button title={genQ ? "Generating…" : "Generate questions"} icon={genQ ? undefined : "zap"} onPress={genQuestions} disabled={genQ} />
                 </Card>
-              ) : (
-                <Card><Text style={[type.small, { color: theme.ink3 }]}>The hiring manager will generate tailored interview questions before the call.</Text></Card>
               )}
             </View>
           ) : null}
