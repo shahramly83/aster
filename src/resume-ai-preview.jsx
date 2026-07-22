@@ -20106,8 +20106,8 @@ function InsightsDisplay({ insights }) {
   // its own filled, bordered tile inside an already-bordered card, two or three
   // to a row: box-in-box chrome that cost more space than the numbers, and
   // narrow columns that truncated real labels like "Software Development".
-  const Row = ({ label, value, sub, accent, last }) => (
-    <div className="flex items-center justify-between gap-3 py-2.5" style={last ? undefined : { borderBottom: "1px solid var(--line)" }}>
+  const Row = ({ label, value, sub, accent }) => (
+    <div className="flex items-baseline justify-between gap-4 py-2.5" style={{ borderBottom: "1px solid var(--line)" }}>
       <div className="min-w-0">
         <p className="text-[13px] font-medium" style={{ color: accent ? "var(--brand)" : "var(--ink-2)" }}>{label}</p>
         {sub && <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>}
@@ -20115,8 +20115,8 @@ function InsightsDisplay({ insights }) {
       <p className={`shrink-0 tabular-nums font-semibold ${accent ? "text-lg" : "text-sm"}`} style={{ color: accent ? "var(--brand)" : "var(--ink)" }}>{value}</p>
     </div>
   );
-  const FlagRow = ({ label, yes, last }) => (
-    <div className="flex items-center justify-between gap-3 py-2.5" style={last ? undefined : { borderBottom: "1px solid var(--line)" }}>
+  const FlagRow = ({ label, yes }) => (
+    <div className="flex items-baseline justify-between gap-4 py-2.5" style={{ borderBottom: "1px solid var(--line)" }}>
       <p className="text-[13px] font-medium" style={{ color: "var(--ink-2)" }}>{label}</p>
       {/* Icon plus word, never colour alone. */}
       <span className="shrink-0 inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: yes ? "#16A34A" : "var(--ink-3)" }}>
@@ -20124,28 +20124,37 @@ function InsightsDisplay({ insights }) {
       </span>
     </div>
   );
+  // Two columns from sm up. A single column on a full-width card left a long
+  // run of whitespace between each label and its number, so the eye had to
+  // travel the width of the card to pair them up. Falls back to one column on
+  // narrow screens, where two would squeeze the labels.
+  const grid = "grid sm:grid-cols-2 sm:gap-x-8";
 
   return (
     <div className="space-y-3">
       <div>
         {heading("Experience insights")}
-        <Row label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
-        <Row label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
-        {ei.domain_experience.map((d) => (
-          <Row key={d.domain} label={d.domain} value={fmtYears(d.years)} />
-        ))}
-        <FlagRow label="Startup" yes={ei.startup_experience} />
-        <FlagRow label="Enterprise" yes={ei.enterprise_experience} />
-        <FlagRow label="Remote work" yes={ei.remote_work_mentioned} last />
+        <div className={grid}>
+          <Row label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
+          <Row label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
+          {ei.domain_experience.map((d) => (
+            <Row key={d.domain} label={d.domain} value={fmtYears(d.years)} />
+          ))}
+          <FlagRow label="Startup" yes={ei.startup_experience} />
+          <FlagRow label="Enterprise" yes={ei.enterprise_experience} />
+          <FlagRow label="Remote work" yes={ei.remote_work_mentioned} />
+        </div>
       </div>
 
       <div className="pt-3" style={{ borderTop: "1px solid var(--line)" }}>
         {heading("Employment analysis")}
-        <Row label="Employers" value={String(ea.number_of_employers)} />
-        <Row label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
-        {ea.longest_tenure && (
-          <Row label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} last />
-        )}
+        <div className={grid}>
+          <Row label="Employers" value={String(ea.number_of_employers)} />
+          <Row label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
+          {ea.longest_tenure && (
+            <Row label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} />
+          )}
+        </div>
         {ea.career_progression && (
           <div className="mt-2 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
             <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
