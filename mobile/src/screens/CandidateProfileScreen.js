@@ -18,7 +18,13 @@ import { theme, type, space, radius, shadow } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange, deriveInsights } from "@aster/shared";
 
 // The hiring process, in order. Offer/Hired are shown but managed on web.
-const STEPS = ["applied", "shortlisted", "interviewing", "offer", "hired"];
+// The hiring process proper. "shortlisted" is deliberately NOT here: it is a
+// personal bookmark (candidate_shortlists), not a stage everyone must pass
+// through. It is spliced back in below only for a candidate who is actually
+// sitting in that stage, so data the web app set still renders honestly.
+const STEPS = ["applied", "interviewing", "offer", "hired"];
+const stepsFor = (stage) =>
+  stage === "shortlisted" ? ["applied", "shortlisted", "interviewing", "offer", "hired"] : STEPS;
 
 // "Tue 12 Aug · 2:00–3:00 PM" for a proposed interview slot.
 const _WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -448,11 +454,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
               <ProcessStepper stage={stage} />
               {manager && (stage === "applied" || stage === "shortlisted") ? (
                 <View style={styles.stageActions}>
-                  {stage === "applied" ? (
-                    <Button title="Shortlist" icon="star" onPress={() => moveTo("shortlisted")} />
-                  ) : (
-                    <Button title="Move to interview" icon="calendar" onPress={() => moveTo("interviewing")} />
-                  )}
+                  {/* "Shortlist" used to be the only action offered on an applied
+                      candidate, so reaching an interview took two taps through a
+                      stage that carries no meaning of its own. Move to interview
+                      directly; starring is a bookmark on the applicants list. */}
+                  <Button title="Move to interview" icon="calendar" onPress={() => moveTo("interviewing")} />
                 </View>
               ) : null}
             </Card>
@@ -877,10 +883,11 @@ function ProcessStepper({ stage }) {
       </View>
     );
   }
-  const curIdx = STEPS.indexOf(stage);
+  const steps = stepsFor(stage);
+  const curIdx = steps.indexOf(stage);
   return (
     <View style={{ flexDirection: "row" }}>
-      {STEPS.map((k, i) => {
+      {steps.map((k, i) => {
         const done = curIdx > i;
         const active = curIdx === i;
         return (
