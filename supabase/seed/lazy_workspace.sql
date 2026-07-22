@@ -19,6 +19,10 @@ declare
   owner_id  uuid;
   found_co  boolean := false;
   j1 uuid; j2 uuid; j3 uuid; j4 uuid; j5 uuid; j6 uuid; j7 uuid; j8 uuid;
+  -- Publishing respects the plan's CONCURRENT open-role cap (0071: launch 1,
+  -- scale 5, elite 10, enterprise unlimited). Roles are inserted as drafts
+  -- (always free) and published below only up to that cap.
+  v_limit int; v_open int := 0; v_job uuid;
   a1 uuid; a2 uuid; a3 uuid; a4 uuid; a5 uuid; a6 uuid; a7 uuid; a8 uuid; a9 uuid; a10 uuid;
   a11 uuid; a12 uuid; a13 uuid; a14 uuid; a15 uuid; a16 uuid; a17 uuid; a18 uuid; a19 uuid; a20 uuid;
 begin
@@ -42,7 +46,7 @@ loop
 
   -- ---------- jobs ----------
   insert into public.jobs (company_id, title, status, created_by, details) values
-  (co.id, 'Senior Frontend Engineer (React)', 'open', owner_id, jsonb_build_object(
+  (co.id, 'Senior Frontend Engineer (React)', 'draft', owner_id, jsonb_build_object(
     'department','Engineering','location','Kuala Lumpur','employment_type','full_time',
     'remote_type','hybrid','seniority_level','senior','salary_min',9000,'salary_max',13000,'salary_currency','MYR',
     'description','Lead our design system and component architecture, working closely with design and product.',
@@ -53,7 +57,7 @@ loop
   returning id into j1;
 
   insert into public.jobs (company_id, title, status, created_by, details) values
-  (co.id, 'WordPress Developer', 'open', owner_id, jsonb_build_object(
+  (co.id, 'WordPress Developer', 'draft', owner_id, jsonb_build_object(
     'department','Engineering','location','Petaling Jaya','employment_type','full_time',
     'remote_type','onsite','seniority_level','mid','salary_min',4500,'salary_max',7000,'salary_currency','MYR',
     'description','Build and maintain client websites on WordPress across PHP themes, plugins and custom builds.',
@@ -64,7 +68,7 @@ loop
   returning id into j2;
 
   insert into public.jobs (company_id, title, status, created_by, details) values
-  (co.id, 'Product Designer (UI/UX)', 'open', owner_id, jsonb_build_object(
+  (co.id, 'Product Designer (UI/UX)', 'draft', owner_id, jsonb_build_object(
     'department','Design','location','Kuala Lumpur','employment_type','full_time',
     'remote_type','remote','seniority_level','mid','salary_min',6000,'salary_max',9500,'salary_currency','MYR',
     'description','Own end-to-end product design for our core hiring product, from research to polished UI.',
@@ -86,7 +90,7 @@ loop
   returning id into j4;
 
   insert into public.jobs (company_id, title, status, created_by, details) values
-  (co.id, 'Backend Engineer (Node.js)', 'open', owner_id, jsonb_build_object(
+  (co.id, 'Backend Engineer (Node.js)', 'draft', owner_id, jsonb_build_object(
     'department','Engineering','location','Kuala Lumpur','employment_type','full_time',
     'remote_type','hybrid','seniority_level','senior','salary_min',9500,'salary_max',14000,'salary_currency','MYR',
     'description','Design and scale the APIs and data models behind our hiring platform.',
@@ -97,7 +101,7 @@ loop
   returning id into j5;
 
   insert into public.jobs (company_id, title, status, created_by, details) values
-  (co.id, 'QA Engineer', 'open', owner_id, jsonb_build_object(
+  (co.id, 'QA Engineer', 'draft', owner_id, jsonb_build_object(
     'department','Engineering','location','Petaling Jaya','employment_type','full_time',
     'remote_type','hybrid','seniority_level','mid','salary_min',5500,'salary_max',8500,'salary_currency','MYR',
     'description','Own product quality end to end, from manual exploratory testing to automated regression suites.',
@@ -108,7 +112,7 @@ loop
   returning id into j6;
 
   insert into public.jobs (company_id, title, status, created_by, details) values
-  (co.id, 'Digital Marketing Executive', 'open', owner_id, jsonb_build_object(
+  (co.id, 'Digital Marketing Executive', 'draft', owner_id, jsonb_build_object(
     'department','Marketing','location','Kuala Lumpur','employment_type','full_time',
     'remote_type','hybrid','seniority_level','junior','salary_min',3800,'salary_max',5500,'salary_currency','MYR',
     'description','Grow our brand across search, social and email, and turn traffic into signups.',
@@ -128,6 +132,20 @@ loop
     'skills', jsonb_build_array('React Native','TypeScript','Expo','Mobile'),
     'benefits', jsonb_build_array('Fully remote','Health insurance','Latest devices','Learning budget')))
   returning id into j8;
+
+  -- ---------- publish roles, up to the plan's open-role cap ----------
+  -- Every job above was inserted as a draft, which never takes a slot. Flip the
+  -- roles we want live to 'open' one at a time, stopping at the plan limit, so
+  -- the seed adapts to the workspace's plan instead of aborting with
+  -- "open role limit reached" (0071). j4 stays closed, j8 stays a draft.
+  v_limit := coalesce(public._job_post_limit((select plan from public.companies where id = co.id)), 9999);
+  v_open := 0;
+  foreach v_job in array array[j1, j2, j3, j5, j6, j7] loop
+    exit when v_open >= v_limit;
+    update public.jobs set status = 'open' where id = v_job;
+    v_open := v_open + 1;
+  end loop;
+  raise notice 'Published % of 6 roles (plan cap %)', v_open, v_limit;
 
   -- ---------- candidates (parsed resumes) ----------
   insert into public.candidates (company_id, full_name, email, phone, location, summary, years_experience, skills, file_name, status, has_photo, parsed) values
