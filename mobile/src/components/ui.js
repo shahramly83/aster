@@ -102,14 +102,17 @@ export function IconChip({ name, tint = theme.ink2, bg = theme.line2, size = 44,
 // `onAddPeople` is optional: pass it to surface a user-plus chip ahead of the
 // settings gear (Job Detail uses it to assign interviewers from the header).
 // Screens that don't pass it render exactly as before.
-export function HeaderActions({ unread = 0, onSettings, onBell, onAddPeople, light = false }) {
+export function HeaderActions({ unread = 0, onSettings, onBell, onAddPeople, addPeopleBadge = 0, light = false }) {
   const tint = light ? theme.ink2 : theme.white;
   const bg = light ? theme.line2 : theme.brandPanel;
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       {onAddPeople ? (
         <>
-          <IconChip name="user-plus" tint={tint} bg={bg} onPress={onAddPeople} />
+          {/* Once people are assigned the chip carries the count, so the header
+              answers "how many interviewers?" without opening the sheet. It
+              stays a bare user-plus while the role has nobody on it. */}
+          <IconChip name={addPeopleBadge > 0 ? "users" : "user-plus"} tint={tint} bg={bg} badge={addPeopleBadge} onPress={onAddPeople} />
           <View style={{ width: 10 }} />
         </>
       ) : null}

@@ -186,8 +186,10 @@ export default function JobDetailScreen({ route, navigation }) {
   const rankLabel = ranking ? "Ranking" : rankLocked ? "Ranked" : hasScores ? "Re-run" : "AI Rank";
 
   // ---- Interviewers ----
-  // Assignment now happens only through the header picker sheet, which renders
-  // the full team with an `assigned` checkmark, so no separate assigned list.
+  // Assignment happens through the header picker sheet, which renders the full
+  // team with an `assigned` checkmark. The count rides on the header chip so the
+  // page still answers "who's on this role?" without opening the sheet.
+  const assignedCount = (interviewers || []).filter((m) => m.assigned).length;
   const toggleInterviewer = async (m) => {
     if (savingId) return;
     setSavingId(m.id);
@@ -304,6 +306,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <HeaderActions
               unread={unread}
               onAddPeople={canManageInterviewers ? () => setPickerOpen(true) : undefined}
+              addPeopleBadge={assignedCount}
               onSettings={() => navigation.navigate("Settings")}
               onBell={() => navigation.navigate("Notifications")}
             />
