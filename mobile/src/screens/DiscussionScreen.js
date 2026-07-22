@@ -229,6 +229,16 @@ export default function DiscussionScreen({ route, navigation }) {
         : s)),
     }));
     const err = await togglePollVote({ companyId: profile.companyId, pollId: poll.id, slotId: slot.id, profileId: profile.userId, voterName: profile.name, on });
+    // Round 2 is single-select: the candidate named these times, so each
+    // interviewer names the one they'll attend rather than a range of maybes.
+    // Clear any earlier mark so a second tap moves the choice.
+    if (!err && on && poll.proposedBy === "candidate") {
+      const others = poll.slots.filter((s) => s.mine && s.id !== slot.id);
+      for (const o of others) {
+        await togglePollVote({ companyId: profile.companyId, pollId: poll.id, slotId: o.id, profileId: profile.userId, voterName: profile.name, on: false });
+      }
+      if (others.length) await loadPoll();
+    }
     setSavingSlot(null);
     if (err) { Alert.alert("Couldn't update", err); loadPoll(); }
   };

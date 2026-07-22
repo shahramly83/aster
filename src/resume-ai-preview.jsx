@@ -16554,7 +16554,18 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const toggle = async (slot) => {
     if (busy) return;
     setBusy(slot.id); setErr(null);
-    const e = await dbTogglePollVote({ companyId, pollId: poll.id, slotId: slot.id, profileId: currentUserId, voterName: myName, on: !slot.mine });
+    const turningOn = !slot.mine;
+    const e = await dbTogglePollVote({ companyId, pollId: poll.id, slotId: slot.id, profileId: currentUserId, voterName: myName, on: turningOn });
+    if (!e && turningOn && round2) {
+      // Round 2 is single-select: the candidate named these times, so each
+      // interviewer names the one they'll attend rather than a range of
+      // maybes. Clear any earlier mark of theirs so a second tap moves the
+      // choice instead of adding to it.
+      const others = poll.slots.filter((s) => s.mine && s.id !== slot.id);
+      for (const o of others) {
+        await dbTogglePollVote({ companyId, pollId: poll.id, slotId: o.id, profileId: currentUserId, voterName: myName, on: false });
+      }
+    }
     setBusy(null);
     if (e) { setErr(e); return; }
     await load();
@@ -16867,7 +16878,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             </>
           ) : poll.status === "open" && round2 ? (
             <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
-              {isManager ? "The candidate agreed to these times. The panel's votes show who else can make it. Confirm one to book it." : "Mark the candidate's times you can make."}
+              {isManager ? "The candidate agreed to these times. The panel's votes show who else can make it. Confirm one to book it." : "Pick the one time you can make. Tapping another moves your choice."}
             </p>
           ) : null}
         </>
