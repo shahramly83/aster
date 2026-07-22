@@ -9015,6 +9015,19 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
   // under different names, making the tour reappear every refresh. Per-user
   // correctness comes from the server onboarding map (keyed by auth.uid()); this
   // is just a same-browser cache.
+  // Hover label for the collapsed rail. The rail is overflow-hidden (so the
+  // expand animation can slide labels in), which would clip a CSS-only tooltip,
+  // so it is measured and portalled to the body like the onboarding bubble.
+  // Replaces title="", whose ~1s browser delay and OS styling made an icon-only
+  // rail feel unlabelled.
+  const [tip, setTip] = useState(null); // { label, top, left }
+  const showTip = (e, label) => {
+    if (open) return; // labels are already visible when expanded
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ label, top: r.top + r.height / 2, left: r.right });
+  };
+  const hideTip = () => setTip(null);
+
   const profileKey = `aster.onboard.profile`;
   const jobsKey = `aster.hint.postjob`;
   const [jobsDismissed, setJobsDismissed] = useState(() => onboardingDone(profile, "postjob", jobsKey));
@@ -9059,14 +9072,16 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
       <button
         key={item.key}
         ref={activeHint && item.key === activeHint ? targetRef : undefined}
-        onClick={() => navigate(item.key)}
-        title={item.label}
+        onClick={() => { hideTip(); navigate(item.key); }}
         aria-label={item.label}
         aria-current={on ? "page" : undefined}
         className={`relative w-full h-11 rounded-xl flex items-center transition-[gap,padding,justify-content,color] duration-300 ${open ? "justify-start px-3.5 gap-3" : "justify-center gap-0"} ${item.key === activeHint ? "tour-pulse" : ""}`}
         style={{ color: on ? "#fff" : "var(--ink-2)" }}
-        onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--brand)"; }}
-        onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; }}
+        onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--brand)"; showTip(e, item.label); }}
+        onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--ink-2)"; hideTip(); }}
+        // Keyboard users tabbing the rail get the same label, not just pointers.
+        onFocus={(e) => showTip(e, item.label)}
+        onBlur={hideTip}
       >
         {on && <span className="absolute inset-0 rounded-xl brand-gradient shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.9)]" />}
         <span className="relative shrink-0 flex items-center justify-center">
@@ -9096,6 +9111,23 @@ function IconSidebar({ navigate, active, onDashboard = false, isFreshWorkspace =
         {isOwner(profile?.role) && railBtn({ key: "billing", label: "Billing", icon: "card" })}
         {!isInterviewer(profile?.role) && railBtn({ key: "settings", label: "Settings", icon: "settings" })}
       </div>
+      {/* Rail hover label. Rendered above the icon's own hit area and
+          pointer-events-none, so it can never sit between the cursor and the
+          button it describes and flicker. */}
+      {tip && !open && typeof document !== "undefined" && createPortal(
+        <div
+          role="tooltip"
+          className="pointer-events-none"
+          style={{ position: "fixed", top: tip.top, left: tip.left + 12, transform: "translateY(-50%)", zIndex: 100 }}
+        >
+          <div className="relative rounded-lg px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-white shadow-[0_8px_24px_-8px_rgba(10,11,30,0.55)]" style={{ background: "var(--ink)" }}>
+            {/* Caret: a rotated square tucked behind the bubble's left edge. */}
+            <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 rounded-[1px]" style={{ background: "var(--ink)" }} />
+            <span className="relative">{tip.label}</span>
+          </div>
+        </div>,
+        document.body
+      )}
       {activeHint && hintPos && typeof document !== "undefined" && createPortal(
         showProfileHint ? (
           <div style={{ position: "fixed", top: hintPos.top, left: hintPos.left + 18, transform: "translateY(-50%)", zIndex: 100 }}>
