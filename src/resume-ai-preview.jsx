@@ -9672,6 +9672,7 @@ const ACTIVITY_META = {
   hired:               { icon: "check",    accent: "#16A34A", dotColor: "bg-emerald-500", target: { screen: "candidates", filter: { hired: true } } },
   scorecard:           { icon: "check",    accent: "#0B2AE0", dotColor: "bg-blue-500",    target: { screen: "candidates" } },
   role_requested:      { icon: "briefcase",accent: "#6366F1", dotColor: "bg-indigo-500",  target: { screen: "jobs" } },
+  teammate_joined:     { icon: "userPlus", accent: "#0EA5E9", dotColor: "bg-sky-500",     target: { screen: "interviewers" } },
 };
 // Map an activity_log row to the bell's feed-item shape.
 function mapActivityRow(row, seenAt = null) {
@@ -24307,6 +24308,16 @@ export default function ResumeAIPreview() {
     WORKSPACE_SCREENS.has(rawScreen) && !INTERVIEWER_ALLOWED.has(rawScreen)
       ? homeForRole(profile?.role)
       : rawScreen;
+  // An invited teammate has actually turned up, which is different from having
+  // redeemed the invite: tell the owner/admins in their bell and on their phone.
+  // notify-first-login claims the profiles.first_login_at stamp with an
+  // `is null` filter, so firing on every session is safe and two tabs opening
+  // together still produce one notification. Fire-and-forget: the sign-in has
+  // already succeeded and must not depend on this.
+  useEffect(() => {
+    if (!hasSupabase || !canPersist || !userId) return;
+    supabase.functions.invoke("notify-first-login").catch(() => {});
+  }, [canPersist, userId]);
   const [newJobOpen, setNewJobOpen] = useState(false);
   const [requestRoleOpen, setRequestRoleOpen] = useState(false); // interviewer's "Request a role" modal
   // Hiring manager approves / rejects an interviewer's role request. Approving

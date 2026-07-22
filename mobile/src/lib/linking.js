@@ -13,6 +13,7 @@ export const linking = {
           DashboardTab: "pipeline",
           TodayTab: "today",
           PositionsTab: "positions",
+          TeamsTab: "team",
           ProfileTab: "me",
         },
       },

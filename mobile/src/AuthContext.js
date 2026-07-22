@@ -35,6 +35,11 @@ export function AuthProvider({ children }) {
       setAssignedJobIds(ids);
       setProfile(s);
       registerForPush(s.userId).catch(() => {});
+      // Tell the owner/admins this teammate has actually turned up. An
+      // interviewer may only ever open the phone app, so the web app firing
+      // this is not enough. The stamp is claimed server-side with an `is null`
+      // filter, so web and mobile racing still yields one notification.
+      supabase.functions.invoke("notify-first-login").catch(() => {});
     } else {
       setProfile(null);
       setAssignedJobIds([]);
