@@ -18,14 +18,14 @@ export type Meter = "ai_rank" | "ai_insight" | "interview_questions" | "see_why"
 // monthly pool first, then any purchased balance of the matching kind, and reports
 // which via `source`. The other meters have no top-up yet and use the plain
 // bump/refund pair.
-const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "consume_ai_insight", interview_questions: "bump_interview_questions", see_why: "bump_see_why" };
+const BUMP: Record<Meter, string> = { ai_rank: "consume_ai_rank", ai_insight: "consume_ai_insight", interview_questions: "consume_interview_questions", see_why: "bump_see_why" };
 const REFUND: Record<Meter, string> = { ai_rank: "refund_ai_rank_for", ai_insight: "refund_ai_insight_for", interview_questions: "refund_interview_questions_for", see_why: "refund_see_why_for" };
 // Which purchased credit kind backs each meter.
-const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank", ai_insight: "ai_insight" };
+const PURCHASED_KIND: Partial<Record<Meter, string>> = { ai_rank: "ai_rank", ai_insight: "ai_insight", interview_questions: "interview_questions" };
 // Legacy monthly-only meter to fall back to if the top-up-aware consume_* RPC
 // isn't deployed yet (partial migration). Keeps the feature working; it just
 // won't draw from purchased credits until the migration lands.
-const LEGACY_BUMP: Partial<Record<Meter, string>> = { ai_rank: "bump_ai_rank", ai_insight: "bump_ai_insight" };
+const LEGACY_BUMP: Partial<Record<Meter, string>> = { ai_rank: "bump_ai_rank", ai_insight: "bump_ai_insight", interview_questions: "bump_interview_questions" };
 
 export interface Charge {
   ok: boolean;              // false = out of credits, caller must not call the model

@@ -10767,11 +10767,12 @@ const CREDIT_KINDS = [
   { k: "applicant_screen", label: "Applicant screening", sub: "Inbound applications" },
   { k: "ai_rank", label: "AI Rank", sub: "Rank & shortlist" },
   { k: "ai_insight", label: "AI Insight", sub: "Candidate deep-dive" },
+  { k: "interview_questions", label: "AI Questions", sub: "Tailored interview questions" },
 ];
 // Base per-credit price in USD; the shown price is this times the currency's rate
 // (currency_rates, editable in /admin) times the plan discount. buy-credits does
 // the same server-side, so display and charge agree.
-const CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4 };
+const CREDIT_USD = { resume_screen: 1, applicant_screen: 1, ai_rank: 0.4, ai_insight: 0.4, interview_questions: 0.4 };
 const CUR_SYMBOL = { usd: "$", myr: "RM", sgd: "S$" };
 // Editable currency rates (USD = 1), mirrored here and refreshed from the DB at
 // app load so any Buy-credits button prices in the workspace currency.
@@ -20810,7 +20811,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // Purchased AI Insight top-up: monthly pool first, then this balance. Only truly
   // blocked (and only then do we push to buy) when BOTH are empty.
   const [purchasedAiInsight, reloadPurchasedAiInsight] = usePurchasedBalance("ai_insight");
+  const [purchasedQuestions, reloadPurchasedQuestions] = usePurchasedBalance("interview_questions");
   const [buyInsightOpen, setBuyInsightOpen] = useState(false);
+  const [buyQuestionsOpen, setBuyQuestionsOpen] = useState(false);
   const [insightErr, setInsightErr] = useState(null);
   const outOfInsightCredits = outOfInsights && purchasedAiInsight <= 0;
   const insightsOnPurchased = outOfInsights && purchasedAiInsight > 0;
@@ -22052,6 +22055,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   onManage: () => navigate("billing"),
                   onUpgrade: () => navigate("billing"),
                   upgradeLabel: "Upgrade for more",
+                  purchased: purchasedQuestions,
+                  onBuyCredits: () => setBuyQuestionsOpen(true),
                 })}
               />
             )}
@@ -22063,6 +22068,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               the click set the state with no modal in the tree and nothing
               happened. */}
           <BuyCreditsModal open={buyInsightOpen} onClose={() => { setBuyInsightOpen(false); reloadPurchasedAiInsight(); }} plan={plan} kind="ai_insight" />
+          <BuyCreditsModal open={buyQuestionsOpen} onClose={() => { setBuyQuestionsOpen(false); reloadPurchasedQuestions(); }} plan={plan} kind="interview_questions" />
         </div>{/* two-column grid */}
       </div>
       {showPdf && <ResumePdfModal candidate={candidate} onClose={() => setShowPdf(false)} />}
