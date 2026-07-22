@@ -35,6 +35,9 @@ loop
   -- offers; deleting jobs cascades to job_views and role assignments.
   delete from public.candidates where company_id = co.id;
   delete from public.jobs where company_id = co.id;
+  -- activity_log.candidate_id / job_id are plain uuids (no FK), so these rows do
+  -- NOT cascade with the deletes above and would pile up on every re-run.
+  delete from public.activity_log where company_id = co.id;
   found_co := true;
 
   -- ---------- jobs ----------
@@ -300,6 +303,46 @@ loop
   (co.id,a9,j5,owner_id, jsonb_build_object('technical',5,'communication',4,'cultureFit',4,'experience',5),'Excellent depth on query tuning and API design. Strong offer candidate.'),
   (co.id,a10,j6,owner_id, jsonb_build_object('technical',4,'communication',4,'cultureFit',5,'experience',4),'Great automation instincts and ownership. Hired.'),
   (co.id,a7,j3,owner_id, jsonb_build_object('technical',4,'communication',5,'cultureFit',4,'experience',4),'Research-led and articulate. Portfolio backs up the claims.');
+
+  -- ---------- offers ----------
+  -- Mirrors the application stages above: 'offer' stage -> a sent offer awaiting
+  -- a response; 'hired' -> an accepted + signed offer; 'declined' -> the
+  -- candidate turned it down. Signed rows carry Aster Sign fields.
+  insert into public.offers (company_id, candidate_id, job_id, status, offer_job_title, base_salary, salary_currency, employment_type, start_date, expires_at, message, viewed_at, responded_at, signed_name, signature_type, signed_at, esign_status) values
+  -- Awaiting response
+  (co.id,a6,j2,'sent','WordPress Developer',6500,'MYR','full_time',(now() + interval '30 days')::date,(now() + interval '7 days')::date,
+   'We were impressed by your WooCommerce depth and would love to have you on the team.', now() - interval '1 day', null, null, null, null, 'sent'),
+  (co.id,a9,j5,'sent','Backend Engineer (Node.js)',13000,'MYR','full_time',(now() + interval '45 days')::date,(now() + interval '10 days')::date,
+   'Your API and PostgreSQL experience is exactly what we need as we scale.', now() - interval '6 hours', null, null, null, null, 'sent'),
+  -- Accepted and signed
+  (co.id,a8,j4,'accepted','Talent Acquisition Specialist',7000,'MYR','full_time',(now() - interval '20 days')::date,(now() - interval '35 days')::date,
+   'Delighted to offer you the role. Looking forward to building the hiring team with you.', now() - interval '40 days', now() - interval '38 days', 'Farah Adya','typed', now() - interval '38 days','signed'),
+  (co.id,a10,j6,'accepted','QA Engineer',8000,'MYR','full_time',(now() - interval '5 days')::date,(now() - interval '18 days')::date,
+   'Your automation work stood out. Welcome aboard.', now() - interval '22 days', now() - interval '21 days', 'Chloe Tan','drawn', now() - interval '21 days','signed'),
+  -- Declined by the candidate
+  (co.id,a13,j5,'declined','Backend Engineer (Node.js)',11500,'MYR','full_time',(now() + interval '30 days')::date,(now() - interval '3 days')::date,
+   'We think you would be a great addition to the backend team.', now() - interval '12 days', now() - interval '9 days', null, null, null, 'declined'),
+  (co.id,a19,j6,'declined','QA Engineer',8500,'MYR','full_time',(now() + interval '21 days')::date,(now() - interval '2 days')::date,
+   'We would love for you to lead quality here.', now() - interval '14 days', now() - interval '11 days', null, null, null, 'declined');
+
+  -- ---------- activity log (populates the notifications feed) ----------
+  -- Spread across the last few weeks, newest last so the feed has depth.
+  insert into public.activity_log (company_id, type, title, description, candidate_id, job_id, actor_id, created_at) values
+  (co.id,'new_application','Farah Adya applied','Applied for Talent Acquisition Specialist',a8,j4,null, now() - interval '45 days'),
+  (co.id,'offer_signed','Farah Adya signed their offer','Talent Acquisition Specialist offer accepted',a8,j4,null, now() - interval '38 days'),
+  (co.id,'hired','Farah Adya was hired','Started as Talent Acquisition Specialist',a8,j4,owner_id, now() - interval '37 days'),
+  (co.id,'new_application','Chloe Tan applied','Applied for QA Engineer',a10,j6,null, now() - interval '30 days'),
+  (co.id,'scorecard','Scorecard submitted for Chloe Tan','QA Engineer interview scored 4.25/5',a10,j6,owner_id, now() - interval '24 days'),
+  (co.id,'offer_signed','Chloe Tan signed their offer','QA Engineer offer accepted',a10,j6,null, now() - interval '21 days'),
+  (co.id,'hired','Chloe Tan was hired','Started as QA Engineer',a10,j6,owner_id, now() - interval '20 days'),
+  (co.id,'offer_declined','Zainal Abidin declined the offer','QA Engineer offer was turned down',a19,j6,null, now() - interval '11 days'),
+  (co.id,'offer_declined','Bryan Lee declined the offer','Backend Engineer offer was turned down',a13,j5,null, now() - interval '9 days'),
+  (co.id,'new_application','Ong Wei Jie applied','Applied for Senior Frontend Engineer (React)',a15,j1,null, now() - interval '8 days'),
+  (co.id,'new_application','Sofia Ahmad applied','Applied for Product Designer (UI/UX)',a16,j3,null, now() - interval '6 days'),
+  (co.id,'offer_sent','Offer sent to Kevin Wong','WordPress Developer, RM 6,500 / month',a6,j2,owner_id, now() - interval '2 days'),
+  (co.id,'interview_scheduled','Interview scheduled with Amira Hassan','Senior Frontend Engineer (React), tomorrow',a1,j1,owner_id, now() - interval '1 day'),
+  (co.id,'offer_sent','Offer sent to Hafiz Ibrahim','Backend Engineer (Node.js), RM 13,000 / month',a9,j5,owner_id, now() - interval '8 hours'),
+  (co.id,'new_application','Grace Lim applied','Applied for Mobile Engineer (React Native)',a20,j8,null, now() - interval '3 hours');
 
   raise notice 'Seeded expanded sample workspace for company %', co.id;
 end loop;
