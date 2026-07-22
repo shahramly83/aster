@@ -20987,7 +20987,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     } catch (_e) {
       // Surface the failure instead of silently showing a local (non-AI, uncharged,
       // unsaved) read that looks real. No credit was spent, so the user can retry.
-      setInsightErr("AI Insight didn't run. No credit was used. Please try again in a moment.");
+      setInsightErr("AI Insights didn't run. No credit was used. Please try again in a moment.");
     } finally {
       setGenerating(false);
     }
@@ -21013,7 +21013,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
-          <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>AI Experience Insights</h2>
+          <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>AI Insights</h2>
           <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." />
         </div>
         {insights && <span className="text-[11px] shrink-0 mt-1.5" style={{ color: "var(--ink-3)" }}>Generated {new Date(insights.generated_at).toLocaleDateString()}</span>}
@@ -21950,7 +21950,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {!insightsUnlimited && (
               <UsageMeter
                 plan={plan}
-                title="AI Insight"
+                title="AI Insights"
                 hint={isInterviewer(profile?.role)
                   ? "Each AI Insight run uses one of the workspace's credits, shared across the team. A candidate is only ever analysed once."
                   : "Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."}

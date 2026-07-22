@@ -403,7 +403,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     <>
                       <View style={styles.aiHead}>
                         <Feather name="zap" size={14} color={theme.brand} />
-                        <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INSIGHT</Text>
+                        <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INSIGHTS</Text>
                         {insights.generated_at ? (
                           <Text style={[type.small, { color: theme.ink4, marginLeft: "auto" }]}>
                             {new Date(insights.generated_at).toLocaleDateString()}
@@ -422,7 +422,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <View style={styles.exploreIcon}><Feather name="zap" size={16} color={theme.brand} /></View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                          <Text style={[type.bodyStrong, { color: theme.ink }]}>AI Insight</Text>
+                          <Text style={[type.bodyStrong, { color: theme.ink }]}>AI Insights</Text>
                         </View>
                         <Pressable
                           onPress={generateInsights}

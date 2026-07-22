@@ -283,7 +283,7 @@ export async function runExperienceInsights(candidate) {
   let body = data;
   if (error) { try { body = await error.context?.json?.(); } catch { /* non-JSON */ } }
   if (body?.error === "limit_reached") return { ok: false, limitReached: true, used: body.used, limit: body.monthly_limit };
-  if (error || body?.error || !body?.insights) return { ok: false, error: "AI Insight didn't run. No credit was used." };
+  if (error || body?.error || !body?.insights) return { ok: false, error: "AI Insights didn't run. No credit was used." };
   return { ok: true, insights: body.insights, used: body.used, limit: body.monthly_limit };
 }
 
