@@ -16627,9 +16627,16 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                       onClick={() => toggle(slot)}
                       disabled={disabled}
                       className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 transition-all disabled:opacity-50"
-                      style={slot.mine ? { background: "#16A34A", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
+                      // Brand blue for the selected state, as every other active
+                      // control uses. The green here was an off-palette raw hex
+                      // marking a selection, which reads as a success outcome
+                      // rather than "this one is picked".
+                      style={slot.mine ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
                     >
-                      {slot.mine ? <><Icon name="check" className="w-3 h-3" /> I can make it</> : "Mark available"}
+                      {/* Both states stay in the same voice. "I can make it" was
+                          first person while its own unselected state was an
+                          imperative, so the control changed who was speaking. */}
+                      {slot.mine ? <><Icon name="check" className="w-3 h-3" /> Available</> : "Mark available"}
                     </button>
                   )}
                 </div>
