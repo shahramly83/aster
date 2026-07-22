@@ -15754,7 +15754,7 @@ function buildQuestionPool(p, roleTitle) {
   return pool;
 }
 
-function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, savedQuestions = null, onGenerate, canGenerate = false }) {
+function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, savedQuestions = null, onGenerate, canGenerate = false, canRegenerate = false }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   const fixedJob = contextJobId ? jobs.find((j) => j.id === contextJobId) : null;
   const [jobId, setJobId] = useState(fixedJob?.id ?? openJobs[0]?.id ?? "");
@@ -15770,6 +15770,7 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
   const [loadingMore, setLoadingMore] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [genErr, setGenErr] = useState(null);
 
   const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
   const activeJob = fixedJob ?? openJobs.find((j) => j.id === jobId);
@@ -15783,19 +15784,39 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
     setGenerating(true);
     const roleTitle = activeJob?.title ?? "this role";
     // Real AI generation, tailored to this candidate + role. Falls back to the
-    // local template if there's no backend, the call fails, or credits are out
-    // (the template is free, so a degraded set beats no questions at all).
+    // The local template is the fallback when there is no backend at all (the
+    // demo build). It is NOT a fallback for running out of credits: doing that
+    // saved generic questions that looked AI-written and let a capped workspace
+    // believe it was still getting tailored sets. Say the cap out loud instead.
     let built = null;
+    setGenErr(null);
     if (hasSupabase) {
       try {
         const { data, error } = await supabase.functions.invoke("generate-interview-questions", { body: { candidate, jobTitle: roleTitle } });
-        if (!error && Array.isArray(data?.questions) && data.questions.length) {
-          const order = ["Technical", "Experience", "Role fit", "Behavioral", "Depth check", "Collaboration", "Motivation"];
-          built = data.questions.slice().sort((a, b) => (order.indexOf(a.category) + 1 || 99) - (order.indexOf(b.category) + 1 || 99));
+        let body = data;
+        if (error) { try { body = await error.context?.json?.(); } catch { /* non-JSON */ } }
+        if (body?.error === "insufficient_credits" || body?.error === "limit_reached") {
+          setGenErr("You're out of AI question credits this cycle. Upgrade or top up to generate a new set.");
+          setGenerating(false);
+          return;
         }
-      } catch { /* fall back below */ }
+        if (!error && Array.isArray(body?.questions) && body.questions.length) {
+          const order = ["Technical", "Experience", "Role fit", "Behavioral", "Depth check", "Collaboration", "Motivation"];
+          built = body.questions.slice().sort((a, b) => (order.indexOf(a.category) + 1 || 99) - (order.indexOf(b.category) + 1 || 99));
+        }
+        if (!built) {
+          // A real failure, already refunded server-side, so no credit was spent.
+          setGenErr("Couldn't generate the questions. No credit was used. Please try again in a moment.");
+          setGenerating(false);
+          return;
+        }
+      } catch {
+        setGenErr("Couldn't generate the questions. No credit was used. Please try again in a moment.");
+        setGenerating(false);
+        return;
+      }
     }
-    if (!built) built = buildQuestionPool(p, roleTitle);
+    if (!built) built = buildQuestionPool(p, roleTitle); // demo build only
     setLocalPool(built);
     setVisibleCount(5);
     setGenerating(false);
@@ -15873,6 +15894,10 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
         </div>
       )}
 
+      {genErr && (
+        <p role="alert" className="text-xs mb-3 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{genErr}</p>
+      )}
+
       {!pool ? (
         canGenerate ? (
           <button
@@ -15947,7 +15972,11 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
             {/* Regenerate. A first pass can miss the mark, and there was no way
                 to ask for a better one. Costs a credit, so it says so and
                 confirms rather than firing on a stray click. */}
-            {canGenerate && (
+            {/* Replacing is the hiring manager's call, not any panel member's.
+                It overwrites a set the rest of the panel may already have read,
+                and an uncapped regenerate is the one path that could drain a
+                month of credits on a single candidate. */}
+            {canRegenerate && (
               <button
                 onClick={() => { if (window.confirm("Generate a new set of questions? This replaces the current set for the whole panel and uses one credit.")) generate(); }}
                 disabled={generating}
@@ -21070,7 +21099,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         </div>
       )}
 
-      <BuyCreditsModal open={buyInsightOpen} onClose={() => { setBuyInsightOpen(false); reloadPurchasedAiInsight(); }} plan={plan} kind="ai_insight" />
     </div>
   );
 
@@ -21637,6 +21665,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               savedQuestions={savedQuestions}
               onGenerate={onGenerateQuestions}
               canGenerate
+              canRegenerate={!isInterviewer(profile?.role)}
             />
           </div>
         )}
@@ -21986,6 +22015,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             )}
             {quickFacts}
           </aside>
+          {/* Mounted at the screen, not inside the AI Insights card. The card
+              only renders on the Profile tab, but the meter's Buy credits button
+              lives in the sidebar on every tab, so from Interview or Scorecard
+              the click set the state with no modal in the tree and nothing
+              happened. */}
+          <BuyCreditsModal open={buyInsightOpen} onClose={() => { setBuyInsightOpen(false); reloadPurchasedAiInsight(); }} plan={plan} kind="ai_insight" />
         </div>{/* two-column grid */}
       </div>
       {showPdf && <ResumePdfModal candidate={candidate} onClose={() => setShowPdf(false)} />}
