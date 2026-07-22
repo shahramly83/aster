@@ -82,6 +82,7 @@ export default function DiscussionScreen({ route, navigation }) {
   const [poll, setPoll] = useState(null);
   const [pollProgress, setPollProgress] = useState(null); // { voted, total, pendingNames } for the manager
   const [interviewToken, setInterviewToken] = useState(null); // for confirming a round-2 slot
+  const [rescheduleNote, setRescheduleNote] = useState(null); // the candidate's reason for declining
   const [confirming, setConfirming] = useState(null); // slot ts being confirmed
   const [savingSlot, setSavingSlot] = useState(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -138,6 +139,7 @@ export default function DiscussionScreen({ route, navigation }) {
     const activePoll = (iv?.status === "scheduled" || iv?.status === "sent") ? null : p;
     setPoll(activePoll);
     setInterviewToken(iv?.token || null);
+    setRescheduleNote(iv?.rescheduleNote || null);
     setSentInterview(iv?.status === "sent");
     // For the manager (usually the poll creator), track whether the panel has
     // finished voting. Expected voters = assigned interviewers minus the creator.
@@ -386,6 +388,7 @@ export default function DiscussionScreen({ route, navigation }) {
               <>
                 {poll ? (
                   <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} onConfirm={confirmSlot} confirming={confirming}
+                    rescheduleNote={rescheduleNote}
                     selectMode={selectMode} selected={selected} onToggleSelect={toggleSelect} onSendOffer={sendOffer} sendingOffer={sendingOffer}
                     canOverride={manager && !round2 && !allVoted && !noPanel && !override} onOverride={() => setOverride(true)} />
                 ) : sentInterview ? (
@@ -510,7 +513,7 @@ function LoneMarkSheet({ visible, marks = [], minMarks = 2, clearing, onKeepMark
   );
 }
 
-function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm, confirming,
+function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm, confirming, rescheduleNote = null,
   selectMode = false, selected, onToggleSelect, onSendOffer, sendingOffer, canOverride, onOverride }) {
   const open = poll.status === "open";
   const isCandidate = poll.proposedBy === "candidate"; // round 2: candidate suggested these
@@ -531,6 +534,18 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
           <Text style={[type.smallStrong, { color: open ? theme.brand : "#166534" }]}>{open ? "Open" : "Scheduled"}</Text>
         </View>
       </View>
+
+      {/* The candidate's own reason for declining. It is often the whole story
+          (a clash, a notice period, an offer elsewhere) and was only rendered on
+          the candidate profile, so on this card it went nowhere. */}
+      {isCandidate && rescheduleNote ? (
+        <View style={styles.noteBox}>
+          <Feather name="message-circle" size={13} color="#92400E" style={{ marginTop: 2 }} />
+          <Text style={[type.small, { color: "#92400E", marginLeft: 8, flex: 1, fontStyle: "italic", lineHeight: 18 }]}>
+            &ldquo;{rescheduleNote}&rdquo;
+          </Text>
+        </View>
+      ) : null}
 
       {/* Manager sees voting progress (they created it, so they don't vote). */}
       {open && manager && !selectMode && progress && progress.total > 0 ? (
@@ -749,6 +764,7 @@ const styles = StyleSheet.create({
   // Poll card
   pollCard: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, padding: space(4), marginBottom: space(4) },
   pollHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  noteBox: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFFBEB", borderColor: "#FDE68A", borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
   pollStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   voteProgress: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
   voteProgressDone: { backgroundColor: "#F0FDF4" },

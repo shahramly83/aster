@@ -16694,9 +16694,21 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
       {booking?.status === "reschedule" && (
         <div className="mb-3 rounded-xl px-3 py-2 flex items-start gap-2" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
           <Icon name="refresh" className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#B42318" }} />
-          <p className="text-[11px] leading-relaxed" style={{ color: "#B42318" }}>
-            <span className="font-semibold">Rescheduled interview.</span>{booking?.previousAt ? ` The original was ${formatSlotDisplay(booking.previousAt)}. These times replace it.` : " Finding new times to replace the original."}
-          </p>
+          <div className="min-w-0">
+            <p className="text-[11px] leading-relaxed" style={{ color: "#B42318" }}>
+              <span className="font-semibold">Rescheduled interview.</span>{booking?.previousAt ? ` The original was ${formatSlotDisplay(booking.previousAt)}. These times replace it.` : " Finding new times to replace the original."}
+            </p>
+            {/* The candidate's own reason. They are asked for one when they
+                decline, and it was only rendered on the manager's scheduling
+                panel, so on this card the note they took the trouble to write
+                went nowhere. It is often the whole story: a clashing flight, a
+                notice period, an offer elsewhere. */}
+            {booking?.rescheduleNote && (
+              <p className="text-[11px] italic leading-relaxed mt-1.5" style={{ color: "#92400E" }}>
+                &ldquo;{booking.rescheduleNote}&rdquo;
+              </p>
+            )}
+          </div>
         </div>
       )}
 
