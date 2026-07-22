@@ -1115,7 +1115,10 @@ const styles = StyleSheet.create({
   // Offered times, one tile each. A pill of run-together text is the least
   // readable shape for a date, and it buried the substance of the card.
   tileWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: space(3) },
-  slotTile: { backgroundColor: theme.bg, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 9 },
+  // Two per row, filling the card. Content-width tiles left a ragged right edge
+  // and wasted the space a phone has least of. flexGrow lets an odd last tile
+  // take the full row rather than sitting stranded at half width.
+  slotTile: { flexGrow: 1, flexBasis: "46%", backgroundColor: theme.bg, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10 },
   slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
   slotTileTime: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink, marginTop: 2 },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
