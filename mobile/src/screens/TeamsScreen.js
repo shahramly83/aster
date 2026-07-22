@@ -7,7 +7,7 @@ import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
 import { loadTeam, inviteTeammate } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
-import { Avatar, HeaderActions, TopBar, Button, Loader, EmptyState, Feather } from "../components/ui";
+import { Press, Avatar, HeaderActions, TopBar, Button, Loader, EmptyState, Feather } from "../components/ui";
 import SuccessModal from "../components/SuccessModal";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
@@ -108,12 +108,24 @@ export default function TeamsScreen({ navigation }) {
       <SafeAreaView edges={["top"]}>
         <TopBar
           mark
-          subtitle="Your workspace team"
+          subtitle="Your team"
           name={firstName}
-          right={<HeaderActions unread={unread} onSettings={() => navigation.navigate("Settings")} onBell={() => navigation.navigate("Notifications")} />}
+          right={
+            <HeaderActions
+              unread={unread}
+              // Invite is the primary action on this screen, so it gets a
+              // user-plus chip in the header rather than living only in a card
+              // further down the list. Hidden for roles that cannot invite.
+              onAddPeople={canInvite ? openInvite : undefined}
+              onSettings={() => navigation.navigate("Settings")}
+              onBell={() => navigation.navigate("Notifications")}
+            />
+          }
         />
         <View style={styles.summaryWrap}>
-          {rows && rows.length ? (
+          {rows && rows.length > 1 ? (
+            // A role breakdown only says something once there is more than one
+            // person. Below that it is a single tile stranded in a wide card.
             <View style={styles.summary}>
               {groups.map((g) => {
                 const m = metaOf(g.role);
@@ -126,6 +138,25 @@ export default function TeamsScreen({ navigation }) {
                 );
               })}
             </View>
+          ) : rows && rows.length === 1 ? (
+            // Solo workspace: spend the space on the one thing worth doing here
+            // rather than reporting "1 Tenant" back to the only person present.
+            <Press onPress={canInvite ? openInvite : undefined} disabled={!canInvite} scaleTo={0.98}
+              accessibilityRole={canInvite ? "button" : undefined}
+              accessibilityLabel={canInvite ? "Invite your first teammate" : undefined}>
+              <View style={styles.soloCard}>
+                <View style={styles.soloIcon}><Feather name="user-plus" size={16} color="#fff" /></View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.soloTitle}>It's just you right now</Text>
+                  <Text style={styles.soloSub} numberOfLines={2}>
+                    {canInvite
+                      ? "Invite hiring managers and interviewers to share the hiring."
+                      : "Your workspace owner can invite more teammates."}
+                  </Text>
+                </View>
+                {canInvite ? <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.7)" /> : null}
+              </View>
+            </Press>
           ) : (
             <Text style={styles.heroSub}>{rows ? "No teammates yet" : "Loading your team…"}</Text>
           )}
@@ -150,17 +181,9 @@ export default function TeamsScreen({ navigation }) {
         keyExtractor={(item) => (item._section ? `s-${item._section}` : `m-${item.id}`)}
         ListHeaderComponent={
           <>
+            {/* The body "Invite teammate" card is gone: invite now lives on the
+                header chip, and the solo state above already offers it. */}
             {Header}
-            {canInvite ? (
-              <Pressable onPress={openInvite} style={styles.inviteCta}>
-                <View style={styles.inviteIcon}><Feather name="user-plus" size={16} color={theme.brand} /></View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[type.bodyStrong, { color: theme.ink }]}>Invite teammate</Text>
-                  <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Add a hiring manager or interviewer by email</Text>
-                </View>
-                <Feather name="chevron-right" size={20} color={theme.ink4} />
-              </Pressable>
-            ) : null}
           </>
         }
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
@@ -315,6 +338,19 @@ const styles = StyleSheet.create({
   errRow: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), borderRadius: radius.md, backgroundColor: "#FEF3F2", borderWidth: 1, borderColor: "#FECDCA" },
   summaryWrap: { paddingHorizontal: space(5), paddingBottom: space(5), paddingTop: space(1) },
   heroSub: { fontFamily: "Inter_500Medium", fontSize: 14, color: "rgba(255,255,255,0.82)" },
+  // Solo-workspace card: replaces the meaningless "1 Tenant" tile with the one
+  // action worth taking here. Sits on the brand header, so a frosted surface.
+  soloCard: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)", borderRadius: radius.md,
+    paddingVertical: 14, paddingHorizontal: 14,
+  },
+  soloIcon: {
+    width: 34, height: 34, borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center",
+  },
+  soloTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, color: "#fff" },
+  soloSub: { fontFamily: "Inter_500Medium", fontSize: 12, color: "rgba(255,255,255,0.82)", marginTop: 2, lineHeight: 17 },
   summary: { flexDirection: "row", gap: 10 },
   sumTile: { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 10, alignItems: "flex-start" },
   sumIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", marginBottom: 8 },
