@@ -20733,8 +20733,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   };
 
   // Reworked AI Experience Insights card, plan-metered (meter lives in sidebar).
-  // HR/hiring-manager only: interviewers reviewing a candidate don't run credits.
-  const aiInsightsCard = isInterviewer(profile?.role) ? null : (
+  // Interviewers get it too: they prepare for panels, and this read is exactly
+  // the context they need. The spend can't run away, because the result is
+  // stored on the candidate — a profile is only ever analysed once, so whoever
+  // opens it first pays and everyone after reads the same stored answer.
+  const aiInsightsCard = (
     <div className="rounded-2xl p-4 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -20751,7 +20754,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-4 h-4" /></span>
             <div className="min-w-0">
               <p className="text-sm font-semibold mb-2.5" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
-              <button onClick={() => setBuyInsightOpen(true)} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Buy credits</button>
+              {/* Buying is a billing action, so an interviewer gets the reason
+                  rather than a button that would bounce them off Billing. */}
+              {isInterviewer(profile?.role) ? (
+                <p className="text-xs" style={{ color: "var(--ink-2)" }}>Ask your hiring manager to top up.</p>
+              ) : (
+                <button onClick={() => setBuyInsightOpen(true)} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Buy credits</button>
+              )}
             </div>
           </div>
         ) : (

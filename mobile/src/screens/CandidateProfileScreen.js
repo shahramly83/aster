@@ -393,58 +393,70 @@ export default function CandidateProfileScreen({ route, navigation }) {
             {detailsOpen ? (
               <View>
                 {/* AI Insight — resume deep-dive (experience + employment
-                    analysis). Interviewers never see it: they assess the people
-                    in front of them and shouldn't be able to spend the
-                    workspace's credits, which is how web has always had it. */}
-                {manager ? (
-                  <View style={{ marginTop: space(4) }}>
-                    <View style={styles.aiHead}>
-                      <Feather name="zap" size={14} color={theme.brand} />
-                      <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INSIGHT</Text>
-                      {insights?.generated_at ? (
-                        <Text style={[type.small, { color: theme.ink4, marginLeft: "auto" }]}>
-                          {new Date(insights.generated_at).toLocaleDateString()}
+                    analysis). Open to interviewers too: they prepare for panels
+                    and the read is exactly the context they need. Runaway spend
+                    isn't the risk it looks like, because the result is stored on
+                    the candidate, so a profile can only ever be analysed once —
+                    whoever gets there first pays, and everyone else reads it. */}
+                <View style={{ marginTop: space(4) }}>
+                  {insights ? (
+                    <>
+                      <View style={styles.aiHead}>
+                        <Feather name="zap" size={14} color={theme.brand} />
+                        <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INSIGHT</Text>
+                        {insights.generated_at ? (
+                          <Text style={[type.small, { color: theme.ink4, marginLeft: "auto" }]}>
+                            {new Date(insights.generated_at).toLocaleDateString()}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {/* No regenerate: the credit is spent and a resume doesn't
+                          change, so the stored read is shown for good. */}
+                      <AiInsight insights={insights} />
+                    </>
+                  ) : (
+                    // Same shape as AI Rank on the job screen: icon, name, one
+                    // line of consequence, and a pill on the right. The card of
+                    // explanatory prose it replaced was heavier than the action.
+                    <Card>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <View style={styles.exploreIcon}><Feather name="zap" size={16} color={theme.brand} /></View>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={[type.bodyStrong, { color: theme.ink }]}>AI Insight</Text>
+                        </View>
+                        <Pressable
+                          onPress={generateInsights}
+                          disabled={insightBusy || insightCapped}
+                          style={[styles.runBtn, insightCapped && { backgroundColor: theme.ink3 }, insightBusy && { opacity: 0.7 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={insightCapped ? "Out of AI insight credits" : "Run AI Insight, uses one credit"}
+                        >
+                          {insightBusy ? (
+                            <ActivityIndicator color={theme.white} size="small" />
+                          ) : (
+                            <>
+                              <Feather name={insightCapped ? "lock" : "zap"} size={14} color={theme.white} />
+                              <Text style={[type.smallStrong, { color: theme.white, marginLeft: 6 }]}>Run</Text>
+                            </>
+                          )}
+                        </Pressable>
+                      </View>
+                      {insightCapped ? (
+                        <Text style={[type.small, { color: theme.ink3, marginTop: space(2), lineHeight: 18 }]}>
+                          {manager
+                            ? "Top up from Billing on the Aster web app."
+                            : "Ask your hiring manager to top up."}
                         </Text>
                       ) : null}
-                    </View>
-                    {insights ? (
-                      // No regenerate: the credit is spent and a resume doesn't
-                      // change, so the stored read is shown for good.
-                      <AiInsight insights={insights} />
-                    ) : (
-                      <Card>
-                        {insightCapped ? (
-                          <>
-                            <Text style={[type.bodyStrong, { color: theme.ink }]}>You're out of AI insights</Text>
-                            <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 19 }]}>
-                              Your monthly credits are used up. Top up from Billing on the Aster web app.
-                            </Text>
-                          </>
-                        ) : (
-                          <>
-                            <Text style={[type.small, { color: theme.ink2, lineHeight: 19 }]}>
-                              Run a deeper AI read of this resume: total and leadership experience, domain exposure, employer tenure, and any employment gaps.
-                            </Text>
-                            <Text style={[type.small, { color: theme.ink4, marginTop: 6 }]}>Uses one AI insight credit.</Text>
-                            <Button
-                              title={insightBusy ? "Analysing resume…" : "Generate AI insights"}
-                              icon="zap"
-                              loading={insightBusy}
-                              onPress={generateInsights}
-                              style={{ marginTop: space(3) }}
-                            />
-                            {insightErr ? (
-                              <View style={styles.insightErr}>
-                                <Feather name="alert-circle" size={13} color={theme.danger} />
-                                <Text style={[type.small, { color: theme.danger, marginLeft: 6, flex: 1 }]}>{insightErr}</Text>
-                              </View>
-                            ) : null}
-                          </>
-                        )}
-                      </Card>
-                    )}
-                  </View>
-                ) : null}
+                      {insightErr ? (
+                        <View style={styles.insightErr}>
+                          <Feather name="alert-circle" size={13} color={theme.danger} />
+                          <Text style={[type.small, { color: theme.danger, marginLeft: 6, flex: 1 }]}>{insightErr}</Text>
+                        </View>
+                      ) : null}
+                    </Card>
+                  )}
+                </View>
 
                 {(() => {
                   const email = parsed.email || candidate?.email;
@@ -1036,6 +1048,8 @@ const styles = StyleSheet.create({
   name: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, lineHeight: 27, letterSpacing: -0.5, color: theme.ink, marginTop: space(3), textAlign: "center" },
   aiHead: { flexDirection: "row", alignItems: "center", marginBottom: space(3), marginLeft: space(1) },
   insightErr: { flexDirection: "row", alignItems: "flex-start", marginTop: space(2), backgroundColor: theme.dangerBg, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
+  // Matches rankBtn on the job screen so the two AI actions read as siblings.
+  runBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", minWidth: 84, paddingHorizontal: 14, height: 38, borderRadius: radius.pill, backgroundColor: theme.brand, marginLeft: 10 },
   role: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink3, marginTop: space(2) },
   tags: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: space(3) },
   tag: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
