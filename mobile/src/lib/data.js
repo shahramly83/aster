@@ -841,6 +841,44 @@ export const MOBILE_STAGES = ["applied", "shortlisted", "interviewing", "hired",
 // like the web), logs activity on hire, and sends the same stage email for
 // hired/rejected. Best-effort on the side effects so a mail/log hiccup never
 // blocks the move.
+// ---- Personal shortlist ("my picks") ----------------------------------------
+// A shortlist is a BOOKMARK, not a pipeline step: migration 0075 defines it as
+// independent of AI Rank order and of applications.stage. Mobile used to star a
+// candidate by moving their stage applied -> shortlisted, which quietly advanced
+// them through the hiring funnel (and inflated "advanced past applied" in
+// Pipeline Health) when the user only meant "remember this person". These two
+// helpers mirror dbListMyShortlist / dbSetShortlist on web so both apps mean the
+// same thing by a star.
+
+// Application ids the signed-in user has starred. RLS returns every pick for a
+// manager, so scope to the caller's own rows.
+export async function loadMyShortlist(companyId, userId) {
+  if (!companyId || !userId) return [];
+  const { data, error } = await supabase
+    .from("candidate_shortlists").select("application_id")
+    .eq("company_id", companyId).eq("profile_id", userId);
+  if (error) { console.error("loadMyShortlist", error.message); return []; }
+  return (data || []).map((r) => r.application_id).filter(Boolean);
+}
+
+// Star / unstar for the signed-in user. profile_id must equal auth.uid(); RLS
+// enforces it, passing userId just satisfies the insert.
+export async function setShortlisted({ companyId, userId, applicationId, on }) {
+  if (!companyId || !userId || !applicationId) return;
+  if (on) {
+    const { error } = await supabase
+      .from("candidate_shortlists")
+      .upsert({ company_id: companyId, application_id: applicationId, profile_id: userId },
+              { onConflict: "application_id,profile_id" });
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase
+      .from("candidate_shortlists").delete()
+      .eq("application_id", applicationId).eq("profile_id", userId);
+    if (error) throw new Error(error.message);
+  }
+}
+
 export async function moveCandidateStage({ companyId, candidateId, candidateName, stage, notify = true }) {
   if (!MOBILE_STAGES.includes(stage)) {
     throw new Error(`"${stage}" can only be set on the web app.`);

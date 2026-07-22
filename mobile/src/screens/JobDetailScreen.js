@@ -9,7 +9,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer } from "../lib/data";
+import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer, loadMyShortlist, setShortlisted } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, HeaderActions, StagePill, EmptyState, Feather } from "../components/ui";
 import { RingFull } from "../components/Gauge";
@@ -19,7 +19,6 @@ import { stageColor, relTime } from "@aster/shared";
 const PIPE = ["applied", "shortlisted", "interviewing", "offer", "hired"];
 // Quick source tags for the apply link (same presets as the web link modal).
 const SOURCE_PRESETS = ["LinkedIn", "Career Page", "Referral", "JobStreet", "Facebook", "WhatsApp"];
-const SHORTLISTED_PLUS = ["shortlisted", "interviewing", "offer", "hired"];
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -51,6 +50,10 @@ export default function JobDetailScreen({ route, navigation }) {
   const [interviewers, setInterviewers] = useState(null);     // interviewer pool for this job
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingId, setSavingId] = useState(null);             // profile id mid assign/unassign
+  // Application ids this user has starred. A star is a personal BOOKMARK, kept
+  // in candidate_shortlists — deliberately NOT applications.stage, so marking
+  // someone to look at later never advances them through the hiring funnel.
+  const [starred, setStarred] = useState(() => new Set());
 
   const canManageInterviewers = ["owner", "admin"].includes((profile?.role || "").toLowerCase());
 
@@ -79,14 +82,16 @@ export default function JobDetailScreen({ route, navigation }) {
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const [apps, jr, team] = await Promise.all([
+    const [apps, jr, team, picks] = await Promise.all([
       loadApplicants(profile.companyId, jobId),
       loadJobRankedAt(jobId),
       loadInterviewers(profile.companyId, jobId),
+      loadMyShortlist(profile.companyId, profile.userId),
     ]);
     setRows(apps);
     setServerRankedAt(jr);
     setInterviewers(team);
+    setStarred(new Set(picks));
   }, [profile, jobId]);
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
@@ -117,15 +122,20 @@ export default function JobDetailScreen({ route, navigation }) {
   const hired = loaded ? rows.filter((r) => r.stage === "hired").length : null;
   const toReview = loaded ? (counts.interviewing || 0) + (counts.offer || 0) : null;
 
-  // Star toggles a candidate between applied and shortlisted (web-safe stage move).
+  // Star = add/remove a personal bookmark, nothing else. It used to move the
+  // candidate applied <-> shortlisted, which advanced them in the pipeline (and
+  // counted as "advanced past applied" in Pipeline Health) for what the user
+  // meant as "remember this one". Stage now only changes on a real pipeline
+  // action. Works on any stage, not just applied/shortlisted.
   const toggleStar = async (item) => {
-    const next = item.stage === "applied" ? "shortlisted" : item.stage === "shortlisted" ? "applied" : null;
-    if (!next) return;
-    setRows((prev) => prev.map((r) => (r.candidateId === item.candidateId ? { ...r, stage: next } : r)));
+    const id = item.applicationId;
+    if (!id) return;
+    const on = !starred.has(id);
+    setStarred((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n; });
     try {
-      await moveCandidateStage({ companyId: profile.companyId, candidateId: item.candidateId, candidateName: item.name, stage: next });
+      await setShortlisted({ companyId: profile.companyId, userId: profile.userId, applicationId: id, on });
     } catch (e) {
-      setRows((prev) => prev.map((r) => (r.candidateId === item.candidateId ? { ...r, stage: item.stage } : r)));
+      setStarred((prev) => { const n = new Set(prev); if (on) n.delete(id); else n.add(id); return n; });
       Alert.alert("Could not update", e?.message || "Please try again.");
     }
   };
@@ -338,6 +348,7 @@ export default function JobDetailScreen({ route, navigation }) {
           renderItem={({ item }) => (
             <CandidateCard
               item={item}
+              starred={starred.has(item.applicationId)}
               onStar={() => toggleStar(item)}
               onPress={() => navigation.navigate("CandidateProfile", { candidateId: item.candidateId, applicationId: item.applicationId, jobId, jobTitle, stage: item.stage, candidateName: item.name })}
             />
@@ -446,10 +457,13 @@ function HeroStat({ label, value, small }) {
   );
 }
 
-function CandidateCard({ item, onPress, onStar }) {
+// `starred` is passed in from the caller's candidate_shortlists set. It used to
+// be derived from the stage (SHORTLISTED_PLUS), which meant the star lit up for
+// anyone who had merely progressed — and could only be toggled while they sat in
+// applied/shortlisted. A bookmark is independent of stage, so it is now always
+// toggleable and only reflects what this user actually starred.
+function CandidateCard({ item, starred, onPress, onStar }) {
   const sc = stageColor(item.stage);
-  const starred = SHORTLISTED_PLUS.includes(item.stage);
-  const canToggle = item.stage === "applied" || item.stage === "shortlisted";
   return (
     <Press onPress={onPress} style={{ marginBottom: space(3) }}>
       <View style={styles.card}>
@@ -469,7 +483,10 @@ function CandidateCard({ item, onPress, onStar }) {
             </View>
           </View>
           <View style={{ alignItems: "center", marginLeft: 8 }}>
-            <Pressable onPress={canToggle ? onStar : undefined} disabled={!canToggle} hitSlop={8} style={{ padding: 3 }}>
+            <Pressable onPress={onStar} hitSlop={8} style={{ padding: 3 }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !!starred }}
+              accessibilityLabel={starred ? `Remove ${item.name} from your shortlist` : `Shortlist ${item.name}`}>
               <Ionicons name={starred ? "star" : "star-outline"} size={22} color={starred ? "#F5A623" : theme.ink4} />
             </Pressable>
             <View style={{ marginTop: 4 }}><MatchRing score={item.matchScore} /></View>
