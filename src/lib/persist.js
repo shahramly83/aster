@@ -815,10 +815,13 @@ export async function dbListOpenPolls(companyId, userId) {
   const pollIds = rows.map((p) => p.id);
   const candIds = [...new Set(rows.map((p) => p.candidate_id).filter(Boolean))];
   const jobIds = [...new Set(rows.map((p) => p.job_id).filter(Boolean))];
-  const [mv, cs, js] = await Promise.all([
+  const [mv, cs, js, sl] = await Promise.all([
     supabase.from("interview_poll_votes").select("poll_id, profile_id").eq("company_id", companyId).eq("profile_id", userId).in("poll_id", pollIds),
     candIds.length ? supabase.from("candidates").select("id, parsed, full_name").in("id", candIds) : Promise.resolve({ data: [] }),
     jobIds.length ? supabase.from("jobs").select("id, title").in("id", jobIds) : Promise.resolve({ data: [] }),
+    // The proposed times, so the prompt can say what is being asked instead of
+    // making someone open a modal to find out whether they can even help.
+    supabase.from("interview_poll_slots").select("poll_id, slot_ts").eq("company_id", companyId).in("poll_id", pollIds),
   ]);
   // A voter "voted" only once they've picked >=2 times (the propose-2 rule), so a
   // single stray tap doesn't clear the prompt.
@@ -826,14 +829,20 @@ export async function dbListOpenPolls(companyId, userId) {
   (mv.data || []).forEach((v) => { myCounts[v.poll_id] = (myCounts[v.poll_id] || 0) + 1; });
   const candById = Object.fromEntries((cs.data || []).map((c) => [c.id, c]));
   const jobTitle = Object.fromEntries((js.data || []).map((j) => [j.id, j.title]));
+  const slotsByPoll = {};
+  (sl.data || []).forEach((s) => { (slotsByPoll[s.poll_id] ||= []).push(s.slot_ts); });
+  Object.values(slotsByPoll).forEach((a) => a.sort());
   return rows.map((p) => {
     const c = candById[p.candidate_id] || {};
+    const slots = slotsByPoll[p.id] || [];
     return {
       pollId: p.id,
       candidateId: p.candidate_id,
       jobId: p.job_id,
       candidateName: c.parsed?.name || c.full_name || "Candidate",
       jobTitle: jobTitle[p.job_id] || "Role",
+      slots,                   // ISO timestamps, earliest first
+      askedAt: p.created_at,   // how long this has been sitting on them
       voted: (myCounts[p.id] || 0) >= (p.proposed_by === "candidate" ? 1 : 2),
     };
   });

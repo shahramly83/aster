@@ -16049,32 +16049,69 @@ function PendingPollsSurface({ companyId, currentUserId, profile }) {
   };
   return (
     <>
+      {/* Blocking-work prompt. This is not a feature panel, it is a queue of
+          people waiting on you, so it is built like a task: amber (something is
+          owed) rather than brand blue, one card per person, and the proposed
+          times shown up front. Reading "3 times, Wed 22 Jul onwards" is often
+          enough to know you can help without opening anything. */}
       {pendingVotes.length > 0 && (
-        <div className="mb-5 rounded-2xl border overflow-hidden" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
-          <div className="flex items-center gap-2 px-4 pt-3.5 pb-2">
-            <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#fff", color: "var(--brand)" }}>
-              <Icon name="calendar" className="w-4 h-4" />
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "#F59E0B" }} />
+              <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "#D97706" }} />
             </span>
-            <div>
-              <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>Pick your interview times</p>
-              <p className="text-[11px] leading-tight" style={{ color: "var(--ink-2)" }}>{pendingVotes.length} poll{pendingVotes.length === 1 ? "" : "s"} need{pendingVotes.length === 1 ? "s" : ""} your availability</p>
-            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#92400E", letterSpacing: "0.06em" }}>
+              Waiting on you
+            </p>
+            <span className="text-[11px] font-semibold rounded-full px-1.5" style={{ background: "#FEF3C7", color: "#92400E" }}>{pendingVotes.length}</span>
           </div>
-          <div className="px-2 pb-2">
-            {pendingVotes.map((p) => (
-              <button key={p.pollId} onClick={() => setVotePoll(p)} className="w-full flex items-center justify-between gap-3 rounded-xl bg-white px-3.5 py-2.5 mt-1 text-left transition-colors hover:bg-neutral-50 border" style={{ borderColor: "var(--line)" }}>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{p.candidateName}</p>
-                  <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{p.jobTitle}</p>
+
+          <div className="space-y-2">
+            {pendingVotes.map((p) => {
+              const av = avatarColors(p.candidateName);
+              const times = p.slots || [];
+              return (
+                <div key={p.pollId} className="rounded-2xl bg-white overflow-hidden flex" style={{ border: "1px solid var(--line)" }}>
+                  {/* A solid edge, not a full amber wash: the urgency reads at a
+                      glance while the content stays on white and legible. */}
+                  <span className="w-1.5 shrink-0" style={{ background: "linear-gradient(180deg,#F59E0B,#D97706)" }} />
+                  <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5">
+                    <span className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ background: av.bg, color: av.color }}>
+                      {initials(p.candidateName)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{p.candidateName}</p>
+                      <p className="text-xs truncate" style={{ color: "var(--ink-3)" }}>
+                        {p.jobTitle}{p.askedAt ? ` · asked ${relTime(p.askedAt)}` : ""}
+                      </p>
+                      {times.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          {times.slice(0, 3).map((ts) => (
+                            <span key={ts} className="inline-flex items-center text-[11px] font-medium rounded-lg px-2 py-1" style={{ background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
+                              {formatSlotDisplay(ts)}
+                            </span>
+                          ))}
+                          {times.length > 3 && (
+                            <span className="text-[11px] font-medium" style={{ color: "var(--ink-3)" }}>+{times.length - 3} more</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* Red, not brand: this is the one card on the screen that is
+                        blocking someone else's scheduling, and in brand blue it
+                        read as just another link. */}
+                    <button
+                      onClick={() => setVotePoll(p)}
+                      className="shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 text-white transition-all hover:-translate-y-0.5 hover:opacity-95 shadow-[0_10px_24px_-12px_rgba(220,38,38,0.9)]"
+                      style={{ background: "#DC2626" }}
+                    >
+                      Mark availability <Icon name="chevronRight" className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                {/* Red, not brand: this is the one card on the screen that is
-                    blocking someone else's scheduling, and in brand blue it read
-                    as just another link. */}
-                <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold rounded-lg px-3 py-1.5" style={{ background: "#DC2626", color: "#fff" }}>
-                  Vote <Icon name="chevronRight" className="w-3.5 h-3.5" />
-                </span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
