@@ -655,7 +655,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
                         <Pressable onPress={genMeetingLink} style={styles.mlGen}>
                           <Feather name="video" size={15} color={theme.brand} />
                           <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Create a Jitsi Meet room</Text>
-                          <Text style={[type.small, { color: theme.ink4, marginLeft: 6 }]}>no account needed</Text>
                         </Pressable>
                         {/* Share sits below, not beside. Sharing a row with the
                             field left too little width for a URL: the

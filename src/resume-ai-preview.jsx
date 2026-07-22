@@ -17188,7 +17188,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}
           >
             <Icon name="link" className="w-3.5 h-3.5" /> Create a Jitsi Meet room
-            <span className="font-normal" style={{ color: "var(--ink-3)" }}>· no account needed</span>
           </button>
           <div className="flex items-center gap-2">
             <input
