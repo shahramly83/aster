@@ -16888,6 +16888,17 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                 </button>
               )}
             </>
+          ) : poll.status === "open" && round2 && !isManager && myPicks > 0 ? (
+            /* Acknowledge the choice. Leaving the instruction up after they had
+               picked read as if the tap had not registered, and said nothing
+               about whether it could still be changed. */
+            <p className="text-[11px] mt-2.5 font-medium inline-flex items-start gap-1.5" style={{ color: "#067647" }}>
+              <Icon name="check" className="w-3.5 h-3.5 shrink-0 mt-px" />
+              <span>
+                You're marked for {formatSlotDisplay(poll.slots.find((s) => s.mine)?.ts)}.
+                <span className="font-normal" style={{ color: "var(--ink-3)" }}> Tap another time to change it, until {candName.split(" ")[0]}'s interview is booked.</span>
+              </span>
+            </p>
           ) : poll.status === "open" && round2 ? (
             <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>
               {isManager ? "The candidate agreed to these times. The panel's votes show who else can make it. Confirm one to book it." : "Pick the one time you can make. Tapping another moves your choice."}

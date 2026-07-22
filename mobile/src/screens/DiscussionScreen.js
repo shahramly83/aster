@@ -623,12 +623,22 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
                 </Text>
               </View>
             )
+          ) : isCandidate && !manager && myPicks > 0 ? (
+            /* Acknowledge the choice, and say it can still be moved. Leaving the
+               instruction up read as if the tap had not registered. */
+            <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: space(3) }}>
+              <Feather name="check-circle" size={13} color={theme.success} style={{ marginTop: 2 }} />
+              <Text style={[type.small, { color: theme.ink3, marginLeft: 6, flex: 1, lineHeight: 18 }]}>
+                <Text style={[type.smallStrong, { color: theme.success }]}>You're marked for {slotLabel(poll.slots.find((s) => s.mine)?.ts, poll.slots.find((s) => s.mine)?.end)}.</Text>
+                {" "}Tap another time to change it, until the interview is booked.
+              </Text>
+            </View>
           ) : (
             <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>
               {isCandidate
                 ? (manager
                     ? "The candidate offered these. Panel marks what they can make, then Confirm the best one."
-                    : "The candidate suggested these. Tap at least 2 you can make.")
+                    : "Pick the one time you can make. Tapping another moves your choice.")
                 : progress && progress.pendingNames?.length
                   ? `Your vote is optional. Waiting on ${progress.pendingNames.slice(0, 3).join(", ")}${progress.pendingNames.length > 3 ? ` +${progress.pendingNames.length - 3}` : ""} to vote, then you'll pick times to offer.`
                   : "Your vote is optional. Once the panel votes, you'll pick times to offer."}
