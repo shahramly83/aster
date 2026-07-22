@@ -10185,18 +10185,48 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
       <div className="mx-auto w-full max-w-[1400px]">
-        {trialDaysLeft > 0 && (
-          <div className="mb-5 rounded-2xl px-4 py-3.5 flex items-center gap-3" style={{ background: "var(--brand-soft)", border: "1px solid #CBD8F5" }}>
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand)", color: "#fff" }}>
-              <Icon name="target" className="w-4 h-4" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ink)" }}>{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--ink-2)" }}>Full Scale access. Subscribe before it ends, or the account is suspended.</p>
+        {/* Trial meter. "14 days" is an abstraction people discount until it is
+            suddenly two; the countdown is drawn as a draining bar so the trial
+            is something you watch rather than a sentence you skim. The tone
+            escalates with the actual risk instead of shouting from day one:
+            calm brand for the first week, amber inside a week, red in the last
+            three days, when suspension is a real prospect. */}
+        {trialDaysLeft > 0 && (() => {
+          const TRIAL_DAYS = 14;
+          const left = Math.min(trialDaysLeft, TRIAL_DAYS);
+          const pct = Math.max(4, Math.round((left / TRIAL_DAYS) * 100)); // never a bar of nothing
+          const tone = left <= 3
+            ? { accent: "#DC2626", soft: "#FEF2F2", line: "#FCA5A5", ink: "#7F1D1D" }
+            : left <= 7
+              ? { accent: "#D97706", soft: "#FFFBEB", line: "#FCD34D", ink: "#92400E" }
+              : { accent: "var(--brand)", soft: "var(--brand-soft)", line: "#CBD8F5", ink: "var(--ink)" };
+          return (
+            <div className="mb-5 rounded-2xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4" style={{ background: tone.soft, border: `1px solid ${tone.line}` }}>
+              {/* The number is the message, so it gets the weight. */}
+              <div className="flex items-baseline gap-2 shrink-0">
+                <span className="text-3xl font-bold leading-none tabular-nums" style={{ color: tone.accent }}>{left}</span>
+                <span className="text-sm font-semibold" style={{ color: tone.ink }}>day{left === 1 ? "" : "s"} left</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs mb-2" style={{ color: tone.ink }}>
+                  {left <= 3
+                    ? "Your workspace is suspended when the trial ends. Subscribe to keep your jobs and candidates live."
+                    : "Full Scale access during the trial. Subscribe before it ends to keep everything running."}
+                </p>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(15,27,51,0.10)" }}>
+                  <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: tone.accent }} />
+                </div>
+              </div>
+              <button
+                onClick={() => navigate("billing")}
+                className="text-sm text-white font-semibold px-4 py-2.5 rounded-xl shrink-0 transition-all hover:-translate-y-0.5 hover:opacity-95"
+                style={{ background: tone.accent, boxShadow: `0 10px 24px -12px ${tone.accent}` }}
+              >
+                Subscribe
+              </button>
             </div>
-            <button onClick={() => navigate("billing")} className="text-xs brand-gradient text-white font-medium px-3.5 py-2 rounded-lg shrink-0 hover:opacity-90 transition-opacity">Subscribe</button>
-          </div>
-        )}
+          );
+        })()}
 
         <TopBar
           title={greeting}
