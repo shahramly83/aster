@@ -21942,16 +21942,28 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </p>
               </div>
             )}
-            {!isInterviewer(profile?.role) && !insightsUnlimited && (
+            {/* Interviewers see the meter now that they can spend the credit.
+                Hiding it made the balance invisible to the people drawing it
+                down, so their first sign of the cap was a run being refused.
+                Buying stays manager-only: billing is not their call, so they get
+                the count without the upgrade and top-up actions. */}
+            {!insightsUnlimited && (
               <UsageMeter
                 plan={plan}
                 title="AI Insight"
-                hint="Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
+                hint={isInterviewer(profile?.role)
+                  ? "Each AI Insight run uses one of the workspace's credits, shared across the team. A candidate is only ever analysed once."
+                  : "Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."}
                 used={aiInsightsUsed} limit={insightsLimit} unit=""
                 danger={outOfInsightCredits}
                 resetLabel={insightResetLabel}
-                onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")} upgradeLabel="Upgrade for more"
-                purchased={purchasedAiInsight} onBuyCredits={() => setBuyInsightOpen(true)}
+                {...(isInterviewer(profile?.role) ? {} : {
+                  onManage: () => navigate("billing"),
+                  onUpgrade: () => navigate("billing"),
+                  upgradeLabel: "Upgrade for more",
+                  purchased: purchasedAiInsight,
+                  onBuyCredits: () => setBuyInsightOpen(true),
+                })}
               />
             )}
             {quickFacts}
