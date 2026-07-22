@@ -2844,7 +2844,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
       { label: "Store & download original CV", free: false, starter: true, pro: true, ent: true },
     ]},
     { group: "Interviews", rows: [
-      { label: "AI interview questions", free: "5 / mo", starter: "100 / mo", pro: "300 / mo", ent: "Unlimited" },
+      { label: "AI interview questions", free: "5 / mo", starter: "30 / mo", pro: "100 / mo", ent: "Unlimited" },
       { label: "Collaborative scorecards", free: true, starter: true, pro: true, ent: true },
       { label: "WhatsApp Business reminders", free: false, starter: false, pro: true, ent: true },
     ]},

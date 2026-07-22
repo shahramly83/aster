@@ -18,7 +18,7 @@ export const PLAN_LIMITS = {
   scale: {
     maxJobs: 5, seats: Infinity,
     parseApplicant: 500, resumeUploads: 50,
-    aiRunsPerMonth: 30, aiInsightsPerMonth: 100, interviewQuestionsPerMonth: 100,
+    aiRunsPerMonth: 30, aiInsightsPerMonth: 100, interviewQuestionsPerMonth: 30,
     aiMatches: 10,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
@@ -28,7 +28,7 @@ export const PLAN_LIMITS = {
   elite: {
     maxJobs: 10, seats: Infinity,
     parseApplicant: 1000, resumeUploads: 100,
-    aiRunsPerMonth: 100, aiInsightsPerMonth: 300, interviewQuestionsPerMonth: 300,
+    aiRunsPerMonth: 100, aiInsightsPerMonth: 300, interviewQuestionsPerMonth: 100,
     aiMatches: Infinity,
     applicantViewLimit: Infinity, browseLimit: Infinity, skillsIndustriesLimit: Infinity,
     showRationale: true, storeOriginal: true, scorecards: true, matchToRole: true, databaseAiRank: true,
