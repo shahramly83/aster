@@ -572,15 +572,25 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
           const top = s.count > 0 && s.count === maxCount;
           return (
             <View key={s.id} style={[styles.slot, picked && styles.slotMine, chosen && styles.slotChosen]}>
+              {/* In round 2 the manager confirms rather than votes: the candidate
+                  has already agreed to these times, so the manager's own
+                  availability is not the question. Web has always shown them
+                  Confirm instead of a vote toggle; mobile left the row tappable,
+                  so the tenant got the interviewer's screen with a Confirm
+                  bolted on. */}
               <Pressable
-                onPress={() => (selectMode ? onToggleSelect?.(s) : (open && onToggle(s)))}
-                disabled={selectMode ? false : (!open || !!savingSlot)}
+                onPress={() => (selectMode ? onToggleSelect?.(s) : (open && !(manager && isCandidate) && onToggle(s)))}
+                disabled={selectMode ? false : (!open || !!savingSlot || (manager && isCandidate))}
                 style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
               >
-                <View style={[styles.check, (picked || chosen) && styles.checkOn]}>
-                  {picked || chosen ? <Feather name="check" size={12} color={theme.white} /> : null}
-                </View>
-                <View style={{ flex: 1, marginLeft: 10 }}>
+                {/* No empty vote circle for the manager in round 2: it invites a
+                    tap that does nothing. */}
+                {manager && isCandidate && !chosen ? null : (
+                  <View style={[styles.check, (picked || chosen) && styles.checkOn]}>
+                    {picked || chosen ? <Feather name="check" size={12} color={theme.white} /> : null}
+                  </View>
+                )}
+                <View style={{ flex: 1, marginLeft: manager && isCandidate && !chosen ? 0 : 10 }}>
                   <Text style={[type.smallStrong, { color: theme.ink }]}>{slotLabel(s.ts, s.end)}</Text>
                   <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
                     {s.count} available{s.voters.length ? ` · ${s.voters.slice(0, 2).join(", ")}${s.count > 2 ? ` +${s.count - 2}` : ""}` : ""}
