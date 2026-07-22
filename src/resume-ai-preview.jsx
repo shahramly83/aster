@@ -21265,6 +21265,24 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     </div>
                   </div>
                 )
+              ) : booking?.status === "sent" || booking?.status === "reschedule" ? (
+                /* Already being arranged. isBooked only covers 'scheduled', so
+                   these two fell through to "Request interview" and asked an
+                   interviewer to request an interview that was already in
+                   flight, with times sitting in the candidate's inbox. */
+                <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
+                  <span className="shrink-0 mt-0.5" style={{ color: "#B45309" }}><Icon name="clock" className="w-5 h-5" /></span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+                      {booking.status === "sent" ? `Waiting for ${firstName} to pick a time` : `${firstName} asked to reschedule`}
+                    </p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#92400E" }}>
+                      {booking.status === "sent"
+                        ? "Times have been offered. You'll be added to the invite once they choose one."
+                        : "The hiring manager is arranging new times. You'll be notified once it's booked."}
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <RequestInterviewControl applicationId={applicationId} openRequest={openRequest} requesterName={requesterName} onRequest={onRequestScheduling} />
               )
