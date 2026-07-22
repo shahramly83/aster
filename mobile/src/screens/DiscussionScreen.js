@@ -84,6 +84,8 @@ export default function DiscussionScreen({ route, navigation }) {
   const [interviewToken, setInterviewToken] = useState(null); // for confirming a round-2 slot
   const [rescheduleNote, setRescheduleNote] = useState(null); // the candidate's reason for declining
   const [confirming, setConfirming] = useState(null); // slot ts being confirmed
+  const [confirmSheet, setConfirmSheet] = useState(null); // slot pending confirmation
+  const [confirmErr, setConfirmErr] = useState(null);
   const [savingSlot, setSavingSlot] = useState(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [panelMembers, setPanelMembers] = useState([]); // assigned interviewers (attendees + email)
@@ -246,24 +248,21 @@ export default function DiscussionScreen({ route, navigation }) {
   };
 
   // HM confirms a slot from the candidate's round-2 poll → schedules the interview.
-  const confirmSlot = (slot) => {
-    Alert.alert(
-      "Confirm this time?",
-      `${slotLabel(slot.ts, slot.end)}\n\nThe candidate suggested this time, so it will be booked and everyone emailed the confirmation.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm", onPress: async () => {
-            setConfirming(slot.ts);
-            const res = await confirmPollSlot({ token: interviewToken, pollId: poll?.id, startIso: slot.ts });
-            setConfirming(null);
-            if (!res.ok) { Alert.alert("Couldn't confirm", res.error || "Try again."); return; }
-            loadPoll();
-            Alert.alert("Interview scheduled", "The candidate has been emailed the confirmation.");
-          },
-        },
-      ],
-    );
+  // Opens an in-app sheet rather than a system Alert. This is the moment an
+  // interview is actually booked and emails go out, and an OS dialog gave it
+  // none of the weight, none of Aster's type, and no room to show the time
+  // properly. It also stacked a second Alert on success.
+  const confirmSlot = (slot) => setConfirmSheet(slot);
+  const doConfirm = async () => {
+    const slot = confirmSheet;
+    if (!slot || confirming) return;
+    setConfirming(slot.ts);
+    const res = await confirmPollSlot({ token: interviewToken, pollId: poll?.id, startIso: slot.ts });
+    setConfirming(null);
+    if (!res.ok) { setConfirmErr(res.error || "Couldn't confirm. Try again."); return; }
+    setConfirmSheet(null);
+    setConfirmErr(null);
+    loadPoll();
   };
 
   const onCreatePoll = async (slots) => {
@@ -448,6 +447,15 @@ export default function DiscussionScreen({ route, navigation }) {
       </View>
 
       <PollComposer visible={composerOpen} tz={profile.timezone} onClose={() => setComposerOpen(false)} onCreate={onCreatePoll} blocked={blockedSlots} />
+      <ConfirmSlotSheet
+        slot={confirmSheet}
+        tz={profile?.timezone}
+        candidateName={candidateName}
+        busy={!!confirming}
+        error={confirmErr}
+        onCancel={() => { setConfirmSheet(null); setConfirmErr(null); }}
+        onConfirm={doConfirm}
+      />
       <LoneMarkSheet
         visible={!!blockedNav}
         marks={myMarks}
@@ -457,6 +465,48 @@ export default function DiscussionScreen({ route, navigation }) {
         onClearAndLeave={clearAndLeave}
       />
     </View>
+  );
+}
+
+// Booking confirmation. Replaces a system Alert: this schedules the interview
+// and emails everyone, so it deserves the app's own type and enough room to show
+// the time being booked rather than squeezing it into a dialog body.
+function ConfirmSlotSheet({ slot, tz, candidateName, busy, error, onCancel, onConfirm }) {
+  const insets = useSafeAreaInsets();
+  const first = (candidateName || "").split(" ")[0] || "the candidate";
+  return (
+    <Modal visible={!!slot} transparent animationType="slide" onRequestClose={onCancel} statusBarTranslucent>
+      <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel="Cancel">
+        <Pressable style={[styles.guardSheet, { paddingBottom: Math.max(insets.bottom, 12) + space(3) }]} onPress={() => {}}>
+          <View style={[styles.guardIcon, { backgroundColor: theme.successBg }]}>
+            <Feather name="calendar" size={20} color={theme.success} />
+          </View>
+          <Text style={[type.h3, { color: theme.ink, textAlign: "center" }]}>Book this interview?</Text>
+
+          {slot ? (
+            <View style={styles.confirmSlotBox}>
+              <Text style={[type.bodyStrong, { color: theme.ink, textAlign: "center" }]}>{slotLabel(slot.ts, slot.end)}</Text>
+            </View>
+          ) : null}
+
+          <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(3), lineHeight: 19 }]}>
+            {first} suggested this time, so it books straight away. Everyone on the panel gets the confirmation by email.
+          </Text>
+
+          {error ? (
+            <View style={styles.insightErrRow}>
+              <Feather name="alert-circle" size={13} color={theme.danger} />
+              <Text style={[type.small, { color: theme.danger, marginLeft: 6, flex: 1 }]}>{error}</Text>
+            </View>
+          ) : null}
+
+          <Button title={busy ? "Booking…" : "Book it"} loading={busy} onPress={onConfirm} variant="success" style={{ marginTop: space(4) }} />
+          <Press onPress={onCancel} disabled={busy} haptic="light" style={{ marginTop: space(1) }}>
+            <View style={styles.guardLeave}><Text style={[type.bodyStrong, { color: theme.ink3 }]}>Not now</Text></View>
+          </Press>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -812,4 +862,6 @@ const styles = StyleSheet.create({
   guardSlot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, marginTop: space(4) },
   // 48dp min touch target, and enough separation that "leave" is never a slip.
   guardLeave: { minHeight: 48, alignItems: "center", justifyContent: "center" },
+  confirmSlotBox: { backgroundColor: theme.bg, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, marginTop: space(3) },
+  insightErrRow: { flexDirection: "row", alignItems: "flex-start", marginTop: space(2), backgroundColor: theme.dangerBg, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
 });
