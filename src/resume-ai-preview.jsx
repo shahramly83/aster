@@ -10295,7 +10295,12 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               // you said no), coloured apart so progress and exits read differently.
               const funnel = [
                 { label: "Applied", value: stageCount("applied"), tone: "flow" },
-                { label: "Shortlisted", value: stageCount("shortlisted"), tone: "flow" },
+                // Shortlisted stopped being a stage (it is a private bookmark),
+                // so it only appears if someone is still carrying it from before
+                // the change. Dropping it outright would erase those people from
+                // the funnel; keeping it always would advertise a stage nobody
+                // can reach.
+                ...(stageCount("shortlisted") > 0 ? [{ label: "Shortlisted", value: stageCount("shortlisted"), tone: "flow" }] : []),
                 { label: "Interview", value: stageCount("interviewing"), tone: "flow" },
                 { label: "Offer", value: stageCount("offer"), tone: "flow" },
                 { label: "Hired", value: stageCount("hired"), tone: "win" },
@@ -10316,7 +10321,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1">
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
-                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Every candidate counted in the status they're in right now, across all roles: the forward stages (Applied, Shortlisted, Interview, Offer), Hired, and the two exits, Declined (they said no) and Rejected (you said no).")}
+                      {sectionHead("Candidates Journey", <span className="text-xs" style={{ color: "var(--ink-3)" }}>All roles</span>, "Every candidate counted in the status they're in right now, across all roles: the forward stages (Applied, Interview, Offer), Hired, and the two exits, Declined (they said no) and Rejected (you said no).")}
                       {/* Drawn as a journey, not a bar chart. Bars compared seven
                           stages by height, which is unreadable at small counts
                           (one candidate makes six stubs and one spike) and put
@@ -23105,7 +23110,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
     filtered = [...filtered].sort((a, b) => recencyRank(a) - recencyRank(b));
   }
 
-  const filterOptions = ["all", ...STAGE_ORDER];
+  // Shortlisted is a private bookmark (the star, and the "Shortlisted" toggle
+  // beside this control), not a rung on the pipeline, so it has no business in a
+  // stage filter. Anyone still carrying the old stage is reachable via All
+  // stages, so nobody becomes unfindable.
+  const filterOptions = ["all", ...STAGE_ORDER.filter((s) => s !== "shortlisted")];
   const filterLabel = (key) => (key === "all" ? "All stages" : STAGE_LABELS[key]);
 
   // "My shortlist" toggle: show only the candidates the signed-in user starred.
