@@ -20128,13 +20128,22 @@ function InsightsDisplay({ insights }) {
   // run of whitespace between each label and its number, so the eye had to
   // travel the width of the card to pair them up. Falls back to one column on
   // narrow screens, where two would squeeze the labels.
-  const grid = "grid sm:grid-cols-2 sm:gap-x-8";
+  //
+  // The centre rule is drawn once over the whole block rather than as a border
+  // on each right-hand cell: a column can end on an odd row (Remote work,
+  // Longest tenure), which would have left the line broken partway down.
+  const Grid = ({ children }) => (
+    <div className="relative">
+      <span aria-hidden className="hidden sm:block absolute inset-y-0 left-1/2 w-px -translate-x-1/2" style={{ background: "var(--line)" }} />
+      <div className="grid sm:grid-cols-2 sm:gap-x-8">{children}</div>
+    </div>
+  );
 
   return (
     <div className="space-y-3">
       <div>
         {heading("Experience insights")}
-        <div className={grid}>
+        <Grid>
           <Row label="Total experience" value={fmtYears(ei.total_experience_years)} accent />
           <Row label="Leadership" value={fmtYears(ei.leadership_experience_years)} />
           {ei.domain_experience.map((d) => (
@@ -20143,18 +20152,18 @@ function InsightsDisplay({ insights }) {
           <FlagRow label="Startup" yes={ei.startup_experience} />
           <FlagRow label="Enterprise" yes={ei.enterprise_experience} />
           <FlagRow label="Remote work" yes={ei.remote_work_mentioned} />
-        </div>
+        </Grid>
       </div>
 
       <div className="pt-3" style={{ borderTop: "1px solid var(--line)" }}>
         {heading("Employment analysis")}
-        <div className={grid}>
+        <Grid>
           <Row label="Employers" value={String(ea.number_of_employers)} />
           <Row label="Average tenure" value={fmtMonths(ea.average_tenure_months)} />
           {ea.longest_tenure && (
             <Row label="Longest tenure" value={fmtMonths(ea.longest_tenure.months)} sub={ea.longest_tenure.company} />
           )}
-        </div>
+        </Grid>
         {ea.career_progression && (
           <div className="mt-2 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
             <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
