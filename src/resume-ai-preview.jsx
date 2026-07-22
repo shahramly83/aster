@@ -24296,13 +24296,16 @@ export default function ResumeAIPreview() {
   // Interviewer RBAC guard: interviewers may only open their assigned interviews,
   // the candidate profiles they scorecard, and their own profile. Any other
   // workspace screen (deep-link, stale history, the emailed link) resolves to
-  // their Interviews home instead of rendering. Owner/admin are unaffected, and
-  // the mock/demo role ("Hiring Manager") is not an interviewer, so the preview
-  // is untouched. This mirrors the server: RLS already scopes their data.
+  // their home instead of rendering. That home is homeForRole(), not a literal:
+  // login lands on "dashboard", which an interviewer can't open, so hardcoding
+  // "interviews" here sent them somewhere other than the first item in their own
+  // nav. Owner/admin are unaffected, and the mock/demo role ("Hiring Manager") is
+  // not an interviewer, so the preview is untouched. This mirrors the server: RLS
+  // already scopes their data.
   const screen =
     canPersist && isInterviewer(profile?.role) &&
     WORKSPACE_SCREENS.has(rawScreen) && !INTERVIEWER_ALLOWED.has(rawScreen)
-      ? "interviews"
+      ? homeForRole(profile?.role)
       : rawScreen;
   const [newJobOpen, setNewJobOpen] = useState(false);
   const [requestRoleOpen, setRequestRoleOpen] = useState(false); // interviewer's "Request a role" modal
