@@ -20502,6 +20502,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   };
   const [pendingDecision, setPendingDecision] = useState(null); // 'offer' awaiting skip-scorecards confirm
   const [confirmReject, setConfirmReject] = useState(false);     // reject double-confirm (sends an email)
+  const [showReject, setShowReject] = useState(false);           // header Reject → compose/skip the rejection email
   // Database-view invite: pick an open role, draft a re-engagement email, and
   // send it to the candidate's profile email. If they apply, they drop their
   // latest resume and move into the hiring workflow.
@@ -20875,6 +20876,17 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         onConfirm={() => { setConfirmReject(false); onSetStage && onSetStage("rejected"); }}
         onClose={() => setConfirmReject(false)}
       />
+      {showReject && (
+        <RejectionModal
+          candidateName={candidate?.parsed?.name || firstName}
+          jobTitle={jobs.find((j) => j.id === contextJobId)?.title}
+          hasEmail={Boolean(candidate?.parsed?.email)}
+          onClose={() => setShowReject(false)}
+          // Third arg is an options object: a bare `false` destructures to
+          // notify = true and silently sends the email anyway.
+          onReject={(emailSent) => { setShowReject(false); onSetStage && onSetStage("rejected", { notify: emailSent !== false }); }}
+        />
+      )}
       <div className="max-w-[1400px] mx-auto">
         <BackLink onClick={() => navigate(-1)}>← Back</BackLink>
 
@@ -20920,6 +20932,16 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             ) : (
               <button onClick={() => navigate("billing")} className="rounded-xl text-xs px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors hover:opacity-80" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title="On Launch, the original file isn't stored">
                 <Icon name="lock" className="w-3.5 h-3.5" /> Original not stored · Pro
+              </button>
+            )}
+            {/* Rejecting used to live in the applicant list's stage dropdown,
+                which meant judging someone from a one-line row. It sits here
+                now, beside the resume and the scores you'd actually decide on,
+                and unlike the Decision step it is reachable at any stage: most
+                candidates are rejected on the CV, long before an interview. */}
+            {onSetStage && !isInterviewer(profile?.role) && !["rejected", "hired"].includes(stage) && (
+              <button onClick={() => setShowReject(true)} className="rounded-xl text-sm px-3 py-1.5 transition-colors inline-flex items-center gap-1.5 border hover:bg-rose-50" style={{ color: "#B42318", borderColor: "var(--line-strong)" }} title={`Reject ${firstName}`}>
+                <Icon name="close" className="w-4 h-4" /> Reject
               </button>
             )}
             {onDelete && !isInterviewer(profile?.role) && (
@@ -22205,32 +22227,15 @@ function RejectionModal({ candidateName, jobTitle, hasEmail = true, onClose, onR
   );
 }
 
-function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasEmail, onStageChange }) {
-  const [open, setOpen] = useState(false);
-  const [showReject, setShowReject] = useState(false);
-  const [menuRef, dropUp] = useDropUp(open, 320);
-
-  // Manual moves are limited to Shortlisted and Rejected. The rest of the funnel
-  // is set by the flow, not the dropdown: Applied is the entry state, Interview
-  // Scheduled is set automatically when a booking is confirmed, and Offer / Hired
-  // / Declined happen through the offer flow on the candidate's profile. A hired
-  // candidate is final.
-  const isPickable = (s) => {
-    if (s === stage) return false;
-    if (stage === "hired") return false;                 // hired is final
-    return s === "shortlisted" || s === "rejected";      // the only manual moves
-  };
-
-  const choose = (next) => {
-    if (!isPickable(next)) return;
-    setOpen(false);
-    if (next === "rejected") {
-      setShowReject(true);
-      return;
-    }
-    onStageChange(next);
-  };
-
+// Stage is a readout, not a control. The pipeline moves on what actually
+// happened — a booking confirmed, an offer sent, an offer signed — so a menu
+// that let you set it by hand could only ever disagree with the record. The one
+// stage with no journey behind it is Rejected, and that decision now lives on
+// the candidate's profile next to the evidence you'd reject on.
+//
+// Shortlisted is gone from here entirely: it is a private bookmark (the star),
+// not a rung on the ladder, so offering it as a destination misrepresented it.
+function StageControl({ stage, rejectionEmailSent }) {
   return (
     <div className="flex items-center justify-end gap-2">
       {stage === "rejected" && (
@@ -22246,65 +22251,9 @@ function StageControl({ stage, rejectionEmailSent, candidateName, jobTitle, hasE
           </span>
         )
       )}
-      <div className="relative" ref={menuRef}>
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition-colors hover:brightness-95 ${STAGE_STYLES[stage]}`}
-        >
-          <span className="text-xs font-medium">{STAGE_LABELS[stage]}</span>
-          <Icon name="chevronDown" className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className={`absolute z-40 right-0 ${dropUp ? "bottom-full mb-1" : "top-full mt-1"} w-52 rounded-xl border border-neutral-200 bg-white shadow-lg py-1`}>
-            <p className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-wide text-neutral-400">Move to stage</p>
-            {STAGE_ORDER.map((s) => {
-              const current = s === stage;
-              const gated = s === "interviewing" || s === "offer" || s === "hired" || s === "declined";
-              const disabled = !current && !isPickable(s);
-              return (
-                <button
-                  key={s}
-                  onClick={() => choose(s)}
-                  disabled={disabled}
-                  title={gated ? (s === "interviewing" ? "Set automatically when a booking is confirmed" : "Set from the candidate's profile via the offer flow") : undefined}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 text-sm transition-colors ${
-                    current
-                      ? "text-neutral-900 bg-neutral-100 font-medium"
-                      : disabled
-                        ? "text-neutral-300 cursor-not-allowed"
-                        : s === "rejected"
-                          ? "text-rose-600 hover:bg-rose-50"
-                          : "text-neutral-700 hover:bg-neutral-50"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    {gated && <Icon name="lock" className="w-3 h-3" />}
-                    {STAGE_LABELS[s]}{s === "rejected" ? "…" : ""}
-                  </span>
-                  {current && <span className="text-neutral-400">✓</span>}
-                </button>
-              );
-            })}
-            <p className="px-3 pt-1.5 pb-1 text-[10px] text-neutral-400 border-t border-neutral-100 mt-1">
-              Locked stages are set by the hiring flow.
-            </p>
-          </div>
-        </>
-      )}
-
-      {showReject && (
-        <RejectionModal
-          candidateName={candidateName}
-          jobTitle={jobTitle}
-          hasEmail={hasEmail}
-          onClose={() => setShowReject(false)}
-          onReject={(emailSent) => { setShowReject(false); onStageChange("rejected", emailSent); }}
-        />
-      )}
-      </div>
+      <span className={`inline-flex items-center rounded-full px-2.5 py-1 border ${STAGE_STYLES[stage]}`}>
+        <span className="text-xs font-medium">{STAGE_LABELS[stage]}</span>
+      </span>
     </div>
   );
 }
@@ -23233,14 +23182,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                         // interview; the stage is just hidden from their card.
                         null
                       ) : (
-                        <StageControl
-                          stage={a.stage}
-                          rejectionEmailSent={a.rejectionEmailSent}
-                          candidateName={c.parsed.name}
-                          jobTitle={jobTitle}
-                          hasEmail={Boolean(c.parsed.email)}
-                          onStageChange={(stage, emailSent) => setStage(a.candidateId, stage, emailSent)}
-                        />
+                        <StageControl stage={a.stage} rejectionEmailSent={a.rejectionEmailSent} />
                       )}
                       <button onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} aria-label={`View ${c.parsed.name}`} title="View candidate" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-50" style={{ border: "1px solid var(--line)", color: "var(--ink-3)" }}>
                         <Icon name="arrowUpRight" className="w-4 h-4" />
