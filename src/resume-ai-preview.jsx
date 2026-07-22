@@ -24616,8 +24616,8 @@ export default function ResumeAIPreview() {
       if (sess.avatarPath) signedAvatarUrl(sess.avatarPath).then((u) => u && setAvatarUrl(u));
       if (sess.companyId) { setCompanyId(sess.companyId); setUserId(sess.userId); hydrateWorkspace(sess.companyId, { seenAt: sess.activitiesSeenAt }); }
     }
-    // Interviewers have no dashboard/billing; land them on their Interviews home.
-    navigate(isInterviewer(sess?.profile?.role) ? "interviews" : dest);
+    // Interviewers have no dashboard/billing; land them on their own home.
+    navigate(isInterviewer(sess?.profile?.role) ? homeForRole(sess?.profile?.role) : dest);
   };
 
   // Replace the demo datasets with the signed-in company's real rows. A no-op
@@ -25012,13 +25012,13 @@ export default function ResumeAIPreview() {
         if (joinedViaInvite && !cancelled) {
           setInvite(null);
           if (typeof window !== "undefined") window.history.replaceState({ aster: true }, "", "/");
-          navigate(isInterviewer(sess.profile?.role) ? "interviews" : "dashboard");
+          navigate(homeForRole(sess.profile?.role));
         } else if (!cancelled && typeof window !== "undefined") {
           // Restored a session while sitting on the sign-in screen (a fresh login,
           // a cross-subdomain handoff, or the subdomain root that resolves to
           // login) — drop into the app rather than show a form to an authed user.
           const cur = screenFromPath(window.location.pathname);
-          if (cur === "login" || cur === "signup") navigate(isInterviewer(sess.profile?.role) ? "interviews" : "dashboard");
+          if (cur === "login" || cur === "signup") navigate(homeForRole(sess.profile?.role));
         }
       } finally {
         if (!cancelled) setRestoring(false);
