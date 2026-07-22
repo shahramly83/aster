@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, FlatList, RefreshControl, StyleSheet, Animated, Easing, Modal, Pressable, TextInput, Keyboard, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
@@ -39,6 +39,11 @@ function Rise({ children, delay = 0, style }) {
 export default function TeamsScreen({ navigation }) {
   const { profile } = useAuth();
   const { unread } = useNotifications();
+  // A React Native <Modal> renders in its own window on Android, where the
+  // safe-area inset frequently reports 0, so the sheet's own padding was all
+  // that stood between "Send invite" and the system nav bar. Floor it.
+  const insets = useSafeAreaInsets();
+  const sheetPadBottom = Math.max(insets.bottom, 24) + space(4);
   const [rows, setRows] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -249,7 +254,10 @@ export default function TeamsScreen({ navigation }) {
       <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)} statusBarTranslucent>
         <View style={styles.backdrop}>
           <Pressable style={{ flex: 1 }} onPress={() => !sending && setInviteOpen(false)} />
-          <View style={[styles.sheet, { marginBottom: kb > 0 ? kb : 0 }]}>
+          {/* iOS does not resize the window for the keyboard so the sheet is
+              lifted manually; Android already resizes, and lifting there too
+              shoved the sheet up a second keyboard height. */}
+          <View style={[styles.sheet, { paddingBottom: sheetPadBottom, marginBottom: Platform.OS === "ios" && kb > 0 ? kb : 0 }]}>
             <View style={styles.handle} />
             <View style={styles.sheetHead}>
               <Text style={[type.h3, { color: theme.ink }]}>Invite teammate</Text>
