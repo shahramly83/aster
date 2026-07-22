@@ -254,10 +254,12 @@ export default function TeamsScreen({ navigation }) {
       <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)} statusBarTranslucent>
         <View style={styles.backdrop}>
           <Pressable style={{ flex: 1 }} onPress={() => !sending && setInviteOpen(false)} />
-          {/* iOS does not resize the window for the keyboard so the sheet is
-              lifted manually; Android already resizes, and lifting there too
-              shoved the sheet up a second keyboard height. */}
-          <View style={[styles.sheet, { paddingBottom: sheetPadBottom, marginBottom: Platform.OS === "ios" && kb > 0 ? kb : 0 }]}>
+          {/* Lift on BOTH platforms here. This Modal sets statusBarTranslucent,
+              and such a modal window does NOT resize for the keyboard on
+              Android, so without the manual lift "Send invite" ends up buried.
+              (The Job Detail sheets omit that flag, do resize, and therefore
+              must NOT be lifted on Android or they double-shift.) */}
+          <View style={[styles.sheet, { paddingBottom: sheetPadBottom, marginBottom: kb > 0 ? kb : 0 }]}>
             <View style={styles.handle} />
             <View style={styles.sheetHead}>
               <Text style={[type.h3, { color: theme.ink }]}>Invite teammate</Text>
