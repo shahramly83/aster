@@ -21420,7 +21420,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <span className="shrink-0 mt-0.5" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-5 h-5" /></span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your interview with {firstName} is coming up</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{interviewWhen ? `Scheduled for ${interviewWhen}. ` : ""}Read their background below and prep with the tailored questions.</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{interviewWhen ? `Scheduled for ${interviewWhen}. ` : ""}Prep with the questions below, and open Profile for their resume and background.</p>
                     </div>
                   </div>
                 )

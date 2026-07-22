@@ -7,6 +7,7 @@ import { View, Text, Pressable, Modal, ScrollView, Alert, StyleSheet } from "rea
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createInterviewInvite, loadInterviewers, loadCandidatePoll, loadBookedSlots } from "../lib/data";
 import { Button, Feather } from "./ui";
+import { useDialog } from "./Dialog";
 import CalendarSheet from "./CalendarSheet";
 import { theme, type, space, radius } from "../theme";
 
@@ -23,6 +24,7 @@ function slotLabel(startIso, endIso) {
 }
 
 export default function ProposeTimesSheet({ visible, onClose, companyId, candidateId, jobId, hm, onSent }) {
+  const dialog = useDialog();
   const insets = useSafeAreaInsets();
   const [pollSlots, setPollSlots] = useState([]); // { start, end, count } ranked by votes
   const [selected, setSelected] = useState(new Set()); // start ISO of chosen slots
@@ -93,14 +95,16 @@ export default function ProposeTimesSheet({ visible, onClose, companyId, candida
     reset();
     onSent?.(res);
     onClose();
-    Alert.alert(
-      "Sent to candidate",
-      res.emailed
+    dialog.alert({
+      title: "Sent to candidate",
+      message: res.emailed
         ? "The candidate has been emailed a link to pick a time."
         : res.skipped === "no_candidate_email"
           ? "Times saved, but the candidate has no email on file. Share the booking link manually."
           : "Interview times proposed.",
-    );
+      icon: "check-circle",
+      variant: "success",
+    });
   };
 
   return (

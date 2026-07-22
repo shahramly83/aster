@@ -6,6 +6,7 @@ import { Platform } from "react-native";
 import { useAuth } from "../AuthContext";
 import { submitScorecard } from "../lib/data";
 import { Card, Button, SectionHeader, ScreenHeader } from "../components/ui";
+import { useDialog } from "../components/Dialog";
 import SuccessModal from "../components/SuccessModal";
 import { theme, type, space, radius } from "../theme";
 import { SCORE_CRITERIA, recommendationFromRatings, recommendationMeta } from "@aster/shared";
@@ -15,6 +16,7 @@ const SCALE_HINT = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Excellent" };
 
 export default function ScorecardScreen({ route, navigation }) {
   const { profile } = useAuth();
+  const dialog = useDialog();
   const { candidateId, jobId, candidateName, existing } = route.params || {};
   const editing = !!existing;
   const [ratings, setRatings] = useState(existing?.ratings || {});
@@ -33,13 +35,13 @@ export default function ScorecardScreen({ route, navigation }) {
 
   const onSubmit = async () => {
     if (busy || done) return; // ignore rapid repeat taps
-    if (!jobId) { Alert.alert("Missing role", "This scorecard isn't linked to a role, so it can't be saved."); return; }
+    if (!jobId) { dialog.alert({ title: "Missing role", message: "This scorecard isn't linked to a role, so it can't be saved.", icon: "alert-triangle", variant: "danger" }); return; }
     setBusy(true);
     try {
       await submitScorecard({ companyId: profile.companyId, userId: profile.userId, candidateId, jobId, ratings, notes });
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setDone(true);
-    } catch (e) { Alert.alert("Could not submit", e?.message || "Please try again."); }
+    } catch (e) { dialog.alert({ title: "Could not submit", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" }); }
     finally { setBusy(false); }
   };
 

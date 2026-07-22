@@ -23,6 +23,7 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import { NotificationsProvider } from "./src/NotificationsContext";
+import { DialogProvider } from "./src/components/Dialog";
 import { isManagerRole } from "@aster/shared";
 import { linking } from "./src/lib/linking";
 import { theme } from "./src/theme";
@@ -152,6 +153,9 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <NotificationsProvider>
+          {/* Outside NavigationContainer so a prompt raised from any screen
+              renders above the whole app, including the tab bar. */}
+          <DialogProvider>
           <NavigationContainer
             linking={linking}
             theme={navTheme}
@@ -160,6 +164,7 @@ export default function App() {
           >
             <Root />
           </NavigationContainer>
+          </DialogProvider>
         </NotificationsProvider>
       </AuthProvider>
       {!splashDone ? <BrandSplash onDone={() => setSplashDone(true)} /> : null}

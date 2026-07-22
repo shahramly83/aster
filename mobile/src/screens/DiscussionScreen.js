@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, FlatList, Pressable, Modal, Keyboard, Platform, Alert, ActivityIndicator, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import CalendarSheet from "../components/CalendarSheet";
+import { useDialog } from "../components/Dialog";
 import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages, loadThreadParticipants,
@@ -72,6 +73,7 @@ function useKeyboardHeight() {
 // an interview availability poll at the top of the thread.
 export default function DiscussionScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
+  const dialog = useDialog();
   const insets = useSafeAreaInsets();
   const kb = useKeyboardHeight();
   // Under edge-to-edge, the reported keyboard height usually excludes the nav-bar
@@ -244,7 +246,7 @@ export default function DiscussionScreen({ route, navigation }) {
       if (others.length) await loadPoll();
     }
     setSavingSlot(null);
-    if (err) { Alert.alert("Couldn't update", err); loadPoll(); }
+    if (err) { dialog.alert({ title: "Couldn't update", message: err, icon: "alert-triangle", variant: "danger" }); loadPoll(); }
   };
 
   // HM confirms a slot from the candidate's round-2 poll → schedules the interview.
@@ -295,7 +297,7 @@ export default function DiscussionScreen({ route, navigation }) {
   const sendOffer = async () => {
     if (!poll || sendingOffer) return;
     const chosen = poll.slots.filter((s) => selected.has(s.id)).map((s) => ({ start: s.ts, end: s.end }));
-    if (chosen.length < 2) { Alert.alert("Pick at least two", "Select at least two times to offer the candidate."); return; }
+    if (chosen.length < 2) { dialog.alert({ title: "Pick at least two", message: "Select at least two times to offer the candidate.", icon: "clock", variant: "warn" }); return; }
     setSendingOffer(true);
     const attendees = [
       { id: profile.userId, name: profile.name || "You", email: profile.email || "" },
@@ -306,12 +308,12 @@ export default function DiscussionScreen({ route, navigation }) {
       interviewerName: profile.name || "the hiring team", interviewerEmail: profile.email || "",
       slots: chosen, attendees,
     });
-    if (!res.ok) { setSendingOffer(false); Alert.alert("Couldn't send", res.error || "Try again."); return; }
+    if (!res.ok) { setSendingOffer(false); dialog.alert({ title: "Couldn't send", message: res.error || "Try again.", icon: "alert-triangle", variant: "danger" }); return; }
     await closePoll(poll.id, chosen[0].start).catch(() => {});
     setSelected(new Set());
     await loadPoll(); // hides the poll + shows the "invite sent" banner, in place
     setSendingOffer(false);
-    Alert.alert("Sent to candidate", res.emailed ? `${candidateName || "The candidate"} has been emailed to pick a time.` : "Invite created. The candidate will be notified to pick a time.");
+    dialog.alert({ title: "Sent to candidate", message: res.emailed ? `${candidateName || "The candidate"} has been emailed to pick a time.` : "Invite created. The candidate will be notified to pick a time.", icon: "check-circle", variant: "success" });
   };
 
   // A single mark is worse than none: it can't overlap with anything, so the

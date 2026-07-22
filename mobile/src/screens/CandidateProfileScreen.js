@@ -14,6 +14,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import SuccessModal from "../components/SuccessModal";
 import AiInsight from "../components/AiInsight";
 import AiQuestions from "../components/AiQuestions";
+import { useDialog } from "../components/Dialog";
 import { theme, type, space, radius, shadow } from "../theme";
 import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange } from "@aster/shared";
 
@@ -80,6 +81,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
+  const dialog = useDialog();
   const [confirm, setConfirm] = useState(null); // branded confirm dialog config
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerSent, setOfferSent] = useState(null); // { title, message } for the branded success modal
@@ -152,7 +154,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     const prev = stage;
     setStage(to);
     try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to }); }
-    catch (e) { setStage(prev); Alert.alert("Could not update", e?.message || "Please try again."); }
+    catch (e) { setStage(prev); dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" }); }
   };
 
   const moveTo = (to) => {
@@ -172,7 +174,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const viewSigned = async () => {
     const url = await signedOfferUrl(candidateId);
     if (url) Linking.openURL(url);
-    else Alert.alert("Not available yet", "The signed offer PDF isn't ready.");
+    else dialog.alert({ title: "Not available yet", message: "The signed offer PDF isn't ready.", icon: "clock", variant: "warn" });
   };
 
   const reject = () => {
@@ -191,10 +193,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
     setMlSaving(true);
     const res = await shareMeetingLink(profile.companyId, candidateId, jobId, link);
     setMlSaving(false);
-    if (!res.ok) { Alert.alert("Couldn't share link", res.error || "Try again."); return; }
+    if (!res.ok) { dialog.alert({ title: "Couldn't share link", message: res.error || "Try again.", icon: "alert-triangle", variant: "danger" }); return; }
     Keyboard.dismiss();
     const who = [res.candidate ? "the candidate" : null, res.panel ? `${res.panel} panel member${res.panel === 1 ? "" : "s"}` : null].filter(Boolean).join(" and ");
-    Alert.alert("Link shared", who ? `Sent to ${who} with a calendar invite.` : "Meeting link saved.");
+    dialog.alert({ title: "Link shared", message: who ? `Sent to ${who} with a calendar invite.` : "Meeting link saved.", icon: "check-circle", variant: "success" });
     setReplacingLink(false);
     load();
   };
@@ -213,7 +215,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const resendInvite = async () => {
     if (!interview?.token) return;
     const res = await resendInterviewInvite(interview.token);
-    Alert.alert(res.ok ? "Email resent" : "Couldn't resend", res.ok ? "The candidate got the booking link again." : (res.error || "Try again."));
+    dialog.alert(res.ok
+      ? { title: "Email resent", message: "The candidate got the booking link again.", icon: "check-circle", variant: "success" }
+      : { title: "Couldn't resend", message: res.error || "Try again.", icon: "alert-triangle", variant: "danger" });
   };
 
   const genQuestions = async () => {
@@ -223,7 +227,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
       parsed: candidate?.parsed || {}, jobTitle: route.params?.jobTitle,
     });
     setGenQ(false);
-    if (!res.ok) { Alert.alert("Couldn't generate questions", res.error || "Try again."); return; }
+    if (!res.ok) { dialog.alert({ title: "Couldn't generate questions", message: res.error || "Try again.", icon: "alert-triangle", variant: "danger" }); return; }
     setQuestions(res.questions);
   };
 
@@ -234,7 +238,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
       confirmLabel: "Reschedule",
       onConfirm: async () => {
         const res = await rescheduleInterview(profile.companyId, candidateId);
-        if (!res.ok) { Alert.alert("Couldn't reschedule", res.error || "Try again."); return; }
+        if (!res.ok) { dialog.alert({ title: "Couldn't reschedule", message: res.error || "Try again.", icon: "alert-triangle", variant: "danger" }); return; }
         setNoShowDismissed(false); load();
       },
     });
@@ -803,11 +807,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       for a better one. Replaces the set for the whole panel and
                       costs a credit, so it confirms first. */}
                   <Press
-                    onPress={() => Alert.alert(
-                      "Generate a new set?",
-                      "This replaces the current questions for the whole panel and uses one credit.",
-                      [{ text: "Cancel", style: "cancel" }, { text: "Regenerate", onPress: genQuestions }],
-                    )}
+                    onPress={async () => {
+                      const ok = await dialog.confirm({
+                        title: "Generate a new set?",
+                        message: "This replaces the current questions for the whole panel and uses one credit.",
+                        icon: "refresh-cw",
+                        confirmLabel: "Regenerate",
+                      });
+                      if (ok) genQuestions();
+                    }}
                     disabled={genQ}
                     haptic="light"
                     style={{ marginTop: space(3) }}

@@ -12,6 +12,7 @@ import { useNotifications } from "../NotificationsContext";
 import { loadApplicants, moveCandidateStage, runAiRank, loadJobRankedAt, loadInterviewers, assignInterviewer, unassignInterviewer, loadMyShortlist, setShortlisted } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, HeaderActions, StagePill, EmptyState, Feather } from "../components/ui";
+import { useDialog } from "../components/Dialog";
 import { RingFull } from "../components/Gauge";
 import { theme, type, space, radius } from "../theme";
 import { stageColor, relTime } from "@aster/shared";
@@ -30,6 +31,7 @@ const FILTERS = [
 
 export default function JobDetailScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
+  const dialog = useDialog();
   // Bottom-sheet padding must clear the Android navigation bar. Two traps here:
   // an empty <SafeAreaView edges={["bottom"]}/> spacer collapses to nothing, and
   // a React Native <Modal> renders in its OWN window on Android, so the inset
@@ -136,7 +138,7 @@ export default function JobDetailScreen({ route, navigation }) {
       await setShortlisted({ companyId: profile.companyId, userId: profile.userId, applicationId: id, on });
     } catch (e) {
       setStarred((prev) => { const n = new Set(prev); if (on) n.delete(id); else n.add(id); return n; });
-      Alert.alert("Could not update", e?.message || "Please try again.");
+      dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" });
     }
   };
 
@@ -186,11 +188,13 @@ export default function JobDetailScreen({ route, navigation }) {
     // Clickable even when it can't run, so a tap explains WHY.
     if (!canRank) { setRankNotice({ type: "err", text: "AI Rank needs at least 2 candidates to rank. Once two or more applicants are ready, you can score them against this role." }); return; }
     if (rankLocked) { setRankNotice({ type: "err", text: "These applicants are already ranked. AI Rank unlocks again the moment a new candidate applies, so you're not charged to re-rank an unchanged list." }); return; }
-    Alert.alert(
-      hasScores ? "Re-run AI Rank?" : "Run AI Rank?",
-      `Scores your ${Math.min(activeRows.length, 40)} candidate${activeRows.length === 1 ? "" : "s"} against this role and uses ${rankUnits} AI Rank credit${rankUnits === 1 ? "" : "s"}.`,
-      [{ text: "Cancel", style: "cancel" }, { text: hasScores ? "Re-run" : "Run", onPress: doRank }]
-    );
+    dialog.confirm({
+      title: hasScores ? "Re-run AI Rank?" : "Run AI Rank?",
+      message: `Scores your ${Math.min(activeRows.length, 40)} candidate${activeRows.length === 1 ? "" : "s"} against this role.`,
+      detail: `Uses ${rankUnits} AI Rank credit${rankUnits === 1 ? "" : "s"}`,
+      icon: "zap",
+      confirmLabel: hasScores ? "Re-run" : "Run",
+    }).then((ok) => { if (ok) doRank(); });
   };
 
   const rankLabel = ranking ? "Ranking" : rankLocked ? "Ranked" : hasScores ? "Re-run" : "AI Rank";
@@ -211,7 +215,7 @@ export default function JobDetailScreen({ route, navigation }) {
       : await unassignInterviewer(jobId, m.id);
     if (err) {
       setInterviewers((prev) => prev.map((x) => (x.id === m.id ? { ...x, assigned: !next } : x)));
-      Alert.alert("Couldn't update interviewers", err);
+      dialog.alert({ title: "Couldn't update interviewers", message: err, icon: "alert-triangle", variant: "danger" });
     }
     setSavingId(null);
   };
