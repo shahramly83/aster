@@ -16329,10 +16329,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               </span>
             ))}
             {assignedInterviewers.length === 0 && (
-              <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>
-                No interviewers on this role yet, so a poll would have nobody to vote in it.{" "}
-                <button type="button" onClick={() => { setErr(null); setAddingPanel(true); }} className="font-medium underline" style={{ color: "var(--brand)" }}>Add one</button>
-              </p>
+              <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>No interviewers on this role yet.</p>
             )}
           </div>
 
@@ -16383,9 +16380,27 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
       {/* No poll yet → HM can start one */}
       {!poll && isManager && (
         !creating ? (
-          <button type="button" onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
-            <Icon name="plus" className="w-4 h-4" /> Run a panel availability poll
-          </button>
+          // With nobody to poll, the poll would open, report "0 of 0 voted" and
+          // unlock selection straight away — a slower "Schedule on my own". Block
+          // it, and point at the fix rather than just greying out.
+          <div>
+            <button
+              type="button"
+              disabled={requiredVoters.length === 0}
+              onClick={() => setCreating(true)}
+              title={requiredVoters.length === 0 ? "Add an interviewer to this role first" : undefined}
+              className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80 disabled:cursor-not-allowed disabled:hover:opacity-100"
+              style={{ color: requiredVoters.length === 0 ? "var(--ink-3)" : "var(--brand)" }}
+            >
+              <Icon name="plus" className="w-4 h-4" /> Run a panel availability poll
+            </button>
+            {requiredVoters.length === 0 && (
+              <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>
+                Needs at least one interviewer on this role.{" "}
+                {canEditPanel && <button type="button" onClick={() => { setErr(null); setAddingPanel(true); }} className="font-medium underline" style={{ color: "var(--brand)" }}>Add one</button>}
+              </p>
+            )}
+          </div>
         ) : (
           <div>
             <p className="text-xs mb-2" style={{ color: "var(--ink-2)" }}>Propose at least three time ranges. The panel marks the ones they can make before you offer times to {candName.split(" ")[0]}.</p>
