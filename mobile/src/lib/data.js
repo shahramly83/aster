@@ -262,6 +262,28 @@ export async function generateInterviewQuestions({ companyId, candidateId, jobId
   return { ok: true, questions };
 }
 
+// Run the AI read of a resume: total and leadership experience, domain exposure,
+// employer tenure, employment gaps. Spends one AI Insight credit, charged by the
+// edge function itself (0046), which also persists the result on the candidate
+// row so it survives a reload and is never paid for twice.
+//
+// A failure after the charge is refunded server-side, so "no credit was used" is
+// a claim we can actually make. limit_reached is surfaced rather than swallowed:
+// quietly falling back to a local read is what made the cap feel imaginary.
+export async function runExperienceInsights(candidate) {
+  if (!candidate?.parsed) return { ok: false, error: "This resume hasn't been parsed yet." };
+  const { data, error } = await supabase.functions.invoke("analyze-experience", {
+    body: { candidate: { id: candidate.id, parsed: candidate.parsed } },
+  });
+  // supabase-js throws on non-2xx, so a 402 arrives as an error with the JSON
+  // body tucked inside context. Dig it out before deciding what went wrong.
+  let body = data;
+  if (error) { try { body = await error.context?.json?.(); } catch { /* non-JSON */ } }
+  if (body?.error === "limit_reached") return { ok: false, limitReached: true, used: body.used, limit: body.monthly_limit };
+  if (error || body?.error || !body?.insights) return { ok: false, error: "AI Insight didn't run. No credit was used." };
+  return { ok: true, insights: body.insights, used: body.used, limit: body.monthly_limit };
+}
+
 // ---- Scorecards ----------------------------------------------------------------
 
 // All scorecards for a candidate (read is RLS-scoped to my assigned jobs).

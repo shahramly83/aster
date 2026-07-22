@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, runExperienceInsights } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -15,7 +15,7 @@ import SuccessModal from "../components/SuccessModal";
 import AiInsight from "../components/AiInsight";
 import AiQuestions from "../components/AiQuestions";
 import { theme, type, space, radius, shadow } from "../theme";
-import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange, deriveInsights } from "@aster/shared";
+import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange } from "@aster/shared";
 
 // The hiring process, in order. Offer/Hired are shown but managed on web.
 // The hiring process proper. "shortlisted" is deliberately NOT here: it is a
@@ -95,6 +95,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile"); // interview page sub-tabs: profile | interview | feedback
   const [lockNote, setLockNote] = useState(null); // message shown when a locked tab is tapped
+  const [insightRun, setInsightRun] = useState(null);   // result of a run this session
+  const [insightBusy, setInsightBusy] = useState(false);
+  const [insightErr, setInsightErr] = useState(null);
+  const [insightCapped, setInsightCapped] = useState(false); // out of credits
   const tabInit = useRef(false); // only auto-pick the default tab once, so a manual switch sticks
   const tabAnim = useRef(new Animated.Value(1)).current; // fade + slide when switching tabs
 
@@ -246,14 +250,23 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const name = nameOf();
   // AI Insight: use the stored Claude analysis, else derive from the resume so
   // every profile shows one (same as web).
-  // Two very different things used to share one "AI INSIGHT" banner: a stored
-  // Claude analysis, and deriveInsights() — local arithmetic over the parsed CV
-  // (regex on titles, summed durations, hardcoded company lists). No model runs
-  // for the second, so calling it AI overstated it and left people wondering
-  // what they'd been charged for. Keep the fallback, label it for what it is.
-  const aiInsights = candidate?.experienceInsights || null;
-  const insights = aiInsights || (candidate ? deriveInsights(candidate) : null);
-  const insightsAreAi = !!aiInsights;
+  // Mobile used to render deriveInsights() — local arithmetic over the parsed CV
+  // — unprompted, under an "AI INSIGHT" banner. Web has always required an
+  // explicit run, so the two clients disagreed about what an insight even was,
+  // and a phone user saw analysis they never asked for and assumed they'd been
+  // charged. Mobile now matches web: nothing until the AI actually runs.
+  const insights = insightRun || candidate?.experienceInsights || null;
+
+  const generateInsights = async () => {
+    if (insightBusy) return;
+    setInsightBusy(true);
+    setInsightErr(null);
+    const res = await runExperienceInsights(candidate);
+    setInsightBusy(false);
+    if (res.ok) { setInsightRun(res.insights); return; }
+    if (res.limitReached) { setInsightCapped(true); return; }
+    setInsightErr(res.error);
+  };
 
   // ---- Interview → decision → offer → hired state machine (web sequence) ----
   const scheduledAt = interview?.status === "scheduled" ? interview.scheduledAt : null;
@@ -379,16 +392,57 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </Pressable>
             {detailsOpen ? (
               <View>
-                {/* AI Insight — resume deep-dive (experience + employment analysis) */}
-                {insights ? (
+                {/* AI Insight — resume deep-dive (experience + employment
+                    analysis). Interviewers never see it: they assess the people
+                    in front of them and shouldn't be able to spend the
+                    workspace's credits, which is how web has always had it. */}
+                {manager ? (
                   <View style={{ marginTop: space(4) }}>
                     <View style={styles.aiHead}>
-                      <Feather name={insightsAreAi ? "zap" : "file-text"} size={14} color={insightsAreAi ? theme.brand : theme.ink4} />
-                      <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>
-                        {insightsAreAi ? "AI INSIGHT" : "FROM THE RESUME"}
-                      </Text>
+                      <Feather name="zap" size={14} color={theme.brand} />
+                      <Text style={[type.label, { color: theme.ink3, marginLeft: 6 }]}>AI INSIGHT</Text>
+                      {insights?.generated_at ? (
+                        <Text style={[type.small, { color: theme.ink4, marginLeft: "auto" }]}>
+                          {new Date(insights.generated_at).toLocaleDateString()}
+                        </Text>
+                      ) : null}
                     </View>
-                    <AiInsight insights={insights} />
+                    {insights ? (
+                      // No regenerate: the credit is spent and a resume doesn't
+                      // change, so the stored read is shown for good.
+                      <AiInsight insights={insights} />
+                    ) : (
+                      <Card>
+                        {insightCapped ? (
+                          <>
+                            <Text style={[type.bodyStrong, { color: theme.ink }]}>You're out of AI insights</Text>
+                            <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 19 }]}>
+                              Your monthly credits are used up. Top up from Billing on the Aster web app.
+                            </Text>
+                          </>
+                        ) : (
+                          <>
+                            <Text style={[type.small, { color: theme.ink2, lineHeight: 19 }]}>
+                              Run a deeper AI read of this resume: total and leadership experience, domain exposure, employer tenure, and any employment gaps.
+                            </Text>
+                            <Text style={[type.small, { color: theme.ink4, marginTop: 6 }]}>Uses one AI insight credit.</Text>
+                            <Button
+                              title={insightBusy ? "Analysing resume…" : "Generate AI insights"}
+                              icon="zap"
+                              loading={insightBusy}
+                              onPress={generateInsights}
+                              style={{ marginTop: space(3) }}
+                            />
+                            {insightErr ? (
+                              <View style={styles.insightErr}>
+                                <Feather name="alert-circle" size={13} color={theme.danger} />
+                                <Text style={[type.small, { color: theme.danger, marginLeft: 6, flex: 1 }]}>{insightErr}</Text>
+                              </View>
+                            ) : null}
+                          </>
+                        )}
+                      </Card>
+                    )}
                   </View>
                 ) : null}
 
@@ -981,6 +1035,7 @@ const styles = StyleSheet.create({
   badgeTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.white, marginLeft: 6 },
   name: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, lineHeight: 27, letterSpacing: -0.5, color: theme.ink, marginTop: space(3), textAlign: "center" },
   aiHead: { flexDirection: "row", alignItems: "center", marginBottom: space(3), marginLeft: space(1) },
+  insightErr: { flexDirection: "row", alignItems: "flex-start", marginTop: space(2), backgroundColor: theme.dangerBg, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
   role: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink3, marginTop: space(2) },
   tags: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: space(3) },
   tag: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8, shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
