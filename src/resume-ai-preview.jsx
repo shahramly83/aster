@@ -140,11 +140,18 @@ async function loadCustomerSession(userId, fallbackEmail) {
 // mirrored to localStorage for an instant read. A flag counts as "done" if either
 // source says so; ending/skipping a tour writes BOTH, so a "skip" sticks to the
 // account across browsers and incognito windows, not just the one that clicked it.
+// In-memory mirror of what THIS tab has marked done. profile.onboarding is a
+// snapshot taken at session load and is never mutated after a mark, and
+// localStorage throws in private mode, so without this a tour re-mount (switching
+// jobs, navigating back) could re-read a stale "not done" and replay itself.
+const ONBOARDING_MARKED = new Set();
 function onboardingDone(profile, serverKey, lsKey) {
+  if (ONBOARDING_MARKED.has(serverKey)) return true;
   if (profile && profile.onboarding && profile.onboarding[serverKey] === true) return true;
   try { return localStorage.getItem(lsKey) === "done"; } catch { return false; }
 }
 function markOnboardingDone(serverKey, lsKey) {
+  ONBOARDING_MARKED.add(serverKey);
   try { if (lsKey) localStorage.setItem(lsKey, "done"); } catch { /* private mode */ }
   if (hasSupabase) { try { supabase.rpc("mark_onboarding", { p_key: serverKey }).catch(() => {}); } catch { /* ignore */ } }
 }
@@ -22515,7 +22522,12 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const tourKey = `aster.tour.applicants.v6`;
   // Owner (Tenant) only: invited teammates skip the first-run applicants walkthrough.
   const [tourStep, setTourStep] = useState(() => (isOwner(profile?.role) && !onboardingDone(profile, "applicants_v6", tourKey) ? 1 : 0));
+  // Write the "seen" flag as soon as the tour is ENGAGED, not only when the last
+  // step is closed. Marking it only at the end meant anyone who walked away
+  // mid-tour (changed job, switched tab, reloaded) got Step 1 again on every
+  // visit, because the screen re-mounts and re-reads the flag.
   const endTour = () => { setTourStep(0); markOnboardingDone("applicants_v6", tourKey); };
+  const advanceTour = (step) => { markOnboardingDone("applicants_v6", tourKey); setTourStep(step); };
   const [matchOk, setMatchOk] = useState(false); // brief success note after a rank run
 
   const [stageFilter, setStageFilter] = useState("all");
@@ -22870,7 +22882,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                   Everyone who applied shows up here. Strong Matches fit the role. The rest stay in your talent pool for later.
                 </GuideBubble>
               ) : (
-                <GuideBubble step="Step 1" pointer="up" arrowAlign="left" primaryLabel="Next" onPrimary={() => setTourStep(2)} onClose={endTour}>
+                <GuideBubble step="Step 1" total={2} pointer="up" arrowAlign="left" primaryLabel="Next" onPrimary={() => advanceTour(2)} onClose={endTour}>
                   Everyone who applied shows up here. Strong Matches fit the role. The rest stay in your talent pool for later.
                 </GuideBubble>
               )}
@@ -22883,7 +22895,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             // Step 2 / Step 3 target buttons.
             const pulse = tourStep === 1 && key === "strong";
             return (
-              <button key={key} onClick={() => { setApplicantTab(key); setStageFilter("all"); }}
+              // Step 2 anchors to AI Rank, which only exists on Strong Matches.
+              // Leaving that tab mid-tour would strand the tour on a step with no
+              // visible bubble and no way to finish it, so close it out here.
+              <button key={key} onClick={() => { if (tourStep === 2 && key !== "strong") endTour(); setApplicantTab(key); setStageFilter("all"); }}
                 className={`shrink-0 inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-[13px] sm:text-sm font-semibold transition-all ${pulse ? "tour-pulse" : ""} ${on ? "brand-gradient text-white shadow-[0_8px_20px_-10px_rgba(var(--brand-rgb),0.7)]" : "hover:bg-neutral-50"}`}
                 style={{ ...(on ? undefined : { color: "var(--ink-2)" }), ...(pulse ? { boxShadow: "0 0 0 4px rgba(11,42,224,0.32)" } : {}) }}>
                 <Icon name={ic} className="w-4 h-4" />
