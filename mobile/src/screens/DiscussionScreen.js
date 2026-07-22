@@ -303,6 +303,39 @@ export default function DiscussionScreen({ route, navigation }) {
     Alert.alert("Sent to candidate", res.emailed ? `${candidateName || "The candidate"} has been emailed to pick a time.` : "Invite created. The candidate will be notified to pick a time.");
   };
 
+  // A single mark is worse than none: it can't overlap with anything, so the
+  // panel reads "1 available" and the poll stalls on a vote that was never going
+  // to count. The card says so, but a warning you can walk away from is exactly
+  // what people walk away from — so hold the screen until they finish or undo.
+  const myMarks = poll?.status === "open" ? poll.slots.filter((s) => s.mine) : [];
+  const strandedMark = myMarks.length === 1 ? myMarks[0] : null;
+
+  useEffect(() => {
+    if (!strandedMark) return;
+    const stop = navigation.addListener("beforeRemove", (e) => {
+      e.preventDefault(); // covers header back, hardware back and the swipe gesture
+      Alert.alert(
+        "Mark one more time",
+        "You've only marked one slot, so it can't overlap with anyone else's and won't count. Tap at least one more.",
+        [
+          { text: "Keep marking", style: "cancel" },
+          {
+            // Always leave a way out: someone who genuinely has one slot free
+            // shouldn't be trapped, they just shouldn't leave a vote that lies.
+            text: "Clear my mark and leave",
+            style: "destructive",
+            onPress: async () => {
+              await toggleVote(strandedMark);
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ],
+      );
+    });
+    return stop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, strandedMark?.id]);
+
   const canCreate = manager && (!poll || poll.status === "closed");
 
   // Names to highlight in bubbles: the mentionable teammates plus me, so a
