@@ -10196,11 +10196,14 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
           const TRIAL_DAYS = 14;
           const left = Math.min(trialDaysLeft, TRIAL_DAYS);
           const pct = Math.max(4, Math.round((left / TRIAL_DAYS) * 100)); // never a bar of nothing
-          const tone = left <= 3
-            ? { accent: "#DC2626", soft: "#FEF2F2", line: "#FCA5A5", ink: "#7F1D1D" }
-            : left <= 7
+          // Traffic lights, not brand blue: the ring is a countdown, so it should
+          // say how much runway is left rather than sit on brand until it is too
+          // late. 14-11 green, 10-5 amber, 4-0 red.
+          const tone = left >= 11
+            ? { accent: "#16A34A", soft: "#F0FDF4", line: "#A7F3D0", ink: "#065F46" }
+            : left >= 5
               ? { accent: "#D97706", soft: "#FFFBEB", line: "#FCD34D", ink: "#92400E" }
-              : { accent: "var(--brand)", soft: "var(--brand-soft)", line: "#CBD8F5", ink: "var(--ink)" };
+              : { accent: "#DC2626", soft: "#FEF2F2", line: "#FCA5A5", ink: "#7F1D1D" };
           return (
             <div className="mb-5 rounded-2xl px-4 sm:px-5 py-4 flex items-center gap-4" style={{ background: tone.soft, border: `1px solid ${tone.line}` }}>
               {/* The countdown is a ring around the number, not a bar. Stretched
@@ -10224,7 +10227,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   {left === 1 ? "Last day of your free trial" : `${left} days left in your free trial`}
                 </p>
                 <p className="text-xs leading-tight mt-1" style={{ color: tone.ink, opacity: 0.75 }}>
-                  {left <= 3
+                  {/* Matches the red band, so the wording escalates with the
+                      colour instead of on its own schedule. */}
+                  {left < 5
                     ? "Your workspace is suspended when it ends. Subscribe to keep your jobs and candidates live."
                     : "Full Scale access during the trial. Subscribe before it ends to keep everything running."}
                 </p>
@@ -14941,17 +14946,61 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
             <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No any position assigned yet</p>
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          {/* The card used to carry a title and "1 applicant", which is nothing
+              to look at and nothing to act on. It now shows the shape of the
+              pipeline: how many people are at each live stage, as a proportional
+              bar plus counts. An interviewer can tell at a glance whether a role
+              is a pile of unread CVs or three people mid-interview. */}
+          <div className="grid gap-3 sm:grid-cols-2">
             {assigned.map((j) => {
-              const n = applicantCountFor(j.id);
+              const rows = APPLICANTS_BY_JOB[j.id] || [];
+              const n = rows.length;
+              const at = (s) => rows.filter((a) => (stageForCandidate(a.candidateId, j.id) || a.baseStage) === s).length;
+              const segs = [
+                { key: "applied", label: "Applied", n: at("applied"), color: "#5570F5" },
+                { key: "interviewing", label: "Interview", n: at("interviewing"), color: "#F59E0B" },
+                { key: "offer", label: "Offer", n: at("offer"), color: "#7C3AED" },
+                { key: "hired", label: "Hired", n: at("hired"), color: "#16A34A" },
+              ];
+              const live = segs.filter((s) => s.n > 0);
+              const total = live.reduce((t, s) => t + s.n, 0) || 1;
               return (
-                <button key={j.id} onClick={() => { setActiveJobId && setActiveJobId(j.id); navigate("applicants", `/applicants/${j.id}`); }} className="text-left rounded-2xl bg-white act-shadow border p-4 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
-                  <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{n} applicant{n === 1 ? "" : "s"}</p>
+                <button
+                  key={j.id}
+                  onClick={() => { setActiveJobId && setActiveJobId(j.id); navigate("applicants", `/applicants/${j.id}`); }}
+                  className="group text-left rounded-2xl bg-white act-shadow border p-4 transition-all hover:-translate-y-0.5 hover:border-[color:var(--line-strong)] hover:shadow-[0_18px_40px_-24px_rgba(15,27,51,0.35)]"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{n} candidate{n === 1 ? "" : "s"} in pipeline</p>
+                    </div>
+                    <span className="shrink-0 inline-flex transition-transform group-hover:translate-x-0.5" style={{ color: "var(--ink-3)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>
                   </div>
-                  <span className="shrink-0 inline-flex" style={{ color: "var(--ink-3)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>
+
+                  {live.length > 0 ? (
+                    <>
+                      {/* One track split by stage, so the mix is legible without
+                          reading any numbers. */}
+                      <div className="flex gap-0.5 mt-3.5 h-1.5 rounded-full overflow-hidden">
+                        {live.map((s) => (
+                          <span key={s.key} style={{ width: `${(s.n / total) * 100}%`, background: s.color }} />
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5">
+                        {live.map((s) => (
+                          <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "var(--ink-2)" }}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
+                            {s.label} <span className="tabular-nums" style={{ color: "var(--ink)" }}>{s.n}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-[11px] mt-3.5" style={{ color: "var(--ink-3)" }}>No candidates yet. New applicants land here as they apply.</p>
+                  )}
                 </button>
               );
             })}
