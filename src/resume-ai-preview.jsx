@@ -14862,7 +14862,9 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
 
   return (
     <AccountShell title="Open Positions" navigate={navigate} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={onOpenNotifications} hideBack>
-      <PendingPollsSurface companyId={companyId} currentUserId={currentUserId} profile={profile} />
+      {/* No pending-polls card here. This screen is about roles; availability
+          belongs on Interviews, where the same surface already lives. Two copies
+          also meant voting in one left the other stale until a refetch. */}
       <div className="mb-7 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ borderColor: "#CBD6F7", background: "var(--brand-soft)" }}>
         <div className="min-w-0">
           <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Need to hire for something?</h2>
@@ -16192,6 +16194,10 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const votedCount = requiredVoters.length - pending.length;
   const complete = requiredVoters.length === 0 || pending.length === 0;
   const canSelect = isManager && !round2 && poll?.status === "open" && (complete || override);
+  // How many slots the viewer has marked. Only read on the non-manager branch,
+  // which is why the missing declaration crashed the interviewer's vote modal
+  // and nothing else.
+  const myPicks = poll?.slots?.filter((s) => s.mine).length ?? 0;
 
   // A poll with nobody to vote in it is a dead end, and the panel is set on the
   // job, not the candidate — so let the manager fix it here instead of sending
