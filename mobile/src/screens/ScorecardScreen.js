@@ -36,6 +36,16 @@ export default function ScorecardScreen({ route, navigation }) {
   const onSubmit = async () => {
     if (busy || done) return; // ignore rapid repeat taps
     if (!jobId) { dialog.alert({ title: "Missing role", message: "This scorecard isn't linked to a role, so it can't be saved.", icon: "alert-triangle", variant: "danger" }); return; }
+    // A scorecard is final once submitted, so confirm before locking it in.
+    const ok = await dialog.confirm({
+      title: editing ? "Update scorecard?" : "Submit scorecard?",
+      message: editing
+        ? "This replaces your existing ratings for the whole panel."
+        : "The hiring manager will see your ratings, and you won't be able to change them after this.",
+      icon: "check",
+      confirmLabel: editing ? "Update" : "Submit",
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await submitScorecard({ companyId: profile.companyId, userId: profile.userId, candidateId, jobId, ratings, notes });
