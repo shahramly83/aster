@@ -20920,7 +20920,6 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
                   </button>
                 )}
               </div>
-              <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>The panel's scorecards are enough to decide. Add your own take only if you want to.</p>
             </div>
           )) : hasMine ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -21185,6 +21184,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // until she confirms too — so the "Did the interview happen?" step isn't
   // silently skippable.
   const scorecardsReleased = !!booking?.scorecardsReleasedAt;
+  // Has THIS interviewer already submitted their scorecard? Gates the Result tab.
+  const iScored = (scorecards || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
   const scorecardsUnlocked = scorecardsReleased;
   const decisionUnlocked = interviewPast && (soloInterview ? (scorecardsSkipped || anyScored) : allScored);
   // Which step opens first. If Decision is already unlocked (the panel has scored,
@@ -21512,6 +21513,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   // padlock until the interview time has passed (mirrors the
                   // manager's stepped card, but as a top-level tab for them).
                   ...(isInterviewer(profile?.role) ? [{ k: "scorecards", label: "Scorecards", icon: "scorecard", locked: !scorecardsReleased }] : []),
+                  // Result: the outcome / what's next, only once they've scored, so
+                  // the Scorecards tab stays about scoring, not status.
+                  ...(isInterviewer(profile?.role) && iScored ? [{ k: "result", label: "Result", icon: "hire" }] : []),
                 ].map((t) => {
                   const on = profileTab === t.k;
                   const locked = !!t.locked;
@@ -22318,50 +22322,27 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {contextJobId && profileTab === "scorecards" && !isManagerView && (
           scorecardsReleased ? (
             <div className="space-y-4">
-              {/* Once the interviewer has scored, tell them where it stands and
-                  what happens next, so the screen doesn't feel like a dead end. */}
-              {/* Scored → a single "what's next" status card. Not scored yet →
-                  the green "rate them" prompt. Never both, to keep it uncrowded. */}
-              {(() => {
-                const myScored = (scorecards || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
-                if (!myScored) {
-                  return (
-                    <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #F0FDF4, #ffffff 62%)" }}>
-                      <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
-                      <div className="pl-5 pr-4 py-4 flex items-center gap-3.5">
-                        <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="scorecard" className="w-5 h-5" /></span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Your scorecard</h2>
-                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Interview completed · {interviewWhen}</span>
-                          </div>
-                          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>Rate {firstName} against each area. The hiring manager sees your ratings once you submit.</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                const st = (isHired || stage === "hired")
-                  ? { icon: "hire", label: "Hired", title: `${firstName} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for scoring.", bd: "#A7F3D0", fg: "#059669", chipBg: "#DCFCE7", chipFg: "#166534" }
-                  : stage === "rejected"
-                    ? { icon: "close", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${firstName}. Thanks for scoring.`, bd: "#FECACA", fg: "#DC2626", chipBg: "#FEE2E2", chipFg: "#B42318" }
-                    : (offer || stage === "offer")
-                      ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" }
-                      : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "Next, the hiring manager reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" };
-                return (
-                  <div className="rounded-2xl border p-4 flex items-start gap-3.5" style={{ borderColor: st.bd, background: "#fff" }}>
-                    <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#fff", color: st.fg, border: `1px solid ${st.bd}` }}><Icon name={st.icon} className="w-5 h-5" /></span>
+              {/* Before scoring, the green "rate them" prompt heads the tab. Once
+                  scored, the outcome moves to its own Result tab, so this tab stays
+                  purely about scoring. */}
+              {!iScored && (
+                <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #F0FDF4, #ffffff 62%)" }}>
+                  <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
+                  <div className="pl-5 pr-4 py-4 flex items-center gap-3.5">
+                    <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="scorecard" className="w-5 h-5" /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 mb-1" style={{ background: st.chipBg, color: st.chipFg, border: `1px solid ${st.bd}`, letterSpacing: "0.04em" }}>{st.label}</p>
-                      <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{st.title}</p>
-                      <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{st.sub}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Your scorecard</h2>
+                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Interview completed · {interviewWhen}</span>
+                      </div>
+                      <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>Rate {firstName} against each area. The hiring manager sees your ratings once you submit.</p>
                     </div>
                   </div>
-                );
-              })()}
+                </div>
+              )}
               <ScorecardPanel
                 scorecards={scorecards}
-                onSubmit={onSubmitScorecard}
+                onSubmit={(card) => { onSubmitScorecard(card); setProfileTab("result"); }}
                 plan={plan}
                 navigate={navigate}
                 authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
@@ -22380,6 +22361,28 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             </div>
           )
         )}
+        {/* Result tab (interviewer, once scored): the outcome / what's next, on
+            its own tab so the Scorecards tab stays about scoring. */}
+        {contextJobId && profileTab === "result" && !isManagerView && (() => {
+          const st = (isHired || stage === "hired")
+            ? { icon: "hire", label: "Hired", title: `${firstName} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for scoring.", grad: "linear-gradient(135deg,#34D399,#059669)", bd: "#A7F3D0", fg: "#059669", chipBg: "#DCFCE7", chipFg: "#166534" }
+            : stage === "rejected"
+              ? { icon: "close", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${firstName}. Thanks for scoring.`, grad: "linear-gradient(135deg,#F87171,#DC2626)", bd: "#FECACA", fg: "#DC2626", chipBg: "#FEE2E2", chipFg: "#B42318" }
+              : (offer || stage === "offer")
+                ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, grad: "brand", bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" }
+                : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome, nothing more to do here for now.", grad: "brand", bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" };
+          return (
+            <div className="relative overflow-hidden rounded-2xl border p-7 text-center" style={{ borderColor: st.bd, background: "#fff" }}>
+              <span className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center text-white ${st.grad === "brand" ? "brand-gradient" : ""}`} style={st.grad === "brand" ? { boxShadow: "0 14px 30px -12px rgba(var(--brand-rgb),0.85)" } : { background: st.grad, boxShadow: `0 14px 30px -14px ${st.fg}` }}><Icon name={st.icon} className="w-8 h-8" /></span>
+              <p className="inline-flex items-center gap-1.5 mt-4 text-[10px] font-bold uppercase rounded-full px-2.5 py-1" style={{ background: st.chipBg, color: st.chipFg, border: `1px solid ${st.bd}`, letterSpacing: "0.1em" }}>{st.label}</p>
+              <h2 className="text-xl font-bold font-display mt-2.5" style={{ color: "var(--ink)" }}>{st.title}</h2>
+              <p className="text-sm mt-1.5 leading-relaxed mx-auto" style={{ color: "var(--ink-3)", maxWidth: "30rem" }}>{st.sub}</p>
+              <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                <Icon name="scorecard" className="w-4 h-4" /> View the panel's scorecards <Icon name="chevronRight" className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })()}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
