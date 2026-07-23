@@ -98,6 +98,16 @@ Deno.serve(async (req) => {
       }),
     });
 
+    // Bell record, so a dismissed push still leaves a trace of the request.
+    await admin.from("activity_log").insert({
+      company_id: companyId, type: "interview_requested",
+      title: `${requesterName} requested an interview`,
+      description: `${candidateName} · ${roleTitle}`,
+      candidate_id: app?.candidate_id ?? null,
+      job_id: app?.job_id ?? null,
+      actor_id: user.id,
+    });
+
     // Buzz the managers too, minus whoever requested it.
     await pushToCompanyAdmins(admin, companyId, {
       title: "Interview requested",

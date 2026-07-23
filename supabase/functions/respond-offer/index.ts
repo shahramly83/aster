@@ -60,6 +60,16 @@ Deno.serve(async (req) => {
     }
 
     // Emails only on the first accept (a decline updates the stage, no email).
+    // Bell first, so the event is on record even if push is off.
+    if (firstResponse) {
+      const jt0 = await jobTitleFor(admin, offer.company_id, offer.candidate_id);
+      const { data: c0 } = await admin.from("candidates").select("full_name").eq("id", offer.candidate_id).maybeSingle();
+      const nm0 = c0?.full_name || "The candidate";
+      await admin.from("activity_log").insert(accepted
+        ? { company_id: offer.company_id, type: "offer_signed", title: `${nm0} accepted the offer`, description: `${jt0} · mark them hired when ready`, candidate_id: offer.candidate_id }
+        : { company_id: offer.company_id, type: "offer_declined", title: `${nm0} declined the offer`, description: `${jt0}`, candidate_id: offer.candidate_id });
+    }
+
     // Push the team: a hire just landed, or an offer just fell through. Both are
     // the kind of thing you want to know without opening the app. Best-effort.
     if (firstResponse) {

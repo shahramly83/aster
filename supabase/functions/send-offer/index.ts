@@ -115,6 +115,14 @@ Deno.serve(async (req) => {
       }),
     });
 
+    // Bell: a durable record so the event survives a dismissed push.
+    await admin.from("activity_log").insert({
+      company_id: companyId, type: "offer_sent",
+      title: `Offer sent to ${cand.full_name || "a candidate"}`,
+      description: `${jobTitle} · sent for review`,
+      candidate_id: offer.candidate_id,
+    });
+
     // Tell the rest of the team the offer went out, minus whoever sent it.
     // Best-effort; the offer email above is the real work.
     await pushToCompanyAdmins(admin, companyId, {

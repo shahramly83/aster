@@ -24,7 +24,13 @@ const TYPES = {
   offer_approval_declined: { icon: "x-circle", tint: "#D92D20" },
   offer_approved: { icon: "check-circle", tint: "#12A150" },
   offer_signed: { icon: "check-circle", tint: "#12A150" },
+  offer_declined: { icon: "x-circle", tint: "#D92D20" },
   offer_expired: { icon: "clock", tint: "#B42318" },
+  interview_requested: { icon: "calendar", tint: "#0B2AE0" },
+  interview_reschedule: { icon: "refresh-cw", tint: "#C2710A" },
+  poll_vote: { icon: "check-square", tint: "#0B2AE0" },
+  role_requested: { icon: "briefcase", tint: "#6366F1" },
+  teammate_joined: { icon: "user-plus", tint: "#0EA5E9" },
 };
 const DEFAULT_TYPE = { icon: "bell", tint: "#6B7280" };
 

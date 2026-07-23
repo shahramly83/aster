@@ -78,6 +78,13 @@ Deno.serve(async (req) => {
           footnote: "You're getting this because you manage hiring for this workspace on Aster.",
         }),
       });
+      await admin.from("activity_log").insert({
+        company_id: companyId, type: "role_requested",
+        title: `${requesterName} requested a new role`,
+        description: roleTitle,
+        job_id,
+        actor_id: user.id,
+      });
       await pushToCompanyAdmins(admin, companyId, {
         title: "New role to review",
         body: `${requesterName} asked to open ${roleTitle}`,
