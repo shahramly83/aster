@@ -786,9 +786,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <View style={styles.ivIcon}><Feather name="refresh-cw" size={17} color={theme.warn} /></View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={[type.bodyStrong, { color: theme.ink }]}>Rescheduling</Text>
+                        <Text style={[type.bodyStrong, { color: theme.ink }]}>{manager ? "Rescheduling" : `${nameOf().split(" ")[0]} asked to reschedule`}</Text>
                         <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
-                          {interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}{manager ? "Run a fresh panel availability poll, then propose new times." : "The hiring manager is arranging a new time. Vote on the availability poll below."}
+                          {manager
+                            ? `${interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}Run a fresh panel availability poll, then propose new times.`
+                            : "The hiring manager is arranging new times. You'll be notified once it's booked."}
                         </Text>
                       </View>
                     </View>
