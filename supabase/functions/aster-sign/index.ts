@@ -141,7 +141,6 @@ async function stampUploadedPdf(sourceBytes: Uint8Array, signField: {
   documentTitle: string; offerId: string; signerEmail: string; signedAtIso: string; ip: string; ua: string; docHash: string;
 }): Promise<Uint8Array> {
   const doc = await PDFDocument.load(sourceBytes);
-  const helv = await doc.embedFont(StandardFonts.Helvetica);
   const italic = await doc.embedFont(StandardFonts.TimesRomanItalic);
   const ink = rgb(0.12, 0.14, 0.16);
 
@@ -195,12 +194,8 @@ async function stampUploadedPdf(sourceBytes: Uint8Array, signField: {
     const [ax, ay] = anchorFor(Cx, Cy, w, size);
     page.drawText(opts.signedName, { x: ax, y: ay, size, font: italic, color: ink, rotate: degrees(-R) });
   }
-
-  // Date, just below the box (display space), left-aligned with it.
-  const dstr = new Date(opts.signedAtIso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-  const dsize = Math.max(8, Math.min(boxH * 0.5, 11));
-  const [dx, dy] = toPage(signField.x, Math.min(1, signField.y + signField.h + 0.012));
-  page.drawText(dstr, { x: dx, y: dy, size: dsize, font: helv, color: ink, rotate: degrees(-R) });
+  // Note: no date is stamped beside the signature (the signed date still lives on
+  // the certificate page). Only the candidate's signature goes on their letter.
 
   await appendCertificatePage(doc, {
     documentTitle: opts.documentTitle, offerId: opts.offerId, signerName: opts.signedName,
