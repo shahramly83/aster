@@ -12,6 +12,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs, button } from "../_shared/email.ts";
 import { loadLetterContext, letterHtml, emailApprover, OFFER_COLS } from "../_shared/offer-model.ts";
+import { pushToUser, pushToCompanyAdmins } from "../_shared/push.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -73,6 +74,11 @@ Deno.serve(async (req) => {
       await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_approval_declined", title: `Offer approval declined for ${ctx.candidateName}`, description: `${appr.approver_name || appr.approver_email} declined the ${ctx.jobTitle} offer${reason ? `: ${reason}` : "."}`, candidate_id: offer.candidate_id });
       await notifyTeam(admin, offer.company_id, `Offer declined in approval: ${ctx.jobTitle}`, "Offer approval declined",
         `<p style="margin:0 0 8px;"><strong>${appr.approver_name || appr.approver_email}</strong> declined the offer for <strong>${ctx.candidateName}</strong> (${ctx.jobTitle}) at approval step ${appr.step} of ${total}.</p>${reason ? `<p style="margin:0 0 8px;">Reason: ${reason}</p>` : ""}<p style="margin:0;">Open Aster to revise and resubmit, or close the offer.</p>`);
+      await pushToCompanyAdmins(admin, offer.company_id, {
+        title: "Offer approval declined",
+        body: `${appr.approver_name || appr.approver_email} declined ${ctx.candidateName}'s ${ctx.jobTitle} offer`,
+        data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_approval" },
+      });
       return json({ ok: true, result: "declined" });
     }
 
@@ -81,7 +87,13 @@ Deno.serve(async (req) => {
     const next = (allSteps || []).find((s) => s.step === appr.step + 1);
     if (next) {
       const { data: nextRow } = await admin.from("offer_approvals").select("token, approver_email, approver_name, step").eq("offer_id", offer.id).eq("step", appr.step + 1).maybeSingle();
-      if (nextRow) await emailApprover(admin, offer, nextRow, total, base);
+      if (nextRow) {
+        await emailApprover(admin, offer, nextRow, total, base);
+        try {
+          const { data: np } = await admin.from("profiles").select("id").eq("company_id", offer.company_id).eq("status", "active").ilike("email", nextRow.approver_email).maybeSingle();
+          if (np?.id) await pushToUser(admin, np.id, { title: "An offer needs your approval", body: `${ctx.candidateName} · ${ctx.jobTitle}`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_approval" } });
+        } catch (e) { console.error("next approver push", e); }
+      }
       await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_approval_step", title: `Offer approval ${appr.step}/${total} for ${ctx.candidateName}`, description: `${appr.approver_name || appr.approver_email} approved. Sent to the next approver.`, candidate_id: offer.candidate_id });
       return json({ ok: true, result: "approved", next: true });
     }
@@ -100,6 +112,11 @@ Deno.serve(async (req) => {
     await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_approved", title: `Offer approved for ${ctx.candidateName}`, description: `All ${total} approvals complete. The offer was sent to ${ctx.candidateName} to sign.`, candidate_id: offer.candidate_id });
     await notifyTeam(admin, offer.company_id, `Offer approved and sent: ${ctx.jobTitle}`, "Offer fully approved",
       `<p style="margin:0;">All ${total} approvals are complete for <strong>${ctx.candidateName}</strong> (${ctx.jobTitle}). The offer has been sent to the candidate to review and sign.</p>`);
+    await pushToCompanyAdmins(admin, offer.company_id, {
+      title: "Offer approved & sent",
+      body: `${ctx.candidateName}'s ${ctx.jobTitle} offer cleared approval and went to the candidate to sign.`,
+      data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_approved" },
+    });
     return json({ ok: true, result: "approved", next: false, sent: true });
   } catch (e) {
     console.error(e);

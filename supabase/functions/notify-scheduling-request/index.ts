@@ -12,6 +12,7 @@
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, emailShell, button, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { pushToCompanyAdmins } from "../_shared/push.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -96,6 +97,13 @@ Deno.serve(async (req) => {
         footnote: "You're getting this because you manage hiring for this workspace on Aster.",
       }),
     });
+
+    // Buzz the managers too, minus whoever requested it.
+    await pushToCompanyAdmins(admin, companyId, {
+      title: "Interview requested",
+      body: `${requesterName} wants to interview ${candidateName} · ${roleTitle}`,
+      data: { url: `aster://candidate/${app?.candidate_id ?? ""}`, type: "interview_requested" },
+    }, user.id);
 
     return json({ ok: true });
   } catch (e) {

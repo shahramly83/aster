@@ -13,6 +13,7 @@
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, emailShell, button, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { pushToUser, pushToCompanyAdmins } from "../_shared/push.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -77,6 +78,11 @@ Deno.serve(async (req) => {
           footnote: "You're getting this because you manage hiring for this workspace on Aster.",
         }),
       });
+      await pushToCompanyAdmins(admin, companyId, {
+        title: "New role to review",
+        body: `${requesterName} asked to open ${roleTitle}`,
+        data: { url: "aster://positions", type: "role_requested" },
+      }, job.created_by || undefined);
       return json({ ok: true });
     }
 
@@ -108,6 +114,9 @@ Deno.serve(async (req) => {
         footnote: "You're getting this because you requested a role on Aster.",
       }),
     });
+    await pushToUser(admin, job.created_by, approved
+      ? { title: "Role approved", body: `${roleTitle} is now open. Applicants can start coming in.`, data: { url: "aster://positions", type: "role_requested" } }
+      : { title: "Role request update", body: `A decision was made on ${roleTitle}.`, data: { url: "aster://positions", type: "role_requested" } });
     return json({ ok: true });
   } catch (e) {
     console.error(e);
