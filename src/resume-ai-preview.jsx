@@ -21461,8 +21461,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   const on = profileTab === t.k;
                   const locked = !!t.locked;
                   return (
-                    <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Opens once the hiring manager confirms the interview happened" : undefined} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-4)" : "var(--ink-2)" }}>
-                      <Icon name={locked ? "lock" : t.icon} className="w-4 h-4" /> {t.label}
+                    <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Opens once the hiring manager confirms the interview happened" : undefined} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-3)" : "var(--ink-2)" }}>
+                      <Icon name={locked ? "lock" : t.icon} className="w-4 h-4" style={locked ? { opacity: 0.85 } : undefined} /> {t.label}
                       {t.k === "interview" && interviewGlow && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} />}
                     </button>
                   );
