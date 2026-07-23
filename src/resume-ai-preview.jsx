@@ -16435,6 +16435,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   const [selected, setSelected] = useState(() => new Set()); // slot ids to offer
   const [sending, setSending] = useState(false);
   const [confirmingTs, setConfirmingTs] = useState(null); // round-2 slot being confirmed
+  const [submitting, setSubmitting] = useState(false); // interviewer locking in / reopening availability
 
   const load = async () => {
     if (!hasSupabase || !companyId || !candidate?.id) { setLoading(false); return; }
@@ -16572,7 +16573,6 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     if (e) { setErr(e); return; }
     await load();
   };
-  const [submitting, setSubmitting] = useState(false);
   // Interviewer locks in their availability; frozen read-only until they Edit
   // (while open) or the poll closes.
   const submitAvailability = async () => {
