@@ -3,6 +3,134 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "designing-a-take-home-assignment-candidates-wont-resent",
+    "title": "Designing a take-home assignment candidates won't resent",
+    "category": "interviewing",
+    "excerpt": "A practical guide to work-sample tests that predict on-the-job skill without burning candidates' evenings or your team's goodwill.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-07-23",
+    "readMins": 6,
+    "tags": [
+      "take-home tests",
+      "work samples",
+      "candidate experience",
+      "structured interviews"
+    ],
+    "body": [
+      {
+        "p": "Take-home assignments are the best predictor of job performance you can add to a hiring process, and also the fastest way to lose good people. A well-scoped exercise shows you how someone actually works. A sprawling, unpaid, poorly briefed one tells your best candidates that you don't value their time, and they leave for a company that does."
+      },
+      {
+        "p": "The difference isn't whether you use a take-home. It's how you design it. Here is what separates a work sample that earns its place in your process from one that quietly drives away the people you most want to hire."
+      },
+      {
+        "h": "Start from the real work, not a puzzle"
+      },
+      {
+        "p": "The point of a take-home is to watch someone do a smaller version of the job. So build it from a task the role actually involves. If you're hiring a content marketer, give them a rough brief and ask for an outline plus the opening. If you're hiring a data analyst, hand them a messy CSV and a business question. If you're hiring an engineer, give them a small, self-contained feature on a realistic codebase."
+      },
+      {
+        "p": "Avoid trick questions, algorithm brainteasers, and anything a candidate would never touch on the job. Those measure test-taking, not competence. **The closer the exercise is to the daily work, the more the result actually predicts, and the more candidates respect it.**"
+      },
+      {
+        "ul": [
+          "Pull the task from something your team did in the last month.",
+          "Strip it down to a piece that stands alone in an hour or two.",
+          "Cut anything that needs internal context a candidate can't have.",
+          "Ask yourself: would a strong hire find this interesting, or insulting?"
+        ]
+      },
+      {
+        "h": "Cap the time, and mean it"
+      },
+      {
+        "p": "State a clear time budget and design the assignment to fit inside it. Two hours is a reasonable ceiling for most roles; some can be done in 45 minutes. If your exercise honestly takes six hours, you are asking for unpaid labor, and you'll select for people with the most free time rather than the most skill. That skews against parents, caregivers, and anyone already working a demanding job."
+      },
+      {
+        "p": "Tell candidates the exercise is scoped for the time you promised, and that you'll evaluate what they get done inside it. Then hold your reviewers to that. If someone spends the stated two hours and delivers a sensible partial solution, score the partial solution. Don't secretly reward the person who spent all weekend gold-plating."
+      },
+      {
+        "note": "A take-home that quietly rewards extra hours isn't measuring skill. It's measuring who had a free Saturday. Design for the time you asked for, and grade against it.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Write a brief a stranger could follow"
+      },
+      {
+        "p": "Most complaints about take-homes trace back to a vague prompt. The candidate can't read your mind, doesn't know your stack conventions, and can't ask the questions they'd ask a real colleague. Ambiguity you find obvious reads as a trap from the outside."
+      },
+      {
+        "p": "A good brief spells out the task, the format you want back, the time budget, what you care about, and what you explicitly don't. If a real employee would ask clarifying questions, either answer them up front or say plainly that reasonable assumptions are welcome and you want to see the ones they made."
+      },
+      {
+        "ul": [
+          "What to build or produce, in one or two sentences.",
+          "The deliverable format and how to submit it.",
+          "The time budget, and permission to stop when it's up.",
+          "What you'll evaluate on, in plain language.",
+          "Whether AI tools, libraries, or outside help are allowed."
+        ]
+      },
+      {
+        "h": "Decide your AI stance out loud"
+      },
+      {
+        "p": "Candidates now have the same AI tools your team does, and pretending otherwise is a waste of everyone's effort. Decide what you want to see. If the job involves using AI well, allow it and ask candidates to note where they leaned on it. If you're testing a fundamental you need them to hold in their head, say the tool is off-limits and explain why."
+      },
+      {
+        "p": "Either choice is defensible. What isn't defensible is staying silent and then penalizing someone for a choice you never told them about. State the rule in the brief and evaluate against that rule for everyone."
+      },
+      {
+        "h": "Build the scorecard before you send the task"
+      },
+      {
+        "p": "Write down what a strong, average, and weak submission looks like before the first response lands. Three or four criteria is plenty: correctness, clarity, judgment, whatever the role demands. Give each a short description of what earns a high mark. This is the same discipline you'd use for a structured interview, and it does the same job: it keeps you scoring the work instead of scoring your gut reaction to a name or a format."
+      },
+      {
+        "quote": "If you can't write down what a good answer looks like before you send the task, the candidate has no chance of guessing it either."
+      },
+      {
+        "p": "A shared rubric also makes reviewers comparable. When two people score the same submission against the same criteria and land far apart, that gap is a useful conversation, not noise. Without a rubric you just have two opinions and no way to reconcile them."
+      },
+      {
+        "h": "Respect the candidate's time on both sides"
+      },
+      {
+        "p": "Timing matters as much as the task. Send the take-home after you've confirmed real mutual interest, not as the first hurdle before anyone has spoken. A candidate who has had one good conversation with your team will invest two hours gladly. A candidate cold-emailed a six-part assignment before any human contact usually won't, and the ones who do are often the ones with the fewest other options."
+      },
+      {
+        "ul": [
+          "Place the take-home mid-process, after a first call, not before it.",
+          "Give a real deadline with room to breathe (several days, not overnight).",
+          "Tell candidates when they'll hear back, and hold to it.",
+          "For senior or unusually long exercises, pay for the time.",
+          "Give a sentence of real feedback to anyone who completes it."
+        ]
+      },
+      {
+        "h": "Close the loop with the interview"
+      },
+      {
+        "p": "The take-home shouldn't end at a score. The strongest use is as raw material for the next conversation. Have the candidate walk you through their choices: what they'd change with more time, what they cut, where they were unsure. This tells you far more than the artifact alone. It surfaces the person who got a clean result by luck versus the one who reasoned their way there, and it gives thoughtful candidates a chance to explain the tradeoffs a rubric can't capture."
+      },
+      {
+        "p": "It also flips the power dynamic in a healthy way. Instead of a submission being judged in a black box, the candidate gets to defend and extend their work, the way they would in the job."
+      },
+      {
+        "h": "The honest tradeoff"
+      },
+      {
+        "p": "A take-home will still cost you some candidates. People decline them, and some of those declines are people you'd have wanted. That's real, and no design erases it. What you can control is whether the exercise earns the time it asks for. A short, relevant, clearly briefed assignment with a stated rubric and a prompt reply respects the candidate enough that most strong people will say yes, and it gives you a signal no amount of resume reading or casual chat can match."
+      },
+      {
+        "p": "Screening and scheduling can be automated; a good take-home is one of the few steps still worth doing by hand. Spend the effort where it counts: make the task real, keep it short, say the rules out loud, and grade it the same way for everyone."
+      }
+    ]
+  },
+  {
     "slug": "where-candidates-drop-off-and-how-to-fix-each-leak",
     "title": "Where candidates drop off, and how to fix each leak",
     "category": "recruiting-ops",
