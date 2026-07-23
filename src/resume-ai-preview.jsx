@@ -17120,24 +17120,55 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
     <div className="rounded-2xl tool-card px-5 py-4">
       {bookingStatus === "scheduled" ? (
         <>
-        <div className="rounded-xl bg-white border border-emerald-200 px-4 py-3">
-          <p className="text-sm text-emerald-600 font-medium">Interview scheduled ✓</p>
-          <p className="text-sm text-neutral-700 mt-0.5">
-            {formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end)}
-            {sentRequest?.interviewerName ? ` with ${sentRequest.interviewerName}` : ""}
-            {sentRequest?.jobTitle ? ` · ${sentRequest.jobTitle}` : ""}
-          </p>
-          <p className="text-xs text-neutral-400 mt-1">
-            The candidate confirmed this time. Share the meeting link below and everyone gets it.
-          </p>
-        </div>
+        {/* Confirmed interview, drawn as the calendar event it is: a date tile,
+            the time large and in tabular figures, and the role beneath. A green
+            edge and medallion carry "confirmed" before a word is read. */}
+        {(() => {
+          const s = new Date(booking.confirmedSlot.start);
+          const e = booking.confirmedSlot.end ? new Date(booking.confirmedSlot.end) : null;
+          const t = (d) => d.toLocaleString("en-US", withTz({ hour: "numeric", minute: "2-digit" }));
+          const wd = s.toLocaleString("en-US", withTz({ weekday: "short" }));
+          const mon = s.toLocaleString("en-US", withTz({ month: "short" })).toUpperCase();
+          const day = s.toLocaleString("en-US", withTz({ day: "numeric" }));
+          return (
+            <div className="relative rounded-2xl overflow-hidden bg-white border" style={{ borderColor: "#A7F3D0" }}>
+              <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(180deg,#34D399,#059669)" }} />
+              <div className="flex items-center gap-4 pl-5 pr-4 py-4">
+                {/* Date tile */}
+                <div className="shrink-0 w-14 rounded-xl overflow-hidden text-center border" style={{ borderColor: "#A7F3D0" }}>
+                  <div className="text-[10px] font-bold tracking-wider py-0.5 text-white" style={{ background: "#059669", letterSpacing: "0.08em" }}>{mon}</div>
+                  <div className="text-xl font-bold leading-tight py-1 tabular-nums" style={{ color: "#065F46" }}>{day}</div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="inline-flex items-center gap-1.5 mb-1">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full" style={{ background: "#059669" }}>
+                      <Icon name="check" className="w-2.5 h-2.5 text-white" />
+                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#059669", letterSpacing: "0.05em" }}>Interview confirmed</span>
+                  </div>
+                  <p className="text-base font-bold tabular-nums leading-tight" style={{ color: "var(--ink)" }}>
+                    {wd}, {t(s)}{e ? ` – ${t(e)}` : ""}
+                  </p>
+                  <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>
+                    {sentRequest?.interviewerName ? `with ${sentRequest.interviewerName}` : "Panel set"}{sentRequest?.jobTitle ? ` · ${sentRequest.jobTitle}` : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {/* Panel + drop-out substitution: swap an interviewer who can't attend.
             Shown above the meeting link so the HM confirms who's on the panel
             before creating the call and sharing the link out to them. */}
         {onSubstitute && Array.isArray(booking.attendees) && booking.attendees.some((a) => a.id !== hmId) && (
-          <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
-            <p className="text-xs font-medium mb-2 uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Interview panel</p>
-            <div className="space-y-1.5">
+          <div className="mt-3 rounded-2xl border px-4 py-3.5" style={{ borderColor: "var(--line)", background: "#fff" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Icon name="users" className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} />
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>
+                Interview panel <span className="tabular-nums" style={{ color: "var(--ink-4)" }}>· {booking.attendees.length}</span>
+              </p>
+            </div>
+            <div className="space-y-1">
               {booking.attendees.map((a) => {
                 const isHM = a.id === hmId;
                 // Only interviewers who've actually joined (not pending invites)
@@ -17145,71 +17176,85 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
                 // see the interview.
                 const options = interviewers.filter((iv) => isInterviewer(iv.role) && !iv.pending && !booking.attendees.some((x) => x.id === iv.id));
                 return (
-                  <div key={a.id} className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
-                    <span className="text-sm min-w-0 flex-1 truncate" style={{ color: "var(--ink)" }}>{a.name}{isHM ? " (you)" : ""}</span>
+                  <div key={a.id} className="group flex items-center gap-3 rounded-xl px-2 py-1.5 -mx-2 transition-colors hover:bg-[color:var(--bg)]">
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate leading-tight" style={{ color: "var(--ink)" }}>{a.name}</p>
+                      <p className="text-[11px] leading-tight" style={{ color: "var(--ink-3)" }}>{isHM ? "Hiring manager · you" : "Interviewer"}</p>
+                    </div>
                     {!isHM && (replacing === a.id ? (
                       <select
                         autoFocus
                         defaultValue=""
                         onChange={(e) => { const iv = interviewers.find((x) => x.id === e.target.value); if (iv) onSubstitute(a.id, { id: iv.id, name: iv.name, email: iv.email }); setReplacing(null); }}
                         onBlur={() => setReplacing(null)}
-                        className="text-xs rounded-lg border px-2 py-1 shrink-0 bg-white"
+                        className="text-xs rounded-lg border px-2 py-1.5 shrink-0 bg-white"
                         style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}
                       >
                         <option value="" disabled>Replace with…</option>
                         {options.length ? options.map((iv) => (<option key={iv.id} value={iv.id}>{iv.name}</option>)) : <option value="" disabled>No other interviewers</option>}
                       </select>
                     ) : (
-                      <button type="button" onClick={() => setReplacing(a.id)} className="text-[11px] font-medium shrink-0 hover:opacity-70" style={{ color: "var(--brand)" }}>Replace</button>
+                      <button type="button" onClick={() => setReplacing(a.id)} className="text-[11px] font-semibold shrink-0 rounded-lg px-2.5 py-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:bg-[color:var(--brand-soft)]" style={{ color: "var(--brand)" }}>Replace</button>
                     ))}
                   </div>
                 );
               })}
             </div>
-            <p className="text-[11px] mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>Someone can't make it? Swap them out. The new interviewer picks up the scorecard.</p>
+            <p className="text-[11px] mt-2.5 pt-2.5 leading-relaxed border-t" style={{ color: "var(--ink-3)", borderColor: "var(--line)" }}>Someone can't make it? Hover a name to swap them out. The new interviewer picks up the scorecard.</p>
           </div>
         )}
         {/* Meeting link: paste your own video-call URL, share it with the candidate
             and the panel (each gets their own message, the same link). */}
-        <div className="mt-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Meeting link</p>
-          <p className="text-[11px] mt-1 mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
-            Paste a link from Google Meet, Zoom or Teams, or have Aster create one. Either way it goes to the candidate and each interviewer, with a note written for each.
+        <div className="mt-3 rounded-2xl border px-4 py-3.5" style={{ borderColor: linkShared && !shareErr ? "#A7F3D0" : "var(--line)", background: "#fff" }}>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <Icon name="interview" className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} />
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Meeting link</p>
+            </div>
+            {linkShared && !shareErr && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: "#ECFDF5", color: "#047857" }}>
+                <Icon name="check" className="w-3 h-3" /> Sent
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+            Paste a Google Meet, Zoom or Teams link, or have Aster create a room. It goes to the candidate and each interviewer, with a note written for each.
           </p>
-          {/* Generate matches the mobile app, which had this and desktop did not.
-              It names the platform: the room is a Jitsi Meet room, which needs no
-              account on either side, and calling it a generic "link" left people
-              guessing what they were about to send a candidate. */}
+          {/* Generate matches the mobile app. Names the platform: a Jitsi Meet
+              room, so nobody is guessing what they're about to send a candidate. */}
           <button
             type="button"
             onClick={() => { setLinkInput(makeMeetingRoom(candidate?.id)); setLinkShared(false); setShareErr(null); }}
-            className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-colors hover:bg-[color:var(--brand-soft)]"
+            className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all hover:-translate-y-px hover:bg-[color:var(--brand-soft)]"
             style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}
           >
             <Icon name="link" className="w-3.5 h-3.5" /> Create a Jitsi Meet room
           </button>
           <div className="flex items-center gap-2">
-            <input
-              type="url"
-              value={linkInput}
-              onChange={(e) => { setLinkInput(e.target.value); setLinkShared(false); setShareErr(null); }}
-              placeholder="https://meet.google.com/…"
-              className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
-              style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
-            />
+            <div className="relative flex-1 min-w-0">
+              <Icon name="link" className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: "var(--ink-4)" }} />
+              <input
+                type="url"
+                value={linkInput}
+                onChange={(e) => { setLinkInput(e.target.value); setLinkShared(false); setShareErr(null); }}
+                placeholder="Paste or generate a video link"
+                className="w-full rounded-lg border pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)] transition-shadow"
+                style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
+              />
+            </div>
             <button
               onClick={shareMeetingLink}
               disabled={!validLink || sharing}
-              className="shrink-0 text-sm font-semibold rounded-lg px-3.5 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             >
-              {sharing ? "Sharing…" : linkShared ? "Re-share" : "Share"}
+              {sharing ? "Sharing…" : (<><Icon name={linkShared ? "refresh" : "arrowUpRight"} className="w-3.5 h-3.5" /> {linkShared ? "Re-share" : "Share"}</>)}
             </button>
           </div>
-          {shareErr && <p className="text-[11px] mt-2 text-rose-600">{shareErr}</p>}
+          {shareErr && <p role="alert" className="text-[11px] mt-2 text-rose-600">{shareErr}</p>}
           {linkShared && !shareErr && (
             <p className="text-[11px] mt-2 inline-flex items-center gap-1.5" style={{ color: "#166534" }}>
-              <Icon name="check" className="w-3.5 h-3.5" /> Shared with the candidate and the panel.
+              <Icon name="check" className="w-3.5 h-3.5" /> The candidate and each interviewer got the link.
             </p>
           )}
         </div>
