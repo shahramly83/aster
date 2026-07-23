@@ -20836,38 +20836,53 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
           })}
 
           {canScore ? (open ? (
-            <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: "var(--brand)", background: "var(--brand-soft)" }}>
-              <p className="text-sm font-semibold text-neutral-900">Your scorecard</p>
-              {SCORE_CRITERIA.map((c) => (
-                <div key={c.key} className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-neutral-700">{c.label}</span>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => setRatings((rr) => ({ ...rr, [c.key]: n }))}
-                        className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
-                        style={ratings[c.key] === n ? { background: "var(--brand)", color: "#fff" } : { background: "#fff", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
-                      >
-                        {n}
-                      </button>
-                    ))}
+            <div className="rounded-2xl border bg-white p-4 space-y-4" style={{ borderColor: "var(--brand)", boxShadow: "0 18px 40px -24px rgba(var(--brand-rgb),0.4)" }}>
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center text-white shrink-0"><Icon name="scorecard" className="w-4 h-4" /></span>
+                <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Your scorecard</p>
+              </div>
+              <div className="space-y-2">
+                {SCORE_CRITERIA.map((c) => (
+                  <div key={c.key} className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>{c.label}</span>
+                    <div className="inline-flex gap-0.5 rounded-xl p-0.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                      {[1, 2, 3, 4].map((n) => {
+                        const on = ratings[c.key] === n;
+                        const tier = n === 1 ? "#EF4444" : n === 2 ? "#F59E0B" : n === 3 ? "#3B82F6" : "#16A34A";
+                        return (
+                          <button
+                            key={n}
+                            onClick={() => setRatings((rr) => ({ ...rr, [c.key]: n }))}
+                            className="w-9 h-8 rounded-lg text-sm font-bold tabular-nums transition-all"
+                            style={on ? { background: tier, color: "#fff", boxShadow: `0 5px 12px -5px ${tier}` } : { background: "transparent", color: "var(--ink-3)" }}
+                          >
+                            {n}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                ))}
+                <div className="flex items-center justify-between text-[10px] font-medium pt-0.5" style={{ color: "var(--ink-4)" }}>
+                  <span>1 · Poor</span><span>Excellent · 4</span>
                 </div>
-              ))}
-              <div>
-                <p className="text-sm text-neutral-700 mb-1.5">Recommendation</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {RECOMMENDATIONS.map((r) => (
-                    <button
-                      key={r.key}
-                      onClick={() => setRec(r.key)}
-                      className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors"
-                      style={rec === r.key ? { background: r.color, color: "#fff" } : { background: "#fff", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
+              </div>
+              <div className="border-t pt-3.5" style={{ borderColor: "var(--line)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Recommendation</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {RECOMMENDATIONS.map((r) => {
+                    const on = rec === r.key;
+                    return (
+                      <button
+                        key={r.key}
+                        onClick={() => setRec(r.key)}
+                        className="text-xs font-semibold px-2.5 py-2 rounded-xl transition-all active:scale-[0.97]"
+                        style={on ? { background: r.color, color: "#fff", boxShadow: `0 8px 16px -8px ${r.color}` } : { background: r.bg, color: r.color, border: "1px solid transparent" }}
+                      >
+                        {r.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <textarea
@@ -20875,11 +20890,12 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes for the team…"
-                className="w-full rounded-xl bg-white border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                className="w-full rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)] transition-shadow"
+                style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}
               />
-              <div className="flex items-center gap-2">
-                <button onClick={submit} disabled={!canSubmit} className="text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-medium px-4 py-2 transition-opacity hover:opacity-90">Submit scorecard</button>
-                <button onClick={() => setOpen(false)} className="text-sm rounded-xl border px-4 py-2 transition-colors hover:bg-white" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+              <div className="flex items-center gap-2 pt-0.5">
+                <button onClick={submit} disabled={!canSubmit} className="inline-flex items-center gap-1.5 text-sm rounded-xl brand-gradient disabled:opacity-40 text-white font-semibold px-5 py-2.5 transition-all hover:opacity-95 enabled:hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}><Icon name="check" className="w-4 h-4" /> Submit scorecard</button>
+                <button onClick={() => setOpen(false)} className="text-sm rounded-xl border px-4 py-2.5 font-medium transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
               </div>
             </div>
           ) : (
