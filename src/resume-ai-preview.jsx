@@ -21828,35 +21828,40 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {/* Did the interview happen? Leads step 1 once the interview time has
             passed, so the manager acts on it before anything else. Reschedule runs
             the current flow; Proceed to scorecards dismisses this and moves on. */}
-        {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && !scorecardsReleased && (
-          <div className="mt-2 mb-4 relative overflow-hidden rounded-3xl border act-shadow" style={{ borderColor: "var(--line)", background: "#fff" }}>
+        {isManagerView && ivStep === 1 && interviewPast && (() => {
+          // Once the manager has proceeded (this session or a past one, via the
+          // persisted release), the card stays as a read-only confirmation
+          // instead of vanishing — attendance visible but locked, no re-actions.
+          const proceeded = noShowDismissed || scorecardsReleased;
+          return (
+          <div className="mt-2 mb-4 relative overflow-hidden rounded-3xl border act-shadow" style={{ borderColor: proceeded ? "#A7F3D0" : "var(--line)", background: "#fff" }}>
             {/* Gradient hero: the interview is over, this is the manager's next move. */}
-            <div className="px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #ffffff 72%)" }}>
+            <div className="px-5 pt-5 pb-4" style={{ background: proceeded ? "linear-gradient(135deg, #ECFDF5, #ffffff 72%)" : "linear-gradient(135deg, var(--brand-soft), #ffffff 72%)" }}>
               <div className="flex items-start gap-3.5">
-                <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-white brand-gradient" style={{ boxShadow: "0 10px 24px -10px rgba(var(--brand-rgb),0.85)" }}>
-                  <Icon name="calendar" className="w-5 h-5" />
+                <span className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-white ${proceeded ? "" : "brand-gradient"}`} style={proceeded ? { background: "linear-gradient(135deg,#34D399,#059669)", boxShadow: "0 10px 24px -10px rgba(5,150,105,0.8)" } : { boxShadow: "0 10px 24px -10px rgba(var(--brand-rgb),0.85)" }}>
+                  <Icon name={proceeded ? "check" : "calendar"} className="w-5 h-5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line)", letterSpacing: "0.06em" }}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> Interview time passed
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={proceeded ? { background: "#fff", color: "#047857", border: "1px solid #A7F3D0", letterSpacing: "0.06em" } : { background: "#fff", color: "var(--brand)", border: "1px solid var(--line)", letterSpacing: "0.06em" }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> {proceeded ? "Scorecards opened" : "Interview time passed"}
                     </span>
                     {interviewWhen && <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--ink-3)" }}>{interviewWhen}</span>}
                   </div>
-                  <h2 className="text-lg font-bold font-display mt-1.5 leading-tight" style={{ color: "var(--ink)" }}>Did the interview happen?</h2>
-                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{interviewerAttendees.length > 0 ? "Confirm who joined, then collect the panel's scorecards. If it was a no-show or needs another time, reschedule instead." : "Go ahead and score. If it was a no-show or needs another time, reschedule instead."}</p>
+                  <h2 className="text-lg font-bold font-display mt-1.5 leading-tight" style={{ color: "var(--ink)" }}>{proceeded ? "Interview confirmed" : "Did the interview happen?"}</h2>
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{proceeded ? "You've confirmed this went ahead. The panel's scorecards are open — add yours or review the team's on the Scorecards step." : (interviewerAttendees.length > 0 ? "Confirm who joined, then collect the panel's scorecards. If it was a no-show or needs another time, reschedule instead." : "Go ahead and score. If it was a no-show or needs another time, reschedule instead.")}</p>
                 </div>
               </div>
             </div>
 
             <div className="px-5 pb-5">
-              {/* Who attended: tap a row to toggle. Only attendees need to score, so
-                  a no-show doesn't hold up the decision. */}
+              {/* Who attended: tap a row to toggle (locked once proceeded). Only
+                  attendees need to score, so a no-show doesn't hold up the decision. */}
               {interviewerAttendees.length > 0 && (
                 <div className="mt-1">
                   <div className="flex items-center gap-1.5 mb-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Who attended</p>
-                    <InfoHint dir="down" hint="Tap a row to toggle. Only interviewers who attended need to submit a scorecard before you can move to a decision." />
+                    {!proceeded && <InfoHint dir="down" hint="Tap a row to toggle. Only interviewers who attended need to submit a scorecard before you can move to a decision." />}
                   </div>
                   <div className="grid gap-2">
                     {interviewerAttendees.map((a) => {
@@ -21867,7 +21872,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                         onSetAttendance && onSetAttendance([...next]);
                       };
                       return (
-                        <button key={a.id} type="button" onClick={toggle} aria-pressed={attended} className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all active:scale-[0.99]" style={attended ? { borderColor: "#A7F3D0", background: "#F0FDF4" } : { borderColor: "var(--line)", background: "var(--bg)" }}>
+                        <button key={a.id} type="button" onClick={proceeded ? undefined : toggle} disabled={proceeded} aria-pressed={attended} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all ${proceeded ? "cursor-default" : "active:scale-[0.99]"}`} style={attended ? { borderColor: "#A7F3D0", background: "#F0FDF4" } : { borderColor: "var(--line)", background: "var(--bg)" }}>
                           <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
                           <span className="text-sm min-w-0 flex-1 truncate font-medium" style={{ color: "var(--ink)" }}>{a.name}</span>
                           {scoredIds.has(a.id) && <span className="text-[11px] inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-0.5" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Scored</span>}
@@ -21881,17 +21886,27 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5 mt-4">
-                <button onClick={doNoShowReschedule} disabled={rescheduling} className="order-2 sm:order-1 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all hover:shadow-sm active:scale-[0.98] disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FDE68A", background: "#FFFBEB" }}>
-                  <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "No-show / reschedule"}
-                </button>
-                <button onClick={() => { onReleaseScorecards && onReleaseScorecards(); setNoShowDismissed(true); setIvStep(2); }} className="order-1 sm:order-2 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
-                  <Icon name="check" className="w-4 h-4" /> Proceed to scorecards
-                </button>
-              </div>
+              {proceeded ? (
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl px-3.5 py-3" style={{ background: "#ECFDF5", border: "1px solid #A7F3D0" }}>
+                  <p className="text-xs inline-flex items-center gap-1.5 min-w-0" style={{ color: "#065F46" }}><Icon name="check" className="w-4 h-4 shrink-0" /> <span className="truncate">You confirmed the interview. Scorecards are open.</span></p>
+                  <button type="button" onClick={() => setIvStep(2)} className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                    Go to scorecards <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5 mt-4">
+                  <button onClick={doNoShowReschedule} disabled={rescheduling} className="order-2 sm:order-1 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all hover:shadow-sm active:scale-[0.98] disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FDE68A", background: "#FFFBEB" }}>
+                    <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "No-show / reschedule"}
+                  </button>
+                  <button onClick={() => { onReleaseScorecards && onReleaseScorecards(); setNoShowDismissed(true); setIvStep(2); }} className="order-1 sm:order-2 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
+                    <Icon name="check" className="w-4 h-4" /> Proceed to scorecards
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Scheduling + AI interview questions are owner / hiring-manager actions.
             Once the interview time has passed there is nothing left to schedule
