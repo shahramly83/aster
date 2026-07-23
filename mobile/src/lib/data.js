@@ -95,7 +95,7 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
 export async function loadCandidateInterview(companyId, candidateId) {
   const { data } = await supabase
     .from("interviews")
-    .select("id, status, scheduled_at, proposed_slots, token, meeting_link, attendees, reschedule_note, previous_at, created_at")
+    .select("id, status, scheduled_at, proposed_slots, token, meeting_link, attendees, reschedule_note, previous_at, scorecards_released_at, created_at")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
     .in("status", ["scheduled", "sent", "reschedule"])
@@ -113,7 +113,19 @@ export async function loadCandidateInterview(companyId, candidateId) {
     attendees: Array.isArray(data.attendees) ? data.attendees : [],
     rescheduleNote: data.reschedule_note || null,
     previousAt: data.previous_at || null, // original time before it was rescheduled
+    scorecardsReleasedAt: data.scorecards_released_at || null, // HM confirmed → panel can score
   };
+}
+
+// The hiring manager confirming the interview happened releases the panel's
+// scorecards. Stamps scorecards_released_at so interviewers unlock scoring.
+export async function releaseScorecards(interviewId) {
+  if (!interviewId) return;
+  const { error } = await supabase.from("interviews")
+    .update({ scorecards_released_at: new Date().toISOString() })
+    .eq("id", interviewId)
+    .is("scorecards_released_at", null);
+  if (error) console.warn("releaseScorecards", error.message);
 }
 
 // Save/update the meeting link on the candidate's scheduled interview.

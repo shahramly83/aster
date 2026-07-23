@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -413,7 +413,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("jobs").select("id, title, status, details, created_at, expires_at, ai_ranked_at").eq("company_id", companyId),
     supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
-    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note, previous_at").eq("company_id", companyId),
+    supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note, previous_at, scorecards_released_at").eq("company_id", companyId),
     supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
@@ -542,6 +542,7 @@ async function loadWorkspaceData(companyId) {
         provider: iv.provider || "google",
         attendees,
         meetingLink: iv.meeting_link || null,
+        scorecardsReleasedAt: iv.scorecards_released_at || null,
         request: { candidateId: iv.candidate_id, candidateName: candNameById[iv.candidate_id] || null, jobId: iv.job_id, jobTitle: jobTitle[iv.job_id] || "Interview", interviewerName: iv.interviewer_name || profName[iv.interviewer_id] || "Interviewer" },
       });
       continue;
@@ -20919,7 +20920,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onReleaseScorecards, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -21127,6 +21128,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const soloInterview = interviewerAttendees.length === 0;
   const [scorecardsSkipped, setScorecardsSkipped] = useState(false);
   const scorecardsUnlocked = interviewPast;
+  // The HM releases the panel's scorecards by confirming the interview happened.
+  // Interviewers can't score until then (a separate session reads this stamp).
+  const scorecardsReleased = !!booking?.scorecardsReleasedAt;
   const decisionUnlocked = interviewPast && (soloInterview ? (scorecardsSkipped || anyScored) : allScored);
   // Which step opens first. If Decision is already unlocked (the panel has scored,
   // or the manager skipped), open straight on Decision so a reload doesn't drop
@@ -21452,12 +21456,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   // Interviewers get a dedicated Scorecards tab, locked with a
                   // padlock until the interview time has passed (mirrors the
                   // manager's stepped card, but as a top-level tab for them).
-                  ...(isInterviewer(profile?.role) ? [{ k: "scorecards", label: "Scorecards", icon: "scorecard", locked: !interviewPast }] : []),
+                  ...(isInterviewer(profile?.role) ? [{ k: "scorecards", label: "Scorecards", icon: "scorecard", locked: !scorecardsReleased }] : []),
                 ].map((t) => {
                   const on = profileTab === t.k;
                   const locked = !!t.locked;
                   return (
-                    <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Unlocks once the interview time has passed" : undefined} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-4)" : "var(--ink-2)" }}>
+                    <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Opens once the hiring manager confirms the interview happened" : undefined} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-4)" : "var(--ink-2)" }}>
                       <Icon name={locked ? "lock" : t.icon} className="w-4 h-4" /> {t.label}
                       {t.k === "interview" && interviewGlow && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} />}
                     </button>
@@ -21469,6 +21473,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {contextJobId && profileTab === "interview" && isInterviewer(profile?.role) && (
               isBooked ? (
                 interviewPast ? (
+                  scorecardsReleased ? (
                   <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #ECFDF5, #ffffff 62%)" }}>
                     <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
                     <div className="pl-5 pr-4 py-4 flex items-start gap-3.5">
@@ -21486,6 +21491,25 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                       </div>
                     </div>
                   </div>
+                  ) : (
+                  /* Interview is over but the HM hasn't confirmed it happened yet,
+                     so scorecards stay locked. Tell the interviewer why, don't
+                     leave them staring at a padlocked tab. */
+                  <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#FDE68A", background: "linear-gradient(135deg, #FFFBEB, #ffffff 62%)" }}>
+                    <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#FCD34D,#D97706)" }} />
+                    <div className="pl-5 pr-4 py-4 flex items-start gap-3.5">
+                      <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#FEF3C7", color: "#B45309" }}><Icon name="clock" className="w-5 h-5" /></span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: "#fff", color: "#B45309", border: "1px solid #FDE68A", letterSpacing: "0.06em" }}><Icon name="check" className="w-3 h-3" /> Interview complete</span>
+                          {interviewWhen && <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--ink-3)" }}>{interviewWhen}</span>}
+                        </div>
+                        <h3 className="text-lg font-bold font-display mt-1.5 leading-tight" style={{ color: "var(--ink)" }}>You've interviewed {firstName}</h3>
+                        <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>The hiring manager is confirming the interview. Your scorecard opens the moment they do, the Scorecards tab will unlock.</p>
+                      </div>
+                    </div>
+                  </div>
+                  )
                 ) : (
                   /* Interviewer's prep hero: the one thing they need at a glance
                      is when, then how to join and how to prepare. Drawn as the
@@ -21834,7 +21858,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <button onClick={doNoShowReschedule} disabled={rescheduling} className="order-2 sm:order-1 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all hover:shadow-sm active:scale-[0.98] disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FDE68A", background: "#FFFBEB" }}>
                   <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "No-show / reschedule"}
                 </button>
-                <button onClick={() => { setNoShowDismissed(true); setIvStep(2); }} className="order-1 sm:order-2 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
+                <button onClick={() => { onReleaseScorecards && onReleaseScorecards(); setNoShowDismissed(true); setIvStep(2); }} className="order-1 sm:order-2 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
                   <Icon name="check" className="w-4 h-4" /> Proceed to scorecards
                 </button>
               </div>
@@ -22195,7 +22219,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             padlocked until the interview time has passed, so this normally
             renders unlocked; the locked fallback is defensive only. */}
         {contextJobId && profileTab === "scorecards" && !isManagerView && (
-          interviewPast ? (
+          scorecardsReleased ? (
             <div className="space-y-4">
               <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #F0FDF4, #ffffff 62%)" }}>
                 <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
@@ -22226,7 +22250,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-3)" }}><Icon name="lock" className="w-5 h-5" /></span>
               <div>
                 <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Scorecard locked</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>You'll be able to score {firstName} once the interview time has passed.</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>You'll be able to score {firstName} once the hiring manager confirms the interview happened.</p>
               </div>
             </div>
           )
@@ -24728,6 +24752,17 @@ export default function ResumeAIPreview() {
     });
     if (canPersist) dbSetAttendance(companyId, candidateId, attendedIds);
   };
+  // HM confirms the interview happened → release the panel's scorecards. Persists
+  // a stamp so interviewers (a different session) unlock their scorecard.
+  const releaseScorecards = (candidateId) => {
+    if (!candidateId) return;
+    setBookings((prev) => {
+      const b = prev[candidateId];
+      if (!b || b.scorecardsReleasedAt) return prev;
+      return { ...prev, [candidateId]: { ...b, scorecardsReleasedAt: new Date().toISOString() } };
+    });
+    if (canPersist) dbReleaseScorecards(companyId, candidateId);
+  };
   // Swap one interviewer on a scheduled interview for another (drop-out cover).
   // Replaces the attendee in the booking's panel, keeping any attended flag off
   // for the newcomer, and persists the whole panel.
@@ -26596,6 +26631,7 @@ export default function ResumeAIPreview() {
             scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
             onSetAttendance={(ids) => activeCandidate && setAttendance(activeCandidate.id, ids)}
+            onReleaseScorecards={() => activeCandidate && releaseScorecards(activeCandidate.id)}
             onSubstitute={(oldId, replacement) => activeCandidate && substituteAttendee(activeCandidate.id, oldId, replacement, viewCandidateJobId)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? null) : null}
             onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}

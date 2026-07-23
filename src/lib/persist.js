@@ -341,6 +341,21 @@ export async function dbSetAttendance(companyId, candidateId, attendedIds = []) 
   if (error) console.error("dbSetAttendance", error.message);
 }
 
+// The hiring manager confirming "the interview happened" releases the panel's
+// scorecards. Stamps scorecards_released_at so interviewers' clients unlock
+// their scorecard (they can't score until the HM has released). Idempotent:
+// only stamps if not already set.
+export async function dbReleaseScorecards(companyId, candidateId) {
+  if (!hasSupabase || !companyId || !candidateId) return;
+  const { data } = await supabase
+    .from("interviews").select("id, scorecards_released_at")
+    .eq("company_id", companyId).eq("candidate_id", candidateId).eq("status", "scheduled")
+    .order("scheduled_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data || data.scorecards_released_at) return;
+  const { error } = await supabase.from("interviews").update({ scorecards_released_at: new Date().toISOString() }).eq("id", data.id);
+  if (error) console.error("dbReleaseScorecards", error.message);
+}
+
 // Persist an offer sent to a candidate and return its public token, so the app
 // can email the candidate a link to /offer/<token> to accept or decline.
 export async function dbCreateOffer(companyId, { candidateId, jobId = null, terms = null }) {

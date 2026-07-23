@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, runExperienceInsights } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -285,7 +285,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // Show the interview flow once the candidate reaches interviewing (or there's
   // already an invite/booking).
   const showInterview = stage === "interviewing" || !!scheduledAt || !!pendingInvite || rescheduling;
-  const canScore = interviewDone || ["offer", "hired"].includes(stage);
+  // The HM releases the panel's scorecards by confirming the interview happened.
+  // Interviewers can't score until then; the HM (the releaser) scores once the
+  // time has passed.
+  const scorecardsReleased = !!interview?.scorecardsReleasedAt;
+  const canScore = (manager ? interviewDone : scorecardsReleased) || ["offer", "hired"].includes(stage);
   // Every panel member (interview attendees) must submit a scorecard before the
   // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
   const ratedIds = new Set(cards.map((c) => c.interviewerId));
@@ -361,7 +365,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   ? !INTERVIEW_UNLOCKED.includes(stage)
                   : k === "feedback" ? !canScore : false;
                 const lockReason = k === "feedback"
-                  ? `The scorecard opens once ${nameOf().split(" ")[0]}'s interview has taken place.`
+                  ? (manager ? `The scorecard opens once ${nameOf().split(" ")[0]}'s interview has taken place.` : `The scorecard opens once the hiring manager confirms the interview happened.`)
                   : `Move ${nameOf().split(" ")[0]} to interview to open this tab.`;
                 return (
                   <Pressable
@@ -605,7 +609,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 </View>
               </LinearGradient>
               <View style={styles.ivHappenBody}>
-                <Pressable onPress={() => setNoShowDismissed(true)} style={styles.ivHappenPrimary}>
+                <Pressable onPress={() => { if (interview?.id) releaseScorecards(interview.id); setInterview((iv) => (iv ? { ...iv, scorecardsReleasedAt: new Date().toISOString() } : iv)); setNoShowDismissed(true); }} style={styles.ivHappenPrimary}>
                   <Feather name="check" size={16} color="#fff" />
                   <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>Proceed to scorecards</Text>
                 </Pressable>
@@ -620,7 +624,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {/* Interviewer's post-interview nudge. The manager gets the card above;
               without this, an interviewer had no signal that the interview had
               passed and it was their turn to score. Leads straight to the form. */}
-          {interviewDone && !manager && canScore ? (
+          {interviewDone && !manager ? (
+            canScore ? (
             <View style={styles.ivDoneCard}>
               <LinearGradient colors={["#ECFDF5", theme.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ivHappenHead}>
                 <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
@@ -645,6 +650,24 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 </Pressable>
               </View>
             </View>
+            ) : (
+            <View style={styles.ivWaitCard}>
+              <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                <View style={styles.ivWaitMedallion}><Feather name="clock" size={18} color="#B45309" /></View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                    <View style={styles.ivWaitChip}>
+                      <Feather name="check" size={10} color="#B45309" />
+                      <Text style={styles.ivWaitChipTxt}>INTERVIEW COMPLETE</Text>
+                    </View>
+                    {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 8 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
+                  </View>
+                  <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 7, fontSize: 17 }]}>You've interviewed {name.split(" ")[0]}</Text>
+                  <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>The hiring manager is confirming the interview. Your scorecard opens as soon as they do.</Text>
+                </View>
+              </View>
+            </View>
+            )
           ) : null}
 
           {/* Interview flow: propose times -> candidate picks -> meeting link */}
@@ -1225,6 +1248,10 @@ const styles = StyleSheet.create({
   ivDoneMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: theme.success, alignItems: "center", justifyContent: "center", shadowColor: theme.success, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   ivDoneChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: "#A7F3D0", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   ivDoneChipTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: "#047857", marginLeft: 4 },
+  ivWaitCard: { marginTop: space(5), borderRadius: radius.lg, borderWidth: 1, borderColor: "#FDE68A", backgroundColor: theme.warnBg, padding: space(4) },
+  ivWaitMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center" },
+  ivWaitChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  ivWaitChipTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: "#B45309", marginLeft: 4 },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
   exploreToggle: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, borderWidth: 1, borderColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(3.5), marginTop: space(5), ...shadow.sm },
