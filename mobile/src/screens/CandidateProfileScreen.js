@@ -1038,10 +1038,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     </Card>
                   );
                 })}
-                {canScore ? (
-                  {!myCard ? (
-                    <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
-                  ) : null}
+                {canScore && !myCard ? (
+                  <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
                 ) : null}
               </>
             )}
