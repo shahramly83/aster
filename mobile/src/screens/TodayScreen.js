@@ -625,32 +625,33 @@ function UpcomingRow({ iv, tz, divider, onPress }) {
 // avatar, candidate + role, and a Video tag when it was a video call.
 function PastCardMini({ iv, tz, onPress }) {
   return (
-    <Press onPress={onPress} style={styles.pastMini} scaleTo={0.98}>
+    <Press onPress={onPress} style={styles.pastMini} scaleTo={0.985} haptic="light">
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        {/* Gradient date tile anchors the card and reads as a calendar event. */}
-        <LinearGradient colors={["#2B5BFF", "#0B2AE0"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.pastTile}>
-          <Text style={styles.pastTileMon}>{String(monShort(iv.scheduledAt, tz)).toUpperCase()}</Text>
-          <Text style={styles.pastTileDay}>{dayNum(iv.scheduledAt, tz)}</Text>
-        </LinearGradient>
-        {/* Avatar with a green "done" badge: the interview has taken place. */}
-        <View style={{ marginLeft: 13 }}>
-          <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={46} />
+        {/* Avatar with a quiet green "done" badge: the interview has taken place. */}
+        <View>
+          <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={52} />
           <View style={styles.pastCheck}><Feather name="check" size={11} color="#fff" /></View>
         </View>
-        <View style={{ flex: 1, marginLeft: 13 }}>
-          <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{iv.candidateName}</Text>
-          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
-            <View style={styles.pastDoneChip}>
-              <Feather name="check" size={10} color={theme.success} />
-              <Text style={styles.pastDoneTxt}>Interview complete</Text>
-            </View>
-            {iv.meetingLink ? (
-              <View style={[styles.videoTag, { marginLeft: 6 }]}><Feather name="video" size={11} color={theme.brand} /><Text style={styles.videoTagTxt}>Video</Text></View>
-            ) : null}
-          </View>
+        <View style={{ flex: 1, marginLeft: 14 }}>
+          <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 16 }]} numberOfLines={1}>{iv.candidateName}</Text>
+          <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{iv.jobTitle}</Text>
         </View>
-        <Feather name="chevron-right" size={18} color={theme.ink4} style={{ marginLeft: 4 }} />
+        <View style={{ alignItems: "flex-end", marginLeft: 10 }}>
+          <Text style={[type.small, { color: theme.ink3, fontVariant: ["tabular-nums"] }]}>{dayNum(iv.scheduledAt, tz)} {monShort(iv.scheduledAt, tz)}</Text>
+          <Feather name="chevron-right" size={18} color={theme.ink4} style={{ marginTop: 7 }} />
+        </View>
+      </View>
+      <View style={styles.pastDivider} />
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View style={styles.pastStatusDot} />
+        <Text style={[type.small, { color: theme.ink3 }]}>Interview complete</Text>
+        {iv.meetingLink ? (
+          <>
+            <Text style={{ color: theme.ink4, marginHorizontal: 8 }}>·</Text>
+            <Feather name="video" size={12} color={theme.ink3} />
+            <Text style={[type.small, { color: theme.ink3, marginLeft: 5 }]}>Video call</Text>
+          </>
+        ) : null}
       </View>
     </Press>
   );
@@ -846,13 +847,10 @@ const styles = StyleSheet.create({
   timePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.brand, fontVariant: ["tabular-nums"] },
   dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
   // Past interview: quiet, flat card with a mini date rail on the left.
-  pastMini: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(3.5), borderWidth: 1, borderColor: theme.line, shadowColor: "#0A1E9E", shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 2 },
-  pastTile: { width: 50, height: 58, borderRadius: 15, alignItems: "center", justifyContent: "center", shadowColor: "#0B2AE0", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
-  pastTileMon: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: "rgba(255,255,255,0.9)", letterSpacing: 1 },
-  pastTileDay: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 22, color: "#fff", lineHeight: 25, fontVariant: ["tabular-nums"] },
+  pastMini: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   pastCheck: { position: "absolute", right: -2, bottom: -2, width: 19, height: 19, borderRadius: 10, backgroundColor: theme.success, alignItems: "center", justifyContent: "center", borderWidth: 2.5, borderColor: theme.card },
-  pastDoneChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.successBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
-  pastDoneTxt: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: theme.success, marginLeft: 3, letterSpacing: 0.2 },
+  pastDivider: { height: 1, backgroundColor: theme.line, marginVertical: space(3) },
+  pastStatusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.success, marginRight: 9 },
   past: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.md, paddingVertical: space(2.5), paddingHorizontal: space(3), borderWidth: 1, borderColor: theme.line },
   pastDate: { width: 34, alignItems: "center" },
   pastDay: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, color: theme.ink2, lineHeight: 20 },
