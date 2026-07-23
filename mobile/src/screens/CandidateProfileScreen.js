@@ -924,6 +924,30 @@ export default function CandidateProfileScreen({ route, navigation }) {
           </>) : null}
 
           {tab === "feedback" ? (<>
+          {/* Interviewer: once they've scored, tell them where it stands and
+              what's next, so the tab isn't a dead end. */}
+          {!manager && myCard ? (() => {
+            const first = name.split(" ")[0];
+            const st = stage === "hired"
+              ? { icon: "award", label: "Hired", title: `${first} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for scoring.", bd: "#A7F3D0", fg: theme.success, chipBg: "#DCFCE7", chipFg: "#166534" }
+              : stage === "rejected"
+                ? { icon: "x-circle", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${first}. Thanks for scoring.`, bd: "#FECACA", fg: theme.danger, chipBg: "#FEE2E2", chipFg: "#B42318" }
+                : (offer || stage === "offer")
+                  ? { icon: "send", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${first} an offer, and is now awaiting their response.`, bd: "#CBD8F5", fg: theme.brand, chipBg: theme.card, chipFg: theme.brand }
+                  : { icon: "check-circle", label: "With hiring manager", title: "Your scores are in", sub: "Next, the hiring manager reviews the panel's scorecards and makes the call. You'll be notified of the outcome, nothing more to do here for now.", bd: "#CBD8F5", fg: theme.brand, chipBg: theme.card, chipFg: theme.brand };
+            return (
+              <View style={[styles.ivStatusCard, { borderColor: st.bd, marginTop: space(5) }]}>
+                <View style={[styles.ivStatusIcon, { borderColor: st.bd }]}><Feather name={st.icon} size={20} color={st.fg} /></View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                    <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]}>{st.title}</Text>
+                    <View style={[styles.ivStatusChip, { backgroundColor: st.chipBg, borderColor: st.bd }]}><Text style={[styles.ivStatusChipTxt, { color: st.chipFg }]}>{st.label.toUpperCase()}</Text></View>
+                  </View>
+                  <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{st.sub}</Text>
+                </View>
+              </View>
+            );
+          })() : null}
           {/* Decision — opens once the panel has all scored */}
           {showDecision ? (
             <View style={{ marginTop: space(5) }}>
@@ -1255,6 +1279,10 @@ const styles = StyleSheet.create({
   dlRoster: { paddingHorizontal: space(3), paddingBottom: space(3), paddingTop: space(1), gap: 8 },
   dlRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 11, paddingVertical: 9 },
   dlStatus: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  ivStatusCard: { flexDirection: "row", alignItems: "flex-start", borderRadius: radius.lg, borderWidth: 1, backgroundColor: theme.card, padding: space(4) },
+  ivStatusIcon: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, backgroundColor: theme.card, alignItems: "center", justifyContent: "center" },
+  ivStatusChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8 },
+  ivStatusChipTxt: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
   raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
   raterDot: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
