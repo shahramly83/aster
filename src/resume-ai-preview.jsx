@@ -16891,7 +16891,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                 </div>
               ) : myPicks >= minMarks ? (
                 <div className="mt-4">
-                  <p className="text-xs font-medium inline-flex items-center gap-1.5 mb-2.5" style={{ color: "#067647" }}><Icon name="check" className="w-4 h-4" /> You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}.</p>
+                  <p className="text-xs font-medium flex items-center gap-1.5 mb-2.5" style={{ color: "#067647" }}><Icon name="check" className="w-4 h-4" /> You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}.</p>
                   <button type="button" onClick={submitAvailability} disabled={submitting} className="rounded-xl text-sm font-semibold px-6 py-2.5 brand-gradient text-white inline-flex items-center justify-center gap-2 transition-all hover:opacity-95 enabled:hover:-translate-y-0.5 disabled:opacity-50" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
                     <Icon name="check" className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit availability"}
                   </button>
