@@ -22377,22 +22377,58 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {/* Result tab (interviewer, once scored): the outcome / what's next, on
             its own tab so the Scorecards tab stays about scoring. */}
         {contextJobId && profileTab === "result" && !isManagerView && (() => {
-          const st = (isHired || stage === "hired")
-            ? { icon: "hire", label: "Hired", title: `${firstName} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for scoring.", grad: "linear-gradient(135deg,#34D399,#059669)", bd: "#A7F3D0", fg: "#059669", chipBg: "#DCFCE7", chipFg: "#166534" }
+          const decided = stage === "hired" || stage === "rejected" || isHired;
+          const offered = !!offer || stage === "offer" || decided;
+          const hero = (isHired || stage === "hired")
+            ? { icon: "hire", label: "Hired", title: `${firstName} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for your part in it.", tone: "green" }
             : stage === "rejected"
-              ? { icon: "close", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${firstName}. Thanks for scoring.`, grad: "linear-gradient(135deg,#F87171,#DC2626)", bd: "#FECACA", fg: "#DC2626", chipBg: "#FEE2E2", chipFg: "#B42318" }
-              : (offer || stage === "offer")
-                ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, grad: "brand", bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" }
-                : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome, nothing more to do here for now.", grad: "brand", bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" };
+              ? { icon: "close", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${firstName}. Thanks for scoring.`, tone: "red" }
+              : offered
+                ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, tone: "brand" }
+                : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
+          const tone = { green: { grad: "linear-gradient(135deg,#34D399,#059669)", solid: "#059669", soft: "#ECFDF5" }, red: { grad: "linear-gradient(135deg,#F87171,#DC2626)", solid: "#DC2626", soft: "#FEF2F2" }, brand: { grad: "brand", solid: "var(--brand)", soft: "var(--brand-soft)" } }[hero.tone];
+          const outcomeLabel = (isHired || stage === "hired") ? "Hired" : stage === "rejected" ? "Not moving forward" : offered ? "Offer sent" : "Final outcome";
+          const steps = [
+            { label: "Interview held", meta: interviewWhen, state: "done" },
+            { label: "You submitted your scorecard", state: "done" },
+            { label: "Hiring manager decides", state: offered ? "done" : "current" },
+            { label: outcomeLabel, state: decided ? "done" : offered ? "current" : "todo" },
+          ];
           return (
-            <div className="relative overflow-hidden rounded-2xl border p-7 text-center" style={{ borderColor: st.bd, background: "#fff" }}>
-              <span className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center text-white ${st.grad === "brand" ? "brand-gradient" : ""}`} style={st.grad === "brand" ? { boxShadow: "0 14px 30px -12px rgba(var(--brand-rgb),0.85)" } : { background: st.grad, boxShadow: `0 14px 30px -14px ${st.fg}` }}><Icon name={st.icon} className="w-8 h-8" /></span>
-              <p className="inline-flex items-center gap-1.5 mt-4 text-[10px] font-bold uppercase rounded-full px-2.5 py-1" style={{ background: st.chipBg, color: st.chipFg, border: `1px solid ${st.bd}`, letterSpacing: "0.1em" }}>{st.label}</p>
-              <h2 className="text-xl font-bold font-display mt-2.5" style={{ color: "var(--ink)" }}>{st.title}</h2>
-              <p className="text-sm mt-1.5 leading-relaxed mx-auto" style={{ color: "var(--ink-3)", maxWidth: "30rem" }}>{st.sub}</p>
-              <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
-                <Icon name="scorecard" className="w-4 h-4" /> View the panel's scorecards <Icon name="chevronRight" className="w-3.5 h-3.5" />
-              </button>
+            <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "var(--line)" }}>
+              {/* Outcome hero */}
+              <div className="px-6 pt-8 pb-6 text-center" style={{ background: `linear-gradient(160deg, ${tone.soft}, #ffffff 74%)` }}>
+                <span className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center text-white ${tone.grad === "brand" ? "brand-gradient" : ""}`} style={tone.grad === "brand" ? { boxShadow: "0 16px 34px -14px rgba(var(--brand-rgb),0.9)" } : { background: tone.grad, boxShadow: `0 16px 34px -16px ${tone.solid}` }}><Icon name={hero.icon} className="w-8 h-8" /></span>
+                <p className="inline-flex items-center mt-4 text-[10px] font-bold uppercase rounded-full px-2.5 py-1" style={{ background: "#fff", color: tone.solid, border: `1px solid ${tone.solid}44`, letterSpacing: "0.12em" }}>{hero.label}</p>
+                <h2 className="text-2xl font-bold font-display mt-2.5 tracking-tight" style={{ color: "var(--ink)" }}>{hero.title}</h2>
+                <p className="text-sm mt-2 leading-relaxed mx-auto" style={{ color: "var(--ink-3)", maxWidth: "30rem" }}>{hero.sub}</p>
+              </div>
+              {/* Hiring journey */}
+              <div className="px-6 py-6">
+                <p className="text-[11px] font-semibold uppercase mb-4" style={{ color: "var(--ink-3)", letterSpacing: "0.07em" }}>Where things stand</p>
+                <ol className="relative">
+                  {steps.map((s, i) => (
+                    <li key={i} className="relative flex items-start gap-3.5 pb-5 last:pb-0">
+                      {i < steps.length - 1 && <span className="absolute left-[13px] top-7 -bottom-0 w-0.5" style={{ background: s.state === "done" ? "#16A34A" : "var(--line)" }} />}
+                      <span className="relative shrink-0 w-7 h-7 rounded-full flex items-center justify-center" style={s.state === "done" ? { background: "#16A34A", color: "#fff" } : s.state === "current" ? { background: tone.soft, border: `2px solid ${tone.solid}` } : { background: "var(--bg)", border: "2px solid var(--line)" }}>
+                        {s.state === "done" ? <Icon name="check" className="w-3.5 h-3.5" /> : s.state === "current" ? <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: tone.solid }} /><span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: tone.solid }} /></span> : null}
+                      </span>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-sm font-semibold" style={{ color: s.state === "todo" ? "var(--ink-3)" : "var(--ink)" }}>{s.label}</p>
+                        {s.meta && <p className="text-xs mt-0.5 tabular-nums" style={{ color: "var(--ink-3)" }}>{s.meta}</p>}
+                        {s.state === "current" && <p className="text-xs mt-0.5 font-semibold" style={{ color: tone.solid }}>In progress</p>}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              {/* Footer link to the ratings */}
+              <div className="px-6 py-4 border-t flex items-center justify-between gap-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>Panel ratings &amp; team average</p>
+                <button type="button" onClick={() => setProfileTab("scorecards")} className="inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                  <Icon name="scorecard" className="w-4 h-4" /> View scorecards <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           );
         })()}
