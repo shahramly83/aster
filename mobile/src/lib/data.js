@@ -52,17 +52,24 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
   const candIds = [...new Set(rows.map((r) => r.candidate_id).filter(Boolean))];
   const jobIds = [...new Set(rows.map((r) => r.job_id).filter(Boolean))];
 
-  const [cands, jobs] = await Promise.all([
+  const [cands, jobs, apps] = await Promise.all([
     candIds.length
       ? supabase.from("candidates").select("id, parsed, full_name, photo_path, resume_path").in("id", candIds)
       : { data: [] },
     jobIds.length
       ? supabase.from("jobs").select("id, title").in("id", jobIds)
       : { data: [] },
+    // The candidate's pipeline stage per role, so the Today screen can tell a
+    // still-in-progress interview (needs a scorecard/decision → Action) from a
+    // closed one (hired/rejected/declined → Past).
+    candIds.length
+      ? supabase.from("applications").select("candidate_id, job_id, stage").eq("company_id", companyId).in("candidate_id", candIds)
+      : { data: [] },
   ]);
 
   const candById = Object.fromEntries((cands.data || []).map((c) => [c.id, c]));
   const jobTitle = Object.fromEntries((jobs.data || []).map((j) => [j.id, j.title]));
+  const stageByKey = Object.fromEntries((apps.data || []).map((a) => [`${a.candidate_id}:${a.job_id}`, a.stage || null]));
 
   // Mint signed URLs for any resumes/photos in one batch.
   const paths = [
@@ -79,6 +86,7 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
       candidateName: c.parsed?.name || c.full_name || "Candidate",
       jobTitle: jobTitle[iv.job_id] || "Interview",
       status: iv.status, // scheduled | sent | reschedule
+      stage: stageByKey[`${iv.candidate_id}:${iv.job_id}`] || null, // applied|shortlisted|interviewing|offer|hired|rejected
       scheduledAt: iv.scheduled_at,
       proposedSlots: Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [],
       provider: iv.provider || "google",

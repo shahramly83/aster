@@ -180,9 +180,14 @@ export default function TodayScreen({ navigation }) {
   // list at the bottom so old ones never bury the real upcoming ones.
   const sorted = [...timelined].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
   const isUpcoming = (i) => minutesUntil(i.scheduledAt) > -75;
+  // Past = closed out (hired / rejected / declined). An interview whose time has
+  // passed but whose candidate is still moving through the pipeline (needs a
+  // scorecard or a decision) is unfinished work, so it belongs in Action.
+  const CLOSED_STAGES = ["hired", "rejected", "declined"];
   const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
-  const past = sorted.filter((i) => !isUpcoming(i)).reverse();  // compact rows, most-recent first
-  const flat = past.length ? [{ _header: "Past" }, ...past] : [];
+  const doneTimed = sorted.filter((i) => !isUpcoming(i));
+  const past = doneTimed.filter((i) => CLOSED_STAGES.includes(i.stage)).reverse();       // closed → Past
+  const needsAction = doneTimed.filter((i) => !CLOSED_STAGES.includes(i.stage)).reverse(); // in progress → Action
 
   const weekCount = timelined.filter((i) => { const m = minutesUntil(i.scheduledAt); return m > -75 && m < 60 * 24 * 7; }).length;
 
@@ -225,7 +230,7 @@ export default function TodayScreen({ navigation }) {
               {[
                 { k: "next", label: "Up next", n: upcoming.length },
                 { k: "poll", label: "Poll", n: myPolls.length + polls.length },
-                { k: "action", label: "Action", n: pending.length },
+                { k: "action", label: "Action", n: pending.length + needsAction.length },
                 { k: "past", label: "Past", n: past.length },
               ].map((t) => {
                 const on = tab === t.k;
@@ -452,15 +457,56 @@ export default function TodayScreen({ navigation }) {
               </Rise>
             ) : null}
 
+            {/* After the interview: time has passed but the candidate is still in
+                play (not hired/rejected), so a scorecard or decision is owed. */}
+            {tab === "action" && needsAction.length ? (
+              <Rise style={{ marginBottom: space(6) }}>
+                <Text style={styles.pollEyebrow}>{pending.length ? "AFTER THE INTERVIEW" : "NEEDS YOUR ACTION"}</Text>
+                {needsAction.map((iv) => {
+                  const first = iv.candidateName?.split(" ")[0] || "They";
+                  return (
+                    <View key={iv.id} style={styles.pollCard}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={44} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={styles.pollName} numberOfLines={2}>{iv.candidateName}</Text>
+                          <Text style={styles.pollRole} numberOfLines={1}>{iv.jobTitle}</Text>
+                        </View>
+                        <View style={[styles.actionPill, { backgroundColor: theme.brandSoft }]}>
+                          <Text style={[type.smallStrong, { color: theme.brand }]}>To score</Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: space(3) }}>
+                        <Feather name="edit-3" size={13} color={theme.brand} style={{ marginTop: 2 }} />
+                        <Text style={[type.small, { color: theme.ink2, marginLeft: 7, flex: 1, lineHeight: 18 }]}>
+                          {manager
+                            ? `Interview done. Collect the panel's scorecards, then make the call on ${first}.`
+                            : `Interview done. Add your scorecard for ${first} so the hiring manager can decide.`}
+                        </Text>
+                      </View>
+                      <Press
+                        onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })}
+                        haptic="medium"
+                        style={styles.pollCta}
+                      >
+                        <Feather name="arrow-right" size={16} color="#fff" />
+                        <Text style={styles.pollCtaTxt}>Open interview</Text>
+                      </Press>
+                    </View>
+                  );
+                })}
+              </Rise>
+            ) : null}
+
             {/* Per-tab empty state. With tabs a section can be empty while the
                 others have work in them, so the global "You're all set" below
                 isn't enough — it only fires when the whole screen is empty. */}
             {(() => {
-              const anything = upcoming.length || pending.length || polls.length || myPolls.length || past.length;
+              const anything = upcoming.length || pending.length || needsAction.length || polls.length || myPolls.length || past.length;
               if (!anything) return null; // whole screen empty: ListEmptyComponent owns it
               const n = tab === "next" ? upcoming.length
                 : tab === "poll" ? myPolls.length + polls.length
-                : tab === "action" ? pending.length
+                : tab === "action" ? pending.length + needsAction.length
                 : past.length;
               if (n) return null;
               const copy = {
@@ -471,7 +517,7 @@ export default function TodayScreen({ navigation }) {
               }[tab];
               // An empty tab should point at where the work actually is, not just
               // say "nothing here". Offer the fullest other tab as a one-tap exit.
-              const counts = { next: upcoming.length, poll: myPolls.length + polls.length, action: pending.length, past: past.length };
+              const counts = { next: upcoming.length, poll: myPolls.length + polls.length, action: pending.length + needsAction.length, past: past.length };
               const labels = { next: "Up next", poll: "Poll", action: "Action", past: "Past" };
               const suggest = Object.keys(counts)
                 .filter((k) => k !== tab && counts[k] > 0)
