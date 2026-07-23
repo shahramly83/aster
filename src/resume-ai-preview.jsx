@@ -8607,6 +8607,7 @@ function Icon({ name, className = "w-5 h-5", style }) {
     more: <><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none" /></>,
     filter: <><path d="M3 5h18l-7 8v5l-4 2v-7z" /></>,
     trash: <><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6" /><path d="M10 11v6M14 11v6" /></>,
+    scorecard: <><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M9 13l2 2 4-4" /></>,
   };
   return (
     <svg viewBox="0 0 24 24" className={className} style={style} {...common} aria-hidden="true">
@@ -21451,7 +21452,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   // Interviewers get a dedicated Scorecards tab, locked with a
                   // padlock until the interview time has passed (mirrors the
                   // manager's stepped card, but as a top-level tab for them).
-                  ...(isInterviewer(profile?.role) ? [{ k: "scorecards", label: "Scorecards", icon: "star", locked: !interviewPast }] : []),
+                  ...(isInterviewer(profile?.role) ? [{ k: "scorecards", label: "Scorecards", icon: "scorecard", locked: !interviewPast }] : []),
                 ].map((t) => {
                   const on = profileTab === t.k;
                   const locked = !!t.locked;
@@ -21468,14 +21469,21 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             {contextJobId && profileTab === "interview" && isInterviewer(profile?.role) && (
               isBooked ? (
                 interviewPast ? (
-                  <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
-                    <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="check" className="w-5 h-5" /></span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You've interviewed {firstName}</p>
-                      <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>The Scorecards tab just unlocked. Rate {firstName} there so the hiring manager can make the call.</p>
-                      <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2 brand-gradient text-white hover:opacity-90 transition-opacity">
-                        <Icon name="star" className="w-4 h-4" /> Add your scorecard
-                      </button>
+                  <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #ECFDF5, #ffffff 62%)" }}>
+                    <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
+                    <div className="pl-5 pr-4 py-4 flex items-start gap-3.5">
+                      <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center text-white" style={{ background: "linear-gradient(135deg,#34D399,#059669)", boxShadow: "0 10px 22px -10px rgba(5,150,105,0.7)" }}><Icon name="check" className="w-5 h-5" /></span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: "#fff", color: "#047857", border: "1px solid #A7F3D0", letterSpacing: "0.06em" }}><Icon name="check" className="w-3 h-3" /> Interview complete</span>
+                          {interviewWhen && <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--ink-3)" }}>{interviewWhen}</span>}
+                        </div>
+                        <h3 className="text-lg font-bold font-display mt-1.5 leading-tight" style={{ color: "var(--ink)" }}>You've interviewed {firstName}</h3>
+                        <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>The Scorecards tab just unlocked. Rate {firstName} so the hiring manager can make the call.</p>
+                        <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white hover:opacity-95 transition-all hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
+                          <Icon name="scorecard" className="w-4 h-4" /> Add your scorecard
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -21834,8 +21842,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           </div>
         )}
 
-        {/* Scheduling + AI interview questions are owner / hiring-manager actions. */}
-        {isManagerView && ivStep === 1 && (<>
+        {/* Scheduling + AI interview questions are owner / hiring-manager actions.
+            Once the interview time has passed there is nothing left to schedule
+            or re-share, so the confirmed panel + meeting link are hidden and the
+            "Did the interview happen?" card leads instead. */}
+        {isManagerView && ivStep === 1 && !interviewPast && (<>
         {openRequest && !isBooked && (
           <div className="mt-2 mb-4 rounded-xl border px-4 py-3 flex items-start gap-2" style={{ borderColor: "var(--brand-soft)", background: "var(--brand-soft)" }}>
             <span className="inline-flex mt-0.5" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-4 h-4" /></span>
@@ -22189,7 +22200,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #F0FDF4, #ffffff 62%)" }}>
                 <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
                 <div className="pl-5 pr-4 py-4 flex items-center gap-3.5">
-                  <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="star" className="w-5 h-5" /></span>
+                  <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="scorecard" className="w-5 h-5" /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Your scorecard</h2>

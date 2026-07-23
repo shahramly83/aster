@@ -587,17 +587,31 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {/* Did the interview happen? — leads the Interview tab once the time has
               passed. Proceed to scorecards dismisses it; Reschedule runs the flow. */}
           {interviewDone && manager && !noShowDismissed ? (
-            <View style={[styles.noShow, { marginTop: space(5) }]}>
-              <Text style={[type.smallStrong, { color: theme.ink }]}>Did the interview happen?</Text>
-              <Text style={[type.small, { color: theme.ink3, marginTop: 2, marginBottom: space(3) }]}>If it was a no-show or needs another time, reschedule. Otherwise go ahead and score.</Text>
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable onPress={doReschedule} style={[styles.noShowBtn, styles.noShowReschedule]}>
-                  <Feather name="refresh-cw" size={14} color={theme.warn} />
-                  <Text style={[type.smallStrong, { color: theme.warn, marginLeft: 6 }]}>Reschedule</Text>
+            <View style={styles.ivHappenCard}>
+              <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ivHappenHead}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <View style={styles.ivHappenMedallion}><Feather name="calendar" size={18} color="#fff" /></View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                      <View style={styles.ivHappenChip}>
+                        <View style={styles.ivHappenDot} />
+                        <Text style={styles.ivHappenChipTxt}>INTERVIEW TIME PASSED</Text>
+                      </View>
+                      {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 8 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
+                    </View>
+                    <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 7, fontSize: 17 }]}>Did the interview happen?</Text>
+                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>Go ahead and score. If it was a no-show or needs another time, reschedule instead.</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+              <View style={styles.ivHappenBody}>
+                <Pressable onPress={() => setNoShowDismissed(true)} style={styles.ivHappenPrimary}>
+                  <Feather name="check" size={16} color="#fff" />
+                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>Proceed to scorecards</Text>
                 </Pressable>
-                <Pressable onPress={() => setNoShowDismissed(true)} style={[styles.noShowBtn, styles.noShowProceed, { flex: 1.5 }]}>
-                  <Feather name="check" size={14} color="#fff" />
-                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 6 }]} numberOfLines={1}>Proceed to scorecards</Text>
+                <Pressable onPress={doReschedule} style={styles.ivHappenSecondary}>
+                  <Feather name="refresh-cw" size={15} color={theme.warn} />
+                  <Text style={[type.smallStrong, { color: theme.warn, marginLeft: 7 }]}>No-show / reschedule</Text>
                 </Pressable>
               </View>
             </View>
@@ -1165,10 +1179,15 @@ const styles = StyleSheet.create({
   slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
   slotTileTime: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink, marginTop: 2 },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
-  noShow: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
-  noShowBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md },
-  noShowReschedule: { borderWidth: 1, borderColor: theme.warn, backgroundColor: theme.card },
-  noShowProceed: { backgroundColor: theme.brand },
+  ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
+  ivHappenHead: { padding: space(4) },
+  ivHappenMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center", shadowColor: theme.brand, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  ivHappenChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  ivHappenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.success, marginRight: 6 },
+  ivHappenChipTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: theme.brand },
+  ivHappenBody: { paddingHorizontal: space(3), paddingBottom: space(3), paddingTop: space(1), gap: 9 },
+  ivHappenPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 48, borderRadius: radius.md, backgroundColor: theme.brand, shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  ivHappenSecondary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md, borderWidth: 1, borderColor: theme.warn, backgroundColor: theme.warnBg },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
   exploreToggle: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, borderWidth: 1, borderColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(3.5), marginTop: space(5), ...shadow.sm },
