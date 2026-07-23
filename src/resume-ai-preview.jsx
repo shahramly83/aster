@@ -19480,9 +19480,9 @@ function ProfileScreen({ navigate, userId, avatarUrl, setAvatarUrl, logoUrl, set
     dLast !== (profile?.lastName || "") ||
     dPhone !== (profile?.phone || "");
 
-  // Profile completeness, drives the meter in the rail.
+  // Profile completeness, drives the meter in the rail. The profile photo is
+  // deliberately excluded: it's a nice-to-have, not a gate on posting a job.
   const completionItems = [
-    { key: "avatar", label: "Add a profile photo", done: !!dAvatar },
     { key: "name", label: "Add your full name", done: !!(dFirst && dLast) },
     { key: "phone", label: "Add a contact number", done: !!dPhone },
     { key: "logo", label: "Upload a company logo", done: !!dLogo },
@@ -25115,6 +25115,18 @@ export default function ResumeAIPreview() {
   // No-op: the open-role meter is derived from `jobs`, so it updates itself the
   // moment a role is published or closed. Kept as a prop for the job screens.
   const consumeJobPost = () => {};
+  // The very first job requires a complete company profile so the public apply
+  // link and career page look credible before any candidate sees them. Mirrors
+  // the Profile completeness meter, minus the profile photo (a nice-to-have,
+  // deliberately not a gate). Once one job exists, plan limits take over.
+  const profileComplete =
+    !!(profile?.firstName && profile?.lastName) &&
+    !!profile?.phone &&
+    !!companyLogoUrl &&
+    !!company &&
+    !!companyAddressParts?.street;
+  const firstJobNeedsProfile = jobs.length === 0 && !profileComplete;
+  const [profileGate, setProfileGate] = useState(false); // prompt shown when the first-job gate blocks posting
   const [aiInsightsUsed, setAiInsightsUsed] = useState(0);
   const [questionsUsed, setQuestionsUsed] = useState(0);
   // Generated AI insights, kept for the session (candidate id -> insights).
@@ -25453,6 +25465,9 @@ export default function ResumeAIPreview() {
       routeTimer.current = setTimeout(() => { try { el.removeAttribute("data-route-transition"); } catch { /* noop */ } }, 220);
     }
     if (target === "newJob") {
+      // First job is gated on a complete profile: prompt to finish it instead
+      // of opening the composer, so the apply link isn't published half-set-up.
+      if (firstJobNeedsProfile) { setProfileGate(true); return; }
       // New Job is a modal overlay, not a routed screen.
       setNewJobOpen(true);
     } else if (target === -1) {
@@ -26912,6 +26927,17 @@ export default function ResumeAIPreview() {
         </ErrorBoundary>
       </SidebarLayout>
       <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbCreateJob(companyId, userId, p) : null} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={consumeJobPost} />
+      {/* First-job gate: profile must be 100% (photo excluded) before posting. */}
+      <ConfirmDialog
+        open={profileGate}
+        title="Complete your profile first"
+        body="Your profile needs to be 100% complete before you post your first job, so your apply link and career page look ready for candidates. The profile photo is optional and doesn't count."
+        confirmLabel="Complete profile"
+        cancelLabel="Not now"
+        icon="user"
+        onConfirm={() => { setProfileGate(false); navigate("profile"); }}
+        onClose={() => setProfileGate(false)}
+      />
       <NewJobModal open={requestRoleOpen} onClose={() => setRequestRoleOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbRequestJob(p) : null} requestMode requesterId={userId} requesterName={`${profile?.firstName || ""} ${profile?.lastName || ""}`.trim()} />
     </Shell>
   );
