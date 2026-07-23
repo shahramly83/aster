@@ -21454,20 +21454,65 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               isBooked ? (
                 interviewPast ? (
                   <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
-                    <span className="shrink-0 mt-0.5" style={{ color: "#059669" }}><Icon name="check" className="w-5 h-5" /></span>
+                    <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="check" className="w-5 h-5" /></span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You've interviewed {firstName}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Add your scorecard below so the hiring manager can make the call.</p>
+                      <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>Add your scorecard below so the hiring manager can make the call.</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl tool-card act-shadow p-4 flex items-start gap-3">
-                    <span className="shrink-0 mt-0.5" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-5 h-5" /></span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Your interview with {firstName} is coming up</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>{interviewWhen ? `Scheduled for ${interviewWhen}. ` : ""}Prep with the questions below, and open Profile for their resume and background.</p>
-                    </div>
-                  </div>
+                  /* Interviewer's prep hero: the one thing they need at a glance
+                     is when, then how to join and how to prepare. Drawn as the
+                     calendar event it is, with a live countdown. */
+                  (() => {
+                    const s = interviewStart;
+                    const e = booking?.confirmedSlot?.end ? new Date(booking.confirmedSlot.end) : null;
+                    const t = (d) => d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+                    const wd = s.toLocaleDateString(undefined, { weekday: "short" });
+                    const mon = s.toLocaleDateString(undefined, { month: "short" }).toUpperCase();
+                    const day = s.toLocaleDateString(undefined, { day: "numeric" });
+                    const mins = Math.round((s.getTime() - Date.now()) / 60000);
+                    const soon = mins <= 60;
+                    const cd = mins <= 0 ? "Now" : mins < 60 ? `in ${mins} min` : mins < 1440 ? `in ${Math.round(mins / 60)}h` : `in ${Math.round(mins / 1440)} day${Math.round(mins / 1440) === 1 ? "" : "s"}`;
+                    const link = booking?.meetingLink;
+                    return (
+                      <div className="relative rounded-2xl overflow-hidden bg-white border" style={{ borderColor: "var(--line)" }}>
+                        <span className="absolute inset-y-0 left-0 w-1 brand-gradient" />
+                        <div className="pl-5 pr-4 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="shrink-0 w-14 rounded-xl overflow-hidden text-center border" style={{ borderColor: "#CBD8F5" }}>
+                              <div className="text-[10px] font-bold tracking-wider py-0.5 text-white brand-gradient" style={{ letterSpacing: "0.08em" }}>{mon}</div>
+                              <div className="text-xl font-bold leading-tight py-1 tabular-nums" style={{ color: "var(--brand)" }}>{day}</div>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5" style={soon ? { background: "#FEF3C7", color: "#92400E" } : { background: "var(--brand-soft)", color: "var(--brand)" }}>
+                                {soon && <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "#D97706" }} /><span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: "#D97706" }} /></span>}
+                                Your interview · {cd}
+                              </span>
+                              <p className="text-base font-bold tabular-nums leading-tight mt-1" style={{ color: "var(--ink)" }}>{wd}, {t(s)}{e ? ` – ${t(e)}` : ""}</p>
+                              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>with {firstName} · {jobs.find((j) => j.id === contextJobId)?.title || "the role"}</p>
+                            </div>
+                          </div>
+                          {/* One clear primary (join) when a link exists, then prep. */}
+                          <div className="flex items-center gap-2 mt-3.5">
+                            {link ? (
+                              <a href={link} target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity">
+                                <Icon name="interview" className="w-4 h-4" /> Join video call
+                              </a>
+                            ) : (
+                              <span className="flex-1 inline-flex items-center gap-1.5 text-xs rounded-xl px-3 py-2.5" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>
+                                <Icon name="clock" className="w-3.5 h-3.5" /> The hiring manager will share the meeting link.
+                              </span>
+                            )}
+                            <button type="button" onClick={() => setProfileTab("profile")} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
+                              <Icon name="doc" className="w-4 h-4" /> Resume
+                            </button>
+                          </div>
+                          <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Prep with the tailored questions below before the call.</p>
+                        </div>
+                      </div>
+                    );
+                  })()
                 )
               ) : booking?.status === "sent" ? (
                 /* The same card the hiring manager sees, minus the actions. A
@@ -22129,19 +22174,24 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
                 time, panel and role at a glance while they read the profile. */}
+            {/* Sticky reminder: the prep card above scrolls away with the main
+                column, so a compact "when" stays pinned while they read the
+                resume. Deliberately lean — it complements the hero, not repeats
+                it. */}
             {!isManagerView && isBooked && !interviewPast && (
-              <div className="rounded-2xl border px-4 py-3.5" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
-                <p className="text-sm font-medium inline-flex items-center gap-1.5" style={{ color: "#059669" }}>
-                  <Icon name="check" className="w-4 h-4" /> Interview scheduled
-                </p>
-                <p className="text-sm mt-1" style={{ color: "var(--ink)" }}>
-                  {booking?.confirmedSlot?.start ? formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end) : interviewWhen}
-                  {booking?.request?.interviewerName ? ` with ${booking.request.interviewerName}` : ""}
-                  {booking?.request?.jobTitle ? ` · ${booking.request.jobTitle}` : ""}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
-                  The candidate confirmed this time. Your scorecard opens here once the interview is done.
-                </p>
+              <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: "var(--line)", background: "#fff" }}>
+                <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="calendar" className="w-4 h-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Your interview</p>
+                  <p className="text-sm font-semibold tabular-nums truncate" style={{ color: "var(--ink)" }}>
+                    {booking?.confirmedSlot?.start ? formatSlotRange(booking.confirmedSlot.start, booking.confirmedSlot.end) : interviewWhen}
+                  </p>
+                </div>
+                {booking?.meetingLink && (
+                  <a href={booking.meetingLink} target="_blank" rel="noreferrer" title="Join video call" className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl brand-gradient text-white hover:opacity-90 transition-opacity">
+                    <Icon name="interview" className="w-4 h-4" />
+                  </a>
+                )}
               </div>
             )}
             {/* Interviewers see the meter now that they can spend the credit.
