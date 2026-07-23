@@ -22396,12 +22396,16 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           ];
           return (
             <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "var(--line)" }}>
-              {/* Outcome hero */}
-              <div className="px-6 pt-8 pb-6 text-center" style={{ background: `linear-gradient(160deg, ${tone.soft}, #ffffff 74%)` }}>
-                <span className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center text-white ${tone.grad === "brand" ? "brand-gradient" : ""}`} style={tone.grad === "brand" ? { boxShadow: "0 16px 34px -14px rgba(var(--brand-rgb),0.9)" } : { background: tone.grad, boxShadow: `0 16px 34px -16px ${tone.solid}` }}><Icon name={hero.icon} className="w-8 h-8" /></span>
-                <p className="inline-flex items-center mt-4 text-[10px] font-bold uppercase rounded-full px-2.5 py-1" style={{ background: "#fff", color: tone.solid, border: `1px solid ${tone.solid}44`, letterSpacing: "0.12em" }}>{hero.label}</p>
-                <h2 className="text-2xl font-bold font-display mt-2.5 tracking-tight" style={{ color: "var(--ink)" }}>{hero.title}</h2>
-                <p className="text-sm mt-2 leading-relaxed mx-auto" style={{ color: "var(--ink-3)", maxWidth: "30rem" }}>{hero.sub}</p>
+              {/* Compact outcome header (no big empty hero). */}
+              <div className="px-5 py-4 flex items-start gap-3.5 border-b" style={{ borderColor: "var(--line)", background: `linear-gradient(135deg, ${tone.soft}, #ffffff 80%)` }}>
+                <span className={`shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center text-white ${tone.grad === "brand" ? "brand-gradient" : ""}`} style={tone.grad === "brand" ? { boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" } : { background: tone.grad, boxShadow: `0 10px 22px -12px ${tone.solid}` }}><Icon name={hero.icon} className="w-5 h-5" /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{hero.title}</h2>
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#fff", color: tone.solid, border: `1px solid ${tone.solid}44`, letterSpacing: "0.08em" }}>{hero.label}</span>
+                  </div>
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{hero.sub}</p>
+                </div>
               </div>
               {/* Hiring journey */}
               <div className="px-6 py-6">
