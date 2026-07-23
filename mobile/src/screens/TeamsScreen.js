@@ -305,6 +305,9 @@ export default function TeamsScreen({ navigation }) {
             {/* The body "Invite teammate" card is gone: invite now lives on the
                 header chip, and the solo state above already offers it. */}
             {Header}
+            {/* Offer approvers sits right under the header (near the invite
+                action), above the member list. */}
+            <TeamApprovers companyId={profile?.companyId} canManage={canInvite} />
           </>
         }
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
@@ -321,17 +324,12 @@ export default function TeamsScreen({ navigation }) {
             />
           </View>
         }
-        ListFooterComponent={
-          <>
-            <TeamApprovers companyId={profile?.companyId} canManage={canInvite} />
-            {rows.length ? (
-              <View style={styles.footer}>
-                <Feather name="info" size={13} color={theme.ink4} />
-                <Text style={[type.small, { color: theme.ink4, marginLeft: 8, flex: 1 }]}>Manage roles and seats from the Aster web app.</Text>
-              </View>
-            ) : null}
-          </>
-        }
+        ListFooterComponent={rows.length ? (
+          <View style={styles.footer}>
+            <Feather name="info" size={13} color={theme.ink4} />
+            <Text style={[type.small, { color: theme.ink4, marginLeft: 8, flex: 1 }]}>Manage roles and seats from the Aster web app.</Text>
+          </View>
+        ) : null}
         renderItem={({ item, index }) => {
           if (item._section) {
             const m = metaOf(item._section);
