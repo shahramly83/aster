@@ -289,7 +289,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // Interviewers can't score until then; the HM (the releaser) scores once the
   // time has passed.
   const scorecardsReleased = !!interview?.scorecardsReleasedAt;
-  const canScore = (manager ? interviewDone : scorecardsReleased) || ["offer", "hired"].includes(stage);
+  // Scorecards stay locked for EVERYONE (including the HM) until the HM taps
+  // "Proceed to scorecards", which stamps the release. offer/hired keeps them
+  // open later in the pipeline.
+  const canScore = scorecardsReleased || ["offer", "hired"].includes(stage);
   // Every panel member (interview attendees) must submit a scorecard before the
   // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
   const ratedIds = new Set(cards.map((c) => c.interviewerId));
@@ -365,7 +368,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   ? !INTERVIEW_UNLOCKED.includes(stage)
                   : k === "feedback" ? !canScore : false;
                 const lockReason = k === "feedback"
-                  ? (manager ? `The scorecard opens once ${nameOf().split(" ")[0]}'s interview has taken place.` : `The scorecard opens once the hiring manager confirms the interview happened.`)
+                  ? (manager ? `Tap "Proceed to scorecards" on the Interview tab to open this.` : `The scorecard opens once the hiring manager confirms the interview happened.`)
                   : `Move ${nameOf().split(" ")[0]} to interview to open this tab.`;
                 return (
                   <Pressable
@@ -590,32 +593,27 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {tab === "interview" ? (<>
           {/* Did the interview happen? — leads the Interview tab once the time has
               passed. Proceed to scorecards dismisses it; Reschedule runs the flow. */}
-          {interviewDone && manager && !noShowDismissed ? (
+          {interviewDone && manager && !noShowDismissed && !scorecardsReleased ? (
             <View style={styles.ivHappenCard}>
-              <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ivHappenHead}>
-                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-                  <View style={styles.ivHappenMedallion}><Feather name="calendar" size={18} color="#fff" /></View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
-                      <View style={styles.ivHappenChip}>
-                        <View style={styles.ivHappenDot} />
-                        <Text style={styles.ivHappenChipTxt}>INTERVIEW TIME PASSED</Text>
-                      </View>
-                      {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 8 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
-                    </View>
-                    <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 7, fontSize: 17 }]}>Did the interview happen?</Text>
-                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>Go ahead and score. If it was a no-show or needs another time, reschedule instead.</Text>
+              <View style={styles.ivHappenHead}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={styles.ivHappenChip}>
+                    <View style={styles.ivHappenDot} />
+                    <Text style={styles.ivHappenChipTxt}>INTERVIEW TIME PASSED</Text>
                   </View>
+                  {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 9 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
                 </View>
-              </LinearGradient>
+                <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 12, fontSize: 20, letterSpacing: -0.3 }]}>Did the interview happen?</Text>
+                <Text style={[type.small, { color: theme.ink2, marginTop: 5, lineHeight: 20 }]}>Confirming opens the panel's scorecards. If it was a no-show or needs another time, reschedule instead.</Text>
+              </View>
               <View style={styles.ivHappenBody}>
                 <Pressable onPress={() => { if (interview?.id) releaseScorecards(interview.id); setInterview((iv) => (iv ? { ...iv, scorecardsReleasedAt: new Date().toISOString() } : iv)); setNoShowDismissed(true); }} style={styles.ivHappenPrimary}>
                   <Feather name="check" size={16} color="#fff" />
                   <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>Proceed to scorecards</Text>
                 </Pressable>
-                <Pressable onPress={doReschedule} style={styles.ivHappenSecondary}>
-                  <Feather name="refresh-cw" size={15} color={theme.warn} />
-                  <Text style={[type.smallStrong, { color: theme.warn, marginLeft: 7 }]}>No-show / reschedule</Text>
+                <Pressable onPress={doReschedule} style={styles.ivHappenGhost}>
+                  <Feather name="refresh-cw" size={14} color={theme.ink3} />
+                  <Text style={[type.small, { color: theme.ink3, marginLeft: 7, fontFamily: "Inter_600SemiBold" }]}>No-show or reschedule</Text>
                 </Pressable>
               </View>
             </View>
@@ -1235,15 +1233,14 @@ const styles = StyleSheet.create({
   slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
   slotTileTime: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink, marginTop: 2 },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
-  ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
-  ivHappenHead: { padding: space(4) },
-  ivHappenMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center", shadowColor: theme.brand, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
-  ivHappenChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
+  ivHappenHead: { paddingHorizontal: space(4), paddingTop: space(4), paddingBottom: space(1) },
+  ivHappenChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   ivHappenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.success, marginRight: 6 },
   ivHappenChipTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: theme.brand },
-  ivHappenBody: { paddingHorizontal: space(3), paddingBottom: space(3), paddingTop: space(1), gap: 9 },
-  ivHappenPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 48, borderRadius: radius.md, backgroundColor: theme.brand, shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
-  ivHappenSecondary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md, borderWidth: 1, borderColor: theme.warn, backgroundColor: theme.warnBg },
+  ivHappenBody: { paddingHorizontal: space(4), paddingBottom: space(4), paddingTop: space(3), gap: 8 },
+  ivHappenPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 50, borderRadius: radius.md, backgroundColor: theme.brand, shadowColor: theme.brand, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  ivHappenGhost: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md, backgroundColor: theme.line2 },
   ivDoneCard: { marginTop: space(5), borderRadius: radius.lg, borderWidth: 1, borderColor: "#A7F3D0", backgroundColor: theme.card, overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
   ivDoneMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: theme.success, alignItems: "center", justifyContent: "center", shadowColor: theme.success, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   ivDoneChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: "#A7F3D0", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
