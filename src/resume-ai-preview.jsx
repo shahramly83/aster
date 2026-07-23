@@ -15222,8 +15222,8 @@ function ApproversSection({ companyId, canPersist }) {
   const pending = rows.filter((r) => r.status !== "confirmed");
 
   const Row = ({ r, isPending }) => (
-    <div className="group flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-all hover:shadow-[0_6px_18px_-12px_rgba(16,19,42,0.3)]" style={{ borderColor: "var(--line)", background: "#fff" }}>
-      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: isPending ? "#FEF3C7" : "var(--brand-soft)", color: isPending ? "#92400E" : "var(--brand)" }}>{ini(r.name || r.email)}</div>
+    <div className="group flex items-center gap-3 rounded-xl border px-3 py-2 transition-colors hover:border-[color:var(--line-strong)]" style={{ borderColor: "var(--line)", background: "#fff" }}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: isPending ? "#FEF3C7" : "var(--brand-soft)", color: isPending ? "#92400E" : "var(--brand)" }}>{ini(r.name || r.email)}</div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{r.name || r.email}</div>
         <div className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{r.email}</div>
@@ -15241,49 +15241,48 @@ function ApproversSection({ companyId, canPersist }) {
   );
 
   return (
-    <div className="mt-10 rounded-2xl border overflow-hidden" style={{ borderColor: "var(--line)", background: "#fff" }}>
-      {/* Branded header */}
-      <div className="px-5 sm:px-6 pt-5 pb-4 border-b flex items-start gap-3.5" style={{ borderColor: "var(--line)", background: "linear-gradient(135deg, var(--brand-soft), #ffffff 82%)" }}>
-        <span className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0" style={{ boxShadow: "0 10px 22px -12px rgba(var(--brand-rgb),0.85)" }}><Icon name="shield" className="w-5 h-5" /></span>
+    <div className="mt-8 rounded-2xl border overflow-hidden" style={{ borderColor: "var(--line)", background: "#fff" }}>
+      {/* Compact header */}
+      <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
+        <span className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center text-white shrink-0"><Icon name="shield" className="w-4 h-4" /></span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
-            {confirmed.length > 0 && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line)" }}>{confirmed.length} active</span>}
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
+            {confirmed.length > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg)", color: "var(--brand)", border: "1px solid var(--line)" }}>{confirmed.length}</span>}
           </div>
-          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>Approve offers by email, no login or account. They confirm once, then get an approve/decline link when you route an offer.</p>
+          <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>Approve offers by email, no login. They confirm once.</p>
         </div>
       </div>
 
-      <div className="p-5 sm:p-6">
+      <div className="px-4 sm:px-5 py-4">
         {/* Add form */}
         <div className="flex flex-col sm:flex-row gap-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-xl bg-white border px-3.5 py-2.5 text-sm sm:w-44 focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-          <button onClick={add} disabled={busy} className="rounded-xl brand-gradient text-white text-sm font-semibold px-5 py-2.5 disabled:opacity-50 shrink-0 inline-flex items-center justify-center gap-1.5 transition-all enabled:hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}><Icon name="userPlus" className="w-4 h-4" />{busy ? "Sending…" : "Add approver"}</button>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-lg bg-white border px-3 py-2 text-sm sm:w-40 focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+          <button onClick={add} disabled={busy} className="rounded-lg brand-gradient text-white text-sm font-semibold px-4 py-2 disabled:opacity-50 shrink-0 inline-flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90"><Icon name="userPlus" className="w-4 h-4" />{busy ? "Sending…" : "Add approver"}</button>
         </div>
-        {banner && <p className="text-xs mt-2.5 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
+        {banner && <p className="text-xs mt-2 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
 
         {/* Lists */}
         {loading ? (
-          <p className="text-sm mt-5" style={{ color: "var(--ink-3)" }}>Loading…</p>
+          <p className="text-sm mt-4" style={{ color: "var(--ink-3)" }}>Loading…</p>
         ) : rows.length === 0 ? (
-          <div className="mt-5 rounded-2xl border border-dashed px-5 py-10 text-center" style={{ borderColor: "var(--line-strong)" }}>
-            <span className="w-11 h-11 rounded-full flex items-center justify-center mx-auto mb-2.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="userPlus" className="w-5 h-5" /></span>
+          <div className="mt-4 rounded-xl border border-dashed px-5 py-6 text-center" style={{ borderColor: "var(--line-strong)" }}>
             <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No approvers yet</p>
-            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Add someone above to route offers for approval.</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Add someone above to route offers for approval.</p>
           </div>
         ) : (
-          <div className="mt-5 space-y-4">
+          <div className="mt-4 space-y-3">
             {confirmed.length > 0 && (
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Confirmed · {confirmed.length}</p>
-                <div className="space-y-2">{confirmed.map((r) => <Row key={r.id} r={r} isPending={false} />)}</div>
+                <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Confirmed · {confirmed.length}</p>
+                <div className="space-y-1.5">{confirmed.map((r) => <Row key={r.id} r={r} isPending={false} />)}</div>
               </div>
             )}
             {pending.length > 0 && (
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Awaiting confirmation · {pending.length}</p>
-                <div className="space-y-2">{pending.map((r) => <Row key={r.id} r={r} isPending />)}</div>
+                <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Awaiting confirmation · {pending.length}</p>
+                <div className="space-y-1.5">{pending.map((r) => <Row key={r.id} r={r} isPending />)}</div>
               </div>
             )}
           </div>
