@@ -847,7 +847,7 @@ const styles = StyleSheet.create({
   timePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.brand, fontVariant: ["tabular-nums"] },
   dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
   // Past interview: quiet, flat card with a mini date rail on the left.
-  pastMini: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), shadowColor: "#1A1A22", shadowOpacity: 0.045, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
+  pastMini: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), borderWidth: 1, borderColor: theme.line },
   pastCheck: { position: "absolute", right: -2, bottom: -2, width: 19, height: 19, borderRadius: 10, backgroundColor: theme.success, alignItems: "center", justifyContent: "center", borderWidth: 2.5, borderColor: theme.card },
   pastDivider: { height: 1, backgroundColor: theme.line, marginVertical: space(3) },
   pastStatusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.success, marginRight: 9 },
