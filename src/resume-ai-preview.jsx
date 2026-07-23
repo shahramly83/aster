@@ -21127,10 +21127,13 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // every one of them has scored; skipping doesn't bypass that.
   const soloInterview = interviewerAttendees.length === 0;
   const [scorecardsSkipped, setScorecardsSkipped] = useState(false);
-  const scorecardsUnlocked = interviewPast;
-  // The HM releases the panel's scorecards by confirming the interview happened.
-  // Interviewers can't score until then (a separate session reads this stamp).
+  // The HM releases the panel's scorecards by confirming the interview happened
+  // ("Proceed to scorecards"). Interviewers can't score until then (a separate
+  // session reads this stamp), and the HM's own Scorecards step stays locked
+  // until she confirms too — so the "Did the interview happen?" step isn't
+  // silently skippable.
   const scorecardsReleased = !!booking?.scorecardsReleasedAt;
+  const scorecardsUnlocked = scorecardsReleased;
   const decisionUnlocked = interviewPast && (soloInterview ? (scorecardsSkipped || anyScored) : allScored);
   // Which step opens first. If Decision is already unlocked (the panel has scored,
   // or the manager skipped), open straight on Decision so a reload doesn't drop
@@ -21801,7 +21804,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         {/* Did the interview happen? Leads step 1 once the interview time has
             passed, so the manager acts on it before anything else. Reschedule runs
             the current flow; Proceed to scorecards dismisses this and moves on. */}
-        {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && (
+        {isManagerView && ivStep === 1 && interviewPast && !noShowDismissed && !scorecardsReleased && (
           <div className="mt-2 mb-4 relative overflow-hidden rounded-3xl border act-shadow" style={{ borderColor: "var(--line)", background: "#fff" }}>
             {/* Gradient hero: the interview is over, this is the manager's next move. */}
             <div className="px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #ffffff 72%)" }}>
