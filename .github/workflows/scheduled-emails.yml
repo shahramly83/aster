@@ -11,13 +11,14 @@ name: Scheduled emails
 
 on:
   schedule:
-    - cron: "0 13 * * 1"   # Mondays 13:00 UTC → weekly_digest
-    - cron: "30 13 * * *"  # every day 13:30 UTC → trial_ending
-    - cron: "0 */3 * * *"  # every 3 hours → interview_reminder (24h heads-up)
+    - cron: "0 13 * * 1"    # Mondays 13:00 UTC → weekly_digest
+    - cron: "30 13 * * *"   # every day 13:30 UTC → trial_ending
+    - cron: "0 */3 * * *"   # every 3 hours → interview_reminder (24h heads-up)
+    - cron: "*/15 * * * *"  # every 15 min → interview_starting_soon (~1h push)
   workflow_dispatch:
     inputs:
       task:
-        description: "Task to run (weekly_digest | trial_ending | interview_reminder)"
+        description: "Task (weekly_digest | trial_ending | interview_reminder | interview_starting_soon)"
         default: "trial_ending"
 
 concurrency:
@@ -35,6 +36,8 @@ jobs:
             echo "task=weekly_digest" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "0 */3 * * *" ]; then
             echo "task=interview_reminder" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "*/15 * * * *" ]; then
+            echo "task=interview_starting_soon" >> "$GITHUB_OUTPUT"
           elif [ -n "${{ github.event.inputs.task }}" ]; then
             echo "task=${{ github.event.inputs.task }}" >> "$GITHUB_OUTPUT"
           else

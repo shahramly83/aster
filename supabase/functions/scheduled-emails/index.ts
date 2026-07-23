@@ -14,6 +14,23 @@
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, emailShell, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { pushToUser } from "../_shared/push.ts";
+
+// The interview panel as push-able users. attendees carries emails; push needs
+// profile ids, so map the attendee emails to active profiles in this company.
+// An attendee with no account (rare, but attendees can be free-typed) is simply
+// not pushed. Returns [] on any error so a lookup hiccup never breaks the cron.
+async function panelUserIds(admin: Admin, companyId: string, attendees: { email?: string }[] | null): Promise<string[]> {
+  const emails = [...new Set((Array.isArray(attendees) ? attendees : [])
+    .map((a) => (a && typeof a.email === "string" ? a.email.trim().toLowerCase() : ""))
+    .filter(Boolean))];
+  if (!emails.length) return [];
+  try {
+    const { data } = await admin.from("profiles").select("id, email")
+      .eq("company_id", companyId).eq("status", "active").in("email", emails);
+    return [...new Set((data || []).map((r: { id: string }) => r.id).filter(Boolean))];
+  } catch { return []; }
+}
 
 const SITE = "https://hireaster.com";
 
@@ -169,8 +186,57 @@ async function runInterviewReminder(admin: Admin): Promise<number> {
       } catch (e) { console.error("panel reminders failed", e); }
     }
 
+    // Panel push, alongside the email: the same day-before heads-up, on the phone.
+    try {
+      const ids = await panelUserIds(admin, iv.company_id, iv.attendees);
+      await Promise.all(ids.map((id) => pushToUser(admin, id, {
+        title: "Interview tomorrow",
+        body: `${cand?.full_name || "A candidate"} · ${jobTitle} · ${dateTime}`,
+        data: { url: `aster://interview/${iv.candidate_id}`, type: "interview_reminder" },
+      })));
+    } catch (e) { console.error("panel reminder push failed", e); }
+
     // Stamp so it never sends twice.
     await admin.from("interviews").update({ reminder_sent_at: new Date().toISOString() }).eq("id", iv.id);
+    sent++;
+  }
+  return sent;
+}
+
+// The "starts soon" push: an interview inside the next ~75 minutes that hasn't
+// had this buzz yet. Push-only — a candidate has no app, and the day-before
+// email already covered the heads-up; this is the phone nudge for the panelist
+// about to walk in. Runs on a tighter cron so "soon" actually means soon.
+async function runStartingSoon(admin: Admin): Promise<number> {
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + 75 * 60 * 1000).toISOString();
+  const { data: ivs } = await admin.from("interviews")
+    .select("id, company_id, candidate_id, job_id, scheduled_at, attendees")
+    .eq("status", "scheduled")
+    .is("starting_soon_notified_at", null)
+    .gte("scheduled_at", now.toISOString())
+    .lte("scheduled_at", windowEnd);
+  let sent = 0;
+  for (const iv of (ivs || []) as { id: string; company_id: string; candidate_id: string; job_id: string | null; scheduled_at: string; attendees: { email?: string }[] | null }[]) {
+    let tz = "Asia/Kuala_Lumpur";
+    try { const { data: tzr } = await admin.from("companies").select("timezone").eq("id", iv.company_id).maybeSingle(); if (tzr?.timezone) tz = tzr.timezone; } catch { /* pre-0091 */ }
+    let jobTitle = "the role";
+    if (iv.job_id) { const { data: job } = await admin.from("jobs").select("title").eq("id", iv.job_id).maybeSingle(); jobTitle = job?.title || jobTitle; }
+    const { data: cand } = await admin.from("candidates").select("full_name").eq("id", iv.candidate_id).maybeSingle();
+    const mins = Math.max(1, Math.round((new Date(iv.scheduled_at).getTime() - now.getTime()) / 60000));
+    const whenPhrase = mins >= 55 ? "in about an hour" : `in ${mins} min`;
+
+    try {
+      const ids = await panelUserIds(admin, iv.company_id, iv.attendees);
+      await Promise.all(ids.map((id) => pushToUser(admin, id, {
+        title: `Interview ${whenPhrase}`,
+        body: `${cand?.full_name || "A candidate"} · ${jobTitle} · ${fmtWhen(iv.scheduled_at, tz)}`,
+        data: { url: `aster://interview/${iv.candidate_id}`, type: "interview_starting_soon" },
+      })));
+    } catch (e) { console.error("starting-soon push failed", e); }
+
+    // Stamp regardless, so a panel with no app accounts isn't retried every run.
+    await admin.from("interviews").update({ starting_soon_notified_at: new Date().toISOString() }).eq("id", iv.id);
     sent++;
   }
   return sent;
@@ -191,6 +257,7 @@ Deno.serve(async (req) => {
     if (task === "weekly_digest") sent = await runWeeklyDigest(admin);
     else if (task === "trial_ending") sent = await runTrialEnding(admin);
     else if (task === "interview_reminder") sent = await runInterviewReminder(admin);
+    else if (task === "interview_starting_soon") sent = await runStartingSoon(admin);
     else return json({ error: "unknown task" }, 400);
 
     return json({ ok: true, task, sent });
