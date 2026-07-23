@@ -374,7 +374,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
             {/* Interview page sub-tabs: split the dense stack into Profile /
                 Interview / Feedback so only one section shows at a time. */}
-            <View style={styles.segbar}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segbar}>
               {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecards"], ...(!manager && myCard ? [["result", "Result"]] : [])].map(([k, lbl]) => {
                 const on = tab === k;
                 // The two tabs unlock on different things, and conflating them
@@ -405,7 +405,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
             {lockNote ? (
               <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2) }]}>
                 {lockNote}
@@ -1079,7 +1079,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             const steps = [
               { label: "Interview held", meta: interviewDone && scheduledAt ? fmtInterviewTime(scheduledAt, profile?.timezone) : null, state: "done" },
               { label: "You submitted your scorecard", state: "done" },
-              { label: "Hiring manager decides", state: offered ? "done" : "current" },
+              { label: "Hiring Manager Review", state: offered ? "done" : "current" },
               { label: outcomeLabel, state: decided ? "done" : offered ? "current" : "todo" },
             ];
             return (
@@ -1091,7 +1091,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 16 }]}>{hero.title}</Text>
                       <View style={[styles.resultChip, { borderColor: tone.solid + "55" }]}><Text style={[styles.resultChipTxt, { color: tone.solid }]}>{hero.label.toUpperCase()}</Text></View>
                     </View>
-                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{hero.sub}</Text>
                   </View>
                 </View>
                 <View style={{ padding: space(4) }}>
@@ -1328,8 +1327,8 @@ const styles = StyleSheet.create({
   certRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2.5) },
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
-  segbar: { flexDirection: "row", backgroundColor: theme.bg, borderRadius: radius.pill, padding: 4, marginTop: space(4), borderWidth: 1, borderColor: theme.line },
-  segItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", height: 38, borderRadius: radius.pill },
+  segbar: { flexDirection: "row", alignSelf: "flex-start", backgroundColor: theme.bg, borderRadius: radius.pill, padding: 4, marginTop: space(4), borderWidth: 1, borderColor: theme.line },
+  segItem: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 38, paddingHorizontal: 18, borderRadius: radius.pill },
   segItemOn: { backgroundColor: theme.brand },
   decisionLock: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, padding: 14 },
   lockCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center" },

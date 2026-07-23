@@ -22402,7 +22402,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           const steps = [
             { label: "Interview held", meta: interviewWhen, state: "done" },
             { label: "You submitted your scorecard", state: "done" },
-            { label: "Hiring manager decides", state: offered ? "done" : "current" },
+            { label: "Hiring Manager Review", state: offered ? "done" : "current" },
             { label: outcomeLabel, state: decided ? "done" : offered ? "current" : "todo" },
           ];
           return (
@@ -22415,7 +22415,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{hero.title}</h2>
                     <span className="inline-flex items-center text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#fff", color: tone.solid, border: `1px solid ${tone.solid}44`, letterSpacing: "0.08em" }}>{hero.label}</span>
                   </div>
-                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{hero.sub}</p>
                 </div>
               </div>
               {/* Hiring journey */}
