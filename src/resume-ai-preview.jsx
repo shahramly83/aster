@@ -22361,6 +22361,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             companyName={companyName}
             logoUrl={companyLogoUrl}
             defaultSignatory={profile?.full_name || profile?.name || ""}
+            team={(interviewers || []).filter((iv) => iv.email)}
+            onManageTeam={() => { setShowOffer(false); navigate("interviewers"); }}
             resubmit={resubmitData}
             onClose={() => { setShowOffer(false); setResubmitData(null); }}
             onSend={async (emailSent, terms, message, approvers, upload) => {
@@ -22989,7 +22991,7 @@ function OfferSignPlacement({ file, url, field, onField, readOnly = false }) {
   );
 }
 
-function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", logoUrl = null, defaultSignatory = "", resubmit = null, onClose, onSend }) {
+function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", logoUrl = null, defaultSignatory = "", team = [], onManageTeam, resubmit = null, onClose, onSend }) {
   // Resubmit after a decline: pre-fill the letter, terms and approvers from the
   // declined offer so the hiring manager can revise before sending it round again.
   const r = resubmit || {};
@@ -23007,6 +23009,9 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
   const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name}] internal sign-off
   const hasApprovers = approvers.some((a) => a.email.trim());
+  // Approvers are picked from the team; anyone with an email who isn't already
+  // added can be an approver (they approve from the email, no account needed).
+  const availableApprovers = (team || []).filter((m) => m.email && !approvers.some((a) => (a.email || "").toLowerCase() === m.email.toLowerCase()));
   // Send mode: 'compose' (Aster builds the letter from terms) or 'upload' (HR
   // brings their own finished PDF and places one candidate signature box).
   const [mode, setMode] = useState("compose");
@@ -23247,21 +23252,39 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             {approvers.length > 0 && (
               <div className="space-y-2 mb-2.5">
                 {approvers.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-xl border pl-2 pr-1.5 py-1.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:ring-2 focus-within:ring-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl border pl-2 pr-1.5 py-2" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
                     <span className="w-6 h-6 rounded-lg brand-gradient text-white flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
-                    <input type="email" value={a.email} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} placeholder="approver@company.com" className="flex-1 min-w-0 bg-transparent border-0 px-1.5 py-1 text-sm focus:outline-none placeholder:text-neutral-400" style={{ color: "var(--ink)" }} />
-                    <div className="w-px self-stretch my-1 shrink-0" style={{ background: "var(--line)" }} />
-                    <input value={a.name} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className="w-24 shrink-0 bg-transparent border-0 px-1.5 py-1 text-sm focus:outline-none placeholder:text-neutral-400" style={{ color: "var(--ink)" }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{a.name || a.email}</div>
+                      <div className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{a.email}</div>
+                    </div>
                     {a.status === "approved" && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>}
                     <button type="button" onClick={() => setApprovers((l) => l.filter((_, j) => j !== i))} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:bg-rose-50 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
             )}
-            <button type="button" onClick={() => setApprovers((l) => [...l, { email: "", name: "" }])} className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-dashed py-2.5 text-sm font-semibold transition-colors hover:bg-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}>
-              <Icon name="userPlus" className="w-4 h-4" /> Add approver
-            </button>
-            <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver reviews and approves in order. The offer reaches the candidate only after the last approval." : "Add approvers to require internal sign-off before the offer reaches the candidate."}</p>
+            {(team || []).length === 0 ? (
+              // No team yet: approvals need teammates, so point back to add them.
+              <div className="rounded-xl border border-dashed px-4 py-4 text-center" style={{ borderColor: "var(--line-strong)" }}>
+                <p className="text-xs mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>You have no teammates yet. Add your team to route offers for approval.</p>
+                <button type="button" onClick={() => onManageTeam && onManageTeam()} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
+                  <Icon name="userPlus" className="w-4 h-4" /> Add team members
+                </button>
+              </div>
+            ) : availableApprovers.length > 0 ? (
+              <select
+                value=""
+                onChange={(e) => { const m = (team || []).find((t) => t.id === e.target.value); if (m) setApprovers((l) => [...l, { id: m.id, email: m.email, name: m.name }]); }}
+                className={inputClass}
+              >
+                <option value="" disabled>+ Add approver from your team…</option>
+                {availableApprovers.map((m) => <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ""}</option>)}
+              </select>
+            ) : (
+              <p className="text-xs px-1" style={{ color: "var(--ink-4)" }}>All teammates have been added as approvers.</p>
+            )}
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver gets an email to review and approve, in order — no login needed. The offer reaches the candidate only after the last approval." : "Add approvers from your team to require sign-off first. They approve straight from the email, no account needed."}</p>
           </div>
         )}
 
