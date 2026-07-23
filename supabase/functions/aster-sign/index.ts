@@ -18,6 +18,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs as emailParagraphs } from "../_shared/email.ts";
+import { pushToCompanyAdmins } from "../_shared/push.ts";
 import { buildLetterModel, letterHtml, type LetterModel, type OfferRow } from "../_shared/offer-letter.ts";
 
 const CORS = {
@@ -314,6 +315,13 @@ Deno.serve(async (req) => {
     try {
       const logoUrl = comp?.logo_url || null;
       await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_signed", title: `${candidateName} signed the offer`, description: `Signed the offer for the ${jobTitle} role.`, candidate_id: offer.candidate_id });
+      // A signed offer is the moment a hire lands. Push the team so it doesn't
+      // sit unseen in an inbox. Best-effort, never blocks the signature.
+      await pushToCompanyAdmins(admin, offer.company_id, {
+        title: "Offer signed",
+        body: `${candidateName} signed the ${jobTitle} offer. Mark them hired when ready.`,
+        data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_signed" },
+      });
 
       const { data: recips } = await admin.from("profiles").select("email")
         .eq("company_id", offer.company_id).in("role", ["owner", "admin"]).eq("status", "active").not("email", "is", null);

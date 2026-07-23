@@ -11,7 +11,7 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
-type PushInput = {
+export type PushInput = {
   title: string;
   body: string;
   // Deep-link + payload delivered to the app (e.g. { url: "aster://interview/123" }).
@@ -69,4 +69,32 @@ export async function pushToUser(
 // Convenience for functions that only have SUPABASE_URL / service key in env.
 export function adminClient(): SupabaseClient {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+}
+
+// Push the same message to every owner/admin of a company. The offer lifecycle
+// (sent, signed, declined) is internal-to-the-team news, and the team is exactly
+// this set. `exceptUserId` skips the person who triggered it, so the manager who
+// clicked "send offer" isn't pinged about their own action.
+// Best-effort like pushToUser: returns a count, never throws.
+export async function pushToCompanyAdmins(
+  admin: SupabaseClient,
+  companyId: string,
+  msg: PushInput,
+  exceptUserId?: string,
+): Promise<{ sent: number; recipients: number }> {
+  try {
+    const { data: rows } = await admin
+      .from("profiles").select("id")
+      .eq("company_id", companyId)
+      .in("role", ["owner", "admin"])
+      .eq("status", "active");
+    const ids = (rows || [])
+      .map((r: { id: string }) => r.id)
+      .filter((id: string) => id && id !== exceptUserId);
+    let sent = 0;
+    for (const id of ids) { const r = await pushToUser(admin, id, msg); sent += r.sent; }
+    return { sent, recipients: ids.length };
+  } catch (_e) {
+    return { sent: 0, recipients: 0 };
+  }
 }

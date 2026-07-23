@@ -8,6 +8,7 @@
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs, button } from "../_shared/email.ts";
+import { pushToCompanyAdmins } from "../_shared/push.ts";
 
 const SITE = "https://hireaster.com";
 const CORS = {
@@ -113,6 +114,14 @@ Deno.serve(async (req) => {
         bodyHtml,
       }),
     });
+
+    // Tell the rest of the team the offer went out, minus whoever sent it.
+    // Best-effort; the offer email above is the real work.
+    await pushToCompanyAdmins(admin, companyId, {
+      title: "Offer sent",
+      body: `${cand.full_name || "The candidate"} · ${jobTitle}`,
+      data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_sent" },
+    }, user.id);
 
     return json({ ok: true });
   } catch (e) {

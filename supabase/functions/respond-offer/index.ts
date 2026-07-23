@@ -9,6 +9,7 @@
 // Auto-provided: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs } from "../_shared/email.ts";
+import { pushToCompanyAdmins } from "../_shared/push.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +60,17 @@ Deno.serve(async (req) => {
     }
 
     // Emails only on the first accept (a decline updates the stage, no email).
+    // Push the team: a hire just landed, or an offer just fell through. Both are
+    // the kind of thing you want to know without opening the app. Best-effort.
+    if (firstResponse) {
+      const jt = await jobTitleFor(admin, offer.company_id, offer.candidate_id);
+      const { data: c } = await admin.from("candidates").select("full_name").eq("id", offer.candidate_id).maybeSingle();
+      const nm = c?.full_name || "The candidate";
+      await pushToCompanyAdmins(admin, offer.company_id, accepted
+        ? { title: "Offer accepted", body: `${nm} accepted the ${jt} offer. Mark them hired when ready.`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_signed" } }
+        : { title: "Offer declined", body: `${nm} declined the ${jt} offer.`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_declined" } });
+    }
+
     if (firstResponse && accepted) {
       const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", offer.company_id).maybeSingle();
       const companyName = comp?.name || "the hiring team";
