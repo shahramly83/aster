@@ -984,6 +984,20 @@ export async function loadOfferApprovals(offerId) {
   return data || [];
 }
 
+// Confirmed offer approvers (0133): the no-login people who can be picked as
+// approvers on an offer. Mobile is pick-only; approvers are added/confirmed on
+// the web app. RLS scopes to the caller's company.
+export async function loadApprovers(companyId) {
+  if (!companyId) return [];
+  const { data, error } = await supabase
+    .from("offer_approvers")
+    .select("id, email, name, status")
+    .eq("company_id", companyId).eq("status", "confirmed")
+    .order("created_at", { ascending: true });
+  if (error) { if (error.code !== "42P01" && error.code !== "PGRST205") console.warn("loadApprovers", error.message); return []; }
+  return (data || []).map((a) => ({ id: a.id, email: a.email, name: a.name || a.email }));
+}
+
 // Insert the offer row with its terms (mirrors dbCreateOffer, camelCase terms →
 // columns). Returns { token, id } or { error }.
 async function createOffer(companyId, { candidateId, jobId = null, terms = null }) {

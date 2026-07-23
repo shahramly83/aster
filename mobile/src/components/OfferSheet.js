@@ -6,12 +6,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, Modal, ScrollView, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { sendOffer } from "../lib/data";
+import { sendOffer, loadApprovers } from "../lib/data";
 import { Button, Feather } from "./ui";
 import CalendarSheet from "./CalendarSheet";
 import { theme, type, space, radius } from "../theme";
 
-const CURRENCIES = [{ k: "myr", label: "RM" }, { k: "usd", label: "$" }, { k: "sgd", label: "S$" }];
+const CURRENCIES = [{ k: "myr", label: "RM" }, { k: "sgd", label: "SGD" }, { k: "usd", label: "USD" }];
 const EMP_TYPES = [
   { k: "full_time", label: "Full-time" },
   { k: "part_time", label: "Part-time" },
@@ -52,13 +52,23 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [body, setBody] = useState("");            // the offer letter (sent as the message)
   const [bodyEdited, setBodyEdited] = useState(false); // stop auto-syncing once hand-edited
   const [letterView, setLetterView] = useState("write"); // 'write' | 'preview'
-  const [approvers, setApprovers] = useState([]); // [{ name, email }]
+  const [approvers, setApprovers] = useState([]); // selected [{ id, name, email }]
+  const [approverPool, setApproverPool] = useState([]); // confirmed approvers (pick-only)
   const [picker, setPicker] = useState(null); // null | "start" | "expires"
+  const [curOpen, setCurOpen] = useState(false); // currency dropdown
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState(null);
 
   // Keep defaults in sync if the sheet is opened for a different role.
   useEffect(() => { if (visible && defaults.jobTitle && !jobTitle) setJobTitle(defaults.jobTitle); }, [visible, defaults.jobTitle]);
+
+  // Load the confirmed approvers to pick from (managed/confirmed on the web app).
+  useEffect(() => {
+    if (!visible || !companyId) return;
+    let alive = true;
+    loadApprovers(companyId).then((r) => { if (alive) setApproverPool(r); });
+    return () => { alive = false; };
+  }, [visible, companyId]);
 
   // The default letter body, composed from the terms — mirrors the web OfferModal
   // (and the server), staying in sync until the manager edits the letter by hand.
@@ -106,9 +116,13 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     else if (picker === "expires") setExpiresAt(picked);
   };
 
-  const addApprover = () => setApprovers((p) => [...p, { name: "", email: "" }]);
-  const setApprover = (i, key, val) => setApprovers((p) => p.map((a, idx) => (idx === i ? { ...a, [key]: val } : a)));
+  const addApprover = (m) => setApprovers((p) => [...p, { id: m.id, name: m.name, email: m.email }]);
   const removeApprover = (i) => setApprovers((p) => p.filter((_, idx) => idx !== i));
+  // Confirmed approvers not yet added, in order.
+  const availableApprovers = useMemo(
+    () => approverPool.filter((m) => !approvers.some((a) => (a.email || "").toLowerCase() === m.email.toLowerCase())),
+    [approverPool, approvers],
+  );
 
   const validApprovers = useMemo(() => approvers.filter((a) => a.email && a.email.includes("@")), [approvers]);
 
@@ -164,13 +178,10 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
 
             <Field label="Base salary">
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={styles.segment}>
-                  {CURRENCIES.map((c) => (
-                    <Pressable key={c.k} onPress={() => setCurrency(c.k)} style={[styles.seg, currency === c.k && styles.segOn]}>
-                      <Text style={[type.smallStrong, { color: currency === c.k ? theme.white : theme.ink2 }]}>{c.label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <Pressable onPress={() => setCurOpen(true)} style={styles.curBtn}>
+                  <Text style={[type.smallStrong, { color: theme.ink }]}>{CURRENCIES.find((c) => c.k === currency)?.label || "RM"}</Text>
+                  <Feather name="chevron-down" size={15} color={theme.ink3} style={{ marginLeft: 4 }} />
+                </Pressable>
                 <TextInput value={salary} onChangeText={setSalary} keyboardType="numeric" placeholder="e.g. 8000 / month" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1 }]} />
               </View>
             </Field>
@@ -231,19 +242,36 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             </View>
 
             <Field label={`Approvers (optional)${validApprovers.length ? ` · ${validApprovers.length}` : ""}`}>
+              {/* Selected approvers, in order. */}
               {approvers.map((a, i) => (
-                <View key={i} style={styles.approverRow}>
-                  <TextInput value={a.name} onChangeText={(v) => setApprover(i, "name", v)} onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)} placeholder="Name" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1 }]} />
-                  <TextInput value={a.email} onChangeText={(v) => setApprover(i, "email", v)} onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)} keyboardType="email-address" autoCapitalize="none" placeholder="email@company.com" placeholderTextColor={theme.ink4} style={[styles.input, { flex: 1.4 }]} />
+                <View key={a.id || i} style={styles.approverRow}>
+                  <View style={styles.approverBadge}><Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>{i + 1}</Text></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{a.name}</Text>
+                    <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{a.email}</Text>
+                  </View>
                   <Pressable onPress={() => removeApprover(i)} hitSlop={6} style={styles.approverX}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
                 </View>
               ))}
-              <Pressable onPress={addApprover} style={styles.addApprover}>
-                <Feather name="plus" size={14} color={theme.brand} />
-                <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 6 }]}>Add approver</Text>
-              </Pressable>
+              {approverPool.length === 0 ? (
+                <Text style={[type.small, { color: theme.ink4, marginTop: 4 }]}>No approvers yet. Add approvers in the web app (Team {">"} Offer approvers) to route offers for sign-off.</Text>
+              ) : availableApprovers.length > 0 ? (
+                <>
+                  <Text style={[type.small, { color: theme.ink4, marginTop: approvers.length ? 8 : 0, marginBottom: 6 }]}>Tap to add an approver</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                    {availableApprovers.map((m) => (
+                      <Pressable key={m.id} onPress={() => addApprover(m)} style={styles.approverChip}>
+                        <Feather name="plus" size={13} color={theme.brand} />
+                        <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 5 }]}>{m.name}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <Text style={[type.small, { color: theme.ink4, marginTop: 4 }]}>All approvers added.</Text>
+              )}
               {validApprovers.length ? (
-                <Text style={[type.small, { color: theme.ink4, marginTop: 6 }]}>The candidate is emailed to sign only after every approver signs off, in order.</Text>
+                <Text style={[type.small, { color: theme.ink4, marginTop: 8 }]}>Each approver gets an email to approve, in order — no login needed. The candidate is emailed to sign only after the last approval.</Text>
               ) : null}
             </Field>
 
@@ -263,6 +291,20 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
           {sending ? <View style={styles.sendingOverlay}><ActivityIndicator color={theme.white} /></View> : null}
         </View>
       </View>
+
+      {/* Currency dropdown */}
+      <Modal visible={curOpen} transparent animationType="fade" onRequestClose={() => setCurOpen(false)} statusBarTranslucent>
+        <Pressable style={styles.curBackdrop} onPress={() => setCurOpen(false)}>
+          <View style={styles.curMenu}>
+            {CURRENCIES.map((c, i) => (
+              <Pressable key={c.k} onPress={() => { setCurrency(c.k); setCurOpen(false); }} style={[styles.curOption, i > 0 && { borderTopWidth: 1, borderTopColor: theme.line }]}>
+                <Text style={[type.body, { color: currency === c.k ? theme.brand : theme.ink, fontFamily: currency === c.k ? "Inter_700Bold" : "Inter_500Medium" }]}>{c.label}</Text>
+                {currency === c.k ? <Feather name="check" size={16} color={theme.brand} /> : null}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
 
       <CalendarSheet
         visible={!!picker}
@@ -307,7 +349,13 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, height: 36, borderRadius: radius.pill, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.bg, alignItems: "center", justifyContent: "center" },
   chipOn: { backgroundColor: theme.brand, borderColor: theme.brand },
   dateBtn: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, height: 44 },
-  approverRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  curBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, minWidth: 78 },
+  curBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.35)", alignItems: "center", justifyContent: "center", padding: 40 },
+  curMenu: { backgroundColor: theme.card, borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, overflow: "hidden", width: 200, ...(theme.shadow || {}) },
+  curOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
+  approverRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8 },
+  approverBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+  approverChip: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, backgroundColor: theme.bg, paddingHorizontal: 12, paddingVertical: 7 },
   approverX: { width: 30, height: 30, borderRadius: 15, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center" },
   addApprover: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingVertical: 6 },
   err: { flexDirection: "row", alignItems: "flex-start", marginTop: space(4), padding: space(3), borderRadius: radius.md, backgroundColor: "#FEF3F2", borderWidth: 1, borderColor: "#FECDCA" },
