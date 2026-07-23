@@ -603,7 +603,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   </View>
                   {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 9 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
                 </View>
-                <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 12, fontSize: 20, letterSpacing: -0.3 }]}>Did the interview happen?</Text>
+                <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 11, fontSize: 17, letterSpacing: -0.2 }]}>Did the interview happen?</Text>
                 <Text style={[type.small, { color: theme.ink2, marginTop: 5, lineHeight: 20 }]}>Confirming opens the panel's scorecards. If it was a no-show or needs another time, reschedule instead.</Text>
               </View>
               <View style={styles.ivHappenBody}>
@@ -1233,7 +1233,7 @@ const styles = StyleSheet.create({
   slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
   slotTileTime: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink, marginTop: 2 },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
-  ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
+  ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, shadowColor: "#1A1A22", shadowOpacity: 0.045, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
   ivHappenHead: { paddingHorizontal: space(4), paddingTop: space(4), paddingBottom: space(1) },
   ivHappenChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   ivHappenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.success, marginRight: 6 },
