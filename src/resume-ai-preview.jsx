@@ -22028,28 +22028,39 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 <span>All {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"} have scored. You can move to the decision now.</span>
               </div>
             ) : (
-              <div className="mb-3 rounded-xl border px-4 py-3.5" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
-                <div className="flex items-start gap-2.5">
-                  <span className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "#FEF3C7" }}>
-                    <Icon name="lock" className="w-4 h-4" style={{ color: "#B45309" }} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>Decision locked · waiting on {attendedInterviewers.length - scoredCount} of {attendedInterviewers.length} interviewer{attendedInterviewers.length === 1 ? "" : "s"}</p>
-                    <p className="text-xs mt-1" style={{ color: "#B45309" }}>Every interviewer has to submit their scorecard before you can make a decision. Your own scorecard is optional.</p>
-                    <div className="flex flex-wrap gap-1.5 mt-2.5">
-                      {attendedInterviewers.map((a) => {
-                        const done = scoredIds.has(a.id);
-                        return (
-                          <span key={a.id} className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full pl-1 pr-2.5 py-0.5 border" style={{ borderColor: done ? "#A7F3D0" : "#FDE68A", background: done ? "#F0FDF4" : "#fff", color: done ? "#166534" : "#92400E" }}>
-                            <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: done ? "#16A34A" : "#F59E0B" }}>
-                              <Icon name={done ? "check" : "clock"} className="w-2.5 h-2.5 text-white" />
-                            </span>
-                            {a.name}
-                          </span>
-                        );
-                      })}
+              <div className="mb-3 rounded-2xl border overflow-hidden bg-white act-shadow" style={{ borderColor: "var(--line)" }}>
+                <div className="px-5 py-4" style={{ background: "linear-gradient(135deg, #FFFBEB, #ffffff 72%)" }}>
+                  <div className="flex items-center gap-4">
+                    {/* Progress ring: scored / total, at a glance. */}
+                    <div className="relative shrink-0" style={{ width: 56, height: 56 }}>
+                      <svg viewBox="0 0 36 36" style={{ width: 56, height: 56, transform: "rotate(-90deg)" }}>
+                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--line)" strokeWidth="3.5" />
+                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="#F59E0B" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={`${(scoredCount / Math.max(1, attendedInterviewers.length)) * 97.39} 97.39`} />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-bold tabular-nums" style={{ color: "var(--ink)" }}>{scoredCount}/{attendedInterviewers.length}</span>
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5" style={{ background: "#FEF3C7", color: "#92400E", letterSpacing: "0.05em" }}><Icon name="lock" className="w-3 h-3" /> Decision locked</span>
+                      <p className="text-base font-bold font-display mt-1.5 leading-tight" style={{ color: "var(--ink)" }}>Waiting on {attendedInterviewers.length - scoredCount} of {attendedInterviewers.length} to score</p>
+                      <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>Every interviewer submits their scorecard before you decide. Your own is optional.</p>
                     </div>
                   </div>
+                </div>
+                <div className="px-4 pb-4 pt-1 grid gap-2">
+                  {attendedInterviewers.map((a) => {
+                    const done = scoredIds.has(a.id);
+                    return (
+                      <div key={a.id} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: done ? "#A7F3D0" : "var(--line)", background: done ? "#F0FDF4" : "#fff" }}>
+                        <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: avatarColors(a.name).bg, color: avatarColors(a.name).color }}>{initials(a.name)}</span>
+                        <span className="text-sm font-medium min-w-0 flex-1 truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-2.5 py-1" style={done ? { background: "#16A34A", color: "#fff" } : { background: "#FEF3C7", color: "#92400E" }}>
+                          <Icon name={done ? "check" : "clock"} className="w-3 h-3" /> {done ? "Scored" : "Pending"}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
