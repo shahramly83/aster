@@ -147,6 +147,18 @@ export default function CandidateProfileScreen({ route, navigation }) {
     );
   }, [loading, stage]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // After the interviewer submits (their card appears while they're on the
+  // Scorecards tab), move them to the new Result tab, matching web. Placed above
+  // the loading early-return so hook order stays stable; reads state directly.
+  const resultAutoSwitched = useRef(false);
+  useEffect(() => {
+    const hasMyCard = (cards || []).some((c) => c.interviewerId === profile?.userId);
+    if (!manager && hasMyCard && tab === "feedback" && !resultAutoSwitched.current) {
+      resultAutoSwitched.current = true;
+      setTab("result");
+    }
+  }, [cards, manager, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const switchTab = (t) => {
     if (t === tab) return;
     setTab(t);
@@ -305,15 +317,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
   const ratedIds = new Set(cards.map((c) => c.interviewerId));
   const myCard = cards.find((c) => c.interviewerId === profile.userId) || null; // this viewer's own scorecard, if any
-  // After the interviewer submits (their card appears while they're on the
-  // Scorecards tab), move them to the new Result tab, matching web.
-  const resultAutoSwitched = useRef(false);
-  useEffect(() => {
-    if (!manager && myCard && tab === "feedback" && !resultAutoSwitched.current) {
-      resultAutoSwitched.current = true;
-      switchTab("result");
-    }
-  }, [myCard, manager, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const panel = interview?.attendees || [];
   // Interviewers must submit a scorecard; the hiring manager's is optional (they
   // can skip it). The HM is the attendee flagged hm:true (older invites: the
