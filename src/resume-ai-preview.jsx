@@ -21014,7 +21014,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onReleaseScorecards, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onReleaseScorecards, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyLogoUrl = null, companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -22359,6 +22359,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             hasEmail={hasEmail}
             defaultCurrency={preferredCurrency}
             companyName={companyName}
+            logoUrl={companyLogoUrl}
             defaultSignatory={profile?.full_name || profile?.name || ""}
             resubmit={resubmitData}
             onClose={() => { setShowOffer(false); setResubmitData(null); }}
@@ -22988,7 +22989,7 @@ function OfferSignPlacement({ file, url, field, onField, readOnly = false }) {
   );
 }
 
-function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", defaultSignatory = "", resubmit = null, onClose, onSend }) {
+function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", logoUrl = null, defaultSignatory = "", resubmit = null, onClose, onSend }) {
   // Resubmit after a decline: pre-fill the letter, terms and approvers from the
   // declined offer so the hiring manager can revise before sending it round again.
   const r = resubmit || {};
@@ -23190,7 +23191,9 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         ) : (
           <div className="mb-4 rounded-xl border p-4 sm:p-5 bg-white max-h-[360px] overflow-y-auto" style={{ borderColor: "var(--line)" }}>
             <div className="text-[13px]" style={{ color: "#33373c", lineHeight: 1.7 }}>
-              <div className="font-bold text-[15px]" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</div>
+              {logoUrl
+                ? <img src={logoUrl} alt={companyName || "Company"} style={{ height: 48, maxWidth: 230, objectFit: "contain", display: "block" }} />
+                : <div className="font-bold text-[15px]" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</div>}
               <div className="text-right text-xs mt-3 mb-4" style={{ color: "var(--ink-3)" }}>{new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}</div>
               <p className="mb-3">Dear {(candidateName || "there").split(" ")[0]},</p>
               <p className="mb-4 font-bold uppercase text-[12px] tracking-wide" style={{ color: "var(--ink)" }}>Letter of Offer: {title.trim() || (jobTitle !== "the role" ? jobTitle : "the role")}</p>
@@ -27111,6 +27114,7 @@ export default function ResumeAIPreview() {
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             preferredCurrency={preferredCurrency}
             companyName={company}
+            companyLogoUrl={companyLogoUrl}
             companyId={companyId}
             canPersist={canPersist}
             onSendOffer={(emailSent, terms, message, approvers, upload) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message, approvers, upload)}
