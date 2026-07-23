@@ -617,6 +617,36 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </View>
           ) : null}
 
+          {/* Interviewer's post-interview nudge. The manager gets the card above;
+              without this, an interviewer had no signal that the interview had
+              passed and it was their turn to score. Leads straight to the form. */}
+          {interviewDone && !manager && canScore ? (
+            <View style={styles.ivDoneCard}>
+              <LinearGradient colors={["#ECFDF5", theme.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ivHappenHead}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <View style={styles.ivDoneMedallion}><Feather name={myCard ? "check-circle" : "check"} size={18} color="#fff" /></View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                      <View style={styles.ivDoneChip}>
+                        <Feather name="check" size={10} color="#047857" />
+                        <Text style={styles.ivDoneChipTxt}>INTERVIEW COMPLETE</Text>
+                      </View>
+                      {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 8 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
+                    </View>
+                    <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 7, fontSize: 17 }]}>{myCard ? `You've scored ${name.split(" ")[0]}` : `You've interviewed ${name.split(" ")[0]}`}</Text>
+                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{myCard ? "Your scorecard is in. You can still edit it until the hiring manager decides." : "Add your scorecard so the hiring manager can make the call."}</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+              <View style={styles.ivHappenBody}>
+                <Pressable onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={styles.ivHappenPrimary}>
+                  <Feather name={myCard ? "edit-3" : "plus"} size={16} color="#fff" />
+                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>{myCard ? "Edit my scorecard" : "Add my scorecard"}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           {/* Interview flow: propose times -> candidate picks -> meeting link */}
           {showInterview ? (
           <View style={{ marginTop: space(5) }}>
@@ -632,7 +662,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     </View>
                   </View>
                   {/* Meeting link appears once the candidate has accepted. Generate a
-                      room or paste one — nothing sends until the HM taps Share. */}
+                      room or paste one — nothing sends until the HM taps Share.
+                      Hidden once the interview has passed: nothing left to join. */}
+                  {!interviewDone && (
                   <View style={styles.mlWrap}>
                     <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Meeting link</Text>
                     {interview?.meetingLink ? (
@@ -700,6 +732,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       </View>
                     ) : null}
                   </View>
+                  )}
                 </>
               ) : rescheduling ? (
                 interview?.proposedSlots?.length ? (
@@ -1188,6 +1221,10 @@ const styles = StyleSheet.create({
   ivHappenBody: { paddingHorizontal: space(3), paddingBottom: space(3), paddingTop: space(1), gap: 9 },
   ivHappenPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 48, borderRadius: radius.md, backgroundColor: theme.brand, shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   ivHappenSecondary: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 46, borderRadius: radius.md, borderWidth: 1, borderColor: theme.warn, backgroundColor: theme.warnBg },
+  ivDoneCard: { marginTop: space(5), borderRadius: radius.lg, borderWidth: 1, borderColor: "#A7F3D0", backgroundColor: theme.card, overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
+  ivDoneMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: theme.success, alignItems: "center", justifyContent: "center", shadowColor: theme.success, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  ivDoneChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: "#A7F3D0", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  ivDoneChipTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: "#047857", marginLeft: 4 },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
   exploreToggle: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, borderWidth: 1, borderColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(3.5), marginTop: space(5), ...shadow.sm },
