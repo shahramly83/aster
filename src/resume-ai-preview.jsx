@@ -16870,10 +16870,10 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
           {/* Select mode → send straight to the candidate */}
           {canSelect ? (
             <div className="mt-4">
-              <button type="button" onClick={sendOffer} disabled={sending || selectedCount < 2} className={`w-full rounded-xl text-sm font-semibold px-4 py-3 inline-flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed ${sending || selectedCount < 2 ? "" : "brand-gradient text-white hover:opacity-95 enabled:hover:-translate-y-0.5"}`} style={sending || selectedCount < 2 ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { boxShadow: "0 14px 30px -14px rgba(var(--brand-rgb),0.85)" }}>
+              <button type="button" onClick={sendOffer} disabled={sending || selectedCount < 2} className={`rounded-xl text-sm font-semibold px-6 py-2.5 inline-flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed ${sending || selectedCount < 2 ? "" : "brand-gradient text-white hover:opacity-95 enabled:hover:-translate-y-0.5"}`} style={sending || selectedCount < 2 ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
                 <Icon name="arrowUpRight" className="w-4 h-4" /> {sending ? "Sending…" : selectedCount < 2 ? "Select at least 2 times" : `Send ${selectedCount} times to candidate`}
               </button>
-              <p className="text-[11px] mt-2 text-center" style={{ color: "var(--ink-3)" }}>The candidate picks one, then everyone gets the calendar invite.</p>
+              <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>The candidate picks one, then everyone gets the calendar invite.</p>
             </div>
           ) : poll.status === "open" && !round2 ? (
             <>
