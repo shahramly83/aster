@@ -120,7 +120,7 @@ export function companyShell(opts: {
 }): string {
   const { companyName, logoUrl, heading, bodyHtml, preview = "", signoff = true } = opts;
   const brand = logoUrl
-    ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" height="56" style="max-height:56px;max-width:260px;display:inline-block;vertical-align:middle;border:0;">`
+    ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" height="36" style="max-height:36px;max-width:180px;display:inline-block;vertical-align:middle;border:0;">`
     : `<span style="font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:18px;color:#171326;vertical-align:middle;">${esc(companyName)}</span>`;
   const sign = signoff
     ? `<p style="margin:20px 0 0;">Best regards,<br>${esc(companyName)}</p>`
