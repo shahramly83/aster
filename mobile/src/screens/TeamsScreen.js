@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadTeam, inviteTeammate } from "../lib/data";
+import { loadTeam, inviteTeammate, loadApprovers, addApprover, removeApprover } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, HeaderActions, TopBar, Button, Loader, EmptyState, Feather } from "../components/ui";
 import SuccessModal from "../components/SuccessModal";
@@ -35,6 +35,122 @@ function Rise({ children, delay = 0, style }) {
     </Animated.View>
   );
 }
+
+function apInitials(s) {
+  const p = String(s || "?").trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return "?";
+  return p.length > 1 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : p[0].slice(0, 2).toUpperCase();
+}
+
+// Offer approvers: no-login people who approve offers by email. Managed here on
+// the Team screen (mirrors web). Add by email, they confirm once, then can be
+// picked as approvers on an offer.
+function TeamApprovers({ companyId, canManage }) {
+  const [rows, setRows] = useState(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [banner, setBanner] = useState(null); // { type, text }
+
+  const reload = useCallback(() => { if (companyId) loadApprovers(companyId).then(setRows); }, [companyId]);
+  useEffect(() => { reload(); }, [reload]);
+
+  const add = async () => {
+    const e = email.trim().toLowerCase();
+    if (!e.includes("@")) { setBanner({ type: "err", text: "Enter a valid email." }); return; }
+    setBusy(true); setBanner(null);
+    const res = await addApprover({ email: e, name: name.trim() || null });
+    setBusy(false);
+    if (!res.ok) { setBanner({ type: "err", text: res.error || "Couldn't add." }); return; }
+    setName(""); setEmail("");
+    setBanner({ type: "ok", text: res.already ? "Already confirmed." : "Invite sent. They'll show as Confirmed once they confirm." });
+    reload();
+  };
+  const resend = async (r) => { setBusy(true); const res = await addApprover({ email: r.email, name: r.name }); setBusy(false); setBanner(res.ok ? { type: "ok", text: `Re-sent to ${r.email}.` } : { type: "err", text: res.error || "Couldn't resend." }); };
+  const remove = async (id) => { setRows((l) => (l || []).filter((x) => x.id !== id)); await removeApprover(id); };
+
+  if (!canManage) return null;
+  const confirmed = (rows || []).filter((r) => r.status === "confirmed");
+  const pending = (rows || []).filter((r) => r.status !== "confirmed");
+
+  const Row = ({ r, isPending }) => (
+    <View style={ap.row}>
+      <View style={[ap.avatar, { backgroundColor: isPending ? "#FEF3C7" : theme.brandSoft }]}><Text style={[ap.avatarTxt, { color: isPending ? "#92400E" : theme.brand }]}>{apInitials(r.name || r.email)}</Text></View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{r.name || r.email}</Text>
+        <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{r.email}</Text>
+      </View>
+      {isPending ? (
+        <Pressable onPress={() => resend(r)} disabled={busy} hitSlop={6} style={ap.pendingPill}><Text style={ap.pendingTxt}>Resend</Text></Pressable>
+      ) : (
+        <View style={ap.okPill}><Feather name="check" size={11} color="#166534" /><Text style={ap.okTxt}>Confirmed</Text></View>
+      )}
+      <Pressable onPress={() => remove(r.id)} hitSlop={6} style={ap.x}><Feather name="x" size={15} color={theme.ink3} /></Pressable>
+    </View>
+  );
+
+  return (
+    <View style={ap.card}>
+      <View style={ap.header}>
+        <View style={ap.headerIcon}><Feather name="shield" size={15} color="#fff" /></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[type.bodyStrong, { color: theme.ink }]}>Offer approvers</Text>
+          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Approve offers by email, no login needed.</Text>
+        </View>
+      </View>
+
+      <View style={{ padding: space(4) }}>
+        <View style={{ gap: 8 }}>
+          <TextInput value={name} onChangeText={setName} placeholder="Name (optional)" placeholderTextColor={theme.ink4} style={ap.input} />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TextInput value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="approver@email.com" placeholderTextColor={theme.ink4} style={[ap.input, { flex: 1 }]} />
+            <Pressable onPress={add} disabled={busy} style={ap.addBtn}><Text style={[type.smallStrong, { color: "#fff" }]}>{busy ? "…" : "Add"}</Text></Pressable>
+          </View>
+        </View>
+        {banner ? <Text style={[type.small, { marginTop: 8, color: banner.type === "err" ? "#B42318" : "#166534" }]}>{banner.text}</Text> : null}
+
+        {rows === null ? (
+          <Text style={[type.small, { color: theme.ink3, marginTop: 12 }]}>Loading…</Text>
+        ) : rows.length === 0 ? (
+          <View style={ap.empty}><Text style={[type.smallStrong, { color: theme.ink }]}>No approvers yet</Text><Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Add someone above to route offers for approval.</Text></View>
+        ) : (
+          <View style={{ marginTop: 12, gap: 12 }}>
+            {confirmed.length > 0 ? (
+              <View>
+                <Text style={ap.groupLabel}>Confirmed · {confirmed.length}</Text>
+                <View style={{ gap: 8 }}>{confirmed.map((r) => <Row key={r.id} r={r} isPending={false} />)}</View>
+              </View>
+            ) : null}
+            {pending.length > 0 ? (
+              <View>
+                <Text style={ap.groupLabel}>Awaiting confirmation · {pending.length}</Text>
+                <View style={{ gap: 8 }}>{pending.map((r) => <Row key={r.id} r={r} isPending />)}</View>
+              </View>
+            ) : null}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const ap = StyleSheet.create({
+  card: { backgroundColor: theme.card, borderRadius: radius.card, marginHorizontal: space(4), marginTop: space(5), borderWidth: 1, borderColor: theme.line, overflow: "hidden" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: space(4), paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: theme.line, backgroundColor: theme.bg },
+  headerIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
+  input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, height: 44, fontFamily: "Inter_500Medium", fontSize: 14, color: theme.ink },
+  addBtn: { backgroundColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+  groupLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.ink4, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 7 },
+  row: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: theme.card },
+  avatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  avatarTxt: { fontFamily: "Inter_700Bold", fontSize: 11 },
+  okPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  okTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 11 },
+  pendingPill: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
+  pendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 11 },
+  x: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  empty: { marginTop: 12, borderWidth: 1, borderStyle: "dashed", borderColor: theme.line, borderRadius: radius.md, padding: 16, alignItems: "center", backgroundColor: theme.bg },
+});
 
 export default function TeamsScreen({ navigation }) {
   const { profile } = useAuth();
@@ -205,12 +321,17 @@ export default function TeamsScreen({ navigation }) {
             />
           </View>
         }
-        ListFooterComponent={rows.length ? (
-          <View style={styles.footer}>
-            <Feather name="info" size={13} color={theme.ink4} />
-            <Text style={[type.small, { color: theme.ink4, marginLeft: 8, flex: 1 }]}>Manage roles and seats from the Aster web app.</Text>
-          </View>
-        ) : null}
+        ListFooterComponent={
+          <>
+            <TeamApprovers companyId={profile?.companyId} canManage={canInvite} />
+            {rows.length ? (
+              <View style={styles.footer}>
+                <Feather name="info" size={13} color={theme.ink4} />
+                <Text style={[type.small, { color: theme.ink4, marginLeft: 8, flex: 1 }]}>Manage roles and seats from the Aster web app.</Text>
+              </View>
+            ) : null}
+          </>
+        }
         renderItem={({ item, index }) => {
           if (item._section) {
             const m = metaOf(item._section);

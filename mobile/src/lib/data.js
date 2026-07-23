@@ -1006,6 +1006,14 @@ export async function addApprover({ email, name = null }) {
   return { ok: true, status: data?.status || "pending", already: !!data?.already };
 }
 
+// Remove an approver from the company's list (RLS company-scoped).
+export async function removeApprover(id) {
+  if (!id) return false;
+  const { error } = await supabase.from("offer_approvers").delete().eq("id", id);
+  if (error) { console.warn("removeApprover", error.message); return false; }
+  return true;
+}
+
 // Insert the offer row with its terms (mirrors dbCreateOffer, camelCase terms →
 // columns). Returns { token, id } or { error }.
 async function createOffer(companyId, { candidateId, jobId = null, terms = null }) {
