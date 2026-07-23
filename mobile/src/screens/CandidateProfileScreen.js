@@ -348,7 +348,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             {/* Interview page sub-tabs: split the dense stack into Profile /
                 Interview / Feedback so only one section shows at a time. */}
             <View style={styles.segbar}>
-              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecard"]].map(([k, lbl]) => {
+              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecards"]].map(([k, lbl]) => {
                 const on = tab === k;
                 // The two tabs unlock on different things, and conflating them
                 // was wrong: reaching the interview stage only means an
