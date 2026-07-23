@@ -140,7 +140,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
     if (tabInit.current || loading) return;
     tabInit.current = true;
     setTab(
-      (interviewDone && canScore) || stage === "offer" || stage === "hired" ? "feedback"
+      !manager && myCard ? "result"
+        : (interviewDone && canScore) || stage === "offer" || stage === "hired" ? "feedback"
         : stage === "interviewing" ? "interview"
         : "profile"
     );
@@ -304,6 +305,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
   // decision opens. Falls back to "any scorecard" if attendees weren't recorded.
   const ratedIds = new Set(cards.map((c) => c.interviewerId));
   const myCard = cards.find((c) => c.interviewerId === profile.userId) || null; // this viewer's own scorecard, if any
+  // After the interviewer submits (their card appears while they're on the
+  // Scorecards tab), move them to the new Result tab, matching web.
+  const resultAutoSwitched = useRef(false);
+  useEffect(() => {
+    if (!manager && myCard && tab === "feedback" && !resultAutoSwitched.current) {
+      resultAutoSwitched.current = true;
+      switchTab("result");
+    }
+  }, [myCard, manager, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const panel = interview?.attendees || [];
   // Interviewers must submit a scorecard; the hiring manager's is optional (they
   // can skip it). The HM is the attendee flagged hm:true (older invites: the
@@ -362,7 +372,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             {/* Interview page sub-tabs: split the dense stack into Profile /
                 Interview / Feedback so only one section shows at a time. */}
             <View style={styles.segbar}>
-              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecards"]].map(([k, lbl]) => {
+              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecards"], ...(!manager && myCard ? [["result", "Result"]] : [])].map(([k, lbl]) => {
                 const on = tab === k;
                 // The two tabs unlock on different things, and conflating them
                 // was wrong: reaching the interview stage only means an
@@ -924,28 +934,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           </>) : null}
 
           {tab === "feedback" ? (<>
-          {/* Interviewer: once they've scored, tell them where it stands and
-              what's next, so the tab isn't a dead end. */}
-          {!manager && myCard ? (() => {
-            const first = name.split(" ")[0];
-            const st = stage === "hired"
-              ? { icon: "award", label: "Hired", title: `${first} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for scoring.", bd: "#A7F3D0", fg: theme.success, chipBg: "#DCFCE7", chipFg: "#166534" }
-              : stage === "rejected"
-                ? { icon: "x-circle", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${first}. Thanks for scoring.`, bd: "#FECACA", fg: theme.danger, chipBg: "#FEE2E2", chipFg: "#B42318" }
-                : (offer || stage === "offer")
-                  ? { icon: "send", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${first} an offer, and is now awaiting their response.`, bd: "#CBD8F5", fg: theme.brand, chipBg: theme.card, chipFg: theme.brand }
-                  : { icon: "check-circle", label: "With hiring manager", title: "Your scores are in", sub: "Next, the hiring manager reviews the panel's scorecards and makes the call. You'll be notified of the outcome, nothing more to do here for now.", bd: "#CBD8F5", fg: theme.brand, chipBg: theme.card, chipFg: theme.brand };
-            return (
-              <View style={[styles.ivStatusCard, { borderColor: st.bd, marginTop: space(5) }]}>
-                <View style={[styles.ivStatusIcon, { borderColor: st.bd }]}><Feather name={st.icon} size={20} color={st.fg} /></View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <View style={[styles.ivStatusChip, { backgroundColor: st.chipBg, borderColor: st.bd }]}><Text style={[styles.ivStatusChipTxt, { color: st.chipFg }]}>{st.label.toUpperCase()}</Text></View>
-                  <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15, marginTop: 6 }]}>{st.title}</Text>
-                  <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{st.sub}</Text>
-                </View>
-              </View>
-            );
-          })() : null}
+          {/* The interviewer's outcome/status lives on its own Result tab. */}
           {/* Decision — opens once the panel has all scored */}
           {showDecision ? (
             <View style={{ marginTop: space(5) }}>
@@ -1070,6 +1059,66 @@ export default function CandidateProfileScreen({ route, navigation }) {
             </Pressable>
           ) : null}
           </>) : null}
+
+          {tab === "result" ? (() => {
+            const first = name.split(" ")[0];
+            const decided = stage === "hired" || stage === "rejected";
+            const offered = !!offer || stage === "offer" || decided;
+            const hero = stage === "hired"
+              ? { icon: "award", label: "Hired", title: `${first} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for your part in it.", tone: "green" }
+              : stage === "rejected"
+                ? { icon: "x-circle", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${first}. Thanks for scoring.`, tone: "red" }
+                : offered
+                  ? { icon: "send", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${first} an offer, and is now awaiting their response.`, tone: "brand" }
+                  : { icon: "check-circle", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
+            const tone = { green: { solid: theme.success, soft: "#ECFDF5", bd: "#A7F3D0" }, red: { solid: theme.danger, soft: "#FEF2F2", bd: "#FECACA" }, brand: { solid: theme.brand, soft: theme.brandSoft, bd: "#CBD8F5" } }[hero.tone];
+            const outcomeLabel = stage === "hired" ? "Hired" : stage === "rejected" ? "Not moving forward" : offered ? "Offer sent" : "Final outcome";
+            const steps = [
+              { label: "Interview held", meta: interviewDone && scheduledAt ? fmtInterviewTime(scheduledAt, profile?.timezone) : null, state: "done" },
+              { label: "You submitted your scorecard", state: "done" },
+              { label: "Hiring manager decides", state: offered ? "done" : "current" },
+              { label: outcomeLabel, state: decided ? "done" : offered ? "current" : "todo" },
+            ];
+            return (
+              <View style={[styles.resultCard, { marginTop: space(5) }]}>
+                <View style={[styles.resultHead, { backgroundColor: tone.soft }]}>
+                  <View style={[styles.resultMedallion, { backgroundColor: tone.solid }]}><Feather name={hero.icon} size={20} color="#fff" /></View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                      <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 16 }]}>{hero.title}</Text>
+                      <View style={[styles.resultChip, { borderColor: tone.solid + "55" }]}><Text style={[styles.resultChipTxt, { color: tone.solid }]}>{hero.label.toUpperCase()}</Text></View>
+                    </View>
+                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{hero.sub}</Text>
+                  </View>
+                </View>
+                <View style={{ padding: space(4) }}>
+                  <Text style={[type.small, { color: theme.ink3, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, marginBottom: space(3) }]}>WHERE THINGS STAND</Text>
+                  {steps.map((s, i) => (
+                    <View key={i} style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                      <View style={{ alignItems: "center", width: 28 }}>
+                        <View style={[styles.stepDot, s.state === "done" ? { backgroundColor: theme.success } : s.state === "current" ? { backgroundColor: tone.soft, borderWidth: 2, borderColor: tone.solid } : { backgroundColor: theme.bg, borderWidth: 2, borderColor: theme.line }]}>
+                          {s.state === "done" ? <Feather name="check" size={13} color="#fff" /> : s.state === "current" ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: tone.solid }} /> : null}
+                        </View>
+                        {i < steps.length - 1 ? <View style={{ width: 2, height: 26, backgroundColor: s.state === "done" ? theme.success : theme.line, marginTop: 2 }} /> : null}
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12, paddingTop: 3, paddingBottom: i < steps.length - 1 ? space(1) : 0 }}>
+                        <Text style={[type.smallStrong, { color: s.state === "todo" ? theme.ink3 : theme.ink }]}>{s.label}</Text>
+                        {s.meta ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>{s.meta}</Text> : null}
+                        {s.state === "current" ? <Text style={[type.small, { color: tone.solid, marginTop: 1, fontFamily: "Inter_600SemiBold" }]}>In progress</Text> : null}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+                <Pressable onPress={() => switchTab("feedback")} style={styles.resultFooter}>
+                  <Text style={[type.small, { color: theme.ink3 }]}>Panel ratings & team average</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={[type.smallStrong, { color: theme.brand }]}>View scorecards</Text>
+                    <Feather name="chevron-right" size={16} color={theme.brand} style={{ marginLeft: 2 }} />
+                  </View>
+                </Pressable>
+              </View>
+            );
+          })() : null}
 
           </Animated.View>
           </View>
@@ -1296,6 +1345,13 @@ const styles = StyleSheet.create({
   decisionOfferIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center", shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   decisionReject: { flexDirection: "row", alignItems: "center", borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, padding: space(3.5), marginTop: space(2.5) },
   decisionRejectIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "#FEF2F2", alignItems: "center", justifyContent: "center" },
+  resultCard: { borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, overflow: "hidden" },
+  resultHead: { flexDirection: "row", alignItems: "flex-start", padding: space(4), borderBottomWidth: 1, borderBottomColor: theme.line },
+  resultMedallion: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  resultChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8, backgroundColor: theme.card },
+  resultChipTxt: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
+  stepDot: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  resultFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: space(4), borderTopWidth: 1, borderTopColor: theme.line, backgroundColor: theme.bg },
   raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
   raterDot: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
