@@ -22803,14 +22803,23 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-bold font-display mb-1" style={{ color: "var(--ink)" }}>{resubmit ? "Revise & resubmit offer" : `Send offer to ${candidateName}`}</h2>
-        <p className="text-sm text-neutral-500 mb-4">
-          {resubmit
-            ? "Edit the letter, terms and approvers below, then send it round for approval again. This replaces the declined offer."
-            : <>Set the terms below. Aster builds the offer letter and sends it to the candidate to <span className="font-medium">sign with Aster Sign</span>. They stay in the Offer stage until they sign.</>}
-        </p>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-xl rounded-2xl border bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" style={{ borderColor: "var(--line)" }}>
+        {/* Sticky branded header */}
+        <div className="px-6 pt-5 pb-4 flex items-start gap-3.5 border-b" style={{ borderColor: "var(--line)", background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)" }}>
+          <span className="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0" style={{ boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" }}><Icon name="offer" className="w-5 h-5" /></span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{resubmit ? "Revise & resubmit offer" : `Send offer to ${candidateName}`}</h2>
+            <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+              {resubmit
+                ? "Edit the letter, terms and approvers, then send it round for approval again. This replaces the declined offer."
+                : <>Set the terms, Aster builds the letter and sends it to the candidate to <span className="font-medium" style={{ color: "var(--ink-2)" }}>sign with Aster Sign</span>.</>}
+            </p>
+          </div>
+          <button onClick={onClose} className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-black/5" style={{ color: "var(--ink-3)" }} aria-label="Close"><Icon name="close" className="w-4 h-4" /></button>
+        </div>
+        {/* Scrollable body */}
+        <div className="px-6 py-5 overflow-y-auto flex-1">
 
         {!hasEmail && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
@@ -22931,18 +22940,21 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <button onClick={onClose} className="text-sm rounded-lg px-4 py-2 text-neutral-600 hover:bg-neutral-100 transition-colors">
+        </div>{/* scrollable body */}
+
+        {/* Sticky footer: the send action stays in view while the letter scrolls. */}
+        <div className="px-6 py-4 flex flex-wrap items-center justify-end gap-2 border-t" style={{ borderColor: "var(--line)", background: "#fff" }}>
+          <button onClick={onClose} className="text-sm rounded-lg px-4 py-2.5 font-medium transition-colors hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-2)" }}>
             Cancel
           </button>
           {!hasEmail && (
-            <button onClick={() => handleSend(false)} className="text-sm rounded-lg px-4 py-2 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 transition-colors">
+            <button onClick={() => handleSend(false)} className="text-sm rounded-lg px-4 py-2.5 border font-medium transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
               Record offer without email
             </button>
           )}
           {hasEmail && (
-            <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-lg px-4 py-2 brand-gradient hover:opacity-90 disabled:opacity-50 text-white font-medium transition-opacity">
-              {sending ? (hasApprovers ? "Submitting…" : "Sending…") : (hasApprovers ? (resubmit ? "Resubmit for approval" : "Submit for approval") : "Send offer")}
+            <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-xl px-5 py-2.5 brand-gradient hover:opacity-95 disabled:opacity-50 text-white font-semibold inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
+              <Icon name={hasApprovers ? "users" : "arrowUpRight"} className="w-4 h-4" /> {sending ? (hasApprovers ? "Submitting…" : "Sending…") : (hasApprovers ? (resubmit ? "Resubmit for approval" : "Submit for approval") : "Send offer")}
             </button>
           )}
         </div>
