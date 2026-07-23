@@ -13660,7 +13660,7 @@ function ResetBadge({ label }) {
 
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
-function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade for more", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade plan", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
@@ -13669,7 +13669,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   // "1000 / 100" reads as broken, so clamp the shown number to the cap.
   const shownUsed = limit === Infinity ? used : Math.min(used, limit);
   // On the top self-serve plan (Elite) there's nothing to upgrade to, so the
-  // "Upgrade for more" button is dead weight. Enterprise is a sales conversation,
+  // "Upgrade plan" button is dead weight. Enterprise is a sales conversation,
   // not a self-serve tier. Hide the button in both cases.
   const atTopPlan = plan === "elite" || plan === "enterprise";
   const showUpgrade = onUpgrade && !atTopPlan;
@@ -13689,7 +13689,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#FBBF24" : "#fff" }} />
       </div>
       {note && <p className="relative text-xs mt-2.5 leading-relaxed text-center" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
-      {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{out ? "Upgrade plan" : upgradeLabel}</button>}
+      {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{upgradeLabel}</button>}
       {typeof purchased === "number" && (
         <div className="relative mt-3 flex items-baseline justify-between">
           <span className="text-[11px] text-white/80">Purchased credits</span>
@@ -15307,7 +15307,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           unit="seats used"
           danger={atSeatCap}
           onUpgrade={() => navigate("billing")}
-          upgradeLabel="Upgrade for more seats"
+          upgradeLabel="Upgrade plan"
         />
       ) : null}
     >
@@ -22266,7 +22266,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 {...(isInterviewer(profile?.role) ? {} : {
                   onManage: () => navigate("billing"),
                   onUpgrade: () => navigate("billing"),
-                  upgradeLabel: "Upgrade for more",
                   purchased: purchasedAiInsight,
                   onBuyCredits: () => setBuyInsightOpen(true),
                 })}
@@ -22291,7 +22290,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 {...(isInterviewer(profile?.role) ? {} : {
                   onManage: () => navigate("billing"),
                   onUpgrade: () => navigate("billing"),
-                  upgradeLabel: "Upgrade for more",
                   purchased: purchasedQuestions,
                   onBuyCredits: () => setBuyQuestionsOpen(true),
                 })}
@@ -23541,7 +23539,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
           danger={outOfRuns}
           resetLabel={aiRankResetLabel}
           onUpgrade={railIsInterviewer ? undefined : () => navigate("billing")}
-          upgradeLabel="Upgrade for more"
+          upgradeLabel="Upgrade plan"
           purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
           onBuyCredits={railIsInterviewer ? null : () => setBuyAiRankOpen(true)}
         />
