@@ -21025,7 +21025,18 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     : null;
   const [showOffer, setShowOffer] = useState(false);
   // Profile / Interview tabs on the candidate profile (only shown in a job pipeline).
-  const [profileTab, setProfileTab] = useState(initialTab || (isInterviewer(profile?.role) ? "interview" : "profile"));
+  // Land on the LATEST unlocked tab, so a return visit opens where the work now
+  // is: an interviewer who's scored lands on Result, released → Scorecards, else
+  // Interview; the hiring manager opens Interview once there's a booking (the
+  // stepper then picks the sub-step), else Profile.
+  const [profileTab, setProfileTab] = useState(() => {
+    if (initialTab) return initialTab;
+    const bk = (contextJobId ? bookingsByJob[`${candidate?.id}:${contextJobId}`] : null) || bookingProp;
+    const released = !!bk?.scorecardsReleasedAt;
+    const scored = (scorecards || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
+    if (isInterviewer(profile?.role)) return scored ? "result" : released ? "scorecards" : "interview";
+    return (bk?.status === "scheduled" || bk?.confirmedSlot?.start || bk?.status === "reschedule") ? "interview" : "profile";
+  });
   const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule/score prompt
   const [rescheduling, setRescheduling] = useState(false);
   const doNoShowReschedule = async () => {
