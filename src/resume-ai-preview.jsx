@@ -26446,7 +26446,12 @@ export default function ResumeAIPreview() {
           dbSubmitApproval({ offerToken: token, approvers: valid, message });
         } else if (emailSent) {
           const origin = typeof window !== "undefined" ? window.location.origin : undefined;
-          supabase.functions.invoke("aster-sign-send", { body: { token, message, origin } }).catch(() => {});
+          // Surface a failed candidate email instead of swallowing it, so a
+          // delivery/config problem is visible rather than a silent no-send.
+          const { data, error } = await supabase.functions.invoke("aster-sign-send", { body: { token, message, origin } });
+          if ((error || data?.error) && typeof window !== "undefined") {
+            window.alert(`The offer was recorded, but the email to the candidate could not be sent.\n\n${data?.error || error?.message || "unknown error"}`);
+          }
         }
       });
       const who = MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate";
