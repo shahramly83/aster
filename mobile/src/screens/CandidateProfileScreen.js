@@ -788,7 +788,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={[type.bodyStrong, { color: theme.ink }]}>Rescheduling</Text>
                         <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>
-                          {interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}Run a fresh panel availability poll, then propose new times.
+                          {interview?.previousAt ? `The original was ${fmtInterviewTime(interview.previousAt, profile?.timezone)}. ` : ""}{manager ? "Run a fresh panel availability poll, then propose new times." : "The hiring manager is arranging a new time. Vote on the availability poll below."}
                         </Text>
                       </View>
                     </View>
