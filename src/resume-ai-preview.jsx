@@ -22802,7 +22802,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, salary, currency, startDate, expiresAt, companyName]);
 
-  const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const inputClass = "w-full rounded-lg bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-shadow focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
   const labelClass = "block text-xs text-neutral-500 mb-1";
 
   const terms = {
@@ -22867,7 +22867,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
           <label className={labelClass}>Base salary <span className="text-red-500">*</span></label>
           <div className="flex gap-2 mb-1">
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="rounded-lg bg-neutral-100 border border-neutral-200 px-2 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400 shrink-0">
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="rounded-lg bg-white border border-[color:var(--line-strong)] px-2.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] shrink-0">
               <option value="myr">RM</option>
               <option value="usd">USD</option>
               <option value="sgd">SGD</option>
@@ -22940,23 +22940,26 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
 
         {/* Approvals: ordered internal sign-off before the offer reaches the candidate. */}
         {hasEmail && (
-          <div className="mb-4">
-            <label className={labelClass}>Approvals <span className="text-neutral-400">(optional, in order)</span></label>
+          <div className="mb-5">
+            <label className={labelClass}>Approvals <span className="font-normal" style={{ color: "var(--ink-4)" }}>· optional, in order</span></label>
             {approvers.length > 0 && (
-              <div className="space-y-2 mb-2">
+              <div className="space-y-2 mb-2.5">
                 {approvers.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{i + 1}</span>
-                    <input type="email" value={a.email} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} placeholder="approver@company.com" className={`${inputClass.replace("w-full ", "")} flex-1 min-w-0`} />
-                    <input value={a.name} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className={`${inputClass.replace("w-full ", "")} w-32 shrink-0`} />
-                    {a.status === "approved" && <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>}
-                    <button type="button" onClick={() => setApprovers((l) => l.filter((_, j) => j !== i))} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-lg leading-none text-neutral-400 hover:bg-neutral-100 hover:text-red-500 transition-colors" aria-label="Remove approver">×</button>
+                  <div key={i} className="flex items-center gap-2 rounded-xl border pl-2 pr-1.5 py-1.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:ring-2 focus-within:ring-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
+                    <span className="w-6 h-6 rounded-lg brand-gradient text-white flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
+                    <input type="email" value={a.email} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} placeholder="approver@company.com" className="flex-1 min-w-0 bg-transparent border-0 px-1.5 py-1 text-sm focus:outline-none placeholder:text-neutral-400" style={{ color: "var(--ink)" }} />
+                    <div className="w-px self-stretch my-1 shrink-0" style={{ background: "var(--line)" }} />
+                    <input value={a.name} onChange={(e) => setApprovers((l) => l.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className="w-24 shrink-0 bg-transparent border-0 px-1.5 py-1 text-sm focus:outline-none placeholder:text-neutral-400" style={{ color: "var(--ink)" }} />
+                    {a.status === "approved" && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>}
+                    <button type="button" onClick={() => setApprovers((l) => l.filter((_, j) => j !== i))} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:bg-rose-50 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
             )}
-            <button type="button" onClick={() => setApprovers((l) => [...l, { email: "", name: "" }])} className="text-xs font-medium inline-flex items-center gap-1 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>+ Add approver</button>
-            <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver reviews and approves in order. The offer reaches the candidate only after the last approval." : "Add approvers to require internal sign-off before the offer reaches the candidate."}</p>
+            <button type="button" onClick={() => setApprovers((l) => [...l, { email: "", name: "" }])} className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-dashed py-2.5 text-sm font-semibold transition-colors hover:bg-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}>
+              <Icon name="userPlus" className="w-4 h-4" /> Add approver
+            </button>
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver reviews and approves in order. The offer reaches the candidate only after the last approval." : "Add approvers to require internal sign-off before the offer reaches the candidate."}</p>
           </div>
         )}
 
@@ -22997,7 +23000,7 @@ function RejectionModal({ candidateName, jobTitle, hasEmail = true, onClose, onR
   const [body, setBody] = useState(initial.body);
   const [sending, setSending] = useState(false);
 
-  const inputClass = "w-full rounded-lg bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
+  const inputClass = "w-full rounded-lg bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-shadow focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
 
   const handleSend = () => {
     setSending(true);
