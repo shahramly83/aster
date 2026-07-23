@@ -15241,53 +15241,27 @@ function ApproversSection({ companyId, canPersist }) {
   );
 
   return (
-    <div className="mt-8 rounded-2xl border overflow-hidden" style={{ borderColor: "var(--line)", background: "#fff" }}>
-      {/* Compact header */}
-      <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-3" style={{ borderColor: "var(--line)" }}>
-        <span className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center text-white shrink-0"><Icon name="shield" className="w-4 h-4" /></span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
-            {confirmed.length > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg)", color: "var(--brand)", border: "1px solid var(--line)" }}>{confirmed.length}</span>}
-          </div>
-          <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>Approve offers by email, no login. They confirm once.</p>
-        </div>
+    <div className="mt-8">
+      {/* One-line header */}
+      <div className="flex items-center gap-2 mb-2">
+        <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
+        {confirmed.length > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg)", color: "var(--brand)", border: "1px solid var(--line)" }}>{confirmed.length}</span>}
+        <span className="text-xs truncate" style={{ color: "var(--ink-3)" }}>· approve by email, no login</span>
       </div>
-
-      <div className="px-4 sm:px-5 py-4">
-        {/* Add form */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-lg bg-white border px-3 py-2 text-sm sm:w-40 focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-          <button onClick={add} disabled={busy} className="rounded-lg brand-gradient text-white text-sm font-semibold px-4 py-2 disabled:opacity-50 shrink-0 inline-flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90"><Icon name="userPlus" className="w-4 h-4" />{busy ? "Sending…" : "Add approver"}</button>
-        </div>
-        {banner && <p className="text-xs mt-2 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
-
-        {/* Lists */}
-        {loading ? (
-          <p className="text-sm mt-4" style={{ color: "var(--ink-3)" }}>Loading…</p>
-        ) : rows.length === 0 ? (
-          <div className="mt-4 rounded-xl border border-dashed px-5 py-6 text-center" style={{ borderColor: "var(--line-strong)" }}>
-            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No approvers yet</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Add someone above to route offers for approval.</p>
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {confirmed.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Confirmed · {confirmed.length}</p>
-                <div className="space-y-1.5">{confirmed.map((r) => <Row key={r.id} r={r} isPending={false} />)}</div>
-              </div>
-            )}
-            {pending.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Awaiting confirmation · {pending.length}</p>
-                <div className="space-y-1.5">{pending.map((r) => <Row key={r.id} r={r} isPending />)}</div>
-              </div>
-            )}
-          </div>
-        )}
+      {/* Add form */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-lg bg-white border px-3 py-1.5 text-sm sm:w-40 focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-lg bg-white border px-3 py-1.5 text-sm focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+        <button onClick={add} disabled={busy} className="rounded-lg brand-gradient text-white text-sm font-semibold px-4 py-1.5 disabled:opacity-50 shrink-0 inline-flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90"><Icon name="userPlus" className="w-4 h-4" />{busy ? "Sending…" : "Add approver"}</button>
       </div>
+      {banner && <p className="text-xs mt-1.5 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
+      {/* Flat list, confirmed first */}
+      {!loading && rows.length > 0 && (
+        <div className="mt-2.5 space-y-1.5">
+          {[...confirmed, ...pending].map((r) => <Row key={r.id} r={r} isPending={r.status !== "confirmed"} />)}
+        </div>
+      )}
+      {!loading && rows.length === 0 && <p className="text-xs mt-2.5" style={{ color: "var(--ink-3)" }}>No approvers yet.</p>}
     </div>
   );
 }
