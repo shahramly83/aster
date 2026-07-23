@@ -22338,7 +22338,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             defaultSignatory={profile?.full_name || profile?.name || ""}
             resubmit={resubmitData}
             onClose={() => { setShowOffer(false); setResubmitData(null); }}
-            onSend={async (emailSent, terms, message, approvers) => {
+            onSend={async (emailSent, terms, message, approvers, upload) => {
               setShowOffer(false);
               // Resubmit: resume on the SAME offer, keeping already-approved steps
               // (they are not asked again); the chain restarts at the decliner.
@@ -22349,7 +22349,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 return;
               }
               setResubmitData(null);
-              onSendOffer && onSendOffer(emailSent, terms, message, approvers);
+              onSendOffer && onSendOffer(emailSent, terms, message, approvers, upload);
             }}
           />
         )}
@@ -27084,7 +27084,7 @@ export default function ResumeAIPreview() {
             companyName={company}
             companyId={companyId}
             canPersist={canPersist}
-            onSendOffer={(emailSent, terms, message, approvers) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message, approvers)}
+            onSendOffer={(emailSent, terms, message, approvers, upload) => activeCandidate && sendOffer(activeCandidate.id, emailSent, terms, message, approvers, upload)}
             onRespondOffer={(accepted) => activeCandidate && respondOffer(activeCandidate.id, accepted)}
             hiredIds={hiredIds}
             profile={profile}
