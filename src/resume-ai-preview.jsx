@@ -17271,7 +17271,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
             <button
               onClick={shareMeetingLink}
               disabled={!validLink || sharing}
-              className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 min-w-[116px] text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             >
               {sharing ? "Sharing…" : (<><Icon name={linkShared ? "refresh" : "arrowUpRight"} className="w-3.5 h-3.5" /> {linkShared ? "Re-share" : "Share"}</>)}
             </button>
@@ -17283,7 +17283,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
                 <Icon name="check" className="w-3.5 h-3.5" /> The candidate and each interviewer got the link.
               </p>
               {linkInput && (
-                <a href={linkInput} target="_blank" rel="noreferrer" className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 transition-opacity">
+                <a href={linkInput} target="_blank" rel="noreferrer" className="shrink-0 inline-flex items-center justify-center gap-1.5 min-w-[116px] text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 transition-opacity">
                   <Icon name="interview" className="w-4 h-4" /> Join call
                 </a>
               )}
@@ -21568,22 +21568,23 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                               <p className="text-base font-bold tabular-nums leading-tight mt-1" style={{ color: "var(--ink)" }}>{wd}, {t(s)}{e ? ` – ${t(e)}` : ""}</p>
                               <p className="text-xs mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>with {firstName} · {jobs.find((j) => j.id === contextJobId)?.title || "the role"}</p>
                             </div>
+                            {/* Primary (join) + resume, inline on the right of the event row. */}
+                            <div className="shrink-0 flex items-center gap-2">
+                              {link && (
+                                <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity">
+                                  <Icon name="interview" className="w-4 h-4" /> Join call
+                                </a>
+                              )}
+                              <button type="button" onClick={() => setProfileTab("profile")} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
+                                <Icon name="doc" className="w-4 h-4" /> Resume
+                              </button>
+                            </div>
                           </div>
-                          {/* One clear primary (join) when a link exists, then prep. */}
-                          <div className="flex items-center gap-2 mt-3.5">
-                            {link ? (
-                              <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity">
-                                <Icon name="interview" className="w-4 h-4" /> Join call
-                              </a>
-                            ) : (
-                              <span className="flex-1 inline-flex items-center gap-1.5 text-xs rounded-xl px-3 py-2.5" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>
-                                <Icon name="clock" className="w-3.5 h-3.5" /> The hiring manager will share the meeting link.
-                              </span>
-                            )}
-                            <button type="button" onClick={() => setProfileTab("profile")} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}>
-                              <Icon name="doc" className="w-4 h-4" /> Resume
-                            </button>
-                          </div>
+                          {!link && (
+                            <p className="mt-3 inline-flex items-center gap-1.5 text-xs rounded-xl px-3 py-2" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>
+                              <Icon name="clock" className="w-3.5 h-3.5" /> The hiring manager will share the meeting link.
+                            </p>
+                          )}
                           <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Prep with the tailored questions below before the call.</p>
                         </div>
                       </div>
