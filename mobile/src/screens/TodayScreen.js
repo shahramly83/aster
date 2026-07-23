@@ -557,7 +557,7 @@ export default function TodayScreen({ navigation }) {
           ) : null
         }
         ListEmptyComponent={
-          (upcoming.length || pending.length || polls.length || myPolls.length || past.length) ? null : (
+          (upcoming.length || pending.length || needsAction.length || polls.length || myPolls.length || past.length) ? null : (
             <View style={styles.empty}>
               <EmptyState
                 icon="calendar"
