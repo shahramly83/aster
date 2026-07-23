@@ -20791,10 +20791,19 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
         <p className="text-sm text-neutral-500">You weren't on this interview's panel, so there's no scorecard to complete here.</p>
       ) : (
         <div className="space-y-3">
-          {!canSeeAll && (
-            <div className="flex items-start gap-2 rounded-xl border border-dashed p-3" style={{ borderColor: "var(--line-strong)", background: "#fff" }}>
-              <Icon name="lock" className="w-4 h-4 mt-0.5 shrink-0 text-neutral-400" />
-              <p className="text-sm text-neutral-500">Add your own scorecard first. You'll see the rest of the panel's ratings once you submit, so everyone scores independently.</p>
+          {!canSeeAll && !open && (
+            <div className="relative overflow-hidden rounded-2xl border p-6 text-center" style={{ borderColor: "var(--line)", background: "linear-gradient(160deg, var(--brand-soft), #ffffff 68%)" }}>
+              <span className="mx-auto w-14 h-14 rounded-2xl brand-gradient flex items-center justify-center text-white" style={{ boxShadow: "0 14px 30px -12px rgba(var(--brand-rgb),0.85)" }}><Icon name="scorecard" className="w-7 h-7" /></span>
+              <h3 className="text-base font-bold font-display mt-3" style={{ color: "var(--ink)" }}>Add your scorecard</h3>
+              <p className="text-xs mt-1.5 leading-relaxed mx-auto" style={{ color: "var(--ink-3)", maxWidth: "26rem" }}>Rate each area from 1 to 4. Your ratings stay hidden from the panel until you submit, so everyone scores independently.</p>
+              <div className="flex flex-wrap justify-center gap-1.5 mt-3.5">
+                {SCORE_CRITERIA.map((c) => (
+                  <span key={c.key} className="text-[11px] font-medium rounded-full px-2.5 py-1" style={{ background: "#fff", color: "var(--ink-2)", border: "1px solid var(--line)" }}>{c.label}</span>
+                ))}
+              </div>
+              <button onClick={() => setOpen(true)} className="mt-4 inline-flex items-center justify-center gap-2 text-sm rounded-xl brand-gradient text-white font-semibold px-6 py-2.5 transition-all hover:opacity-95 hover:-translate-y-0.5" style={{ boxShadow: "0 14px 30px -14px rgba(var(--brand-rgb),0.85)" }}>
+                <Icon name="plus" className="w-4 h-4" /> Start scoring
+              </button>
             </div>
           )}
           {canSeeAll && scorecards.length === 0 && !open && (
@@ -20898,13 +20907,15 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
                 <button onClick={() => setOpen(false)} className="text-sm rounded-xl border px-4 py-2.5 font-medium transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
               </div>
             </div>
-          ) : (
+          ) : !canSeeAll ? null : (
+            /* Interviewer's CTA lives in the empty-state card above; this is the
+               manager's self-score / skip row. */
             <div className="flex flex-wrap items-center gap-2">
-              <button onClick={() => setOpen(true)} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">
-                + Add your scorecard
+              <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-all hover:opacity-95 hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
+                <Icon name="plus" className="w-4 h-4" /> Add your scorecard
               </button>
               {onSkip && (
-                <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
                   Skip to decision &rarr;
                 </button>
               )}
