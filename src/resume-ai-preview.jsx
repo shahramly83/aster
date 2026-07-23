@@ -21822,12 +21822,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row items-stretch gap-2.5 mt-4">
-                <button onClick={() => { setNoShowDismissed(true); setIvStep(2); }} className="order-1 sm:order-2 flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
-                  <Icon name="check" className="w-4 h-4" /> Proceed to scorecards
-                </button>
-                <button onClick={doNoShowReschedule} disabled={rescheduling} className="order-2 sm:order-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all hover:shadow-sm active:scale-[0.98] disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FDE68A", background: "#FFFBEB" }}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5 mt-4">
+                <button onClick={doNoShowReschedule} disabled={rescheduling} className="order-2 sm:order-1 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all hover:shadow-sm active:scale-[0.98] disabled:opacity-50" style={{ color: "#B45309", borderColor: "#FDE68A", background: "#FFFBEB" }}>
                   <Icon name="refresh" className="w-4 h-4" /> {rescheduling ? "Rescheduling…" : "No-show / reschedule"}
+                </button>
+                <button onClick={() => { setNoShowDismissed(true); setIvStep(2); }} className="order-1 sm:order-2 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white brand-gradient transition-all hover:opacity-95 active:scale-[0.98]" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
+                  <Icon name="check" className="w-4 h-4" /> Proceed to scorecards
                 </button>
               </div>
             </div>
