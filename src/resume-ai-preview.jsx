@@ -7748,20 +7748,26 @@ function BookInterviewScreen({ data, done, onConfirm, onDecline, embedded = fals
 // (via onRespond), which records it and — on accept — emails the company and
 // moves the candidate to Hired.
 // Draw-to-sign canvas. Reports a PNG data URL (or null when cleared) via onChange.
+// The exported PNG is cropped to the ink's bounding box so the signature fills
+// the placement box when stamped, instead of being a small mark in a big empty
+// frame (which made stamped signatures look tiny).
 function SignaturePad({ onChange }) {
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const dirty = useRef(false);
   const last = useRef({ x: 0, y: 0 });
+  const ratioRef = useRef(1);
+  const bounds = useRef(null); // { minX, minY, maxX, maxY } in CSS px
 
   useEffect(() => {
     const c = canvasRef.current; if (!c) return;
     const ratio = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    ratioRef.current = ratio;
     const rect = c.getBoundingClientRect();
     c.width = Math.max(1, rect.width * ratio); c.height = Math.max(1, rect.height * ratio);
     const ctx = c.getContext("2d");
     ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#0F172A";
+    ctx.lineWidth = 2.6; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#0F172A";
   }, []);
 
   const at = (e) => {
@@ -7769,15 +7775,33 @@ function SignaturePad({ onChange }) {
     const t = e.touches ? e.touches[0] : e;
     return { x: t.clientX - rect.left, y: t.clientY - rect.top };
   };
-  const start = (e) => { e.preventDefault(); drawing.current = true; last.current = at(e); };
+  const track = (p) => {
+    const b = bounds.current;
+    if (!b) bounds.current = { minX: p.x, minY: p.y, maxX: p.x, maxY: p.y };
+    else { b.minX = Math.min(b.minX, p.x); b.minY = Math.min(b.minY, p.y); b.maxX = Math.max(b.maxX, p.x); b.maxY = Math.max(b.maxY, p.y); }
+  };
+  const start = (e) => { e.preventDefault(); drawing.current = true; last.current = at(e); track(last.current); };
   const move = (e) => {
     if (!drawing.current) return; e.preventDefault();
     const ctx = canvasRef.current.getContext("2d"); const p = at(e);
     ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-    last.current = p; dirty.current = true;
+    last.current = p; dirty.current = true; track(p);
   };
-  const end = () => { if (!drawing.current) return; drawing.current = false; if (dirty.current) onChange(canvasRef.current.toDataURL("image/png")); };
-  const clear = () => { const c = canvasRef.current; c.getContext("2d").clearRect(0, 0, c.width, c.height); dirty.current = false; onChange(null); };
+  // Export just the inked region (plus a small margin), scaled to device pixels.
+  const exportTrimmed = () => {
+    const c = canvasRef.current, b = bounds.current, ratio = ratioRef.current;
+    if (!b) return c.toDataURL("image/png");
+    const pad = 10;
+    const cssW = c.width / ratio, cssH = c.height / ratio;
+    const x0 = Math.max(0, b.minX - pad), y0 = Math.max(0, b.minY - pad);
+    const x1 = Math.min(cssW, b.maxX + pad), y1 = Math.min(cssH, b.maxY + pad);
+    const sx = x0 * ratio, sy = y0 * ratio, sw = Math.max(1, (x1 - x0) * ratio), sh = Math.max(1, (y1 - y0) * ratio);
+    const out = document.createElement("canvas"); out.width = sw; out.height = sh;
+    out.getContext("2d").drawImage(c, sx, sy, sw, sh, 0, 0, sw, sh);
+    return out.toDataURL("image/png");
+  };
+  const end = () => { if (!drawing.current) return; drawing.current = false; if (dirty.current) onChange(exportTrimmed()); };
+  const clear = () => { const c = canvasRef.current; c.getContext("2d").clearRect(0, 0, c.width, c.height); dirty.current = false; bounds.current = null; onChange(null); };
 
   return (
     <div>
