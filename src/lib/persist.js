@@ -725,9 +725,10 @@ export async function dbGetPanelPoll(companyId, candidateId, myProfileId) {
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) { console.error("dbGetPanelPoll", error.message); return null; }
   if (!poll) return null;
-  const [{ data: slots }, { data: votes }] = await Promise.all([
+  const [{ data: slots }, { data: votes }, { data: subs }] = await Promise.all([
     supabase.from("interview_poll_slots").select("id, slot_ts, slot_end").eq("poll_id", poll.id).order("slot_ts", { ascending: true }),
     supabase.from("interview_poll_votes").select("slot_id, profile_id, voter_name").eq("poll_id", poll.id),
+    supabase.from("interview_poll_submissions").select("profile_id").eq("poll_id", poll.id),
   ]);
   const bySlot = {};
   (votes || []).forEach((v) => { (bySlot[v.slot_id] ||= []).push(v); });
@@ -744,6 +745,9 @@ export async function dbGetPanelPoll(companyId, candidateId, myProfileId) {
     createdBy: poll.created_by,
     proposedBy: poll.proposed_by || "panel", // 'panel' (round 1) | 'candidate' (round 2)
     voterIds: Object.keys(byProfile).filter((id) => byProfile[id] >= need),
+    submittedIds: (subs || []).map((s) => s.profile_id),
+    submitted: (subs || []).some((s) => s.profile_id === myProfileId), // this viewer locked in their availability
+    submittedCount: (subs || []).length,
     slots: (slots || []).map((s) => {
       const vs = bySlot[s.id] || [];
       return {
@@ -801,6 +805,21 @@ export async function dbTogglePollVote({ companyId, pollId, slotId, profileId, v
   }
   const { error } = await supabase.from("interview_poll_votes")
     .delete().eq("slot_id", slotId).eq("profile_id", profileId);
+  return error ? error.message : null;
+}
+
+// Lock in ("submit") or reopen ("edit") the viewer's availability for a poll.
+// Submitting freezes their marks read-only until the poll closes.
+export async function dbSetPollSubmitted({ companyId, pollId, profileId, on }) {
+  if (!hasSupabase) return "Not connected.";
+  if (on) {
+    const { error } = await supabase.from("interview_poll_submissions")
+      .insert({ poll_id: pollId, company_id: companyId, profile_id: profileId });
+    if (error && error.code !== "23505") return error.message; // already submitted is fine
+    return null;
+  }
+  const { error } = await supabase.from("interview_poll_submissions")
+    .delete().eq("poll_id", pollId).eq("profile_id", profileId);
   return error ? error.message : null;
 }
 

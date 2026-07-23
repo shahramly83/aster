@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -16572,6 +16572,25 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     if (e) { setErr(e); return; }
     await load();
   };
+  const [submitting, setSubmitting] = useState(false);
+  // Interviewer locks in their availability; frozen read-only until they Edit
+  // (while open) or the poll closes.
+  const submitAvailability = async () => {
+    if (submitting || !poll) return;
+    setSubmitting(true); setErr(null);
+    setPoll((p) => (p ? { ...p, submitted: true } : p));
+    const e = await dbSetPollSubmitted({ companyId, pollId: poll.id, profileId: currentUserId, on: true });
+    setSubmitting(false);
+    if (e) { setErr(e); setPoll((p) => (p ? { ...p, submitted: false } : p)); }
+  };
+  const editAvailability = async () => {
+    if (submitting || !poll) return;
+    setSubmitting(true); setErr(null);
+    setPoll((p) => (p ? { ...p, submitted: false } : p));
+    const e = await dbSetPollSubmitted({ companyId, pollId: poll.id, profileId: currentUserId, on: false });
+    setSubmitting(false);
+    if (e) { setErr(e); await load(); }
+  };
   const toggleSelect = (slot) => setSelected((prev) => {
     const n = new Set(prev); n.has(slot.id) ? n.delete(slot.id) : n.add(slot.id); return n;
   });
@@ -16600,6 +16619,8 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
   };
 
   const maxCount = poll ? Math.max(0, ...poll.slots.map((s) => s.count)) : 0;
+  // Interviewer submitted → their marks are frozen read-only (with an Edit escape).
+  const locked = !!poll?.submitted && poll?.status === "open" && !isManager && !round2;
   const votedN = poll ? poll.voterIds.length : 0;
   const selectedCount = selected.size;
 
@@ -16798,60 +16819,46 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             {poll.slots.map((slot) => {
               const top = slot.count > 0 && slot.count === maxCount;
               const isSel = selected.has(slot.id);
-              // Select mode: rows are offer checkboxes. Otherwise: vote toggles.
-              if (canSelect) {
-                return (
-                  <button key={slot.id} type="button" onClick={() => toggleSelect(slot)} className="w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors" style={isSel ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)", background: "#fff" }}>
-                    <span className="shrink-0 w-5 h-5 rounded-md border flex items-center justify-center" style={isSel ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "var(--line-strong)" }}>
-                      {isSel && <Icon name="check" className="w-3.5 h-3.5" style={{ color: "#fff" }} />}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium" style={{ color: "var(--ink)" }}>{formatSlotRange(slot.ts, slot.end)}</p>
-                      <p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>
-                        {slot.count === 0 ? "No votes" : `${slot.count} available · ${slot.voters.slice(0, 3).join(", ")}${slot.voters.length > 3 ? ` +${slot.voters.length - 3}` : ""}`}
-                        {top && <span className="font-semibold" style={{ color: "var(--brand)" }}> · Most available</span>}
-                      </p>
-                    </div>
-                  </button>
-                );
-              }
-              const disabled = poll.status !== "open" || busy === slot.id;
+              const round2HM = round2 && isManager;   // round 2: HM confirms via a button, not a row toggle
+              const active = canSelect ? isSel : slot.mine;
+              const rowDisabled = poll.status !== "open" || busy === slot.id || locked || round2HM;
+              const onRow = canSelect ? () => toggleSelect(slot) : () => toggle(slot);
               return (
-                <div key={slot.id} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={top ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)", background: "#fff" }}>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium" style={{ color: "var(--ink)" }}>{formatSlotRange(slot.ts, slot.end)}</p>
-                    <p className="text-[10px] truncate" style={{ color: "var(--ink-3)" }}>
-                      {slot.count === 0 ? "No votes yet" : `${slot.count} available · ${slot.voters.slice(0, 3).join(", ")}${slot.voters.length > 3 ? ` +${slot.voters.length - 3}` : ""}`}
-                      {top && <span className="font-semibold" style={{ color: "var(--brand)" }}> · Most available</span>}
+                <div
+                  key={slot.id}
+                  role={rowDisabled ? undefined : "button"}
+                  tabIndex={rowDisabled ? undefined : 0}
+                  onClick={rowDisabled ? undefined : onRow}
+                  onKeyDown={rowDisabled ? undefined : (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onRow(); } }}
+                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all ${rowDisabled ? "" : "cursor-pointer hover:shadow-[0_6px_18px_-10px_rgba(15,23,42,0.28)] hover:-translate-y-px"}`}
+                  style={active ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)", background: "#fff" }}
+                >
+                  {/* Selection indicator — hidden for the round-2 HM (they Confirm, don't tick). */}
+                  {!round2HM && (
+                    <span className="shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors" style={active ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "var(--line-strong)" }}>
+                      {active && <Icon name="check" className="w-3.5 h-3.5" style={{ color: "#fff" }} />}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold tabular-nums" style={{ color: "var(--ink)" }}>{formatSlotRange(slot.ts, slot.end)}</p>
+                    <p className="text-[11px] mt-0.5 truncate" style={{ color: "var(--ink-3)" }}>
+                      {slot.count === 0 ? "No availability yet" : `${slot.count} available · ${slot.voters.slice(0, 3).join(", ")}${slot.voters.length > 3 ? ` +${slot.voters.length - 3}` : ""}`}
                     </p>
                   </div>
-                  {round2 && isManager ? (
-                    // Round 2: the candidate agreed to these times — the HM confirms one here.
+                  {top && (
+                    <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "var(--brand)", color: "#fff", letterSpacing: "0.04em" }}>
+                      <Icon name="star" className="w-2.5 h-2.5" /> Most
+                    </span>
+                  )}
+                  {round2HM && (
                     <button
                       type="button"
-                      onClick={() => confirmSlot(slot)}
+                      onClick={(ev) => { ev.stopPropagation(); confirmSlot(slot); }}
                       disabled={!!confirmingTs}
-                      className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-white rounded-lg px-3 py-1.5 transition-all disabled:opacity-50"
-                      style={{ background: "#16A34A" }}
+                      className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-white rounded-xl px-4 py-2 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
+                      style={{ background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 8px 18px -10px rgba(22,163,74,0.8)" }}
                     >
-                      {confirmingTs === slot.ts ? "Confirming…" : "Confirm"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => toggle(slot)}
-                      disabled={disabled}
-                      className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-1 transition-all disabled:opacity-50"
-                      // Brand blue for the selected state, as every other active
-                      // control uses. The green here was an off-palette raw hex
-                      // marking a selection, which reads as a success outcome
-                      // rather than "this one is picked".
-                      style={slot.mine ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line-strong)" }}
-                    >
-                      {/* Both states stay in the same voice. "I can make it" was
-                          first person while its own unselected state was an
-                          imperative, so the control changed who was speaking. */}
-                      {slot.mine ? <><Icon name="check" className="w-3 h-3" /> Available</> : "Mark available"}
+                      {confirmingTs === slot.ts ? "Confirming…" : <><Icon name="check" className="w-3.5 h-3.5" /> Confirm</>}
                     </button>
                   )}
                 </div>
@@ -16862,20 +16869,36 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
 
           {/* Select mode → send straight to the candidate */}
           {canSelect ? (
-            <div className="mt-3">
-              <button type="button" onClick={sendOffer} disabled={sending || selectedCount < 2} className="w-full rounded-xl text-sm font-semibold px-4 py-2.5 transition-all disabled:cursor-not-allowed" style={sending || selectedCount < 2 ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { background: "var(--brand)", color: "#fff" }}>
-                {sending ? "Sending…" : `Send ${selectedCount} time${selectedCount === 1 ? "" : "s"} to candidate`}
+            <div className="mt-4">
+              <button type="button" onClick={sendOffer} disabled={sending || selectedCount < 2} className={`w-full rounded-xl text-sm font-semibold px-4 py-3 inline-flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed ${sending || selectedCount < 2 ? "" : "brand-gradient text-white hover:opacity-95 enabled:hover:-translate-y-0.5"}`} style={sending || selectedCount < 2 ? { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" } : { boxShadow: "0 14px 30px -14px rgba(var(--brand-rgb),0.85)" }}>
+                <Icon name="arrowUpRight" className="w-4 h-4" /> {sending ? "Sending…" : selectedCount < 2 ? "Select at least 2 times" : `Send ${selectedCount} times to candidate`}
               </button>
-              <p className="text-[11px] mt-1.5 text-center" style={{ color: "var(--ink-3)" }}>The candidate picks one, then everyone gets the calendar invite.</p>
+              <p className="text-[11px] mt-2 text-center" style={{ color: "var(--ink-3)" }}>The candidate picks one, then everyone gets the calendar invite.</p>
             </div>
           ) : poll.status === "open" && !round2 ? (
             <>
               {isManager ? (
-                <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Your vote is optional. Once the interviewers vote, you'll pick times to offer.</p>
+                <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>Your vote is optional. Once the interviewers vote, you'll pick times to offer.</p>
+              ) : locked ? (
+                <div className="mt-4">
+                  <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: "#ECFDF5", border: "1px solid #A7F3D0" }}>
+                    <span className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#D1FAE5", color: "#047857" }}><Icon name="lock" className="w-4 h-4" /></span>
+                    <p className="text-xs leading-relaxed flex-1" style={{ color: "#065F46" }}><span className="font-semibold">Availability locked in.</span> The hiring manager will book from the panel's overlap.</p>
+                  </div>
+                  <button type="button" onClick={editAvailability} disabled={submitting} className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70 disabled:opacity-40" style={{ color: "var(--brand)" }}>
+                    <Icon name="refresh" className="w-3.5 h-3.5" /> {submitting ? "Reopening…" : "Edit availability"}
+                  </button>
+                </div>
               ) : myPicks >= minMarks ? (
-                <p className="text-[11px] mt-2.5 font-medium inline-flex items-center gap-1" style={{ color: "#067647" }}><Icon name="check" className="w-3.5 h-3.5" /> You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}. Your availability is in.</p>
+                <div className="mt-4">
+                  <p className="text-xs font-medium inline-flex items-center gap-1.5 mb-2.5" style={{ color: "#067647" }}><Icon name="check" className="w-4 h-4" /> You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}.</p>
+                  <button type="button" onClick={submitAvailability} disabled={submitting} className="w-full rounded-xl text-sm font-semibold px-4 py-3 brand-gradient text-white inline-flex items-center justify-center gap-2 transition-all hover:opacity-95 enabled:hover:-translate-y-0.5 disabled:opacity-50" style={{ boxShadow: "0 14px 30px -14px rgba(var(--brand-rgb),0.85)" }}>
+                    <Icon name="check" className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit availability"}
+                  </button>
+                  <p className="text-[11px] mt-2 text-center" style={{ color: "var(--ink-3)" }}>Locks your times in. You can edit until the interview is booked.</p>
+                </div>
               ) : (
-                <div className="mt-2.5 rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+                <div className="mt-3 rounded-lg px-3 py-2.5 flex items-start gap-2" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
                   <Icon name="clock" className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#B45309" }} />
                   <p className="text-[11px] leading-relaxed" style={{ color: "#92400E" }}>
                     {myPicks === 0
@@ -16885,7 +16908,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                 </div>
               )}
               {isManager && !complete && (
-                <button type="button" onClick={() => setOverride(true)} className="mt-1.5 text-xs font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
+                <button type="button" onClick={() => setOverride(true)} className="mt-2 text-xs font-medium transition-colors hover:opacity-80" style={{ color: "var(--brand)" }}>
                   Proceed anyway &rarr;
                 </button>
               )}

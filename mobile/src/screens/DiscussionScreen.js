@@ -6,7 +6,7 @@ import { useDialog } from "../components/Dialog";
 import { useAuth } from "../AuthContext";
 import {
   loadMessages, sendMessage, subscribeMessages, loadThreadParticipants,
-  loadCandidatePoll, createPoll, togglePollVote, closePoll, subscribePoll, scheduleInterview,
+  loadCandidatePoll, createPoll, togglePollVote, setPollSubmitted, closePoll, subscribePoll, scheduleInterview,
   loadCandidateInterview, loadInterviewers, confirmPollSlot, createInterviewInvite, loadBookedSlots,
 } from "../lib/data";
 import { Avatar, Button, Loader, EmptyState, ScreenHeader, Press, Feather } from "../components/ui";
@@ -249,6 +249,18 @@ export default function DiscussionScreen({ route, navigation }) {
     if (err) { dialog.alert({ title: "Couldn't update", message: err, icon: "alert-triangle", variant: "danger" }); loadPoll(); }
   };
 
+  // Lock in / reopen the viewer's availability. Submitting freezes their marks
+  // read-only until they Edit (while open) or the poll closes.
+  const [submittingAvail, setSubmittingAvail] = useState(false);
+  const setSubmitted = async (on) => {
+    if (!poll || submittingAvail) return;
+    setSubmittingAvail(true);
+    setPoll((p) => (p ? { ...p, submitted: on } : p));
+    const err = await setPollSubmitted({ companyId: profile.companyId, pollId: poll.id, profileId: profile.userId, on });
+    setSubmittingAvail(false);
+    if (err) { setPoll((p) => (p ? { ...p, submitted: !on } : p)); dialog.alert({ title: "Couldn't update", message: err, icon: "alert-triangle", variant: "danger" }); }
+  };
+
   // HM confirms a slot from the candidate's round-2 poll → schedules the interview.
   // Opens an in-app sheet rather than a system Alert. This is the moment an
   // interview is actually booked and emails go out, and an OS dialog gave it
@@ -390,6 +402,7 @@ export default function DiscussionScreen({ route, navigation }) {
                 {poll ? (
                   <PollCard poll={poll} tz={profile.timezone} manager={manager} progress={pollProgress} savingSlot={savingSlot} onToggle={toggleVote} onConfirm={confirmSlot} confirming={confirming}
                     rescheduleNote={rescheduleNote}
+                    submitted={poll.submitted} onSubmit={() => setSubmitted(true)} onEdit={() => setSubmitted(false)} submitting={submittingAvail}
                     selectMode={selectMode} selected={selected} onToggleSelect={toggleSelect} onSendOffer={sendOffer} sendingOffer={sendingOffer}
                     canOverride={manager && !round2 && !allVoted && !noPanel && !override} onOverride={() => setOverride(true)} />
                 ) : sentInterview ? (
@@ -566,9 +579,12 @@ function LoneMarkSheet({ visible, marks = [], minMarks = 2, clearing, onKeepMark
 }
 
 function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm, confirming, rescheduleNote = null,
+  submitted = false, onSubmit, onEdit, submitting = false,
   selectMode = false, selected, onToggleSelect, onSendOffer, sendingOffer, canOverride, onOverride }) {
   const open = poll.status === "open";
   const isCandidate = poll.proposedBy === "candidate"; // round 2: candidate suggested these
+  // Interviewer submitted → their marks are frozen read-only (with an Edit escape).
+  const locked = !!submitted && open && !manager && !isCandidate;
   // For the manager who ran the poll: is the panel done voting?
   const allVoted = progress && progress.total > 0 && progress.voted >= progress.total;
   const maxCount = Math.max(0, ...poll.slots.map((s) => s.count));
@@ -631,8 +647,8 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
                   so the tenant got the interviewer's screen with a Confirm
                   bolted on. */}
               <Pressable
-                onPress={() => (selectMode ? onToggleSelect?.(s) : (open && !(manager && isCandidate) && onToggle(s)))}
-                disabled={selectMode ? false : (!open || !!savingSlot || (manager && isCandidate))}
+                onPress={() => (selectMode ? onToggleSelect?.(s) : (open && !(manager && isCandidate) && !locked && onToggle(s)))}
+                disabled={selectMode ? false : (!open || !!savingSlot || (manager && isCandidate) || locked)}
                 style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
               >
                 {/* No empty vote circle for the manager in round 2: it invites a
@@ -670,10 +686,25 @@ function PollCard({ poll, tz, manager, progress, savingSlot, onToggle, onConfirm
       ) : open ? (
         <>
           {(!manager && !isCandidate) ? (
-            myPicks >= minPicks ? (
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: space(3) }}>
-                <Feather name="check-circle" size={13} color={theme.success} />
-                <Text style={[type.smallStrong, { color: theme.success, marginLeft: 6, flex: 1 }]}>You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}. Your availability is in.</Text>
+            locked ? (
+              <View style={{ marginTop: space(3) }}>
+                <View style={styles.availLocked}>
+                  <Feather name="lock" size={14} color="#047857" />
+                  <Text style={[type.small, { color: "#065F46", marginLeft: 8, flex: 1, lineHeight: 18 }]}><Text style={{ fontFamily: "Inter_600SemiBold" }}>Availability locked in.</Text> The hiring manager will book from the panel's overlap.</Text>
+                </View>
+                <Pressable onPress={onEdit} disabled={submitting} hitSlop={8} style={{ marginTop: space(2), alignSelf: "flex-start", flexDirection: "row", alignItems: "center" }}>
+                  <Feather name="refresh-cw" size={13} color={theme.brand} />
+                  <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 6 }]}>{submitting ? "Reopening…" : "Edit availability"}</Text>
+                </Pressable>
+              </View>
+            ) : myPicks >= minPicks ? (
+              <View style={{ marginTop: space(3) }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Feather name="check-circle" size={13} color={theme.success} />
+                  <Text style={[type.smallStrong, { color: theme.success, marginLeft: 6, flex: 1 }]}>You've marked {myPicks} slot{myPicks === 1 ? "" : "s"}.</Text>
+                </View>
+                <Button title={submitting ? "Submitting…" : "Submit availability"} icon="check" onPress={onSubmit} loading={submitting} style={{ marginTop: space(2.5) }} />
+                <Text style={[type.small, { color: theme.ink4, marginTop: space(2), textAlign: "center" }]}>Locks your times in. You can edit until the interview is booked.</Text>
               </View>
             ) : (
               <View style={styles.voteWarn}>
@@ -841,6 +872,7 @@ const styles = StyleSheet.create({
   voteProgress: { flexDirection: "row", alignItems: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
   voteProgressDone: { backgroundColor: "#F0FDF4" },
   voteWarn: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
+  availLocked: { flexDirection: "row", alignItems: "center", backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#A7F3D0", borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
   confirmSlotBtn: { backgroundColor: theme.success, borderRadius: radius.pill, paddingHorizontal: 14, height: 30, minWidth: 74, alignItems: "center", justifyContent: "center" },
   confirmSlotTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#fff" },
   slot: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 11 },
