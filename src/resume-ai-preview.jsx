@@ -17253,9 +17253,16 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           </div>
           {shareErr && <p role="alert" className="text-[11px] mt-2 text-rose-600">{shareErr}</p>}
           {linkShared && !shareErr && (
-            <p className="text-[11px] mt-2 inline-flex items-center gap-1.5" style={{ color: "#166534" }}>
-              <Icon name="check" className="w-3.5 h-3.5" /> The candidate and each interviewer got the link.
-            </p>
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <p className="text-[11px] inline-flex items-center gap-1.5" style={{ color: "#166534" }}>
+                <Icon name="check" className="w-3.5 h-3.5" /> The candidate and each interviewer got the link.
+              </p>
+              {linkInput && (
+                <a href={linkInput} target="_blank" rel="noreferrer" className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 transition-opacity">
+                  <Icon name="interview" className="w-4 h-4" /> Join call
+                </a>
+              )}
+            </div>
           )}
         </div>
         </>
@@ -21438,11 +21445,19 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 Only shown in a job pipeline, where the interview flow exists. */}
             {contextJobId && (
               <div className="flex items-center gap-1 rounded-xl p-1 sm:inline-flex" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-                {[{ k: "profile", label: "Profile", icon: "doc" }, { k: "interview", label: "Interview", icon: "calendar" }].map((t) => {
+                {[
+                  { k: "profile", label: "Profile", icon: "doc" },
+                  { k: "interview", label: "Interview", icon: "calendar" },
+                  // Interviewers get a dedicated Scorecards tab, locked with a
+                  // padlock until the interview time has passed (mirrors the
+                  // manager's stepped card, but as a top-level tab for them).
+                  ...(isInterviewer(profile?.role) ? [{ k: "scorecards", label: "Scorecards", icon: "star", locked: !interviewPast }] : []),
+                ].map((t) => {
                   const on = profileTab === t.k;
+                  const locked = !!t.locked;
                   return (
-                    <button key={t.k} type="button" onClick={() => setProfileTab(t.k)} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""}`} style={on ? {} : { color: "var(--ink-2)" }}>
-                      <Icon name={t.icon} className="w-4 h-4" /> {t.label}
+                    <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Unlocks once the interview time has passed" : undefined} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-4)" : "var(--ink-2)" }}>
+                      <Icon name={locked ? "lock" : t.icon} className="w-4 h-4" /> {t.label}
                       {t.k === "interview" && interviewGlow && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} />}
                     </button>
                   );
@@ -21455,9 +21470,12 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 interviewPast ? (
                   <div className="rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "#A7F3D0", background: "#fff" }}>
                     <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="check" className="w-5 h-5" /></span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>You've interviewed {firstName}</p>
-                      <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>Add your scorecard below so the hiring manager can make the call.</p>
+                      <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>The Scorecards tab just unlocked. Rate {firstName} there so the hiring manager can make the call.</p>
+                      <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2 brand-gradient text-white hover:opacity-90 transition-opacity">
+                        <Icon name="star" className="w-4 h-4" /> Add your scorecard
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -21496,8 +21514,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                           {/* One clear primary (join) when a link exists, then prep. */}
                           <div className="flex items-center gap-2 mt-3.5">
                             {link ? (
-                              <a href={link} target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity">
-                                <Icon name="interview" className="w-4 h-4" /> Join video call
+                              <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white hover:opacity-90 transition-opacity">
+                                <Icon name="interview" className="w-4 h-4" /> Join call
                               </a>
                             ) : (
                               <span className="flex-1 inline-flex items-center gap-1.5 text-xs rounded-xl px-3 py-2.5" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>
@@ -21939,24 +21957,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         )}
 
         {/* Interviewer: their own scorecard, shown once the interview has happened. */}
-        {!isManagerView && interviewPast && (
-          <div className="mt-6">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Your scorecard</span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}>Interview completed · {interviewWhen}</span>
-            </div>
-            <ScorecardPanel
-              scorecards={scorecards}
-              onSubmit={onSubmitScorecard}
-              plan={plan}
-              navigate={navigate}
-              authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
-              currentUserId={currentUserId}
-              attendees={booking?.attendees || []}
-              isManager={false}
-            />
-          </div>
-        )}
+        {/* (Interviewer scorecard moved to its own top-level Scorecards tab.) */}
 
         {/* Step 3 · Decision (manager): unlocked once the attended panel has scored. */}
         {isManagerView && ivStep === 3 && (decisionUnlocked ? (
@@ -22170,6 +22171,47 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           />
         )}
         </>)}
+
+        {/* Scorecards tab (interviewer): their own rating surface. The tab is
+            padlocked until the interview time has passed, so this normally
+            renders unlocked; the locked fallback is defensive only. */}
+        {contextJobId && profileTab === "scorecards" && !isManagerView && (
+          interviewPast ? (
+            <div className="space-y-4">
+              <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #F0FDF4, #ffffff 62%)" }}>
+                <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
+                <div className="pl-5 pr-4 py-4 flex items-center gap-3.5">
+                  <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="star" className="w-5 h-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Your scorecard</h2>
+                      <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Interview completed · {interviewWhen}</span>
+                    </div>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>Rate {firstName} against each area. The hiring manager sees your ratings once you submit.</p>
+                  </div>
+                </div>
+              </div>
+              <ScorecardPanel
+                scorecards={scorecards}
+                onSubmit={onSubmitScorecard}
+                plan={plan}
+                navigate={navigate}
+                authorName={`${profile?.firstName || "You"} ${profile?.lastName || ""}`.trim()}
+                currentUserId={currentUserId}
+                attendees={booking?.attendees || []}
+                isManager={false}
+              />
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed p-6 flex flex-col items-center text-center gap-3" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
+              <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#fff", border: "1px solid var(--line)", color: "var(--ink-3)" }}><Icon name="lock" className="w-5 h-5" /></span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Scorecard locked</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-3)" }}>You'll be able to score {firstName} once the interview time has passed.</p>
+              </div>
+            </div>
+          )
+        )}
           </div>{/* main column */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {/* Interviewer's upcoming interview, pinned to the top of the sidebar:
