@@ -22320,42 +22320,45 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             <div className="space-y-4">
               {/* Once the interviewer has scored, tell them where it stands and
                   what happens next, so the screen doesn't feel like a dead end. */}
+              {/* Scored → a single "what's next" status card. Not scored yet →
+                  the green "rate them" prompt. Never both, to keep it uncrowded. */}
               {(() => {
                 const myScored = (scorecards || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
-                if (!myScored) return null;
+                if (!myScored) {
+                  return (
+                    <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #F0FDF4, #ffffff 62%)" }}>
+                      <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
+                      <div className="pl-5 pr-4 py-4 flex items-center gap-3.5">
+                        <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="scorecard" className="w-5 h-5" /></span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Your scorecard</h2>
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Interview completed · {interviewWhen}</span>
+                          </div>
+                          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>Rate {firstName} against each area. The hiring manager sees your ratings once you submit.</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
                 const st = (isHired || stage === "hired")
                   ? { icon: "hire", label: "Hired", title: `${firstName} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for scoring.", bd: "#A7F3D0", fg: "#059669", chipBg: "#DCFCE7", chipFg: "#166534" }
                   : stage === "rejected"
                     ? { icon: "close", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${firstName}. Thanks for scoring.`, bd: "#FECACA", fg: "#DC2626", chipBg: "#FEE2E2", chipFg: "#B42318" }
                     : (offer || stage === "offer")
                       ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" }
-                      : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "Next, the hiring manager reviews the panel's scorecards and makes the call. You'll be notified of the outcome, nothing more to do here for now.", bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" };
+                      : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "Next, the hiring manager reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", bd: "#CBD8F5", fg: "var(--brand)", chipBg: "#fff", chipFg: "var(--brand)" };
                 return (
                   <div className="rounded-2xl border p-4 flex items-start gap-3.5" style={{ borderColor: st.bd, background: "#fff" }}>
                     <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#fff", color: st.fg, border: `1px solid ${st.bd}` }}><Icon name={st.icon} className="w-5 h-5" /></span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{st.title}</p>
-                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5" style={{ background: st.chipBg, color: st.chipFg, border: `1px solid ${st.bd}`, letterSpacing: "0.04em" }}>{st.label}</span>
-                      </div>
+                      <p className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 mb-1" style={{ background: st.chipBg, color: st.chipFg, border: `1px solid ${st.bd}`, letterSpacing: "0.04em" }}>{st.label}</p>
+                      <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{st.title}</p>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{st.sub}</p>
                     </div>
                   </div>
                 );
               })()}
-              <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "#A7F3D0", background: "linear-gradient(135deg, #F0FDF4, #ffffff 62%)" }}>
-                <span className="absolute inset-y-0 left-0 w-1" style={{ background: "linear-gradient(#34D399,#059669)" }} />
-                <div className="pl-5 pr-4 py-4 flex items-center gap-3.5">
-                  <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#ECFDF5", color: "#059669" }}><Icon name="scorecard" className="w-5 h-5" /></span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Your scorecard</h2>
-                      <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Interview completed · {interviewWhen}</span>
-                    </div>
-                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>Rate {firstName} against each area. The hiring manager sees your ratings once you submit.</p>
-                  </div>
-                </div>
-              </div>
               <ScorecardPanel
                 scorecards={scorecards}
                 onSubmit={onSubmitScorecard}
