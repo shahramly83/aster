@@ -416,19 +416,19 @@ export default function TodayScreen({ navigation }) {
                           <Text style={styles.pollName} numberOfLines={2}>{iv.candidateName}</Text>
                           <Text style={styles.pollRole} numberOfLines={1}>{iv.jobTitle}</Text>
                         </View>
-                        <View style={[styles.actionPill, { backgroundColor: resch ? "#FEF2F2" : "#FEF3C7" }]}>
-                          <Text style={[type.smallStrong, { color: resch ? "#B42318" : "#92400E" }]}>{resch ? "Reschedule" : "Awaiting"}</Text>
+                        <View style={[styles.actionPill, { backgroundColor: !manager ? theme.line2 : resch ? "#FEF2F2" : "#FEF3C7" }]}>
+                          <Text style={[type.smallStrong, { color: !manager ? theme.ink3 : resch ? "#B42318" : "#92400E" }]}>{!manager ? "In progress" : resch ? "Reschedule" : "Awaiting"}</Text>
                         </View>
                       </View>
 
                       {/* Name the blocker. "Awaiting" alone never said awaiting
                           what, or whose move it is. */}
                       <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: space(3) }}>
-                        <Feather name={resch ? "refresh-cw" : "clock"} size={13} color={resch ? "#B42318" : "#B45309"} style={{ marginTop: 2 }} />
-                        <Text style={[type.small, { color: resch ? "#B42318" : "#B45309", marginLeft: 7, flex: 1, lineHeight: 18 }]}>
+                        <Feather name={resch ? "refresh-cw" : "clock"} size={13} color={!manager ? theme.ink3 : resch ? "#B42318" : "#B45309"} style={{ marginTop: 2 }} />
+                        <Text style={[type.small, { color: !manager ? theme.ink2 : resch ? "#B42318" : "#B45309", marginLeft: 7, flex: 1, lineHeight: 18 }]}>
                           {resch
-                            ? `${first} couldn't make the times offered. Propose new ones.`
-                            : `Waiting for ${first} to pick one of the times you offered.`}
+                            ? (manager ? `${first} couldn't make the times offered. Propose new ones.` : `The hiring manager is arranging new times.`)
+                            : (manager ? `Waiting for ${first} to pick one of the times you offered.` : `Waiting for ${first} to pick a time.`)}
                         </Text>
                       </View>
 
@@ -448,8 +448,8 @@ export default function TodayScreen({ navigation }) {
                         haptic="medium"
                         style={styles.pollCta}
                       >
-                        <Feather name={resch ? "calendar" : "mail"} size={16} color="#fff" />
-                        <Text style={styles.pollCtaTxt}>{resch ? "Propose new times" : "Open interview"}</Text>
+                        <Feather name={!manager ? "arrow-right" : resch ? "calendar" : "mail"} size={16} color="#fff" />
+                        <Text style={styles.pollCtaTxt}>{!manager ? "View interview" : resch ? "Propose new times" : "Open interview"}</Text>
                       </Press>
                     </View>
                   );
