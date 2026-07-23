@@ -20792,34 +20792,16 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
       ) : (
         <div className="space-y-3">
           {!canSeeAll && !open && (
-            <div className="relative overflow-hidden rounded-3xl px-6 py-9 text-center" style={{ background: "radial-gradient(130% 120% at 50% -10%, #1E2E78 0%, #0C1338 52%, #070B22 100%)" }}>
-              {/* Futuristic mesh grid, faded from the top. */}
-              <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.18, backgroundImage: "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)", backgroundSize: "30px 30px", WebkitMaskImage: "radial-gradient(75% 60% at 50% 0%, #000, transparent)", maskImage: "radial-gradient(75% 60% at 50% 0%, #000, transparent)" }} />
-              {/* Aurora glow behind the orb. */}
-              <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(102,138,255,.55), transparent 68%)", filter: "blur(24px)" }} />
-              <div className="relative">
-                {/* Glowing orb medallion. */}
-                <div className="mx-auto relative" style={{ width: 68, height: 68 }}>
-                  <div className="absolute inset-0 rounded-[20px]" style={{ background: "linear-gradient(135deg,#7C9AFF,#3B5BFF)", boxShadow: "0 0 46px 0 rgba(102,138,255,.75), inset 0 1px 0 rgba(255,255,255,.5)" }} />
-                  <div className="absolute inset-0 flex items-center justify-center text-white"><Icon name="scorecard" className="w-8 h-8" /></div>
-                </div>
-                <span className="inline-flex items-center gap-1.5 mt-4 text-[10px] font-bold uppercase rounded-full px-3 py-1" style={{ background: "rgba(255,255,255,.07)", color: "#A7BCFF", border: "1px solid rgba(167,188,255,.25)", letterSpacing: "0.2em" }}>
-                  <Icon name="star" className="w-3 h-3" /> Structured scoring
-                </span>
-                <h3 className="text-2xl font-bold font-display mt-3 text-white tracking-tight">Add your scorecard</h3>
-                <p className="text-sm mt-2 leading-relaxed mx-auto" style={{ color: "rgba(255,255,255,.62)", maxWidth: "30rem" }}>Rate each area from 1 to 4. Your ratings stay private until you submit, so the panel scores independently, no anchoring, no bias.</p>
-                <div className="flex flex-wrap justify-center gap-2 mt-5">
-                  {SCORE_CRITERIA.map((c) => (
-                    <span key={c.key} className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1.5" style={{ background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.85)", border: "1px solid rgba(255,255,255,.15)" }}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#7C9AFF" }} /> {c.label}
-                    </span>
-                  ))}
-                </div>
-                <button onClick={() => setOpen(true)} className="group mt-6 inline-flex items-center gap-2 text-sm font-semibold rounded-2xl px-7 py-3 text-white transition-all hover:-translate-y-0.5" style={{ background: "linear-gradient(135deg,#7C9AFF,#3B5BFF)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.25), 0 16px 40px -12px rgba(59,91,255,.95)" }}>
-                  <Icon name="plus" className="w-4 h-4" /> Start scoring
-                  <Icon name="arrowUpRight" className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                </button>
+            <div className="relative overflow-hidden rounded-2xl border p-6 text-center" style={{ borderColor: "var(--line)", background: "linear-gradient(160deg, var(--brand-soft), #ffffff 68%)" }}>
+              <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Add your scorecard</h3>
+              <div className="flex flex-wrap justify-center gap-1.5 mt-3.5">
+                {SCORE_CRITERIA.map((c) => (
+                  <span key={c.key} className="text-[11px] font-medium rounded-full px-2.5 py-1" style={{ background: "#fff", color: "var(--ink-2)", border: "1px solid var(--line)" }}>{c.label}</span>
+                ))}
               </div>
+              <button onClick={() => setOpen(true)} className="mt-4 inline-flex items-center justify-center gap-2 text-sm rounded-xl brand-gradient text-white font-semibold px-6 py-2.5 transition-all hover:opacity-95 hover:-translate-y-0.5" style={{ boxShadow: "0 14px 30px -14px rgba(var(--brand-rgb),0.85)" }}>
+                <Icon name="plus" className="w-4 h-4" /> Start scoring
+              </button>
             </div>
           )}
           {canSeeAll && scorecards.length === 0 && !open && (
