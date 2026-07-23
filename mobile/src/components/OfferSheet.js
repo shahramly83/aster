@@ -157,7 +157,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             <Pressable onPress={close} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
           </View>
 
-          <ScrollView ref={scrollRef} style={{ maxHeight: kb > 0 ? 300 : 460 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollRef} style={{ maxHeight: kb > 0 ? 300 : 460 }} contentContainerStyle={{ paddingBottom: space(3) }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
             <Field label="Job title">
               <TextInput value={jobTitle} onChangeText={setJobTitle} placeholder="e.g. Digital Marketing Specialist" placeholderTextColor={theme.ink4} style={styles.input} />
             </Field>
@@ -252,13 +252,14 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             ) : null}
           </ScrollView>
 
-          <Button
-            title={sending ? "Sending…" : validApprovers.length ? "Send for approval" : "Send offer"}
-            icon={sending ? undefined : "send"}
-            onPress={submit}
-            disabled={sending}
-            style={{ marginTop: space(3) }}
-          />
+          <View style={styles.footer}>
+            <Button
+              title={sending ? "Sending…" : validApprovers.length ? "Send for approval" : "Send offer"}
+              icon={sending ? undefined : "send"}
+              onPress={submit}
+              disabled={sending}
+            />
+          </View>
           {sending ? <View style={styles.sendingOverlay}><ActivityIndicator color={theme.white} /></View> : null}
         </View>
       </View>
@@ -310,5 +311,6 @@ const styles = StyleSheet.create({
   approverX: { width: 30, height: 30, borderRadius: 15, backgroundColor: theme.line2, alignItems: "center", justifyContent: "center" },
   addApprover: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingVertical: 6 },
   err: { flexDirection: "row", alignItems: "flex-start", marginTop: space(4), padding: space(3), borderRadius: radius.md, backgroundColor: "#FEF3F2", borderWidth: 1, borderColor: "#FECDCA" },
+  footer: { paddingTop: space(3), marginTop: space(1), borderTopWidth: 1, borderTopColor: theme.line },
   sendingOverlay: { position: "absolute", left: 0, right: 0, bottom: 0, top: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.4)" },
 });
