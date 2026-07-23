@@ -130,14 +130,20 @@ export default function CandidateProfileScreen({ route, navigation }) {
     return subscribeInterviews(profile.companyId, () => load());
   }, [profile?.companyId, load]);
 
-  // Land on the tab that matters for where the candidate is: the interview work
-  // while interviewing, the outcome once there's an offer, else their profile.
-  // Only auto-picks once (guarded by tabInit) so a manual switch isn't overridden.
+  // Land on the tab that matters for where the candidate is — always the one
+  // that's actionable: scoring once the interview is held and scorecards are
+  // open, the interview work while interviewing, the outcome once there's an
+  // offer, else their profile. Only auto-picks once (guarded by tabInit) so a
+  // manual switch isn't overridden.
   useEffect(() => {
     if (tabInit.current || loading) return;
     tabInit.current = true;
-    setTab(stage === "offer" || stage === "hired" ? "feedback" : stage === "interviewing" ? "interview" : "profile");
-  }, [loading, stage]);
+    setTab(
+      (interviewDone && canScore) || stage === "offer" || stage === "hired" ? "feedback"
+        : stage === "interviewing" ? "interview"
+        : "profile"
+    );
+  }, [loading, stage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const switchTab = (t) => {
     if (t === tab) return;
@@ -642,7 +648,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 </View>
               </LinearGradient>
               <View style={styles.ivHappenBody}>
-                <Pressable onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={styles.ivHappenPrimary}>
+                <Pressable onPress={() => switchTab("feedback")} style={styles.ivHappenPrimary}>
                   <Feather name={myCard ? "edit-3" : "plus"} size={16} color="#fff" />
                   <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>{myCard ? "Edit my scorecard" : "Add my scorecard"}</Text>
                 </Pressable>
@@ -960,9 +966,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             {cards.length === 0 ? (
               canScore ? (
                 <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.scoreEmpty}>
-                  <View style={styles.scoreEmptyMedallion}><Feather name="edit-3" size={26} color="#fff" /></View>
-                  <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 18, marginTop: space(3), textAlign: "center" }]}>Add your scorecard</Text>
-                  <Text style={[type.small, { color: theme.ink3, marginTop: 5, textAlign: "center", lineHeight: 19 }]}>Rate {name.split(" ")[0]} on each area from 1 to 4. Your ratings stay hidden until you submit, so everyone scores independently.</Text>
+                  <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 18, textAlign: "center" }]}>Add your scorecard</Text>
                   <View style={styles.scoreChips}>
                     {["Technical skills", "Communication", "Culture fit", "Experience"].map((c) => (
                       <View key={c} style={styles.scoreChip}><Text style={styles.scoreChipTxt}>{c}</Text></View>
