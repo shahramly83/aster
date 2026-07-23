@@ -23009,9 +23009,12 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
   const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name}] internal sign-off
   const hasApprovers = approvers.some((a) => a.email.trim());
-  // Approvers are picked from the team; anyone with an email who isn't already
-  // added can be an approver (they approve from the email, no account needed).
-  const availableApprovers = (team || []).filter((m) => m.email && !approvers.some((a) => (a.email || "").toLowerCase() === m.email.toLowerCase()));
+  // Only decision-makers approve offers: the owner and hiring managers (admins),
+  // not interviewers. They approve straight from the email — no account needed.
+  const roleWord = (role) => ({ owner: "Owner", admin: "Hiring Manager" }[String(role || "").toLowerCase()] || "");
+  const canApprove = (role) => ["owner", "admin"].includes(String(role || "").toLowerCase());
+  const eligibleTeam = (team || []).filter((m) => m.email && canApprove(m.role));
+  const availableApprovers = eligibleTeam.filter((m) => !approvers.some((a) => (a.email || "").toLowerCase() === m.email.toLowerCase()));
   // Send mode: 'compose' (Aster builds the letter from terms) or 'upload' (HR
   // brings their own finished PDF and places one candidate signature box).
   const [mode, setMode] = useState("compose");
@@ -23264,10 +23267,10 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 ))}
               </div>
             )}
-            {(team || []).length === 0 ? (
-              // No team yet: approvals need teammates, so point back to add them.
+            {eligibleTeam.length === 0 ? (
+              // No one who can approve yet: point back to add hiring managers.
               <div className="rounded-xl border border-dashed px-4 py-4 text-center" style={{ borderColor: "var(--line-strong)" }}>
-                <p className="text-xs mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>You have no teammates yet. Add your team to route offers for approval.</p>
+                <p className="text-xs mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>No teammates can approve offers yet. Add a hiring manager to route offers for sign-off.</p>
                 <button type="button" onClick={() => onManageTeam && onManageTeam()} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
                   <Icon name="userPlus" className="w-4 h-4" /> Add team members
                 </button>
@@ -23275,14 +23278,14 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             ) : availableApprovers.length > 0 ? (
               <select
                 value=""
-                onChange={(e) => { const m = (team || []).find((t) => t.id === e.target.value); if (m) setApprovers((l) => [...l, { id: m.id, email: m.email, name: m.name }]); }}
+                onChange={(e) => { const m = eligibleTeam.find((t) => t.id === e.target.value); if (m) setApprovers((l) => [...l, { id: m.id, email: m.email, name: m.name }]); }}
                 className={inputClass}
               >
                 <option value="" disabled>+ Add approver from your team…</option>
-                {availableApprovers.map((m) => <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ""}</option>)}
+                {availableApprovers.map((m) => <option key={m.id} value={m.id}>{m.name}{roleWord(m.role) ? ` · ${roleWord(m.role)}` : ""}</option>)}
               </select>
             ) : (
-              <p className="text-xs px-1" style={{ color: "var(--ink-4)" }}>All teammates have been added as approvers.</p>
+              <p className="text-xs px-1" style={{ color: "var(--ink-4)" }}>All approvers have been added.</p>
             )}
             <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver gets an email to review and approve, in order — no login needed. The offer reaches the candidate only after the last approval." : "Add approvers from your team to require sign-off first. They approve straight from the email, no account needed."}</p>
           </div>
