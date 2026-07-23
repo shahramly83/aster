@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -15176,7 +15176,88 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
   );
 }
 
-function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], setPendingInvites = () => {}, reloadTeam = async () => {}, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications }) {
+// Offer approvers: a managed list of people who approve offers by email, with no
+// account or login. Add them, they confirm via a one-time emailed link, then
+// they can be picked as approvers on an offer (see OfferModal).
+function ApproversSection({ companyId, canPersist }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [banner, setBanner] = useState(null); // { type:'ok'|'err', msg }
+
+  useEffect(() => {
+    let alive = true;
+    if (!companyId) { setRows([]); setLoading(false); return; }
+    setLoading(true);
+    dbListApprovers(companyId).then((r) => { if (alive) { setRows(r); setLoading(false); } });
+    return () => { alive = false; };
+  }, [companyId]);
+  const reload = () => { if (companyId) dbListApprovers(companyId).then(setRows); };
+
+  const add = async () => {
+    const e = email.trim().toLowerCase();
+    if (!e.includes("@")) { setBanner({ type: "err", msg: "Enter a valid email address." }); return; }
+    setBusy(true); setBanner(null);
+    const res = await dbAddApprover({ email: e, name: name.trim() || null });
+    setBusy(false);
+    if (!res.ok) { setBanner({ type: "err", msg: res.error || "Couldn't add that approver." }); return; }
+    setEmail(""); setName("");
+    setBanner({ type: "ok", msg: res.already ? "That person is already a confirmed approver." : "Confirmation email sent. They'll show as Confirmed once they click it." });
+    reload();
+  };
+  const resend = async (row) => {
+    setBusy(true); setBanner(null);
+    const res = await dbAddApprover({ email: row.email, name: row.name });
+    setBusy(false);
+    setBanner(res.ok ? { type: "ok", msg: `Confirmation re-sent to ${row.email}.` } : { type: "err", msg: res.error || "Couldn't resend." });
+  };
+  const remove = async (id) => { setRows((l) => l.filter((x) => x.id !== id)); await dbRemoveApprover(id); };
+
+  if (!canPersist) return null;
+
+  return (
+    <div className="mt-10">
+      <h2 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
+      <p className="text-sm mt-1 mb-4 leading-relaxed" style={{ color: "var(--ink-3)" }}>People who approve offers by email, with no login or account. They confirm once, then receive an approve/decline link whenever you route an offer for sign-off.</p>
+
+      <div className="flex flex-col sm:flex-row gap-2 mb-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-xl bg-white border px-3.5 py-2.5 text-sm sm:w-44 focus:outline-none focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+        <button onClick={add} disabled={busy} className="rounded-xl brand-gradient text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-50 shrink-0">{busy ? "Sending…" : "Add approver"}</button>
+      </div>
+      {banner && <p className="text-xs mb-3" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}>{banner.msg}</p>}
+
+      {loading ? (
+        <p className="text-sm" style={{ color: "var(--ink-3)" }}>Loading…</p>
+      ) : rows.length === 0 ? (
+        <div className="rounded-2xl border border-dashed px-5 py-8 text-center" style={{ borderColor: "var(--line-strong)" }}>
+          <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>No approvers yet</p>
+          <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Add someone above to route offers for approval.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => (
+            <div key={r.id} className="flex items-center gap-3 rounded-2xl bg-white border p-3.5" style={{ borderColor: "var(--line)" }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{(r.name || r.email).charAt(0).toUpperCase()}</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{r.name || r.email}</div>
+                <div className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{r.email}</div>
+              </div>
+              {r.status === "confirmed"
+                ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}>Confirmed</span>
+                : <button onClick={() => resend(r)} disabled={busy} className="text-[10px] font-semibold px-2 py-0.5 rounded-full hover:opacity-80 transition-opacity shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>Pending · Resend</button>}
+              <button onClick={() => remove(r.id)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:bg-rose-50 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingInvites = [], setPendingInvites = () => {}, reloadTeam = async () => {}, bookings = {}, plan = "launch", profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, canPersist = false }) {
   const limits = planLimits(plan);
   // The server meters teammates by subscription SEATS, not the plan's interviewer
   // count: every active member (INCLUDING the tenant) plus any pending invite
@@ -15515,6 +15596,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             </div>
           )}
         </div>
+
+        {/* Offer approvers: no-login approvers managed separately from the team. */}
+        <ApproversSection companyId={companyId} canPersist={canPersist} />
 
       {/* Invite teammate modal */}
       {showForm && (
@@ -21063,6 +21147,17 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     ? new Date(cycleResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : null;
   const [showOffer, setShowOffer] = useState(false);
+  // Confirmed offer approvers (no-login list), loaded when the offer modal opens
+  // so the approver picker shows only people who've confirmed by email.
+  const [approverPool, setApproverPool] = useState([]);
+  useEffect(() => {
+    if (!companyId || !showOffer) return;
+    let alive = true;
+    dbListApprovers(companyId, { confirmedOnly: true }).then((r) => {
+      if (alive) setApproverPool((r || []).map((a) => ({ id: a.id, name: a.name || a.email, email: a.email })));
+    });
+    return () => { alive = false; };
+  }, [companyId, showOffer]);
   // Profile / Interview tabs on the candidate profile (only shown in a job pipeline).
   // Land on the LATEST unlocked tab, so a return visit opens where the work now
   // is: an interviewer who's scored lands on Result, released → Scorecards, else
@@ -22361,7 +22456,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             companyName={companyName}
             logoUrl={companyLogoUrl}
             defaultSignatory={profile?.full_name || profile?.name || ""}
-            team={(interviewers || []).filter((iv) => iv.email)}
+            team={approverPool}
             onManageTeam={() => { setShowOffer(false); navigate("interviewers"); }}
             resubmit={resubmitData}
             onClose={() => { setShowOffer(false); setResubmitData(null); }}
@@ -23009,11 +23104,9 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
   const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name}] internal sign-off
   const hasApprovers = approvers.some((a) => a.email.trim());
-  // Only decision-makers approve offers: the owner and hiring managers (admins),
-  // not interviewers. They approve straight from the email — no account needed.
-  const roleWord = (role) => ({ owner: "Owner", admin: "Hiring Manager" }[String(role || "").toLowerCase()] || "");
-  const canApprove = (role) => ["owner", "admin"].includes(String(role || "").toLowerCase());
-  const eligibleTeam = (team || []).filter((m) => m.email && canApprove(m.role));
+  // Approvers come from the company's confirmed approvers list (no accounts).
+  // Anyone confirmed who isn't already added can be picked.
+  const eligibleTeam = (team || []).filter((m) => m.email);
   const availableApprovers = eligibleTeam.filter((m) => !approvers.some((a) => (a.email || "").toLowerCase() === m.email.toLowerCase()));
   // Send mode: 'compose' (Aster builds the letter from terms) or 'upload' (HR
   // brings their own finished PDF and places one candidate signature box).
@@ -23268,11 +23361,11 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               </div>
             )}
             {eligibleTeam.length === 0 ? (
-              // No one who can approve yet: point back to add hiring managers.
+              // No confirmed approvers yet: point to the Approvers list to add some.
               <div className="rounded-xl border border-dashed px-4 py-4 text-center" style={{ borderColor: "var(--line-strong)" }}>
-                <p className="text-xs mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>No teammates can approve offers yet. Add a hiring manager to route offers for sign-off.</p>
+                <p className="text-xs mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>No approvers yet. Add approvers (they confirm by email, no account) to route offers for sign-off.</p>
                 <button type="button" onClick={() => onManageTeam && onManageTeam()} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-                  <Icon name="userPlus" className="w-4 h-4" /> Add team members
+                  <Icon name="userPlus" className="w-4 h-4" /> Add approvers
                 </button>
               </div>
             ) : availableApprovers.length > 0 ? (
@@ -23281,13 +23374,13 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 onChange={(e) => { const m = eligibleTeam.find((t) => t.id === e.target.value); if (m) setApprovers((l) => [...l, { id: m.id, email: m.email, name: m.name }]); }}
                 className={inputClass}
               >
-                <option value="" disabled>+ Add approver from your team…</option>
-                {availableApprovers.map((m) => <option key={m.id} value={m.id}>{m.name}{roleWord(m.role) ? ` · ${roleWord(m.role)}` : ""}</option>)}
+                <option value="" disabled>+ Add an approver…</option>
+                {availableApprovers.map((m) => <option key={m.id} value={m.id}>{m.name}{m.name !== m.email ? ` · ${m.email}` : ""}</option>)}
               </select>
             ) : (
               <p className="text-xs px-1" style={{ color: "var(--ink-4)" }}>All approvers have been added.</p>
             )}
-            <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver gets an email to review and approve, in order — no login needed. The offer reaches the candidate only after the last approval." : "Add approvers from your team to require sign-off first. They approve straight from the email, no account needed."}</p>
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver gets an email to review and approve, in order — no login needed. The offer reaches the candidate only after the last approval." : "Add approvers to require sign-off first. They approve straight from the email, no account needed."}</p>
           </div>
         )}
 
@@ -24683,7 +24776,7 @@ const PATH_TO_SCREEN = {
   "/schedule": "dashboard", // needs a picked booking -> fall back on refresh
   "/apply": "dashboard",     // needs a picked job -> fall back on refresh
 };
-const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "confirmEmail", "acceptInvite", "bookInterview", "publicOffer", "publicApproval"]);
+const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "confirmEmail", "acceptInvite", "bookInterview", "publicOffer", "publicApproval", "approverConfirm"]);
 
 // Screens that only exist behind a signed-in workspace. A signed-out visitor who
 // deep-links to one of these (W4) must be sent to /login, not shown the app shell
@@ -24699,7 +24792,7 @@ const WORKSPACE_SCREENS = new Set([
 const SUBDOMAIN_ALLOWED_SCREENS = new Set([
   ...WORKSPACE_SCREENS,
   "login", "signup", "forgotPassword", "acceptInvite",
-  "apply", "bookInterview", "publicOffer", "publicApproval",
+  "apply", "bookInterview", "publicOffer", "publicApproval", "approverConfirm",
 ]);
 
 // Each candidate profile has its own deep-linkable URL, /candidates/<id>.
@@ -24778,11 +24871,18 @@ function approvalTokenFromPath(pathname) {
   const m = (pathname || "").match(/^\/approve\/([^/]+)$/);
   return m ? decodeURIComponent(m[1]) : null;
 }
+// Public approver opt-in page: /approver-confirm/<token>, emailed when HR adds
+// someone to the Approvers list. No login: the token is the proof.
+function approverConfirmTokenFromPath(pathname) {
+  const m = (pathname || "").match(/^\/approver-confirm\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 function screenFromPathRaw(pathname) {
   if (applyJobFromPath(pathname)) return "apply";
   if (bookTokenFromPath(pathname)) return "bookInterview";
   if (offerTokenFromPath(pathname)) return "publicOffer";
   if (approvalTokenFromPath(pathname)) return "publicApproval";
+  if (approverConfirmTokenFromPath(pathname)) return "approverConfirm";
   if (candidateIdFromPath(pathname)) return "candidateProfile";
   if (applicantsJobFromPath(pathname)) return "applicants";
   if (productSlugFromPath(pathname) != null) return "product";
@@ -25044,6 +25144,7 @@ function initialHistoryFromUrl() {
   if (screen === "bookInterview") return ["bookInterview"]; // public booking link: standalone
   if (screen === "publicOffer") return ["publicOffer"]; // public offer link: standalone
   if (screen === "publicApproval") return ["publicApproval"]; // public approval link: standalone
+  if (screen === "approverConfirm") return ["approverConfirm"]; // public approver opt-in: standalone
   if (AUTH_SCREENS.has(screen) || screen === "dashboard") return [screen];
   if (screen === "product") return ["landing", "product"]; // public page; Back → landing
   if (screen === "solutions") return ["landing", "solutions"]; // public page; Back → landing
@@ -25632,6 +25733,23 @@ export default function ResumeAIPreview() {
     setPublicApproval((p) => ({ ...p, status: "done", result: action === "approve" ? "approved" : "declined" }));
     return { ok: true };
   };
+
+  // Public approver opt-in: /approver-confirm/<token>. Confirms the approver by
+  // possession of the token (no account), then shows a done card.
+  const [approverConfirm, setApproverConfirm] = useState(null); // { status, data }
+  useEffect(() => {
+    if (screen !== "approverConfirm" || typeof window === "undefined") return;
+    const token = approverConfirmTokenFromPath(window.location.pathname);
+    if (!token || approverConfirm) return;
+    setApproverConfirm({ status: "loading" });
+    (async () => {
+      if (!hasSupabase) { setApproverConfirm({ status: "notfound" }); return; }
+      const { data, error } = await supabase.functions.invoke("approver-confirm", { body: { token } });
+      if (error || !data?.ok) { setApproverConfirm({ status: "notfound" }); return; }
+      setApproverConfirm({ status: "done", data });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
 
   // Central scroll management: forward navigation starts the new screen at the
   // top; Back restores the scroll position of the screen you're returning to.
@@ -26784,6 +26902,37 @@ export default function ResumeAIPreview() {
     );
   }
 
+  if (screen === "approverConfirm") {
+    const a = approverConfirm;
+    const centered = (node) => (
+      <Shell><div className="min-h-dvh flex items-center justify-center px-6" style={{ background: "var(--bg)" }}>{node}</div></Shell>
+    );
+    if (!a || a.status === "loading") {
+      return centered(<div className="w-8 h-8 rounded-full animate-spin" style={{ border: "2px solid var(--line-strong)", borderTopColor: "var(--brand)" }} />);
+    }
+    if (a.status === "notfound" || !a.data) {
+      return centered(
+        <div className="text-center max-w-sm">
+          <h1 className="text-lg font-bold font-display mb-2" style={{ color: "var(--ink)" }}>Link not valid</h1>
+          <p className="text-sm" style={{ color: "var(--ink-2)" }}>This confirmation link isn't valid. It may be out of date, or you were removed from the approvers list.</p>
+        </div>
+      );
+    }
+    const d = a.data;
+    return centered(
+      <div className="w-full max-w-md rounded-2xl bg-white act-shadow p-7 border border-[color:var(--line)] text-center">
+        {d.logoUrl ? <img src={d.logoUrl} alt={d.companyName} className="mx-auto mb-4" style={{ height: 40, maxWidth: 200, objectFit: "contain" }} /> : null}
+        <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "#DCFCE7", color: "#16A34A" }}>
+          <Icon name="check" className="w-6 h-6" />
+        </div>
+        <h1 className="text-xl font-bold font-display mb-1.5" style={{ color: "var(--ink)" }}>You're all set{d.name ? `, ${d.name.split(" ")[0]}` : ""}</h1>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
+          You're confirmed as an approver for <strong>{d.companyName}</strong>. When there's an offer to approve, you'll get an email with a link to approve or decline. No account or password needed, just your email.
+        </p>
+      </div>
+    );
+  }
+
   if (screen === "apply") {
     // Public visit via /apply/<id> (no in-app preview): render the standalone
     // apply page for the fetched job, with no admin chrome.
@@ -27088,7 +27237,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "interviewers" && (
-          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} pendingInvites={pendingInvites} setPendingInvites={setPendingInvites} reloadTeam={reloadTeam} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <InterviewersScreen navigate={navigate} interviewers={interviewers} setInterviewers={setInterviewers} pendingInvites={pendingInvites} setPendingInvites={setPendingInvites} reloadTeam={reloadTeam} defaultProvider={defaultProvider} bookings={bookings} calendarConnected={calendarConnected} plan={effectivePlan} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} companyId={companyId} canPersist={canPersist} />
         )}
         {screen === "candidateProfile" && !activeCandidate && (
           // The candidate isn't in the workspace (just deleted, or a stale deep

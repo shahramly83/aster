@@ -458,6 +458,41 @@ export async function dbSubmitApproval({ offerToken, approvers, message = null, 
   return true;
 }
 
+// ── Offer approvers (0133): a managed list of no-login people who can approve ──
+// offers. Company-scoped by RLS. They confirm once by email, then appear in the
+// offer approver picker.
+
+// List the company's approvers. confirmedOnly=true for the offer picker (only
+// people who've confirmed can be selected); false for the management screen.
+export async function dbListApprovers(companyId, { confirmedOnly = false } = {}) {
+  if (!hasSupabase || !companyId) return [];
+  let q = supabase.from("offer_approvers")
+    .select("id, email, name, status, confirmed_at, created_at")
+    .eq("company_id", companyId);
+  if (confirmedOnly) q = q.eq("status", "confirmed");
+  const { data, error } = await q.order("created_at", { ascending: true });
+  if (error) { if (error.code !== "42P01" && error.code !== "PGRST205") console.error("dbListApprovers", error.message); return []; }
+  return data || [];
+}
+
+// Add an approver (or resend their confirm email). The edge fn inserts/refreshes
+// the row and emails the one-time confirm link. Returns { ok, status, already }.
+export async function dbAddApprover({ email, name = null }) {
+  if (!hasSupabase || !email) return { ok: false, error: "missing email" };
+  const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+  const { data, error } = await supabase.functions.invoke("approver-invite", { body: { email, name, origin } });
+  if (error || data?.error) { console.error("dbAddApprover", data?.error || error?.message); return { ok: false, error: data?.error || error?.message }; }
+  return { ok: true, status: data?.status || "pending", already: !!data?.already };
+}
+
+// Remove an approver from the company's list (RLS company-scoped).
+export async function dbRemoveApprover(id) {
+  if (!hasSupabase || !id) return false;
+  const { error } = await supabase.from("offer_approvers").delete().eq("id", id);
+  if (error) { console.error("dbRemoveApprover", error.message); return false; }
+  return true;
+}
+
 // Close (withdraw) an offer that's in approval: delete it (approvals cascade).
 export async function dbCloseOffer(offerId) {
   if (!hasSupabase || !offerId) return false;
