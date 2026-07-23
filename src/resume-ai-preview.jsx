@@ -20716,7 +20716,7 @@ function deriveInsights(candidate) {
   };
 }
 
-function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName, currentUserId = null, attendees = [], isManager = false, allowSelfScore = false, onSkip = null }) {
+function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName, currentUserId = null, attendees = [], isManager = false, allowSelfScore = false, required = false, onSkip = null }) {
   // Collaborative scorecards are available on every plan (locked matrix).
   const isPaid = planLimits(plan).scorecards;
   const [open, setOpen] = useState(false);
@@ -20908,18 +20908,22 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
           ) : !canSeeAll ? null : (
             /* Interviewer's CTA lives in the empty-state card above; this is the
                manager's self-score / skip row. */
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {required ? (
+                <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-all hover:opacity-95 hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
+                  <Icon name="plus" className="w-4 h-4" /> Add your scorecard
+                </button>
+              ) : (
                 <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl border font-semibold px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
                   <Icon name="plus" className="w-4 h-4" /> Add your scorecard
                   <span className="ml-0.5 text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>Optional</span>
                 </button>
-                {onSkip && (
-                  <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
-                    Skip to decision &rarr;
-                  </button>
-                )}
-              </div>
+              )}
+              {onSkip && (
+                <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                  Skip to decision &rarr;
+                </button>
+              )}
             </div>
           )) : hasMine ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -21187,7 +21191,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // Has THIS interviewer already submitted their scorecard? Gates the Result tab.
   const iScored = (scorecards || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
   const scorecardsUnlocked = scorecardsReleased;
-  const decisionUnlocked = interviewPast && (soloInterview ? (scorecardsSkipped || anyScored) : allScored);
+  // Solo interview (HM interviewed alone, no panel): their own scorecard is the
+  // only one, so it's compulsory — the decision waits on it, no skipping.
+  const decisionUnlocked = interviewPast && (soloInterview ? anyScored : allScored);
   // Which step opens first. If Decision is already unlocked (the panel has scored,
   // or the manager skipped), open straight on Decision so a reload doesn't drop
   // back to Scorecards. Otherwise land on Scorecards after the interview, or
@@ -22020,14 +22026,20 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               <span className="text-[11px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" /> Interview completed · {interviewWhen}</span>
             </div>
             {soloInterview ? (
-              <div className="mb-3 rounded-xl border px-4 py-2.5 flex items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <span className="text-sm inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}>
-                  <Icon name="users" className="w-4 h-4 shrink-0" style={{ color: "var(--ink-3)" }} /> No interviewers on this panel. Add your own scorecard, or skip to the decision.
-                </span>
-                {!decisionUnlocked && (
-                  <button onClick={() => { setScorecardsSkipped(true); setIvStep(3); }} className="shrink-0 text-sm font-medium rounded-lg px-3 py-1.5 border bg-white hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>Skip &rarr;</button>
-                )}
-              </div>
+              anyScored ? (
+                <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "#A7F3D0", background: "#F0FDF4", color: "#166534" }}>
+                  <Icon name="check" className="w-4 h-4 shrink-0" style={{ color: "#16A34A" }} />
+                  <span>Your scorecard is in. You can move to the decision now.</span>
+                </div>
+              ) : (
+                <div className="mb-3 rounded-xl border px-4 py-3 flex items-start gap-2.5" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
+                  <Icon name="lock" className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#B45309" }} />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>Decision locked · your scorecard is required</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#B45309" }}>You interviewed {firstName} yourself, with no other panel, so your scorecard is needed before you can make a decision.</p>
+                  </div>
+                </div>
+              )
             ) : allScored ? (
               <div className="mb-3 rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2" style={{ borderColor: "#A7F3D0", background: "#F0FDF4", color: "#166534" }}>
                 <Icon name="check" className="w-4 h-4 shrink-0" style={{ color: "#16A34A" }} />
@@ -22080,7 +22092,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               attendees={booking?.attendees || []}
               isManager={true}
               allowSelfScore={true}
-              onSkip={(!decisionUnlocked && soloInterview) ? () => { setScorecardsSkipped(true); setIvStep(3); } : null}
+              required={soloInterview}
+              onSkip={null}
             />
           </div>
         )}
