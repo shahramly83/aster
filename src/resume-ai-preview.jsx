@@ -7784,7 +7784,7 @@ function SignaturePad({ onChange }) {
       <canvas ref={canvasRef}
         onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
         onTouchStart={start} onTouchMove={move} onTouchEnd={end}
-        className="w-full rounded-xl bg-white" style={{ height: 120, border: "1px solid var(--line)", cursor: "crosshair", touchAction: "none" }} />
+        className="w-full rounded-xl bg-white" style={{ height: 200, border: "1px solid var(--line)", cursor: "crosshair", touchAction: "none" }} />
       <button type="button" onClick={clear} className="text-xs mt-1.5 hover:opacity-70 transition-opacity" style={{ color: "var(--ink-3)" }}>Clear signature</button>
     </div>
   );
