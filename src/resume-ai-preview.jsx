@@ -20908,15 +20908,19 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
           ) : !canSeeAll ? null : (
             /* Interviewer's CTA lives in the empty-state card above; this is the
                manager's self-score / skip row. */
-            <div className="flex flex-wrap items-center gap-2">
-              <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-all hover:opacity-95 hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
-                <Icon name="plus" className="w-4 h-4" /> Add your scorecard
-              </button>
-              {onSkip && (
-                <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
-                  Skip to decision &rarr;
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl border font-semibold px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                  <Icon name="plus" className="w-4 h-4" /> Add your scorecard
+                  <span className="ml-0.5 text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line)" }}>Optional</span>
                 </button>
-              )}
+                {onSkip && (
+                  <button onClick={onSkip} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }}>
+                    Skip to decision &rarr;
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] mt-2" style={{ color: "var(--ink-3)" }}>The panel's scorecards are enough to decide. Add your own take only if you want to.</p>
             </div>
           )) : hasMine ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -22233,23 +22237,38 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-neutral-600 mb-3">
+                  <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
                     {anyScored
-                      ? `The interview was scored. Move ${firstName} to the next step.`
+                      ? `The panel has scored. Choose how to move ${firstName} forward.`
                       : scorecardsSkipped
-                        ? `You skipped scorecards for this interview. Move ${firstName} to the next step, or add one in step 2.`
-                        : `No scorecards have been submitted for this interview. Collect them in step 2, or decide without them.`}
+                        ? `You skipped scorecards for this interview. You can still decide, or add one in step 2.`
+                        : `No scorecards submitted yet. Collect them in step 2, or decide without them.`}
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => (!anyScored && !scorecardsSkipped ? setPendingDecision("offer") : setShowOffer(true))} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity">
-                      Make an offer →
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {/* Offer: the prominent, brand-accented path. */}
+                    <button onClick={() => (!anyScored && !scorecardsSkipped ? setPendingDecision("offer") : setShowOffer(true))} className="group relative overflow-hidden rounded-2xl p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_20px_44px_-22px_rgba(var(--brand-rgb),0.75)]" style={{ background: "linear-gradient(135deg, var(--brand-soft), #ffffff 78%)", border: "1px solid #CBD8F5" }}>
+                      <div className="flex items-center gap-3">
+                        <span className="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0" style={{ boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" }}><Icon name="offer" className="w-5 h-5" /></span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Make an offer</p>
+                          <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>Send {firstName} an offer to hire.</p>
+                        </div>
+                        <Icon name="arrowUpRight" className="w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" style={{ color: "var(--brand)" }} />
+                      </div>
                     </button>
-                    <button onClick={() => setConfirmReject(true)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-rose-50" style={{ borderColor: "var(--line-strong)", color: "#B42318" }}>
-                      Reject
+                    {/* Reject: quieter, danger-accented. */}
+                    <button onClick={() => setConfirmReject(true)} className="group rounded-2xl p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_20px_44px_-24px_rgba(220,38,38,0.5)]" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                      <div className="flex items-center gap-3">
+                        <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#FEF2F2", color: "#DC2626" }}><Icon name="close" className="w-5 h-5" /></span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Not a fit</p>
+                          <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>Reject and close out.</p>
+                        </div>
+                      </div>
                     </button>
                   </div>
-                  <p className="text-[11px] mt-3" style={{ color: "var(--ink-3)" }}>
-                    Current stage: <span className="font-medium">{stage === "interviewing" ? "Interview" : stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
+                  <p className="text-[11px] mt-3.5" style={{ color: "var(--ink-3)" }}>
+                    Current stage: <span className="font-medium" style={{ color: "var(--ink-2)" }}>{stage === "interviewing" ? "Interview" : stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
                   </p>
                 </>
               )}
