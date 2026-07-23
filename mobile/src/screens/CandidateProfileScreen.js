@@ -650,8 +650,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
               </LinearGradient>
               <View style={styles.ivHappenBody}>
                 <Pressable onPress={() => switchTab("feedback")} style={styles.ivHappenPrimary}>
-                  <Feather name={myCard ? "edit-3" : "plus"} size={16} color="#fff" />
-                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>{myCard ? "Edit my scorecard" : "Add my scorecard"}</Text>
+                  <Feather name={myCard ? "eye" : "plus"} size={16} color="#fff" />
+                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>{myCard ? "View scorecards" : "Add my scorecard"}</Text>
                 </Pressable>
               </View>
             </View>
@@ -939,10 +939,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
               <View style={[styles.ivStatusCard, { borderColor: st.bd, marginTop: space(5) }]}>
                 <View style={[styles.ivStatusIcon, { borderColor: st.bd }]}><Feather name={st.icon} size={20} color={st.fg} /></View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
-                    <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]}>{st.title}</Text>
-                    <View style={[styles.ivStatusChip, { backgroundColor: st.chipBg, borderColor: st.bd }]}><Text style={[styles.ivStatusChipTxt, { color: st.chipFg }]}>{st.label.toUpperCase()}</Text></View>
-                  </View>
+                  <View style={[styles.ivStatusChip, { backgroundColor: st.chipBg, borderColor: st.bd }]}><Text style={[styles.ivStatusChipTxt, { color: st.chipFg }]}>{st.label.toUpperCase()}</Text></View>
+                  <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15, marginTop: 6 }]}>{st.title}</Text>
                   <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{st.sub}</Text>
                 </View>
               </View>
@@ -1041,7 +1039,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   );
                 })}
                 {canScore ? (
-                  <Button title={myCard ? "Edit my scorecard" : "Add my scorecard"} icon="edit-3" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={{ marginTop: space(3) }} />
+                  {!myCard ? (
+                    <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
+                  ) : null}
                 ) : null}
               </>
             )}
@@ -1281,7 +1281,7 @@ const styles = StyleSheet.create({
   dlStatus: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   ivStatusCard: { flexDirection: "row", alignItems: "flex-start", borderRadius: radius.lg, borderWidth: 1, backgroundColor: theme.card, padding: space(4) },
   ivStatusIcon: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, backgroundColor: theme.card, alignItems: "center", justifyContent: "center" },
-  ivStatusChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8 },
+  ivStatusChip: { alignSelf: "flex-start", borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
   ivStatusChipTxt: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
   raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
   raterDot: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
