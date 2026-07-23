@@ -22408,7 +22408,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           return (
             <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "var(--line)" }}>
               {/* Compact outcome header (no big empty hero). */}
-              <div className="px-5 py-4 flex items-start gap-3.5 border-b" style={{ borderColor: "var(--line)", background: `linear-gradient(135deg, ${tone.soft}, #ffffff 80%)` }}>
+              <div className="px-5 py-4 flex items-center gap-3.5 border-b" style={{ borderColor: "var(--line)", background: `linear-gradient(135deg, ${tone.soft}, #ffffff 80%)` }}>
                 <span className={`shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center text-white ${tone.grad === "brand" ? "brand-gradient" : ""}`} style={tone.grad === "brand" ? { boxShadow: "0 10px 22px -10px rgba(var(--brand-rgb),0.85)" } : { background: tone.grad, boxShadow: `0 10px 22px -12px ${tone.solid}` }}><Icon name={hero.icon} className="w-5 h-5" /></span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">

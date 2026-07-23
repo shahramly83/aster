@@ -1348,7 +1348,7 @@ const styles = StyleSheet.create({
   decisionReject: { flexDirection: "row", alignItems: "center", borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, padding: space(3.5), marginTop: space(2.5) },
   decisionRejectIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "#FEF2F2", alignItems: "center", justifyContent: "center" },
   resultCard: { borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, overflow: "hidden" },
-  resultHead: { flexDirection: "row", alignItems: "flex-start", padding: space(4), borderBottomWidth: 1, borderBottomColor: theme.line },
+  resultHead: { flexDirection: "row", alignItems: "center", padding: space(4), borderBottomWidth: 1, borderBottomColor: theme.line },
   resultMedallion: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   resultChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8, backgroundColor: theme.card },
   resultChipTxt: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
