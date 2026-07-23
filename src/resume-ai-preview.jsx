@@ -23192,7 +23192,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           <div className="mb-4 rounded-xl border p-4 sm:p-5 bg-white max-h-[360px] overflow-y-auto" style={{ borderColor: "var(--line)" }}>
             <div className="text-[13px]" style={{ color: "#33373c", lineHeight: 1.7 }}>
               {logoUrl
-                ? <img src={logoUrl} alt={companyName || "Company"} style={{ height: 48, maxWidth: 230, objectFit: "contain", display: "block" }} />
+                ? <img src={logoUrl} alt={companyName || "Company"} style={{ height: 34, maxWidth: 190, objectFit: "contain", display: "block" }} />
                 : <div className="font-bold text-[15px]" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</div>}
               <div className="text-right text-xs mt-3 mb-4" style={{ color: "var(--ink-3)" }}>{new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}</div>
               <p className="mb-3">Dear {(candidateName || "there").split(" ")[0]},</p>

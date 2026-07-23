@@ -260,8 +260,8 @@ async function buildSignedPdf(model: LetterModel, opts: {
   if (opts.logo) {
     try {
       const img = opts.logo.mime.includes("png") ? await doc.embedPng(opts.logo.bytes) : await doc.embedJpg(opts.logo.bytes);
-      logoH = 48;
-      const w = Math.min((img.width / img.height) * logoH, 230);
+      logoH = 34;
+      const w = Math.min((img.width / img.height) * logoH, 190);
       page.drawImage(img, { x: M, y: headTop - logoH, width: w, height: logoH });
     } catch { page.drawText(model.companyName, { x: M, y: headTop - 20, size: 18, font: bold, color: ink }); logoH = 26; }
   } else {

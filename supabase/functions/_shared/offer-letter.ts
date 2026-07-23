@@ -94,7 +94,7 @@ export function buildLetterModel(o: OfferRow, m: { companyName: string; candidat
 // `logo` is a URL or data URI (or null).
 export function letterHtml(model: LetterModel, logo: string | null): string {
   const brand = logo
-    ? `<img src="${logo}" alt="${esc(model.companyName)}" style="height:48px;max-width:230px;object-fit:contain;display:block;">`
+    ? `<img src="${logo}" alt="${esc(model.companyName)}" style="height:34px;max-width:190px;object-fit:contain;display:block;">`
     : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#1f2328;letter-spacing:-0.01em;">${esc(model.companyName)}</div>`;
   // Render each block; a "HEADING\ntext" block shows the heading in bold caps.
   const renderBlock = (p: string): string => {
