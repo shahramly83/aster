@@ -68,6 +68,25 @@ function slotRange(startIso, endIso) {
   return `${date} · ${_hm(startIso)}${same ? "" : ` ${_ap(startIso)}`}–${_hm(endIso)} ${_ap(endIso)}`;
 }
 
+// The "current" hiring-journey step: a solid dot with a pulsing halo behind it,
+// matching the web's animate-ping ring.
+function PulseDot({ color }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(anim, { toValue: 1, duration: 1500, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] });
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
+  return (
+    <View style={{ width: 9, height: 9, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={{ position: "absolute", width: 9, height: 9, borderRadius: 5, backgroundColor: color, transform: [{ scale }], opacity }} />
+      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: color }} />
+    </View>
+  );
+}
+
 export default function CandidateProfileScreen({ route, navigation }) {
   const { profile, manager } = useAuth();
   const insets = useSafeAreaInsets();
@@ -104,6 +123,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [insightCapped, setInsightCapped] = useState(false); // out of credits
   const tabInit = useRef(false); // only auto-pick the default tab once, so a manual switch sticks
   const tabAnim = useRef(new Animated.Value(1)).current; // fade + slide when switching tabs
+  const segScrollRef = useRef(null); // so the active tab is scrolled into view (Result sits off the right edge)
 
   const load = useCallback(async () => {
     const [c, sc, iv, off, meta, qs] = await Promise.all([
@@ -165,6 +185,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
     tabAnim.setValue(0);
     Animated.timing(tabAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
   };
+
+  // Keep the active tab within view: Result is the last pill and can sit past
+  // the right edge, so reveal it (and snap back to the start for Profile).
+  useEffect(() => {
+    if (loading || !segScrollRef.current) return;
+    if (tab === "result") segScrollRef.current.scrollToEnd({ animated: true });
+    else if (tab === "profile") segScrollRef.current.scrollTo({ x: 0, animated: true });
+  }, [tab, loading]);
 
   const nameOf = () => candidate?.name || candidateName || "Candidate";
 
@@ -374,7 +402,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
             {/* Interview page sub-tabs: split the dense stack into Profile /
                 Interview / Feedback so only one section shows at a time. */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segbar}>
+            <ScrollView ref={segScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segbar}>
               {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecards"], ...(!manager && myCard ? [["result", "Result"]] : [])].map(([k, lbl]) => {
                 const on = tab === k;
                 // The two tabs unlock on different things, and conflating them
@@ -1097,7 +1125,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     <View key={i} style={{ flexDirection: "row", alignItems: "flex-start" }}>
                       <View style={{ alignItems: "center", width: 28 }}>
                         <View style={[styles.stepDot, s.state === "done" ? { backgroundColor: theme.success } : s.state === "current" ? { backgroundColor: tone.soft, borderWidth: 2, borderColor: tone.solid } : { backgroundColor: theme.bg, borderWidth: 2, borderColor: theme.line }]}>
-                          {s.state === "done" ? <Feather name="check" size={13} color="#fff" /> : s.state === "current" ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: tone.solid }} /> : null}
+                          {s.state === "done" ? <Feather name="check" size={13} color="#fff" /> : s.state === "current" ? <PulseDot color={tone.solid} /> : null}
                         </View>
                         {i < steps.length - 1 ? <View style={{ width: 2, height: 26, backgroundColor: s.state === "done" ? theme.success : theme.line, marginTop: 2 }} /> : null}
                       </View>
