@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, TextInput, Linking, Modal, StyleSheet, Alert, Pressable, ActivityIndicator, Keyboard, Platform, Animated } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
 import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, runExperienceInsights, releaseScorecards } from "../lib/data";
@@ -936,24 +937,41 @@ export default function CandidateProfileScreen({ route, navigation }) {
           ) : (manager && stage === "interviewing" && interviewDone && requiredRaters.length > 0 && !allRated) ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Decision</SectionHeader>
-              <View style={styles.decisionLock}>
-                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-                  <View style={styles.lockCircle}><Feather name="lock" size={16} color="#B45309" /></View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={[type.smallStrong, { color: "#92400E" }]}>Decision locked. Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} interviewer{requiredRaters.length === 1 ? "" : "s"}</Text>
-                    <Text style={[type.small, { color: "#B45309", marginTop: 4 }]}>Every interviewer has to submit their scorecard before you can make a decision. Your own scorecard is optional.</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-                      {requiredRaters.map((p) => {
-                        const done = ratedIds.has(p.id);
-                        return (
-                          <View key={p.id} style={[styles.raterChip, { borderColor: done ? "#A7F3D0" : "#FDE68A", backgroundColor: done ? "#F0FDF4" : "#fff" }]}>
-                            <View style={[styles.raterDot, { backgroundColor: done ? "#16A34A" : "#F59E0B" }]}><Feather name={done ? "check" : "clock"} size={9} color="#fff" /></View>
-                            <Text style={[type.small, { color: done ? "#166534" : "#92400E", fontFamily: "Inter_500Medium" }]}>{p.name || "Interviewer"}</Text>
-                          </View>
-                        );
-                      })}
+              <View style={styles.dlCard}>
+                <LinearGradient colors={["#FFFBEB", theme.card]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.dlHead}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {/* Progress ring: scored / total, at a glance. */}
+                    <View style={{ width: 56, height: 56, alignItems: "center", justifyContent: "center" }}>
+                      <Svg width={56} height={56} style={{ position: "absolute", transform: [{ rotate: "-90deg" }] }}>
+                        <Circle cx={28} cy={28} r={24} stroke={theme.line} strokeWidth={4} fill="none" />
+                        <Circle cx={28} cy={28} r={24} stroke="#F59E0B" strokeWidth={4} fill="none" strokeLinecap="round" strokeDasharray={`${(ratedRequired / Math.max(1, requiredRaters.length)) * 150.8} 150.8`} />
+                      </Svg>
+                      <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: theme.ink, fontVariant: ["tabular-nums"] }}>{ratedRequired}/{requiredRaters.length}</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 14 }}>
+                      <View style={styles.dlChip}>
+                        <Feather name="lock" size={10} color="#92400E" />
+                        <Text style={styles.dlChipTxt}>DECISION LOCKED</Text>
+                      </View>
+                      <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 5, fontSize: 16 }]}>Waiting on {requiredRaters.length - ratedRequired} of {requiredRaters.length} to score</Text>
+                      <Text style={[type.small, { color: theme.ink3, marginTop: 3, lineHeight: 18 }]}>Every interviewer submits their scorecard before you decide. Your own is optional.</Text>
                     </View>
                   </View>
+                </LinearGradient>
+                <View style={styles.dlRoster}>
+                  {requiredRaters.map((p) => {
+                    const done = ratedIds.has(p.id);
+                    return (
+                      <View key={p.id} style={[styles.dlRow, { borderColor: done ? "#A7F3D0" : theme.line, backgroundColor: done ? "#F0FDF4" : theme.card }]}>
+                        <Avatar name={p.name || "Interviewer"} size={32} />
+                        <Text style={[type.smallStrong, { color: theme.ink, flex: 1, marginLeft: 10 }]} numberOfLines={1}>{p.name || "Interviewer"}</Text>
+                        <View style={[styles.dlStatus, { backgroundColor: done ? "#16A34A" : "#FEF3C7" }]}>
+                          <Feather name={done ? "check" : "clock"} size={10} color={done ? "#fff" : "#92400E"} />
+                          <Text style={[type.small, { marginLeft: 4, fontFamily: "Inter_600SemiBold", color: done ? "#fff" : "#92400E" }]}>{done ? "Scored" : "Pending"}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             </View>
@@ -1230,6 +1248,13 @@ const styles = StyleSheet.create({
   segItemOn: { backgroundColor: theme.brand },
   decisionLock: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.md, padding: 14 },
   lockCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center" },
+  dlCard: { borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, overflow: "hidden" },
+  dlHead: { padding: space(4) },
+  dlChip: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
+  dlChipTxt: { fontSize: 9, fontWeight: "800", letterSpacing: 0.6, color: "#92400E", marginLeft: 4 },
+  dlRoster: { paddingHorizontal: space(3), paddingBottom: space(3), paddingTop: space(1), gap: 8 },
+  dlRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 11, paddingVertical: 9 },
+  dlStatus: { flexDirection: "row", alignItems: "center", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
   raterDot: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
