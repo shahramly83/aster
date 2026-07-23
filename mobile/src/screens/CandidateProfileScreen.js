@@ -958,31 +958,47 @@ export default function CandidateProfileScreen({ route, navigation }) {
           <View style={{ marginTop: space(5) }}>
             <SectionHeader>{requiredRaters.length ? `Panel feedback · ${ratedRequired}/${requiredRaters.length}` : "Panel feedback"}</SectionHeader>
             {cards.length === 0 ? (
-              <Card><Text style={[type.small, { color: theme.ink3 }]}>No scorecards yet. Add yours after the interview.</Text></Card>
+              canScore ? (
+                <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.scoreEmpty}>
+                  <View style={styles.scoreEmptyMedallion}><Feather name="edit-3" size={26} color="#fff" /></View>
+                  <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 18, marginTop: space(3), textAlign: "center" }]}>Add your scorecard</Text>
+                  <Text style={[type.small, { color: theme.ink3, marginTop: 5, textAlign: "center", lineHeight: 19 }]}>Rate {name.split(" ")[0]} on each area from 1 to 4. Your ratings stay hidden until you submit, so everyone scores independently.</Text>
+                  <View style={styles.scoreChips}>
+                    {["Technical skills", "Communication", "Culture fit", "Experience"].map((c) => (
+                      <View key={c} style={styles.scoreChip}><Text style={styles.scoreChipTxt}>{c}</Text></View>
+                    ))}
+                  </View>
+                  <Button title="Start scoring" icon="plus" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={{ marginTop: space(4), alignSelf: "stretch" }} />
+                </LinearGradient>
+              ) : (
+                <Card><Text style={[type.small, { color: theme.ink3 }]}>No scorecards yet. Each interviewer's rating collects here once they submit.</Text></Card>
+              )
             ) : (
-              cards.map((c) => {
-                const meta = recommendationMeta(c.recommendation);
-                return (
-                  <Card key={c.id} style={{ marginBottom: space(2.5), flexDirection: "row", alignItems: "flex-start" }}>
-                    <View style={[styles.recScore, { backgroundColor: meta.bg }]}>
-                      <Text style={{ color: meta.color, fontFamily: "Inter_700Bold", fontSize: 15, fontVariant: ["tabular-nums"] }}>{averageRating(c.ratings).toFixed(1)}</Text>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                        <Text style={[type.smallStrong, { color: theme.ink, flex: 1 }]} numberOfLines={1}>
-                          {c.interviewerId === profile.userId ? "You" : (c.interviewerName || "Panel member")}
-                        </Text>
-                        <Text style={[type.small, { color: meta.color, marginLeft: 8 }]}>{meta.label}</Text>
+              <>
+                {cards.map((c) => {
+                  const meta = recommendationMeta(c.recommendation);
+                  return (
+                    <Card key={c.id} style={{ marginBottom: space(2.5), flexDirection: "row", alignItems: "flex-start" }}>
+                      <View style={[styles.recScore, { backgroundColor: meta.bg }]}>
+                        <Text style={{ color: meta.color, fontFamily: "Inter_700Bold", fontSize: 15, fontVariant: ["tabular-nums"] }}>{averageRating(c.ratings).toFixed(1)}</Text>
                       </View>
-                      {c.notes ? <Text style={[type.small, { color: theme.ink2, marginTop: 3 }]} numberOfLines={4}>{c.notes}</Text> : <Text style={[type.small, { color: theme.ink4, marginTop: 3 }]}>No notes</Text>}
-                    </View>
-                  </Card>
-                );
-              })
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                          <Text style={[type.smallStrong, { color: theme.ink, flex: 1 }]} numberOfLines={1}>
+                            {c.interviewerId === profile.userId ? "You" : (c.interviewerName || "Panel member")}
+                          </Text>
+                          <Text style={[type.small, { color: meta.color, marginLeft: 8 }]}>{meta.label}</Text>
+                        </View>
+                        {c.notes ? <Text style={[type.small, { color: theme.ink2, marginTop: 3 }]} numberOfLines={4}>{c.notes}</Text> : <Text style={[type.small, { color: theme.ink4, marginTop: 3 }]}>No notes</Text>}
+                      </View>
+                    </Card>
+                  );
+                })}
+                {canScore ? (
+                  <Button title={myCard ? "Edit my scorecard" : "Add my scorecard"} icon="edit-3" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={{ marginTop: space(3) }} />
+                ) : null}
+              </>
             )}
-            {canScore ? (
-              <Button title={myCard ? "Edit my scorecard" : "Add my scorecard"} icon="edit-3" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: myCard })} style={{ marginTop: space(3) }} />
-            ) : null}
           </View>
           ) : null}
 
@@ -1251,6 +1267,11 @@ const styles = StyleSheet.create({
   ivWaitMedallion: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center" },
   ivWaitChip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: "#FDE68A", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   ivWaitChipTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, color: "#B45309", marginLeft: 4 },
+  scoreEmpty: { borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, alignItems: "center", paddingVertical: space(6), paddingHorizontal: space(5), overflow: "hidden" },
+  scoreEmptyMedallion: { width: 62, height: 62, borderRadius: 20, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center", shadowColor: theme.brand, shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
+  scoreChips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: space(3.5) },
+  scoreChip: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5, margin: 3 },
+  scoreChipTxt: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: theme.ink2 },
   stageActions: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2, gap: 10 },
   actions: { flexDirection: "row", gap: 10, justifyContent: "center" },
   exploreToggle: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, borderWidth: 1, borderColor: theme.line, paddingHorizontal: space(4), paddingVertical: space(3.5), marginTop: space(5), ...shadow.sm },
