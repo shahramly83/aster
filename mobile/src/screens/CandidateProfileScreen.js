@@ -1087,10 +1087,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 <View style={[styles.resultHead, { backgroundColor: tone.soft }]}>
                   <View style={[styles.resultMedallion, { backgroundColor: tone.solid }]}><Feather name={hero.icon} size={20} color="#fff" /></View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
-                      <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 16 }]}>{hero.title}</Text>
-                      <View style={[styles.resultChip, { borderColor: tone.solid + "55" }]}><Text style={[styles.resultChipTxt, { color: tone.solid }]}>{hero.label.toUpperCase()}</Text></View>
-                    </View>
+                    <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 16 }]}>{hero.title}</Text>
+                    <View style={[styles.resultChip, { borderColor: tone.solid + "55", marginLeft: 0, alignSelf: "flex-start", marginTop: 5 }]}><Text style={[styles.resultChipTxt, { color: tone.solid }]}>{hero.label.toUpperCase()}</Text></View>
                   </View>
                 </View>
                 <View style={{ padding: space(4) }}>
@@ -1111,13 +1109,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     </View>
                   ))}
                 </View>
-                <Pressable onPress={() => switchTab("feedback")} style={styles.resultFooter}>
-                  <Text style={[type.small, { color: theme.ink3 }]}>Panel ratings & team average</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text style={[type.smallStrong, { color: theme.brand }]}>View scorecards</Text>
-                    <Feather name="chevron-right" size={16} color={theme.brand} style={{ marginLeft: 2 }} />
-                  </View>
-                </Pressable>
               </View>
             );
           })() : null}

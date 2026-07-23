@@ -22436,13 +22436,6 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   ))}
                 </ol>
               </div>
-              {/* Footer link to the ratings */}
-              <div className="px-6 py-4 border-t flex items-center justify-between gap-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <p className="text-xs" style={{ color: "var(--ink-3)" }}>Panel ratings &amp; team average</p>
-                <button type="button" onClick={() => setProfileTab("scorecards")} className="inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
-                  <Icon name="scorecard" className="w-4 h-4" /> View scorecards <Icon name="chevronRight" className="w-3.5 h-3.5" />
-                </button>
-              </div>
             </div>
           );
         })()}
