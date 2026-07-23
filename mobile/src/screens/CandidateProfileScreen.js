@@ -950,11 +950,22 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {showDecision ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Decision</SectionHeader>
-              <Card>
-                <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>The panel has finished scoring. Make the call.</Text>
-                <Button title="Make offer" icon="file-text" variant="success" onPress={() => setOfferOpen(true)} />
-                <Button title="Decline candidate" icon="x" variant="danger" onPress={reject} style={{ marginTop: space(2.5) }} />
-              </Card>
+              <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>The panel has finished scoring. Choose how to move {name.split(" ")[0]} forward.</Text>
+              <Pressable onPress={() => setOfferOpen(true)} style={styles.decisionOffer}>
+                <View style={styles.decisionOfferIcon}><Feather name="file-text" size={20} color="#fff" /></View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]}>Make an offer</Text>
+                  <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Send {name.split(" ")[0]} an offer to hire.</Text>
+                </View>
+                <Feather name="arrow-up-right" size={18} color={theme.brand} />
+              </Pressable>
+              <Pressable onPress={reject} style={styles.decisionReject}>
+                <View style={styles.decisionRejectIcon}><Feather name="x" size={20} color="#DC2626" /></View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 15 }]}>Not a fit</Text>
+                  <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Reject and close out.</Text>
+                </View>
+              </Pressable>
             </View>
           ) : (manager && stage === "interviewing" && interviewDone && requiredRaters.length > 0 && !allRated) ? (
             <View style={{ marginTop: space(5) }}>
@@ -1281,6 +1292,10 @@ const styles = StyleSheet.create({
   ivStatusIcon: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, backgroundColor: theme.card, alignItems: "center", justifyContent: "center" },
   ivStatusChip: { alignSelf: "flex-start", borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
   ivStatusChipTxt: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
+  decisionOffer: { flexDirection: "row", alignItems: "center", borderRadius: radius.lg, borderWidth: 1, borderColor: "#CBD8F5", backgroundColor: theme.brandSoft, padding: space(3.5) },
+  decisionOfferIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center", shadowColor: theme.brand, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  decisionReject: { flexDirection: "row", alignItems: "center", borderRadius: radius.lg, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, padding: space(3.5), marginTop: space(2.5) },
+  decisionRejectIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "#FEF2F2", alignItems: "center", justifyContent: "center" },
   raterChip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 10, paddingVertical: 3 },
   raterDot: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   ivIcon: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
