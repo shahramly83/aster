@@ -984,18 +984,26 @@ export async function loadOfferApprovals(offerId) {
   return data || [];
 }
 
-// Confirmed offer approvers (0133): the no-login people who can be picked as
-// approvers on an offer. Mobile is pick-only; approvers are added/confirmed on
-// the web app. RLS scopes to the caller's company.
-export async function loadApprovers(companyId) {
+// Offer approvers (0133): the no-login people who approve offers. Confirmed ones
+// can be picked on an offer; pending ones are awaiting their email confirmation.
+// RLS scopes to the caller's company.
+export async function loadApprovers(companyId, { confirmedOnly = false } = {}) {
   if (!companyId) return [];
-  const { data, error } = await supabase
-    .from("offer_approvers")
-    .select("id, email, name, status")
-    .eq("company_id", companyId).eq("status", "confirmed")
-    .order("created_at", { ascending: true });
+  let q = supabase.from("offer_approvers").select("id, email, name, status").eq("company_id", companyId);
+  if (confirmedOnly) q = q.eq("status", "confirmed");
+  const { data, error } = await q.order("created_at", { ascending: true });
   if (error) { if (error.code !== "42P01" && error.code !== "PGRST205") console.warn("loadApprovers", error.message); return []; }
-  return (data || []).map((a) => ({ id: a.id, email: a.email, name: a.name || a.email }));
+  return (data || []).map((a) => ({ id: a.id, email: a.email, name: a.name || a.email, status: a.status }));
+}
+
+// Add an approver (or resend their confirm email) from mobile. Invokes the same
+// approver-invite edge fn as web; the person confirms via the emailed link (the
+// link points at the web app). Returns { ok, status, already }.
+export async function addApprover({ email, name = null }) {
+  if (!email) return { ok: false, error: "missing email" };
+  const { data, error } = await supabase.functions.invoke("approver-invite", { body: { email, name, origin: OFFER_ORIGIN } });
+  if (error || data?.error) { console.warn("addApprover", data?.error || error?.message); return { ok: false, error: data?.error || error?.message }; }
+  return { ok: true, status: data?.status || "pending", already: !!data?.already };
 }
 
 // Insert the offer row with its terms (mirrors dbCreateOffer, camelCase terms →
