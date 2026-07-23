@@ -8,7 +8,7 @@ import { sendEmail, companyShell, button } from "./email.ts";
 type Admin = any;
 
 export const OFFER_COLS =
-  "id, company_id, candidate_id, status, approval_status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, signatory_name, signatory_title, reporting_to, work_location, created_at, token";
+  "id, company_id, candidate_id, status, approval_status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, signatory_name, signatory_title, reporting_to, work_location, created_at, token, offer_mode, source_pdf_path, sign_field";
 
 export type LetterContext = {
   model: LetterModel;
@@ -57,7 +57,12 @@ export async function emailApprover(
   const ctx = await loadLetterContext(admin, offer);
   const link = `${base}/approve/${approval.token}`;
   const stepLine = total > 1 ? `<p style="margin:0 0 8px;color:#6b6b7b;font-size:13px;">Approval ${approval.step} of ${total}.</p>` : "";
-  const letter = `<div style="border:1px solid #ECE7F5;border-radius:12px;padding:20px 22px;margin:14px 0 4px;background:#fff;">${letterHtml(ctx.model, ctx.logoUrl)}</div>`;
+  // Upload mode has no composed letter — the offer is HR's own PDF, which the
+  // approver opens on the review page. Avoid embedding a blank letter here.
+  const isUpload = offer.offer_mode === "upload";
+  const letter = isUpload
+    ? `<div style="border:1px solid #ECE7F5;border-radius:12px;padding:16px 18px;margin:14px 0 4px;background:#fff;color:#4b4b57;font-size:13px;">This offer uses your company's own letter (PDF). Open the review page to read and approve it.</div>`
+    : `<div style="border:1px solid #ECE7F5;border-radius:12px;padding:20px 22px;margin:14px 0 4px;background:#fff;">${letterHtml(ctx.model, ctx.logoUrl)}</div>`;
   const html = companyShell({
     companyName: ctx.companyName, logoUrl: ctx.logoUrl,
     heading: "Offer approval requested",

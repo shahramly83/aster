@@ -54,8 +54,17 @@ Deno.serve(async (req) => {
     const ctx = await loadLetterContext(admin, offer);
 
     if (action === "view") {
+      // Upload mode: hand back a short-lived URL to HR's PDF instead of the
+      // (empty) composed letter, so the approver reviews the real document.
+      const isUpload = offer.offer_mode === "upload";
+      let pdfUrl: string | null = null;
+      if (isUpload && offer.source_pdf_path) {
+        const { data: signed } = await admin.storage.from("offer-letters").createSignedUrl(offer.source_pdf_path as string, 600);
+        pdfUrl = signed?.signedUrl || null;
+      }
       return json({
-        ok: true, html: letterHtml(ctx.model, ctx.logoUrl),
+        ok: true, mode: isUpload ? "upload" : "compose",
+        html: isUpload ? null : letterHtml(ctx.model, ctx.logoUrl), pdfUrl, signField: offer.sign_field || null,
         companyName: ctx.companyName, candidateName: ctx.candidateName, jobTitle: ctx.jobTitle,
         approverName: appr.approver_name, step: appr.step, total,
         status: appr.status, reason: appr.reason, offerApprovalStatus: offer.approval_status,

@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -7815,7 +7815,9 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
     (async () => {
       const { data: r } = await supabase.functions.invoke("aster-sign", { body: { token, action: "view" } });
       if (!alive || !r?.ok) return;
-      setLetter({ html: r.html, candidateName: r.candidateName });
+      // Upload mode returns the source PDF URL + placed signature box; compose
+      // mode returns the rendered letter HTML.
+      setLetter({ html: r.html || null, candidateName: r.candidateName, mode: r.mode || "compose", pdfUrl: r.pdfUrl || null, signField: r.signField || null });
       setTypedName((n) => n || (r.candidateName && r.candidateName !== "there" ? r.candidateName : ""));
     })();
     return () => { alive = false; };
@@ -7872,12 +7874,19 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>You've received an offer</h1>
             <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>{company} has offered you the <strong>{jobTitle}</strong> role. Review the letter, then sign to accept.</p>
 
-            {/* The branded offer letter (server-rendered, so it matches the signed PDF). */}
-            <div className="mb-5 rounded-xl border overflow-y-auto p-4 sm:p-5" style={{ borderColor: "var(--line)", maxHeight: 320, background: "#fff" }}>
-              {letter
-                ? <div dangerouslySetInnerHTML={{ __html: letter.html }} />
-                : <div className="py-8 text-center text-sm" style={{ color: "var(--ink-3)" }}>Loading your offer letter…</div>}
-            </div>
+            {/* The offer letter. Compose mode is server-rendered HTML (matches the
+                signed PDF); upload mode renders HR's PDF with the sign box shown. */}
+            {letter && letter.mode === "upload" ? (
+              <div className="mb-5">
+                <OfferSignPlacement url={letter.pdfUrl} field={letter.signField} readOnly />
+              </div>
+            ) : (
+              <div className="mb-5 rounded-xl border overflow-y-auto p-4 sm:p-5" style={{ borderColor: "var(--line)", maxHeight: 320, background: "#fff" }}>
+                {letter
+                  ? <div dangerouslySetInnerHTML={{ __html: letter.html }} />
+                  : <div className="py-8 text-center text-sm" style={{ color: "var(--ink-3)" }}>Loading your offer letter…</div>}
+              </div>
+            )}
 
             {/* Signature capture: type or draw. */}
             <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Your signature</p>
@@ -7986,9 +7995,15 @@ function ApprovalScreen({ data, done, result, onAct }) {
             <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--brand)", letterSpacing: "0.06em" }}>{company}{data?.total > 1 ? ` · Approval ${data.step} of ${data.total}` : ""}</p>
             <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer approval</h1>
             <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>Please review the offer for <strong>{candidate}</strong> ({jobTitle}), then approve or decline.</p>
-            <div className="mb-5 rounded-xl border overflow-y-auto p-4 sm:p-5" style={{ borderColor: "var(--line)", maxHeight: 340, background: "#fff" }}>
-              {data?.html ? <div dangerouslySetInnerHTML={{ __html: data.html }} /> : <p className="text-sm" style={{ color: "var(--ink-3)" }}>Loading…</p>}
-            </div>
+            {data?.mode === "upload" ? (
+              <div className="mb-5">
+                <OfferSignPlacement url={data.pdfUrl} field={data.signField} readOnly />
+              </div>
+            ) : (
+              <div className="mb-5 rounded-xl border overflow-y-auto p-4 sm:p-5" style={{ borderColor: "var(--line)", maxHeight: 340, background: "#fff" }}>
+                {data?.html ? <div dangerouslySetInnerHTML={{ __html: data.html }} /> : <p className="text-sm" style={{ color: "var(--ink-3)" }}>Loading…</p>}
+              </div>
+            )}
             {mode === "decline" ? (
               <div>
                 <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--ink-2)" }}>Reason for declining</label>
@@ -22810,6 +22825,145 @@ const EMPLOYMENT_TYPES = [
   { key: "internship", label: "Internship" },
 ];
 
+// Upload-mode signature placement: render the HR-uploaded PDF with pdf.js and let
+// them drop a single "Candidate signs here" box. Emits the box as coordinates
+// normalized 0..1 to the page (top-left origin), which the aster-sign edge fn
+// converts to pdf-lib's bottom-left space when it stamps the signature. pdf.js is
+// dynamically imported so it never lands in the main bundle.
+function OfferSignPlacement({ file, url, field, onField, readOnly = false }) {
+  const wrapRef = useRef(null);
+  const pageObjsRef = useRef([]);       // pdf.js page proxies, rendered in pass 2
+  const canvasRefs = useRef([]);
+  const dragRef = useRef(null);         // { mode:'move'|'resize', page, startX, startY, orig }
+  const [pages, setPages] = useState([]); // [{ w, h }] rendered pixel size per page
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Pass 1: load the document, measure each page at container width.
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError(null); setPages([]);
+    (async () => {
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+        const buf = file ? await file.arrayBuffer() : await (await fetch(url)).arrayBuffer();
+        const doc = await pdfjs.getDocument({ data: buf }).promise;
+        const containerW = Math.min(wrapRef.current?.clientWidth || 520, 620);
+        const sizes = [];
+        pageObjsRef.current = [];
+        for (let i = 1; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i);
+          if (cancelled) return;
+          const base = page.getViewport({ scale: 1 });
+          const scale = containerW / base.width;
+          const vp = page.getViewport({ scale });
+          pageObjsRef.current[i - 1] = { page, scale };
+          sizes.push({ w: Math.round(vp.width), h: Math.round(vp.height) });
+        }
+        if (!cancelled) setPages(sizes);
+      } catch (e) {
+        if (!cancelled) setError("This PDF can't be opened. It may be password-protected or damaged.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [file, url]);
+
+  // Pass 2: paint each page into its now-mounted canvas.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (let i = 0; i < pages.length; i++) {
+        const entry = pageObjsRef.current[i];
+        const canvas = canvasRefs.current[i];
+        if (!entry || !canvas) continue;
+        const vp = entry.page.getViewport({ scale: entry.scale });
+        canvas.width = vp.width; canvas.height = vp.height;
+        try { await entry.page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise; } catch { /* re-render race */ }
+        if (cancelled) return;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pages]);
+
+  const DEFAULT_W = 0.30, DEFAULT_H = 0.085;
+  const placeAt = (pageIdx, clientX, clientY) => {
+    const el = wrapRef.current?.querySelector(`[data-page="${pageIdx}"]`);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    let x = (clientX - r.left) / r.width - DEFAULT_W / 2;
+    let y = (clientY - r.top) / r.height - DEFAULT_H / 2;
+    x = Math.max(0, Math.min(1 - DEFAULT_W, x));
+    y = Math.max(0, Math.min(1 - DEFAULT_H, y));
+    onField({ page: pageIdx, x, y, w: DEFAULT_W, h: DEFAULT_H, origin: "top-left" });
+  };
+
+  const onPageClick = (pageIdx, e) => {
+    if (readOnly) return;
+    if (field && field.page === pageIdx) return; // clicking the same page keeps the box; drag to move
+    placeAt(pageIdx, e.clientX, e.clientY);
+  };
+
+  const startDrag = (mode, e) => {
+    if (readOnly) return;
+    e.stopPropagation(); e.preventDefault();
+    dragRef.current = { mode, page: field.page, startX: e.clientX, startY: e.clientY, orig: { ...field } };
+    const move = (ev) => {
+      const d = dragRef.current; if (!d) return;
+      const el = wrapRef.current?.querySelector(`[data-page="${d.page}"]`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const dx = (ev.clientX - d.startX) / r.width;
+      const dy = (ev.clientY - d.startY) / r.height;
+      if (d.mode === "move") {
+        const x = Math.max(0, Math.min(1 - d.orig.w, d.orig.x + dx));
+        const y = Math.max(0, Math.min(1 - d.orig.h, d.orig.y + dy));
+        onField({ ...d.orig, x, y });
+      } else {
+        const w = Math.max(0.08, Math.min(1 - d.orig.x, d.orig.w + dx));
+        const h = Math.max(0.04, Math.min(1 - d.orig.y, d.orig.h + dy));
+        onField({ ...d.orig, w, h });
+      }
+    };
+    const up = () => { dragRef.current = null; window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  return (
+    <div>
+      <div ref={wrapRef} className="rounded-xl border overflow-y-auto bg-[color:var(--bg)]" style={{ borderColor: "var(--line)", maxHeight: 420 }}>
+        {loading && <div className="py-16 text-center text-sm" style={{ color: "var(--ink-3)" }}>Loading letter…</div>}
+        {error && <div className="py-16 px-6 text-center text-sm text-red-600">{error}</div>}
+        <div className="p-3 space-y-3">
+          {pages.map((p, i) => (
+            <div key={i} data-page={i} onClick={(e) => onPageClick(i, e)} className={`relative mx-auto shadow-sm ${readOnly ? "" : "cursor-crosshair"}`} style={{ width: p.w, height: p.h, background: "#fff" }}>
+              <canvas ref={(el) => (canvasRefs.current[i] = el)} className="block w-full h-full" />
+              {field && field.page === i && (
+                <div
+                  onPointerDown={readOnly ? undefined : (e) => startDrag("move", e)}
+                  className={`absolute flex items-center justify-center rounded-md select-none ${readOnly ? "" : "cursor-move"}`}
+                  style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.w * 100}%`, height: `${field.h * 100}%`, border: "2px dashed var(--brand)", background: "rgba(var(--brand-rgb),0.12)" }}
+                >
+                  <span className="text-[10px] font-semibold px-1 text-center leading-tight pointer-events-none" style={{ color: "var(--brand)" }}>{readOnly ? "Sign here" : "Candidate signs here"}</span>
+                  {!readOnly && <span onPointerDown={(e) => startDrag("resize", e)} className="absolute -right-1.5 -bottom-1.5 w-3.5 h-3.5 rounded-full cursor-nwse-resize" style={{ background: "var(--brand)", border: "2px solid #fff" }} />}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      {!loading && !error && !readOnly && (
+        <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>
+          {field ? "Drag the box to reposition, or the corner to resize. The candidate signs exactly here; the date is stamped beside it." : "Click on the letter where the candidate should sign."}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", defaultSignatory = "", resubmit = null, onClose, onSend }) {
   // Resubmit after a decline: pre-fill the letter, terms and approvers from the
   // declined offer so the hiring manager can revise before sending it round again.
@@ -22828,6 +22982,20 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
   const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name}] internal sign-off
   const hasApprovers = approvers.some((a) => a.email.trim());
+  // Send mode: 'compose' (Aster builds the letter from terms) or 'upload' (HR
+  // brings their own finished PDF and places one candidate signature box).
+  const [mode, setMode] = useState("compose");
+  const [pdfFile, setPdfFile] = useState(null);
+  const [signField, setSignField] = useState(null);   // { page, x, y, w, h, origin }
+  const [uploadErr, setUploadErr] = useState(null);
+  const pickPdf = (e) => {
+    const f = e.target.files?.[0];
+    if (e.target) e.target.value = "";  // allow re-picking the same file
+    if (!f) return;
+    if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name)) { setUploadErr("Please choose a PDF file."); return; }
+    if (f.size > 10 * 1024 * 1024) { setUploadErr("That PDF is over 10 MB. Please upload a smaller file."); return; }
+    setUploadErr(null); setSignField(null); setPdfFile(f);
+  };
 
   // The default letter body, composed from the terms (mirrors the server). It
   // stays in sync as HR fills in the terms, until they edit the letter by hand.
@@ -22877,6 +23045,14 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   // offer with no salary or start date should never reach an approver or candidate.
   const [err, setErr] = useState({});
   const handleSend = (emailSent) => {
+    const appr = approvers.filter((a) => a.email.trim());
+    if (mode === "upload") {
+      if (!pdfFile) { setUploadErr("Upload your offer letter PDF first."); return; }
+      if (!signField) { setUploadErr("Place the box where the candidate should sign."); return; }
+      setSending(true);
+      setTimeout(() => onSend(emailSent, null, null, appr, { file: pdfFile, signField }), emailSent ? 900 : 0);
+      return;
+    }
     const e = {};
     if (!title.trim()) e.title = "Add the job title.";
     if (salary.trim() === "") e.salary = "Add the base salary.";
@@ -22884,7 +23060,6 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     setErr(e);
     if (Object.keys(e).length) { setLetterView("write"); return; }
     setSending(true);
-    const appr = approvers.filter((a) => a.email.trim());
     setTimeout(() => onSend(emailSent, terms, body, appr), emailSent ? 900 : 0);
   };
 
@@ -22916,6 +23091,22 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           </div>
         )}
 
+        {/* Mode toggle: compose in Aster, or upload your own letter PDF. */}
+        {!resubmit && (
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            {[["compose", "Compose in Aster", "Build the letter from terms"], ["upload", "Upload our letter", "Send your own PDF letter"]].map(([k, t, d]) => (
+              <button key={k} type="button" onClick={() => setMode(k)} className="text-left rounded-xl border px-3.5 py-2.5 transition-all" style={mode === k ? { borderColor: "var(--brand)", background: "var(--brand-soft)", boxShadow: "0 0 0 1px var(--brand)" } : { borderColor: "var(--line)", background: "#fff" }}>
+                <div className="flex items-center gap-1.5">
+                  <Icon name={k === "upload" ? "upload" : "offer"} className="w-3.5 h-3.5" style={{ color: mode === k ? "var(--brand)" : "var(--ink-3)" }} />
+                  <span className="text-[13px] font-semibold" style={{ color: mode === k ? "var(--brand)" : "var(--ink)" }}>{t}</span>
+                </div>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-3)" }}>{d}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === "compose" ? (<>
         {/* Structured offer terms */}
         <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
           <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Offer terms</p>
@@ -22995,6 +23186,31 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
               <p className="mt-2 font-bold" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</p>
             </div>
           </div>
+        )}
+        </>) : (
+        /* Upload mode: bring your own letter PDF, place the candidate signature box. */
+        <div className="mb-4">
+          {!pdfFile ? (
+            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-10 px-4 cursor-pointer transition-colors hover:bg-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)" }}>
+              <span className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="upload" className="w-5 h-5" /></span>
+              <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Upload your offer letter</span>
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>PDF with your letterhead and company signature. Up to 10 MB.</span>
+              <input type="file" accept="application/pdf" className="hidden" onChange={pickPdf} />
+            </label>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 mb-3 rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <Icon name="offer" className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />
+                <span className="text-xs font-medium truncate flex-1" style={{ color: "var(--ink-2)" }}>{pdfFile.name}</span>
+                <label className="text-xs font-semibold cursor-pointer hover:opacity-70 transition-opacity shrink-0" style={{ color: "var(--brand)" }}>
+                  Replace<input type="file" accept="application/pdf" className="hidden" onChange={pickPdf} />
+                </label>
+              </div>
+              <OfferSignPlacement file={pdfFile} field={signField} onField={setSignField} />
+            </>
+          )}
+          {uploadErr && <p className="text-xs text-red-500 mt-2">{uploadErr}</p>}
+        </div>
         )}
 
         {/* Approvals: ordered internal sign-off before the offer reaches the candidate. */}
@@ -26202,17 +26418,25 @@ export default function ResumeAIPreview() {
   };
 
   // Offer response loop: an offer is 'sent' to the candidate, who then 'accepted'
-  const sendOffer = (candidateId, emailSent, terms = null, message = null, approvers = []) => {
+  const sendOffer = (candidateId, emailSent, terms = null, message = null, approvers = [], upload = null) => {
     const valid = (approvers || []).filter((a) => a?.email && a.email.includes("@"));
     const needsApproval = valid.length > 0;
-    setOffers((prev) => ({ ...prev, [candidateId]: { status: needsApproval ? "pending_approval" : "sent", emailSent, sentAt: "just now", terms } }));
+    // Upload mode carries no structured terms — the PDF is the offer.
+    const isUpload = !!(upload && upload.file);
+    setOffers((prev) => ({ ...prev, [candidateId]: { status: needsApproval ? "pending_approval" : "sent", emailSent, sentAt: "just now", terms: isUpload ? null : terms, mode: isUpload ? "upload" : "compose" } }));
     setCandidateStage(candidateId, "offer", { notify: false });
-    // Record the offer + terms. With approvers, submit for sequential sign-off (the
-    // candidate is emailed only after the last approval). Otherwise send it straight
-    // to the candidate for signature via Aster Sign. No email on file → record only.
+    // Record the offer. Upload mode: create the row, attach HR's PDF + signature
+    // box, then send. Compose mode: record terms. With approvers, submit for
+    // sequential sign-off (candidate emailed only after the last approval);
+    // otherwise send straight to the candidate for signature via Aster Sign.
     if (canPersist) {
-      dbCreateOffer(companyId, { candidateId, terms }).then((token) => {
+      dbCreateOffer(companyId, { candidateId, terms: isUpload ? null : terms }).then(async (offer) => {
+        const token = offer?.token;
         if (!token) return;
+        if (isUpload) {
+          const ok = await dbAttachOfferPdf({ companyId, offerId: offer.id, file: upload.file, signField: upload.signField });
+          if (!ok) return; // don't email a link to an offer with no letter attached
+        }
         if (needsApproval) {
           dbSubmitApproval({ offerToken: token, approvers: valid, message });
         } else if (emailSent) {

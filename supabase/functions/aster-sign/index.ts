@@ -16,7 +16,7 @@
 //
 // Secrets: RESEND_API_KEY (emails). Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts, rgb, degrees } from "https://esm.sh/pdf-lib@1.17.1";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs as emailParagraphs } from "../_shared/email.ts";
 import { pushToCompanyAdmins } from "../_shared/push.ts";
 import { buildLetterModel, letterHtml, type LetterModel, type OfferRow } from "../_shared/offer-letter.ts";
@@ -60,6 +60,154 @@ async function fetchLogoBytes(url: string | null): Promise<{ bytes: Uint8Array; 
     if (!res.ok) return null;
     return { bytes: new Uint8Array(await res.arrayBuffer()), mime: res.headers.get("content-type") || "image/png" };
   } catch { return null; }
+}
+
+// Wrap text to a max width, hard-breaking a token wider than the column.
+function wrapToWidth(text: string, f: { widthOfTextAtSize(s: string, n: number): number }, size: number, mw: number): string[] {
+  const lines: string[] = [];
+  let cur = "";
+  for (let w of String(text).split(/\s+/).filter(Boolean)) {
+    while (f.widthOfTextAtSize(w, size) > mw && w.length > 1) {
+      let i = 1;
+      while (i < w.length && f.widthOfTextAtSize(w.slice(0, i + 1), size) <= mw) i++;
+      if (cur) { lines.push(cur); cur = ""; }
+      lines.push(w.slice(0, i)); w = w.slice(i);
+    }
+    const t = cur ? `${cur} ${w}` : w;
+    if (f.widthOfTextAtSize(t, size) > mw && cur) { lines.push(cur); cur = w; }
+    else cur = t;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [""];
+}
+
+// The Certificate of Completion page — the audit trail. Shared by both the
+// composed-letter PDF and the uploaded-letter PDF so the certificate is
+// identical whichever mode the offer was sent in.
+// deno-lint-ignore no-explicit-any
+async function appendCertificatePage(doc: any, opts: {
+  documentTitle: string; offerId: string; signerName: string; signerEmail: string;
+  signatureType: "typed" | "drawn"; signedAtIso: string; ip: string; ua: string; docHash: string;
+}) {
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const ink = rgb(0.12, 0.14, 0.16);
+  const gray = rgb(0.6, 0.6, 0.63);
+  const line = rgb(0.9, 0.9, 0.92);
+  const W = 595.28, H = 841.89, M = 58;
+
+  const cert = doc.addPage([W, H]);
+  let cy = H - M;
+  cert.drawText("Certificate of Completion", { x: M, y: cy, size: 18, font: bold, color: ink }); cy -= 12;
+  cert.drawText("Aster Sign — electronic signature record", { x: M, y: cy, size: 10, font, color: gray }); cy -= 28;
+  cert.drawLine({ start: { x: M, y: cy }, end: { x: W - M, y: cy }, thickness: 0.5, color: line }); cy -= 22;
+
+  const uaShort = opts.ua.length > 90 ? opts.ua.slice(0, 90) + "…" : opts.ua;
+  const rows: [string, string][] = [
+    ["Document", opts.documentTitle],
+    ["Offer reference", opts.offerId],
+    ["Signer", opts.signerName],
+    ["Signer email", opts.signerEmail],
+    ["Signature method", opts.signatureType === "drawn" ? "Drawn signature" : "Typed signature"],
+    ["Consent to sign electronically", "Yes, captured at signing"],
+    ["Signed at (UTC)", new Date(opts.signedAtIso).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")],
+    ["Signer IP address", opts.ip || "not available"],
+    ["Signer device", uaShort || "not available"],
+    ["Document hash (SHA-256)", opts.docHash],
+  ];
+  const valX = M + 200;
+  const valMaxW = W - M - valX;
+  for (const [k, v] of rows) {
+    cert.drawText(k.toUpperCase(), { x: M, y: cy, size: 8, font: bold, color: gray });
+    const vlines = wrapToWidth(v, font, 10, valMaxW);
+    let vy = cy;
+    for (const ln of vlines) { cert.drawText(ln, { x: valX, y: vy, size: 10, font, color: ink }); vy -= 13; }
+    cy -= Math.max(22, vlines.length * 13 + 9);
+  }
+  cy -= 8;
+  cert.drawLine({ start: { x: M, y: cy }, end: { x: W - M, y: cy }, thickness: 0.5, color: line }); cy -= 20;
+  const legal = "This document was signed electronically using Aster Sign. The signer confirmed their intent to sign and consented to conduct business electronically. This record, together with the signer identity (verified by possession of a unique emailed link), timestamp, IP address and document hash above, evidences a valid electronic signature under the Malaysia Electronic Commerce Act 2006, the US ESIGN Act / UETA and EU eIDAS (simple electronic signature).";
+  for (const ln of wrapToWidth(legal, font, 8.5, W - M * 2)) { cert.drawText(ln, { x: M, y: cy, size: 8.5, font, color: gray }); cy -= 12; }
+}
+
+// Upload mode: stamp the candidate signature + date onto HR's own PDF at the
+// placed box, then append the certificate. signField is normalized 0..1 to the
+// page as the candidate saw it (top-left origin); we map it into pdf-lib's
+// bottom-left page space and counter-rotate the content for rotated pages.
+async function stampUploadedPdf(sourceBytes: Uint8Array, signField: {
+  page: number; x: number; y: number; w: number; h: number;
+}, opts: {
+  signatureType: "typed" | "drawn"; signedName: string; drawn: { bytes: Uint8Array; mime: string } | null;
+  documentTitle: string; offerId: string; signerEmail: string; signedAtIso: string; ip: string; ua: string; docHash: string;
+}): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(sourceBytes);
+  const helv = await doc.embedFont(StandardFonts.Helvetica);
+  const italic = await doc.embedFont(StandardFonts.TimesRomanItalic);
+  const ink = rgb(0.12, 0.14, 0.16);
+
+  const pages = doc.getPages();
+  const idx = Math.max(0, Math.min(pages.length - 1, Math.floor(signField.page ?? 0)));
+  const page = pages[idx];
+  const pw = page.getWidth(), ph = page.getHeight();
+  const R = (((page.getRotation()?.angle ?? 0) % 360) + 360) % 360;
+  const dispW = (R === 90 || R === 270) ? ph : pw;
+  const dispH = (R === 90 || R === 270) ? pw : ph;
+  const th = (-R * Math.PI) / 180;
+  const cos = Math.cos(th), sin = Math.sin(th);
+  // display-normalized (top-left) → unrotated page-normalized (top-left)
+  const dispToPageNorm = (u: number, v: number): [number, number] => {
+    switch (R) {
+      case 90: return [v, 1 - u];
+      case 180: return [1 - u, 1 - v];
+      case 270: return [1 - v, u];
+      default: return [u, v];
+    }
+  };
+  const toPage = (u: number, v: number): [number, number] => {
+    const [up, vp] = dispToPageNorm(u, v);
+    return [up * pw, ph * (1 - vp)];
+  };
+  // Bottom-left draw anchor for content of (w,h) centered in the box, given the
+  // content is rotated by th about that anchor: anchor = C - Rot(th)·(w/2, h/2).
+  const anchorFor = (Cx: number, Cy: number, w: number, h: number): [number, number] => [
+    Cx - (w / 2 * cos - h / 2 * sin),
+    Cy - (w / 2 * sin + h / 2 * cos),
+  ];
+
+  const [Cx, Cy] = toPage(signField.x + signField.w / 2, signField.y + signField.h / 2);
+  const boxW = signField.w * dispW, boxH = signField.h * dispH;
+
+  let drew = false;
+  if (opts.signatureType === "drawn" && opts.drawn) {
+    try {
+      const img = opts.drawn.mime.includes("png") ? await doc.embedPng(opts.drawn.bytes) : await doc.embedJpg(opts.drawn.bytes);
+      const ar = img.width / img.height;
+      let w = boxW, h = w / ar;
+      if (h > boxH) { h = boxH; w = h * ar; }
+      const [ax, ay] = anchorFor(Cx, Cy, w, h);
+      page.drawImage(img, { x: ax, y: ay, width: w, height: h, rotate: degrees(-R) });
+      drew = true;
+    } catch { /* fall through to a typed name */ }
+  }
+  if (!drew) {
+    const size = Math.min(boxH * 0.75, 26);
+    const w = Math.min(italic.widthOfTextAtSize(opts.signedName, size), boxW);
+    const [ax, ay] = anchorFor(Cx, Cy, w, size);
+    page.drawText(opts.signedName, { x: ax, y: ay, size, font: italic, color: ink, rotate: degrees(-R) });
+  }
+
+  // Date, just below the box (display space), left-aligned with it.
+  const dstr = new Date(opts.signedAtIso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  const dsize = Math.max(8, Math.min(boxH * 0.5, 11));
+  const [dx, dy] = toPage(signField.x, Math.min(1, signField.y + signField.h + 0.012));
+  page.drawText(dstr, { x: dx, y: dy, size: dsize, font: helv, color: ink, rotate: degrees(-R) });
+
+  await appendCertificatePage(doc, {
+    documentTitle: opts.documentTitle, offerId: opts.offerId, signerName: opts.signedName,
+    signerEmail: opts.signerEmail, signatureType: opts.signatureType, signedAtIso: opts.signedAtIso,
+    ip: opts.ip, ua: opts.ua, docHash: opts.docHash,
+  });
+  return await doc.save();
 }
 
 // ── PDF: the signed offer letter + a certificate-of-completion page ──────────
@@ -194,39 +342,12 @@ async function buildSignedPdf(model: LetterModel, opts: {
     firstPage.drawText(foot, { x: W - M - font.widthOfTextAtSize(foot, 9), y: 38, size: 9, font, color: gray });
   }
 
-  // ── Certificate of completion page ─────────────────────────────────────────
-  const cert = doc.addPage([W, H]);
-  let cy = H - M;
-  cert.drawText("Certificate of Completion", { x: M, y: cy, size: 18, font: bold, color: ink }); cy -= 12;
-  cert.drawText("Aster Sign — electronic signature record", { x: M, y: cy, size: 10, font, color: gray }); cy -= 28;
-  cert.drawLine({ start: { x: M, y: cy }, end: { x: W - M, y: cy }, thickness: 0.5, color: line }); cy -= 22;
-
-  const uaShort = opts.ua.length > 90 ? opts.ua.slice(0, 90) + "…" : opts.ua;
-  const rows: [string, string][] = [
-    ["Document", `Offer Letter — ${model.jobTitle}`],
-    ["Offer reference", opts.offerId],
-    ["Signer", model.candidateName],
-    ["Signer email", opts.signerEmail],
-    ["Signature method", opts.signatureType === "drawn" ? "Drawn signature" : "Typed signature"],
-    ["Consent to sign electronically", "Yes, captured at signing"],
-    ["Signed at (UTC)", new Date(opts.signedAtIso).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")],
-    ["Signer IP address", opts.ip || "not available"],
-    ["Signer device", uaShort || "not available"],
-    ["Document hash (SHA-256)", opts.docHash],
-  ];
-  const valX = M + 200;
-  const valMaxW = W - M - valX;   // value column width, so long values wrap in-column
-  for (const [k, v] of rows) {
-    cert.drawText(k.toUpperCase(), { x: M, y: cy, size: 8, font: bold, color: gray });
-    const vlines = wrapW(v, font, 10, valMaxW);
-    let vy = cy;
-    for (const ln of vlines) { cert.drawText(ln, { x: valX, y: vy, size: 10, font, color: ink }); vy -= 13; }
-    cy -= Math.max(22, vlines.length * 13 + 9);
-  }
-  cy -= 8;
-  cert.drawLine({ start: { x: M, y: cy }, end: { x: W - M, y: cy }, thickness: 0.5, color: line }); cy -= 20;
-  const legal = "This document was signed electronically using Aster Sign. The signer confirmed their intent to sign and consented to conduct business electronically. This record, together with the signer identity (verified by possession of a unique emailed link), timestamp, IP address and document hash above, evidences a valid electronic signature under the Malaysia Electronic Commerce Act 2006, the US ESIGN Act / UETA and EU eIDAS (simple electronic signature).";
-  for (const ln of wrap(legal, font, 8.5)) { cert.drawText(ln, { x: M, y: cy, size: 8.5, font, color: gray }); cy -= 12; }
+  // ── Certificate of completion page (shared with upload mode) ────────────────
+  await appendCertificatePage(doc, {
+    documentTitle: `Offer Letter — ${model.jobTitle}`, offerId: opts.offerId, signerName: model.candidateName,
+    signerEmail: opts.signerEmail, signatureType: opts.signatureType, signedAtIso: opts.signedAtIso,
+    ip: opts.ip, ua: opts.ua, docHash: opts.docHash,
+  });
 
   return await doc.save();
 }
@@ -243,7 +364,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: offer } = await admin.from("offers")
-      .select("id, company_id, candidate_id, status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, signatory_name, signatory_title, reporting_to, work_location, created_at")
+      .select("id, company_id, candidate_id, status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, signatory_name, signatory_title, reporting_to, work_location, created_at, offer_mode, source_pdf_path, sign_field")
       .eq("token", token).maybeSingle();
     if (!offer) return json({ error: "not_found" }, 404);
 
@@ -266,19 +387,36 @@ Deno.serve(async (req) => {
       [comp?.address_state, comp?.address_postcode].filter(Boolean).join(" "), comp?.address_country,
     ].filter(Boolean).join(", ");
     const dateStr = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" }).format(new Date(offer.created_at || Date.now()));
-    const model = buildLetterModel(offer as OfferRow, { companyName, candidateName, jobTitle, addressLine, dateStr });
+    const isUpload = offer.offer_mode === "upload";
+    // Compose mode builds a letter model; upload mode has no structured letter.
+    const model = isUpload ? null : buildLetterModel(offer as OfferRow, { companyName, candidateName, jobTitle, addressLine, dateStr });
 
-    // ── VIEW: mark delivered, return the letter for display ──────────────────
-    if (action === "view") {
+    // Mark the offer delivered/viewed (both modes).
+    const markViewed = async () => {
       if (offer.status === "sent" && offer.esign_status !== "completed") {
         const patch: Record<string, unknown> = { esign_provider: "aster", esign_status: "delivered" };
         if (!offer.esign_status || offer.esign_status === "sent") patch.viewed_at = new Date().toISOString();
         await admin.from("offers").update(patch).eq("id", offer.id);
       }
+    };
+
+    // ── VIEW: mark delivered, return the letter (compose) or the PDF (upload) ──
+    if (action === "view") {
+      await markViewed();
+      if (isUpload) {
+        // Hand the candidate page a short-lived URL to HR's uploaded PDF plus the
+        // placed signature box; the page renders it with pdf.js.
+        let pdfUrl: string | null = null;
+        if (offer.source_pdf_path) {
+          const { data: signed } = await admin.storage.from("offer-letters").createSignedUrl(offer.source_pdf_path, 600);
+          pdfUrl = signed?.signedUrl || null;
+        }
+        return json({ ok: true, mode: "upload", pdfUrl, signField: offer.sign_field || null, candidateName, companyName, jobTitle });
+      }
       // The browser loads the logo URL directly, so no data URI is needed here
       // (and building one by spreading the byte array overflows the call stack on
       // large logos). The PDF path embeds the logo bytes separately.
-      return json({ ok: true, html: letterHtml(model, comp?.logo_url || null), candidateName, companyName, jobTitle });
+      return json({ ok: true, mode: "compose", html: letterHtml(model!, comp?.logo_url || null), candidateName, companyName, jobTitle });
     }
 
     // ── SIGN: validate, build PDF, store, settle, notify ─────────────────────
@@ -293,13 +431,30 @@ Deno.serve(async (req) => {
     const signedAtIso = new Date().toISOString();
     const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || req.headers.get("cf-connecting-ip") || "";
     const ua = req.headers.get("user-agent") || "";
-    const docHash = await sha256Hex(JSON.stringify({ companyName, jobTitle, subject: model.subject, paragraphs: model.paragraphs, signatory: [model.signatoryName, model.signatoryTitle], signedName, signedAtIso }));
 
-    const logo = await fetchLogoBytes(comp?.logo_url || null);
-    const pdf = await buildSignedPdf(model, {
-      logo, signatureType, signedName: signedName || candidateName, drawn,
-      offerId: offer.id, signerEmail: cand?.email || "not available", signedAtIso, ip, ua, docHash,
-    });
+    let pdf: Uint8Array;
+    let docHash: string;
+    if (isUpload) {
+      // Stamp the candidate signature onto HR's own PDF at the placed box.
+      if (!offer.source_pdf_path || !offer.sign_field) return json({ error: "offer_incomplete" }, 400);
+      const dl = await admin.storage.from("offer-letters").download(offer.source_pdf_path);
+      if (dl.error || !dl.data) { console.error("source pdf download failed", dl.error?.message); return json({ error: "storage_failed" }, 500); }
+      const sourceBytes = new Uint8Array(await dl.data.arrayBuffer());
+      // Hash the source PDF bytes — stronger evidence than a letter-model hash.
+      docHash = await sha256Hex(bytesToBase64(sourceBytes));
+      pdf = await stampUploadedPdf(sourceBytes, offer.sign_field as { page: number; x: number; y: number; w: number; h: number }, {
+        signatureType, signedName: signedName || candidateName, drawn,
+        documentTitle: `Offer Letter — ${jobTitle}`, offerId: offer.id,
+        signerEmail: cand?.email || "not available", signedAtIso, ip, ua, docHash,
+      });
+    } else {
+      docHash = await sha256Hex(JSON.stringify({ companyName, jobTitle, subject: model!.subject, paragraphs: model!.paragraphs, signatory: [model!.signatoryName, model!.signatoryTitle], signedName, signedAtIso }));
+      const logo = await fetchLogoBytes(comp?.logo_url || null);
+      pdf = await buildSignedPdf(model!, {
+        logo, signatureType, signedName: signedName || candidateName, drawn,
+        offerId: offer.id, signerEmail: cand?.email || "not available", signedAtIso, ip, ua, docHash,
+      });
+    }
 
     const path = `${offer.company_id}/${offer.id}.pdf`;
     const up = await admin.storage.from("offer-letters").upload(path, pdf, { contentType: "application/pdf", upsert: true });

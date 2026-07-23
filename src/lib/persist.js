@@ -376,23 +376,41 @@ export async function dbCreateOffer(companyId, { candidateId, jobId = null, term
     if (terms.reportingTo) row.reporting_to = terms.reportingTo;
     if (terms.workLocation) row.work_location = terms.workLocation;
   }
-  let { data, error } = await supabase.from("offers").insert(row).select("token").single();
+  let { data, error } = await supabase.from("offers").insert(row).select("id, token").single();
   // 0103 not applied yet: retry with just the base columns so the offer still sends.
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     ({ data, error } = await supabase
       .from("offers")
       .insert({ company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" })
-      .select("token").single());
+      .select("id, token").single());
   }
   if (error) { console.error("dbCreateOffer", error.message); return null; }
-  return data?.token || null;
+  // Return the row ({ id, token }); the id is needed to name the uploaded source
+  // PDF in upload mode, the token to email the /offer/<token> sign link.
+  return data || null;
+}
+
+// Upload mode: attach HR's own offer PDF to an existing offer row. Stores the
+// source in the private 'offer-letters' bucket at {company}/{offer}-source.pdf
+// (matched by the 0132 RLS policy) and stamps the row with the mode + the placed
+// candidate signature box. Returns true on success.
+export async function dbAttachOfferPdf({ companyId, offerId, file, signField }) {
+  if (!hasSupabase || !companyId || !offerId || !file) return false;
+  const path = `${companyId}/${offerId}-source.pdf`;
+  const up = await supabase.storage.from("offer-letters").upload(path, file, { contentType: "application/pdf", upsert: true });
+  if (up.error) { console.error("dbAttachOfferPdf upload", up.error.message); return false; }
+  const { error } = await supabase.from("offers")
+    .update({ offer_mode: "upload", source_pdf_path: path, sign_field: signField })
+    .eq("id", offerId);
+  if (error) { console.error("dbAttachOfferPdf update", error.message); return false; }
+  return true;
 }
 
 // Latest offer for a candidate (RLS scopes offers to the caller's company), so
 // the candidate profile can show its status + e-sign state after a reload.
 export async function dbGetOffer(companyId, candidateId) {
   if (!hasSupabase || !companyId || !candidateId) return null;
-  const terms = "message, base_salary, salary_currency, employment_type, start_date, offer_job_title";
+  const terms = "message, base_salary, salary_currency, employment_type, start_date, offer_job_title, offer_mode";
   const cols = `id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, ${terms}`;
   let { data, error } = await supabase
     .from("offers")
