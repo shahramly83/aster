@@ -26434,8 +26434,13 @@ export default function ResumeAIPreview() {
         const token = offer?.token;
         if (!token) return;
         if (isUpload) {
-          const ok = await dbAttachOfferPdf({ companyId, offerId: offer.id, file: upload.file, signField: upload.signField });
-          if (!ok) return; // don't email a link to an offer with no letter attached
+          const res = await dbAttachOfferPdf({ companyId, offerId: offer.id, file: upload.file, signField: upload.signField });
+          if (!res.ok) {
+            // Don't email a link to an offer with no letter attached — and make
+            // the failure visible instead of a silent no-op.
+            if (typeof window !== "undefined") window.alert(`Couldn't attach the offer PDF, so the offer was not sent.\n\n${res.error}`);
+            return;
+          }
         }
         if (needsApproval) {
           dbSubmitApproval({ offerToken: token, approvers: valid, message });

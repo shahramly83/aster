@@ -393,17 +393,20 @@ export async function dbCreateOffer(companyId, { candidateId, jobId = null, term
 // Upload mode: attach HR's own offer PDF to an existing offer row. Stores the
 // source in the private 'offer-letters' bucket at {company}/{offer}-source.pdf
 // (matched by the 0132 RLS policy) and stamps the row with the mode + the placed
-// candidate signature box. Returns true on success.
+// candidate signature box. Returns { ok } or { ok:false, error } so the caller
+// can surface a real failure instead of silently dropping the offer.
+// No `upsert`: each offer id writes a fresh path, and upsert would make Storage
+// evaluate an UPDATE policy we don't grant, denying the write.
 export async function dbAttachOfferPdf({ companyId, offerId, file, signField }) {
-  if (!hasSupabase || !companyId || !offerId || !file) return false;
+  if (!hasSupabase || !companyId || !offerId || !file) return { ok: false, error: "missing input" };
   const path = `${companyId}/${offerId}-source.pdf`;
-  const up = await supabase.storage.from("offer-letters").upload(path, file, { contentType: "application/pdf", upsert: true });
-  if (up.error) { console.error("dbAttachOfferPdf upload", up.error.message); return false; }
+  const up = await supabase.storage.from("offer-letters").upload(path, file, { contentType: "application/pdf" });
+  if (up.error) { console.error("dbAttachOfferPdf upload", up.error.message); return { ok: false, error: `upload: ${up.error.message}` }; }
   const { error } = await supabase.from("offers")
     .update({ offer_mode: "upload", source_pdf_path: path, sign_field: signField })
     .eq("id", offerId);
-  if (error) { console.error("dbAttachOfferPdf update", error.message); return false; }
-  return true;
+  if (error) { console.error("dbAttachOfferPdf update", error.message); return { ok: false, error: `save: ${error.message}` }; }
+  return { ok: true };
 }
 
 // Latest offer for a candidate (RLS scopes offers to the caller's company), so
