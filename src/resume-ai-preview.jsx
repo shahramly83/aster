@@ -15233,7 +15233,7 @@ function ApproversSection({ companyId, canPersist }) {
       ) : (
         <span className="inline-flex items-center gap-1 text-[11px] font-semibold shrink-0" style={{ color: "#16A34A" }}><Icon name="check" className="w-3 h-3" />Confirmed</span>
       )}
-      <button onClick={() => remove(r.id)} className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
+      <button onClick={() => { if (typeof window !== "undefined" && window.confirm(`Remove ${r.name || r.email} as an approver? They'll no longer be able to approve offers.`)) remove(r.id); }} className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
     </div>
   );
 
