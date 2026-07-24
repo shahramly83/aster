@@ -814,7 +814,7 @@ export async function runAiRank({ companyId, jobId, job }) {
     industries: Array.isArray(c.parsed?.industries) ? c.parsed.industries : [],
   }));
 
-  const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units } });
+  const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units, perUnit: 10 } });
   if (data?.error === "limit_reached") return { ok: false, reason: "limit", available: Number(data.available) || 0, needed: units };
   if (error || data?.error || !Array.isArray(data?.ranked)) return { ok: false, error: data?.error || error?.message || "rank failed" };
 

@@ -14311,7 +14311,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       }));
       const units = Math.max(1, Math.ceil(payload.length / 50));
       const roleInfo = { title: matchJob.title, description: matchJob.description || "", requirements: matchJob.requirements || [] };
-      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units } });
+      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units, perUnit: 50 } });
       if (data?.error === "limit_reached") { setMatching(false); setBuyAiRankOpen(true); return; }
       if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
       const scores = {}, reasons = {};
@@ -14396,7 +14396,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       }));
       const units = Math.max(1, Math.ceil(payload.length / 50)); // 1 credit / 50 candidates
       const { data, error } = await supabase.functions.invoke("rank-candidates", {
-        body: { skills: skillTags, industries: industryTags, candidates: payload, units },
+        body: { skills: skillTags, industries: industryTags, candidates: payload, units, perUnit: 50 },
       });
       if (data?.error === "limit_reached") { setAiRanking(false); setBuyAiRankOpen(true); return; }
       if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
@@ -24351,7 +24351,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         skills: c.parsed?.skills || [], industries: [...rawIndustriesOf(c)],
       }));
       const roleInfo = { title: job.title, description: job.description || "", requirements: job.requirements || [] };
-      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units } });
+      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units, perUnit: 10 } });
       // Not enough credits for the whole run: offer a partial run or a top-up.
       if (data?.error === "limit_reached") {
         setMatching(false);

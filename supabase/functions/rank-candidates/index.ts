@@ -29,17 +29,19 @@ Deno.serve(async (req) => {
     const { data: { user } } = await admin.auth.getUser(token);
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { skills = [], industries = [], role = null, candidates = [], units: reqUnits } = await req.json();
+    const { skills = [], industries = [], role = null, candidates = [], perUnit: reqPerUnit } = await req.json();
     if (!Array.isArray(candidates) || candidates.length === 0) return json({ ranked: [] });
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY") || Deno.env.get("aster");
     if (!apiKey) return json({ error: "no_api_key" }, 500);
 
-    // AI Rank is priced per N candidates: the client sends how many CREDITS this
-    // run costs (it computed ceil(count/10) on the Applicants board, ceil(count/50)
-    // in Candidate Search). Never trust it to be smaller than the batch implies —
-    // clamp to at least 1 and never more than one credit per candidate.
-    const units = Math.min(candidates.length, Math.max(1, Math.floor(Number(reqUnits) || 1)));
+    // AI Rank is priced per N candidates. Compute the credit count SERVER-SIDE
+    // from the batch size so a caller can't underpay by sending a small `units`.
+    // The client only tells us its pricing tier: 10 candidates/credit on the
+    // Applicants board, 50/credit in Candidate Search. Unknown/absent → the
+    // stricter 10 (never cheaper than the client could legitimately claim).
+    const perUnit = Number(reqPerUnit) === 50 ? 50 : 10;
+    const units = Math.max(1, Math.ceil(candidates.length / perUnit));
 
     // Take the credits before spending money. The browser used to do this after
     // the fact, so calling this function directly was free and unlimited.
@@ -87,6 +89,13 @@ Score each candidate 0-100 for overall fit, weighing: how well their actual skil
     ranked = (ranked as any[])
       .filter((r) => r && allowed.has(r.id))
       .map((r) => ({ id: r.id, score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), reason: stripDashes(r.reason).slice(0, 400) }));
+
+    // Nothing usable came back (empty/garbled model output) — the run produced no
+    // ranking, so hand the credits back rather than charging for a blank result.
+    if ((ranked as any[]).length === 0) {
+      await refundAiRankUnits(paid.companyId, paid.monthlyCharged, paid.purchasedCharged);
+      return json({ ranked: [], used: Math.max(0, (paid.used || 0) - (paid.monthlyCharged || 0)), monthly_limit: paid.limit, resets_at: paid.resetsAt });
+    }
 
     return json({ ranked, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {
