@@ -23325,7 +23325,17 @@ function OfferSignPlacement({ file, url, field, onField, readOnly = false }) {
         }
         if (!cancelled) setPages(sizes);
       } catch (e) {
-        if (!cancelled) setError("This PDF can't be opened. It may be password-protected or damaged.");
+        console.error("OfferSignPlacement: PDF load failed", e);
+        const name = e?.name || "";
+        const msg =
+          name === "PasswordException"
+            ? "This PDF is password-protected. Remove the password (open it and re-save/print to PDF without a password), then upload again."
+            : name === "InvalidPDFException"
+              ? "This file isn't a valid PDF, or it's damaged. Try re-exporting it as a PDF."
+              : name === "MissingPDFException" || name === "UnexpectedResponseException"
+                ? "Couldn't download the PDF to preview it. Check your connection and re-upload."
+                : `This PDF couldn't be opened${e?.message ? ` (${e.message})` : "."}. If it's password-protected, re-save it without a password and try again.`;
+        if (!cancelled) setError(msg);
       } finally {
         if (!cancelled) setLoading(false);
       }
