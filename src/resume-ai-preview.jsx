@@ -15205,8 +15205,7 @@ function ApproversSection({ companyId, canPersist }) {
     const res = await dbAddApprover({ email: e, name: name.trim() || null });
     setBusy(false);
     if (!res.ok) { setBanner({ type: "err", msg: res.error || "Couldn't add that approver." }); return; }
-    setEmail(""); setName("");
-    setBanner({ type: "ok", msg: res.already ? "That person is already a confirmed approver." : "Confirmation email sent. They'll show as Confirmed once they click it." });
+    setEmail(""); setName(""); setBanner(null); setShowAdd(false);
     reload();
   };
   const resend = async (row) => {
@@ -15223,41 +15222,79 @@ function ApproversSection({ companyId, canPersist }) {
   const confirmed = rows.filter((r) => r.status === "confirmed");
   const pending = rows.filter((r) => r.status !== "confirmed");
 
-  // Single flat line per approver — avatar, name, email inline, status, remove.
-  const Row = ({ r, isPending }) => (
-    <div className="flex items-center gap-2.5 py-1.5 border-b last:border-b-0" style={{ borderColor: "var(--line)" }}>
-      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: isPending ? "#FEF3C7" : "var(--brand-soft)", color: isPending ? "#92400E" : "var(--brand)" }}>{ini(r.name || r.email)}</div>
-      <span className="text-sm font-medium shrink-0 max-w-[40%] truncate" style={{ color: "var(--ink)" }}>{r.name || r.email}</span>
-      <span className="text-xs truncate flex-1" style={{ color: "var(--ink-3)" }}>{r.email}</span>
-      {isPending ? (
-        <span className="text-[11px] font-semibold shrink-0 px-2 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}>Pending</span>
-      ) : (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold shrink-0" style={{ color: "#16A34A" }}><Icon name="check" className="w-3 h-3" />Confirmed</span>
-      )}
-      <button onClick={() => setConfirmDel(r)} className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
+  const ApproverCard = ({ r, isPending }) => (
+    <div className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
+      <button onClick={() => setConfirmDel(r)} className="absolute top-4 right-4 text-xs text-neutral-400 hover:text-red-600 transition-colors">Remove</button>
+      <div className="flex items-center gap-3 pr-16">
+        <span className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style={{ background: isPending ? "#FEF3C7" : "var(--brand-soft)", color: isPending ? "#92400E" : "var(--brand)" }}>{ini(r.name || r.email)}</span>
+        <div className="min-w-0">
+          <p className="text-neutral-900 font-medium truncate">{r.name || r.email}</p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Approver</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={isPending ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>{isPending ? "Pending" : "Confirmed"}</span>
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-neutral-500 mt-2.5 truncate pl-[60px]">{r.email}</p>
     </div>
   );
 
   return (
-    <div className="mt-8">
-      {/* One-line header with an inline add toggle */}
-      <div className="flex items-center gap-2 mb-1.5">
-        <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
-        {confirmed.length > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg)", color: "var(--brand)", border: "1px solid var(--line)" }}>{confirmed.length}</span>}
-        <span className="text-xs truncate flex-1" style={{ color: "var(--ink-3)" }}>· approve by email, no login</span>
-        <button onClick={() => setShowAdd((s) => !s)} className="text-xs font-semibold shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>{showAdd ? "Close" : "+ Add"}</button>
+    <>
+      <div className="mt-8">
+        {/* Section header with a compact Add action (form lives in a modal) */}
+        <div className="flex items-end justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
+              {confirmed.length > 0 && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--bg)", color: "var(--brand)", border: "1px solid var(--line)" }}>{confirmed.length}</span>}
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Approve offers by email, no login or account.</p>
+          </div>
+          <button onClick={() => { setBanner(null); setShowAdd(true); }} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2 border transition-colors hover:bg-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}>
+            <Icon name="userPlus" className="w-4 h-4" /> Add approver
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="text-sm" style={{ color: "var(--ink-3)" }}>Loading…</p>
+        ) : rows.length === 0 ? (
+          <div className="rounded-2xl border border-dashed px-5 py-8 text-center" style={{ borderColor: "var(--line-strong)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No approvers yet</p>
+            <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Add someone to route offers for sign-off.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[...confirmed, ...pending].map((r) => <ApproverCard key={r.id} r={r} isPending={r.status !== "confirmed"} />)}
+          </div>
+        )}
       </div>
-      {/* Add form (collapsed by default) */}
+
+      {/* Add approver — compact modal, fields never stretch across the page */}
       {showAdd && (
-        <div className="flex flex-col sm:flex-row gap-2 mb-1.5">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-lg bg-white border px-3 py-1.5 text-sm sm:w-40 focus:outline-none focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-lg bg-white border px-3 py-1.5 text-sm focus:outline-none focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-          <button onClick={add} disabled={busy} className="rounded-lg brand-gradient text-white text-sm font-semibold px-4 py-1.5 disabled:opacity-50 shrink-0">{busy ? "Sending…" : "Add"}</button>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={() => setShowAdd(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl act-panel-in" style={{ border: "1px solid var(--line)" }}>
+            <div className="flex items-start gap-3 mb-4">
+              <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0"><Icon name="userPlus" className="w-4 h-4" /></span>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Add an approver</h3>
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>They confirm by email, no account or login.</p>
+              </div>
+            </div>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--ink-2)" }}>Name <span style={{ color: "var(--ink-4)" }}>(optional)</span></label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Aisha Rahman" className="w-full rounded-lg bg-white border px-3 py-2 text-sm mb-3 focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--ink-2)" }}>Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="w-full rounded-lg bg-white border px-3 py-2 text-sm focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+            {banner && <p className="text-xs mt-2 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setShowAdd(false)} className="text-sm font-medium rounded-lg px-4 py-2 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-2)" }}>Cancel</button>
+              <button onClick={add} disabled={busy} className="text-sm font-semibold rounded-lg text-white px-4 py-2 brand-gradient disabled:opacity-50">{busy ? "Sending…" : "Add approver"}</button>
+            </div>
+          </div>
         </div>
       )}
-      {banner && <p className="text-xs mb-1 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
-      {!loading && rows.length > 0 && [...confirmed, ...pending].map((r) => <Row key={r.id} r={r} isPending={r.status !== "confirmed"} />)}
-      {!loading && rows.length === 0 && <p className="text-xs" style={{ color: "var(--ink-3)" }}>No approvers yet.</p>}
+
       <ConfirmDialog
         open={!!confirmDel}
         tone="danger"
@@ -15269,7 +15306,7 @@ function ApproversSection({ companyId, canPersist }) {
         onConfirm={() => { if (confirmDel) remove(confirmDel.id); setConfirmDel(null); }}
         onClose={() => setConfirmDel(null)}
       />
-    </div>
+    </>
   );
 }
 
