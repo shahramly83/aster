@@ -25787,14 +25787,21 @@ export default function ResumeAIPreview() {
     }
   };
   const [scorecards, setScorecards] = useState(SCORECARDS_BY_CANDIDATE);
-  const addScorecard = (candidateId, card, jobId = null) => {
+  const addScorecard = async (candidateId, card, jobId = null) => {
     // Stamp the author's id so the panel can tell whose card is whose (and gate
     // the blind-until-submit view). job_id is required for the interviewer RLS
     // insert policy (job_id in assigned_job_ids()).
     const stamped = { ...card, interviewerId: userId };
     setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), stamped] }));
     if (canPersist) {
-      dbAddScorecard(companyId, userId, { candidateId, jobId, ratings: card.ratings, notes: card.notes });
+      const res = await dbAddScorecard(companyId, userId, { candidateId, jobId, ratings: card.ratings, notes: card.notes });
+      if (res && res.ok === false) {
+        // The write was rejected (e.g. no role linked). Roll back the optimistic
+        // card and surface it, instead of showing "Scored" for a lost scorecard.
+        setScorecards((prev) => ({ ...prev, [candidateId]: (prev[candidateId] || []).filter((c) => c !== stamped) }));
+        if (typeof window !== "undefined") window.alert(`Couldn't save the scorecard.\n\n${res.error || "Please try again."}`);
+        return;
+      }
       dbLogActivity("scorecard", `Scorecard submitted for ${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate"}`, { candidateId, jobId });
     }
   };
@@ -27038,8 +27045,12 @@ export default function ResumeAIPreview() {
         if (isUpload) {
           const res = await dbAttachOfferPdf({ companyId, offerId: offer.id, file: upload.file, signField: upload.signField });
           if (!res.ok) {
-            // Don't email a link to an offer with no letter attached — and make
-            // the failure visible instead of a silent no-op.
+            // Roll back: don't leave a letterless "sent" offer that parks the
+            // candidate at the Offer stage. Delete the just-created offer row and
+            // return them to the decision step, then surface the failure.
+            try { await dbCloseOffer(offer.id); } catch { /* best-effort */ }
+            setOffers((prev) => { const n = { ...prev }; delete n[candidateId]; return n; });
+            setCandidateStage(candidateId, "interviewing", { notify: false });
             if (typeof window !== "undefined") window.alert(`Couldn't attach the offer PDF, so the offer was not sent.\n\n${res.error}`);
             return;
           }

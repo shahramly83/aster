@@ -566,16 +566,29 @@ export async function dbLogActivity(type, title, { description = null, candidate
 }
 
 export async function dbAddScorecard(companyId, userId, { candidateId, jobId = null, ratings, notes }) {
-  if (!hasSupabase || !companyId) return;
+  if (!hasSupabase || !companyId) return { ok: false, error: "Not connected to a live workspace." };
+  // A scorecard must be tied to a job — the interviewer RLS insert policy requires
+  // job_id ∈ assigned_job_ids(). Some interviews carry a null job_id; resolve it
+  // from the candidate's application so the insert doesn't silently fail (RLS) and
+  // lose the scorecard while the UI shows "Scored".
+  let jid = jobId;
+  if (!jid && candidateId) {
+    const { data } = await supabase.from("applications").select("job_id")
+      .eq("company_id", companyId).eq("candidate_id", candidateId)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    jid = data?.job_id || null;
+  }
+  if (!jid) { console.error("dbAddScorecard: no job_id for candidate", candidateId); return { ok: false, error: "This interview isn't linked to a role, so the scorecard can't be saved. Reschedule with a role selected." }; }
   const { error } = await supabase.from("scorecards").insert({
     company_id: companyId,
     candidate_id: candidateId,
-    job_id: jobId,
+    job_id: jid,
     interviewer_id: userId || null,
     ratings: ratings || {},
     notes: notes || null,
   });
-  if (error) console.error("dbAddScorecard", error.message);
+  if (error) { console.error("dbAddScorecard", error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
 }
 
 // Suspend a teammate: revokes their access on the next request (every tenancy
