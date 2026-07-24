@@ -71,6 +71,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
   const [curOpen, setCurOpen] = useState(false); // currency dropdown
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState(null);
+  const [mode, setMode] = useState("compose"); // 'compose' | 'upload'. Upload (own PDF + signature placement) is web-only.
 
   // Keep defaults in sync if the sheet is opened for a different role.
   useEffect(() => { if (visible && defaults.jobTitle && !jobTitle) setJobTitle(defaults.jobTitle); }, [visible, defaults.jobTitle]);
@@ -206,6 +207,35 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
           </View>
 
           <ScrollView ref={scrollRef} style={{ maxHeight: kb > 0 ? 300 : 460 }} contentContainerStyle={{ paddingBottom: space(3) }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
+            {/* Mode toggle: compose in Aster, or upload your own letter PDF (web only). */}
+            <View style={styles.modeRow}>
+              {[["compose", "file-text", "Compose in Aster", "Build the letter from terms"], ["upload", "upload", "Upload our letter", "Send your own PDF · web"]].map(([k, icon, t, d]) => {
+                const on = mode === k;
+                return (
+                  <Pressable key={k} onPress={() => setMode(k)} style={[styles.modeCard, on && styles.modeCardOn]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Feather name={icon} size={14} color={on ? theme.brand : theme.ink3} />
+                      <Text style={[type.smallStrong, { color: on ? theme.brand : theme.ink }]} numberOfLines={1}>{t}</Text>
+                    </View>
+                    <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: theme.ink3, marginTop: 2 }} numberOfLines={1}>{d}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {mode === "upload" ? (
+              <View style={styles.uploadInfo}>
+                <View style={styles.uploadIcon}><Feather name="monitor" size={22} color={theme.brand} /></View>
+                <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 12, textAlign: "center" }]}>Uploading is on the web app</Text>
+                <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: 6, lineHeight: 19 }]}>
+                  Uploading your own signed PDF and placing the candidate's signature box needs a larger screen, so it lives on the Aster web app at hireaster.com. You can compose the letter right here on mobile.
+                </Text>
+                <Pressable onPress={() => setMode("compose")} style={styles.uploadSwitch}>
+                  <Feather name="edit-3" size={15} color={theme.brand} />
+                  <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Compose here instead</Text>
+                </Pressable>
+              </View>
+            ) : (<>
             <Field label="Job title">
               <TextInput value={jobTitle} onChangeText={setJobTitle} placeholder="e.g. Digital Marketing Specialist" placeholderTextColor={theme.ink4} style={styles.input} />
             </Field>
@@ -365,16 +395,19 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
             {err ? (
               <View style={styles.err}><Feather name="alert-circle" size={14} color="#B42318" /><Text style={[type.small, { color: "#B42318", marginLeft: 8, flex: 1 }]}>{err}</Text></View>
             ) : null}
+            </>)}
           </ScrollView>
 
-          <View style={styles.footer}>
-            <Button
-              title={sending ? "Sending…" : validApprovers.length ? "Send for approval" : "Send offer"}
-              icon={sending ? undefined : "send"}
-              onPress={submit}
-              disabled={sending}
-            />
-          </View>
+          {mode === "compose" ? (
+            <View style={styles.footer}>
+              <Button
+                title={sending ? "Sending…" : validApprovers.length ? "Send for approval" : "Send offer"}
+                icon={sending ? undefined : "send"}
+                onPress={submit}
+                disabled={sending}
+              />
+            </View>
+          ) : null}
           {sending ? <View style={styles.sendingOverlay}><ActivityIndicator color={theme.white} /></View> : null}
         </View>
       </View>
@@ -423,6 +456,12 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", marginBottom: space(1) },
   input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
   textarea: { minHeight: 74, textAlignVertical: "top", paddingTop: 11 },
+  modeRow: { flexDirection: "row", gap: 10, marginTop: space(2) },
+  modeCard: { flex: 1, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
+  modeCardOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
+  uploadInfo: { alignItems: "center", paddingVertical: 28, paddingHorizontal: 18, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginTop: space(4) },
+  uploadIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  uploadSwitch: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 16, paddingVertical: 11, paddingHorizontal: 18, borderRadius: radius.pill, borderWidth: 1, borderColor: theme.brand, backgroundColor: theme.card },
   letterHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   letterToggle: { flexDirection: "row", backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.sm, padding: 2 },
   letterTab: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.sm - 2 },
