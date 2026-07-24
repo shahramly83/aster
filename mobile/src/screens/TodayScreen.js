@@ -185,10 +185,14 @@ export default function TodayScreen({ navigation }) {
   // (needs a scorecard or the hire call) is unfinished work → Action. Once an
   // offer is out, the score/decide action is done, so 'offer' belongs in Past.
   const CLOSED_STAGES = ["offer", "hired", "rejected", "declined"];
-  // An offer-stage candidate still needs the HM when the offer is accepted (mark
-  // hired), declined (re-offer/close) or expired — so those count as unfinished
-  // work (Action), not Past. Only an offer still awaiting signature is Past.
-  const isClosed = (i) => CLOSED_STAGES.includes(i.stage) && !(manager && i.stage === "offer" && i.offerAction);
+  // An offer-stage candidate stays in Action (not Past) while it still needs
+  // attention. For the HM that's any settled offer — accepted (mark hired),
+  // declined or expired (re-offer/close). For a panel interviewer only a SIGNED
+  // offer stays visible (as an "Offer signed" status they can follow) until the
+  // HM hires or closes; declined/expired are the HM's business → Past. Once the
+  // candidate is hired/rejected the stage is terminal, so it lands in Past.
+  const stillActingOffer = (i) => i.stage === "offer" && (manager ? !!i.offerAction : i.offerAction === "accepted");
+  const isClosed = (i) => CLOSED_STAGES.includes(i.stage) && !stillActingOffer(i);
   const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
   const doneTimed = sorted.filter((i) => !isUpcoming(i));
   const past = doneTimed.filter(isClosed).reverse();            // closed → Past
@@ -469,17 +473,20 @@ export default function TodayScreen({ navigation }) {
                 <Text style={styles.pollEyebrow}>{pending.length ? "AFTER THE INTERVIEW" : "NEEDS YOUR ACTION"}</Text>
                 {needsAction.map((iv) => {
                   const first = iv.candidateName?.split(" ")[0] || "They";
-                  const oa = manager ? iv.offerAction : null; // 'accepted'|'declined'|'expired'
+                  const oa = iv.offerAction; // 'accepted'|'declined'|'expired' (interviewers only ever see 'accepted' here)
                   const pill = oa === "accepted" ? { label: "Signed", color: "#166534", bg: "#DCFCE7" }
                     : oa === "declined" ? { label: "Declined", color: theme.danger, bg: "#FEF3F2" }
                     : oa === "expired" ? { label: "Expired", color: "#B45309", bg: "#FEF3C7" }
                     : { label: "To score", color: theme.brand, bg: theme.brandSoft };
                   const icon = oa === "accepted" ? "award" : oa === "declined" ? "rotate-ccw" : oa === "expired" ? "clock" : "edit-3";
-                  const msg = oa === "accepted" ? `${first} signed the offer. Mark them as hired to close it out.`
+                  const msg = oa === "accepted" ? (manager
+                        ? `${first} signed the offer. Mark them as hired to close it out.`
+                        : `${first} signed the offer — the hiring manager will finalise the hire.`)
                     : oa === "declined" ? `${first} declined the offer. Re-send a new one, or close them out.`
                     : oa === "expired" ? `The offer to ${first} lapsed without a signature. Re-send it or close them out.`
                     : manager ? `Interview done. Collect the panel's scorecards, then make the call on ${first}.`
                     : `Interview done. Add your scorecard for ${first} so the hiring manager can decide.`;
+                  const ctaLabel = oa === "accepted" ? (manager ? "Open offer" : "View candidate") : oa ? "Open offer" : "Open interview";
                   return (
                     <View key={iv.id} style={styles.pollCard}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -502,7 +509,7 @@ export default function TodayScreen({ navigation }) {
                         style={styles.pollCta}
                       >
                         <Feather name="arrow-right" size={16} color="#fff" />
-                        <Text style={styles.pollCtaTxt}>{oa ? "Open offer" : "Open interview"}</Text>
+                        <Text style={styles.pollCtaTxt}>{ctaLabel}</Text>
                       </Press>
                     </View>
                   );
