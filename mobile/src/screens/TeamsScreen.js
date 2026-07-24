@@ -291,16 +291,17 @@ export default function TeamsScreen({ navigation }) {
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{item.name}</Text>
                       {you ? <View style={styles.youPill}><Text style={styles.youTxt}>You</Text></View> : null}
+                      <View style={{ flex: 1, minWidth: 8 }} />
+                      <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
+                        <Feather name={m.icon} size={11} color={m.color} />
+                        <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
+                      </View>
+                      {removable ? (
+                        <Pressable onPress={() => setConfirmRemove(item)} hitSlop={10} style={styles.mRemoveInline}><Feather name="x" size={16} color={theme.ink4} /></Pressable>
+                      ) : null}
                     </View>
-                    {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{item.email}</Text> : null}
+                    {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 3 }]} numberOfLines={1}>{item.email}</Text> : null}
                   </View>
-                  <View style={[styles.roleTag, { backgroundColor: m.bg, marginLeft: 8 }]}>
-                    <Feather name={m.icon} size={11} color={m.color} />
-                    <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
-                  </View>
-                  {removable ? (
-                    <Pressable onPress={() => setConfirmRemove(item)} hitSlop={8} style={styles.mRemove}><Feather name="x" size={16} color={theme.ink4} /></Pressable>
-                  ) : null}
                 </View>
               </View>
             </Rise>
