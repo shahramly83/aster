@@ -15251,7 +15251,7 @@ function ApproversSection({ companyId, canPersist }) {
             </div>
             <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Approve offers by email, no login or account.</p>
           </div>
-          <button onClick={() => { setBanner(null); setShowAdd(true); }} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3.5 py-2 border transition-colors hover:bg-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}>
+          <button onClick={() => { setBanner(null); setShowAdd(true); }} className="shrink-0 inline-flex items-center justify-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2 border transition-colors hover:bg-[color:var(--brand-soft)] min-w-[172px]" style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}>
             <Icon name="userPlus" className="w-4 h-4" /> Add approver
           </button>
         </div>
@@ -15547,7 +15547,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               sent to billing rather than shown a locked button. */}
           <button
             onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setShowForm(true); }}
-            className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center gap-1.5"
+            className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center justify-center gap-1.5 min-w-[172px]"
           >
             {atSeatCap ? "Seats full, upgrade" : <><Icon name="userPlus" className="w-4 h-4" /> Invite teammate</>}
           </button>
@@ -21225,6 +21225,22 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     if (isInterviewer(profile?.role)) return scored ? "result" : released ? "scorecards" : "interview";
     return (bk?.status === "scheduled" || bk?.confirmedSlot?.start || bk?.status === "reschedule") ? "interview" : "profile";
   });
+  // The initializer above runs once and may see stale (not-yet-loaded) data, so an
+  // interviewer who's already scored can land on Interview instead of the unlocked
+  // Decision tab. Correct the landing ONCE, when the real data arrives, without
+  // overriding a manual tab switch.
+  const relandedRef = useRef(false);
+  useEffect(() => {
+    if (relandedRef.current || initialTab || !isInterviewer(profile?.role)) return;
+    const bk = (contextJobId ? bookingsByJob[`${candidate?.id}:${contextJobId}`] : null) || bookingProp;
+    const released = !!bk?.scorecardsReleasedAt;
+    const scored = (scorecards || []).some((sc) => sc.interviewerId && sc.interviewerId === currentUserId);
+    const target = scored ? "result" : released ? "scorecards" : null;
+    if (target) {
+      if (profileTab === "interview") setProfileTab(target); // still on the default
+      relandedRef.current = true; // only correct once
+    }
+  }, [scorecards, bookingsByJob, bookingProp, contextJobId, profileTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const [noShowDismissed, setNoShowDismissed] = useState(false); // hide the post-interview reschedule/score prompt
   const [rescheduling, setRescheduling] = useState(false);
   const doNoShowReschedule = async () => {
