@@ -485,7 +485,11 @@ function CandidateCard({ item, starred, onPress, onStar }) {
             <Text style={[type.h3, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
             {item.title ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.title}</Text> : null}
             <View style={styles.metaRow}>
-              <StagePill stage={item.stage} small />
+              {item.offerDeclined ? (
+                <View style={styles.declinedPill}><Feather name="rotate-ccw" size={10} color="#9F1239" /><Text style={styles.declinedPillTxt}>Declined · re-offer?</Text></View>
+              ) : (
+                <StagePill stage={item.stage} small />
+              )}
               {item.years != null ? (
                 <View style={styles.metaPill}><Text style={[type.smallStrong, { color: theme.ink3 }]}>{item.years}y exp</Text></View>
               ) : null}
@@ -588,6 +592,8 @@ const styles = StyleSheet.create({
   avatarRing: { padding: 2.5, borderRadius: 31, borderWidth: 2 },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 },
   metaPill: { backgroundColor: theme.line2, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
+  declinedPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#FFF1F2", borderWidth: 1, borderColor: "#FECDD3", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
+  declinedPillTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#9F1239" },
   skillsRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: space(3.5) },
   skill: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: space(4), paddingTop: space(3), borderTopWidth: 1, borderTopColor: theme.line2 },

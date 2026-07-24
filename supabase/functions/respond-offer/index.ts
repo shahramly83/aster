@@ -59,14 +59,12 @@ Deno.serve(async (req) => {
         delete patch.decline_reason;
         upd = await admin.from("offers").update(patch).eq("id", offer.id);
       }
-      // Decline is terminal (stage -> declined). Accept does NOT auto-hire: the
-      // candidate says yes, then the hiring manager reviews and closes the process
-      // by clicking "Mark as hired". So on accept we leave the application at the
-      // 'offer' stage; the offer status flips to 'accepted' for HR to act on.
-      if (!accepted) {
-        await admin.from("applications").update({ stage: "declined" })
-          .eq("company_id", offer.company_id).eq("candidate_id", offer.candidate_id);
-      }
+      // Neither response is auto-terminal. On accept, the manager reviews and
+      // clicks "Mark as hired". On decline, the candidate stays in the 'offer'
+      // stage (active) — a decline is often recoverable (e.g. bump the salary and
+      // re-send), so we keep them in the pipeline flagged as declined and let the
+      // manager decide: re-send a fresh offer, or explicitly close them out. Only
+      // the offer row flips to 'declined' (with the reason) here.
     }
 
     // Emails only on the first accept (a decline updates the stage, no email).

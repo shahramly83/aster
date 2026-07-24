@@ -656,6 +656,26 @@ export async function loadApplicants(companyId, jobId) {
   const candById = Object.fromEntries((cands || []).map((c) => [c.id, c]));
   const urlByPath = await signedUrls((cands || []).map((c) => c.photo_path).filter(Boolean));
 
+  // A candidate who declined an offer stays in the 'offer' stage (active) so the
+  // team can bump the terms and re-send. Flag those whose LATEST offer is declined
+  // (not ones already re-offered) so the list can show a "Declined · re-offer?" tag.
+  const offerCandIds = rows.filter((r) => r.stage === "offer").map((r) => r.candidate_id);
+  const declinedSet = new Set();
+  if (offerCandIds.length) {
+    const { data: offs } = await supabase
+      .from("offers")
+      .select("candidate_id, status, created_at")
+      .eq("company_id", companyId)
+      .in("candidate_id", offerCandIds)
+      .order("created_at", { ascending: false });
+    const seen = new Set();
+    for (const o of offs || []) {
+      if (seen.has(o.candidate_id)) continue; // first per candidate = latest
+      seen.add(o.candidate_id);
+      if (o.status === "declined") declinedSet.add(o.candidate_id);
+    }
+  }
+
   return rows.map((a) => {
     const c = candById[a.candidate_id] || {};
     const p = c.parsed || {};
@@ -672,6 +692,7 @@ export async function loadApplicants(companyId, jobId) {
       fit: a.fit || null, // "other" = talent pool (weak fit); anything else = strong
       matchScore: typeof a.match_score === "number" ? a.match_score : null,
       avatarUrl: c.photo_path ? urlByPath[c.photo_path] || null : null,
+      offerDeclined: declinedSet.has(a.candidate_id),
     };
   });
 }
