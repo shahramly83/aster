@@ -22879,16 +22879,21 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             ? { icon: "hire", label: "Hired", title: `${firstName} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for your part in it.", tone: "green" }
             : stage === "rejected"
               ? { icon: "close", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${firstName}. Thanks for scoring.`, tone: "red" }
-              : offered
-                ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, tone: "brand" }
-                : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
+              : offerSigned
+                ? { icon: "check", label: "Signed", title: "Offer signed", sub: `${firstName} signed the offer. The hiring manager will finalise the hire.`, tone: "green" }
+                : offerDeclinedRec
+                  ? { icon: "close", label: "Declined", title: "Offer declined", sub: `${firstName} declined the offer. The hiring manager will decide the next step.`, tone: "red" }
+                  : offered
+                    ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, tone: "brand" }
+                    : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
           const tone = { green: { grad: "linear-gradient(135deg,#34D399,#059669)", solid: "#059669", soft: "#ECFDF5" }, red: { grad: "linear-gradient(135deg,#F87171,#DC2626)", solid: "#DC2626", soft: "#FEF2F2" }, brand: { grad: "brand", solid: "var(--brand)", soft: "var(--brand-soft)" } }[hero.tone];
-          const outcomeLabel = (isHired || stage === "hired") ? "Hired" : stage === "rejected" ? "Not moving forward" : offered ? "Offer sent" : "Final outcome";
+          const outcomeLabel = (isHired || stage === "hired") ? "Hired" : stage === "rejected" ? "Not moving forward" : offerSigned ? "Offer signed" : offerDeclinedRec ? "Offer declined" : offered ? "Offer sent" : "Final outcome";
+          const outcomeSettled = decided || offerSigned || offerDeclinedRec;
           const steps = [
             { label: "Interview held", meta: interviewWhen, state: "done" },
             { label: "You submitted your scorecard", state: "done" },
             { label: "Hiring Manager Review", state: offered ? "done" : "current" },
-            { label: outcomeLabel, state: decided ? "done" : offered ? "current" : "todo" },
+            { label: outcomeLabel, state: outcomeSettled ? "done" : offered ? "current" : "todo" },
           ];
           return (
             <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "var(--line)" }}>
