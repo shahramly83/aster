@@ -279,9 +279,10 @@ export default function TeamsScreen({ navigation }) {
                     <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
                     {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.email}</Text> : null}
                   </View>
-                  {item.pending
-                    ? <View style={ap.pendingPill}><Text style={ap.pendingTxt}>Pending</Text></View>
-                    : <View style={ap.okPill}><Feather name="check" size={11} color="#166534" /><Text style={ap.okTxt}>Confirmed</Text></View>}
+                  <View style={[styles.roleTag, { backgroundColor: item.pending ? "#FEF3C7" : "#DCFCE7" }]}>
+                    <Feather name={item.pending ? "clock" : "check"} size={11} color={item.pending ? "#92400E" : "#166534"} />
+                    <Text style={[type.smallStrong, { color: item.pending ? "#92400E" : "#166534", marginLeft: 5 }]}>{item.pending ? "Pending" : "Confirmed"}</Text>
+                  </View>
                   <Pressable onPress={() => setConfirmRemove(item)} hitSlop={6} style={[ap.x, { marginLeft: 6 }]}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
                 </View>
               </Rise>
