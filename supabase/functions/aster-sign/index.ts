@@ -206,6 +206,18 @@ async function stampUploadedPdf(sourceBytes: Uint8Array, signField: {
 }
 
 // ── PDF: the signed offer letter + a certificate-of-completion page ──────────
+// A copy of the signed PDF without the trailing Certificate of Completion page —
+// used for the candidate's emailed copy. The certificate (audit trail: IP, device,
+// hash) stays on the company's stored copy only.
+async function pdfWithoutCertificate(pdfBytes: Uint8Array): Promise<Uint8Array> {
+  try {
+    const d = await PDFDocument.load(pdfBytes);
+    const n = d.getPageCount();
+    if (n > 1) { d.removePage(n - 1); return await d.save(); }
+    return pdfBytes;
+  } catch { return pdfBytes; }
+}
+
 async function buildSignedPdf(model: LetterModel, opts: {
   logo: { bytes: Uint8Array; mime: string } | null;
   signatureType: "typed" | "drawn";
@@ -542,8 +554,10 @@ Deno.serve(async (req) => {
           body: "Hi {{candidate_name}},\n\nWe're thrilled you're joining {{company_name}} as our new {{job_title}}! Our HR team will reach out shortly with your onboarding details.",
         });
         const tokens = { candidate_name: candidateName, job_title: jobTitle, company_name: companyName };
-        // Attach the candidate's signed offer letter (PDF + certificate) for their records.
-        const attachments = [{ filename: "signed-offer-letter.pdf", content: bytesToBase64(pdf), contentType: "application/pdf" }];
+        // The candidate's copy omits the Certificate of Completion (audit trail);
+        // that stays only on the company's stored copy.
+        const candidatePdf = await pdfWithoutCertificate(pdf);
+        const attachments = [{ filename: "signed-offer-letter.pdf", content: bytesToBase64(candidatePdf), contentType: "application/pdf" }];
         const welcomeBody = `${emailParagraphs(renderTemplate(tpl.body, tokens))}<p style="margin:16px 0 0;color:#6b6b7b;font-size:13px;">A signed copy of your offer letter is attached to this email for your records.</p>`;
         await sendEmail({ to: cand.email, subject: renderTemplate(tpl.subject, tokens), html: companyShell({ companyName, logoUrl, heading: "Welcome to the team", preview: `Welcome to ${companyName}!`, bodyHtml: welcomeBody }), attachments }).catch((e) => console.error("welcome email", e));
       }
