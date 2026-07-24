@@ -184,7 +184,7 @@ export default function TeamsScreen({ navigation }) {
                   <View key={g.role} style={styles.sumTile}>
                     <View style={styles.sumIcon}><Feather name={m.icon} size={14} color="#fff" /></View>
                     <Text style={styles.sumCount}>{g.members.length}</Text>
-                    <Text style={styles.sumLabel} numberOfLines={1}>{(ROLE_LABELS[g.role] || "Member") + (g.members.length === 1 ? "" : "s")}</Text>
+                    <Text style={styles.sumLabel} numberOfLines={1}>{roleLabelOf(g.role) + (g.members.length === 1 ? "" : "s")}</Text>
                   </View>
                 );
               })}
