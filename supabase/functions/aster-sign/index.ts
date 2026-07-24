@@ -294,9 +294,23 @@ async function buildSignedPdf(model: LetterModel, opts: {
   }
   y -= 6;
 
-  // Sign-off with the named company signatory.
-  ensure(64);
-  page.drawText("Yours sincerely,", { x: M, y, size: 10.5, font, color: ink }); y -= 28;
+  // Sign-off with the named company signatory + their saved signature, so the
+  // letter is executed by the company before the candidate counter-signs.
+  ensure(120);
+  page.drawText("Yours sincerely,", { x: M, y, size: 10.5, font, color: ink }); y -= 24;
+  const csig = model.signatorySignature;
+  if (csig && csig.startsWith("typed:")) {
+    page.drawText(csig.slice(6).trim(), { x: M, y: y - 6, size: 24, font: italic, color: ink }); y -= 30;
+  } else if (csig) {
+    try {
+      const b = dataUrlToBytes(csig);
+      if (b) {
+        const img = b.mime.includes("png") ? await doc.embedPng(b.bytes) : await doc.embedJpg(b.bytes);
+        const h = 42, w = Math.min((img.width / img.height) * h, 220);
+        page.drawImage(img, { x: M, y: y - h + 8, width: w, height: h }); y -= h - 2;
+      }
+    } catch { /* bad image — fall through to the name only */ }
+  }
   page.drawText(model.signatoryName, { x: M, y, size: 10.5, font: bold, color: ink }); y -= 14;
   if (model.signatoryTitle) { page.drawText(model.signatoryTitle, { x: M, y, size: 10, font, color: gray }); y -= 13; }
   if (model.signatoryName !== model.companyName) { page.drawText(model.companyName, { x: M, y, size: 10, font, color: gray }); y -= 13; }
@@ -359,7 +373,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: offer } = await admin.from("offers")
-      .select("id, company_id, candidate_id, status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, signatory_name, signatory_title, reporting_to, work_location, created_at, offer_mode, source_pdf_path, sign_field")
+      .select("id, company_id, candidate_id, status, esign_status, base_salary, salary_currency, employment_type, start_date, expires_at, offer_job_title, message, signatory_name, signatory_title, signatory_signature, reporting_to, work_location, created_at, offer_mode, source_pdf_path, sign_field")
       .eq("token", token).maybeSingle();
     if (!offer) return json({ error: "not_found" }, 404);
 

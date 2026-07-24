@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -20544,6 +20544,101 @@ function BillingCurrencyCard({ value, onChange }) {
   );
 }
 
+// Your saved offer-letter signature (0135). Type it (renders in a script font)
+// or draw it; it's stored on your profile and stamped onto every offer you
+// compose, above your name, so the letter is signed off by the company before
+// the candidate counter-signs. Upload-mode offers use your own PDF instead.
+function OfferSignatureCard({ profile }) {
+  const [mode, setMode] = useState("type");           // 'type' | 'draw'
+  const [typed, setTyped] = useState("");
+  const [drawn, setDrawn] = useState(null);            // PNG data URI
+  const [saved, setSaved] = useState(undefined);       // current saved value; undefined = loading
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    dbGetMyOfferSignature().then((s) => {
+      if (!alive) return;
+      setSaved(s || null);
+      if (s && s.startsWith("typed:")) { setMode("type"); setTyped(s.slice(6)); }
+      else if (s) { setMode("draw"); setDrawn(s); }
+      else setTyped(profile?.full_name || profile?.name || "");
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const current = mode === "type" ? (typed.trim() ? `typed:${typed.trim()}` : null) : drawn;
+  const save = async () => {
+    setBusy(true); setMsg(null);
+    const err = await dbSaveMyOfferSignature(current);
+    setBusy(false);
+    if (err) { setMsg({ type: "err", text: err }); return; }
+    setSaved(current);
+    setMsg({ type: "ok", text: current ? "Signature saved. It'll appear on offers you compose." : "Signature cleared." });
+  };
+  const remove = async () => {
+    setBusy(true); setMsg(null);
+    const err = await dbSaveMyOfferSignature(null);
+    setBusy(false);
+    if (err) { setMsg({ type: "err", text: err }); return; }
+    setTyped(""); setDrawn(null); setSaved(null);
+    setMsg({ type: "ok", text: "Signature cleared." });
+  };
+
+  const dirty = current !== (saved ?? null);
+  return (
+    <div>
+      <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+        Sign off the offer letters you compose in Aster. Your signature is placed above your name in the letter; the candidate then counter-signs. Upload-mode offers use the signature already on your own PDF.
+      </p>
+      <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+        {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
+          <button key={k} type="button" onClick={() => { setMode(k); setMsg(null); }}
+            className="text-xs font-semibold px-3.5 py-1.5 rounded-md transition-colors"
+            style={mode === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode === "type" ? (
+        <div>
+          <input value={typed} onChange={(e) => { setTyped(e.target.value); setMsg(null); }} placeholder="Type your full name"
+            className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
+          {typed.trim() && (
+            <div className="mt-2 rounded-lg px-4 py-3 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff", minHeight: 60 }}>
+              <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 28, color: "var(--ink)" }}>{typed.trim()}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          {saved && !drawn && saved !== null && !saved.startsWith("typed:") && (
+            <div className="mb-2 rounded-lg px-4 py-2 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff" }}>
+              <img src={saved} alt="Saved signature" style={{ height: 48, maxWidth: 240, objectFit: "contain" }} />
+              <span className="text-[11px] ml-3" style={{ color: "var(--ink-3)" }}>Current — draw below to replace</span>
+            </div>
+          )}
+          <SignaturePad onChange={(d) => { setDrawn(d); setMsg(null); }} />
+        </div>
+      )}
+      <div className="flex items-center gap-2 mt-4">
+        <button onClick={save} disabled={busy || !dirty || (mode === "draw" && !drawn && !(saved && !saved.startsWith("typed:")))}
+          className="text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-opacity hover:opacity-95 disabled:opacity-40">
+          {busy ? "Saving…" : "Save signature"}
+        </button>
+        {saved && (
+          <button onClick={remove} disabled={busy} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+            Clear
+          </button>
+        )}
+        {msg && <span className="text-sm" style={{ color: msg.type === "err" ? "#B42318" : "#166534" }}>{msg.text}</span>}
+      </div>
+    </div>
+  );
+}
+
 function SettingsScreen({ navigate, plan = "launch", company = "", profile, setProfile, avatarUrl, activities = [], onOpenNotifications, companyId = null, canPersist = false, logoUrl = null, preferredCurrency = "myr", setPreferredCurrency = () => {} }) {
   const [connectErr, setConnectErr] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -20601,6 +20696,10 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         <div className="space-y-3">
           <SettingsSection icon="doc" title="Email templates" desc="Edit the offer, rejection, interview & other automated emails">
             <EmailTemplatesPanel plan={plan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} />
+          </SettingsSection>
+
+          <SettingsSection icon="offer" title="Offer signature" desc="Your sign-off, stamped on offer letters you compose">
+            <OfferSignatureCard profile={profile} />
           </SettingsSection>
 
           <SettingsSection
@@ -23274,6 +23373,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     employmentType: empType,
     startDate: startDate || null,
     expiresAt: expiresAt || null,
+    signatoryName: (defaultSignatory || "").trim() || null,
   };
 
   // Core terms are required before an offer can go out (draft-save aside): an
@@ -26710,7 +26810,15 @@ export default function ResumeAIPreview() {
     // sequential sign-off (candidate emailed only after the last approval);
     // otherwise send straight to the candidate for signature via Aster Sign.
     if (canPersist) {
-      dbCreateOffer(companyId, { candidateId, terms: isUpload ? null : terms }).then(async (offer) => {
+      (async () => {
+        // Compose mode: snapshot the sender's saved signature onto the offer so the
+        // letter is signed off by the company before the candidate counter-signs.
+        let sendTerms = terms;
+        if (!isUpload && terms) {
+          const sig = await dbGetMyOfferSignature();
+          if (sig) sendTerms = { ...terms, signatorySignature: sig };
+        }
+        const offer = await dbCreateOffer(companyId, { candidateId, terms: isUpload ? null : sendTerms });
         const token = offer?.token;
         if (!token) return;
         if (isUpload) {
@@ -26733,7 +26841,7 @@ export default function ResumeAIPreview() {
             window.alert(`The offer was recorded, but the email to the candidate could not be sent.\n\n${data?.error || error?.message || "unknown error"}`);
           }
         }
-      });
+      })();
       const who = MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "a candidate";
       dbLogActivity(needsApproval ? "offer_approval_requested" : "offer_sent", `Offer ${needsApproval ? "submitted for approval" : "sent"} to ${who}`, { candidateId });
     }

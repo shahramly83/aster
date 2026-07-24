@@ -1059,6 +1059,9 @@ async function createOffer(companyId, { candidateId, jobId = null, terms = null 
     if (terms.startDate) row.start_date = terms.startDate;
     if (terms.expiresAt) row.expires_at = terms.expiresAt;
     if (terms.jobTitle) row.offer_job_title = terms.jobTitle;
+    // Company sign-off (0135): the sender's name + saved signature, snapshotted.
+    if (terms.signatoryName) row.signatory_name = terms.signatoryName;
+    if (terms.signatorySignature) row.signatory_signature = terms.signatorySignature;
   }
   const { data, error } = await supabase.from("offers").insert(row).select("token, id").single();
   if (error) {
@@ -1082,13 +1085,30 @@ async function createOffer(companyId, { candidateId, jobId = null, terms = null 
 //   - else if emailSent → aster-sign-send emails the candidate a review-&-sign link,
 //   - else records the offer only.
 // Returns { ok, token, needsApproval, emailed } or { ok:false, error }.
+// The current user's offer-letter sign-off (0135): their name + saved signature,
+// snapshotted onto the offer so composed letters are signed off by the company.
+async function getMyOfferSignoff() {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) return { signature: null, name: null };
+  const { data, error } = await supabase.from("profiles").select("offer_signature, full_name").eq("id", uid).maybeSingle();
+  if (error) { if (error.code !== "42703") console.warn("getMyOfferSignoff", error.message); return { signature: null, name: null }; }
+  return { signature: data?.offer_signature || null, name: data?.full_name || null };
+}
+
 export async function sendOffer({ companyId, candidateId, candidateName, jobId = null, terms, message = null, approvers = [], emailSent = true }) {
   const valid = (approvers || [])
     .filter((a) => a?.email && a.email.includes("@"))
     .map((a) => ({ email: a.email.trim(), name: (a.name || "").trim() }));
   const needsApproval = valid.length > 0;
 
-  const created = await createOffer(companyId, { candidateId, jobId, terms });
+  // Compose mode: stamp the sender's saved signature + name onto the offer.
+  let sendTerms = terms;
+  if (terms) {
+    const so = await getMyOfferSignoff();
+    sendTerms = { ...terms, signatoryName: terms.signatoryName || so.name || null, signatorySignature: so.signature || null };
+  }
+  const created = await createOffer(companyId, { candidateId, jobId, terms: sendTerms });
   if (!created || created.error || !created.token) {
     return { ok: false, error: created?.error || "Couldn't create the offer." };
   }
@@ -1104,7 +1124,7 @@ export async function sendOffer({ companyId, candidateId, candidateName, jobId =
   try {
     if (needsApproval) {
       const { data, error } = await supabase.functions.invoke("offer-approval-submit", {
-        body: { offerToken: token, approvers: valid, message, terms, mode: null, origin: OFFER_ORIGIN },
+        body: { offerToken: token, approvers: valid, message, terms: sendTerms, mode: null, origin: OFFER_ORIGIN },
       });
       if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Couldn't submit for approval.", staged: true };
     } else if (emailSent) {

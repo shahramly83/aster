@@ -375,6 +375,8 @@ export async function dbCreateOffer(companyId, { candidateId, jobId = null, term
     if (terms.signatoryTitle) row.signatory_title = terms.signatoryTitle;
     if (terms.reportingTo) row.reporting_to = terms.reportingTo;
     if (terms.workLocation) row.work_location = terms.workLocation;
+    // Company sign-off (0135): the sender's saved signature, snapshotted here.
+    if (terms.signatorySignature) row.signatory_signature = terms.signatorySignature;
   }
   let { data, error } = await supabase.from("offers").insert(row).select("id, token").single();
   // 0103 not applied yet: retry with just the base columns so the offer still sends.
@@ -702,6 +704,28 @@ export async function signedAvatarUrl(path) {
 // Writes only the caller's own row, via a definer RPC with a fixed column list:
 // profiles has no self-UPDATE policy, and adding one would expose `role`.
 // Returns an error message, or null on success.
+// The current user's saved offer-letter signature (0135): a PNG data URI (drawn)
+// or "typed:<Full Name>" (script-font), or null if none saved.
+export async function dbGetMyOfferSignature() {
+  if (!hasSupabase) return null;
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) return null;
+  const { data, error } = await supabase.from("profiles").select("offer_signature").eq("id", uid).maybeSingle();
+  if (error) { if (error.code !== "42703") console.error("dbGetMyOfferSignature", error.message); return null; }
+  return data?.offer_signature || null;
+}
+
+// Save (or clear, with null) the current user's offer-letter signature.
+export async function dbSaveMyOfferSignature(sig) {
+  if (!hasSupabase) return "Not connected to a live workspace.";
+  const { error } = await supabase.rpc("set_my_offer_signature", { p_sig: sig ?? null });
+  if (!error) return null;
+  console.error("dbSaveMyOfferSignature", error.message);
+  if (error.code === "42883") return "Run migration 0135: set_my_offer_signature doesn't exist yet.";
+  return error.message || "Couldn't save your signature.";
+}
+
 export async function dbUpdateMyProfile({ fullName, phone, avatarPath, notifyPrefs, calendarProvider } = {}) {
   if (!hasSupabase) return "Not connected to a live workspace.";
   const { error } = await supabase.rpc("update_my_profile", {

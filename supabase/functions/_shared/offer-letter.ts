@@ -23,6 +23,7 @@ export type OfferRow = {
   base_salary: number | null; salary_currency: string | null; employment_type: string | null;
   start_date: string | null; expires_at: string | null; offer_job_title: string | null; message: string | null;
   signatory_name?: string | null; signatory_title?: string | null;
+  signatory_signature?: string | null;
   reporting_to?: string | null; work_location?: string | null;
 };
 
@@ -37,6 +38,7 @@ export type LetterModel = {
   paragraphs: string[];     // the letter body, in prose
   signatoryName: string;    // sign-off name (falls back to the company name)
   signatoryTitle: string;   // sign-off designation ("" if none)
+  signatorySignature: string | null; // PNG data URI (drawn) or "typed:<name>" or null
 };
 
 // The letter body, in prose. If a body was composed/edited in the Send-offer
@@ -87,6 +89,7 @@ export function buildLetterModel(o: OfferRow, m: { companyName: string; candidat
     paragraphs: letterBody(o, m),
     signatoryName: (o.signatory_name && o.signatory_name.trim()) || m.companyName,
     signatoryTitle: (o.signatory_title && o.signatory_title.trim()) || "",
+    signatorySignature: (o.signatory_signature && o.signatory_signature.trim()) || null,
   };
 }
 
@@ -107,6 +110,14 @@ export function letterHtml(model: LetterModel, logo: string | null): string {
     return `<p style="margin:0 0 13px;">${esc(p.replace(/\n/g, " "))}</p>`;
   };
   const body = model.paragraphs.map(renderBlock).join("");
+  // The company's saved sign-off: a drawn signature (PNG data URI) shows as an
+  // image; a "typed:<name>" marker renders that name in a script font.
+  const sig = model.signatorySignature;
+  const sigMark = sig
+    ? (sig.startsWith("typed:")
+        ? `<div style="font-family:'Segoe Script','Bradley Hand',cursive;font-size:26px;color:#1f2328;margin:2px 0 4px;">${esc(sig.slice(6).trim())}</div>`
+        : `<img src="${sig}" alt="Signature" style="height:52px;max-width:240px;object-fit:contain;display:block;margin:2px 0 4px;">`)
+    : "";
   const signatory = model.signatoryTitle
     ? `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div><div style="color:#5b5f66;">${esc(model.signatoryTitle)}</div><div style="color:#5b5f66;">${esc(model.companyName)}</div>`
     : `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div>${model.signatoryName !== model.companyName ? `<div style="color:#5b5f66;">${esc(model.companyName)}</div>` : ""}`;
@@ -119,7 +130,7 @@ export function letterHtml(model: LetterModel, logo: string | null): string {
     <p style="margin:0 0 18px;font-weight:700;color:#1f2328;text-transform:uppercase;letter-spacing:0.02em;font-size:13px;">${esc(model.subject)}</p>
     ${body}
     <div style="margin:22px 0 0;">Yours sincerely,</div>
-    <div style="margin-top:10px;">${signatory}</div>
+    <div style="margin-top:8px;">${sigMark}${signatory}</div>
     ${model.addressLine ? `<div style="margin-top:36px;padding-top:12px;border-top:1px solid #eee;font-size:11.5px;color:#8b8e94;line-height:1.6;">${esc(model.companyName)} · ${esc(model.addressLine)}</div>` : ""}
   </div>`;
 }
