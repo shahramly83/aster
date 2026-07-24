@@ -21719,7 +21719,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   ...(isInterviewer(profile?.role) ? [{ k: "scorecards", label: "Scorecards", icon: "scorecard", locked: !scorecardsReleased }] : []),
                   // Result: the outcome / what's next, only once they've scored, so
                   // the Scorecards tab stays about scoring, not status.
-                  ...(isInterviewer(profile?.role) && iScored ? [{ k: "result", label: "Result", icon: "hire" }] : []),
+                  ...(isInterviewer(profile?.role) && iScored ? [{ k: "result", label: "Decision", icon: "hire" }] : []),
                 ].map((t) => {
                   const on = profileTab === t.k;
                   const locked = !!t.locked;

@@ -161,7 +161,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     tabInit.current = true;
     setTab(
       !manager && myCard ? "decision"
-        : (manager && showDecision) ? "decision"
+        : (manager && decisionReady) ? "decision"
         : (interviewDone && canScore) || stage === "offer" || stage === "hired" ? "feedback"
         : stage === "interviewing" ? "interview"
         : "profile"
@@ -355,9 +355,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const ratedRequired = requiredRaters.filter((p) => ratedIds.has(p.id)).length;
   const allRated = requiredRaters.length ? ratedRequired === requiredRaters.length : true;
   const showDecision = manager && stage === "interviewing" && interviewDone && allRated;
-  // The Decision tab: interviewers see the outcome/journey; managers see the
-  // decision (make offer / not a fit / waiting roster / offer status).
-  const decisionTabVisible = (!manager && myCard) || (manager && (showDecision || !!offer || (stage === "interviewing" && interviewDone && requiredRaters.length > 0 && !allRated)));
+  // The Decision tab shows once scoring is open (or an offer exists), but stays
+  // LOCKED for the manager until the panel has finished scoring (decisionReady).
+  // Interviewers see their own outcome/journey there once they've scored.
+  const decisionReady = (interviewDone && allRated) || !!offer || stage === "hired" || stage === "rejected";
+  const decisionTabVisible = (!manager && myCard) || (manager && (canScore || !!offer));
+  const decisionLocked = manager && !decisionReady; // waiting on the panel
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -418,9 +421,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 // the tab contains.
                 const locked = k === "interview"
                   ? !INTERVIEW_UNLOCKED.includes(stage)
-                  : k === "feedback" ? !canScore : false;
+                  : k === "feedback" ? !canScore
+                  : k === "decision" ? decisionLocked : false;
                 const lockReason = k === "feedback"
                   ? (manager ? `Tap "Proceed to scorecards" on the Interview tab to open this.` : `The scorecard opens once the hiring manager confirms the interview happened.`)
+                  : k === "decision" ? `The decision opens once the panel has finished scoring.`
                   : `Move ${nameOf().split(" ")[0]} to interview to open this tab.`;
                 return (
                   <Pressable
@@ -632,6 +637,12 @@ export default function CandidateProfileScreen({ route, navigation }) {
               ) : null}
             </Card>
           </View>
+          {/* Reject the candidate — lives on the Profile tab only. */}
+          {manager && stage !== "rejected" && stage !== "hired" && stage !== "declined" ? (
+            <Pressable onPress={reject} style={{ alignSelf: "center", marginTop: space(7), padding: 8 }}>
+              <Text style={[type.smallStrong, { color: theme.danger }]}>Reject candidate</Text>
+            </Pressable>
+          ) : null}
           </>) : null}
 
           {/* Offer status lives under the Decision tab (manager view). */}
@@ -689,14 +700,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       {scheduledAt ? <Text style={[type.small, { color: theme.ink3, marginLeft: 8 }]}>{fmtInterviewTime(scheduledAt, profile?.timezone)}</Text> : null}
                     </View>
                     <Text style={[type.bodyStrong, { color: theme.ink, marginTop: 7, fontSize: 17 }]}>{myCard ? `You've scored ${name.split(" ")[0]}` : `You've interviewed ${name.split(" ")[0]}`}</Text>
-                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{myCard ? "Your scorecard is in. You can still edit it until the hiring manager decides." : "Add your scorecard so the hiring manager can make the call."}</Text>
+                    <Text style={[type.small, { color: theme.ink2, marginTop: 3, lineHeight: 18 }]}>{myCard ? "Your scorecard is in. You can still edit it until the hiring manager decides." : (manager && decisionReady) ? "The panel has finished scoring." : "Add your scorecard so the hiring manager can make the call."}</Text>
                   </View>
                 </View>
               </LinearGradient>
               <View style={styles.ivHappenBody}>
                 <Pressable onPress={() => switchTab("feedback")} style={styles.ivHappenPrimary}>
-                  <Feather name={myCard ? "eye" : "plus"} size={16} color="#fff" />
-                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>{myCard ? "View scorecards" : "Add my scorecard"}</Text>
+                  <Feather name={(myCard || (manager && decisionReady)) ? "eye" : "plus"} size={16} color="#fff" />
+                  <Text style={[type.smallStrong, { color: "#fff", marginLeft: 7 }]}>{(myCard || (manager && decisionReady)) ? "View scorecards" : "Add my scorecard"}</Text>
                 </Pressable>
               </View>
             </View>
@@ -973,7 +984,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {showDecision ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Decision</SectionHeader>
-              <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>The panel has finished scoring. Choose how to move {name.split(" ")[0]} forward.</Text>
               <Pressable onPress={() => setOfferOpen(true)} style={styles.decisionOffer}>
                 <View style={styles.decisionOfferIcon}><Feather name="file-text" size={20} color="#fff" /></View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1040,7 +1050,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           <View style={{ marginTop: space(5) }}>
             <SectionHeader>{requiredRaters.length ? `Panel feedback · ${ratedRequired}/${requiredRaters.length}` : "Panel feedback"}</SectionHeader>
             {cards.length === 0 ? (
-              canScore ? (
+              canScore && !(manager && decisionReady) ? (
                 <LinearGradient colors={[theme.brandSoft, theme.card]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.scoreEmpty}>
                   <Text style={[type.bodyStrong, { color: theme.ink, fontSize: 18, textAlign: "center" }]}>Add your scorecard</Text>
                   <View style={styles.scoreChips}>
@@ -1074,7 +1084,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     </Card>
                   );
                 })}
-                {canScore && !myCard ? (
+                {canScore && !myCard && !(manager && decisionReady) ? (
                   <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
                 ) : null}
               </>
@@ -1088,12 +1098,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
             <Card style={{ marginTop: space(5) }}><Text style={[type.small, { color: theme.ink3 }]}>Scorecards and the hiring decision appear here once the interview has happened.</Text></Card>
           ) : null}
 
-          {/* Reject */}
-          {manager && stage !== "rejected" && stage !== "hired" && stage !== "declined" ? (
-            <Pressable onPress={reject} style={{ alignSelf: "center", marginTop: space(7), padding: 8 }}>
-              <Text style={[type.smallStrong, { color: theme.danger }]}>Reject candidate</Text>
-            </Pressable>
-          ) : null}
           </>) : null}
 
           {tab === "decision" && !manager ? (() => {
