@@ -7892,6 +7892,32 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
   const PenIcon = ({ c = "w-4 h-4" }) => (
     <svg className={c} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
   );
+  const candidateField = (
+    <div className="rounded-xl border-2 border-dashed p-4 sm:p-5" style={{ borderColor: adopted ? "#86EFAC" : "var(--brand)", background: adopted ? "#F0FDF4" : "var(--brand-soft)" }}>
+      <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: adopted ? "#166534" : "var(--brand)", letterSpacing: "0.08em" }}>
+        {adopted ? "Signed by you" : "Sign here"}
+      </p>
+      {adopted ? (
+        <div className="flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            {mode === "type"
+              ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 30, color: "var(--ink)" }}>{typedName.trim()}</span>
+              : <img src={drawnPng} alt="Your signature" style={{ height: 54, maxWidth: 260, objectFit: "contain" }} />}
+            <div className="mt-1 pt-1 border-t text-[11px]" style={{ borderColor: "#BBF7D0", color: "var(--ink-3)" }}>
+              {(typedName.trim() || letter?.candidateName || "You")} · {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+            </div>
+          </div>
+          <button onClick={() => setAdoptOpen(true)} className="text-xs font-semibold shrink-0" style={{ color: "var(--brand)" }}>Change</button>
+        </div>
+      ) : (
+        <button onClick={() => setAdoptOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg brand-gradient text-white font-bold text-sm px-5 py-3 transition-all hover:-translate-y-0.5"
+          style={{ boxShadow: "0 12px 24px -12px rgba(var(--brand-rgb),0.85)" }}>
+          <PenIcon /> Click to sign
+        </button>
+      )}
+    </div>
+  );
 
   // Settled (accepted / declined) — a clean confirmation card.
   if (settled) {
@@ -7955,43 +7981,20 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
             )}
 
             {/* Signature block — company sign-off (left) inline with the
-                candidate's counter-signature (right). */}
+                candidate's counter-signature (right). Falls back to a single
+                right-aligned field until aster-sign returns the sign-off block. */}
             <div ref={signRef} className="px-6 sm:px-10 pb-8 pt-1">
-              <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 items-end">
-                {/* Company sign-off (compose mode only; upload PDFs carry their own) */}
-                {letter?.mode !== "upload" && letter?.signatoryHtml ? (
+              {letter?.mode !== "upload" && letter?.signatoryHtml ? (
+                <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 items-end">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>For and on behalf of the company</p>
                     <div style={{ fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", color: "#33373c", fontSize: 13, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: letter.signatoryHtml }} />
                   </div>
-                ) : <div className="hidden sm:block" />}
-
-                {/* Candidate signature field */}
-                <div className="rounded-xl border-2 border-dashed p-4 sm:p-5" style={{ borderColor: adopted ? "#86EFAC" : "var(--brand)", background: adopted ? "#F0FDF4" : "var(--brand-soft)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: adopted ? "#166534" : "var(--brand)", letterSpacing: "0.08em" }}>
-                    {adopted ? "Signed by you" : "Sign here"}
-                  </p>
-                  {adopted ? (
-                    <div className="flex items-end justify-between gap-4">
-                      <div className="min-w-0">
-                        {mode === "type"
-                          ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 30, color: "var(--ink)" }}>{typedName.trim()}</span>
-                          : <img src={drawnPng} alt="Your signature" style={{ height: 54, maxWidth: 260, objectFit: "contain" }} />}
-                        <div className="mt-1 pt-1 border-t text-[11px]" style={{ borderColor: "#BBF7D0", color: "var(--ink-3)" }}>
-                          {(typedName.trim() || letter?.candidateName || "You")} · {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-                        </div>
-                      </div>
-                      <button onClick={() => setAdoptOpen(true)} className="text-xs font-semibold shrink-0" style={{ color: "var(--brand)" }}>Change</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setAdoptOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-lg brand-gradient text-white font-bold text-sm px-5 py-3 transition-all hover:-translate-y-0.5"
-                      style={{ boxShadow: "0 12px 24px -12px rgba(var(--brand-rgb),0.85)" }}>
-                      <PenIcon /> Click to sign
-                    </button>
-                  )}
+                  {candidateField}
                 </div>
-              </div>
+              ) : (
+                <div className="sm:max-w-sm sm:ml-auto">{candidateField}</div>
+              )}
             </div>
           </div>
           <p className="text-center text-[11px] mt-4 flex items-center justify-center gap-1.5 px-4" style={{ color: "var(--ink-3)" }}>
