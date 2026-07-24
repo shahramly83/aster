@@ -7866,6 +7866,10 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
 
   const hasSignature = mode === "type" ? typedName.trim().length > 1 : !!drawnPng;
   const canSign = consent && hasSignature && !busy;
+  // "signed" = the candidate has completed the adopt step AND still holds a valid
+  // signature. Guards against a switch-mode-then-cancel leaving adopted=true with
+  // no signature (which would show a broken preview + a Finish that no-ops).
+  const signed = adopted && hasSignature;
 
   const sign = async () => {
     if (!canSign) return;
@@ -7895,11 +7899,11 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
     <svg className={c} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
   );
   const candidateField = (
-    <div className="rounded-xl border-2 border-dashed p-4 sm:p-5" style={{ borderColor: adopted ? "#86EFAC" : "var(--brand)", background: adopted ? "#F0FDF4" : "var(--brand-soft)" }}>
-      <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: adopted ? "#166534" : "var(--brand)", letterSpacing: "0.08em" }}>
-        {adopted ? "Signed by you" : "Sign here"}
+    <div className="rounded-xl border-2 border-dashed p-4 sm:p-5" style={{ borderColor: signed ? "#86EFAC" : "var(--brand)", background: signed ? "#F0FDF4" : "var(--brand-soft)" }}>
+      <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: signed ? "#166534" : "var(--brand)", letterSpacing: "0.08em" }}>
+        {signed ? "Signed by you" : "Sign here"}
       </p>
-      {adopted ? (
+      {signed ? (
         <div className="flex items-end justify-between gap-4">
           <div className="min-w-0">
             {mode === "type"
@@ -7974,7 +7978,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
               <div ref={signRef} className="p-3 sm:p-5">
                 <OfferSignPlacement url={letter.pdfUrl} field={letter.signField} readOnly
                   onSignHere={() => setAdoptOpen(true)}
-                  signature={{ adopted, type: mode === "type" ? "type" : "draw", typedName: (typedName.trim() || letter?.candidateName || "You"), drawnPng }} />
+                  signature={{ adopted: signed, type: mode === "type" ? "type" : "draw", typedName: (typedName.trim() || letter?.candidateName || "You"), drawnPng }} />
               </div>
             ) : (
               <div className="p-6 sm:p-10">
@@ -8012,7 +8016,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       </main>
 
       {/* Floating "start" tag pointing to the field (once the letter is loaded) */}
-      {letter && !adopted && (
+      {letter && !signed && (
         <button onClick={scrollToSign} aria-label="Go to signature field"
           className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 pl-3 pr-4 py-2.5 rounded-r-full text-xs font-bold shadow-lg brand-gradient text-white transition-transform hover:translate-x-0.5">
           <Icon name="chevronRight" className="w-4 h-4" /> START
@@ -8023,19 +8027,19 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       <footer className="shrink-0 bg-white border-t z-20" style={{ borderColor: "var(--line)", paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex items-center gap-3 px-4 sm:px-6" style={{ minHeight: 68 }}>
           <div className="min-w-0 flex-1 flex items-center gap-2">
-            <span className="inline-flex items-center justify-center text-[11px] font-bold rounded-full w-6 h-6 shrink-0" style={{ background: adopted ? "#DCFCE7" : "var(--brand-soft)", color: adopted ? "#166534" : "var(--brand)" }}>
-              {adopted ? <Icon name="check" className="w-3.5 h-3.5" /> : 1}
+            <span className="inline-flex items-center justify-center text-[11px] font-bold rounded-full w-6 h-6 shrink-0" style={{ background: signed ? "#DCFCE7" : "var(--brand-soft)", color: signed ? "#166534" : "var(--brand)" }}>
+              {signed ? <Icon name="check" className="w-3.5 h-3.5" /> : 1}
             </span>
-            <span className="text-[13px] truncate" style={{ color: "var(--ink-2)" }}>{adopted ? "Ready to submit" : "1 required field"}</span>
+            <span className="text-[13px] truncate" style={{ color: "var(--ink-2)" }}>{signed ? "Ready to submit" : "1 required field"}</span>
           </div>
           <button onClick={() => setDeclining(true)} disabled={!!busy}
             className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50 shrink-0"
             style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
             Decline
           </button>
-          <button onClick={sign} disabled={!adopted || !!busy}
-            className={`text-sm font-bold px-6 py-2.5 rounded-xl transition-all disabled:cursor-not-allowed shrink-0 ${adopted ? "brand-gradient text-white hover:opacity-95" : ""}`}
-            style={adopted ? { boxShadow: "0 12px 24px -12px rgba(var(--brand-rgb),0.85)" } : { background: "#E5E7EB", color: "#9CA3AF" }}>
+          <button onClick={sign} disabled={!signed || !!busy}
+            className={`text-sm font-bold px-6 py-2.5 rounded-xl transition-all disabled:cursor-not-allowed shrink-0 ${signed ? "brand-gradient text-white hover:opacity-95" : ""}`}
+            style={signed ? { boxShadow: "0 12px 24px -12px rgba(var(--brand-rgb),0.85)" } : { background: "#E5E7EB", color: "#9CA3AF" }}>
             {busy === "sign" ? "Finishing…" : "Finish"}
           </button>
         </div>
@@ -22641,7 +22645,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     </button>
                   </div>
                 </div>
-              ) : (approvalStatus === "pending" || approvalStatus === "declined") ? (
+              ) : (approvalStatus === "pending" || approvalStatus === "declined" || offerStatus === "pending_approval") ? (
                 <div className="mt-2">
                   <div className="rounded-xl border p-3.5" style={{ borderColor: approvalStatus === "declined" ? "#FECDD3" : "var(--line)", background: approvalStatus === "declined" ? "#FFF1F2" : "var(--bg)" }}>
                     <div className="flex items-center justify-between gap-2 mb-2.5">
