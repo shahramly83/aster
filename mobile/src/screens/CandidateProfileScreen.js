@@ -128,7 +128,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const load = useCallback(async () => {
     const [c, sc, iv, off, meta, qs] = await Promise.all([
       loadCandidate(candidateId),
-      loadScorecards(candidateId),
+      loadScorecards(candidateId, jobId),
       loadCandidateInterview(profile.companyId, candidateId),
       loadOffer(profile.companyId, candidateId),
       loadApplicationMeta(profile.companyId, candidateId),
@@ -212,7 +212,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const applyStage = async (to) => {
     const prev = stage;
     setStage(to);
-    try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to }); }
+    try { await moveCandidateStage({ companyId: profile.companyId, candidateId, candidateName: nameOf(), stage: to, jobId }); }
     catch (e) { setStage(prev); dialog.alert({ title: "Could not update", message: e?.message || "Please try again.", icon: "alert-triangle", variant: "danger" }); }
   };
 

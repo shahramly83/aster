@@ -26958,17 +26958,19 @@ export default function ResumeAIPreview() {
   // offer / hired / rejected also emails the candidate the matching Tier 2
   // template. `notify` is false for the "simulate the candidate's reply" preview,
   // which must never send a real email.
-  const setCandidateStage = (candidateId, stage, { notify = true } = {}) => {
+  const setCandidateStage = (candidateId, stage, { notify = true, jobId = null } = {}) => {
     const prevStage = stageOverrides[candidateId];
     setStageOverrides((prev) => ({ ...prev, [candidateId]: stage }));
     // Keep the loaded snapshot (baseStage) in sync so stage-derived statuses,
     // the job pipeline bar, the profile stage pill, the interviewer's interview
-    // status, don't show a stale stage until the next reload.
-    Object.values(APPLICANTS_BY_JOB).forEach((list) => list.forEach((a) => { if (a.candidateId === candidateId) a.baseStage = stage; }));
+    // status, don't show a stale stage until the next reload. When a job is known,
+    // only the matching application is touched so the change doesn't bleed to the
+    // candidate's other roles.
+    Object.entries(APPLICANTS_BY_JOB).forEach(([jid, list]) => list.forEach((a) => { if (a.candidateId === candidateId && (!jobId || jid === jobId)) a.baseStage = stage; }));
     // Stamp the hire date when a candidate is marked hired (drives "Hired {date}").
     if (stage === "hired") setHiredDates((prev) => (prev[candidateId] ? prev : { ...prev, [candidateId]: new Date().toISOString().slice(0, 10) }));
     if (!canPersist || prevStage === stage) return;
-    dbSetCandidateStage(companyId, candidateId, stage);
+    dbSetCandidateStage(companyId, candidateId, stage, jobId);
     if (stage === "hired") dbLogActivity("hired", `${MOCK_CANDIDATES.find((c) => c.id === candidateId)?.parsed?.name || "A candidate"} was hired`, { candidateId });
     // 'offer' is intentionally excluded: offers are sent via the dedicated
     // sendOffer flow (which emails an accept/decline link), not here.
@@ -26987,7 +26989,7 @@ export default function ResumeAIPreview() {
     const list = APPLICANTS_BY_JOB[jobId] || [];
     list.forEach((a) => {
       const cur = stageOverrides[a.candidateId] ?? a.baseStage;
-      if (cur !== "hired" && cur !== "rejected") setCandidateStage(a.candidateId, "rejected", { notify: false });
+      if (cur !== "hired" && cur !== "rejected") setCandidateStage(a.candidateId, "rejected", { notify: false, jobId });
     });
   };
 
@@ -27025,7 +27027,7 @@ export default function ResumeAIPreview() {
     // Upload mode carries no structured terms — the PDF is the offer.
     const isUpload = !!(upload && upload.file);
     setOffers((prev) => ({ ...prev, [candidateId]: { status: needsApproval ? "pending_approval" : "sent", emailSent, sentAt: "just now", terms: isUpload ? null : terms, mode: isUpload ? "upload" : "compose" } }));
-    setCandidateStage(candidateId, "offer", { notify: false });
+    setCandidateStage(candidateId, "offer", { notify: false, jobId: viewCandidateJobId });
     // Record the offer. Upload mode: create the row, attach HR's PDF + signature
     // box, then send. Compose mode: record terms. With approvers, submit for
     // sequential sign-off (candidate emailed only after the last approval);
@@ -27039,7 +27041,7 @@ export default function ResumeAIPreview() {
           const sig = await dbGetMyOfferSignature();
           if (sig) sendTerms = { ...terms, signatorySignature: sig };
         }
-        const offer = await dbCreateOffer(companyId, { candidateId, terms: isUpload ? null : sendTerms, emailSent });
+        const offer = await dbCreateOffer(companyId, { candidateId, jobId: viewCandidateJobId, terms: isUpload ? null : sendTerms, emailSent });
         const token = offer?.token;
         if (!token) return;
         if (isUpload) {
@@ -27728,7 +27730,7 @@ export default function ResumeAIPreview() {
             onReleaseScorecards={() => activeCandidate && releaseScorecards(activeCandidate.id)}
             onSubstitute={(oldId, replacement) => activeCandidate && substituteAttendee(activeCandidate.id, oldId, replacement, viewCandidateJobId)}
             stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? null) : null}
-            onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, opts)}
+            onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, { ...opts, jobId: opts?.jobId ?? viewCandidateJobId })}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
             preferredCurrency={preferredCurrency}

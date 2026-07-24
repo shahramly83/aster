@@ -124,13 +124,14 @@ export async function dbClearJobApplicants(companyId, jobId) {
 
 // The app models pipeline stage per candidate (not per application), so a stage
 // change updates every application that candidate has in this workspace.
-export async function dbSetCandidateStage(companyId, candidateId, stage) {
+export async function dbSetCandidateStage(companyId, candidateId, stage, jobId = null) {
   if (!hasSupabase || !companyId) return;
-  const { error } = await supabase
-    .from("applications")
-    .update({ stage })
-    .eq("company_id", companyId)
-    .eq("candidate_id", candidateId);
+  // Scope to a single job when we know which one (the candidate profile / job
+  // pipeline always does), so a stage change in one role doesn't rewrite the same
+  // candidate's stage in every other role they applied to.
+  let q = supabase.from("applications").update({ stage }).eq("company_id", companyId).eq("candidate_id", candidateId);
+  if (jobId) q = q.eq("job_id", jobId);
+  const { error } = await q;
   if (error) console.error("dbSetCandidateStage", error.message);
 }
 

@@ -332,12 +332,12 @@ export async function runExperienceInsights(candidate) {
 // ---- Scorecards ----------------------------------------------------------------
 
 // All scorecards for a candidate (read is RLS-scoped to my assigned jobs).
-export async function loadScorecards(candidateId) {
-  const { data } = await supabase
-    .from("scorecards")
-    .select("id, interviewer_id, ratings, notes, created_at")
-    .eq("candidate_id", candidateId)
-    .order("created_at", { ascending: false });
+export async function loadScorecards(candidateId, jobId = null) {
+  // Scope to the job when known, so a candidate interviewed for two roles doesn't
+  // mix the panels' scorecards (which would skew the "everyone scored" gate).
+  let q = supabase.from("scorecards").select("id, interviewer_id, ratings, notes, created_at").eq("candidate_id", candidateId);
+  if (jobId) q = q.eq("job_id", jobId);
+  const { data } = await q.order("created_at", { ascending: false });
   // One card per reviewer: rows are newest-first, so keep the first seen and
   // drop any older/duplicate submissions from the same person.
   const seen = new Set();
@@ -372,7 +372,7 @@ export async function submitScorecard({ companyId, userId, candidateId, jobId, r
   // already scored, so repeated submits revise their card instead of piling up.
   const { data: existing } = await supabase
     .from("scorecards").select("id")
-    .eq("candidate_id", candidateId).eq("interviewer_id", userId)
+    .eq("candidate_id", candidateId).eq("interviewer_id", userId).eq("job_id", jobId)
     .limit(1).maybeSingle();
   let result;
   if (existing?.id) {
@@ -936,7 +936,7 @@ export async function scheduleInterview({ companyId, candidateId, jobId, candida
   });
   if (error) throw error;
   // Advance the pipeline stage the same way a confirmed booking does.
-  await moveCandidateStage({ companyId, candidateId, candidateName, stage: "interviewing", notify: false }).catch(() => {});
+  await moveCandidateStage({ companyId, candidateId, candidateName, stage: "interviewing", notify: false, jobId }).catch(() => {});
 }
 
 // Stages a mobile client may set DIRECTLY, exactly matching what the web app's
@@ -991,16 +991,15 @@ export async function setShortlisted({ companyId, userId, applicationId, on }) {
   }
 }
 
-export async function moveCandidateStage({ companyId, candidateId, candidateName, stage, notify = true }) {
+export async function moveCandidateStage({ companyId, candidateId, candidateName, stage, notify = true, jobId = null }) {
   if (!MOBILE_STAGES.includes(stage)) {
     throw new Error(`"${stage}" can only be set on the web app.`);
   }
-  // 1) Persist the stage exactly as dbSetCandidateStage does (by candidate).
-  const { error } = await supabase
-    .from("applications")
-    .update({ stage })
-    .eq("company_id", companyId)
-    .eq("candidate_id", candidateId);
+  // 1) Persist the stage. Scope to the job when known so the change doesn't rewrite
+  //    the same candidate's stage in every other role they applied to.
+  let q = supabase.from("applications").update({ stage }).eq("company_id", companyId).eq("candidate_id", candidateId);
+  if (jobId) q = q.eq("job_id", jobId);
+  const { error } = await q;
   if (error) throw error;
 
   // 2) Activity log on hire (company-gated log_activity RPC, same as web).
@@ -1175,8 +1174,11 @@ export async function sendOffer({ companyId, candidateId, candidateName, jobId =
   // This mirrors setCandidateStage(candidateId, "offer", { notify:false }); done
   // here (not moveCandidateStage) so a raw "offer" stage write stays blocked
   // everywhere except as part of a real offer.
-  await supabase.from("applications").update({ stage: "offer" })
-    .eq("company_id", companyId).eq("candidate_id", candidateId);
+  {
+    let sq = supabase.from("applications").update({ stage: "offer" }).eq("company_id", companyId).eq("candidate_id", candidateId);
+    if (jobId) sq = sq.eq("job_id", jobId);
+    await sq;
+  }
 
   try {
     if (needsApproval) {
