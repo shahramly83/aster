@@ -1631,7 +1631,10 @@ function ForgotPasswordScreen({ navigate, logoUrl }) {
   // Only with that session can updateUser() set a new password.
   useEffect(() => {
     if (!hasSupabase || typeof window === "undefined") return;
-    if (/type=recovery/.test(window.location.hash)) setStep("reset");
+    // Two ways in: the emailed link's #type=recovery hash / PASSWORD_RECOVERY event,
+    // OR landing on /reset-password after ConfirmEmailScreen already verified the
+    // recovery OTP (a valid recovery session is live, so updateUser() will work).
+    if (/type=recovery/.test(window.location.hash) || window.location.pathname === "/reset-password") setStep("reset");
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") setStep("reset");
     });
@@ -21515,6 +21518,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [inviteJobId, setInviteJobId] = useState("");
   const [inviteSent, setInviteSent] = useState(false);
   const [inviteMsg, setInviteMsg] = useState(null);
+  const [inviteErr, setInviteErr] = useState(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
   // Questions unlock once the interview is actually booked: either the shared
   // booking shows the candidate confirmed a time, or the application is already
   // at the interviewing/offer/hired stage.
@@ -21740,10 +21745,17 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
 
   const openJobsForInvite = (jobs || []).filter((j) => j.status === "open");
   const candidateEmail = candidate?.parsed?.email || "";
-  const pickInviteJob = (id) => { setInviteJobId(id); setInviteSent(false); setInviteMsg(null); };
-  const sendInviteEmail = () => {
+  const pickInviteJob = (id) => { setInviteJobId(id); setInviteSent(false); setInviteMsg(null); setInviteErr(null); };
+  const sendInviteEmail = async () => {
     const job = jobs.find((j) => j.id === inviteJobId);
-    if (!job || !candidateEmail) return;
+    if (!job || !candidateEmail || !candidate?.id || inviteBusy) return;
+    setInviteErr(null); setInviteBusy(true);
+    if (canPersist && companyId) {
+      const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+      const { data, error } = await supabase.functions.invoke("send-sourcing-invite", { body: { candidate_id: candidate.id, job_id: inviteJobId, origin } });
+      if (error || data?.error) { setInviteBusy(false); setInviteErr(`Couldn't send the invite: ${data?.error || error?.message || "please try again."}`); return; }
+    }
+    setInviteBusy(false);
     setInviteSent(true);
     setInviteMsg(`Invite sent to ${candidateEmail} using the Sourcing invite template. When ${firstName} applies through the link, AI refreshes the profile with their latest resume and moves them into your hiring workflow.`);
   };
@@ -22266,12 +22278,18 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                       <Icon name="chat" className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--brand)" }} />
                       <span>Emails {candidateEmail || "this candidate"} using the <span className="font-medium" style={{ color: "var(--ink-2)" }}>Sourcing invite</span> template, with the apply link added automatically. <button onClick={() => navigate("emailTemplates")} className="font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Edit template</button></span>
                     </p>
-                    <button onClick={sendInviteEmail} disabled={!inviteJobId || !candidateEmail || inviteSent}
+                    <button onClick={sendInviteEmail} disabled={!inviteJobId || !candidateEmail || inviteSent || inviteBusy}
                       className="mt-3 w-full sm:w-auto rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
-                      <Icon name={inviteSent ? "check" : "chat"} className="w-4 h-4" /> {inviteSent ? "Invite sent" : "Send invite"}
+                      <Icon name={inviteSent ? "check" : "chat"} className="w-4 h-4" /> {inviteBusy ? "Sending…" : inviteSent ? "Invite sent" : "Send invite"}
                     </button>
                   </div>
                 ))}
+                {inviteErr && (
+                  <div className="mt-3 rounded-xl px-3.5 py-2.5 flex items-start gap-2" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
+                    <span className="shrink-0 mt-0.5" style={{ color: "#B42318" }}><Icon name="info" className="w-4 h-4" /></span>
+                    <p className="text-xs" style={{ color: "#B42318" }}>{inviteErr}</p>
+                  </div>
+                )}
                 {inviteMsg && (
                   <div className="mt-3 rounded-xl px-3.5 py-2.5 flex items-start gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
                     <span className="shrink-0 mt-0.5" style={{ color: "#059669" }}><Icon name="check" className="w-4 h-4" /></span>
@@ -25154,6 +25172,8 @@ const PATH_TO_SCREEN = {
   "/contact-sales": "contactSales",
   "/login": "login",
   "/forgot-password": "forgotPassword",
+  "/reset-password": "forgotPassword", // recovery link lands here → the reset step
+
   "/auth/confirm": "confirmEmail",
   "/signup": "signup",
   "/dashboard": "dashboard",
