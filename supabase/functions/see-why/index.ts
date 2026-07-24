@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: MODEL, max_tokens: 400, messages: [{ role: "user", content: `${PROMPT}\n\nRole (JSON):\n${JSON.stringify(roleInfo)}\n\nResume (JSON):\n${JSON.stringify(resume)}` }] }),
     });
-    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "see_why"); return json({ error: "explain_failed" }, 502); }
+    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "see_why", paid.source); return json({ error: "explain_failed" }, 502); }
     const data = await resp.json();
     let text = (data.content || []).map((b: any) => (typeof b.text === "string" ? b.text : "")).join(" ").trim();
     text = text.replace(/```json/gi, "").replace(/```/g, "");
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     let raw: any = null;
     if (s >= 0 && e > s) { try { raw = JSON.parse(text.slice(s, e + 1)); } catch (err) { console.error("json parse", err); } }
     const explanation = raw && typeof raw.explanation === "string" ? stripDashes(raw.explanation).slice(0, 600) : "";
-    if (!explanation) { await refund(paid.companyId, "see_why"); return json({ error: "explain_failed" }, 502); }
+    if (!explanation) { await refund(paid.companyId, "see_why", paid.source); return json({ error: "explain_failed" }, 502); }
 
     return json({ explanation, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {

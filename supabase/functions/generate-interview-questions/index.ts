@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: MODEL, max_tokens: 1600, messages: [{ role: "user", content: `${PROMPT}\n\nRole title: ${String(jobTitle).slice(0, 120)}\n\nResume (JSON):\n${JSON.stringify(resume)}` }] }),
     });
-    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "interview_questions"); return json({ error: "generate_failed" }, 502); }
+    if (!resp.ok) { console.error("anthropic error", resp.status, await resp.text()); await refund(paid.companyId, "interview_questions", paid.source); return json({ error: "generate_failed" }, 502); }
     const data = await resp.json();
     let text = (data.content || []).map((b: any) => (typeof b.text === "string" ? b.text : "")).join(" ").trim();
     text = text.replace(/```json/gi, "").replace(/```/g, "");
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     let raw: any = null;
     if (s >= 0 && e > s) { try { raw = JSON.parse(text.slice(s, e + 1)); } catch (err) { console.error("json parse", err); } }
     const list = raw && Array.isArray(raw.questions) ? raw.questions : null;
-    if (!list) { await refund(paid.companyId, "interview_questions"); return json({ error: "generate_failed" }, 502); }
+    if (!list) { await refund(paid.companyId, "interview_questions", paid.source); return json({ error: "generate_failed" }, 502); }
 
     // Normalise into the exact [{category, question}] shape the UI groups by.
     const allow = new Set(CATEGORIES);
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
         question: stripDashes(q.question).slice(0, 400),
       }))
       .slice(0, 15);
-    if (!questions.length) { await refund(paid.companyId, "interview_questions"); return json({ error: "generate_failed" }, 502); }
+    if (!questions.length) { await refund(paid.companyId, "interview_questions", paid.source); return json({ error: "generate_failed" }, 502); }
 
     return json({ questions, used: paid.used, monthly_limit: paid.limit, resets_at: paid.resetsAt });
   } catch (e) {
