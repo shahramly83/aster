@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useAuth } from "../AuthContext";
 import { useNotifications } from "../NotificationsContext";
-import { loadTeam, inviteTeammate, loadApprovers, addApprover, removeApprover } from "../lib/data";
+import { loadTeam, inviteTeammate, removeTeammate, loadApprovers, addApprover, removeApprover } from "../lib/data";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, HeaderActions, TopBar, Button, Loader, EmptyState, Feather } from "../components/ui";
 import SuccessModal from "../components/SuccessModal";
@@ -91,7 +91,12 @@ export default function TeamsScreen({ navigation }) {
     if (res.ok) setInviteDone({ title: "Confirmation re-sent", message: `We re-sent the confirmation email to ${r.email}. They'll appear as Confirmed once they click it.` });
   };
   const removeApproverRow = async (id) => { setApprovers((l) => (l || []).filter((x) => x.id !== id)); await removeApprover(id); };
-  const [confirmRemove, setConfirmRemove] = useState(null); // approver row pending deletion
+  const removeTeammateRow = async (item) => {
+    const err = await removeTeammate(item.id);
+    if (err) { setInviteDone({ title: "Couldn't remove", message: err }); return; }
+    load();
+  };
+  const [confirmRemove, setConfirmRemove] = useState(null); // { ...item } pending deletion (approver or teammate)
 
   // Approver add form — lives inside the "Add people" (invite) modal.
   const [apName, setApName] = useState("");
@@ -269,45 +274,41 @@ export default function TeamsScreen({ navigation }) {
           }
           const m = metaOf(item.role);
           const you = item.id === profile?.userId;
-          // Approver row: status pill + resend/remove instead of a role tag.
-          if (item._approver) {
-            return (
-              <Rise delay={Math.min(index, 8) * 35}>
-                <View style={styles.card}>
-                  <View style={[styles.avatarRing, { borderColor: m.ring }]}><Avatar name={item.name} size={44} /></View>
-                  <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
-                    <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
-                    {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.email}</Text> : null}
-                  </View>
-                  <View style={[styles.roleTag, { backgroundColor: item.pending ? "#FEF3C7" : "#DCFCE7" }]}>
-                    <Feather name={item.pending ? "clock" : "check"} size={11} color={item.pending ? "#92400E" : "#166534"} />
-                    <Text style={[type.smallStrong, { color: item.pending ? "#92400E" : "#166534", marginLeft: 5 }]}>{item.pending ? "Pending" : "Confirmed"}</Text>
-                  </View>
-                  <Pressable onPress={() => setConfirmRemove(item)} hitSlop={6} style={[ap.x, { marginLeft: 6 }]}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
-                </View>
-              </Rise>
-            );
-          }
+          const isApprover = !!item._approver;
+          // Every card reads the same: role pill + status pill under the name,
+          // email on its own full-width line so it isn't cut off, and a remove
+          // ✕ for anyone an owner/admin can remove (approvers, and non-owner
+          // teammates — never yourself or the owner).
+          const statusLabel = isApprover ? (item.pending ? "Pending" : "Confirmed") : (item.pending ? "Pending" : "Active");
+          const statusColor = item.pending ? "#92400E" : "#166534";
+          const statusBg = item.pending ? "#FEF3C7" : "#DCFCE7";
+          const removable = canInvite && (isApprover || (item.role !== "owner" && !you && !item.pending));
           return (
             <Rise delay={Math.min(index, 8) * 35}>
-              <View style={styles.card}>
+              <View style={[styles.card, { alignItems: "flex-start", padding: space(4) }]}>
                 <View style={[styles.avatarRing, { borderColor: m.ring }]}>
                   <Avatar name={item.name} size={44} />
                 </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{item.name}</Text>
                     {you ? <View style={styles.youPill}><Text style={styles.youTxt}>You</Text></View> : null}
                   </View>
-                  {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.email}</Text> : null}
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
-                    <Feather name={m.icon} size={11} color={m.color} />
-                    <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 7 }}>
+                    <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
+                      <Feather name={m.icon} size={11} color={m.color} />
+                      <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
+                    </View>
+                    <View style={[styles.roleTag, { backgroundColor: statusBg }]}>
+                      <Feather name={item.pending ? "clock" : "check"} size={11} color={statusColor} />
+                      <Text style={[type.smallStrong, { color: statusColor, marginLeft: 5 }]}>{statusLabel}</Text>
+                    </View>
                   </View>
-                  {item.pending ? <Text style={styles.pending}>Invite pending</Text> : null}
+                  {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 7 }]} numberOfLines={1}>{item.email}</Text> : null}
                 </View>
+                {removable ? (
+                  <Pressable onPress={() => setConfirmRemove(item)} hitSlop={8} style={ap.x}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
+                ) : null}
               </View>
             </Rise>
           );
@@ -401,11 +402,18 @@ export default function TeamsScreen({ navigation }) {
         visible={!!confirmRemove}
         variant="danger"
         icon="user-x"
-        title="Remove approver?"
-        message={confirmRemove ? `${confirmRemove.name || confirmRemove.email} will no longer be able to approve offers.` : ""}
+        title={confirmRemove?._approver ? "Remove approver?" : "Remove teammate?"}
+        message={confirmRemove
+          ? (confirmRemove._approver
+            ? `${confirmRemove.name || confirmRemove.email} will no longer be able to approve offers.`
+            : `${confirmRemove.name || confirmRemove.email} will lose access to this workspace. Their scorecards and interviews stay on file.`)
+          : ""}
         confirmLabel="Remove"
         cancelLabel="Keep"
-        onConfirm={() => { if (confirmRemove) removeApproverRow(confirmRemove.id); setConfirmRemove(null); }}
+        onConfirm={() => {
+          if (confirmRemove) { confirmRemove._approver ? removeApproverRow(confirmRemove.id) : removeTeammateRow(confirmRemove); }
+          setConfirmRemove(null);
+        }}
         onCancel={() => setConfirmRemove(null)}
       />
 

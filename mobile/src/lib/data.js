@@ -820,6 +820,19 @@ export async function inviteTeammate({ email, role }) {
   return { ok: true, reactivated: !!data?.reactivated, email: clean };
 }
 
+// Remove a teammate (same web logic: remove_teammate RPC deactivates them and
+// drops job assignments, keeping their scorecards/interviews attached). Returns
+// an error message, or null on success.
+export async function removeTeammate(profileId) {
+  if (!profileId) return "Not connected.";
+  const { error } = await supabase.rpc("remove_teammate", { p_profile: profileId });
+  if (!error) return null;
+  console.warn("removeTeammate", error.message);
+  if (error.code === "42501") return "Only an owner or admin can remove a teammate.";
+  if (error.code === "P0001") return error.message; // self-removal or sole owner
+  return error.message || "Couldn't remove that teammate.";
+}
+
 export async function loadTeam(companyId) {
   if (!companyId) return [];
   const { data } = await supabase
