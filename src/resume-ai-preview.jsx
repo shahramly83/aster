@@ -21764,10 +21764,21 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                           {interviewWhen && <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--ink-3)" }}>{interviewWhen}</span>}
                         </div>
                         <h3 className="text-lg font-bold font-display mt-1.5 leading-tight" style={{ color: "var(--ink)" }}>You've interviewed {firstName}</h3>
-                        <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>The Scorecards tab just unlocked. Rate {firstName} so the hiring manager can make the call.</p>
-                        <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
-                          <Icon name="scorecard" className="w-4 h-4" /> Add your scorecard <Icon name="chevronRight" className="w-3.5 h-3.5" />
-                        </button>
+                        {iScored ? (
+                          <>
+                            <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>Your scorecard's in. {firstName} is with the hiring manager now.</p>
+                            <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--ink-3)" }}>
+                              <Icon name="check" className="w-4 h-4" /> View your scorecard <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>The Scorecards tab just unlocked. Rate {firstName} so the hiring manager can make the call.</p>
+                            <button type="button" onClick={() => setProfileTab("scorecards")} className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-70" style={{ color: "var(--brand)" }}>
+                              <Icon name="scorecard" className="w-4 h-4" /> Add your scorecard <Icon name="chevronRight" className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
