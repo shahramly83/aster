@@ -167,9 +167,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
   useEffect(() => {
     if (tabInit.current || loading) return;
     tabInit.current = true;
+    // Only land on Decision when its tab is actually shown (decisionTabVisible) —
+    // e.g. a rejected candidate with no offer + unreleased scorecards has
+    // decisionReady true but no Decision tab, which would render a blank screen.
     setTab(
-      !manager && myCard ? "decision"
-        : (manager && decisionReady) ? "decision"
+      decisionTabVisible && (!manager ? myCard : decisionReady) ? "decision"
         : (interviewDone && canScore) || stage === "offer" || stage === "hired" ? "feedback"
         : stage === "interviewing" ? "interview"
         : "profile"
@@ -1345,7 +1347,7 @@ function ProcessStepper({ stage }) {
               <View style={[styles.stepDot, done && styles.stepDone, active && styles.stepActive]}>
                 {done ? <Feather name="check" size={11} color={theme.white} /> : active ? <View style={styles.stepInner} /> : null}
               </View>
-              <View style={[styles.connector, { backgroundColor: i < STEPS.length - 1 && curIdx > i ? theme.brand : theme.line, opacity: i === STEPS.length - 1 ? 0 : 1 }]} />
+              <View style={[styles.connector, { backgroundColor: i < steps.length - 1 && curIdx > i ? theme.brand : theme.line, opacity: i === steps.length - 1 ? 0 : 1 }]} />
             </View>
             <Text style={[{ color: active ? theme.ink : theme.ink4, fontFamily: active ? "Inter_600SemiBold" : "Inter_400Regular", fontSize: 10, marginTop: 7, textAlign: "center" }]} numberOfLines={1}>{stageLabel(k)}</Text>
           </View>

@@ -334,7 +334,10 @@ export default function DiscussionScreen({ route, navigation }) {
   // what people walk away from — so hold the screen until they finish or undo.
   const myMarks = poll?.status === "open" ? poll.slots.filter((s) => s.mine) : [];
   const minMarks = minAvailabilityMarks(poll?.slots?.length ?? 0);
-  const marksIncomplete = isAvailabilityIncomplete(myMarks.length, poll?.slots?.length ?? 0);
+  // Round 2 is single-select (the candidate named these times, so one pick is a
+  // complete answer). The "mark at least 2" guard is round-1 only — applying it to
+  // round 2 would trap the interviewer, who can never satisfy it.
+  const marksIncomplete = !round2 && isAvailabilityIncomplete(myMarks.length, poll?.slots?.length ?? 0);
 
   // The pending navigation, parked while the guard sheet is up. Holding the
   // action (rather than a boolean) means we replay the exact intent afterwards,

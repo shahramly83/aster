@@ -22647,7 +22647,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     <button onClick={() => setShowOffer(true)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
                       Re-send offer
                     </button>
-                    <button onClick={() => onSetStage && onSetStage("rejected")} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+                    <button onClick={() => setConfirmReject(true)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
                       Close as rejected
                     </button>
                   </div>
