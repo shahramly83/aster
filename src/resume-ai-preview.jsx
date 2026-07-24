@@ -20624,7 +20624,7 @@ function OfferSignatureCard({ profile }) {
         </div>
       )}
       <div className="flex items-center gap-2 mt-4">
-        <button onClick={save} disabled={busy || !dirty || (mode === "draw" && !drawn && !(saved && !saved.startsWith("typed:")))}
+        <button onClick={save} disabled={busy || (mode === "type" ? !typed.trim() : (!drawn && !(saved && !saved.startsWith("typed:"))))}
           className="text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-opacity hover:opacity-95 disabled:opacity-40">
           {busy ? "Saving…" : "Save signature"}
         </button>
@@ -20633,8 +20633,14 @@ function OfferSignatureCard({ profile }) {
             Clear
           </button>
         )}
-        {msg && <span className="text-sm" style={{ color: msg.type === "err" ? "#B42318" : "#166534" }}>{msg.text}</span>}
       </div>
+      {msg && (
+        <div className="mt-3 rounded-lg px-3.5 py-2.5 text-sm" style={msg.type === "err"
+          ? { background: "#FEF2F2", border: "1px solid #FECACA", color: "#B42318" }
+          : { background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#166534" }}>
+          {msg.text}
+        </div>
+      )}
     </div>
   );
 }
