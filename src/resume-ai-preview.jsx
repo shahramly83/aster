@@ -7969,8 +7969,10 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
         <div className="mx-auto max-w-3xl px-3 sm:px-6 py-6 sm:py-8">
           <div className="rounded-lg overflow-hidden" style={{ background: "#fff", boxShadow: "0 12px 40px -18px rgba(16,19,42,.35), 0 2px 6px rgba(16,19,42,.06)" }}>
             {letter && letter.mode === "upload" ? (
-              <div className="p-3 sm:p-5">
-                <OfferSignPlacement url={letter.pdfUrl} field={letter.signField} readOnly />
+              <div ref={signRef} className="p-3 sm:p-5">
+                <OfferSignPlacement url={letter.pdfUrl} field={letter.signField} readOnly
+                  onSignHere={() => setAdoptOpen(true)}
+                  signature={{ adopted, type: mode === "type" ? "type" : "draw", typedName: (typedName.trim() || letter?.candidateName || "You"), drawnPng }} />
               </div>
             ) : (
               <div className="p-6 sm:p-10">
@@ -7985,9 +7987,9 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
                 sign-off (left) inline with the candidate's counter-signature
                 (right); single right-aligned field until aster-sign returns the
                 sign-off block. */}
-            {letter && (
+            {letter && letter.mode !== "upload" && (
             <div ref={signRef} className="px-6 sm:px-10 pb-8 pt-1">
-              {letter?.mode !== "upload" && letter?.signatoryHtml ? (
+              {letter?.signatoryHtml ? (
                 <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 items-end">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>For and on behalf of the company</p>
@@ -23292,7 +23294,7 @@ const EMPLOYMENT_TYPES = [
 // normalized 0..1 to the page (top-left origin), which the aster-sign edge fn
 // converts to pdf-lib's bottom-left space when it stamps the signature. pdf.js is
 // dynamically imported so it never lands in the main bundle.
-function OfferSignPlacement({ file, url, field, onField, readOnly = false }) {
+function OfferSignPlacement({ file, url, field, onField, readOnly = false, onSignHere = null, signature = null }) {
   const wrapRef = useRef(null);
   const pageObjsRef = useRef([]);       // pdf.js page proxies, rendered in pass 2
   const canvasRefs = useRef([]);
@@ -23413,16 +23415,33 @@ function OfferSignPlacement({ file, url, field, onField, readOnly = false }) {
           {pages.map((p, i) => (
             <div key={i} data-page={i} onClick={(e) => onPageClick(i, e)} className={`relative mx-auto shadow-sm ${readOnly ? "" : "cursor-crosshair"}`} style={{ width: p.w, height: p.h, background: "#fff" }}>
               <canvas ref={(el) => (canvasRefs.current[i] = el)} className="block w-full h-full" />
-              {field && field.page === i && (
+              {field && field.page === i && (() => {
+                const signable = readOnly && !!onSignHere;   // the placed box IS the sign target
+                const signed = signable && signature?.adopted;
+                return (
                 <div
                   onPointerDown={readOnly ? undefined : (e) => startDrag("move", e)}
-                  className={`absolute flex items-center justify-center rounded-md select-none ${readOnly ? "" : "cursor-move"}`}
-                  style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.w * 100}%`, height: `${field.h * 100}%`, border: "2px dashed var(--brand)", background: "rgba(var(--brand-rgb),0.12)" }}
+                  onClick={signable ? (e) => { e.stopPropagation(); onSignHere(); } : undefined}
+                  title={signable ? (signed ? "Click to change your signature" : "Click to sign") : undefined}
+                  className={`absolute flex items-center justify-center rounded-md select-none ${signable ? "cursor-pointer transition-transform hover:scale-[1.02]" : readOnly ? "" : "cursor-move"}`}
+                  style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.w * 100}%`, height: `${field.h * 100}%`, border: signed ? "2px solid #22C55E" : "2px dashed var(--brand)", background: signed ? "rgba(34,197,94,0.10)" : "rgba(var(--brand-rgb),0.12)", padding: 4 }}
                 >
-                  <span className="text-[10px] font-semibold px-1 text-center leading-tight pointer-events-none" style={{ color: "var(--brand)" }}>{readOnly ? "Sign here" : "Candidate signs here"}</span>
+                  {signed ? (
+                    signature.type === "draw"
+                      ? <img src={signature.drawnPng} alt="Your signature" className="max-h-full max-w-full object-contain pointer-events-none" />
+                      : <span className="pointer-events-none leading-none text-center" style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: "clamp(14px, 4vw, 24px)", color: "var(--ink)" }}>{signature.typedName}</span>
+                  ) : signable ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-md brand-gradient text-white text-[11px] font-bold px-3 py-1.5 pointer-events-none shadow-sm">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+                      Click to sign
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-1 text-center leading-tight pointer-events-none" style={{ color: "var(--brand)" }}>{readOnly ? "Sign here" : "Candidate signs here"}</span>
+                  )}
                   {!readOnly && <span onPointerDown={(e) => startDrag("resize", e)} className="absolute -right-1.5 -bottom-1.5 w-3.5 h-3.5 rounded-full cursor-nwse-resize" style={{ background: "var(--brand)", border: "2px solid #fff" }} />}
                 </div>
-              )}
+                );
+              })()}
             </div>
           ))}
         </div>
