@@ -275,40 +275,36 @@ export default function TeamsScreen({ navigation }) {
           const m = metaOf(item.role);
           const you = item.id === profile?.userId;
           const isApprover = !!item._approver;
-          // Every card reads the same: role pill + status pill under the name,
-          // email on its own full-width line so it isn't cut off, and a remove
-          // ✕ for anyone an owner/admin can remove (approvers, and non-owner
-          // teammates — never yourself or the owner).
-          const statusLabel = isApprover ? (item.pending ? "Pending" : "Confirmed") : (item.pending ? "Pending" : "Active");
-          const statusColor = item.pending ? "#92400E" : "#166534";
-          const statusBg = item.pending ? "#FEF3C7" : "#DCFCE7";
+          // Status shows as a dot on the avatar (green = active/confirmed, amber
+          // = pending) instead of a pill, leaving a single role chip below the
+          // name and the email on its own full-width line.
           const removable = canInvite && (isApprover || (item.role !== "owner" && !you && !item.pending));
           return (
             <Rise delay={Math.min(index, 8) * 35}>
-              <View style={[styles.card, { alignItems: "flex-start", padding: space(4) }]}>
-                <View style={[styles.avatarRing, { borderColor: m.ring }]}>
-                  <Avatar name={item.name} size={44} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{item.name}</Text>
-                    {you ? <View style={styles.youPill}><Text style={styles.youTxt}>You</Text></View> : null}
-                  </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 7 }}>
-                    <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
-                      <Feather name={m.icon} size={11} color={m.color} />
-                      <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
-                    </View>
-                    <View style={[styles.roleTag, { backgroundColor: statusBg }]}>
-                      <Feather name={item.pending ? "clock" : "check"} size={11} color={statusColor} />
-                      <Text style={[type.smallStrong, { color: statusColor, marginLeft: 5 }]}>{statusLabel}</Text>
-                    </View>
-                  </View>
-                  {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 7 }]} numberOfLines={1}>{item.email}</Text> : null}
-                </View>
+              <View style={styles.mcard}>
                 {removable ? (
-                  <Pressable onPress={() => setConfirmRemove(item)} hitSlop={8} style={ap.x}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
+                  <Pressable onPress={() => setConfirmRemove(item)} hitSlop={10} style={styles.mRemove}><Feather name="x" size={16} color={theme.ink4} /></Pressable>
                 ) : null}
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View>
+                    <View style={[styles.avatarRing, { borderColor: m.ring }]}><Avatar name={item.name} size={44} /></View>
+                    <View style={[styles.statusDot, { backgroundColor: item.pending ? "#F59E0B" : "#22C55E" }]} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12, minWidth: 0, marginRight: removable ? 26 : 0 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text style={[type.bodyStrong, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{item.name}</Text>
+                      {you ? <View style={styles.youPill}><Text style={styles.youTxt}>You</Text></View> : null}
+                    </View>
+                    {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{item.email}</Text> : null}
+                  </View>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, marginLeft: 58 }}>
+                  <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
+                    <Feather name={m.icon} size={11} color={m.color} />
+                    <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
+                  </View>
+                  {item.pending ? <Text style={[type.smallStrong, { color: "#B45309" }]}>Pending</Text> : null}
+                </View>
               </View>
             </Rise>
           );
@@ -473,6 +469,9 @@ const styles = StyleSheet.create({
   sectionCount: { ...type.label, color: theme.ink4, marginLeft: 6 },
 
   card: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, padding: space(3.5), marginHorizontal: space(4), marginBottom: space(2.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  mcard: { position: "relative", backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), marginHorizontal: space(4), marginBottom: space(2.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  mRemove: { position: "absolute", top: 12, right: 12, width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", zIndex: 3 },
+  statusDot: { position: "absolute", bottom: 1, right: 1, width: 15, height: 15, borderRadius: 8, borderWidth: 3, borderColor: theme.card },
   avatarRing: { borderWidth: 2, borderRadius: 27, padding: 2 },
   youPill: { backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
   youTxt: { fontFamily: "Inter_700Bold", fontSize: 10, color: theme.brand },
