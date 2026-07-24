@@ -418,7 +418,7 @@ async function loadWorkspaceData(companyId) {
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
     supabase.from("interview_questions").select("candidate_id, job_id, questions").eq("company_id", companyId),
-    supabase.from("offers").select("candidate_id, status").eq("company_id", companyId),
+    supabase.from("offers").select("candidate_id, status, created_at").eq("company_id", companyId).order("created_at", { ascending: false }),
   ]);
   const jobRows = jobsRes.data || [];
   // A hard error → keep whatever's loaded. A workspace with zero jobs is still a
@@ -632,9 +632,11 @@ async function loadWorkspaceData(companyId) {
     for (const r of eiRows || []) if (r.experience_insights) experienceInsights[r.id] = r.experience_insights;
   } catch { /* column missing / offline: no stored insights, candidates still load */ }
 
-  // Offers, keyed by candidate: their current status (sent | accepted | declined).
+  // Offers, keyed by candidate: their LATEST offer's status (sent | accepted |
+  // declined). Rows come newest-first, so the first seen per candidate wins — a
+  // re-sent offer supersedes the old declined/expired one it replaced.
   const offers = {};
-  for (const o of offRes.data || []) offers[o.candidate_id] = { status: o.status };
+  for (const o of offRes.data || []) if (!(o.candidate_id in offers)) offers[o.candidate_id] = { status: o.status };
 
   return { jobs, candidates, applicantsByJob, matchesByJob, bookings, bookingsByJob, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions, experienceInsights, offers };
 }
