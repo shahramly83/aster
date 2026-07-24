@@ -152,12 +152,6 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     setAddMsg({ type: "ok", text: res.already ? "Already a confirmed approver." : "Invite sent. They'll appear once they confirm." });
     reloadApprovers();
   };
-  const resendApprover = async (m) => {
-    setAddBusy(true); setAddMsg(null);
-    const res = await addApprover({ email: m.email, name: m.name });
-    setAddBusy(false);
-    setAddMsg(res.ok ? { type: "ok", text: `Confirmation re-sent to ${m.email}.` } : { type: "err", text: res.error || "Couldn't resend." });
-  };
 
   const validApprovers = useMemo(() => approvers.filter((a) => a.email && a.email.includes("@")), [approvers]);
 
@@ -354,7 +348,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                         <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink2 }]}>{m.name}</Text>
                         <Text numberOfLines={1} style={[type.small, { color: theme.ink4 }]}>{m.email}</Text>
                       </View>
-                      <Pressable onPress={() => resendApprover(m)} disabled={addBusy} hitSlop={6} style={styles.apPendingPill}><Text style={styles.apPendingTxt}>Resend</Text></Pressable>
+                      <View style={styles.apPendingPill}><Feather name="clock" size={10} color="#92400E" /><Text style={[styles.apPendingTxt, { marginLeft: 4 }]}>Pending</Text></View>
                     </View>
                   ))}
                 </>
@@ -494,7 +488,7 @@ const styles = StyleSheet.create({
   apAddBtnTxt: { color: theme.brand, fontFamily: "Inter_700Bold", fontSize: 12.5 },
   apConfirmedPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 7 },
   apConfirmedTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 10 },
-  apPendingPill: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  apPendingPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
   apPendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 12 },
   apEmpty: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginBottom: 10 },
   apEmptyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
