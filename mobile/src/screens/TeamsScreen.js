@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, RefreshControl, StyleSheet, Animated, Easing, Modal, Pressable, TextInput, Keyboard, Platform } from "react-native";
+import { View, Text, FlatList, RefreshControl, ScrollView, StyleSheet, Animated, Easing, Modal, Pressable, TextInput, Keyboard, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
@@ -20,9 +20,11 @@ const ROLE_META = {
   admin: { icon: "shield", color: theme.brand, bg: theme.brandSoft, ring: theme.brand },
   recruiter: { icon: "user-check", color: "#0F766E", bg: "#CCFBF1", ring: "#14B8A6" },
   interviewer: { icon: "users", color: "#6D28D9", bg: "#EDE9FE", ring: "#8B5CF6" },
+  approver: { icon: "check-circle", color: "#166534", bg: "#DCFCE7", ring: "#22C55E" },
 };
 const metaOf = (r) => ROLE_META[r] || { icon: "user", color: theme.ink3, bg: theme.line2, ring: theme.line };
 const ROLE_ORDER = ["owner", "admin", "recruiter", "interviewer"];
+const roleLabelOf = (r) => (r === "approver" ? "Approver" : (ROLE_LABELS[r] || "Member"));
 
 function Rise({ children, delay = 0, style }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -42,114 +44,13 @@ function apInitials(s) {
   return p.length > 1 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : p[0].slice(0, 2).toUpperCase();
 }
 
-// Offer approvers: no-login people who approve offers by email. Managed here on
-// the Team screen (mirrors web). Add by email, they confirm once, then can be
-// picked as approvers on an offer.
-function TeamApprovers({ companyId, canManage }) {
-  const [rows, setRows] = useState(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [banner, setBanner] = useState(null); // { type, text }
-
-  const reload = useCallback(() => { if (companyId) loadApprovers(companyId).then(setRows); }, [companyId]);
-  useEffect(() => { reload(); }, [reload]);
-
-  const add = async () => {
-    const e = email.trim().toLowerCase();
-    if (!e.includes("@")) { setBanner({ type: "err", text: "Enter a valid email." }); return; }
-    setBusy(true); setBanner(null);
-    const res = await addApprover({ email: e, name: name.trim() || null });
-    setBusy(false);
-    if (!res.ok) { setBanner({ type: "err", text: res.error || "Couldn't add." }); return; }
-    setName(""); setEmail("");
-    setBanner({ type: "ok", text: res.already ? "Already confirmed." : "Invite sent. They'll show as Confirmed once they confirm." });
-    reload();
-  };
-  const resend = async (r) => { setBusy(true); const res = await addApprover({ email: r.email, name: r.name }); setBusy(false); setBanner(res.ok ? { type: "ok", text: `Re-sent to ${r.email}.` } : { type: "err", text: res.error || "Couldn't resend." }); };
-  const remove = async (id) => { setRows((l) => (l || []).filter((x) => x.id !== id)); await removeApprover(id); };
-
-  if (!canManage) return null;
-  const confirmed = (rows || []).filter((r) => r.status === "confirmed");
-  const pending = (rows || []).filter((r) => r.status !== "confirmed");
-
-  const Row = ({ r, isPending }) => (
-    <View style={ap.row}>
-      <View style={[ap.avatar, { backgroundColor: isPending ? "#FEF3C7" : theme.brandSoft }]}><Text style={[ap.avatarTxt, { color: isPending ? "#92400E" : theme.brand }]}>{apInitials(r.name || r.email)}</Text></View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{r.name || r.email}</Text>
-        <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{r.email}</Text>
-      </View>
-      {isPending ? (
-        <Pressable onPress={() => resend(r)} disabled={busy} hitSlop={6} style={ap.pendingPill}><Text style={ap.pendingTxt}>Resend</Text></Pressable>
-      ) : (
-        <View style={ap.okPill}><Feather name="check" size={11} color="#166534" /><Text style={ap.okTxt}>Confirmed</Text></View>
-      )}
-      <Pressable onPress={() => remove(r.id)} hitSlop={6} style={ap.x}><Feather name="x" size={15} color={theme.ink3} /></Pressable>
-    </View>
-  );
-
-  return (
-    <View style={ap.card}>
-      <View style={ap.header}>
-        <View style={ap.headerIcon}><Feather name="shield" size={15} color="#fff" /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[type.bodyStrong, { color: theme.ink }]}>Offer approvers</Text>
-          <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Approve offers by email, no login needed.</Text>
-        </View>
-      </View>
-
-      <View style={{ padding: space(4) }}>
-        <View style={{ gap: 8 }}>
-          <TextInput value={name} onChangeText={setName} placeholder="Name (optional)" placeholderTextColor={theme.ink4} style={ap.input} />
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <TextInput value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="approver@email.com" placeholderTextColor={theme.ink4} style={[ap.input, { flex: 1 }]} />
-            <Pressable onPress={add} disabled={busy} style={ap.addBtn}><Text style={[type.smallStrong, { color: "#fff" }]}>{busy ? "…" : "Add"}</Text></Pressable>
-          </View>
-        </View>
-        {banner ? <Text style={[type.small, { marginTop: 8, color: banner.type === "err" ? "#B42318" : "#166534" }]}>{banner.text}</Text> : null}
-
-        {rows === null ? (
-          <Text style={[type.small, { color: theme.ink3, marginTop: 12 }]}>Loading…</Text>
-        ) : rows.length === 0 ? (
-          <View style={ap.empty}><Text style={[type.smallStrong, { color: theme.ink }]}>No approvers yet</Text><Text style={[type.small, { color: theme.ink3, marginTop: 1 }]}>Add someone above to route offers for approval.</Text></View>
-        ) : (
-          <View style={{ marginTop: 12, gap: 12 }}>
-            {confirmed.length > 0 ? (
-              <View>
-                <Text style={ap.groupLabel}>Confirmed · {confirmed.length}</Text>
-                <View style={{ gap: 8 }}>{confirmed.map((r) => <Row key={r.id} r={r} isPending={false} />)}</View>
-              </View>
-            ) : null}
-            {pending.length > 0 ? (
-              <View>
-                <Text style={ap.groupLabel}>Awaiting confirmation · {pending.length}</Text>
-                <View style={{ gap: 8 }}>{pending.map((r) => <Row key={r.id} r={r} isPending />)}</View>
-              </View>
-            ) : null}
-          </View>
-        )}
-      </View>
-    </View>
-  );
-}
-
 const ap = StyleSheet.create({
-  card: { backgroundColor: theme.card, borderRadius: radius.card, marginHorizontal: space(4), marginTop: space(5), borderWidth: 1, borderColor: theme.line, overflow: "hidden" },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: space(4), paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: theme.line, backgroundColor: theme.bg },
-  headerIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: theme.brand, alignItems: "center", justifyContent: "center" },
-  input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, height: 44, fontFamily: "Inter_500Medium", fontSize: 14, color: theme.ink },
-  addBtn: { backgroundColor: theme.brand, borderRadius: radius.md, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
-  groupLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.ink4, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 7 },
-  row: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: theme.card },
-  avatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  avatarTxt: { fontFamily: "Inter_700Bold", fontSize: 11 },
   okPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   okTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 11 },
   pendingPill: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
   pendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 11 },
   x: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  empty: { marginTop: 12, borderWidth: 1, borderStyle: "dashed", borderColor: theme.line, borderRadius: radius.md, padding: 16, alignItems: "center", backgroundColor: theme.bg },
+  input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 48, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
 });
 
 export default function TeamsScreen({ navigation }) {
@@ -178,10 +79,33 @@ export default function TeamsScreen({ navigation }) {
     return () => { s.remove(); h.remove(); };
   }, []);
 
+  const [approvers, setApprovers] = useState(null);
   const load = useCallback(async () => {
     if (!profile) return;
-    setRows(await loadTeam(profile.companyId));
+    const [team, aps] = await Promise.all([loadTeam(profile.companyId), loadApprovers(profile.companyId)]);
+    setRows(team); setApprovers(aps);
   }, [profile]);
+  const resendApprover = (r) => { addApprover({ email: r.email, name: r.name }); };
+  const removeApproverRow = async (id) => { setApprovers((l) => (l || []).filter((x) => x.id !== id)); await removeApprover(id); };
+
+  // Approver add form — lives inside the "Add people" (invite) modal.
+  const [apName, setApName] = useState("");
+  const [apEmail, setApEmail] = useState("");
+  const [apBusy, setApBusy] = useState(false);
+  const [apErr, setApErr] = useState(null);
+  const submitApprover = async () => {
+    const e = apEmail.trim().toLowerCase();
+    if (!e.includes("@")) { setApErr("Enter a valid email address."); return; }
+    setApBusy(true); setApErr(null);
+    const res = await addApprover({ email: e, name: apName.trim() || null });
+    setApBusy(false);
+    if (!res.ok) { setApErr(res.error || "Couldn't add that approver."); return; }
+    setApName(""); setApEmail(""); Keyboard.dismiss(); setInviteOpen(false); load();
+    setInviteDone({
+      title: res.already ? "Already an approver" : "Approver invited",
+      message: res.already ? `${e} is already a confirmed approver.` : `${e} was emailed a link to confirm. They'll appear as an Approver once they confirm, no account needed.`,
+    });
+  };
 
   useFocusEffect(useCallback(() => { setStatusBarStyle("light"); }, []));
   useAutoRefresh(profile?.companyId, load);
@@ -193,7 +117,7 @@ export default function TeamsScreen({ navigation }) {
   const inviteFullEmail = (tenantDomain ? `${inviteEmail.trim()}@${tenantDomain}` : inviteEmail.trim()).toLowerCase();
   const inviteValid = tenantDomain ? /^[^\s@]+$/.test(inviteEmail.trim()) : /^\S+@\S+\.\S+$/.test(inviteFullEmail);
 
-  const openInvite = () => { setInviteEmail(""); setInviteRole("interviewer"); setInviteErr(null); setInviteOpen(true); };
+  const openInvite = () => { setInviteEmail(""); setInviteRole("interviewer"); setInviteErr(null); setApName(""); setApEmail(""); setApErr(null); setInviteOpen(true); };
   const sendInvite = async () => {
     setInviteErr(null);
     if (!inviteValid) { setInviteErr(tenantDomain ? `Enter the name before @${tenantDomain}.` : "Enter a valid work email address."); return; }
@@ -219,6 +143,12 @@ export default function TeamsScreen({ navigation }) {
   // Roles outside the known set (defensive) fall into one "Members" bucket.
   const others = (rows || []).filter((m) => !ROLE_ORDER.includes(m.role));
   if (others.length) groups.push({ role: "member", members: others });
+  // Offer approvers appear as their own "APPROVER" section (confirmed first).
+  const apItems = [
+    ...(approvers || []).filter((a) => a.status === "confirmed"),
+    ...(approvers || []).filter((a) => a.status !== "confirmed"),
+  ].map((a) => ({ id: a.id, name: a.name || a.email, email: a.email, role: "approver", status: a.status, pending: a.status !== "confirmed", _approver: true }));
+  if (apItems.length) groups.push({ role: "approver", members: apItems });
 
   const flat = groups.flatMap((g) => [{ _section: g.role, count: g.members.length }, ...g.members]);
   const total = rows ? rows.length : 0;
@@ -300,16 +230,7 @@ export default function TeamsScreen({ navigation }) {
       <FlatList
         data={flat}
         keyExtractor={(item) => (item._section ? `s-${item._section}` : `m-${item.id}`)}
-        ListHeaderComponent={
-          <>
-            {/* The body "Invite teammate" card is gone: invite now lives on the
-                header chip, and the solo state above already offers it. */}
-            {Header}
-            {/* Offer approvers sits right under the header (near the invite
-                action), above the member list. */}
-            <TeamApprovers companyId={profile?.companyId} canManage={canInvite} />
-          </>
-        }
+        ListHeaderComponent={<>{Header}</>}
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brand} progressViewOffset={40} />}
@@ -336,13 +257,31 @@ export default function TeamsScreen({ navigation }) {
             return (
               <View style={styles.sectionRow}>
                 <View style={[styles.sectionDot, { backgroundColor: m.color }]} />
-                <Text style={styles.section}>{(ROLE_LABELS[item._section] || "Members").toUpperCase()}</Text>
+                <Text style={styles.section}>{roleLabelOf(item._section).toUpperCase()}</Text>
                 <Text style={styles.sectionCount}>{item.count}</Text>
               </View>
             );
           }
           const m = metaOf(item.role);
           const you = item.id === profile?.userId;
+          // Approver row: status pill + resend/remove instead of a role tag.
+          if (item._approver) {
+            return (
+              <Rise delay={Math.min(index, 8) * 35}>
+                <View style={styles.card}>
+                  <View style={[styles.avatarRing, { borderColor: m.ring }]}><Avatar name={item.name} size={44} /></View>
+                  <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                    <Text style={[type.bodyStrong, { color: theme.ink }]} numberOfLines={1}>{item.name}</Text>
+                    {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.email}</Text> : null}
+                  </View>
+                  {item.pending
+                    ? <Pressable onPress={() => resendApprover(item)} hitSlop={6} style={ap.pendingPill}><Text style={ap.pendingTxt}>Resend</Text></Pressable>
+                    : <View style={ap.okPill}><Feather name="check" size={11} color="#166534" /><Text style={ap.okTxt}>Confirmed</Text></View>}
+                  <Pressable onPress={() => removeApproverRow(item.id)} hitSlop={6} style={[ap.x, { marginLeft: 6 }]}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
+                </View>
+              </Rise>
+            );
+          }
           return (
             <Rise delay={Math.min(index, 8) * 35}>
               <View style={styles.card}>
@@ -359,7 +298,7 @@ export default function TeamsScreen({ navigation }) {
                 <View style={{ alignItems: "flex-end" }}>
                   <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
                     <Feather name={m.icon} size={11} color={m.color} />
-                    <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{ROLE_LABELS[item.role] || "Member"}</Text>
+                    <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
                   </View>
                   {item.pending ? <Text style={styles.pending}>Invite pending</Text> : null}
                 </View>
@@ -381,10 +320,12 @@ export default function TeamsScreen({ navigation }) {
           <View style={[styles.sheet, { paddingBottom: sheetPadBottom, marginBottom: kb > 0 ? kb : 0 }]}>
             <View style={styles.handle} />
             <View style={styles.sheetHead}>
-              <Text style={[type.h3, { color: theme.ink }]}>Invite teammate</Text>
+              <Text style={[type.h3, { color: theme.ink }]}>Add people</Text>
               <Pressable onPress={() => !sending && setInviteOpen(false)} hitSlop={8}><Feather name="x" size={22} color={theme.ink3} /></Pressable>
             </View>
-            <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>They'll get an email with a link to join your workspace.</Text>
+            <ScrollView style={{ maxHeight: kb > 0 ? 300 : 540 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <Text style={styles.apGroupHead}>Invite a teammate</Text>
+            <Text style={[type.small, { color: theme.ink3, marginBottom: space(4) }]}>They get a login to your workspace.</Text>
 
             <Text style={styles.fieldLabel}>Email</Text>
             {tenantDomain ? (
@@ -434,6 +375,18 @@ export default function TeamsScreen({ navigation }) {
             ) : null}
 
             <Button title={sending ? "Sending…" : "Send invite"} icon={sending ? undefined : "send"} onPress={sendInvite} disabled={sending || !inviteValid} style={{ marginTop: space(5) }} />
+
+            {/* Approver: no login, confirms by email, then can approve offers. */}
+            <View style={styles.apSep} />
+            <Text style={styles.apGroupHead}>Add an approver</Text>
+            <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>No login. They confirm by email, then can approve offers.</Text>
+            <TextInput value={apName} onChangeText={setApName} placeholder="Name (optional)" placeholderTextColor={theme.ink4} style={[styles.input, { marginBottom: 10 }]} />
+            <TextInput value={apEmail} onChangeText={setApEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholder="approver@email.com" placeholderTextColor={theme.ink4} style={styles.input} />
+            {apErr ? (
+              <View style={styles.errRow}><Feather name="alert-circle" size={14} color="#B42318" /><Text style={[type.small, { color: "#B42318", marginLeft: 8, flex: 1 }]}>{apErr}</Text></View>
+            ) : null}
+            <Button title={apBusy ? "Sending…" : "Add approver"} icon={apBusy ? undefined : "user-plus"} variant="secondary" onPress={submitApprover} disabled={apBusy} style={{ marginTop: space(4) }} />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -456,6 +409,8 @@ const styles = StyleSheet.create({
   handle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(3) },
   sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space(1) },
   fieldLabel: { ...type.smallStrong, color: theme.ink2, marginBottom: 7 },
+  apGroupHead: { fontFamily: "Inter_700Bold", fontSize: 13.5, color: theme.ink, marginBottom: 3 },
+  apSep: { height: 1, backgroundColor: theme.line, marginVertical: space(5) },
   input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 14, height: 48, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
   emailRow: { flexDirection: "row", alignItems: "stretch" },
   domainChip: { justifyContent: "center", paddingHorizontal: 12, backgroundColor: theme.line2, borderWidth: 1, borderColor: theme.line, borderTopRightRadius: radius.md, borderBottomRightRadius: radius.md },
