@@ -649,7 +649,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           {tab === "decision" && manager && offer ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Offer</SectionHeader>
-              <OfferCard offer={offer} approvals={approvals} onViewSigned={viewSigned} canHire={manager && stage !== "hired"} onHire={() => moveTo("hired")} />
+              <OfferCard offer={offer} approvals={approvals} onViewSigned={viewSigned} canHire={manager && stage !== "hired"} onHire={() => moveTo("hired")} onResend={() => setOfferOpen(true)} onReject={reject} />
             </View>
           ) : null}
 
@@ -1223,11 +1223,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
   );
 }
 
-function OfferCard({ offer, approvals, onViewSigned, canHire, onHire }) {
+function OfferCard({ offer, approvals, onViewSigned, canHire, onHire, onResend, onReject }) {
   const st = offerStatus(offer);
   const cur = { myr: "RM", usd: "$", sgd: "S$" }[offer.salary_currency] || "";
   const emp = { full_time: "Full-time", part_time: "Part-time", contract: "Contract", internship: "Internship" }[offer.employment_type] || null;
   const signed = offer.status === "accepted" || offer.esign_status === "completed";
+  // Candidate declined, an approver declined, or the offer lapsed without a signature.
+  const declined = offer.status === "declined" || offer.approval_status === "declined";
+  const expired = !signed && !declined && !!offer.expires_at && new Date(`${offer.expires_at}T23:59:59`) < new Date();
+  const canReoffer = (declined || expired) && (onResend || onReject);
   return (
     <Card>
       <View style={[styles.offerBadge, { backgroundColor: st.bg }]}>
@@ -1256,6 +1260,13 @@ function OfferCard({ offer, approvals, onViewSigned, canHire, onHire }) {
       ) : null}
       {signed && canHire ? <Button title="Mark as hired" icon="award" variant="success" onPress={onHire} style={{ marginTop: space(3) }} /> : null}
       {signed ? <Button title="View signed offer" icon="file-text" variant="secondary" onPress={onViewSigned} style={{ marginTop: space(2.5) }} /> : null}
+      {canReoffer ? (
+        <View style={{ marginTop: space(3) }}>
+          {expired ? <Text style={[type.small, { color: theme.ink3, marginBottom: space(2.5), lineHeight: 18 }]}>The offer lapsed without a signature. Send a fresh one, or close this candidate out.</Text> : null}
+          {onResend ? <Button title="Re-send offer" icon="send" variant="secondary" onPress={onResend} /> : null}
+          {onReject ? <Button title="Close as rejected" icon="x-circle" variant="ghost" onPress={onReject} style={{ marginTop: space(2.5) }} /> : null}
+        </View>
+      ) : null}
     </Card>
   );
 }
