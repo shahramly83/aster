@@ -1085,6 +1085,24 @@ async function createOffer(companyId, { candidateId, jobId = null, terms = null 
 //   - else if emailSent → aster-sign-send emails the candidate a review-&-sign link,
 //   - else records the offer only.
 // Returns { ok, token, needsApproval, emailed } or { ok:false, error }.
+// Read/write the current user's saved offer signature (0135). A PNG data URI
+// (drawn on web) or "typed:<Full Name>" (script font), or null.
+export async function getMyOfferSignature() {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) return null;
+  const { data, error } = await supabase.from("profiles").select("offer_signature").eq("id", uid).maybeSingle();
+  if (error) { if (error.code !== "42703") console.warn("getMyOfferSignature", error.message); return null; }
+  return data?.offer_signature || null;
+}
+export async function saveMyOfferSignature(sig) {
+  const { error } = await supabase.rpc("set_my_offer_signature", { p_sig: sig ?? null });
+  if (!error) return null;
+  console.warn("saveMyOfferSignature", error.message);
+  if (error.code === "42883") return "Run migration 0135 first.";
+  return error.message || "Couldn't save your signature.";
+}
+
 // The current user's offer-letter sign-off (0135): their name + saved signature,
 // snapshotted onto the offer so composed letters are signed off by the company.
 async function getMyOfferSignoff() {

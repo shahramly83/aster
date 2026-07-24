@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, Switch, ScrollView, Pressable, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, TextInput, ActivityIndicator, Keyboard } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
@@ -8,6 +8,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "../AuthContext";
 import { registerForPush, unregisterPush, PUSH_PREF_KEY } from "../lib/push";
+import { getMyOfferSignature, saveMyOfferSignature } from "../lib/data";
 import { Avatar, Press, Feather } from "../components/ui";
 import { AsterMark } from "../components/Logo";
 import { theme, type, space, radius, shadow } from "../theme";
@@ -19,6 +20,12 @@ export default function ProfileScreen({ navigation }) {
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioOn, setBioOn] = useState(false);
   const [pushOn, setPushOn] = useState(true);
+  // Offer signature (0135): the sender's sign-off, stamped on composed offers.
+  const [sigOpen, setSigOpen] = useState(false);
+  const [savedSig, setSavedSig] = useState(null); // current stored value
+
+  useEffect(() => { if (manager) getMyOfferSignature().then(setSavedSig).catch(() => {}); }, [manager]);
+  const sigSummary = savedSig ? (savedSig.startsWith("typed:") ? savedSig.slice(6) : "Drawn signature (set on web)") : "Not set";
 
   useEffect(() => {
     (async () => {
@@ -100,8 +107,18 @@ export default function ProfileScreen({ navigation }) {
               icon="home" tint={theme.success}
               title={profile?.company || "Your workspace"}
               subtitle={manager ? "Full pipeline access" : "Interview panel access"}
-              last
+              last={!manager}
             />
+            {manager ? (
+              <Row
+                icon="edit-3" tint="#7C3AED"
+                title="Offer signature"
+                subtitle={`Signs off offers you compose · ${sigSummary}`}
+                right={<Feather name="chevron-right" size={18} color={theme.ink4} />}
+                onPress={() => setSigOpen(true)}
+                last
+              />
+            ) : null}
           </View>
 
           {/* Sign out (destructive) */}
@@ -113,13 +130,21 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.version}>Aster · v0.1.0</Text>
         </ScrollView>
       </SafeAreaView>
+
+      <OfferSignatureSheet
+        visible={sigOpen}
+        initial={savedSig}
+        name={profile?.name}
+        onClose={() => setSigOpen(false)}
+        onSaved={(v) => setSavedSig(v)}
+      />
     </View>
   );
 }
 
-function Row({ icon, tint, title, subtitle, right, last }) {
-  return (
-    <View style={[styles.row, !last && styles.rowDivider]}>
+function Row({ icon, tint, title, subtitle, right, last, onPress }) {
+  const body = (
+    <>
       <View style={[styles.rowIcon, { backgroundColor: tint + "18" }]}>
         <Feather name={icon} size={17} color={tint} />
       </View>
@@ -128,7 +153,92 @@ function Row({ icon, tint, title, subtitle, right, last }) {
         {subtitle ? <Text style={[type.small, { color: theme.ink3, marginTop: 2, lineHeight: 18 }]}>{subtitle}</Text> : null}
       </View>
       {right}
-    </View>
+    </>
+  );
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && { backgroundColor: theme.bg }]}>
+        {body}
+      </Pressable>
+    );
+  }
+  return <View style={[styles.row, !last && styles.rowDivider]}>{body}</View>;
+}
+
+// Typed offer-signature capture. Mobile renders the sign-off in a script font on
+// the letter/PDF (same as web's "type" option); drawing lives on the web app.
+function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
+  const insets = useSafeAreaInsets();
+  const isTyped = !initial || initial.startsWith("typed:");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    setErr(null);
+    setText(initial && initial.startsWith("typed:") ? initial.slice(6) : (isTyped ? (name || "") : ""));
+  }, [visible]);
+
+  const save = async () => {
+    Keyboard.dismiss();
+    const val = text.trim() ? `typed:${text.trim()}` : null;
+    setBusy(true); setErr(null);
+    const e = await saveMyOfferSignature(val);
+    setBusy(false);
+    if (e) { setErr(e); return; }
+    onSaved?.(val);
+    onClose();
+  };
+  const clear = async () => {
+    setBusy(true); setErr(null);
+    const e = await saveMyOfferSignature(null);
+    setBusy(false);
+    if (e) { setErr(e); return; }
+    setText(""); onSaved?.(null); onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.sheetBackdrop}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + space(3) }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={[type.h3, { color: theme.ink }]}>Offer signature</Text>
+          <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 19 }]}>
+            Type your name to sign off the offers you compose. It's placed above your name in the letter; the candidate then counter-signs. Prefer to draw it? Use the Aster web app.
+          </Text>
+
+          {!isTyped ? (
+            <View style={styles.drawnNote}>
+              <Feather name="edit-2" size={13} color={theme.ink3} />
+              <Text style={[type.small, { color: theme.ink3, marginLeft: 8, flex: 1 }]}>A drawn signature is saved from the web app. Typing below replaces it.</Text>
+            </View>
+          ) : null}
+
+          <Text style={[type.smallStrong, { color: theme.ink2, marginTop: space(4), marginBottom: 7 }]}>Your name</Text>
+          <TextInput value={text} onChangeText={(v) => { setText(v); setErr(null); }} placeholder="e.g. Jane Tan" placeholderTextColor={theme.ink4} style={styles.sigInput} autoFocus />
+          {text.trim() ? (
+            <View style={styles.sigPreview}>
+              <Text style={styles.sigPreviewTxt}>{text.trim()}</Text>
+            </View>
+          ) : null}
+
+          {err ? <Text style={[type.small, { color: theme.danger, marginTop: 10 }]}>{err}</Text> : null}
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: space(5) }}>
+            {initial ? (
+              <Pressable onPress={clear} disabled={busy} style={[styles.sigBtn, { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line }]}>
+                <Text style={[type.smallStrong, { color: theme.ink2 }]}>Clear</Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={save} disabled={busy || !text.trim()} style={[styles.sigBtn, { backgroundColor: text.trim() ? theme.brand : theme.line, flex: 1 }]}>
+              {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[type.smallStrong, { color: "#fff" }]}>Save signature</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -152,4 +262,13 @@ const styles = StyleSheet.create({
 
   signOut: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: space(7), paddingVertical: space(4), borderRadius: radius.md, backgroundColor: "#FEF3F2", borderWidth: 1, borderColor: "#FECDCA" },
   version: { ...type.small, color: theme.ink4, textAlign: "center", marginTop: space(5) },
+
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(10,14,40,0.5)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: space(5), paddingTop: space(3) },
+  sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: space(4) },
+  drawnNote: { flexDirection: "row", alignItems: "center", marginTop: space(3), padding: space(3), borderRadius: radius.md, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line },
+  sigInput: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, fontFamily: "Inter_500Medium", fontSize: 15, color: theme.ink },
+  sigPreview: { marginTop: 10, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 14, minHeight: 60, justifyContent: "center" },
+  sigPreviewTxt: { fontSize: 28, color: theme.ink, fontStyle: "italic", fontFamily: "Inter_500Medium" },
+  sigBtn: { alignItems: "center", justifyContent: "center", borderRadius: radius.md, paddingVertical: 13, paddingHorizontal: 20 },
 });
