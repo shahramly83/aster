@@ -252,6 +252,38 @@ async function buildSignedPdf(model: LetterModel, opts: {
   const para = (text: string, f: typeof font, size: number, color = ink, leading = size * 1.5) => {
     for (const ln of wrap(text, f, size)) { ensure(leading); page.drawText(ln, { x: M, y, size, font: f, color }); y -= leading; }
   };
+  // Rich paragraph: renders inline **bold** spans (key terms like the start date,
+  // expiry and salary) within wrapped text, choosing the bold font per word.
+  const paraRich = (text: string, size: number, color = ink, leading = size * 1.5) => {
+    const words: { w: string; b: boolean }[] = [];
+    for (const part of String(text).split(/(\*\*.+?\*\*)/g)) {
+      if (!part) continue;
+      const b = part.length >= 4 && part.startsWith("**") && part.endsWith("**");
+      for (const w of (b ? part.slice(2, -2) : part).split(/\s+/).filter(Boolean)) words.push({ w, b });
+    }
+    if (!words.length) return;
+    const spaceW = font.widthOfTextAtSize(" ", size);
+    let line: { w: string; b: boolean }[] = [];
+    let lineW = 0;
+    const flush = () => {
+      if (!line.length) return;
+      ensure(leading);
+      let x = M;
+      line.forEach((it, i) => {
+        const f = it.b ? bold : font;
+        page.drawText(it.w, { x, y, size, font: f, color });
+        x += f.widthOfTextAtSize(it.w, size) + (i < line.length - 1 ? spaceW : 0);
+      });
+      y -= leading; line = []; lineW = 0;
+    };
+    for (const it of words) {
+      const wWidth = (it.b ? bold : font).widthOfTextAtSize(it.w, size);
+      if (line.length && lineW + spaceW + wWidth > maxW) flush();
+      lineW += (line.length ? spaceW : 0) + wWidth;
+      line.push(it);
+    }
+    flush();
+  };
 
   // Letterhead: a larger logo (or company name) top-left, the date top-right, a
   // hairline rule beneath, and generous breathing room before the letter body.
@@ -286,9 +318,9 @@ async function buildSignedPdf(model: LetterModel, opts: {
       ensure(30);
       para(head, bold, 10.5, ink, 15);
       y -= 3;   // clear gap so the body starts on its own line under the heading
-      para(blk.slice(nl + 1).replace(/\n/g, " ").trim(), font, 11.5, ink, 17);
+      paraRich(blk.slice(nl + 1).replace(/\n/g, " ").trim(), 11.5, ink, 17);
     } else {
-      para(blk.replace(/\n/g, " ").trim(), font, 11.5, ink, 17);
+      paraRich(blk.replace(/\n/g, " ").trim(), 11.5, ink, 17);
     }
     y -= 11;
   }

@@ -19,6 +19,12 @@ export function esc(s: string): string {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Convert **bold** spans (used in the composed body for key terms like the start
+// date, expiry and salary) into styled <strong>. Run AFTER esc().
+export function mdBold(escaped: string): string {
+  return escaped.replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:700;color:#1f2328;">$1</strong>');
+}
+
 export type OfferRow = {
   base_salary: number | null; salary_currency: string | null; employment_type: string | null;
   start_date: string | null; expires_at: string | null; offer_job_title: string | null; message: string | null;
@@ -54,11 +60,11 @@ export function letterBody(o: OfferRow, m: { candidateName: string; jobTitle: st
 
   const empLabel = (EMPLOYMENT_LABEL[o.employment_type || "full_time"] || "full-time").toLowerCase();
   let s1 = `You will be employed on a ${empLabel} basis`;
-  if (o.start_date) s1 += `, with an expected commencement date of ${fmtDate(o.start_date)}`;
+  if (o.start_date) s1 += `, with an expected commencement date of **${fmtDate(o.start_date)}**`;
   s1 += ".";
   if (o.base_salary != null) {
     const sym = CURRENCY_SYMBOL[(o.salary_currency || "myr").toLowerCase()] || "";
-    s1 += ` Your gross salary will be ${sym}${Number(o.base_salary).toLocaleString("en-US")} per month, subject to statutory deductions.`;
+    s1 += ` Your gross salary will be **${sym}${Number(o.base_salary).toLocaleString("en-US")} per month**, subject to statutory deductions.`;
   }
   paras.push(s1);
 
@@ -68,7 +74,7 @@ export function letterBody(o: OfferRow, m: { candidateName: string; jobTitle: st
   if (extras.length) paras.push(extras.join(" "));
 
   let close = "";
-  if (o.expires_at) close = `This offer remains open for your acceptance until ${fmtDate(o.expires_at)}. `;
+  if (o.expires_at) close = `This offer remains open for your acceptance until **${fmtDate(o.expires_at)}**. `;
   close += "To accept, please review the terms above and sign where indicated below.";
   paras.push(close);
 
@@ -104,10 +110,10 @@ export function letterHtml(model: LetterModel, logo: string | null, opts: { sign
     const nl = p.indexOf("\n");
     const head = nl > 0 ? p.slice(0, nl).trim() : "";
     if (head && head.length <= 45 && head === head.toUpperCase() && /[A-Z]/.test(head)) {
-      const rest = esc(p.slice(nl + 1).replace(/\n/g, " ").trim());
+      const rest = mdBold(esc(p.slice(nl + 1).replace(/\n/g, " ").trim()));
       return `<div style="margin:0 0 15px;"><div style="font-family:'Plus Jakarta Sans','Inter',sans-serif;font-weight:700;font-size:12.5px;letter-spacing:0.03em;color:#1f2328;margin:0 0 4px;">${esc(head)}</div><div>${rest}</div></div>`;
     }
-    return `<p style="margin:0 0 15px;">${esc(p.replace(/\n/g, " "))}</p>`;
+    return `<p style="margin:0 0 15px;">${mdBold(esc(p.replace(/\n/g, " ")))}</p>`;
   };
   const body = model.paragraphs.map(renderBlock).join("");
   // opts.signoff:false omits the company sign-off so the signing page can place

@@ -97,9 +97,9 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     const exp = fmt(expiresAt);
     return [
       `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
-      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before ${start}, failing which this offer of employment shall be null and void.`,
-      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until ${exp}. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
-      `REMUNERATION\nYou will be paid a Basic Salary of ${pay} per month with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
+      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before **${start}**, failing which this offer of employment shall be null and void.`,
+      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until **${exp}**. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
+      `REMUNERATION\nYou will be paid a Basic Salary of **${pay} per month** with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
       `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons for doing so. During the probationary period, the employment may be terminated by the Company or the employee by giving to the other not less than two (2) weeks' notice or two (2) weeks' salary in lieu of such notice and without assigning any reasons therefor.`,
       `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
       `BONUS\nIncentive bonus may be paid to you at the discretion of the Management depending on your personal performance and contribution towards the profitability of the Company.`,
@@ -291,7 +291,12 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                 </>
               ) : (
                 <View style={styles.preview}>
-                  <Text style={[type.small, { color: theme.ink2, lineHeight: 20 }]}>{body}</Text>
+                  <Text style={[type.small, { color: theme.ink2, lineHeight: 20 }]}>
+                    {String(body).split(/(\*\*[\s\S]+?\*\*)/g).map((seg, i) => {
+                      const m = /^\*\*([\s\S]+)\*\*$/.exec(seg);
+                      return m ? <Text key={i} style={{ fontFamily: "Inter_700Bold", color: theme.ink }}>{m[1]}</Text> : seg;
+                    })}
+                  </Text>
                 </View>
               )}
             </View>

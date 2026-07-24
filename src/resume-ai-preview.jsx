@@ -7980,9 +7980,12 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
               </div>
             )}
 
-            {/* Signature block — company sign-off (left) inline with the
-                candidate's counter-signature (right). Falls back to a single
-                right-aligned field until aster-sign returns the sign-off block. */}
+            {/* Signature block — hidden until the letter loads, so "Click to
+                sign" appears together with the document, not before it. Company
+                sign-off (left) inline with the candidate's counter-signature
+                (right); single right-aligned field until aster-sign returns the
+                sign-off block. */}
+            {letter && (
             <div ref={signRef} className="px-6 sm:px-10 pb-8 pt-1">
               {letter?.mode !== "upload" && letter?.signatoryHtml ? (
                 <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 items-end">
@@ -7996,6 +7999,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
                 <div className="sm:max-w-sm sm:ml-auto">{candidateField}</div>
               )}
             </div>
+            )}
           </div>
           <p className="text-center text-[11px] mt-4 flex items-center justify-center gap-1.5 px-4" style={{ color: "var(--ink-3)" }}>
             <Icon name="shield" className="w-3.5 h-3.5 shrink-0" /> Secured by Aster Sign · your signature, time and device are recorded on the PDF
@@ -8003,8 +8007,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
         </div>
       </main>
 
-      {/* Floating "start" tag pointing to the field */}
-      {!adopted && (
+      {/* Floating "start" tag pointing to the field (once the letter is loaded) */}
+      {letter && !adopted && (
         <button onClick={scrollToSign} aria-label="Go to signature field"
           className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 pl-3 pr-4 py-2.5 rounded-r-full text-xs font-bold shadow-lg brand-gradient text-white transition-transform hover:translate-x-0.5">
           <Icon name="chevronRight" className="w-4 h-4" /> START
@@ -23422,6 +23426,15 @@ function OfferSignPlacement({ file, url, field, onField, readOnly = false }) {
   );
 }
 
+// Render **bold** spans in composed offer-letter text as <strong> (preview only;
+// the sent letter/PDF bold these via mdBold / paraRich server-side).
+function renderOfferBold(text) {
+  return String(text).split(/(\*\*[\s\S]+?\*\*)/g).map((seg, i) => {
+    const m = /^\*\*([\s\S]+)\*\*$/.exec(seg);
+    return m ? <strong key={i} style={{ color: "var(--ink)" }}>{m[1]}</strong> : seg;
+  });
+}
+
 function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", logoUrl = null, defaultSignatory = "", team = [], onManageTeam, resubmit = null, onClose, onSend }) {
   // Resubmit after a decline: pre-fill the letter, terms and approvers from the
   // declined offer so the hiring manager can revise before sending it round again.
@@ -23472,9 +23485,9 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     const exp = fmt(expiresAt);   // optional: only shown when an expiry date is set
     return [
       `We are pleased to confirm our conditional offer of employment as ${role} at ${co}, subject to the following terms and conditions of service:`,
-      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before ${start}, failing which this offer of employment shall be null and void.`,
-      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until ${exp}. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
-      `REMUNERATION\nYou will be paid a Basic Salary of ${pay} per month with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
+      `EFFECTIVE DATE\nYour appointment will be subject to your reporting for duty on or before **${start}**, failing which this offer of employment shall be null and void.`,
+      ...(exp ? [`VALIDITY OF OFFER\nThis offer is open for your acceptance until **${exp}**. If your signed acceptance is not received by this date, this offer shall lapse.`] : []),
+      `REMUNERATION\nYou will be paid a Basic Salary of **${pay} per month** with effect from the date of commencement. All other terms and conditions enforced by the Company from time to time shall apply to you in accordance with your category.`,
       `PROBATION\nYou shall serve a probationary period of three (3) months. The Company reserves the right to extend the probationary period for a further period of three (3) months, if there are justifiable reasons for doing so. During the probationary period, the employment may be terminated by the Company or the employee by giving to the other not less than two (2) weeks' notice or two (2) weeks' salary in lieu of such notice and without assigning any reasons therefor.`,
       `CONFIRMATION\nIf it is found that you are suitable in all or any particular respect for confirmation, the Company may, at its sole discretion, confirm your appointment.`,
       `BONUS\nIncentive bonus may be paid to you at the discretion of the Management depending on your personal performance and contribution towards the profitability of the Company.`,
@@ -23642,10 +23655,10 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 if (isHead) return (
                   <div key={i} className="mb-3">
                     <p className="font-bold text-[11.5px] tracking-wide mb-1" style={{ color: "var(--ink)" }}>{head}</p>
-                    <p>{blk.slice(nl + 1).replace(/\n/g, " ").trim()}</p>
+                    <p>{renderOfferBold(blk.slice(nl + 1).replace(/\n/g, " ").trim())}</p>
                   </div>
                 );
-                return <p key={i} className="mb-3">{blk.replace(/\n/g, " ").trim()}</p>;
+                return <p key={i} className="mb-3">{renderOfferBold(blk.replace(/\n/g, " ").trim())}</p>;
               })}
               <p className="mt-5">Yours sincerely,</p>
               <p className="mt-2 font-bold" style={{ color: "var(--ink)" }}>{companyName || "Your Company"}</p>
