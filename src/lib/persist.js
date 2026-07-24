@@ -434,29 +434,33 @@ export async function dbRespondOffer(companyId, candidateId, accepted) {
 
 // Latest offer for a candidate (RLS scopes offers to the caller's company), so
 // the candidate profile can show its status + e-sign state after a reload.
-export async function dbGetOffer(companyId, candidateId) {
+export async function dbGetOffer(companyId, candidateId, jobId = null) {
   if (!hasSupabase || !companyId || !candidateId) return null;
   const terms = "message, base_salary, salary_currency, employment_type, start_date, offer_job_title, offer_mode";
-  const cols = `id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, decline_reason, ${terms}`;
+  const cols = `id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, decline_reason, job_id, ${terms}`;
   let { data, error } = await supabase
     .from("offers")
     .select(cols)
     .eq("company_id", companyId).eq("candidate_id", candidateId)
-    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    .order("created_at", { ascending: false }).limit(10);
   // Pre-approval workspace (no approval_status column): retry without it.
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     ({ data, error } = await supabase
       .from("offers")
-      .select(`id, token, status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, ${terms}`)
+      .select(`id, token, status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, job_id, ${terms}`)
       .eq("company_id", companyId).eq("candidate_id", candidateId)
-      .order("created_at", { ascending: false }).limit(1).maybeSingle());
+      .order("created_at", { ascending: false }).limit(10));
   }
   if (error) {
     if (error.code === "42703" || error.code === "PGRST204") return null; // pre-esign columns
     console.error("dbGetOffer", error.message);
     return null;
   }
-  return data || null;
+  const rows = data || [];
+  if (!rows.length) return null;
+  // Prefer the offer for this job; fall back to the latest (older offers may have
+  // a null job_id, so a job-less match keeps working).
+  return (jobId != null && rows.find((r) => r.job_id === jobId)) || rows[0];
 }
 
 // The approval sequence for an offer (RLS company-scoped), so the Decision panel

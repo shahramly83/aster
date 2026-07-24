@@ -1026,17 +1026,20 @@ export async function moveCandidateStage({ companyId, candidateId, candidateName
 const OFFER_ORIGIN = "https://hireaster.com";
 
 // Latest offer for a candidate (same columns dbGetOffer reads on web).
-export async function loadOffer(companyId, candidateId) {
+export async function loadOffer(companyId, candidateId, jobId = null) {
   if (!companyId || !candidateId) return null;
   const { data } = await supabase
     .from("offers")
-    .select("id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, decline_reason, message, base_salary, salary_currency, employment_type, start_date, offer_job_title")
+    .select("id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, decline_reason, job_id, message, base_salary, salary_currency, employment_type, start_date, offer_job_title")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data || null;
+    .limit(10);
+  const rows = data || [];
+  if (!rows.length) return null;
+  // Prefer the offer for this job; fall back to the latest (older offers may have
+  // a null job_id).
+  return (jobId != null && rows.find((r) => r.job_id === jobId)) || rows[0];
 }
 
 // The approval chain for an offer, in step order (drives the approval progress).

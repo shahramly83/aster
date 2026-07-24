@@ -130,7 +130,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
       loadCandidate(candidateId),
       loadScorecards(candidateId, jobId),
       loadCandidateInterview(profile.companyId, candidateId),
-      loadOffer(profile.companyId, candidateId),
+      loadOffer(profile.companyId, candidateId, jobId),
       loadApplicationMeta(profile.companyId, candidateId),
       loadInterviewQuestions(candidateId, jobId),
     ]);

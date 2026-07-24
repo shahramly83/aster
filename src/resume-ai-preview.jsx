@@ -414,7 +414,7 @@ async function loadWorkspaceData(companyId) {
     supabase.from("candidates").select("id, parsed, full_name, email, file_name, status, has_photo, photo_path, resume_path, created_at").eq("company_id", companyId),
     supabase.from("applications").select("id, candidate_id, job_id, stage, match_score, match_reasons, source, created_at").eq("company_id", companyId),
     supabase.from("interviews").select("candidate_id, job_id, interviewer_id, interviewer_name, interviewer_email, scheduled_at, status, provider, attendees, meeting_link, proposed_slots, token, reschedule_note, previous_at, scorecards_released_at").eq("company_id", companyId),
-    supabase.from("scorecards").select("id, candidate_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
+    supabase.from("scorecards").select("id, candidate_id, job_id, interviewer_id, ratings, notes, created_at").eq("company_id", companyId),
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
     supabase.from("interview_questions").select("candidate_id, job_id, questions").eq("company_id", companyId),
@@ -605,6 +605,7 @@ async function loadWorkspaceData(companyId) {
   for (const s of scRes.data || []) {
     (scorecards[s.candidate_id] ||= []).push({
       id: s.id,
+      jobId: s.job_id || null,
       interviewerId: s.interviewer_id,
       interviewer: profName[s.interviewer_id] || "Interviewer",
       ratings: s.ratings || {},
@@ -697,6 +698,13 @@ const stageForCandidate = (candidateId, jobId = null) => {
   }
   return null;
 };
+
+// In-session stage overrides are keyed per APPLICATION (`candidateId:jobId`) so a
+// stage change in one role doesn't display on the candidate's other roles. A
+// job-scoped override wins; a candidate-wide one (a write with no job context)
+// applies as a fallback across jobs.
+const readOverride = (overrides, candidateId, jobId = null) =>
+  (jobId != null ? overrides[`${candidateId}:${jobId}`] : undefined) ?? overrides[candidateId];
 
 // Pipeline stage breakdown for a job. Includes the two exits (Declined, Rejected)
 // so the segments and legend add up to the headline applicant count, every
@@ -21550,7 +21558,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   useEffect(() => {
     let alive = true;
     if (!canPersist || !candidate?.id || !companyId) { setOfferRec(null); return; }
-    const load = () => dbGetOffer(companyId, candidate.id).then((r) => { if (alive) setOfferRec(r); });
+    const load = () => dbGetOffer(companyId, candidate.id, contextJobId).then((r) => { if (alive) setOfferRec(r); });
     load();
     // Live: any activity logged for this candidate (offer sign/decline, approver
     // decisions) reloads the offer instantly instead of waiting on the 20s poll.
@@ -21576,7 +21584,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     const id = approvalStatus === "pending" ? setInterval(() => { if (typeof document === "undefined" || document.visibilityState === "visible") load(); }, 20000) : null;
     return () => { alive = false; if (id) clearInterval(id); };
   }, [offerRec?.id, approvalStatus, canPersist]);
-  const reloadOffer = () => { if (canPersist && candidate?.id && companyId) dbGetOffer(companyId, candidate.id).then(setOfferRec); };
+  const reloadOffer = () => { if (canPersist && candidate?.id && companyId) dbGetOffer(companyId, candidate.id, contextJobId).then(setOfferRec); };
   const closeApprovalOffer = async () => {
     if (!offerRec?.id) return;
     setApprovalBusy(true);
@@ -24250,7 +24258,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
   const applicants = baseApplicants.map((a) => ({
     ...a,
-    stage: stageOverrides[a.candidateId] ?? a.baseStage,
+    stage: readOverride(stageOverrides, a.candidateId, activeJobId) ?? a.baseStage,
     rejectionEmailSent: localRejectEmail[a.candidateId] ?? a.rejectionEmailSent,
   }));
 
@@ -25791,7 +25799,7 @@ export default function ResumeAIPreview() {
     // Stamp the author's id so the panel can tell whose card is whose (and gate
     // the blind-until-submit view). job_id is required for the interviewer RLS
     // insert policy (job_id in assigned_job_ids()).
-    const stamped = { ...card, interviewerId: userId };
+    const stamped = { ...card, interviewerId: userId, jobId: jobId || null };
     setScorecards((prev) => ({ ...prev, [candidateId]: [...(prev[candidateId] || []), stamped] }));
     if (canPersist) {
       const res = await dbAddScorecard(companyId, userId, { candidateId, jobId, ratings: card.ratings, notes: card.notes });
@@ -26375,9 +26383,13 @@ export default function ResumeAIPreview() {
     setShortlistedApps((prev) => { const next = new Set(prev); if (on) next.add(applicationId); else next.delete(applicationId); return next; });
     if (canPersist) dbSetShortlist(companyId, userId, applicationId, on);
     if (candidateId) {
-      const cur = stageOverrides[candidateId] ?? stageForCandidate(candidateId);
-      if (on && cur === "applied") setCandidateStage(candidateId, "shortlisted", { notify: false });
-      else if (!on && cur === "shortlisted") setCandidateStage(candidateId, "applied", { notify: false });
+      // Scope to the application's own job so starring in one role doesn't move
+      // the candidate's stage in another.
+      let sJob = null;
+      for (const [jid, list] of Object.entries(APPLICANTS_BY_JOB)) { if ((list || []).some((x) => x.applicationId === applicationId)) { sJob = jid; break; } }
+      const cur = readOverride(stageOverrides, candidateId, sJob) ?? stageForCandidate(candidateId, sJob);
+      if (on && cur === "applied") setCandidateStage(candidateId, "shortlisted", { notify: false, jobId: sJob });
+      else if (!on && cur === "shortlisted") setCandidateStage(candidateId, "applied", { notify: false, jobId: sJob });
     }
   };
 
@@ -26959,8 +26971,9 @@ export default function ResumeAIPreview() {
   // template. `notify` is false for the "simulate the candidate's reply" preview,
   // which must never send a real email.
   const setCandidateStage = (candidateId, stage, { notify = true, jobId = null } = {}) => {
-    const prevStage = stageOverrides[candidateId];
-    setStageOverrides((prev) => ({ ...prev, [candidateId]: stage }));
+    const ovKey = jobId != null ? `${candidateId}:${jobId}` : candidateId;
+    const prevStage = readOverride(stageOverrides, candidateId, jobId);
+    setStageOverrides((prev) => ({ ...prev, [ovKey]: stage }));
     // Keep the loaded snapshot (baseStage) in sync so stage-derived statuses,
     // the job pipeline bar, the profile stage pill, the interviewer's interview
     // status, don't show a stale stage until the next reload. When a job is known,
@@ -26988,7 +27001,7 @@ export default function ResumeAIPreview() {
   const closeJobRejectAll = (jobId) => {
     const list = APPLICANTS_BY_JOB[jobId] || [];
     list.forEach((a) => {
-      const cur = stageOverrides[a.candidateId] ?? a.baseStage;
+      const cur = readOverride(stageOverrides, a.candidateId, jobId) ?? a.baseStage;
       if (cur !== "hired" && cur !== "rejected") setCandidateStage(a.candidateId, "rejected", { notify: false, jobId });
     });
   };
@@ -27088,10 +27101,12 @@ export default function ResumeAIPreview() {
   // matching, badged & locked in lists, and blocked from re-applying. A hire is
   // global to the candidate (not per-job), derived from their effective stage.
   const hiredIds = new Set();
-  Object.values(APPLICANTS_BY_JOB).flat().forEach((a) => {
-    if ((stageOverrides[a.candidateId] ?? a.baseStage) === "hired") hiredIds.add(a.candidateId);
-  });
-  Object.entries(stageOverrides).forEach(([id, s]) => { if (s === "hired") hiredIds.add(id); });
+  Object.entries(APPLICANTS_BY_JOB).forEach(([jid, list]) => (list || []).forEach((a) => {
+    if ((readOverride(stageOverrides, a.candidateId, jid) ?? a.baseStage) === "hired") hiredIds.add(a.candidateId);
+  }));
+  // Override keys are `candidateId` or `candidateId:jobId`; a hire in any role
+  // marks the candidate hired globally (locked from re-applying, excluded from matching).
+  Object.entries(stageOverrides).forEach(([key, s]) => { if (s === "hired") hiredIds.add(String(key).split(":")[0]); });
 
   // The public "Ask Aster" assistant, mounted on every marketing surface. Its
   // CTAs reuse the same signup entry points as the hero/pricing buttons.
@@ -27724,12 +27739,12 @@ export default function ResumeAIPreview() {
             provider={defaultProvider}
             calendarConnected={calendarConnected}
             plan={effectivePlan}
-            scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []) : []}
+            scorecards={activeCandidate ? (scorecards[activeCandidate.id] || []).filter((c) => !viewCandidateJobId || !c.jobId || c.jobId === viewCandidateJobId) : []}
             onSubmitScorecard={(card) => activeCandidate && addScorecard(activeCandidate.id, card, viewCandidateJobId)}
             onSetAttendance={(ids) => activeCandidate && setAttendance(activeCandidate.id, ids)}
             onReleaseScorecards={() => activeCandidate && releaseScorecards(activeCandidate.id)}
             onSubstitute={(oldId, replacement) => activeCandidate && substituteAttendee(activeCandidate.id, oldId, replacement, viewCandidateJobId)}
-            stage={activeCandidate ? (stageOverrides[activeCandidate.id] ?? viewCandidateStage ?? null) : null}
+            stage={activeCandidate ? (readOverride(stageOverrides, activeCandidate.id, viewCandidateJobId) ?? viewCandidateStage ?? null) : null}
             onSetStage={(s, opts) => activeCandidate && setCandidateStage(activeCandidate.id, s, { ...opts, jobId: opts?.jobId ?? viewCandidateJobId })}
             onDelete={() => activeCandidate && deleteCandidate(activeCandidate.id)}
             offer={activeCandidate ? offers[activeCandidate.id] : null}
