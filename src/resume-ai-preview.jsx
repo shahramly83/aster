@@ -22640,7 +22640,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                         {offerDl ? "Preparing…" : "Download signed letter"}
                       </button>
                     )}
-                    <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
+                    <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl text-white font-semibold px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5" style={{ background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 10px 22px -12px rgba(22,163,74,0.7)" }}>
                       <Icon name="check" className="w-4 h-4" /> Mark as hired
                     </button>
                   </div>
@@ -22728,7 +22728,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                       </button>
                     )}
                     {offerSigned && (
-                      <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl brand-gradient text-white font-medium px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
+                      <button onClick={() => onSetStage && onSetStage("hired", { notify: false })} className="text-sm rounded-xl text-white font-semibold px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5" style={{ background: "linear-gradient(135deg,#22C55E,#16A34A)", boxShadow: "0 10px 22px -12px rgba(22,163,74,0.7)" }}>
                         <Icon name="check" className="w-4 h-4" /> Mark as hired
                       </button>
                     )}

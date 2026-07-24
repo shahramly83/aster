@@ -1108,20 +1108,33 @@ export default function CandidateProfileScreen({ route, navigation }) {
             const first = name.split(" ")[0];
             const decided = stage === "hired" || stage === "rejected";
             const offered = !!offer || stage === "offer" || decided;
+            // Reflect the candidate's actual response, not just "offer sent".
+            const offerSigned = offer && (offer.status === "accepted" || offer.esign_status === "completed");
+            const offerDeclined = offer && offer.status === "declined";
             const hero = stage === "hired"
               ? { icon: "award", label: "Hired", title: `${first} was hired`, sub: "The hiring decision is made and the process is complete. Thanks for your part in it.", tone: "green" }
               : stage === "rejected"
                 ? { icon: "x-circle", label: "Closed", title: "Not moving forward", sub: `The team decided not to progress ${first}. Thanks for scoring.`, tone: "red" }
-                : offered
-                  ? { icon: "send", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${first} an offer, and is now awaiting their response.`, tone: "brand" }
-                  : { icon: "check-circle", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
+                : offerSigned
+                  ? { icon: "check-circle", label: "Signed", title: "Offer signed", sub: `${first} signed the offer. The hiring manager will finalise the hire.`, tone: "green" }
+                  : offerDeclined
+                    ? { icon: "x-circle", label: "Declined", title: "Offer declined", sub: `${first} declined the offer. The hiring manager will decide the next step.`, tone: "red" }
+                    : offered
+                      ? { icon: "send", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${first} an offer, and is now awaiting their response.`, tone: "brand" }
+                      : { icon: "check-circle", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
             const tone = { green: { solid: theme.success, soft: "#ECFDF5", bd: "#A7F3D0" }, red: { solid: theme.danger, soft: "#FEF2F2", bd: "#FECACA" }, brand: { solid: theme.brand, soft: theme.brandSoft, bd: "#CBD8F5" } }[hero.tone];
-            const outcomeLabel = stage === "hired" ? "Hired" : stage === "rejected" ? "Not moving forward" : offered ? "Offer sent" : "Final outcome";
+            const outcomeLabel = stage === "hired" ? "Hired"
+              : stage === "rejected" ? "Not moving forward"
+              : offerSigned ? "Offer signed"
+              : offerDeclined ? "Offer declined"
+              : offered ? "Offer sent"
+              : "Final outcome";
+            const outcomeSettled = decided || offerSigned || offerDeclined;
             const steps = [
               { label: "Interview held", meta: interviewDone && scheduledAt ? fmtInterviewTime(scheduledAt, profile?.timezone) : null, state: "done" },
               { label: "You submitted your scorecard", state: "done" },
               { label: "Hiring Manager Review", state: offered ? "done" : "current" },
-              { label: outcomeLabel, state: decided ? "done" : offered ? "current" : "todo" },
+              { label: outcomeLabel, state: outcomeSettled ? "done" : offered ? "current" : "todo" },
             ];
             return (
               <View style={[styles.resultCard, { marginTop: space(5) }]}>
