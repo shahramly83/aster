@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   message: { fontFamily: "Inter_400Regular", fontSize: 15.5, lineHeight: 23, color: theme.ink3, textAlign: "center", marginTop: space(3), maxWidth: 340 },
   detail: { alignSelf: "stretch", backgroundColor: theme.bg, borderRadius: radius.md, borderLeftWidth: 3, paddingHorizontal: 16, paddingVertical: 14, marginTop: space(5) },
   detailTxt: { ...type.bodyStrong, color: theme.ink, textAlign: "center" },
-  actions: { alignSelf: "stretch" },
+  actions: { alignSelf: "stretch", marginTop: space(5) },
   primary: { height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   primaryTxt: { fontFamily: "Inter_700Bold", fontSize: 16, color: theme.white },
   cancel: { minHeight: 50, alignItems: "center", justifyContent: "center", marginTop: space(1) },
