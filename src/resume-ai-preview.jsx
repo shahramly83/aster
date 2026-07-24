@@ -22887,14 +22887,20 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     ? { icon: "offer", label: "Offer out", title: "Offer sent", sub: `The hiring manager has sent ${firstName} an offer, and is now awaiting their response.`, tone: "brand" }
                     : { icon: "check", label: "With hiring manager", title: "Your scores are in", sub: "The hiring manager now reviews the panel's scorecards and makes the call. You'll be notified of the outcome.", tone: "brand" };
           const tone = { green: { grad: "linear-gradient(135deg,#34D399,#059669)", solid: "#059669", soft: "#ECFDF5" }, red: { grad: "linear-gradient(135deg,#F87171,#DC2626)", solid: "#DC2626", soft: "#FEF2F2" }, brand: { grad: "brand", solid: "var(--brand)", soft: "var(--brand-soft)" } }[hero.tone];
-          const outcomeLabel = (isHired || stage === "hired") ? "Hired" : stage === "rejected" ? "Not moving forward" : offerSigned ? "Offer signed" : offerDeclinedRec ? "Offer declined" : offered ? "Offer sent" : "Final outcome";
-          const outcomeSettled = decided || offerSigned || offerDeclinedRec;
+          const hiredDone = isHired || stage === "hired";
           const steps = [
             { label: "Interview held", meta: interviewWhen, state: "done" },
             { label: "You submitted your scorecard", state: "done" },
             { label: "Hiring Manager Review", state: offered ? "done" : "current" },
-            { label: outcomeLabel, state: outcomeSettled ? "done" : offered ? "current" : "todo" },
           ];
+          if (stage === "rejected") steps.push({ label: "Not moving forward", state: "done" });
+          else if (offerDeclinedRec) steps.push({ label: "Offer declined", state: "done" });
+          else if (hiredDone || offerSigned) {
+            // Candidate signed, then a separate step for the HM to close it out.
+            steps.push({ label: "Offer signed", state: "done" });
+            steps.push({ label: hiredDone ? "Hired" : "Finalising the hire", state: hiredDone ? "done" : "current", note: hiredDone ? null : "Waiting on the hiring manager to mark them hired" });
+          } else if (offered) steps.push({ label: "Offer sent", state: "current" });
+          else steps.push({ label: "Final outcome", state: "todo" });
           return (
             <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "var(--line)" }}>
               {/* Compact outcome header (no big empty hero). */}
@@ -22920,7 +22926,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                       <div className="min-w-0 flex-1 pt-0.5">
                         <p className="text-sm font-semibold" style={{ color: s.state === "todo" ? "var(--ink-3)" : "var(--ink)" }}>{s.label}</p>
                         {s.meta && <p className="text-xs mt-0.5 tabular-nums" style={{ color: "var(--ink-3)" }}>{s.meta}</p>}
-                        {s.state === "current" && <p className="text-xs mt-0.5 font-semibold" style={{ color: tone.solid }}>In progress</p>}
+                        {s.state === "current" && <p className="text-xs mt-0.5 font-semibold" style={{ color: tone.solid }}>{s.note || "In progress"}</p>}
                       </div>
                     </li>
                   ))}
