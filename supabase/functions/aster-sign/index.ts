@@ -266,33 +266,46 @@ async function buildSignedPdf(model: LetterModel, opts: {
   };
   // Rich paragraph: renders inline **bold** spans (key terms like the start date,
   // expiry and salary) within wrapped text, choosing the bold font per word.
+  // Preserves the ORIGINAL spacing (a "," or "." right after a **bold** span
+  // stays attached — no stray space before punctuation).
   const paraRich = (text: string, size: number, color = ink, leading = size * 1.5) => {
-    const words: { w: string; b: boolean }[] = [];
-    for (const part of String(text).split(/(\*\*.+?\*\*)/g)) {
+    const tokens: { w?: string; b?: boolean; space?: boolean }[] = [];
+    for (const part of String(text).split(/(\*\*[\s\S]+?\*\*)/g)) {
       if (!part) continue;
       const b = part.length >= 4 && part.startsWith("**") && part.endsWith("**");
-      for (const w of (b ? part.slice(2, -2) : part).split(/\s+/).filter(Boolean)) words.push({ w, b });
+      const t = b ? part.slice(2, -2) : part;
+      for (const p of t.split(/(\s+)/)) {
+        if (p === "") continue;
+        if (/^\s+$/.test(p)) tokens.push({ space: true });
+        else tokens.push({ w: p, b });
+      }
     }
-    if (!words.length) return;
+    if (!tokens.length) return;
     const spaceW = font.widthOfTextAtSize(" ", size);
-    let line: { w: string; b: boolean }[] = [];
-    let lineW = 0;
+    let line: { w: string; b: boolean; x: number }[] = [];
+    let cursorX = M;
+    let pendingSpace = false;
     const flush = () => {
       if (!line.length) return;
       ensure(leading);
-      let x = M;
-      line.forEach((it, i) => {
-        const f = it.b ? bold : font;
-        page.drawText(it.w, { x, y, size, font: f, color });
-        x += f.widthOfTextAtSize(it.w, size) + (i < line.length - 1 ? spaceW : 0);
-      });
-      y -= leading; line = []; lineW = 0;
+      for (const it of line) page.drawText(it.w, { x: it.x, y, size, font: it.b ? bold : font, color });
+      y -= leading; line = []; cursorX = M; pendingSpace = false;
     };
-    for (const it of words) {
-      const wWidth = (it.b ? bold : font).widthOfTextAtSize(it.w, size);
-      if (line.length && lineW + spaceW + wWidth > maxW) flush();
-      lineW += (line.length ? spaceW : 0) + wWidth;
-      line.push(it);
+    for (const tk of tokens) {
+      if (tk.space) { pendingSpace = line.length > 0; continue; }
+      const f = tk.b ? bold : font;
+      const wWidth = f.widthOfTextAtSize(tk.w!, size);
+      const gap = pendingSpace ? spaceW : 0;
+      if (line.length && (cursorX - M) + gap + wWidth > maxW) {
+        flush();
+        line.push({ w: tk.w!, b: !!tk.b, x: M });
+        cursorX = M + wWidth;
+      } else {
+        cursorX += gap;
+        line.push({ w: tk.w!, b: !!tk.b, x: cursorX });
+        cursorX += wWidth;
+      }
+      pendingSpace = false;
     }
     flush();
   };
@@ -349,11 +362,19 @@ async function buildSignedPdf(model: LetterModel, opts: {
   page.drawText("FOR AND ON BEHALF OF", { x: leftX, y: labelY, size: 8, font: bold, color: gray });
   page.drawText("ACCEPTED AND AGREED", { x: rightX, y: labelY, size: 8, font: bold, color: gray });
   const sigLineY = labelY - 62;
+  // Shrink a typed signature so a long name stays inside its column (avoids
+  // overlapping the other column or running off the page).
+  const fitSize = (txt: string, desired: number) => {
+    let s = desired;
+    while (s > 10 && italic.widthOfTextAtSize(txt, s) > colW) s -= 0.5;
+    return s;
+  };
 
   // Company signature mark (typed marker or the saved image).
   const csig = model.signatorySignature;
   if (csig && csig.startsWith("typed:")) {
-    page.drawText(csig.slice(6).trim(), { x: leftX, y: sigLineY + 8, size: 24, font: italic, color: ink });
+    const nm = csig.slice(6).trim();
+    page.drawText(nm, { x: leftX, y: sigLineY + 8, size: fitSize(nm, 24), font: italic, color: ink });
   } else if (csig) {
     try {
       const b = dataUrlToBytes(csig);
@@ -370,9 +391,9 @@ async function buildSignedPdf(model: LetterModel, opts: {
       const img = opts.drawn.mime.includes("png") ? await doc.embedPng(opts.drawn.bytes) : await doc.embedJpg(opts.drawn.bytes);
       const h = Math.min(56, colW * 0.46), w = Math.min((img.width / img.height) * h, colW);
       page.drawImage(img, { x: rightX, y: sigLineY + 4, width: w, height: h });
-    } catch { page.drawText(opts.signedName, { x: rightX, y: sigLineY + 10, size: 26, font: italic, color: ink }); }
+    } catch { page.drawText(opts.signedName, { x: rightX, y: sigLineY + 10, size: fitSize(opts.signedName, 26), font: italic, color: ink }); }
   } else {
-    page.drawText(opts.signedName, { x: rightX, y: sigLineY + 10, size: 26, font: italic, color: ink });
+    page.drawText(opts.signedName, { x: rightX, y: sigLineY + 10, size: fitSize(opts.signedName, 26), font: italic, color: ink });
   }
 
   page.drawLine({ start: { x: leftX, y: sigLineY }, end: { x: leftX + colW, y: sigLineY }, thickness: 0.6, color: sigRule });
