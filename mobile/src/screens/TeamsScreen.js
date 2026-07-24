@@ -278,12 +278,7 @@ export default function TeamsScreen({ navigation }) {
                     {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 1 }]} numberOfLines={1}>{item.email}</Text> : null}
                   </View>
                   {item.pending
-                    ? (
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <View style={ap.pendingPill}><Text style={ap.pendingTxt}>Pending</Text></View>
-                        <Pressable onPress={() => resendApprover(item)} hitSlop={6}><Text style={[type.smallStrong, { color: theme.brand }]}>Resend</Text></Pressable>
-                      </View>
-                    )
+                    ? <View style={ap.pendingPill}><Text style={ap.pendingTxt}>Pending</Text></View>
                     : <View style={ap.okPill}><Feather name="check" size={11} color="#166534" /><Text style={ap.okTxt}>Confirmed</Text></View>}
                   <Pressable onPress={() => removeApproverRow(item.id)} hitSlop={6} style={[ap.x, { marginLeft: 6 }]}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
                 </View>

@@ -15229,7 +15229,7 @@ function ApproversSection({ companyId, canPersist }) {
       <span className="text-sm font-medium shrink-0 max-w-[40%] truncate" style={{ color: "var(--ink)" }}>{r.name || r.email}</span>
       <span className="text-xs truncate flex-1" style={{ color: "var(--ink-3)" }}>{r.email}</span>
       {isPending ? (
-        <button onClick={() => resend(r)} disabled={busy} className="text-[11px] font-semibold shrink-0 px-2 py-0.5 rounded-full disabled:opacity-40" style={{ background: "#FEF3C7", color: "#92400E" }}>Pending · Resend</button>
+        <span className="text-[11px] font-semibold shrink-0 px-2 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}>Pending</span>
       ) : (
         <span className="inline-flex items-center gap-1 text-[11px] font-semibold shrink-0" style={{ color: "#16A34A" }}><Icon name="check" className="w-3 h-3" />Confirmed</span>
       )}
