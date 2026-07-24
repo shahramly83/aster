@@ -21552,10 +21552,17 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     if (!canPersist || !candidate?.id || !companyId) { setOfferRec(null); return; }
     const load = () => dbGetOffer(companyId, candidate.id).then((r) => { if (alive) setOfferRec(r); });
     load();
-    // While the candidate is in the Offer stage, poll so a live sign / decline /
-    // expiry updates the status (and glows the Interview tab) without a refresh.
-    const id = stage === "offer" ? setInterval(load, 20000) : null;
-    return () => { alive = false; if (id) clearInterval(id); };
+    // Live: any activity logged for this candidate (offer sign/decline, approver
+    // decisions) reloads the offer instantly instead of waiting on the 20s poll.
+    let ch = null;
+    try {
+      ch = supabase.channel(`cand-offer:${companyId}:${candidate.id}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "activity_log", filter: `candidate_id=eq.${candidate.id}` }, load)
+        .subscribe();
+    } catch { /* realtime not available — the poll below covers it */ }
+    // Poll fallback while at the Offer stage; skip work when the tab is hidden.
+    const id = stage === "offer" ? setInterval(() => { if (typeof document === "undefined" || document.visibilityState === "visible") load(); }, 20000) : null;
+    return () => { alive = false; if (id) clearInterval(id); if (ch) { try { supabase.removeChannel(ch); } catch { /* ignore */ } } };
   }, [candidate?.id, companyId, canPersist, stage]);
   // Approval sequence (internal sign-off before the offer is sent to the candidate).
   const [approvals, setApprovals] = useState([]);
@@ -21566,7 +21573,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     if (!canPersist || !offerRec?.id || !approvalStatus) { setApprovals([]); return; }
     const load = () => dbListOfferApprovals(offerRec.id).then((r) => { if (alive) setApprovals(r || []); });
     load();
-    const id = approvalStatus === "pending" ? setInterval(load, 20000) : null;
+    const id = approvalStatus === "pending" ? setInterval(() => { if (typeof document === "undefined" || document.visibilityState === "visible") load(); }, 20000) : null;
     return () => { alive = false; if (id) clearInterval(id); };
   }, [offerRec?.id, approvalStatus, canPersist]);
   const reloadOffer = () => { if (canPersist && candidate?.id && companyId) dbGetOffer(companyId, candidate.id).then(setOfferRec); };
