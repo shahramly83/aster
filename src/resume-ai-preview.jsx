@@ -15186,6 +15186,7 @@ function ApproversSection({ companyId, canPersist }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState(null); // { type:'ok'|'err', msg }
+  const [showAdd, setShowAdd] = useState(false); // collapse the add form by default
 
   useEffect(() => {
     let alive = true;
@@ -15221,47 +15222,41 @@ function ApproversSection({ companyId, canPersist }) {
   const confirmed = rows.filter((r) => r.status === "confirmed");
   const pending = rows.filter((r) => r.status !== "confirmed");
 
+  // Single flat line per approver — avatar, name, email inline, status, remove.
   const Row = ({ r, isPending }) => (
-    <div className="group flex items-center gap-3 rounded-xl border px-3 py-2 transition-colors hover:border-[color:var(--line-strong)]" style={{ borderColor: "var(--line)", background: "#fff" }}>
-      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: isPending ? "#FEF3C7" : "var(--brand-soft)", color: isPending ? "#92400E" : "var(--brand)" }}>{ini(r.name || r.email)}</div>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{r.name || r.email}</div>
-        <div className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{r.email}</div>
-      </div>
+    <div className="flex items-center gap-2.5 py-1.5 border-b last:border-b-0" style={{ borderColor: "var(--line)" }}>
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: isPending ? "#FEF3C7" : "var(--brand-soft)", color: isPending ? "#92400E" : "var(--brand)" }}>{ini(r.name || r.email)}</div>
+      <span className="text-sm font-medium shrink-0 max-w-[40%] truncate" style={{ color: "var(--ink)" }}>{r.name || r.email}</span>
+      <span className="text-xs truncate flex-1" style={{ color: "var(--ink-3)" }}>{r.email}</span>
       {isPending ? (
-        <>
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D97706" }} />Pending</span>
-          <button onClick={() => resend(r)} disabled={busy} className="text-xs font-semibold shrink-0 hover:opacity-70 transition-opacity disabled:opacity-40" style={{ color: "var(--brand)" }}>Resend</button>
-        </>
+        <button onClick={() => resend(r)} disabled={busy} className="text-[11px] font-semibold shrink-0 px-2 py-0.5 rounded-full disabled:opacity-40" style={{ background: "#FEF3C7", color: "#92400E" }}>Pending · Resend</button>
       ) : (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-3 h-3" />Confirmed</span>
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold shrink-0" style={{ color: "#16A34A" }}><Icon name="check" className="w-3 h-3" />Confirmed</span>
       )}
-      <button onClick={() => remove(r.id)} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:bg-rose-50 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
+      <button onClick={() => remove(r.id)} className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
     </div>
   );
 
   return (
     <div className="mt-8">
-      {/* One-line header */}
-      <div className="flex items-center gap-2 mb-2">
+      {/* One-line header with an inline add toggle */}
+      <div className="flex items-center gap-2 mb-1.5">
         <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Offer approvers</h2>
         {confirmed.length > 0 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg)", color: "var(--brand)", border: "1px solid var(--line)" }}>{confirmed.length}</span>}
-        <span className="text-xs truncate" style={{ color: "var(--ink-3)" }}>· approve by email, no login</span>
+        <span className="text-xs truncate flex-1" style={{ color: "var(--ink-3)" }}>· approve by email, no login</span>
+        <button onClick={() => setShowAdd((s) => !s)} className="text-xs font-semibold shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>{showAdd ? "Close" : "+ Add"}</button>
       </div>
-      {/* Add form */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-lg bg-white border px-3 py-1.5 text-sm sm:w-40 focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-lg bg-white border px-3 py-1.5 text-sm focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)] transition-shadow" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-        <button onClick={add} disabled={busy} className="rounded-lg brand-gradient text-white text-sm font-semibold px-4 py-1.5 disabled:opacity-50 shrink-0 inline-flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90"><Icon name="userPlus" className="w-4 h-4" />{busy ? "Sending…" : "Add approver"}</button>
-      </div>
-      {banner && <p className="text-xs mt-1.5 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
-      {/* Flat list, confirmed first */}
-      {!loading && rows.length > 0 && (
-        <div className="mt-2.5 space-y-1.5">
-          {[...confirmed, ...pending].map((r) => <Row key={r.id} r={r} isPending={r.status !== "confirmed"} />)}
+      {/* Add form (collapsed by default) */}
+      {showAdd && (
+        <div className="flex flex-col sm:flex-row gap-2 mb-1.5">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="rounded-lg bg-white border px-3 py-1.5 text-sm sm:w-40 focus:outline-none focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="approver@email.com" className="flex-1 rounded-lg bg-white border px-3 py-1.5 text-sm focus:outline-none focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+          <button onClick={add} disabled={busy} className="rounded-lg brand-gradient text-white text-sm font-semibold px-4 py-1.5 disabled:opacity-50 shrink-0">{busy ? "Sending…" : "Add"}</button>
         </div>
       )}
-      {!loading && rows.length === 0 && <p className="text-xs mt-2.5" style={{ color: "var(--ink-3)" }}>No approvers yet.</p>}
+      {banner && <p className="text-xs mb-1 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
+      {!loading && rows.length > 0 && [...confirmed, ...pending].map((r) => <Row key={r.id} r={r} isPending={r.status !== "confirmed"} />)}
+      {!loading && rows.length === 0 && <p className="text-xs" style={{ color: "var(--ink-3)" }}>No approvers yet.</p>}
     </div>
   );
 }
