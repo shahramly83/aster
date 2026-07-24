@@ -15187,6 +15187,7 @@ function ApproversSection({ companyId, canPersist }) {
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState(null); // { type:'ok'|'err', msg }
   const [showAdd, setShowAdd] = useState(false); // collapse the add form by default
+  const [confirmDel, setConfirmDel] = useState(null); // approver pending deletion
 
   useEffect(() => {
     let alive = true;
@@ -15233,7 +15234,7 @@ function ApproversSection({ companyId, canPersist }) {
       ) : (
         <span className="inline-flex items-center gap-1 text-[11px] font-semibold shrink-0" style={{ color: "#16A34A" }}><Icon name="check" className="w-3 h-3" />Confirmed</span>
       )}
-      <button onClick={() => { if (typeof window !== "undefined" && window.confirm(`Remove ${r.name || r.email} as an approver? They'll no longer be able to approve offers.`)) remove(r.id); }} className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
+      <button onClick={() => setConfirmDel(r)} className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
     </div>
   );
 
@@ -15257,6 +15258,17 @@ function ApproversSection({ companyId, canPersist }) {
       {banner && <p className="text-xs mb-1 flex items-center gap-1.5" style={{ color: banner.type === "err" ? "#B42318" : "#166534" }}><Icon name={banner.type === "err" ? "alertCircle" : "check"} className="w-3.5 h-3.5" />{banner.msg}</p>}
       {!loading && rows.length > 0 && [...confirmed, ...pending].map((r) => <Row key={r.id} r={r} isPending={r.status !== "confirmed"} />)}
       {!loading && rows.length === 0 && <p className="text-xs" style={{ color: "var(--ink-3)" }}>No approvers yet.</p>}
+      <ConfirmDialog
+        open={!!confirmDel}
+        tone="danger"
+        icon="trash"
+        title="Remove approver?"
+        body={confirmDel ? `${confirmDel.name || confirmDel.email} will no longer be able to approve offers.` : ""}
+        confirmLabel="Remove"
+        cancelLabel="Keep"
+        onConfirm={() => { if (confirmDel) remove(confirmDel.id); setConfirmDel(null); }}
+        onClose={() => setConfirmDel(null)}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, RefreshControl, ScrollView, StyleSheet, Animated, Easing, Modal, Pressable, TextInput, Keyboard, Platform, Alert } from "react-native";
+import { View, Text, FlatList, RefreshControl, ScrollView, StyleSheet, Animated, Easing, Modal, Pressable, TextInput, Keyboard, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { setStatusBarStyle } from "expo-status-bar";
@@ -9,6 +9,7 @@ import { loadTeam, inviteTeammate, loadApprovers, addApprover, removeApprover } 
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 import { Press, Avatar, HeaderActions, TopBar, Button, Loader, EmptyState, Feather } from "../components/ui";
 import SuccessModal from "../components/SuccessModal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { TAB_CLEARANCE } from "../components/FloatingTabBar";
 import { theme, type, space, radius } from "../theme";
 import { ROLE_LABELS } from "@aster/shared";
@@ -90,13 +91,7 @@ export default function TeamsScreen({ navigation }) {
     if (res.ok) setInviteDone({ title: "Confirmation re-sent", message: `We re-sent the confirmation email to ${r.email}. They'll appear as Confirmed once they click it.` });
   };
   const removeApproverRow = async (id) => { setApprovers((l) => (l || []).filter((x) => x.id !== id)); await removeApprover(id); };
-  const confirmRemoveApprover = (item) => {
-    Alert.alert(
-      "Remove approver?",
-      `${item.name || item.email} will no longer be able to approve offers.`,
-      [{ text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => removeApproverRow(item.id) }],
-    );
-  };
+  const [confirmRemove, setConfirmRemove] = useState(null); // approver row pending deletion
 
   // Approver add form — lives inside the "Add people" (invite) modal.
   const [apName, setApName] = useState("");
@@ -287,7 +282,7 @@ export default function TeamsScreen({ navigation }) {
                   {item.pending
                     ? <View style={ap.pendingPill}><Text style={ap.pendingTxt}>Pending</Text></View>
                     : <View style={ap.okPill}><Feather name="check" size={11} color="#166534" /><Text style={ap.okTxt}>Confirmed</Text></View>}
-                  <Pressable onPress={() => confirmRemoveApprover(item)} hitSlop={6} style={[ap.x, { marginLeft: 6 }]}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
+                  <Pressable onPress={() => setConfirmRemove(item)} hitSlop={6} style={[ap.x, { marginLeft: 6 }]}><Feather name="x" size={16} color={theme.ink3} /></Pressable>
                 </View>
               </Rise>
             );
@@ -400,6 +395,18 @@ export default function TeamsScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={!!confirmRemove}
+        variant="danger"
+        icon="user-x"
+        title="Remove approver?"
+        message={confirmRemove ? `${confirmRemove.name || confirmRemove.email} will no longer be able to approve offers.` : ""}
+        confirmLabel="Remove"
+        cancelLabel="Keep"
+        onConfirm={() => { if (confirmRemove) removeApproverRow(confirmRemove.id); setConfirmRemove(null); }}
+        onCancel={() => setConfirmRemove(null)}
+      />
 
       <SuccessModal
         visible={!!inviteDone}
