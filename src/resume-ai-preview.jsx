@@ -20892,7 +20892,7 @@ function deriveInsights(candidate) {
   };
 }
 
-function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName, currentUserId = null, attendees = [], isManager = false, allowSelfScore = false, required = false, onSkip = null }) {
+function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, authorName, currentUserId = null, attendees = [], isManager = false, allowSelfScore = false, required = false, onSkip = null, hmScoreClosed = false }) {
   // Collaborative scorecards are available on every plan (locked matrix).
   const isPaid = planLimits(plan).scorecards;
   const [open, setOpen] = useState(false);
@@ -21081,9 +21081,10 @@ function ScorecardPanel({ scorecards = [], onSubmit, plan = "launch", navigate, 
                 <button onClick={() => setOpen(false)} className="text-sm rounded-xl border px-4 py-2.5 font-medium transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
               </div>
             </div>
-          ) : !canSeeAll ? null : (
+          ) : (!canSeeAll || (isManager && hmScoreClosed)) ? null : (
             /* Interviewer's CTA lives in the empty-state card above; this is the
-               manager's self-score / skip row. */
+               manager's self-score / skip row. Once the decision unlocks (panel
+               complete), the HM can no longer add their own scorecard. */
             <div className="flex flex-wrap items-center gap-2">
               {required ? (
                 <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-all hover:opacity-95 hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
@@ -22292,6 +22293,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               allowSelfScore={true}
               required={soloInterview}
               onSkip={null}
+              hmScoreClosed={decisionUnlocked}
             />
           </div>
         )}
