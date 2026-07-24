@@ -185,9 +185,10 @@ export default function TodayScreen({ navigation }) {
   // (needs a scorecard or the hire call) is unfinished work → Action. Once an
   // offer is out, the score/decide action is done, so 'offer' belongs in Past.
   const CLOSED_STAGES = ["offer", "hired", "rejected", "declined"];
-  // A declined offer keeps the candidate at the 'offer' stage but still needs a
-  // re-offer/close decision, so it counts as unfinished work (Action), not Past.
-  const isClosed = (i) => CLOSED_STAGES.includes(i.stage) && !(i.stage === "offer" && i.offerDeclined);
+  // An offer-stage candidate still needs the HM when the offer is accepted (mark
+  // hired), declined (re-offer/close) or expired — so those count as unfinished
+  // work (Action), not Past. Only an offer still awaiting signature is Past.
+  const isClosed = (i) => CLOSED_STAGES.includes(i.stage) && !(manager && i.stage === "offer" && i.offerAction);
   const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
   const doneTimed = sorted.filter((i) => !isUpcoming(i));
   const past = doneTimed.filter(isClosed).reverse();            // closed → Past
@@ -468,6 +469,17 @@ export default function TodayScreen({ navigation }) {
                 <Text style={styles.pollEyebrow}>{pending.length ? "AFTER THE INTERVIEW" : "NEEDS YOUR ACTION"}</Text>
                 {needsAction.map((iv) => {
                   const first = iv.candidateName?.split(" ")[0] || "They";
+                  const oa = manager ? iv.offerAction : null; // 'accepted'|'declined'|'expired'
+                  const pill = oa === "accepted" ? { label: "Signed", color: "#166534", bg: "#DCFCE7" }
+                    : oa === "declined" ? { label: "Declined", color: theme.danger, bg: "#FEF3F2" }
+                    : oa === "expired" ? { label: "Expired", color: "#B45309", bg: "#FEF3C7" }
+                    : { label: "To score", color: theme.brand, bg: theme.brandSoft };
+                  const icon = oa === "accepted" ? "award" : oa === "declined" ? "rotate-ccw" : oa === "expired" ? "clock" : "edit-3";
+                  const msg = oa === "accepted" ? `${first} signed the offer. Mark them as hired to close it out.`
+                    : oa === "declined" ? `${first} declined the offer. Re-send a new one, or close them out.`
+                    : oa === "expired" ? `The offer to ${first} lapsed without a signature. Re-send it or close them out.`
+                    : manager ? `Interview done. Collect the panel's scorecards, then make the call on ${first}.`
+                    : `Interview done. Add your scorecard for ${first} so the hiring manager can decide.`;
                   return (
                     <View key={iv.id} style={styles.pollCard}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -476,17 +488,13 @@ export default function TodayScreen({ navigation }) {
                           <Text style={styles.pollName} numberOfLines={2}>{iv.candidateName}</Text>
                           <Text style={styles.pollRole} numberOfLines={1}>{iv.jobTitle}</Text>
                         </View>
-                        <View style={[styles.actionPill, { backgroundColor: theme.brandSoft }]}>
-                          <Text style={[type.smallStrong, { color: theme.brand }]}>To score</Text>
+                        <View style={[styles.actionPill, { backgroundColor: pill.bg }]}>
+                          <Text style={[type.smallStrong, { color: pill.color }]}>{pill.label}</Text>
                         </View>
                       </View>
                       <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: space(3) }}>
-                        <Feather name="edit-3" size={13} color={theme.brand} style={{ marginTop: 2 }} />
-                        <Text style={[type.small, { color: theme.ink2, marginLeft: 7, flex: 1, lineHeight: 18 }]}>
-                          {manager
-                            ? `Interview done. Collect the panel's scorecards, then make the call on ${first}.`
-                            : `Interview done. Add your scorecard for ${first} so the hiring manager can decide.`}
-                        </Text>
+                        <Feather name={icon} size={13} color={pill.color} style={{ marginTop: 2 }} />
+                        <Text style={[type.small, { color: theme.ink2, marginLeft: 7, flex: 1, lineHeight: 18 }]}>{msg}</Text>
                       </View>
                       <Press
                         onPress={() => navigation.navigate("CandidateProfile", { candidateId: iv.candidateId, jobId: iv.jobId, candidateName: iv.candidateName, jobTitle: iv.jobTitle })}
@@ -494,7 +502,7 @@ export default function TodayScreen({ navigation }) {
                         style={styles.pollCta}
                       >
                         <Feather name="arrow-right" size={16} color="#fff" />
-                        <Text style={styles.pollCtaTxt}>Open interview</Text>
+                        <Text style={styles.pollCtaTxt}>{oa ? "Open offer" : "Open interview"}</Text>
                       </Press>
                     </View>
                   );
