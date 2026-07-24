@@ -22,6 +22,11 @@ const CORS = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
+// Escape values that flow into notification-email HTML. The decline `reason` is
+// typed by an external approver (no account), and names/titles come from parsed
+// resumes — none may be trusted as HTML.
+const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 // deno-lint-ignore no-explicit-any
 async function notifyTeam(admin: any, companyId: string, subject: string, heading: string, bodyHtml: string) {
   const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", companyId).maybeSingle();
@@ -82,7 +87,7 @@ Deno.serve(async (req) => {
       await admin.from("offers").update({ approval_status: "declined" }).eq("id", offer.id);
       await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_approval_declined", title: `Offer approval declined for ${ctx.candidateName}`, description: `${appr.approver_name || appr.approver_email} declined the ${ctx.jobTitle} offer${reason ? `: ${reason}` : "."}`, candidate_id: offer.candidate_id });
       await notifyTeam(admin, offer.company_id, `Offer declined in approval: ${ctx.jobTitle}`, "Offer approval declined",
-        `<p style="margin:0 0 8px;"><strong>${appr.approver_name || appr.approver_email}</strong> declined the offer for <strong>${ctx.candidateName}</strong> (${ctx.jobTitle}) at approval step ${appr.step} of ${total}.</p>${reason ? `<p style="margin:0 0 8px;">Reason: ${reason}</p>` : ""}<p style="margin:0;">Open Aster to revise and resubmit, or close the offer.</p>`);
+        `<p style="margin:0 0 8px;"><strong>${esc(appr.approver_name || appr.approver_email)}</strong> declined the offer for <strong>${esc(ctx.candidateName)}</strong> (${esc(ctx.jobTitle)}) at approval step ${appr.step} of ${total}.</p>${reason ? `<p style="margin:0 0 8px;">Reason: ${esc(reason)}</p>` : ""}<p style="margin:0;">Open Aster to revise and resubmit, or close the offer.</p>`);
       await pushToCompanyAdmins(admin, offer.company_id, {
         title: "Offer approval declined",
         body: `${appr.approver_name || appr.approver_email} declined ${ctx.candidateName}'s ${ctx.jobTitle} offer`,
@@ -120,7 +125,7 @@ Deno.serve(async (req) => {
     }
     await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_approved", title: `Offer approved for ${ctx.candidateName}`, description: `All ${total} approvals complete. The offer was sent to ${ctx.candidateName} to sign.`, candidate_id: offer.candidate_id });
     await notifyTeam(admin, offer.company_id, `Offer approved and sent: ${ctx.jobTitle}`, "Offer fully approved",
-      `<p style="margin:0;">All ${total} approvals are complete for <strong>${ctx.candidateName}</strong> (${ctx.jobTitle}). The offer has been sent to the candidate to review and sign.</p>`);
+      `<p style="margin:0;">All ${total} approvals are complete for <strong>${esc(ctx.candidateName)}</strong> (${esc(ctx.jobTitle)}). The offer has been sent to the candidate to review and sign.</p>`);
     await pushToCompanyAdmins(admin, offer.company_id, {
       title: "Offer approved & sent",
       body: `${ctx.candidateName}'s ${ctx.jobTitle} offer cleared approval and went to the candidate to sign.`,
