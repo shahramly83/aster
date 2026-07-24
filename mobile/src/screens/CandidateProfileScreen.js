@@ -160,7 +160,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
     if (tabInit.current || loading) return;
     tabInit.current = true;
     setTab(
-      !manager && myCard ? "result"
+      !manager && myCard ? "decision"
+        : (manager && showDecision) ? "decision"
         : (interviewDone && canScore) || stage === "offer" || stage === "hired" ? "feedback"
         : stage === "interviewing" ? "interview"
         : "profile"
@@ -175,7 +176,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
     const hasMyCard = (cards || []).some((c) => c.interviewerId === profile?.userId);
     if (!manager && hasMyCard && tab === "feedback" && !resultAutoSwitched.current) {
       resultAutoSwitched.current = true;
-      setTab("result");
+      setTab("decision");
     }
   }, [cards, manager, tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -186,11 +187,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
     Animated.timing(tabAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
   };
 
-  // Keep the active tab within view: Result is the last pill and can sit past
+  // Keep the active tab within view: Decision is the last pill and can sit past
   // the right edge, so reveal it (and snap back to the start for Profile).
   useEffect(() => {
     if (loading || !segScrollRef.current) return;
-    if (tab === "result") segScrollRef.current.scrollToEnd({ animated: true });
+    if (tab === "decision") segScrollRef.current.scrollToEnd({ animated: true });
     else if (tab === "profile") segScrollRef.current.scrollTo({ x: 0, animated: true });
   }, [tab, loading]);
 
@@ -354,6 +355,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const ratedRequired = requiredRaters.filter((p) => ratedIds.has(p.id)).length;
   const allRated = requiredRaters.length ? ratedRequired === requiredRaters.length : true;
   const showDecision = manager && stage === "interviewing" && interviewDone && allRated;
+  // The Decision tab: interviewers see the outcome/journey; managers see the
+  // decision (make offer / not a fit / waiting roster / offer status).
+  const decisionTabVisible = (!manager && myCard) || (manager && (showDecision || !!offer || (stage === "interviewing" && interviewDone && requiredRaters.length > 0 && !allRated)));
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -403,7 +407,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
             {/* Interview page sub-tabs: split the dense stack into Profile /
                 Interview / Feedback so only one section shows at a time. */}
             <ScrollView ref={segScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segbar}>
-              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecards"], ...(!manager && myCard ? [["result", "Result"]] : [])].map(([k, lbl]) => {
+              {[["profile", "Profile"], ["interview", "Interview"], ["feedback", "Scorecards"], ...(decisionTabVisible ? [["decision", "Decision"]] : [])].map(([k, lbl]) => {
                 const on = tab === k;
                 // The two tabs unlock on different things, and conflating them
                 // was wrong: reaching the interview stage only means an
@@ -630,8 +634,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
           </View>
           </>) : null}
 
-          {/* Offer lives with the outcome, under Feedback. */}
-          {tab === "feedback" && offer ? (
+          {/* Offer status lives under the Decision tab (manager view). */}
+          {tab === "decision" && manager && offer ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Offer</SectionHeader>
               <OfferCard offer={offer} approvals={approvals} onViewSigned={viewSigned} canHire={manager && stage !== "hired"} onHire={() => moveTo("hired")} />
@@ -964,9 +968,8 @@ export default function CandidateProfileScreen({ route, navigation }) {
           ) : null}
           </>) : null}
 
-          {tab === "feedback" ? (<>
-          {/* The interviewer's outcome/status lives on its own Result tab. */}
-          {/* Decision — opens once the panel has all scored */}
+          {/* Manager Decision tab: make an offer / not a fit / waiting on panel. */}
+          {tab === "decision" && manager ? (<>
           {showDecision ? (
             <View style={{ marginTop: space(5) }}>
               <SectionHeader>Decision</SectionHeader>
@@ -1029,7 +1032,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
               </View>
             </View>
           ) : null}
+          </>) : null}
 
+          {tab === "feedback" ? (<>
           {/* Panel feedback — scorecards open once an interview exists (web sequence) */}
           {(canScore || cards.length > 0) ? (
           <View style={{ marginTop: space(5) }}>
@@ -1091,7 +1096,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
           ) : null}
           </>) : null}
 
-          {tab === "result" ? (() => {
+          {tab === "decision" && !manager ? (() => {
             const first = name.split(" ")[0];
             const decided = stage === "hired" || stage === "rejected";
             const offered = !!offer || stage === "offer" || decided;
