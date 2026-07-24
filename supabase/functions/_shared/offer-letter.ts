@@ -95,7 +95,7 @@ export function buildLetterModel(o: OfferRow, m: { companyName: string; candidat
 
 // HTML for the on-page preview (no signature block; the page renders that below).
 // `logo` is a URL or data URI (or null).
-export function letterHtml(model: LetterModel, logo: string | null): string {
+export function letterHtml(model: LetterModel, logo: string | null, opts: { signoff?: boolean } = {}): string {
   const brand = logo
     ? `<img src="${logo}" alt="${esc(model.companyName)}" style="height:34px;max-width:190px;object-fit:contain;display:block;">`
     : `<div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#1f2328;letter-spacing:-0.01em;">${esc(model.companyName)}</div>`;
@@ -110,8 +110,25 @@ export function letterHtml(model: LetterModel, logo: string | null): string {
     return `<p style="margin:0 0 13px;">${esc(p.replace(/\n/g, " "))}</p>`;
   };
   const body = model.paragraphs.map(renderBlock).join("");
-  // The company's saved sign-off: a drawn signature (PNG data URI) shows as an
-  // image; a "typed:<name>" marker renders that name in a script font.
+  // opts.signoff:false omits the company sign-off so the signing page can place
+  // it in a column beside the candidate's signature (two-column layout).
+  const signoff = opts.signoff !== false;
+  return `<div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#33373c;line-height:1.7;font-size:13px;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #eee;margin-bottom:24px;">
+      ${brand}
+      <span style="color:#9298a1;font-size:12px;white-space:nowrap;flex-shrink:0;">${esc(model.dateStr)}</span>
+    </div>
+    <p style="margin:0 0 12px;">${esc(model.salutation)}</p>
+    <p style="margin:0 0 18px;font-weight:700;color:#1f2328;text-transform:uppercase;letter-spacing:0.02em;font-size:13px;">${esc(model.subject)}</p>
+    ${body}
+    ${signoff ? `<div style="margin:22px 0 0;">${signatoryBlockHtml(model)}</div>` : ""}
+    ${model.addressLine ? `<div style="margin-top:36px;padding-top:12px;border-top:1px solid #eee;font-size:11.5px;color:#8b8e94;line-height:1.6;">${esc(model.companyName)} · ${esc(model.addressLine)}</div>` : ""}
+  </div>`;
+}
+
+// The company sign-off block on its own ("Yours sincerely," + signature + name),
+// so the signing page can render it in a column beside the candidate signature.
+export function signatoryBlockHtml(model: LetterModel): string {
   const sig = model.signatorySignature;
   const sigMark = sig
     ? (sig.startsWith("typed:")
@@ -121,16 +138,5 @@ export function letterHtml(model: LetterModel, logo: string | null): string {
   const signatory = model.signatoryTitle
     ? `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div><div style="color:#5b5f66;">${esc(model.signatoryTitle)}</div><div style="color:#5b5f66;">${esc(model.companyName)}</div>`
     : `<div style="font-weight:700;color:#1f2328;">${esc(model.signatoryName)}</div>${model.signatoryName !== model.companyName ? `<div style="color:#5b5f66;">${esc(model.companyName)}</div>` : ""}`;
-  return `<div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#33373c;line-height:1.7;font-size:13px;">
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #eee;margin-bottom:24px;">
-      ${brand}
-      <span style="color:#9298a1;font-size:12px;white-space:nowrap;flex-shrink:0;">${esc(model.dateStr)}</span>
-    </div>
-    <p style="margin:0 0 12px;">${esc(model.salutation)}</p>
-    <p style="margin:0 0 18px;font-weight:700;color:#1f2328;text-transform:uppercase;letter-spacing:0.02em;font-size:13px;">${esc(model.subject)}</p>
-    ${body}
-    <div style="margin:22px 0 0;">Yours sincerely,</div>
-    <div style="margin-top:8px;">${sigMark}${signatory}</div>
-    ${model.addressLine ? `<div style="margin-top:36px;padding-top:12px;border-top:1px solid #eee;font-size:11.5px;color:#8b8e94;line-height:1.6;">${esc(model.companyName)} · ${esc(model.addressLine)}</div>` : ""}
-  </div>`;
+  return `<div>Yours sincerely,</div><div style="margin-top:8px;">${sigMark}${signatory}</div>`;
 }

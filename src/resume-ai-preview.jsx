@@ -7855,7 +7855,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       if (!alive || !r?.ok) return;
       // Upload mode returns the source PDF URL + placed signature box; compose
       // mode returns the rendered letter HTML.
-      setLetter({ html: r.html || null, candidateName: r.candidateName, mode: r.mode || "compose", pdfUrl: r.pdfUrl || null, signField: r.signField || null });
+      setLetter({ html: r.html || null, signatoryHtml: r.signatoryHtml || null, candidateName: r.candidateName, mode: r.mode || "compose", pdfUrl: r.pdfUrl || null, signField: r.signField || null });
       setTypedName((n) => n || (r.candidateName && r.candidateName !== "there" ? r.candidateName : ""));
     })();
     return () => { alive = false; };
@@ -7954,31 +7954,43 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
               </div>
             )}
 
-            {/* Candidate counter-signature field */}
+            {/* Signature block — company sign-off (left) inline with the
+                candidate's counter-signature (right). */}
             <div ref={signRef} className="px-6 sm:px-10 pb-8 pt-1">
-              <div className="rounded-xl border-2 border-dashed p-4 sm:p-5" style={{ borderColor: adopted ? "#86EFAC" : "#F5B700", background: adopted ? "#F0FDF4" : "#FFFBEB" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: adopted ? "#166534" : "#92600A", letterSpacing: "0.08em" }}>
-                  {adopted ? "Signed" : "Sign here"}
-                </p>
-                {adopted ? (
-                  <div className="flex items-end justify-between gap-4">
-                    <div className="min-w-0">
-                      {mode === "type"
-                        ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 30, color: "var(--ink)" }}>{typedName.trim()}</span>
-                        : <img src={drawnPng} alt="Your signature" style={{ height: 54, maxWidth: 260, objectFit: "contain" }} />}
-                      <div className="mt-1 pt-1 border-t text-[11px]" style={{ borderColor: "#BBF7D0", color: "var(--ink-3)" }}>
-                        {(typedName.trim() || letter?.candidateName || "You")} · {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-                      </div>
-                    </div>
-                    <button onClick={() => setAdoptOpen(true)} className="text-xs font-semibold shrink-0" style={{ color: "var(--brand)" }}>Change</button>
+              <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 items-end">
+                {/* Company sign-off (compose mode only; upload PDFs carry their own) */}
+                {letter?.mode !== "upload" && letter?.signatoryHtml ? (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>For and on behalf of the company</p>
+                    <div style={{ fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", color: "#33373c", fontSize: 13, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: letter.signatoryHtml }} />
                   </div>
-                ) : (
-                  <button onClick={() => setAdoptOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-lg font-bold text-sm px-5 py-3 transition-transform hover:-translate-y-0.5"
-                    style={{ background: "#F5B700", color: "#1A1A1A", boxShadow: "0 8px 18px -8px rgba(245,183,0,.7)" }}>
-                    <PenIcon /> Click to sign
-                  </button>
-                )}
+                ) : <div className="hidden sm:block" />}
+
+                {/* Candidate signature field */}
+                <div className="rounded-xl border-2 border-dashed p-4 sm:p-5" style={{ borderColor: adopted ? "#86EFAC" : "var(--brand)", background: adopted ? "#F0FDF4" : "var(--brand-soft)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: adopted ? "#166534" : "var(--brand)", letterSpacing: "0.08em" }}>
+                    {adopted ? "Signed by you" : "Sign here"}
+                  </p>
+                  {adopted ? (
+                    <div className="flex items-end justify-between gap-4">
+                      <div className="min-w-0">
+                        {mode === "type"
+                          ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 30, color: "var(--ink)" }}>{typedName.trim()}</span>
+                          : <img src={drawnPng} alt="Your signature" style={{ height: 54, maxWidth: 260, objectFit: "contain" }} />}
+                        <div className="mt-1 pt-1 border-t text-[11px]" style={{ borderColor: "#BBF7D0", color: "var(--ink-3)" }}>
+                          {(typedName.trim() || letter?.candidateName || "You")} · {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                        </div>
+                      </div>
+                      <button onClick={() => setAdoptOpen(true)} className="text-xs font-semibold shrink-0" style={{ color: "var(--brand)" }}>Change</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setAdoptOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-lg brand-gradient text-white font-bold text-sm px-5 py-3 transition-all hover:-translate-y-0.5"
+                      style={{ boxShadow: "0 12px 24px -12px rgba(var(--brand-rgb),0.85)" }}>
+                      <PenIcon /> Click to sign
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -7991,8 +8003,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       {/* Floating "start" tag pointing to the field */}
       {!adopted && (
         <button onClick={scrollToSign} aria-label="Go to signature field"
-          className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 pl-3 pr-4 py-2.5 rounded-r-full text-xs font-bold shadow-lg transition-transform hover:translate-x-0.5"
-          style={{ background: "#F5B700", color: "#1A1A1A" }}>
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 pl-3 pr-4 py-2.5 rounded-r-full text-xs font-bold shadow-lg brand-gradient text-white transition-transform hover:translate-x-0.5">
           <Icon name="chevronRight" className="w-4 h-4" /> START
         </button>
       )}
@@ -8001,7 +8012,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
       <footer className="shrink-0 bg-white border-t z-20" style={{ borderColor: "var(--line)", paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex items-center gap-3 px-4 sm:px-6" style={{ minHeight: 68 }}>
           <div className="min-w-0 flex-1 flex items-center gap-2">
-            <span className="inline-flex items-center justify-center text-[11px] font-bold rounded-full w-6 h-6 shrink-0" style={{ background: adopted ? "#DCFCE7" : "#FEF3C7", color: adopted ? "#166534" : "#92600A" }}>
+            <span className="inline-flex items-center justify-center text-[11px] font-bold rounded-full w-6 h-6 shrink-0" style={{ background: adopted ? "#DCFCE7" : "var(--brand-soft)", color: adopted ? "#166534" : "var(--brand)" }}>
               {adopted ? <Icon name="check" className="w-3.5 h-3.5" /> : 1}
             </span>
             <span className="text-[13px] truncate" style={{ color: "var(--ink-2)" }}>{adopted ? "Ready to submit" : "1 required field"}</span>
@@ -8012,8 +8023,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
             Decline
           </button>
           <button onClick={sign} disabled={!adopted || !!busy}
-            className="text-sm font-bold px-6 py-2.5 rounded-xl transition-all disabled:cursor-not-allowed shrink-0"
-            style={{ background: adopted ? "#F5B700" : "#E5E7EB", color: adopted ? "#1A1A1A" : "#9CA3AF", boxShadow: adopted ? "0 8px 18px -8px rgba(245,183,0,.7)" : "none" }}>
+            className={`text-sm font-bold px-6 py-2.5 rounded-xl transition-all disabled:cursor-not-allowed shrink-0 ${adopted ? "brand-gradient text-white hover:opacity-95" : ""}`}
+            style={adopted ? { boxShadow: "0 12px 24px -12px rgba(var(--brand-rgb),0.85)" } : { background: "#E5E7EB", color: "#9CA3AF" }}>
             {busy === "sign" ? "Finishing…" : "Finish"}
           </button>
         </div>
@@ -8059,8 +8070,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
             <div className="flex gap-2 mt-5">
               <button onClick={() => setAdoptOpen(false)} className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
               <button onClick={adopt} disabled={!hasSignature || !consent}
-                className="flex-1 rounded-xl text-sm font-bold py-3 transition-all disabled:cursor-not-allowed"
-                style={{ background: (hasSignature && consent) ? "#F5B700" : "#E5E7EB", color: (hasSignature && consent) ? "#1A1A1A" : "#9CA3AF" }}>
+                className={`flex-1 rounded-xl text-sm font-bold py-3 transition-all disabled:cursor-not-allowed ${(hasSignature && consent) ? "brand-gradient text-white hover:opacity-95" : ""}`}
+                style={(hasSignature && consent) ? {} : { background: "#E5E7EB", color: "#9CA3AF" }}>
                 Adopt and sign
               </button>
             </div>

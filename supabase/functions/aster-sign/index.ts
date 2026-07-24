@@ -19,7 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb, degrees } from "https://esm.sh/pdf-lib@1.17.1";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs as emailParagraphs } from "../_shared/email.ts";
 import { pushToCompanyAdmins } from "../_shared/push.ts";
-import { buildLetterModel, letterHtml, type LetterModel, type OfferRow } from "../_shared/offer-letter.ts";
+import { buildLetterModel, letterHtml, signatoryBlockHtml, type LetterModel, type OfferRow } from "../_shared/offer-letter.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -294,56 +294,60 @@ async function buildSignedPdf(model: LetterModel, opts: {
   }
   y -= 6;
 
-  // Sign-off with the named company signatory + their saved signature, so the
-  // letter is executed by the company before the candidate counter-signs.
-  ensure(120);
-  page.drawText("Yours sincerely,", { x: M, y, size: 10.5, font, color: ink }); y -= 24;
+  // Two-column execution block: the company sign-off (left) inline with the
+  // candidate's counter-signature (right), sharing one baseline.
+  ensure(150);
+  const sigRule = rgb(0.55, 0.57, 0.6);
+  const colGap = 28;
+  const colW = (maxW - colGap) / 2;
+  const leftX = M, rightX = M + colW + colGap;
+  const labelY = y;
+  page.drawText("FOR AND ON BEHALF OF", { x: leftX, y: labelY, size: 8, font: bold, color: gray });
+  page.drawText("ACCEPTED AND AGREED", { x: rightX, y: labelY, size: 8, font: bold, color: gray });
+  const sigLineY = labelY - 62;
+
+  // Company signature mark (typed marker or the saved image).
   const csig = model.signatorySignature;
   if (csig && csig.startsWith("typed:")) {
-    page.drawText(csig.slice(6).trim(), { x: M, y: y - 6, size: 24, font: italic, color: ink }); y -= 30;
+    page.drawText(csig.slice(6).trim(), { x: leftX, y: sigLineY + 8, size: 24, font: italic, color: ink });
   } else if (csig) {
     try {
       const b = dataUrlToBytes(csig);
       if (b) {
         const img = b.mime.includes("png") ? await doc.embedPng(b.bytes) : await doc.embedJpg(b.bytes);
-        const h = 42, w = Math.min((img.width / img.height) * h, 220);
-        page.drawImage(img, { x: M, y: y - h + 8, width: w, height: h }); y -= h - 2;
+        const h = Math.min(52, colW * 0.42), w = Math.min((img.width / img.height) * h, colW);
+        page.drawImage(img, { x: leftX, y: sigLineY + 4, width: w, height: h });
       }
-    } catch { /* bad image — fall through to the name only */ }
+    } catch { /* bad image — name only */ }
   }
-  page.drawText(model.signatoryName, { x: M, y, size: 10.5, font: bold, color: ink }); y -= 14;
-  if (model.signatoryTitle) { page.drawText(model.signatoryTitle, { x: M, y, size: 10, font, color: gray }); y -= 13; }
-  if (model.signatoryName !== model.companyName) { page.drawText(model.companyName, { x: M, y, size: 10, font, color: gray }); y -= 13; }
-  y -= 28;
-
-  // Candidate signature block — single column: signature, then the date below it.
-  ensure(220);
-  const sigW = 320;
-  const sigRule = rgb(0.55, 0.57, 0.6);   // thin, soft signature/date rules
-  page.drawText("ACCEPTED AND AGREED", { x: M, y, size: 9, font: bold, color: gray });
-  y -= 22;
-  // Signature mark (drawn image or typed), larger, sitting just above its line.
-  const sigLineY = y - 58;
+  // Candidate signature mark (drawn image or typed name).
   if (opts.signatureType === "drawn" && opts.drawn) {
     try {
       const img = opts.drawn.mime.includes("png") ? await doc.embedPng(opts.drawn.bytes) : await doc.embedJpg(opts.drawn.bytes);
-      const h = 62, w = Math.min((img.width / img.height) * h, 320);
-      page.drawImage(img, { x: M, y: sigLineY + 3, width: w, height: h });
-    } catch { page.drawText(opts.signedName, { x: M, y: sigLineY + 12, size: 30, font: italic, color: ink }); }
+      const h = Math.min(56, colW * 0.46), w = Math.min((img.width / img.height) * h, colW);
+      page.drawImage(img, { x: rightX, y: sigLineY + 4, width: w, height: h });
+    } catch { page.drawText(opts.signedName, { x: rightX, y: sigLineY + 10, size: 26, font: italic, color: ink }); }
   } else {
-    page.drawText(opts.signedName, { x: M, y: sigLineY + 12, size: 30, font: italic, color: ink });
+    page.drawText(opts.signedName, { x: rightX, y: sigLineY + 10, size: 26, font: italic, color: ink });
   }
-  page.drawLine({ start: { x: M, y: sigLineY }, end: { x: M + sigW, y: sigLineY }, thickness: 0.6, color: sigRule });
-  y = sigLineY - 15;
-  page.drawText(opts.signedName, { x: M, y, size: 11, font: bold, color: ink }); y -= 12;
-  page.drawText("SIGNATURE", { x: M, y, size: 8, font, color: gray }); y -= 40;
-  // Date, below the name.
+
+  page.drawLine({ start: { x: leftX, y: sigLineY }, end: { x: leftX + colW, y: sigLineY }, thickness: 0.6, color: sigRule });
+  page.drawLine({ start: { x: rightX, y: sigLineY }, end: { x: rightX + colW, y: sigLineY }, thickness: 0.6, color: sigRule });
+
+  // Names + meta beneath each line.
+  let ly = sigLineY - 14;
+  page.drawText(model.signatoryName, { x: leftX, y: ly, size: 10.5, font: bold, color: ink });
+  page.drawText(opts.signedName, { x: rightX, y: ly, size: 10.5, font: bold, color: ink });
+  ly -= 13;
   const dsigned = new Date(opts.signedAtIso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-  page.drawText(dsigned, { x: M, y, size: 11, font: bold, color: ink });
-  const dateLineY = y - 7;
-  page.drawLine({ start: { x: M, y: dateLineY }, end: { x: M + sigW, y: dateLineY }, thickness: 0.6, color: sigRule });
-  y = dateLineY - 15;
-  page.drawText("DATE", { x: M, y, size: 8, font, color: gray });
+  const leftMeta = model.signatoryTitle || (model.signatoryName !== model.companyName ? model.companyName : "");
+  if (leftMeta) page.drawText(leftMeta, { x: leftX, y: ly, size: 9.5, font, color: gray });
+  page.drawText(`Date: ${dsigned}`, { x: rightX, y: ly, size: 9.5, font, color: gray });
+  if (model.signatoryTitle && model.signatoryName !== model.companyName) {
+    ly -= 12;
+    page.drawText(model.companyName, { x: leftX, y: ly, size: 9.5, font, color: gray });
+  }
+  y = ly - 22;
 
   // Footer on the first page.
   if (model.addressLine) {
@@ -425,7 +429,9 @@ Deno.serve(async (req) => {
       // The browser loads the logo URL directly, so no data URI is needed here
       // (and building one by spreading the byte array overflows the call stack on
       // large logos). The PDF path embeds the logo bytes separately.
-      return json({ ok: true, mode: "compose", html: letterHtml(model!, comp?.logo_url || null), candidateName, companyName, jobTitle });
+      // Letter without the sign-off + the sign-off block separately, so the
+      // signing page can render the company signature beside the candidate's.
+      return json({ ok: true, mode: "compose", html: letterHtml(model!, comp?.logo_url || null, { signoff: false }), signatoryHtml: signatoryBlockHtml(model!), candidateName, companyName, jobTitle });
     }
 
     // ── SIGN: validate, build PDF, store, settle, notify ─────────────────────
