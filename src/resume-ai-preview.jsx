@@ -7831,6 +7831,18 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
   const [consent, setConsent] = useState(false);
   const [declining, setDeclining] = useState(false); // showing the "why" step
   const [declineReason, setDeclineReason] = useState("");
+  const [adoptOpen, setAdoptOpen] = useState(false); // signature adoption modal
+  const [adopted, setAdopted] = useState(false);     // signature placed in the field
+  const scrollRef = useRef(null);
+  const signRef = useRef(null);
+
+  const scrollToSign = () => signRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const toggleFullscreen = () => {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.();
+    } catch { /* not supported */ }
+  };
 
   const settled = done || result;
 
@@ -7872,112 +7884,208 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
     setResult("declined");
   };
 
-  return (
-    <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
-      <div className="w-full max-w-lg rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
-        {settled ? (
-          (result || data.status) === "accepted" ? (
-            <>
-              <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: "#DCFCE7", color: "#16A34A" }}>
-                <Icon name="check" className="w-5 h-5" />
-              </div>
-              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Offer signed</h1>
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}>Congratulations, and welcome to {company}! A copy of your signed offer is on file, and they'll be in touch shortly with your onboarding details.</p>
-            </>
-          ) : (
-            <>
-              <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>Response recorded</h1>
-              <p className="text-sm" style={{ color: "var(--ink-2)" }}>You've declined the offer for the {jobTitle} role. Thank you for letting {company} know.</p>
-            </>
-          )
-        ) : (
-          <>
-            <h1 className="text-xl font-bold font-display mb-1" style={{ color: "var(--ink)" }}>You've received an offer</h1>
-            <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>{company} has offered you the <strong>{jobTitle}</strong> role. Review the letter, then sign to accept.</p>
+  const adopt = () => {
+    if (!hasSignature || !consent) return;
+    setAdopted(true); setAdoptOpen(false); setErr(null);
+    setTimeout(scrollToSign, 60);
+  };
+  const PenIcon = ({ c = "w-4 h-4" }) => (
+    <svg className={c} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+  );
 
-            {/* The offer letter. Compose mode is server-rendered HTML (matches the
-                signed PDF); upload mode renders HR's PDF with the sign box shown. */}
+  // Settled (accepted / declined) — a clean confirmation card.
+  if (settled) {
+    const accepted = (result || data.status) === "accepted";
+    return (
+      <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "#F4F4F2" }}>
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 border text-center" style={{ borderColor: "var(--line)", boxShadow: "0 24px 60px -28px rgba(16,19,42,.30)" }}>
+          <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: accepted ? "#DCFCE7" : "#F1F5F9", color: accepted ? "#16A34A" : "#64748B" }}>
+            <Icon name={accepted ? "check" : "doc"} className="w-7 h-7" />
+          </div>
+          <h1 className="text-xl font-bold font-display mb-1.5" style={{ color: "var(--ink)" }}>{accepted ? "Offer signed" : "Response recorded"}</h1>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
+            {accepted
+              ? `Congratulations, and welcome to ${company}! A copy of your signed offer is on file, and they'll be in touch shortly with your onboarding details.`
+              : `You've declined the offer for the ${jobTitle} role. Thank you for letting ${company} know.`}
+          </p>
+          <div className="mt-6 inline-flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+            <Icon name="shield" className="w-3.5 h-3.5" /> Secured by Aster Sign
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Signing experience — DocuSign-style: top document bar, full document, footer.
+  return (
+    <div className="flex flex-col h-dvh" style={{ background: "#F4F4F2" }}>
+      {/* Top document bar */}
+      <header className="shrink-0 bg-white border-b z-20" style={{ borderColor: "var(--line)" }}>
+        <div className="flex items-center gap-3 px-4 sm:px-6" style={{ height: 56 }}>
+          {logoUrl
+            ? <img src={logoUrl} alt={company} style={{ height: 26, maxWidth: 130, objectFit: "contain" }} />
+            : <span className="font-bold text-sm shrink-0" style={{ color: "var(--ink)" }}>{company}</span>}
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>Offer Letter · {jobTitle}</p>
+            <p className="text-[11px] truncate" style={{ color: "var(--ink-3)" }}>Please review and sign</p>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full shrink-0" style={{ background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>
+            <Icon name="shield" className="w-3.5 h-3.5" /> Aster Sign
+          </span>
+          <button onClick={toggleFullscreen} aria-label="Toggle full screen" className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors hover:bg-[color:var(--bg)] shrink-0" style={{ color: "var(--ink-3)" }}>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3" /></svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Document */}
+      <main ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl px-3 sm:px-6 py-6 sm:py-8">
+          <div className="rounded-lg overflow-hidden" style={{ background: "#fff", boxShadow: "0 12px 40px -18px rgba(16,19,42,.35), 0 2px 6px rgba(16,19,42,.06)" }}>
             {letter && letter.mode === "upload" ? (
-              <div className="mb-5">
+              <div className="p-3 sm:p-5">
                 <OfferSignPlacement url={letter.pdfUrl} field={letter.signField} readOnly />
               </div>
             ) : (
-              <div className="mb-5 rounded-xl border overflow-y-auto p-4 sm:p-5" style={{ borderColor: "var(--line)", maxHeight: 320, background: "#fff" }}>
+              <div className="p-6 sm:p-10">
                 {letter
                   ? <div dangerouslySetInnerHTML={{ __html: letter.html }} />
-                  : <div className="py-8 text-center text-sm" style={{ color: "var(--ink-3)" }}>Loading your offer letter…</div>}
+                  : <div className="py-16 text-center text-sm" style={{ color: "var(--ink-3)" }}>Loading your offer letter…</div>}
               </div>
             )}
 
-            {/* Signature capture: type or draw. */}
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Your signature</p>
-            <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-              {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
-                <button key={k} type="button" onClick={() => setMode(k)}
-                  className="text-xs font-semibold px-3.5 py-1.5 rounded-md transition-colors"
-                  style={mode === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {mode === "type" ? (
-              <div className="mb-3">
-                <input value={typedName} onChange={(e) => setTypedName(e.target.value)} placeholder="Type your full name"
-                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
-                {typedName.trim() && (
-                  <div className="mt-2 rounded-lg px-4 py-3 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff", minHeight: 56 }}>
-                    <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 26, color: "var(--brand)" }}>{typedName.trim()}</span>
+            {/* Candidate counter-signature field */}
+            <div ref={signRef} className="px-6 sm:px-10 pb-8 pt-1">
+              <div className="rounded-xl border-2 border-dashed p-4 sm:p-5" style={{ borderColor: adopted ? "#86EFAC" : "#F5B700", background: adopted ? "#F0FDF4" : "#FFFBEB" }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: adopted ? "#166534" : "#92600A", letterSpacing: "0.08em" }}>
+                  {adopted ? "Signed" : "Sign here"}
+                </p>
+                {adopted ? (
+                  <div className="flex items-end justify-between gap-4">
+                    <div className="min-w-0">
+                      {mode === "type"
+                        ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 30, color: "var(--ink)" }}>{typedName.trim()}</span>
+                        : <img src={drawnPng} alt="Your signature" style={{ height: 54, maxWidth: 260, objectFit: "contain" }} />}
+                      <div className="mt-1 pt-1 border-t text-[11px]" style={{ borderColor: "#BBF7D0", color: "var(--ink-3)" }}>
+                        {(typedName.trim() || letter?.candidateName || "You")} · {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                      </div>
+                    </div>
+                    <button onClick={() => setAdoptOpen(true)} className="text-xs font-semibold shrink-0" style={{ color: "var(--brand)" }}>Change</button>
                   </div>
+                ) : (
+                  <button onClick={() => setAdoptOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg font-bold text-sm px-5 py-3 transition-transform hover:-translate-y-0.5"
+                    style={{ background: "#F5B700", color: "#1A1A1A", boxShadow: "0 8px 18px -8px rgba(245,183,0,.7)" }}>
+                    <PenIcon /> Click to sign
+                  </button>
                 )}
               </div>
-            ) : (
-              <div className="mb-3"><SignaturePad onChange={setDrawnPng} /></div>
-            )}
+            </div>
+          </div>
+          <p className="text-center text-[11px] mt-4 flex items-center justify-center gap-1.5 px-4" style={{ color: "var(--ink-3)" }}>
+            <Icon name="shield" className="w-3.5 h-3.5 shrink-0" /> Secured by Aster Sign · your signature, time and device are recorded on the PDF
+          </p>
+        </div>
+      </main>
 
-            {/* Consent — required for a valid electronic signature. */}
-            <label className="flex items-start gap-2.5 mb-4 cursor-pointer">
-              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 shrink-0 w-4 h-4 accent-[color:var(--brand)]" />
-              <span className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>I agree to sign this offer electronically, and I accept the terms set out in the letter above. I understand my electronic signature is legally binding.</span>
-            </label>
+      {/* Floating "start" tag pointing to the field */}
+      {!adopted && (
+        <button onClick={scrollToSign} aria-label="Go to signature field"
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 pl-3 pr-4 py-2.5 rounded-r-full text-xs font-bold shadow-lg transition-transform hover:translate-x-0.5"
+          style={{ background: "#F5B700", color: "#1A1A1A" }}>
+          <Icon name="chevronRight" className="w-4 h-4" /> START
+        </button>
+      )}
 
-            {declining ? (
-              <div className="rounded-xl border p-4" style={{ borderColor: "#FECDD3", background: "#FFF1F2" }}>
-                <p className="text-sm font-semibold mb-1" style={{ color: "#9F1239" }}>Decline this offer?</p>
-                <p className="text-xs mb-3" style={{ color: "#9F1239" }}>If you'd like, let {company} know why. This is optional and shared only with the hiring team.</p>
-                <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={3} maxLength={1000}
-                  placeholder="Your reason (optional), e.g. accepted another role, timing, compensation…"
-                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200 resize-none" style={{ background: "#fff", border: "1px solid #FECDD3", color: "var(--ink)" }} />
-                <div className="flex gap-2 mt-3">
-                  <button onClick={decline} disabled={!!busy}
-                    className="flex-1 rounded-xl text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-40" style={{ background: "#DC2626" }}>
-                    {busy === "declined" ? "Declining…" : "Confirm decline"}
-                  </button>
-                  <button onClick={() => { setDeclining(false); setErr(null); }} disabled={!!busy}
-                    className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-white disabled:opacity-50" style={{ borderColor: "#FECDD3", color: "#9F1239" }}>
-                    Back
-                  </button>
+      {/* Footer action bar */}
+      <footer className="shrink-0 bg-white border-t z-20" style={{ borderColor: "var(--line)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="flex items-center gap-3 px-4 sm:px-6" style={{ minHeight: 68 }}>
+          <div className="min-w-0 flex-1 flex items-center gap-2">
+            <span className="inline-flex items-center justify-center text-[11px] font-bold rounded-full w-6 h-6 shrink-0" style={{ background: adopted ? "#DCFCE7" : "#FEF3C7", color: adopted ? "#166534" : "#92600A" }}>
+              {adopted ? <Icon name="check" className="w-3.5 h-3.5" /> : 1}
+            </span>
+            <span className="text-[13px] truncate" style={{ color: "var(--ink-2)" }}>{adopted ? "Ready to submit" : "1 required field"}</span>
+          </div>
+          <button onClick={() => setDeclining(true)} disabled={!!busy}
+            className="text-sm font-semibold px-4 py-2.5 rounded-xl border transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50 shrink-0"
+            style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+            Decline
+          </button>
+          <button onClick={sign} disabled={!adopted || !!busy}
+            className="text-sm font-bold px-6 py-2.5 rounded-xl transition-all disabled:cursor-not-allowed shrink-0"
+            style={{ background: adopted ? "#F5B700" : "#E5E7EB", color: adopted ? "#1A1A1A" : "#9CA3AF", boxShadow: adopted ? "0 8px 18px -8px rgba(245,183,0,.7)" : "none" }}>
+            {busy === "sign" ? "Finishing…" : "Finish"}
+          </button>
+        </div>
+        {err && <p className="px-4 sm:px-6 pb-2 text-sm" style={{ color: "#B42318" }}>{err}</p>}
+      </footer>
+
+      {/* Adopt-signature modal */}
+      {adoptOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-5" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => setAdoptOpen(false)}>
+          <div className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-6" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Adopt your signature</h2>
+              <button onClick={() => setAdoptOpen(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[color:var(--bg)]" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: "var(--ink-3)" }}>Confirm your name and signature. This is applied to the offer letter.</p>
+
+            <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+              {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setMode(k)} className="text-xs font-semibold px-4 py-1.5 rounded-md transition-colors"
+                  style={mode === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>{label}</button>
+              ))}
+            </div>
+
+            {mode === "type" ? (
+              <div>
+                <input value={typedName} onChange={(e) => setTypedName(e.target.value)} placeholder="Type your full name"
+                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
+                <div className="mt-2 rounded-lg flex items-center justify-center px-4" style={{ border: "1px solid var(--line)", background: "#fff", height: 96 }}>
+                  {typedName.trim()
+                    ? <span style={{ fontFamily: "'Segoe Script','Bradley Hand',cursive", fontSize: 38, color: "var(--ink)" }}>{typedName.trim()}</span>
+                    : <span className="text-xs" style={{ color: "var(--ink-4)" }}>Your signature preview</span>}
                 </div>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <button onClick={sign} disabled={!canSign}
-                  className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-40">
-                  {busy === "sign" ? "Signing…" : "Sign & accept offer"}
-                </button>
-                <button onClick={() => setDeclining(true)} disabled={!!busy}
-                  className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-neutral-50 disabled:opacity-50"
-                  style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                  Decline
-                </button>
-              </div>
+              <SignaturePad onChange={setDrawnPng} />
             )}
-            <p className="text-[11px] mt-3 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
-              <Icon name="shield" className="w-3.5 h-3.5" /> Secured by Aster Sign. Your signature, the time and your device are recorded on the signed PDF.
-            </p>
-            {err && <p className="text-sm mt-3" style={{ color: "#B42318" }}>{err}</p>}
-          </>
-        )}
-      </div>
+
+            <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 shrink-0 w-4 h-4 accent-[color:var(--brand)]" />
+              <span className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}>I agree to sign electronically and accept the terms in this letter. My electronic signature is legally binding.</span>
+            </label>
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setAdoptOpen(false)} className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+              <button onClick={adopt} disabled={!hasSignature || !consent}
+                className="flex-1 rounded-xl text-sm font-bold py-3 transition-all disabled:cursor-not-allowed"
+                style={{ background: (hasSignature && consent) ? "#F5B700" : "#E5E7EB", color: (hasSignature && consent) ? "#1A1A1A" : "#9CA3AF" }}>
+                Adopt and sign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Decline modal */}
+      {declining && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-5" style={{ background: "rgba(16,19,42,.5)" }} onClick={() => !busy && setDeclining(false)}>
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 24px 60px -20px rgba(0,0,0,.45)" }}>
+            <h2 className="text-lg font-bold font-display mb-1" style={{ color: "#9F1239" }}>Decline this offer?</h2>
+            <p className="text-xs mb-3" style={{ color: "var(--ink-2)" }}>If you'd like, let {company} know why. Optional, and shared only with the hiring team.</p>
+            <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={3} maxLength={1000}
+              placeholder="Your reason (optional), e.g. accepted another role, timing, compensation…"
+              className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200 resize-none" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => { setDeclining(false); setErr(null); }} disabled={!!busy} className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Back</button>
+              <button onClick={decline} disabled={!!busy} className="flex-1 rounded-xl text-white text-sm font-bold py-3 transition-opacity disabled:opacity-40" style={{ background: "#DC2626" }}>
+                {busy === "declined" ? "Declining…" : "Confirm decline"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
