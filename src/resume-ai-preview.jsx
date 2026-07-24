@@ -19403,7 +19403,7 @@ function EmailTemplatesScreen({ navigate, plan = "launch", logoUrl, company, com
 // Email-code two-factor: a friendlier alternative to the authenticator app. Turning
 // it on sends a test code first, so a wrong email can't lock you out. Enforced at
 // sign-in by the boot gate below (LoginCodeGate).
-function EmailTwoFactorCard({ profile }) {
+function EmailTwoFactorCard({ profile, onToggled }) {
   const card = "rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]";
   const [on, setOn] = useState(!!profile?.email2fa);
   const [step, setStep] = useState("idle");   // idle | code
@@ -19427,14 +19427,14 @@ function EmailTwoFactorCard({ profile }) {
     const { data, error } = await supabase.functions.invoke("verify-login-code", { body: { code: code.trim(), purpose: "enable" } });
     setBusy(false);
     if (error || !data?.ok) { setErr(data?.error || "That code didn't work. Try again or resend."); return; }
-    setOn(true); setStep("idle"); setCode(""); setMsg("Two-factor is on. You'll enter an emailed code when you sign in from a new device.");
+    setOn(true); setStep("idle"); setCode(""); onToggled?.(true); setMsg("Two-factor is on. You'll enter an emailed code when you sign in from a new device.");
   };
   const disable = async () => {
     setErr(null); setBusy(true);
     const { data, error } = await supabase.functions.invoke("disable-email-2fa", { body: {} });
     setBusy(false);
     if (error || !data?.ok) { setErr("Couldn't turn it off. Please try again."); return; }
-    setOn(false); setStep("idle"); setCode("");
+    setOn(false); setStep("idle"); setCode(""); onToggled?.(false);
     if (typeof window !== "undefined") { localStorage.removeItem("aster.2fa.device"); sessionStorage.removeItem("aster.2fa.ok"); }
     setMsg("Two-factor turned off.");
   };
@@ -20872,7 +20872,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           {!isInterviewer(profile?.role) && (
             <SettingsSection icon="lock" title="Security" desc="Two-factor authentication and workspace deletion">
               <div className="space-y-4">
-                <EmailTwoFactorCard profile={profile} />
+                <EmailTwoFactorCard profile={profile} onToggled={(v) => setProfile?.({ ...(profile || {}), email2fa: v })} />
                 {/* Workspace deletion, owner/admin only. */}
                 <DangerZoneCard company={company} />
               </div>

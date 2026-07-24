@@ -540,11 +540,15 @@ Deno.serve(async (req) => {
     const up = await admin.storage.from("offer-letters").upload(path, pdf, { contentType: "application/pdf", upsert: true });
     if (up.error) { console.error("signed pdf upload failed", up.error.message); return json({ error: "storage_failed" }, 500); }
 
-    await admin.from("offers").update({
+    const settle = await admin.from("offers").update({
       esign_provider: "aster", esign_status: "completed", status: "accepted", responded_at: signedAtIso,
       signed_pdf_path: path, signed_name: signedName || candidateName, signature_type: signatureType,
       signed_ip: ip, signed_user_agent: ua, signed_at: signedAtIso, doc_hash: docHash,
     }).eq("id", offer.id);
+    // Don't report success on a failed settlement write — the PDF is stored but
+    // the offer would stay "sent" (and the stored PDF orphaned). Surface it so the
+    // candidate can retry rather than believing they signed.
+    if (settle.error) { console.error("offer settle update failed", settle.error.message); return json({ error: "settle_failed" }, 500); }
 
     // Notify the team (offer accepted) and welcome the candidate. Best-effort.
     try {
