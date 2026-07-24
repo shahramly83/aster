@@ -209,15 +209,12 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
           <ScrollView ref={scrollRef} style={{ maxHeight: kb > 0 ? 300 : 460 }} contentContainerStyle={{ paddingBottom: space(3) }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
             {/* Mode toggle: compose in Aster, or upload your own letter PDF (web only). */}
             <View style={styles.modeRow}>
-              {[["compose", "file-text", "Compose in Aster", "Build the letter from terms"], ["upload", "upload", "Upload our letter", "Send your own PDF · web"]].map(([k, icon, t, d]) => {
+              {[["compose", "file-text", "Compose in Aster"], ["upload", "upload", "Upload our letter"]].map(([k, icon, t]) => {
                 const on = mode === k;
                 return (
                   <Pressable key={k} onPress={() => setMode(k)} style={[styles.modeCard, on && styles.modeCardOn]}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Feather name={icon} size={14} color={on ? theme.brand : theme.ink3} />
-                      <Text style={[type.smallStrong, { color: on ? theme.brand : theme.ink }]} numberOfLines={1}>{t}</Text>
-                    </View>
-                    <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: theme.ink3, marginTop: 2 }} numberOfLines={1}>{d}</Text>
+                    <Feather name={icon} size={14} color={on ? theme.brand : theme.ink3} />
+                    <Text style={[type.smallStrong, { color: on ? theme.brand : theme.ink, marginLeft: 6 }]} numberOfLines={1}>{t}</Text>
                   </Pressable>
                 );
               })}
@@ -329,15 +326,18 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
               {/* Confirmed approvers available to add. */}
               {availableApprovers.length > 0 ? (
                 <>
-                  {approvers.length > 0 ? <Text style={styles.apGroupLabel}>Add more</Text> : null}
+                  <Text style={styles.apGroupLabel}>{approvers.length > 0 ? "Add more" : "Tap to add to this offer"}</Text>
                   {availableApprovers.map((m) => (
                     <Pressable key={m.id} onPress={() => pickApprover(m)} style={({ pressed }) => [styles.apAddRow, pressed && { backgroundColor: theme.bg }]}>
                       <View style={[styles.apAvatar, { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line }]}><Text style={[styles.apAvatarTxt, { color: theme.ink2 }]}>{initialsOf(m.name || m.email)}</Text></View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink }]}>{m.name}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink, flexShrink: 1 }]}>{m.name}</Text>
+                          <View style={styles.apConfirmedPill}><Feather name="check" size={9} color="#166534" /><Text style={styles.apConfirmedTxt}>Confirmed</Text></View>
+                        </View>
                         <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{m.email}</Text>
                       </View>
-                      <View style={styles.apPlus}><Feather name="plus" size={16} color={theme.brand} /></View>
+                      <View style={styles.apAddBtn}><Feather name="plus" size={14} color={theme.brand} /><Text style={styles.apAddBtnTxt}>Add</Text></View>
                     </Pressable>
                   ))}
                 </>
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, fontFamily: "Inter_500Medium", fontSize: 14.5, color: theme.ink },
   textarea: { minHeight: 74, textAlignVertical: "top", paddingTop: 11 },
   modeRow: { flexDirection: "row", gap: 10, marginTop: space(2) },
-  modeCard: { flex: 1, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11 },
+  modeCard: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.line, backgroundColor: theme.card, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 12 },
   modeCardOn: { borderColor: theme.brand, backgroundColor: theme.brandSoft },
   uploadInfo: { alignItems: "center", paddingVertical: 28, paddingHorizontal: 18, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginTop: space(4) },
   uploadIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
@@ -490,6 +490,10 @@ const styles = StyleSheet.create({
   apGroupLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: theme.ink4, letterSpacing: 0.6, textTransform: "uppercase", marginTop: 10, marginBottom: 7 },
   apAddRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: theme.line, borderRadius: radius.md, padding: 10, marginBottom: 8, backgroundColor: theme.card },
   apPlus: { width: 30, height: 30, borderRadius: 15, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  apAddBtn: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingLeft: 8, paddingRight: 11, paddingVertical: 7 },
+  apAddBtnTxt: { color: theme.brand, fontFamily: "Inter_700Bold", fontSize: 12.5 },
+  apConfirmedPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#DCFCE7", borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 7 },
+  apConfirmedTxt: { color: "#166534", fontFamily: "Inter_700Bold", fontSize: 10 },
   apPendingPill: { backgroundColor: "#FEF3C7", borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
   apPendingTxt: { color: "#92400E", fontFamily: "Inter_700Bold", fontSize: 12 },
   apEmpty: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.line, borderStyle: "dashed", borderRadius: radius.lg, backgroundColor: theme.bg, marginBottom: 10 },
