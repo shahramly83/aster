@@ -272,10 +272,10 @@ async function buildSignedPdf(model: LetterModel, opts: {
   page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.6, color: line });
   y -= 30;
 
-  // Salutation + subject line.
-  para(model.salutation, font, 10.5, ink, 15.5);
+  // Salutation + subject line. Sizes bumped to match the larger on-screen letter.
+  para(model.salutation, font, 11.5, ink, 17);
   y -= 8;
-  para(model.subject.toUpperCase(), bold, 11.5, ink, 16);
+  para(model.subject.toUpperCase(), bold, 12.5, ink, 17);
   y -= 14;
 
   // Body blocks — a "HEADING\ntext" block prints the heading in bold caps.
@@ -283,12 +283,12 @@ async function buildSignedPdf(model: LetterModel, opts: {
     const nl = blk.indexOf("\n");
     const head = nl > 0 ? blk.slice(0, nl).trim() : "";
     if (head && head.length <= 45 && head === head.toUpperCase() && /[A-Z]/.test(head)) {
-      ensure(28);
-      para(head, bold, 9.5, ink, 14);
+      ensure(30);
+      para(head, bold, 10.5, ink, 15);
       y -= 3;   // clear gap so the body starts on its own line under the heading
-      para(blk.slice(nl + 1).replace(/\n/g, " ").trim(), font, 10.5, ink, 15.5);
+      para(blk.slice(nl + 1).replace(/\n/g, " ").trim(), font, 11.5, ink, 17);
     } else {
-      para(blk.replace(/\n/g, " ").trim(), font, 10.5, ink, 15.5);
+      para(blk.replace(/\n/g, " ").trim(), font, 11.5, ink, 17);
     }
     y -= 11;
   }

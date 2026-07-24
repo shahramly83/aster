@@ -7988,7 +7988,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
                 <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 items-end">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>For and on behalf of the company</p>
-                    <div style={{ fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", color: "#33373c", fontSize: 13, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: letter.signatoryHtml }} />
+                    <div style={{ fontFamily: "'Inter','Helvetica Neue',Helvetica,Arial,sans-serif", color: "#33373c", fontSize: 14.5, lineHeight: 1.75 }} dangerouslySetInnerHTML={{ __html: letter.signatoryHtml }} />
                   </div>
                   {candidateField}
                 </div>
