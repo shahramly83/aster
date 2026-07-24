@@ -1110,7 +1110,13 @@ async function getMyOfferSignoff() {
   const uid = u?.user?.id;
   if (!uid) return { signature: null, name: null };
   const { data, error } = await supabase.from("profiles").select("offer_signature, full_name").eq("id", uid).maybeSingle();
-  if (error) { if (error.code !== "42703") console.warn("getMyOfferSignoff", error.message); return { signature: null, name: null }; }
+  // Pre-migration DB (no offer_signature column): still fetch the name so the
+  // letter is signed off by the sender, not the company-name fallback.
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const { data: d2 } = await supabase.from("profiles").select("full_name").eq("id", uid).maybeSingle();
+    return { signature: null, name: d2?.full_name || null };
+  }
+  if (error) { console.warn("getMyOfferSignoff", error.message); return { signature: null, name: null }; }
   return { signature: data?.offer_signature || null, name: data?.full_name || null };
 }
 
