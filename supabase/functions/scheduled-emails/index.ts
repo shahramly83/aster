@@ -61,10 +61,12 @@ type Admin = { from: (t: string) => any };
 
 // Active owners/admins of a company: who receives platform notices, plus a name
 // for the greeting.
-async function ownersOf(admin: Admin, companyId: string): Promise<{ to: string[]; name: string }> {
-  const { data } = await admin.from("profiles").select("email, full_name, role")
+async function ownersOf(admin: Admin, companyId: string, prefKey?: string): Promise<{ to: string[]; name: string }> {
+  const { data } = await admin.from("profiles").select("email, full_name, role, notify_prefs")
     .eq("company_id", companyId).in("role", ["owner", "admin"]).eq("status", "active").not("email", "is", null);
-  const rows = (data || []) as { email: string; full_name?: string; role: string }[];
+  let rows = (data || []) as { email: string; full_name?: string; role: string; notify_prefs?: Record<string, boolean> }[];
+  // Honor the recipient's email-notification preference for this notice (default on).
+  if (prefKey) rows = rows.filter((r) => r.notify_prefs?.[prefKey] !== false);
   const to = rows.map((r) => r.email).filter(Boolean);
   const owner = rows.find((r) => r.role === "owner") || rows[0];
   const name = (owner?.full_name || "there").split(" ")[0] || "there";
@@ -81,7 +83,7 @@ async function runWeeklyDigest(admin: Admin): Promise<number> {
     if (!applicants) continue; // no activity → no email
     const { count: jobs } = await admin.from("jobs")
       .select("id", { count: "exact", head: true }).eq("company_id", c.id).eq("status", "open");
-    const { to, name } = await ownersOf(admin, c.id);
+    const { to, name } = await ownersOf(admin, c.id, "digest");
     if (!to.length) continue;
 
     const tpl = await loadTemplate(admin, "weekly_digest", null, {

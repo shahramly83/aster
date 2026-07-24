@@ -466,10 +466,13 @@ Deno.serve(async (req) => {
       //    to the company itself, so no candidate-style sign-off).
       try {
         const { data: recips } = await admin
-          .from("profiles").select("email")
+          .from("profiles").select("email, notify_prefs")
           .eq("company_id", companyId).in("role", ["owner", "admin"]).eq("status", "active")
           .not("email", "is", null);
-        const to = (recips || []).map((r: { email: string }) => r.email).filter(Boolean);
+        // Honor each recipient's "New applicants" email preference (default on).
+        const to = (recips || [])
+          .filter((r: { email: string; notify_prefs?: { applicants?: boolean } }) => r.email && r.notify_prefs?.applicants !== false)
+          .map((r: { email: string }) => r.email);
         if (to.length) {
           // Aster-branded (Tier 1): this is a platform notification from Aster to
           // the hiring team, so it carries the Aster logo and footer, not the
