@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -149,6 +149,14 @@ export default function CandidateProfileScreen({ route, navigation }) {
   useEffect(() => {
     if (!profile?.companyId) return undefined;
     return subscribeInterviews(profile.companyId, () => load());
+  }, [profile?.companyId, load]);
+  // Also react to activity_log / application changes (offer sign or decline,
+  // approvals, another panellist's scorecard, stage / mark-hired) made on another
+  // device, so this profile doesn't sit stale while focused. Every server action
+  // logs activity_log, so this is the universal live signal.
+  useEffect(() => {
+    if (!profile?.companyId) return undefined;
+    return subscribeDashboard(profile.companyId, () => load());
   }, [profile?.companyId, load]);
 
   // Land on the tab that matters for where the candidate is — always the one

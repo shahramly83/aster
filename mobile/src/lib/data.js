@@ -374,6 +374,7 @@ export async function submitScorecard({ companyId, userId, candidateId, jobId, r
     .from("scorecards").select("id")
     .eq("candidate_id", candidateId).eq("interviewer_id", userId)
     .limit(1).maybeSingle();
+  let result;
   if (existing?.id) {
     const { data, error } = await supabase
       .from("scorecards")
@@ -381,22 +382,32 @@ export async function submitScorecard({ companyId, userId, candidateId, jobId, r
       .eq("id", existing.id)
       .select("id").single();
     if (error) throw error;
-    return data;
+    result = data;
+  } else {
+    const { data, error } = await supabase
+      .from("scorecards")
+      .insert({
+        company_id: companyId,
+        interviewer_id: userId,
+        candidate_id: candidateId,
+        job_id: jobId,
+        ratings,
+        notes: notes || "",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    result = data;
   }
-  const { data, error } = await supabase
-    .from("scorecards")
-    .insert({
-      company_id: companyId,
-      interviewer_id: userId,
-      candidate_id: candidateId,
-      job_id: jobId,
-      ratings,
-      notes: notes || "",
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data;
+  // Broadcast via activity_log so every device live-updates (the HM's dashboard,
+  // other panellists, the candidate profile). Nothing subscribes to the
+  // scorecards table directly, so without this a phone-submitted scorecard would
+  // reach no one live. Non-fatal — the scorecard is already saved.
+  try {
+    const { data: c } = await supabase.from("candidates").select("full_name").eq("id", candidateId).maybeSingle();
+    await supabase.from("activity_log").insert({ company_id: companyId, type: "scorecard", title: `Scorecard submitted for ${c?.full_name || "a candidate"}`, candidate_id: candidateId });
+  } catch { /* non-fatal */ }
+  return result;
 }
 
 // ---- Open positions + applicants ----------------------------------------------
