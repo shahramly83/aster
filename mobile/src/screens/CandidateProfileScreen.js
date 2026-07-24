@@ -353,7 +353,11 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const hasHmFlag = panel.some((p) => p.hm);
   const requiredRaters = panel.filter((p, i) => p.id && !(hasHmFlag ? p.hm : i === 0));
   const ratedRequired = requiredRaters.filter((p) => ratedIds.has(p.id)).length;
-  const allRated = requiredRaters.length ? ratedRequired === requiredRaters.length : true;
+  // Panel interview: every required interviewer must score (HM's own optional).
+  // SOLO interview (no other interviewers): the HM's own scorecard is the only
+  // one, so it's compulsory — the decision waits on at least one card, mirroring
+  // the web (soloInterview ? anyScored : allScored). Never opens on zero cards.
+  const allRated = requiredRaters.length ? ratedRequired === requiredRaters.length : cards.length > 0;
   const showDecision = manager && stage === "interviewing" && interviewDone && allRated;
   // The Decision tab shows once scoring is open (or an offer exists), but stays
   // LOCKED for the manager until the panel has finished scoring (decisionReady).
@@ -1291,6 +1295,8 @@ function offerStatus(o) {
   if (o.approval_status === "declined") return { label: "Approval declined", color: theme.danger, bg: "#FEF3F2", icon: "x-circle" };
   if (o.status === "accepted" || o.esign_status === "completed") return { label: "Signed & accepted", color: "#166534", bg: "#F0FDF4", icon: "check-circle" };
   if (o.status === "declined") return { label: "Declined", color: theme.danger, bg: "#FEF3F2", icon: "x-circle" };
+  // Lapsed without a signature — keep the badge consistent with the "offer lapsed" body.
+  if (o.expires_at && new Date(`${o.expires_at}T23:59:59`) < new Date()) return { label: "Expired", color: "#B45309", bg: "#FEF3C7", icon: "clock" };
   return { label: "Sent · awaiting signature", color: theme.brand, bg: theme.brandSoft, icon: "send" };
 }
 

@@ -122,6 +122,7 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
     setSalary(""); setStartDate(null); setExpiresAt(null);
     setBodyEdited(false); setLetterView("write");
     setApprovers([]); setErr(null); setSending(false);
+    setMode("compose"); setAddOpen(false); setNewName(""); setNewEmail(""); setAddMsg(null);
   };
 
   const close = () => { if (!sending) { onClose(); } };

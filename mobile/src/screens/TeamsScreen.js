@@ -86,11 +86,12 @@ export default function TeamsScreen({ navigation }) {
     const [team, aps] = await Promise.all([loadTeam(profile.companyId), loadApprovers(profile.companyId)]);
     setRows(team); setApprovers(aps);
   }, [profile]);
-  const resendApprover = async (r) => {
-    const res = await addApprover({ email: r.email, name: r.name });
-    if (res.ok) setInviteDone({ title: "Confirmation re-sent", message: `We re-sent the confirmation email to ${r.email}. They'll appear as Confirmed once they click it.` });
+  const removeApproverRow = async (id) => {
+    const prev = approvers;
+    setApprovers((l) => (l || []).filter((x) => x.id !== id));
+    const ok = await removeApprover(id);
+    if (!ok) { setApprovers(prev); setInviteDone({ title: "Couldn't remove", message: "That approver couldn't be removed. Please try again." }); }
   };
-  const removeApproverRow = async (id) => { setApprovers((l) => (l || []).filter((x) => x.id !== id)); await removeApprover(id); };
   const removeTeammateRow = async (item) => {
     const err = await removeTeammate(item.id);
     if (err) { setInviteDone({ title: "Couldn't remove", message: err }); return; }
