@@ -977,7 +977,7 @@ export async function loadOffer(companyId, candidateId) {
   if (!companyId || !candidateId) return null;
   const { data } = await supabase
     .from("offers")
-    .select("id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, message, base_salary, salary_currency, employment_type, start_date, offer_job_title")
+    .select("id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, decline_reason, message, base_salary, salary_currency, employment_type, start_date, offer_job_title")
     .eq("company_id", companyId)
     .eq("candidate_id", candidateId)
     .order("created_at", { ascending: false })

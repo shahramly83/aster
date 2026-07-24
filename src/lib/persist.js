@@ -414,7 +414,7 @@ export async function dbAttachOfferPdf({ companyId, offerId, file, signField }) 
 export async function dbGetOffer(companyId, candidateId) {
   if (!hasSupabase || !companyId || !candidateId) return null;
   const terms = "message, base_salary, salary_currency, employment_type, start_date, offer_job_title, offer_mode";
-  const cols = `id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, ${terms}`;
+  const cols = `id, token, status, approval_status, esign_provider, esign_status, signed_pdf_path, expires_at, created_at, decline_reason, ${terms}`;
   let { data, error } = await supabase
     .from("offers")
     .select(cols)

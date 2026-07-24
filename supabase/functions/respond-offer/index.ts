@@ -32,11 +32,14 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   try {
-    const { token, response } = await req.json();
+    const { token, response, reason } = await req.json();
     const accepted = response === "accepted";
     if (!token || (response !== "accepted" && response !== "declined")) {
       return json({ error: "token and a valid response are required" }, 400);
     }
+    // The candidate's optional decline note, trimmed and capped for safety.
+    const declineReason = !accepted && typeof reason === "string" && reason.trim()
+      ? reason.trim().slice(0, 1000) : null;
 
     const url = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -48,7 +51,14 @@ Deno.serve(async (req) => {
     // First response wins; a repeat is a no-op (idempotent).
     const firstResponse = offer.status === "sent";
     if (firstResponse) {
-      await admin.from("offers").update({ status: accepted ? "accepted" : "declined", responded_at: new Date().toISOString() }).eq("id", offer.id);
+      // decline_reason is a newer column; tolerate workspaces that predate it.
+      const patch: Record<string, unknown> = { status: accepted ? "accepted" : "declined", responded_at: new Date().toISOString() };
+      if (declineReason) patch.decline_reason = declineReason;
+      let upd = await admin.from("offers").update(patch).eq("id", offer.id);
+      if (upd.error && (upd.error.code === "42703" || upd.error.code === "PGRST204") && declineReason) {
+        delete patch.decline_reason;
+        upd = await admin.from("offers").update(patch).eq("id", offer.id);
+      }
       // Decline is terminal (stage -> declined). Accept does NOT auto-hire: the
       // candidate says yes, then the hiring manager reviews and closes the process
       // by clicking "Mark as hired". So on accept we leave the application at the
@@ -67,7 +77,7 @@ Deno.serve(async (req) => {
       const nm0 = c0?.full_name || "The candidate";
       await admin.from("activity_log").insert(accepted
         ? { company_id: offer.company_id, type: "offer_signed", title: `${nm0} accepted the offer`, description: `${jt0} · mark them hired when ready`, candidate_id: offer.candidate_id }
-        : { company_id: offer.company_id, type: "offer_declined", title: `${nm0} declined the offer`, description: `${jt0}`, candidate_id: offer.candidate_id });
+        : { company_id: offer.company_id, type: "offer_declined", title: `${nm0} declined the offer`, description: declineReason ? `${jt0} · "${declineReason}"` : `${jt0}`, candidate_id: offer.candidate_id });
     }
 
     // Push the team: a hire just landed, or an offer just fell through. Both are
@@ -78,7 +88,7 @@ Deno.serve(async (req) => {
       const nm = c?.full_name || "The candidate";
       await pushToCompanyAdmins(admin, offer.company_id, accepted
         ? { title: "Offer accepted", body: `${nm} accepted the ${jt} offer. Mark them hired when ready.`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_signed" } }
-        : { title: "Offer declined", body: `${nm} declined the ${jt} offer.`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_declined" } });
+        : { title: "Offer declined", body: declineReason ? `${nm} declined the ${jt} offer: "${declineReason}"` : `${nm} declined the ${jt} offer.`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_declined" } });
     }
 
     if (firstResponse && accepted) {

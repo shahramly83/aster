@@ -7829,6 +7829,8 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
   const [typedName, setTypedName] = useState("");
   const [drawnPng, setDrawnPng] = useState(null);
   const [consent, setConsent] = useState(false);
+  const [declining, setDeclining] = useState(false); // showing the "why" step
+  const [declineReason, setDeclineReason] = useState("");
 
   const settled = done || result;
 
@@ -7864,7 +7866,7 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
 
   const decline = async () => {
     setErr(null); setBusy("declined");
-    const res = await onRespond("declined");
+    const res = await onRespond("declined", declineReason.trim() || undefined);
     setBusy(null);
     if (!res.ok) { setErr(res.error || "Something went wrong. Please try again."); return; }
     setResult("declined");
@@ -7873,11 +7875,6 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
   return (
     <div className="min-h-dvh flex items-center justify-center px-5 py-12" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-lg rounded-2xl bg-white act-shadow p-6 border border-[color:var(--line)]">
-        <div className="mb-5 flex items-center gap-3">
-          {logoUrl
-            ? <img src={logoUrl} alt={company} style={{ height: 52, maxWidth: 220, objectFit: "contain" }} />
-            : <span className="text-lg font-bold" style={{ color: "var(--ink)" }}>{company}</span>}
-        </div>
         {settled ? (
           (result || data.status) === "accepted" ? (
             <>
@@ -7943,17 +7940,37 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
               <span className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>I agree to sign this offer electronically, and I accept the terms set out in the letter above. I understand my electronic signature is legally binding.</span>
             </label>
 
-            <div className="flex gap-2">
-              <button onClick={sign} disabled={!canSign}
-                className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-40">
-                {busy === "sign" ? "Signing…" : "Sign & accept offer"}
-              </button>
-              <button onClick={decline} disabled={!!busy}
-                className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-neutral-50 disabled:opacity-50"
-                style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
-                {busy === "declined" ? "Declining…" : "Decline"}
-              </button>
-            </div>
+            {declining ? (
+              <div className="rounded-xl border p-4" style={{ borderColor: "#FECDD3", background: "#FFF1F2" }}>
+                <p className="text-sm font-semibold mb-1" style={{ color: "#9F1239" }}>Decline this offer?</p>
+                <p className="text-xs mb-3" style={{ color: "#9F1239" }}>If you'd like, let {company} know why. This is optional and shared only with the hiring team.</p>
+                <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={3} maxLength={1000}
+                  placeholder="Your reason (optional), e.g. accepted another role, timing, compensation…"
+                  className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200 resize-none" style={{ background: "#fff", border: "1px solid #FECDD3", color: "var(--ink)" }} />
+                <div className="flex gap-2 mt-3">
+                  <button onClick={decline} disabled={!!busy}
+                    className="flex-1 rounded-xl text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-40" style={{ background: "#DC2626" }}>
+                    {busy === "declined" ? "Declining…" : "Confirm decline"}
+                  </button>
+                  <button onClick={() => { setDeclining(false); setErr(null); }} disabled={!!busy}
+                    className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-white disabled:opacity-50" style={{ borderColor: "#FECDD3", color: "#9F1239" }}>
+                    Back
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button onClick={sign} disabled={!canSign}
+                  className="flex-1 rounded-xl brand-gradient hover:opacity-95 text-white text-sm font-semibold py-3 transition-opacity disabled:opacity-40">
+                  {busy === "sign" ? "Signing…" : "Sign & accept offer"}
+                </button>
+                <button onClick={() => setDeclining(true)} disabled={!!busy}
+                  className="rounded-xl border text-sm font-semibold px-5 py-3 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                  style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+                  Decline
+                </button>
+              </div>
+            )}
             <p className="text-[11px] mt-3 flex items-center gap-1.5" style={{ color: "var(--ink-3)" }}>
               <Icon name="shield" className="w-3.5 h-3.5" /> Secured by Aster Sign. Your signature, the time and your device are recorded on the signed PDF.
             </p>
@@ -22356,6 +22373,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   <div className="rounded-xl border p-3 mb-3" style={{ borderColor: "#FECDD3", background: "#FFF1F2" }}>
                     <p className="text-sm font-medium" style={{ color: "#9F1239" }}>{firstName} declined the offer.</p>
                     <p className="text-xs mt-0.5" style={{ color: "#9F1239" }}>They let you know they won't be proceeding.</p>
+                    {offerRec?.decline_reason && (
+                      <div className="mt-2.5 rounded-lg px-3 py-2 text-xs" style={{ background: "#fff", border: "1px solid #FECDD3", color: "#9F1239" }}>
+                        <span className="font-semibold">Their reason: </span>{offerRec.decline_reason}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => setShowOffer(true)} className="text-sm rounded-xl border font-medium px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
@@ -22453,6 +22475,11 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                               ? "The candidate declined to sign the offer."
                               : `${firstName} received the offer letter to review and sign with Aster Sign. This updates automatically once they sign, decline, or the offer expires.`}
                     </p>
+                    {offerDeclinedRec && offerRec?.decline_reason && (
+                      <div className="mt-2.5 rounded-lg px-3 py-2 text-xs" style={{ background: "#fff", border: "1px solid #FECDD3", color: "#9F1239" }}>
+                        <span className="font-semibold">Their reason: </span>{offerRec.decline_reason}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {offerSigned && (
@@ -25774,9 +25801,9 @@ export default function ResumeAIPreview() {
   }, [screen]);
 
   // Candidate declined: record + notify via the respond-offer function.
-  const respondPublicOffer = async (response) => {
+  const respondPublicOffer = async (response, reason) => {
     if (!publicOffer?.token) return { ok: false };
-    const { data, error } = await supabase.functions.invoke("respond-offer", { body: { token: publicOffer.token, response } });
+    const { data, error } = await supabase.functions.invoke("respond-offer", { body: { token: publicOffer.token, response, reason } });
     if (error || data?.error) return { ok: false, error: data?.error || error?.message || "Could not record your response." };
     setPublicOffer((p) => ({ ...p, status: "done", data: { ...p.data, status: response } }));
     return { ok: true };

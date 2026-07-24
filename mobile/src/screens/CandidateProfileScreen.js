@@ -1260,6 +1260,12 @@ function OfferCard({ offer, approvals, onViewSigned, canHire, onHire, onResend, 
       ) : null}
       {signed && canHire ? <Button title="Mark as hired" icon="award" variant="success" onPress={onHire} style={{ marginTop: space(3) }} /> : null}
       {signed ? <Button title="View signed offer" icon="file-text" variant="secondary" onPress={onViewSigned} style={{ marginTop: space(2.5) }} /> : null}
+      {declined && offer.decline_reason ? (
+        <View style={styles.declineReason}>
+          <Text style={[type.smallStrong, { color: "#9F1239", marginBottom: 3 }]}>Their reason</Text>
+          <Text style={[type.small, { color: "#9F1239", lineHeight: 18 }]}>{offer.decline_reason}</Text>
+        </View>
+      ) : null}
       {canReoffer ? (
         <View style={{ marginTop: space(3) }}>
           {expired ? <Text style={[type.small, { color: theme.ink3, marginBottom: space(2.5), lineHeight: 18 }]}>The offer lapsed without a signature. Send a fresh one, or close this candidate out.</Text> : null}
@@ -1460,4 +1466,5 @@ const styles = StyleSheet.create({
   stepActive: { borderColor: theme.brand },
   stepInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.brand },
   rejectBanner: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: space(2) },
+  declineReason: { marginTop: space(3), borderWidth: 1, borderColor: "#FECDD3", backgroundColor: "#FFF1F2", borderRadius: radius.md, padding: space(3) },
 });
