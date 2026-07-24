@@ -285,7 +285,7 @@ export default function TeamsScreen({ navigation }) {
                 {removable ? (
                   <Pressable onPress={() => setConfirmRemove(item)} hitSlop={10} style={styles.mRemove}><Feather name="x" size={16} color={theme.ink4} /></Pressable>
                 ) : null}
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
                   <View>
                     <View style={[styles.avatarRing, { borderColor: m.ring }]}><Avatar name={item.name} size={44} /></View>
                     <View style={[styles.statusDot, { backgroundColor: item.pending ? "#F59E0B" : "#22C55E" }]} />
@@ -296,14 +296,14 @@ export default function TeamsScreen({ navigation }) {
                       {you ? <View style={styles.youPill}><Text style={styles.youTxt}>You</Text></View> : null}
                     </View>
                     {item.email ? <Text style={[type.small, { color: theme.ink3, marginTop: 2 }]} numberOfLines={1}>{item.email}</Text> : null}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 9 }}>
+                      <View style={[styles.roleTag, { backgroundColor: m.bg, paddingVertical: 4 }]}>
+                        <Feather name={m.icon} size={11} color={m.color} />
+                        <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
+                      </View>
+                      {item.pending ? <Text style={[type.smallStrong, { color: "#B45309" }]}>Pending</Text> : null}
+                    </View>
                   </View>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, marginLeft: 58 }}>
-                  <View style={[styles.roleTag, { backgroundColor: m.bg }]}>
-                    <Feather name={m.icon} size={11} color={m.color} />
-                    <Text style={[type.smallStrong, { color: m.color, marginLeft: 5 }]}>{roleLabelOf(item.role)}</Text>
-                  </View>
-                  {item.pending ? <Text style={[type.smallStrong, { color: "#B45309" }]}>Pending</Text> : null}
                 </View>
               </View>
             </Rise>
