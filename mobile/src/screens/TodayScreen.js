@@ -679,9 +679,25 @@ function UpcomingRow({ iv, tz, divider, onPress }) {
   );
 }
 
+// What happened to a candidate after the interview — so a panel member sees the
+// outcome (not just "Interview complete") for people they interviewed.
+function pastOutcome(iv) {
+  if (iv.stage === "hired") return { label: "Hired", color: "#166534" };
+  if (iv.stage === "rejected") return { label: "Not selected", color: theme.ink3 };
+  if (iv.stage === "declined") return { label: "Candidate declined", color: theme.danger };
+  if (iv.stage === "offer") {
+    if (iv.offerAction === "accepted") return { label: "Offer signed", color: "#166534" };
+    if (iv.offerAction === "declined") return { label: "Offer declined", color: theme.danger };
+    if (iv.offerAction === "expired") return { label: "Offer expired", color: "#B45309" };
+    return { label: "Offer sent", color: theme.brand };
+  }
+  return { label: "Interview complete", color: theme.ink3 };
+}
+
 // Compact past-interview card for the horizontal Past carousel: date top-right,
 // avatar, candidate + role, and a Video tag when it was a video call.
 function PastCardMini({ iv, tz, onPress }) {
+  const outcome = pastOutcome(iv);
   return (
     <Press onPress={onPress} style={styles.pastMini} scaleTo={0.985} haptic="light">
       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -701,8 +717,8 @@ function PastCardMini({ iv, tz, onPress }) {
       </View>
       <View style={styles.pastDivider} />
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <View style={styles.pastStatusDot} />
-        <Text style={[type.small, { color: theme.ink3 }]}>Interview complete</Text>
+        <View style={[styles.pastStatusDot, { backgroundColor: outcome.color }]} />
+        <Text style={[type.small, { color: outcome.color, fontFamily: outcome.label === "Interview complete" ? undefined : "Inter_600SemiBold" }]}>{outcome.label}</Text>
         {iv.meetingLink ? (
           <>
             <Text style={{ color: theme.ink4, marginHorizontal: 8 }}>·</Text>
