@@ -33,10 +33,15 @@ Deno.serve(async (req) => {
 
   try {
     const { token, response, reason } = await req.json();
-    const accepted = response === "accepted";
     if (!token || (response !== "accepted" && response !== "declined")) {
       return json({ error: "token and a valid response are required" }, 400);
     }
+    // Acceptance must be a real e-signature via Aster Sign (which records the
+    // signature, time, IP and document hash). Reject a bare "accepted" here so an
+    // offer can never be marked accepted without that audit trail. Declining needs
+    // no signature, so it still flows through this endpoint.
+    if (response === "accepted") return json({ error: "accept_requires_signature" }, 400);
+    const accepted = false;
     // The candidate's optional decline note, trimmed and capped for safety.
     const declineReason = !accepted && typeof reason === "string" && reason.trim()
       ? reason.trim().slice(0, 1000) : null;
