@@ -180,10 +180,11 @@ export default function TodayScreen({ navigation }) {
   // list at the bottom so old ones never bury the real upcoming ones.
   const sorted = [...timelined].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
   const isUpcoming = (i) => minutesUntil(i.scheduledAt) > -75;
-  // Past = closed out (hired / rejected / declined). An interview whose time has
-  // passed but whose candidate is still moving through the pipeline (needs a
-  // scorecard or a decision) is unfinished work, so it belongs in Action.
-  const CLOSED_STAGES = ["hired", "rejected", "declined"];
+  // Past = the decision is made (offer sent, hired, rejected or declined). An
+  // interview whose time has passed but whose candidate is still pre-decision
+  // (needs a scorecard or the hire call) is unfinished work → Action. Once an
+  // offer is out, the score/decide action is done, so 'offer' belongs in Past.
+  const CLOSED_STAGES = ["offer", "hired", "rejected", "declined"];
   const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
   const doneTimed = sorted.filter((i) => !isUpcoming(i));
   const past = doneTimed.filter((i) => CLOSED_STAGES.includes(i.stage)).reverse();       // closed → Past
