@@ -77,6 +77,23 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
   ];
   const urlByPath = await signedUrls(paths);
 
+  // Candidates whose LATEST offer is declined stay at the 'offer' stage but still
+  // need a re-offer/close decision — flag them so the Today screen keeps them in
+  // Action rather than bucketing them into Past with settled offers.
+  const declinedSet = new Set();
+  if (candIds.length) {
+    const { data: offs } = await supabase
+      .from("offers").select("candidate_id, status, created_at")
+      .eq("company_id", companyId).in("candidate_id", candIds)
+      .order("created_at", { ascending: false });
+    const seen = new Set();
+    for (const o of offs || []) {
+      if (seen.has(o.candidate_id)) continue;
+      seen.add(o.candidate_id);
+      if (o.status === "declined") declinedSet.add(o.candidate_id);
+    }
+  }
+
   return rows.map((iv) => {
     const c = candById[iv.candidate_id] || {};
     return {
@@ -87,6 +104,7 @@ export async function loadMyInterviews(companyId, userId, assignedJobIds = [], m
       jobTitle: jobTitle[iv.job_id] || "Interview",
       status: iv.status, // scheduled | sent | reschedule
       stage: stageByKey[`${iv.candidate_id}:${iv.job_id}`] || null, // applied|shortlisted|interviewing|offer|hired|rejected
+      offerDeclined: declinedSet.has(iv.candidate_id), // offer-stage candidate whose latest offer was declined
       scheduledAt: iv.scheduled_at,
       proposedSlots: Array.isArray(iv.proposed_slots) ? iv.proposed_slots : [],
       provider: iv.provider || "google",

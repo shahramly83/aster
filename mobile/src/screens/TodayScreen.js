@@ -185,10 +185,13 @@ export default function TodayScreen({ navigation }) {
   // (needs a scorecard or the hire call) is unfinished work → Action. Once an
   // offer is out, the score/decide action is done, so 'offer' belongs in Past.
   const CLOSED_STAGES = ["offer", "hired", "rejected", "declined"];
+  // A declined offer keeps the candidate at the 'offer' stage but still needs a
+  // re-offer/close decision, so it counts as unfinished work (Action), not Past.
+  const isClosed = (i) => CLOSED_STAGES.includes(i.stage) && !(i.stage === "offer" && i.offerDeclined);
   const upcoming = sorted.filter(isUpcoming);                   // hero cards, soonest first
   const doneTimed = sorted.filter((i) => !isUpcoming(i));
-  const past = doneTimed.filter((i) => CLOSED_STAGES.includes(i.stage)).reverse();       // closed → Past
-  const needsAction = doneTimed.filter((i) => !CLOSED_STAGES.includes(i.stage)).reverse(); // in progress → Action
+  const past = doneTimed.filter(isClosed).reverse();            // closed → Past
+  const needsAction = doneTimed.filter((i) => !isClosed(i)).reverse(); // in progress → Action
 
   const weekCount = timelined.filter((i) => { const m = minutesUntil(i.scheduledAt); return m > -75 && m < 60 * 24 * 7; }).length;
 

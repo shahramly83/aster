@@ -358,9 +358,12 @@ export async function dbReleaseScorecards(companyId, candidateId) {
 
 // Persist an offer sent to a candidate and return its public token, so the app
 // can email the candidate a link to /offer/<token> to accept or decline.
-export async function dbCreateOffer(companyId, { candidateId, jobId = null, terms = null }) {
+export async function dbCreateOffer(companyId, { candidateId, jobId = null, terms = null, emailSent = true }) {
   if (!hasSupabase || !companyId || !candidateId) return null;
   const row = { company_id: companyId, candidate_id: candidateId, job_id: jobId, status: "sent" };
+  // Whether the candidate was emailed (false = recorded internally, no email on
+  // file) — restored by the loader so the manual accept/decline controls persist.
+  if (emailSent === false) row.email_sent = false;
   if (terms) {
     // Only send the columns that exist (0103). A pre-0103 workspace ignores the
     // extra keys via the fallback insert below.
@@ -409,6 +412,23 @@ export async function dbAttachOfferPdf({ companyId, offerId, file, signField }) 
     .eq("id", offerId);
   if (error) { console.error("dbAttachOfferPdf update", error.message); return { ok: false, error: `save: ${error.message}` }; }
   return { ok: true };
+}
+
+// Record a manual accept/decline on a no-email offer (the candidate has no email
+// on file, so the manager marks the outcome). Persists on the LATEST offer so the
+// status survives a reload. Decline keeps the candidate at the 'offer' stage
+// (recoverable) — the caller does not terminalize the stage.
+export async function dbRespondOffer(companyId, candidateId, accepted) {
+  if (!hasSupabase || !companyId || !candidateId) return;
+  const { data } = await supabase
+    .from("offers").select("id")
+    .eq("company_id", companyId).eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data?.id) return;
+  const { error } = await supabase.from("offers")
+    .update({ status: accepted ? "accepted" : "declined", responded_at: new Date().toISOString() })
+    .eq("id", data.id);
+  if (error) console.error("dbRespondOffer", error.message);
 }
 
 // Latest offer for a candidate (RLS scopes offers to the caller's company), so

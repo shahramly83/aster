@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -418,7 +418,7 @@ async function loadWorkspaceData(companyId) {
     supabase.rpc("get_job_view_stats"), // per-job apply-page view analytics
     supabase.from("schedule_requests").select("application_id, requested_by").eq("company_id", companyId).is("resolved_at", null),
     supabase.from("interview_questions").select("candidate_id, job_id, questions").eq("company_id", companyId),
-    supabase.from("offers").select("candidate_id, status, created_at").eq("company_id", companyId).order("created_at", { ascending: false }),
+    supabase.from("offers").select("candidate_id, status, created_at, email_sent, offer_mode").eq("company_id", companyId).order("created_at", { ascending: false }),
   ]);
   const jobRows = jobsRes.data || [];
   // A hard error → keep whatever's loaded. A workspace with zero jobs is still a
@@ -636,7 +636,7 @@ async function loadWorkspaceData(companyId) {
   // declined). Rows come newest-first, so the first seen per candidate wins — a
   // re-sent offer supersedes the old declined/expired one it replaced.
   const offers = {};
-  for (const o of offRes.data || []) if (!(o.candidate_id in offers)) offers[o.candidate_id] = { status: o.status };
+  for (const o of offRes.data || []) if (!(o.candidate_id in offers)) offers[o.candidate_id] = { status: o.status, emailSent: o.email_sent !== false, mode: o.offer_mode || "compose" };
 
   return { jobs, candidates, applicantsByJob, matchesByJob, bookings, bookingsByJob, scorecards, interviewers, pendingInvites, jobAssignments, scheduleRequests, interviewQuestions, experienceInsights, offers };
 }
@@ -26994,7 +26994,7 @@ export default function ResumeAIPreview() {
           const sig = await dbGetMyOfferSignature();
           if (sig) sendTerms = { ...terms, signatorySignature: sig };
         }
-        const offer = await dbCreateOffer(companyId, { candidateId, terms: isUpload ? null : sendTerms });
+        const offer = await dbCreateOffer(companyId, { candidateId, terms: isUpload ? null : sendTerms, emailSent });
         const token = offer?.token;
         if (!token) return;
         if (isUpload) {
@@ -27023,10 +27023,12 @@ export default function ResumeAIPreview() {
     }
   };
   const respondOffer = (candidateId, accepted) => {
-    // Accepting does NOT auto-hire: the candidate says yes, then HR reviews and
-    // clicks "Mark as hired" to close the process (see the Decision panel).
+    // Manual outcome on a no-email offer. Accepting does NOT auto-hire (HR then
+    // clicks "Mark as hired"). Declining keeps the candidate at the 'offer' stage
+    // (recoverable — the Decision panel offers Re-send / Close as rejected), not
+    // the terminal 'declined' stage. Persist so the outcome survives a reload.
     setOffers((prev) => ({ ...prev, [candidateId]: { ...(prev[candidateId] || {}), status: accepted ? "accepted" : "declined" } }));
-    if (!accepted) setCandidateStage(candidateId, "declined", { notify: false });
+    if (canPersist && companyId) dbRespondOffer(companyId, candidateId, accepted);
   };
 
   const activeCandidate = MOCK_CANDIDATES.find((c) => c.id === viewCandidateId);
