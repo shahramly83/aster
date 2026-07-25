@@ -15187,7 +15187,7 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
       ? needsAction > 0
         ? [`${needsAction} candidate${needsAction > 1 ? "s" : ""} waiting on your scorecard`, "users"]
         : [`${interviews.length} candidate${interviews.length > 1 ? "s" : ""} in your interview pipeline`, "users"]
-      : [`${interviews.length} interview${interviews.length > 1 ? "s" : ""} on the calendar`, "calendar"];
+      : [`${interviews.length} interview${interviews.length > 1 ? "s" : ""}`, "calendar"];
     subtitle = (
       <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
         <Icon name={subIcon} className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {subText}
