@@ -15446,11 +15446,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               : "Score these strong-match candidates against this position with AI.";
           const disabled = ranking || !roleFilter || strongApplied < 2;
           return (
-            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
-              <div className="min-w-0">
-                <span className="text-xs block font-medium" style={{ color: "var(--ink-2)" }}>{reason}</span>
-                <span className="text-[11px] mt-0.5 block" style={{ color: "var(--ink-3)" }}>1 AI Rank credit covers 10 candidates.</span>
-              </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
               <div className="flex items-center gap-2.5">
                 {/* Credit wallet: balance at a glance + a one-tap Buy. */}
                 <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }} title={runsLeft === Infinity ? "Unlimited AI Rank on your plan" : `${runsLeft} monthly + ${purchasedAiRank} purchased`}>
