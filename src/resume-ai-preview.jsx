@@ -15448,15 +15448,15 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           return (
             <div className="flex items-center justify-end gap-3 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
               <div className="flex items-center gap-2.5">
+                <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
+                </button>
                 {/* Credit wallet: balance at a glance + a one-tap Buy. */}
                 <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }} title={runsLeft === Infinity ? "Unlimited AI Rank on your plan" : `${runsLeft} monthly + ${purchasedAiRank} purchased`}>
                   <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
                   <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--brand)" }}><span className="font-extrabold tnum">{creditsLeft === Infinity ? "∞" : creditsLeft}</span> credits left</span>
                   <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
                 </div>
-                <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
-                </button>
               </div>
             </div>
           );
