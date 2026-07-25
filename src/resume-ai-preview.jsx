@@ -15483,8 +15483,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5 min-w-0">
                           {(() => { const starred = shortlistedApps.has(a.applicationId); return (
-                            <button onClick={(e) => { e.stopPropagation(); onToggleShortlist(a.applicationId, a.candidateId); }} title={starred ? "Remove from shortlist" : "Shortlist"} aria-label={starred ? "Remove from shortlist" : "Shortlist"} className="shrink-0 p-0.5 transition-transform hover:scale-110" style={{ color: starred ? "#F5B301" : "var(--ink-4)" }}>
-                              <Icon name="star" className="w-4 h-4" style={{ fill: starred ? "#F5B301" : "none" }} />
+                            <button onClick={(e) => { e.stopPropagation(); onToggleShortlist(a.applicationId, a.candidateId); }} title={starred ? "Shortlisted, click to remove" : "Shortlist this candidate"} aria-label={starred ? "Remove from shortlist" : "Shortlist"} className="shrink-0 p-0.5 transition-all hover:scale-110" style={{ color: starred ? "#F5B301" : "var(--ink-3)" }}>
+                              <Icon name="star" className="w-[18px] h-[18px]" style={{ fill: starred ? "#F5B301" : "none" }} />
                             </button>
                           ); })()}
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
