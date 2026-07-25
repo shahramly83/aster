@@ -15220,13 +15220,6 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     .filter((a) => (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
 
-  const kpiCards = [
-    { label: "Total candidates", value: scoped.length, icon: "users", tint: "var(--brand-soft)", ink: "var(--brand)" },
-    { label: "Interviewing", value: counts.interviewing, icon: "calendar", tint: "rgba(99,102,241,.12)", ink: "#6366F1" },
-    { label: "Offers out", value: counts.offer, icon: "doc", tint: "rgba(180,83,9,.14)", ink: "#B45309" },
-    { label: "Hired", value: counts.hired, icon: "check", tint: "rgba(21,128,61,.14)", ink: "#15803D" },
-  ];
-
   // Funnel elements built as a flat array (no React.Fragment in scope here).
   const funnelEls = [];
   PIPE_FUNNEL.forEach((st, i) => {
@@ -15320,17 +15313,6 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
             </div>
           );
         })()}
-      </div>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        {kpiCards.map((k) => (
-          <div key={k.label} className="rounded-2xl bg-white act-shadow border p-4" style={{ borderColor: "var(--line)" }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: k.tint, color: k.ink }}><Icon name={k.icon} className="w-4 h-4" /></div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>{k.label}</p>
-            <p className="text-2xl font-bold font-display tnum mt-0.5" style={{ color: "var(--ink)" }}>{k.value}{k.suffix ? <span className="text-sm font-semibold" style={{ color: "var(--ink-3)" }}>{k.suffix}</span> : null}</p>
-          </div>
-        ))}
       </div>
 
       {/* End-to-end funnel */}
@@ -15906,8 +15888,11 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const [banner, setBanner] = useState(null);
   const [sending, setSending] = useState(false);
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
-  const [teamTab, setTeamTab] = useState("members"); // members | invitations
+  const [teamTab, setTeamTab] = useState("members"); // members | invitations | approvers
   const [teamQ, setTeamQ] = useState("");            // name/email search
+  const [approvers, setApprovers] = useState([]);    // offer approvers (no login)
+  const [approverName, setApproverName] = useState(""); // optional name in the invite modal
+  const [approverDel, setApproverDel] = useState(null); // approver pending removal
 
   // The Tenant card must show the workspace's REAL owner, taken from the team list
   // (role === 'owner'), NOT whoever is viewing. A hiring manager opening this page
@@ -15932,6 +15917,20 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
 
   const handleAdd = async () => {
     if (!email || sending) return;
+    // Offer approver: no login, no seat, any email domain. Adds via the approver
+    // flow and drops you on the Approvers tab.
+    if (inviteRole === "approver") {
+      const e = email.trim().toLowerCase();
+      if (!/^\S+@\S+\.\S+$/.test(e)) { setBanner("Enter a valid email address for the approver."); return; }
+      setSending(true);
+      const res = await dbAddApprover({ email: e, name: approverName.trim() || null });
+      setSending(false);
+      if (!res.ok) { setBanner(res.error || "Couldn't add that approver."); return; }
+      reloadApprovers();
+      setBanner(`Approver added. ${e} gets an email to confirm, no login needed.`);
+      setEmail(""); setApproverName(""); setInviteRole("admin"); setShowForm(false); setTeamTab("approvers");
+      return;
+    }
     if (atSeatCap) {
       setBanner(`You've used all ${seatCap} team seat${seatCap === 1 ? "" : "s"} on your plan (the tenant and pending invites count too). Remove one, or upgrade for more.`);
       return;
@@ -16029,6 +16028,17 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
     setPendingInvites((prev) => prev.filter((x) => x.id !== inv.id));
     setBanner(`Invite to ${inv.email} was revoked. The seat is free again.`);
   };
+
+  // Offer approvers (no login, approve by email) are managed inline with the team
+  // so adding one lives in the same invite flow, not a separate section.
+  useEffect(() => {
+    let alive = true;
+    if (!companyId) { setApprovers([]); return; }
+    dbListApprovers(companyId).then((r) => { if (alive) setApprovers(r || []); });
+    return () => { alive = false; };
+  }, [companyId]);
+  const reloadApprovers = () => { if (companyId) dbListApprovers(companyId).then((r) => setApprovers(r || [])); };
+  const removeApprover = async (a) => { setApprovers((l) => l.filter((x) => x.id !== a.id)); await dbRemoveApprover(a.id); };
 
   return (
     <AccountShell
@@ -16135,7 +16145,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           {(() => {
             const memberCount = 1 + team.filter((iv) => iv.status !== "pending").length;
             const inviteCount = team.filter((iv) => iv.status === "pending").length + pendingInvites.length;
-            return [["members", "Members", memberCount], ["invitations", "Invitations", inviteCount]].map(([k, label, n]) => (
+            return [["members", "Members", memberCount], ["invitations", "Invitations", inviteCount], ["approvers", "Approvers", approvers.length]].map(([k, label, n]) => (
               <button key={k} onClick={() => setTeamTab(k)} className="text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors inline-flex items-center gap-2"
                 style={teamTab === k ? { background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--ink-3)", border: "1px solid var(--line)" }}>
                 {label} <span className="text-[11px] tnum px-1.5 py-0.5 rounded-full" style={teamTab === k ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-3)" }}>{n}</span>
@@ -16152,6 +16162,52 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
         <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
           <div className="overflow-x-auto">
             {(() => {
+              // Approvers tab: no-login offer approvers, in the same table shape.
+              if (teamTab === "approvers") {
+                const shown = approvers.filter((a) => !teamQ || `${a.name || ""} ${a.email}`.toLowerCase().includes(teamQ.toLowerCase()));
+                if (shown.length === 0) {
+                  return (
+                    <div className="px-5 py-14 text-center">
+                      <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>No offer approvers yet.</p>
+                      <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Use Invite teammate → “Offer approver” to add someone who signs off offers by email.</p>
+                    </div>
+                  );
+                }
+                return (
+                  <table className="w-full" style={{ minWidth: 640, borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {["Approver", "Email", "Role", "Status", ""].map((h, i) => (
+                          <th key={i} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderBottom: "1px solid var(--line)", textAlign: i === 4 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shown.map((a) => {
+                        const confirmed = a.status === "confirmed";
+                        return (
+                          <tr key={`ap-${a.id}`} className="transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <CandidateAvatar name={a.name || a.email} hasPhoto={false} size={36} showPhotoDot={false} />
+                                <span className="font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name || a.email}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm truncate" style={{ color: "var(--ink-2)", maxWidth: 220 }}>{a.email}</td>
+                            <td className="px-4 py-3"><span className="text-[11px] px-2 py-1 rounded-lg font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>Approver</span></td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap" style={confirmed ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: confirmed ? "#16A34A" : "#D97706" }} /> {confirmed ? "Confirmed" : "Pending"}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                              <button onClick={() => setApproverDel(a)} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors hover:bg-red-50" style={{ color: "#DC2626" }}>Remove</button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              }
               // One flat list: the Tenant, active teammates, invited-but-not-yet-joined
               // profiles, and pending email invitations. Kind drives the row's action.
               const rows = [];
@@ -16222,8 +16278,18 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
         </div>
 
-        {/* Offer approvers: no-login approvers managed separately from the team. */}
-        <ApproversSection companyId={companyId} canPersist={canPersist} />
+        {/* Remove-approver confirm (approvers are managed in the Approvers tab now). */}
+        <ConfirmDialog
+          open={!!approverDel}
+          tone="danger"
+          icon="trash"
+          title="Remove approver?"
+          body={approverDel ? `${approverDel.name || approverDel.email} will no longer be able to approve offers.` : ""}
+          confirmLabel="Remove"
+          cancelLabel="Keep"
+          onConfirm={() => { if (approverDel) removeApprover(approverDel); setApproverDel(null); }}
+          onClose={() => setApproverDel(null)}
+        />
 
       {/* Invite teammate modal */}
       {showForm && (
@@ -16231,8 +16297,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Invite a teammate</h3>
-                <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>They get their own login to your workspace. Pick the role that fits.</p>
+                <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{inviteRole === "approver" ? "Add an offer approver" : "Invite a teammate"}</h3>
+                <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{inviteRole === "approver" ? "They sign off offers by email, no login or seat used." : "They get their own login to your workspace. Pick the role that fits."}</p>
               </div>
               <button onClick={() => setShowForm(false)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
                 <Icon name="close" className="w-4 h-4" />
@@ -16240,33 +16306,46 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             </div>
             <div className="mt-5 space-y-3">
               <div>
-                <label className={labelClass}>Work email</label>
-                {tenantDomain ? (
+                {inviteRole === "approver" ? (
                   <>
-                    <div className="flex items-stretch rounded-xl bg-neutral-100 border border-neutral-200 overflow-hidden focus-within:ring-2" style={{ "--tw-ring-color": "var(--brand)" }}>
-                      <input
-                        autoFocus
-                        value={email}
-                        onChange={(e) => { setEmail(e.target.value.replace(/@.*$/, "").replace(/\s/g, "")); setBanner(null); }}
-                        placeholder="jane"
-                        autoComplete="off"
-                        aria-label="Work email name"
-                        className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-neutral-900 focus:outline-none"
-                      />
-                      <span className="flex items-center px-3 text-sm select-none whitespace-nowrap border-l border-neutral-200" style={{ background: "#EFEFF3", color: "var(--ink-3)" }}>@{tenantDomain}</span>
-                    </div>
-                    <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Only teammates on your <span className="font-medium">@{tenantDomain}</span> domain can be invited.</p>
+                    <label className={labelClass}>Name <span style={{ color: "var(--ink-4)" }}>(optional)</span></label>
+                    <input value={approverName} onChange={(e) => { setApproverName(e.target.value); setBanner(null); }} placeholder="e.g. Aisha Rahman" autoComplete="off" className={`${inputClass} mb-3`} />
+                    <label className={labelClass}>Email</label>
+                    <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="approver@email.com" autoComplete="off" className={inputClass} />
+                    <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Approvers confirm by email, any domain is fine and no seat is used.</p>
                   </>
                 ) : (
-                  <input autoFocus type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
+                  <>
+                    <label className={labelClass}>Work email</label>
+                    {tenantDomain ? (
+                      <>
+                        <div className="flex items-stretch rounded-xl bg-neutral-100 border border-neutral-200 overflow-hidden focus-within:ring-2" style={{ "--tw-ring-color": "var(--brand)" }}>
+                          <input
+                            autoFocus
+                            value={email}
+                            onChange={(e) => { setEmail(e.target.value.replace(/@.*$/, "").replace(/\s/g, "")); setBanner(null); }}
+                            placeholder="jane"
+                            autoComplete="off"
+                            aria-label="Work email name"
+                            className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-neutral-900 focus:outline-none"
+                          />
+                          <span className="flex items-center px-3 text-sm select-none whitespace-nowrap border-l border-neutral-200" style={{ background: "#EFEFF3", color: "var(--ink-3)" }}>@{tenantDomain}</span>
+                        </div>
+                        <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Only teammates on your <span className="font-medium">@{tenantDomain}</span> domain can be invited.</p>
+                      </>
+                    ) : (
+                      <input autoFocus type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
+                    )}
+                  </>
                 )}
               </div>
               <div>
                 <label className={labelClass}>Role</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {[
                     { key: "admin", label: "Hiring Manager", desc: "Full access to hiring" },
                     { key: "interviewer", label: "Interviewer", desc: "Runs only their assigned interviews" },
+                    { key: "approver", label: "Offer approver", desc: "Signs off offers by email, no login or seat" },
                   ].map((r) => {
                     const on = inviteRole === r.key;
                     return (
@@ -16291,9 +16370,9 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => { setShowForm(false); setBanner(null); }} disabled={sending} className="text-sm rounded-xl px-4 py-2 border transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
-              <button onClick={handleAdd} disabled={sending || !email.trim()} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{sending ? "Sending…" : "Send invite"}</button>
+              <button onClick={handleAdd} disabled={sending || !email.trim()} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{sending ? "Sending…" : inviteRole === "approver" ? "Add approver" : "Send invite"}</button>
             </div>
-            <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>They'll get an email to join your workspace. Teammates are included in your plan, they don't buy their own.</p>
+            <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{inviteRole === "approver" ? "They confirm by email and can approve offers, no account, login or seat needed." : "They'll get an email to join your workspace. Teammates are included in your plan, they don't buy their own."}</p>
           </div>
         </div>
       )}
