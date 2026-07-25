@@ -15206,6 +15206,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         stage, source: a.source || "Career Page",
         appliedAt: a.appliedAt, appliedAtIso: a.appliedAtIso,
         fit: a.fit || null,
+        fitReason: a.fitReason || "", // AI Rank rationale / why set aside
         match: raw != null ? Math.round(raw * 100) : null,
       });
     });
@@ -15227,12 +15228,13 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     if (ranking || roleFilter === "all") return;
     const job = jobs.find((j) => j.id === roleFilter);
     if (!job || !hasSupabase) return;
+    // Only strong-match applied candidates are ranked (non-matches are excluded).
     const pool = scoped
-      .filter((a) => a.stage === "applied")
+      .filter((a) => a.stage === "applied" && a.fit !== "other")
       .map((a) => candidates.find((c) => c.id === a.candidateId))
       .filter((c) => c && c.parsed)
       .slice(0, 40);
-    if (pool.length < 2) { setRankMsg("AI Rank needs at least 2 applied candidates for this position."); return; }
+    if (pool.length < 2) { setRankMsg("AI Rank needs at least 2 strong-match applied candidates."); return; }
     const units = Math.max(1, Math.ceil(pool.length / 10)); // 1 credit / 10 applicants
     setRanking(true); setRankMsg(null);
     try {
@@ -15381,13 +15383,13 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
             applied candidates (AI ranks against one role). Disabled state
             explains why when it can't run. */}
         {(() => {
-          const appliedCount = scoped.filter((a) => a.stage === "applied").length;
+          const strongApplied = scoped.filter((a) => a.stage === "applied" && a.fit !== "other").length;
           const reason = !roleFilter
-            ? "Pick a position, then AI Rank scores its applied candidates."
-            : appliedCount < 2
-              ? "AI Rank needs at least 2 applied candidates for this position."
-              : "Score these applied candidates against this position with AI.";
-          const disabled = ranking || !roleFilter || appliedCount < 2;
+            ? "Pick a position, then AI Rank scores its strong-match candidates."
+            : strongApplied < 2
+              ? "AI Rank needs at least 2 strong-match applied candidates."
+              : "Score these strong-match candidates against this position with AI.";
+          const disabled = ranking || !roleFilter || strongApplied < 2;
           return (
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
               <span className="text-xs" style={{ color: "var(--ink-3)" }}>{reason}</span>
@@ -15404,8 +15406,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           <table className="w-full" style={{ minWidth: 720, borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {["Candidate", "Position", "Stage", "Source", "Applied"].map((h) => (
-                  <th key={h} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", textAlign: "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                {["Candidate", "Position", "Stage", "Source", "Applied", "Match"].map((h, i) => (
+                  <th key={h} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -15413,12 +15415,16 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               {(() => {
                 const renderRow = (a) => {
                   const meta = PIPE_STAGE_META[a.stage] || { label: a.stage, color: "var(--ink-3)" };
+                  const mColor = a.match == null ? "var(--ink-4)" : a.match >= 70 ? "#15803D" : a.match >= 50 ? "#B45309" : "#DC2626";
                   return (
                     <tr key={a.key} onClick={() => onViewCandidate?.(a.candidateId, a.jobId)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
-                          <span className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
+                          <span className="min-w-0">
+                            <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
+                            {a.fitReason && <span className="text-[11px] block" style={{ color: "var(--ink-3)", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.fitReason}>{a.fitReason}</span>}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.jobTitle}</td>
@@ -15427,11 +15433,19 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.source}</td>
                       <td className="px-4 py-3 text-sm tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</td>
+                      <td className="px-4 py-3">
+                        {a.match != null ? (
+                          <span className="flex items-center gap-2 justify-end">
+                            <span className="block h-1.5 rounded-full overflow-hidden" style={{ width: 44, background: "var(--line)" }}><span className="block h-full rounded-full" style={{ width: `${a.match}%`, background: mColor }} /></span>
+                            <span className="text-xs font-bold tnum" style={{ color: mColor, minWidth: 34, textAlign: "right" }}>{a.match}%</span>
+                          </span>
+                        ) : <span className="block text-xs text-right" style={{ color: "var(--ink-4)" }}>—</span>}
+                      </td>
                     </tr>
                   );
                 };
                 if (rows.length === 0) {
-                  return <tr><td colSpan={5} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates match this view.</td></tr>;
+                  return <tr><td colSpan={6} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates match this view.</td></tr>;
                 }
                 // Always split the list into Strong matches and Non-matches (same
                 // AI-fit logic the Applicants board uses: fit === "other" is a non-match).
@@ -15439,7 +15453,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   const other = rows.filter((a) => a.fit === "other");
                   const groupHeader = (label, n, color, bg) => (
                     <tr key={`grp-${label}`}>
-                      <td colSpan={5} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
+                      <td colSpan={6} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
                         <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.05em" }}>
                           <span className="w-2 h-2 rounded-full" style={{ background: color }} /> {label}
                           <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color, border: `1px solid ${color}33` }}>{n}</span>
@@ -15453,7 +15467,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                     // Non-matches collapse into an accordion, closed by default.
                     out.push(
                       <tr key="grp-nonmatch" onClick={() => setNonMatchOpen((o) => !o)} className="cursor-pointer select-none">
-                        <td colSpan={5} className="px-4 py-2.5" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
+                        <td colSpan={6} className="px-4 py-2.5" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
                           <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color: "#6B7280", letterSpacing: "0.05em" }}>
                             <Icon name="chevronRight" className={`w-3.5 h-3.5 transition-transform ${nonMatchOpen ? "rotate-90" : ""}`} />
                             Non-matches
