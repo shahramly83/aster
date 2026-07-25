@@ -15181,6 +15181,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [q, setQ] = useState("");
   const [ranking, setRanking] = useState(false);        // AI Rank run in flight
   const [rankMsg, setRankMsg] = useState(null);
+  const [nonMatchOpen, setNonMatchOpen] = useState(false); // Non-matches accordion (closed by default)
   const openJobs = jobs.filter((j) => j.status === "open");
 
   // One row per application (candidate × job), with the effective stage.
@@ -15444,7 +15445,22 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   );
                   const out = [];
                   if (strong.length) { out.push(groupHeader("Strong matches", strong.length, "#15803D", "rgba(21,128,61,.08)")); strong.forEach((a) => out.push(renderRow(a))); }
-                  if (other.length) { out.push(groupHeader("Non-matches", other.length, "#6B7280", "rgba(107,114,128,.09)")); other.forEach((a) => out.push(renderRow(a))); }
+                  if (other.length) {
+                    // Non-matches collapse into an accordion, closed by default.
+                    out.push(
+                      <tr key="grp-nonmatch" onClick={() => setNonMatchOpen((o) => !o)} className="cursor-pointer select-none">
+                        <td colSpan={5} className="px-4 py-2.5" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
+                          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color: "#6B7280", letterSpacing: "0.05em" }}>
+                            <Icon name="chevronRight" className={`w-3.5 h-3.5 transition-transform ${nonMatchOpen ? "rotate-90" : ""}`} />
+                            Non-matches
+                            <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color: "#6B7280", border: "1px solid #6B728033" }}>{other.length}</span>
+                            <span className="text-[10px] font-medium normal-case tracking-normal" style={{ color: "var(--ink-4)" }}>{nonMatchOpen ? "" : "· click to expand"}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                    if (nonMatchOpen) other.forEach((a) => out.push(renderRow(a)));
+                  }
                   return out;
                 }
                 return rows.map(renderRow);
