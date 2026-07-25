@@ -15183,6 +15183,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [ranking, setRanking] = useState(false);        // AI Rank run in flight
   const [rankMsg, setRankMsg] = useState(null);
   const [nonMatchOpen, setNonMatchOpen] = useState(false); // Non-matches accordion (closed by default)
+  const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank"); // top-up balance for the credit note
   // Default to (and keep valid) the first active position as jobs load/change.
   useEffect(() => {
     if ((roleFilter == null || !openJobs.some((j) => j.id === roleFilter)) && openJobs[0]) setRoleFilter(openJobs[0].id);
@@ -15250,6 +15251,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       const saved = await dbSaveMatchScores(companyId, roleFilter, scores);
       if (!saved?.ok) { setRankMsg(`Ranked, but couldn't save: ${saved?.error || "try again."}`); setRanking(false); return; }
       setRankMsg(`Ranked ${scores.length} candidate${scores.length === 1 ? "" : "s"}. Refreshing…`);
+      reloadPurchasedAiRank?.(); // a run may have drawn from the top-up balance
       onRanked();
     } catch (e) { setRankMsg(`Couldn't run AI Rank: ${e?.message || "try again."}`); }
     setRanking(false);
@@ -15379,10 +15381,9 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
 
       {/* Candidate table */}
       <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
-        {/* AI Rank: shown by default. Runnable for a specific position with 2+
-            applied candidates (AI ranks against one role). Disabled state
-            explains why when it can't run. */}
-        {(() => {
+        {/* AI Rank belongs to the Applied view (the default), where the ranking
+            happens. Hidden on the other stages — nothing to rank there. */}
+        {(stageFilter == null || stageFilter === "applied") && (() => {
           const strongApplied = scoped.filter((a) => a.stage === "applied" && a.fit !== "other").length;
           const reason = !roleFilter
             ? "Pick a position, then AI Rank scores its strong-match candidates."
@@ -15392,14 +15393,22 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           const disabled = ranking || !roleFilter || strongApplied < 2;
           return (
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
-              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{reason}</span>
+              <div className="min-w-0">
+                <span className="text-xs block" style={{ color: "var(--ink-3)" }}>{reason}</span>
+                <span className="text-[11px] mt-1 inline-flex items-center flex-wrap gap-x-1.5" style={{ color: "var(--ink-4)" }}>
+                  <Icon name="star" className="w-3 h-3" /> 1 credit / 10 candidates
+                  {purchasedAiRank > 0 && <span>· {purchasedAiRank} top-up left</span>}
+                  <span>·</span>
+                  <button onClick={() => navigate("billing")} className="font-semibold hover:underline" style={{ color: "var(--brand)" }}>Top up</button>
+                </span>
+              </div>
               <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
               </button>
             </div>
           );
         })()}
-        {rankMsg && (
+        {rankMsg && (stageFilter == null || stageFilter === "applied") && (
           <div className="px-4 py-2 text-xs border-b" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>{rankMsg}</div>
         )}
         <div className="overflow-x-auto">
