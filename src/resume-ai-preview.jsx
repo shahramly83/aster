@@ -15197,6 +15197,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         jobTitle: job?.title || "Role",
         stage, source: a.source || "Career Page",
         appliedAt: a.appliedAt, appliedAtIso: a.appliedAtIso,
+        fit: a.fit || null,
         match: raw != null ? Math.round(raw * 100) : null,
       });
     });
@@ -15352,27 +15353,50 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates match this view.</td></tr>
-              ) : rows.map((a) => {
-                const meta = PIPE_STAGE_META[a.stage] || { label: a.stage, color: "var(--ink-3)" };
-                return (
-                  <tr key={a.key} onClick={() => onViewCandidate?.(a.candidateId, a.jobId)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
-                        <span className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.jobTitle}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} /> {meta.label}</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.source}</td>
-                    <td className="px-4 py-3 text-sm tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</td>
-                  </tr>
-                );
-              })}
+              {(() => {
+                const renderRow = (a) => {
+                  const meta = PIPE_STAGE_META[a.stage] || { label: a.stage, color: "var(--ink-3)" };
+                  return (
+                    <tr key={a.key} onClick={() => onViewCandidate?.(a.candidateId, a.jobId)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
+                          <span className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.jobTitle}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} /> {meta.label}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.source}</td>
+                      <td className="px-4 py-3 text-sm tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</td>
+                    </tr>
+                  );
+                };
+                if (rows.length === 0) {
+                  return <tr><td colSpan={5} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates match this view.</td></tr>;
+                }
+                // Inside Applied, split into Strong matches and Non-matches (same
+                // AI-fit logic the Applicants board uses: fit === "other" is a non-match).
+                if (stageFilter === "applied") {
+                  const strong = rows.filter((a) => a.fit !== "other");
+                  const other = rows.filter((a) => a.fit === "other");
+                  const groupHeader = (label, n, color) => (
+                    <tr key={`grp-${label}`}>
+                      <td colSpan={5} className="px-4 py-2" style={{ background: "var(--bg)", borderBottom: "1px solid var(--line)" }}>
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.04em" }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} /> {label} <span className="tnum" style={{ color: "var(--ink-4)" }}>· {n}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                  const out = [];
+                  if (strong.length) { out.push(groupHeader("Strong matches", strong.length, "#15803D")); strong.forEach((a) => out.push(renderRow(a))); }
+                  if (other.length) { out.push(groupHeader("Non-matches", other.length, "var(--ink-3)")); other.forEach((a) => out.push(renderRow(a))); }
+                  return out;
+                }
+                return rows.map(renderRow);
+              })()}
             </tbody>
           </table>
         </div>
