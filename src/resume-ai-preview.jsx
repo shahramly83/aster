@@ -15667,11 +15667,22 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         const suggestions = q ? interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && `${iv.name || ""} ${iv.email || ""}`.toLowerCase().includes(q)) : [];
         const exactExisting = !!q && interviewers.some((iv) => (iv.email || "").toLowerCase() === q);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setIvOpen(false)}>
-            <div className="w-full max-w-md rounded-2xl bg-white p-5 act-shadow" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-end mb-2">
-                <button onClick={() => setIvOpen(false)} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setIvOpen(false)}>
+            <div className="w-full max-w-md rounded-3xl bg-white overflow-hidden" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
+              <div className="relative px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
+                <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
+                <div className="relative flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl shrink-0" style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 10px 20px -8px rgba(var(--brand-rgb),0.85)" }}><Icon name="userPlus" className="w-5 h-5" /></span>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>Invite interviewer</h3>
+                      <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-2)" }}>Search your team, or invite someone new by email</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIvOpen(false)} aria-label="Close" className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/70 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+                </div>
               </div>
+              <div className="px-5 pt-4 pb-5">
               {assigned.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
                   {assigned.map((iv) => (
@@ -15695,9 +15706,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   </div>
                 </div>
               )}
-              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Invite interviewer</p>
               <div className="flex items-center gap-2">
-                <input type="text" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter" && !exactExisting) sendInvite(); }} placeholder="Search a teammate or type an email to invite" autoFocus className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
+                <input type="text" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter" && !exactExisting) sendInvite(); }} placeholder="Search a teammate or type an email to invite" autoFocus className="flex-1 min-w-0 rounded-xl border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)] focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
                 <button onClick={sendInvite} disabled={!ivEmail.trim() || ivBusy || exactExisting} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
                   <Icon name="userPlus" className="w-4 h-4" /> {ivBusy ? "Inviting…" : "Invite"}
                 </button>
@@ -15716,6 +15726,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               )}
               {exactExisting && suggestions.length === 0 && <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>That teammate is already assigned to this role.</p>}
               {ivNote && <p className="text-xs mt-2.5" style={{ color: ivNote.type === "err" ? "#B42318" : "#166534" }}>{ivNote.msg}</p>}
+              </div>
             </div>
           </div>
         );
@@ -27209,20 +27220,12 @@ export default function ResumeAIPreview() {
   // Starring also advances the pipeline Applied -> Shortlisted so the star and the
   // stage stay in sync. Un-starring moves it back only if it is still at
   // Shortlisted, so it never drags a candidate back from Interview/Offer/Hired.
-  const toggleShortlist = (applicationId, candidateId = null) => {
+  const toggleShortlist = (applicationId /* , candidateId */) => {
     if (!applicationId) return;
+    // Shortlist is a bookmark only — it never moves the candidate's pipeline stage.
     const on = !shortlistedApps.has(applicationId);
     setShortlistedApps((prev) => { const next = new Set(prev); if (on) next.add(applicationId); else next.delete(applicationId); return next; });
     if (canPersist) dbSetShortlist(companyId, userId, applicationId, on);
-    if (candidateId) {
-      // Scope to the application's own job so starring in one role doesn't move
-      // the candidate's stage in another.
-      let sJob = null;
-      for (const [jid, list] of Object.entries(APPLICANTS_BY_JOB)) { if ((list || []).some((x) => x.applicationId === applicationId)) { sJob = jid; break; } }
-      const cur = readOverride(stageOverrides, candidateId, sJob) ?? stageForCandidate(candidateId, sJob);
-      if (on && cur === "applied") setCandidateStage(candidateId, "shortlisted", { notify: false, jobId: sJob });
-      else if (!on && cur === "shortlisted") setCandidateStage(candidateId, "applied", { notify: false, jobId: sJob });
-    }
   };
 
   const hydrateWorkspace = async (companyId, opts = {}) => {
