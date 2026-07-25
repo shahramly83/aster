@@ -15365,8 +15365,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                 className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2 text-sm transition-colors hover:border-neutral-300"
                 style={{ borderColor: roleOpen ? "var(--brand)" : "var(--line-strong)", color: "var(--ink-2)" }}>
                 <Icon name="funnel" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />
-                <span style={{ color: "var(--ink-3)" }}>Active Positions:</span>
-                <span className="font-medium truncate" style={{ color: "var(--ink)", maxWidth: 220 }}>{active.title}</span>
+                <span className="font-medium truncate" style={{ color: "var(--ink)", maxWidth: 240 }}>{active.title}</span>
                 <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${roleOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
               </button>
               {roleOpen && (
