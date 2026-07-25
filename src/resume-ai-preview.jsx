@@ -15377,10 +15377,10 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
 
       {/* Candidate table */}
       <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
-        {/* AI Rank: visible whenever the Applied stage is selected, but only
-            runnable for a specific position with 2+ applied candidates (AI ranks
-            against one role). Disabled state explains why. */}
-        {stageFilter === "applied" && (() => {
+        {/* AI Rank: shown by default. Runnable for a specific position with 2+
+            applied candidates (AI ranks against one role). Disabled state
+            explains why when it can't run. */}
+        {(() => {
           const appliedCount = scoped.filter((a) => a.stage === "applied").length;
           const reason = !roleFilter
             ? "Pick a position, then AI Rank scores its applied candidates."
@@ -15397,7 +15397,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
             </div>
           );
         })()}
-        {rankMsg && stageFilter === "applied" && (
+        {rankMsg && (
           <div className="px-4 py-2 text-xs border-b" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>{rankMsg}</div>
         )}
         <div className="overflow-x-auto">
