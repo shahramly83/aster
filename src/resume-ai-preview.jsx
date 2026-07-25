@@ -15452,13 +15452,10 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               </div>
               <div className="flex items-center gap-2.5">
                 {/* Credit wallet: balance at a glance + a one-tap Buy. */}
-                <div className="inline-flex items-center gap-2 rounded-xl px-2 py-1.5 cursor-default" style={{ background: "var(--brand-soft)" }} title={runsLeft === Infinity ? "Unlimited AI Rank on your plan" : `${runsLeft} monthly + ${purchasedAiRank} purchased`}>
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg shrink-0" style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 4px 10px -4px rgba(var(--brand-rgb),0.7)" }}><Icon name="star" className="w-3.5 h-3.5" /></span>
-                  <span className="leading-none pr-0.5">
-                    <span className="block text-sm font-extrabold tnum" style={{ color: "var(--brand)" }}>{creditsLeft === Infinity ? "∞" : creditsLeft}</span>
-                    <span className="block text-[10px] font-semibold mt-0.5" style={{ color: "var(--ink-3)" }}>credits left</span>
-                  </span>
-                  <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-lg px-2 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+                <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }} title={runsLeft === Infinity ? "Unlimited AI Rank on your plan" : `${runsLeft} monthly + ${purchasedAiRank} purchased`}>
+                  <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+                  <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--brand)" }}><span className="font-extrabold tnum">{creditsLeft === Infinity ? "∞" : creditsLeft}</span> credits left</span>
+                  <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
                 </div>
                 <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
                   <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
