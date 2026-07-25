@@ -15353,8 +15353,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       activities={activities}
       onOpenNotifications={onOpenNotifications}
     >
-      {/* Role filter (dropdown, so it doesn't overflow when there are many roles) */}
-      <div className="flex items-center gap-2 mb-4">
+      {/* Position dropdown (left) + interviewers count & Invite Interviewer (right) on one row. */}
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         {(() => {
           const opts = openJobs.map((j) => ({ id: j.id, title: j.title }));
           const countFor = (id) => apps.filter((a) => a.jobId === id).length;
@@ -15392,17 +15392,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
             </div>
           );
         })()}
-      </div>
-
-      {/* Interviewers on this position: compact count + Invite Interviewer (right).
-          Clicking it reveals the invite field + manage/assign controls. */}
-      {roleFilter && (() => {
-        const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
-        const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
-        const addable = interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && !iv.pending && iv.id !== userId);
-        return (
-          <div className="mb-4">
-            <div className="flex items-center justify-end gap-2 flex-wrap">
+        {roleFilter && (() => {
+          const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
+          const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
+          return (
+            <div className="flex items-center gap-2">
               {assigned.length > 0 && (
                 <div className="flex items-center mr-1">
                   {assigned.slice(0, 4).map((iv, i) => (
@@ -15413,48 +15407,13 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title={`${assigned.length} interviewer${assigned.length === 1 ? "" : "s"} on this role`}>
                 <Icon name="users" className="w-3.5 h-3.5" /> {assigned.length}
               </span>
-              <button onClick={() => { setIvOpen((o) => !o); setIvNote(null); }} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">
+              <button onClick={() => { setIvOpen(true); setIvNote(null); }} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">
                 <Icon name="userPlus" className="w-3.5 h-3.5" /> Invite Interviewer
               </button>
             </div>
-            {ivOpen && (
-              <div className="mt-2 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                {assigned.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2.5">
-                    {assigned.map((iv) => (
-                      <span key={iv.id} className="inline-flex items-center gap-1.5 rounded-full pl-1 pr-1.5 py-0.5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
-                        <CandidateAvatar name={iv.name} hasPhoto={false} size={20} showPhotoDot={false} />
-                        <span className="text-[11px] font-medium" style={{ color: "var(--ink-2)" }}>{iv.name}</span>
-                        <button onClick={() => onUnassignInterviewer(roleFilter, iv.id)} aria-label={`Remove ${iv.name}`} className="rounded-full p-0.5 hover:bg-neutral-200 transition-colors" style={{ color: "var(--ink-4)" }}><Icon name="close" className="w-3 h-3" /></button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {addable.length > 0 && (
-                  <div className="mb-2.5">
-                    <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Add from your team</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {addable.map((iv) => (
-                        <button key={iv.id} onClick={() => onAssignInterviewer(roleFilter, iv.id)} className="inline-flex items-center gap-1.5 rounded-full pl-1 pr-2.5 py-0.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>
-                          <CandidateAvatar name={iv.name} hasPhoto={false} size={20} showPhotoDot={false} /> {iv.name} <Icon name="userPlus" className="w-3 h-3" style={{ color: "var(--brand)" }} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Invite a new interviewer</p>
-                <div className="flex items-center gap-2">
-                  <input type="email" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }} placeholder="interviewer@email.com" className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
-                  <button onClick={sendInvite} disabled={!ivEmail.trim() || ivBusy} className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
-                    <Icon name="userPlus" className="w-3.5 h-3.5" /> {ivBusy ? "Inviting…" : "Invite"}
-                  </button>
-                </div>
-                {ivNote && <p className="text-[11px] mt-2" style={{ color: ivNote.type === "err" ? "#B42318" : "#166534" }}>{ivNote.msg}</p>}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+          );
+        })()}
+      </div>
 
       {/* End-to-end funnel */}
       <div className="rounded-2xl bg-white act-shadow border p-5 mb-4" style={{ borderColor: "var(--line)" }}>
@@ -15593,6 +15552,58 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         <div className="px-4 py-3 text-xs" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>Showing {rows.length} of {scoped.length} candidate{scoped.length === 1 ? "" : "s"}</div>
       </div>
       <BuyCreditsModal open={buyOpen} onClose={() => { setBuyOpen(false); reloadPurchasedAiRank?.(); }} plan={plan} kind="ai_rank" currency={currency} />
+
+      {/* Invite / manage interviewers modal */}
+      {ivOpen && roleFilter && (() => {
+        const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
+        const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
+        const addable = interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && !iv.pending && iv.id !== userId);
+        const roleTitle = (jobs.find((j) => j.id === roleFilter) || {}).title || "this role";
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setIvOpen(false)}>
+            <div className="w-full max-w-md rounded-2xl bg-white p-5 act-shadow" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Interviewers</h3>
+                  <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>On {roleTitle}. They review candidates on this role.</p>
+                </div>
+                <button onClick={() => setIvOpen(false)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+              </div>
+              {assigned.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {assigned.map((iv) => (
+                    <span key={iv.id} className="inline-flex items-center gap-1.5 rounded-full pl-1 pr-1.5 py-0.5" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+                      <CandidateAvatar name={iv.name} hasPhoto={false} size={20} showPhotoDot={false} />
+                      <span className="text-[11px] font-medium" style={{ color: "var(--ink-2)" }}>{iv.name}</span>
+                      <button onClick={() => onUnassignInterviewer(roleFilter, iv.id)} aria-label={`Remove ${iv.name}`} className="rounded-full p-0.5 hover:bg-neutral-200 transition-colors" style={{ color: "var(--ink-4)" }}><Icon name="close" className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {addable.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Add from your team</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {addable.map((iv) => (
+                      <button key={iv.id} onClick={() => onAssignInterviewer(roleFilter, iv.id)} className="inline-flex items-center gap-1.5 rounded-full pl-1 pr-2.5 py-0.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>
+                        <CandidateAvatar name={iv.name} hasPhoto={false} size={20} showPhotoDot={false} /> {iv.name} <Icon name="userPlus" className="w-3 h-3" style={{ color: "var(--brand)" }} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Invite a new interviewer</p>
+              <div className="flex items-center gap-2">
+                <input type="email" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }} placeholder="interviewer@email.com" autoFocus className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
+                <button onClick={sendInvite} disabled={!ivEmail.trim() || ivBusy} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  <Icon name="userPlus" className="w-4 h-4" /> {ivBusy ? "Inviting…" : "Invite"}
+                </button>
+              </div>
+              {ivNote && <p className="text-xs mt-2.5" style={{ color: ivNote.type === "err" ? "#B42318" : "#166534" }}>{ivNote.msg}</p>}
+            </div>
+          </div>
+        );
+      })()}
     </AccountShell>
   );
 }
