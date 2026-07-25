@@ -15211,7 +15211,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const apps = [];
   Object.entries(APPLICANTS_BY_JOB).forEach(([jobId, arr]) => {
     (arr || []).forEach((a) => {
-      const stage = readOverride(stageOverrides, a.candidateId, jobId) ?? a.baseStage;
+      let stage = readOverride(stageOverrides, a.candidateId, jobId) ?? a.baseStage;
+      if (stage === "shortlisted") stage = "applied"; // shortlist is a bookmark, never a stage
       const cand = candidates.find((c) => c.id === a.candidateId);
       const job = jobs.find((j) => j.id === jobId);
       const m = (MOCK_MATCHES[jobId] || []).find((x) => x.candidateId === a.candidateId);
