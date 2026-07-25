@@ -15218,13 +15218,30 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const bar = (key, label, color) => {
     const on = stageFilter === key;
     const dim = stageFilter && !on;
+    const people = scoped.filter((a) => a.stage === key);
+    const av = people.slice(0, 3);
+    const extra = people.length - av.length;
     return (
       <button key={key} type="button" onClick={() => setStageFilter((s) => (s === key ? null : key))} className="flex-1 min-w-0 text-left focus:outline-none group">
-        <div className="rounded-xl px-4 py-4 relative overflow-hidden flex sm:flex-col items-center sm:items-start justify-between transition-all group-hover:-translate-y-0.5"
-          style={{ background: color, minHeight: 84, opacity: dim ? 0.5 : 1, boxShadow: on ? "0 0 0 3px #fff, 0 0 0 6px " + color : "none" }}>
-          <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 130% at 100% 0%, rgba(255,255,255,0.22), transparent 60%)" }} />
-          <span className="relative text-2xl font-bold font-display tnum text-white leading-none">{counts[key]}</span>
-          <span className="relative text-xs font-semibold text-white/90 sm:mt-1">{label}</span>
+        <div className="rounded-xl px-4 py-3.5 transition-all group-hover:-translate-y-0.5"
+          style={{ background: "#fff", minHeight: 92, border: on ? `2px solid ${color}` : "1px solid var(--line)", boxShadow: on ? `0 10px 22px -12px ${color}` : "0 1px 2px rgba(16,19,42,.04)", opacity: dim ? 0.55 : 1 }}>
+          <div className="flex items-center justify-between">
+            <span className="text-2xl font-bold font-display tnum leading-none" style={{ color }}>{counts[key]}</span>
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+          </div>
+          <p className="text-xs font-semibold mt-0.5" style={{ color: "var(--ink-2)" }}>{label}</p>
+          {people.length > 0 && (
+            <div className="flex items-center mt-2">
+              {av.map((a, idx) => (
+                <span key={a.key} className="rounded-full" style={{ marginLeft: idx === 0 ? 0 : -8, boxShadow: "0 0 0 2px #fff", zIndex: 3 - idx }}>
+                  <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={22} showPhotoDot={false} />
+                </span>
+              ))}
+              {extra > 0 && (
+                <span className="ml-1.5 text-[11px] font-bold rounded-full px-1.5 py-0.5 tnum" style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}>+{extra}</span>
+              )}
+            </div>
+          )}
         </div>
       </button>
     );
