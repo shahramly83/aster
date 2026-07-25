@@ -15273,7 +15273,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         let reason = data?.error || "";
         if (!reason && error?.context?.json) { try { const b = await error.context.json(); reason = b?.error || ""; } catch { /* ignore */ } }
         if (error || reason) {
-          setIvNote({ type: "err", msg: /already|exists|duplicate/i.test(reason) ? "Already on your team or invited." : /seat|limit/i.test(reason) ? "No teammate seats left on your plan." : /permission|denied|forbidden/i.test(reason) ? "Only the tenant or a hiring manager can invite." : reason || "Couldn't send the invite." });
+          setIvNote({ type: "err", msg: /already|exists|duplicate/i.test(reason) ? "Already on your team or invited." : /seat|limit/i.test(reason) ? "No teammate seats left on your plan." : /permission|denied|forbidden|not authoriz|unauthoriz/i.test(reason) ? "Only the tenant or a hiring manager can invite. If you are one, refresh the page (your session may have expired) and try again." : reason || "Couldn't send the invite." });
           setIvBusy(false); return;
         }
         await reloadTeam();
