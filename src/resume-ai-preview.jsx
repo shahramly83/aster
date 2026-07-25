@@ -24779,14 +24779,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
 
       <div className="mt-3">
         {needsTeam ? (
-          <div className="rounded-xl border border-dashed px-4 py-5" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
-            <div className="text-center">
-              <div className="mx-auto w-10 h-10 rounded-full flex items-center justify-center mb-2.5" style={{ background: "var(--brand-soft)" }}>
-                <Icon name="userPlus" className="w-5 h-5" style={{ color: "var(--brand)" }} />
-              </div>
-              <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>No interviewers on your team yet</p>
-              <p className="text-[11px] mt-1 mb-3 max-w-[18rem] mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Invite a teammate to review these candidates. They'll get an email to join, and you can assign them here once they're in.</p>
-            </div>
+          <div className="rounded-xl border border-dashed px-4 py-3.5" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
             {inviteMsg ? (
               <p className="text-[11px] rounded-lg px-3 py-2 text-center inline-flex items-start gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5 mt-px shrink-0" /> {inviteMsg}</p>
             ) : (
@@ -24799,12 +24792,11 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
                   className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
                   style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }}
                 />
-                <button onClick={sendInvite} disabled={!inviteEmail.trim() || inviting} className="shrink-0 text-xs font-semibold rounded-lg px-3 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
-                  {inviting ? "Sending…" : "Send invite"}
+                <button onClick={sendInvite} disabled={!inviteEmail.trim() || inviting} className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  <Icon name="userPlus" className="w-3.5 h-3.5" /> {inviting ? "Inviting…" : "Invite Interviewer"}
                 </button>
               </div>
             )}
-            <button onClick={() => navigate("interviewers")} className="mt-2.5 block mx-auto text-[11px] font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage team</button>
           </div>
         ) : assigned.length === 0 ? (
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>{canManage ? "No interviewers added yet. Use Add interviewer to assign a teammate." : "No interviewers added yet."}</p>
