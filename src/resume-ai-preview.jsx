@@ -8796,6 +8796,7 @@ function Icon({ name, className = "w-5 h-5", style }) {
     shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>,
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     funnel: <><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z" /></>,
+    arrowRight: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
     target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
     offer: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h4a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.4z" /><circle cx="7.5" cy="7.5" r="1" /></>,
     hire: <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></>,
@@ -15177,6 +15178,7 @@ const PIPE_STAGE_META = {
 function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [roleFilter, setRoleFilter] = useState("all"); // "all" | jobId
   const [roleOpen, setRoleOpen] = useState(false);      // role dropdown open
+  const [stageFilter, setStageFilter] = useState(null); // click a funnel bar to filter the table
   const [q, setQ] = useState("");
   const openJobs = jobs.filter((j) => j.status === "open");
 
@@ -15217,31 +15219,40 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const exits = counts.rejected + counts.declined;
 
   const rows = scoped
-    .filter((a) => (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
+    .filter((a) => (!stageFilter || a.stage === stageFilter) && (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
 
-  // Funnel elements built as a flat array (no React.Fragment in scope here).
+  // Funnel elements built as a flat array (no React.Fragment in scope here). Bars
+  // show how many candidates are AT each stage right now (a move to Interview
+  // leaves Applied), and are clickable to filter the table below. The % between
+  // bars is the stage-to-stage conversion (of those who reached the prior stage).
+  const bar = (key, label, color) => {
+    const on = stageFilter === key;
+    const dim = stageFilter && !on;
+    return (
+      <button key={key} type="button" onClick={() => setStageFilter((s) => (s === key ? null : key))} className="flex-1 min-w-0 text-left focus:outline-none group">
+        <div className="rounded-xl px-4 py-4 relative overflow-hidden flex sm:flex-col items-center sm:items-start justify-between transition-all group-hover:-translate-y-0.5"
+          style={{ background: color, minHeight: 84, opacity: dim ? 0.5 : 1, boxShadow: on ? "0 0 0 3px #fff, 0 0 0 6px " + color : "none" }}>
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 130% at 100% 0%, rgba(255,255,255,0.22), transparent 60%)" }} />
+          <span className="relative text-2xl font-bold font-display tnum text-white leading-none">{counts[key]}</span>
+          <span className="relative text-xs font-semibold text-white/90 sm:mt-1">{label}</span>
+        </div>
+      </button>
+    );
+  };
   const funnelEls = [];
   PIPE_FUNNEL.forEach((st, i) => {
     if (i > 0) {
       const prev = PIPE_FUNNEL[i - 1].key;
       const conv = reached[prev] > 0 ? Math.round((reached[st.key] / reached[prev]) * 100) : null;
       funnelEls.push(
-        <div key={`c${i}`} className="flex sm:flex-col items-center justify-center gap-1 px-1 shrink-0 sm:w-14">
+        <div key={`c${i}`} className="flex sm:flex-col items-center justify-center gap-0.5 px-1 shrink-0 sm:w-14">
           <span className="text-xs font-bold tnum" style={{ color: "var(--ink-2)" }}>{conv != null ? `${conv}%` : "—"}</span>
-          <Icon name="chevronRight" className="w-4 h-4 rotate-90 sm:rotate-0" style={{ color: "var(--ink-4)" }} />
+          <Icon name="arrowRight" className="w-5 h-5 rotate-90 sm:rotate-0" style={{ color: "var(--brand)" }} />
         </div>
       );
     }
-    funnelEls.push(
-      <div key={st.key} className="flex-1 min-w-0">
-        <div className="rounded-xl px-4 py-4 relative overflow-hidden flex sm:flex-col items-center sm:items-start justify-between" style={{ background: st.color, minHeight: 84 }}>
-          <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 130% at 100% 0%, rgba(255,255,255,0.22), transparent 60%)" }} />
-          <span className="relative text-2xl font-bold font-display tnum text-white leading-none">{reached[st.key]}</span>
-          <span className="relative text-xs font-semibold text-white/90 sm:mt-1">{st.label}</span>
-        </div>
-      </div>
-    );
+    funnelEls.push(bar(st.key, st.label, st.color));
   });
   // Rejected is an exit, not part of the forward flow, so it sits after an ✕
   // separator rather than getting a conversion %.
@@ -15250,15 +15261,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       <Icon name="close" className="w-4 h-4" style={{ color: "#DC2626" }} />
     </div>
   );
-  funnelEls.push(
-    <div key="rejected" className="flex-1 min-w-0">
-      <div className="rounded-xl px-4 py-4 relative overflow-hidden flex sm:flex-col items-center sm:items-start justify-between" style={{ background: "#DC2626", minHeight: 84 }}>
-        <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 130% at 100% 0%, rgba(255,255,255,0.22), transparent 60%)" }} />
-        <span className="relative text-2xl font-bold font-display tnum text-white leading-none">{counts.rejected}</span>
-        <span className="relative text-xs font-semibold text-white/90 sm:mt-1">Rejected</span>
-      </div>
-    </div>
-  );
+  funnelEls.push(bar("rejected", "Rejected", "#DC2626"));
 
   return (
     <AccountShell
@@ -15319,7 +15322,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       <div className="rounded-2xl bg-white act-shadow border p-5 mb-4" style={{ borderColor: "var(--line)" }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>End-to-end pipeline</h2>
-          <span className="text-xs" style={{ color: "var(--ink-3)" }}>Candidates who reached each stage, with stage-to-stage conversion</span>
+          <span className="text-xs" style={{ color: "var(--ink-3)" }}>Click a stage to filter the list below · % is stage-to-stage conversion</span>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-0">{funnelEls}</div>
         {exits > 0 && (
@@ -15334,7 +15337,18 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       {/* Candidate table */}
       <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
         <div className="flex items-center justify-between gap-3 p-4 flex-wrap">
-          <span className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>Candidates <span className="tnum ml-0.5" style={{ color: "var(--ink-4)" }}>{scoped.length}</span></span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>Candidates <span className="tnum ml-0.5" style={{ color: "var(--ink-4)" }}>{rows.length}</span></span>
+            {stageFilter && (() => {
+              const m = PIPE_STAGE_META[stageFilter] || { label: stageFilter, color: "var(--brand)" };
+              return (
+                <button onClick={() => setStageFilter(null)} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors" style={{ background: `color-mix(in srgb, ${m.color} 13%, transparent)`, color: m.color }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.color }} /> {m.label}
+                  <Icon name="close" className="w-3 h-3" />
+                </button>
+              );
+            })()}
+          </div>
           <div className="inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
             <Icon name="search" className="w-4 h-4" style={{ color: "var(--ink-4)" }} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search candidates…" className="text-sm bg-transparent outline-none" style={{ color: "var(--ink)", minWidth: 180 }} />
