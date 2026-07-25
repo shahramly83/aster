@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../AuthContext";
-import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
+import { loadCandidate, loadScorecards, loadCandidateInterview, moveCandidateStage, loadOffer, loadOfferApprovals, signedOfferUrl, loadApplicationMeta, shareMeetingLink, createVideoRoom, resendInterviewInvite, loadInterviewQuestions, generateInterviewQuestions, rescheduleInterview, subscribeInterviews, subscribeDashboard, runExperienceInsights, releaseScorecards } from "../lib/data";
 import { Card, Button, Avatar, Press, SectionHeader, Feather, Loader } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AsterMark } from "../components/Logo";
@@ -101,6 +101,7 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const [mlInput, setMlInput] = useState("");
   const [mlSaving, setMlSaving] = useState(false);
   const [replacingLink, setReplacingLink] = useState(false); // show the edit controls when replacing a shared link
+  const [genningRoom, setGenningRoom] = useState(false); // creating a video room
   const dialog = useDialog();
   const [confirm, setConfirm] = useState(null); // branded confirm dialog config
   const [offerOpen, setOfferOpen] = useState(false);
@@ -262,14 +263,21 @@ export default function CandidateProfileScreen({ route, navigation }) {
 
   const saveMl = () => persistMl(mlInput.trim());
 
-  // Fill the field with a ready-to-use video room (runs on Jitsi's public
-  // server, no account needed at either end; swap the URL for a self-hosted
-  // meet.hireaster.com room to move it onto our own domain). This does NOT
-  // send — the HM reviews it and taps Share to email it.
-  const genMeetingLink = () => {
-    const rand = Math.random().toString(36).slice(2, 10);
-    const tag = (candidateId || "iv").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
-    setMlInput(`https://meet.jit.si/Aster-${tag}-${rand}`);
+  // Fill the field with a ready-to-use video room: a real Daily.co room
+  // (branded, no account needed to join), falling back to the built-in generator
+  // if video isn't configured or the call fails, so the button is never a dead
+  // end. This does NOT send — the HM reviews it and taps Share to email it.
+  const genMeetingLink = async () => {
+    if (genningRoom) return;
+    setGenningRoom(true);
+    let url = await createVideoRoom(candidateId);
+    if (!url) {
+      const rand = Math.random().toString(36).slice(2, 10);
+      const tag = (candidateId || "iv").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
+      url = `https://meet.jit.si/Aster-${tag}-${rand}`;
+    }
+    setMlInput(url);
+    setGenningRoom(false);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
   };
 
@@ -799,9 +807,9 @@ export default function CandidateProfileScreen({ route, navigation }) {
                       <View style={{ marginTop: interview?.meetingLink ? 12 : 0 }}>
                         {/* Fill-only: generates a ready-to-use video link into
                             the field, doesn't send. The HM reviews it, then Shares. */}
-                        <Pressable onPress={genMeetingLink} style={styles.mlGen}>
+                        <Pressable onPress={genMeetingLink} disabled={genningRoom} style={[styles.mlGen, genningRoom && { opacity: 0.5 }]}>
                           <Feather name="video" size={15} color={theme.brand} />
-                          <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>Create a video room</Text>
+                          <Text style={[type.smallStrong, { color: theme.brand, marginLeft: 8 }]}>{genningRoom ? "Creating…" : "Create a video room"}</Text>
                         </Pressable>
                         {/* Share sits below, not beside. Sharing a row with the
                             field left too little width for a URL: the

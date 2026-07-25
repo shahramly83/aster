@@ -174,6 +174,17 @@ export async function shareMeetingLink(companyId, candidateId, jobId, link) {
   return { ok: true, candidate: !!data?.candidate, panel: data?.panel || 0 };
 }
 
+// Mint a ready-to-use video room via Daily.co (the edge fn holds the API key).
+// Returns the room URL, or null when video isn't configured / the call fails, so
+// the caller can fall back to its built-in generator. Web-parity dbCreateVideoRoom.
+export async function createVideoRoom(candidateId) {
+  try {
+    const { data, error } = await supabase.functions.invoke("create-video-room", { body: { candidate_id: candidateId || null } });
+    if (error || !data?.url) return null;
+    return data.url;
+  } catch { return null; }
+}
+
 // Propose several interview times to the candidate (web-parity dbCreateInterview
 // Invite): insert a "sent" interviews row with proposed_slots [{start,end}] and a
 // booking token, then email the candidate a /book link (send-interview-invite).

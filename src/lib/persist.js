@@ -250,6 +250,18 @@ export async function dbSaveEmailTemplate(companyId, key, { subject, body }) {
 // and return its public booking token. interviewer_id is left null: the
 // scheduling roster is client-side and not necessarily real profiles, so the
 // interviewer's name/email are denormalised for notifications instead.
+// Mint a ready-to-use video room via Daily.co (the edge fn holds the API key).
+// Returns the room URL, or null when video isn't configured / the call fails, so
+// the caller can fall back to its built-in generator.
+export async function dbCreateVideoRoom({ candidateId = null } = {}) {
+  if (!hasSupabase) return null;
+  try {
+    const { data, error } = await supabase.functions.invoke("create-video-room", { body: { candidate_id: candidateId } });
+    if (error || !data?.url) return null;
+    return data.url;
+  } catch { return null; }
+}
+
 export async function dbCreateInterviewInvite(companyId, { candidateId, jobId = null, interviewerName = null, interviewerEmail = null, proposedSlots = [], provider = "google", attendees = [] }) {
   if (!hasSupabase || !companyId || !candidateId) return null;
   const fields = {

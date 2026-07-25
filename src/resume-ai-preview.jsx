@@ -7,7 +7,7 @@ import { COMPARE_ROWS, ASTER_MATRIX, COMPARE_COMPETITORS, COMPARE_HUB, COMPARE_A
 import { supabase, hasSupabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { PLAN_LIMITS, planLimits, PLAN_TIER_ALIASES } from "./lib/plan";
 import { ASTER_WORDMARK_PATH, ASTER_MARK_PATH, ASTER_MARK_VIEWBOX, ASTER_MARK, ASTER_WORD } from "./lib/logo";
-import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
+import { dbCreateJob, dbUpdateJob, dbSetJobStatus, dbDeleteJob, dbClearJobApplicants, dbConfirmBooking, dbSetCandidateStage, dbAddScorecard, dbDeleteCandidate, dbUpdateCompany, dbSetCompanyCurrency, dbClearJobViews, dbStampJobRanked, uploadCompanyLogo, dbListEmailTemplates, dbSaveEmailTemplate, dbCreateInterviewInvite, dbCreateVideoRoom, dbCreateOffer, dbRespondOffer, dbAttachOfferPdf, dbGetOffer, dbSignedOfferUrl, dbExpireOffer, dbListOfferApprovals, dbSubmitApproval, dbListApprovers, dbAddApprover, dbRemoveApprover, dbCloseOffer, dbListActivity, dbLogActivity, dbSetAttendance, dbSetInterviewAttendees, dbReleaseScorecards, dbRequestJob, dbSaveImportRun, dbUpdateImportRun, dbListImportRuns, dbRemoveTeammate, dbAssignInterviewer, dbUnassignInterviewer, dbRequestScheduling, dbSaveInterviewQuestions, dbUpdateMyProfile, dbGetMyOfferSignature, dbSaveMyOfferSignature, uploadAvatar, signedAvatarUrl, dbSaveMatchScores, dbListMyShortlist, dbSetShortlist, dbListJobShortlists, dbGetPanelPoll, dbCreatePanelPoll, dbTogglePollVote, dbSetPollSubmitted, dbClosePanelPoll, dbConfirmPollSlot, dbListOpenPolls, dbRescheduleInterview } from "./lib/persist";
 import MarketingChat from "./marketing-chat";
 // Same rule the mobile app enforces, so a poll can't demand different things on
 // the two clients.
@@ -17354,6 +17354,17 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   const [linkShared, setLinkShared] = useState(!!booking?.meetingLink);
   const [sharing, setSharing] = useState(false);
   const [shareErr, setShareErr] = useState(null);
+  const [genning, setGenning] = useState(false);
+  // One-tap room: create a real Daily.co room (branded, no account to join), and
+  // fall back to the built-in generator if video isn't configured or the call
+  // fails, so the button is never a dead end. Fills the field; does not send.
+  const generateRoom = async () => {
+    if (genning) return;
+    setGenning(true); setShareErr(null);
+    const url = await dbCreateVideoRoom({ candidateId: candidate?.id });
+    setLinkInput(url || makeMeetingRoom(candidate?.id));
+    setLinkShared(false); setGenning(false);
+  };
   const validLink = /^https?:\/\/\S+$/i.test(linkInput.trim());
   const shareMeetingLink = async () => {
     const link = linkInput.trim();
@@ -17589,11 +17600,12 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
               install needed at either end), matching the mobile app. */}
           <button
             type="button"
-            onClick={() => { setLinkInput(makeMeetingRoom(candidate?.id)); setLinkShared(false); setShareErr(null); }}
-            className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all hover:-translate-y-px hover:bg-[color:var(--brand-soft)]"
+            onClick={generateRoom}
+            disabled={genning}
+            className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all hover:-translate-y-px hover:bg-[color:var(--brand-soft)] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}
           >
-            <Icon name="link" className="w-3.5 h-3.5" /> Create a video room
+            <Icon name="link" className="w-3.5 h-3.5" /> {genning ? "Creating…" : "Create a video room"}
           </button>
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
