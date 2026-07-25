@@ -15176,7 +15176,7 @@ const PIPE_STAGE_META = {
 };
 function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [roleFilter, setRoleFilter] = useState("all"); // "all" | jobId
-  const [tab, setTab] = useState("all");                // all | active | offer | hired | closed
+  const [roleOpen, setRoleOpen] = useState(false);      // role dropdown open
   const [q, setQ] = useState("");
   const openJobs = jobs.filter((j) => j.status === "open");
 
@@ -15214,27 +15214,17 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     offer: counts.offer + counts.hired,
     hired: counts.hired,
   };
-  const hiredAges = scoped.filter((a) => a.stage === "hired" && a.appliedAtIso)
-    .map((a) => Math.max(0, Math.floor((Date.now() - new Date(a.appliedAtIso).getTime()) / 86400000)));
-  const avgTth = hiredAges.length ? Math.round(hiredAges.reduce((s, n) => s + n, 0) / hiredAges.length) : null;
   const exits = counts.rejected + counts.declined;
 
-  const grp = (s) => (s === "hired" ? "hired" : s === "offer" ? "offer" : (s === "declined" || s === "rejected") ? "closed" : "active");
   const rows = scoped
-    .filter((a) => (tab === "all" || grp(a.stage) === tab) && (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
+    .filter((a) => (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
-  const tabCounts = {
-    all: scoped.length,
-    active: scoped.filter((a) => grp(a.stage) === "active").length,
-    offer: counts.offer, hired: counts.hired, closed: exits,
-  };
 
   const kpiCards = [
     { label: "Total candidates", value: scoped.length, icon: "users", tint: "var(--brand-soft)", ink: "var(--brand)" },
     { label: "Interviewing", value: counts.interviewing, icon: "calendar", tint: "rgba(99,102,241,.12)", ink: "#6366F1" },
     { label: "Offers out", value: counts.offer, icon: "doc", tint: "rgba(180,83,9,.14)", ink: "#B45309" },
     { label: "Hired", value: counts.hired, icon: "check", tint: "rgba(21,128,61,.14)", ink: "#15803D" },
-    { label: "Avg. time to hire", value: avgTth != null ? avgTth : "—", suffix: avgTth != null ? " days" : "", icon: "clock", tint: "var(--brand-soft)", ink: "var(--brand)" },
   ];
 
   // Funnel elements built as a flat array (no React.Fragment in scope here).
@@ -15260,6 +15250,22 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       </div>
     );
   });
+  // Rejected is an exit, not part of the forward flow, so it sits after an ✕
+  // separator rather than getting a conversion %.
+  funnelEls.push(
+    <div key="rej-sep" className="flex sm:flex-col items-center justify-center gap-1 px-1 shrink-0 sm:w-14">
+      <Icon name="close" className="w-4 h-4" style={{ color: "#DC2626" }} />
+    </div>
+  );
+  funnelEls.push(
+    <div key="rejected" className="flex-1 min-w-0">
+      <div className="rounded-xl px-4 py-4 relative overflow-hidden flex sm:flex-col items-center sm:items-start justify-between" style={{ background: "#DC2626", minHeight: 84 }}>
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 130% at 100% 0%, rgba(255,255,255,0.22), transparent 60%)" }} />
+        <span className="relative text-2xl font-bold font-display tnum text-white leading-none">{counts.rejected}</span>
+        <span className="relative text-xs font-semibold text-white/90 sm:mt-1">Rejected</span>
+      </div>
+    </div>
+  );
 
   return (
     <AccountShell
@@ -15275,16 +15281,49 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       activities={activities}
       onOpenNotifications={onOpenNotifications}
     >
-      {/* Role filter */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <button onClick={() => setRoleFilter("all")} className="text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors" style={roleFilter === "all" ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>All roles</button>
-        {openJobs.map((j) => (
-          <button key={j.id} onClick={() => setRoleFilter(j.id)} className="text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors" style={roleFilter === j.id ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>{j.title}</button>
-        ))}
+      {/* Role filter (dropdown, so it doesn't overflow when there are many roles) */}
+      <div className="flex items-center gap-2 mb-4">
+        {(() => {
+          const opts = [{ id: "all", title: "All roles" }, ...openJobs.map((j) => ({ id: j.id, title: j.title }))];
+          const countFor = (id) => id === "all" ? apps.length : apps.filter((a) => a.jobId === id).length;
+          const active = opts.find((o) => o.id === roleFilter) || opts[0];
+          return (
+            <div className="relative">
+              <button onClick={() => setRoleOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={roleOpen}
+                className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2 text-sm transition-colors hover:border-neutral-300"
+                style={{ borderColor: roleOpen ? "var(--brand)" : "var(--line-strong)", color: "var(--ink-2)" }}>
+                <Icon name="funnel" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />
+                <span style={{ color: "var(--ink-3)" }}>Role:</span>
+                <span className="font-medium truncate" style={{ color: "var(--ink)", maxWidth: 220 }}>{active.title}</span>
+                <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${roleOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
+              </button>
+              {roleOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setRoleOpen(false)} />
+                  <div role="listbox" className="absolute z-40 left-0 top-full mt-1.5 w-64 max-h-72 overflow-auto rounded-xl border bg-white py-1" style={{ borderColor: "var(--line)", boxShadow: "0 18px 40px -18px rgba(18,19,42,0.28)" }}>
+                    {opts.map((o) => {
+                      const on = roleFilter === o.id;
+                      return (
+                        <button key={o.id} role="option" aria-selected={on} onClick={() => { setRoleFilter(o.id); setRoleOpen(false); }}
+                          className="w-full flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors hover:bg-neutral-50" style={on ? { background: "var(--brand-soft)" } : undefined}>
+                          <span className="flex items-center gap-2 min-w-0" style={{ color: on ? "var(--brand)" : "var(--ink-2)", fontWeight: on ? 600 : 400 }}>
+                            {on ? <Icon name="check" className="w-3.5 h-3.5 shrink-0" /> : <span className="w-3.5 h-3.5 shrink-0" />}
+                            <span className="truncate">{o.title}</span>
+                          </span>
+                          <span className="text-xs tnum shrink-0" style={{ color: on ? "var(--brand)" : "var(--ink-3)" }}>{countFor(o.id)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {kpiCards.map((k) => (
           <div key={k.label} className="rounded-2xl bg-white act-shadow border p-4" style={{ borderColor: "var(--line)" }}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: k.tint, color: k.ink }}><Icon name={k.icon} className="w-4 h-4" /></div>
@@ -15313,11 +15352,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       {/* Candidate table */}
       <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
         <div className="flex items-center justify-between gap-3 p-4 flex-wrap">
-          <div className="inline-flex gap-1 rounded-xl p-1" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-            {[["all", "All"], ["active", "Active"], ["offer", "Offer"], ["hired", "Hired"], ["closed", "Closed"]].map(([k, label]) => (
-              <button key={k} onClick={() => setTab(k)} className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5" style={tab === k ? { background: "#fff", color: "var(--ink)", boxShadow: "0 1px 2px rgba(16,19,42,.1)" } : { color: "var(--ink-3)" }}>{label} <span className="text-[10px] tnum" style={{ color: "var(--ink-4)" }}>{tabCounts[k]}</span></button>
-            ))}
-          </div>
+          <span className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>Candidates <span className="tnum ml-0.5" style={{ color: "var(--ink-4)" }}>{scoped.length}</span></span>
           <div className="inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
             <Icon name="search" className="w-4 h-4" style={{ color: "var(--ink-4)" }} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search candidates…" className="text-sm bg-transparent outline-none" style={{ color: "var(--ink)", minWidth: 180 }} />
