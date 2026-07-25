@@ -10514,13 +10514,10 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
               // and "exit" are the drop-offs (Declined = they said no, Rejected =
               // you said no), coloured apart so progress and exits read differently.
               const funnel = [
-                { label: "Applied", value: stageCount("applied"), tone: "flow" },
-                // Shortlisted stopped being a stage (it is a private bookmark),
-                // so it only appears if someone is still carrying it from before
-                // the change. Dropping it outright would erase those people from
-                // the funnel; keeping it always would advertise a stage nobody
-                // can reach.
-                ...(stageCount("shortlisted") > 0 ? [{ label: "Shortlisted", value: stageCount("shortlisted"), tone: "flow" }] : []),
+                // Shortlisted is a private bookmark (the star), not a stage. Anyone
+                // still carrying the old "shortlisted" stage counts as Applied here,
+                // so no one is dropped and no unreachable stage is advertised.
+                { label: "Applied", value: stageCount("applied") + stageCount("shortlisted"), tone: "flow" },
                 { label: "Interview", value: stageCount("interviewing"), tone: "flow" },
                 { label: "Offer", value: stageCount("offer"), tone: "flow" },
                 { label: "Hired", value: stageCount("hired"), tone: "win" },
