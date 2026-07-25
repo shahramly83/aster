@@ -15558,16 +15558,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
         const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
         const addable = interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && !iv.pending && iv.id !== userId);
-        const roleTitle = (jobs.find((j) => j.id === roleFilter) || {}).title || "this role";
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setIvOpen(false)}>
             <div className="w-full max-w-md rounded-2xl bg-white p-5 act-shadow" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="min-w-0">
-                  <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Interviewers</h3>
-                  <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>On {roleTitle}. They review candidates on this role.</p>
-                </div>
-                <button onClick={() => setIvOpen(false)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+              <div className="flex justify-end mb-2">
+                <button onClick={() => setIvOpen(false)} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
               </div>
               {assigned.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -15592,7 +15587,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   </div>
                 </div>
               )}
-              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Invite a new interviewer</p>
+              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Invite interviewer</p>
               <div className="flex items-center gap-2">
                 <input type="email" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }} placeholder="interviewer@email.com" autoFocus className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
                 <button onClick={sendInvite} disabled={!ivEmail.trim() || ivBusy} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
