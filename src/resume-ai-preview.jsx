@@ -15511,12 +15511,9 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                       <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.source}</td>
                       <td className="px-4 py-3 text-sm tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</td>
                       <td className="px-4 py-3">
-                        {a.match != null ? (
-                          <span className="flex items-center gap-2 justify-end">
-                            <span className="block h-1.5 rounded-full overflow-hidden" style={{ width: 44, background: "var(--line)" }}><span className="block h-full rounded-full" style={{ width: `${a.match}%`, background: mColor }} /></span>
-                            <span className="text-xs font-bold tnum" style={{ color: mColor, minWidth: 34, textAlign: "right" }}>{a.match}%</span>
-                          </span>
-                        ) : <span className="block text-xs text-right" style={{ color: "var(--ink-4)" }}>—</span>}
+                        <span className="flex justify-end">
+                          {a.match != null ? <MatchRing value={a.match} size={46} stroke={4} filled /> : <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>}
+                        </span>
                       </td>
                     </tr>
                   );
