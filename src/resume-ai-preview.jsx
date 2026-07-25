@@ -8775,6 +8775,7 @@ function Icon({ name, className = "w-5 h-5", style }) {
     logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></>,
     card: <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></>,
     mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+    phone: <><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
     calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
     check: <><path d="M5 12l4.5 4.5L19 7" /></>,
@@ -13900,7 +13901,9 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const atTopPlan = plan === "elite" || plan === "enterprise";
   const showUpgrade = onUpgrade && !atTopPlan;
   return (
-    <div className="relative rounded-2xl p-5" style={{ background: "var(--brand)", boxShadow: "0 16px 34px -20px rgba(var(--brand-rgb),0.65)" }}>
+    <div className="relative rounded-2xl p-5 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 18px 38px -18px rgba(var(--brand-rgb),0.7)" }}>
+      {/* Soft top-right sheen so the card reads premium, not a flat block. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 85% at 100% 0%, rgba(255,255,255,0.20), transparent 55%)" }} />
       <div className="relative flex items-start justify-between gap-3 mb-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85 leading-snug" style={{ letterSpacing: "0.06em" }}>
           {title}
@@ -13915,15 +13918,25 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#FBBF24" : "#fff" }} />
       </div>
       {note && <p className="relative text-xs mt-2.5 leading-relaxed text-center" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
-      {showUpgrade && <button onClick={onUpgrade} className="relative mt-3.5 w-full rounded-xl bg-white hover:bg-white/90 text-sm font-semibold py-2.5 transition-colors" style={{ color: "var(--brand)" }}>{upgradeLabel}</button>}
+      {/* Purchased-credits status sits above the action row so the two buttons
+          can share one line. */}
       {typeof purchased === "number" && (
-        <div className="relative mt-3 flex items-baseline justify-between">
+        <div className="relative mt-3.5 flex items-baseline justify-between">
           <span className="text-[11px] text-white/80">Purchased credits</span>
           <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "0 left"}</span>
         </div>
       )}
-      {onBuyCredits && (
-        <button onClick={onBuyCredits} className={`relative w-full rounded-xl text-sm font-semibold py-2.5 transition-colors ${showUpgrade ? "mt-2 bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "mt-3.5 bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
+      {/* Actions: two columns when both exist (Upgrade primary, Buy secondary),
+          full width when only one applies. */}
+      {(showUpgrade || onBuyCredits) && (
+        <div className={`relative mt-3 ${showUpgrade && onBuyCredits ? "grid grid-cols-2 gap-2.5" : ""}`}>
+          {showUpgrade && (
+            <button onClick={onUpgrade} className="w-full rounded-xl bg-white hover:bg-white/90 hover:-translate-y-0.5 text-sm font-semibold py-2.5 px-2 transition-all" style={{ color: "var(--brand)", boxShadow: "0 10px 22px -12px rgba(0,0,0,0.4)" }}>{upgradeLabel}</button>
+          )}
+          {onBuyCredits && (
+            <button onClick={onBuyCredits} className={`w-full rounded-xl text-sm font-semibold py-2.5 px-2 transition-all hover:-translate-y-0.5 ${showUpgrade ? "bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)", boxShadow: "0 10px 22px -12px rgba(0,0,0,0.4)" }}>Buy credits</button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -15166,15 +15179,23 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
     });
 
   const title = forInterviewer ? "Your Interviews" : "Scheduled Interviews";
-  const subtitle = interviews.length > 0
-    ? forInterviewer
+  // The count subtitles render as a pill (matching the app's header count pills);
+  // the empty-state hint stays as plain helper text.
+  let subtitle = "";
+  if (interviews.length > 0) {
+    const [subText, subIcon] = forInterviewer
       ? needsAction > 0
-        ? `${needsAction} candidate${needsAction > 1 ? "s are" : " is"} waiting on your scorecard.`
-        : `${interviews.length} candidate${interviews.length > 1 ? "s" : ""} in your interview pipeline.`
-      : `${interviews.length} interview${interviews.length > 1 ? "s" : ""} on the calendar.`
-    : forInterviewer
-      ? ""
-      : "Interviews a candidate has confirmed appear here.";
+        ? [`${needsAction} candidate${needsAction > 1 ? "s" : ""} waiting on your scorecard`, "users"]
+        : [`${interviews.length} candidate${interviews.length > 1 ? "s" : ""} in your interview pipeline`, "users"]
+      : [`${interviews.length} interview${interviews.length > 1 ? "s" : ""} on the calendar`, "calendar"];
+    subtitle = (
+      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
+        <Icon name={subIcon} className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {subText}
+      </span>
+    );
+  } else if (!forInterviewer) {
+    subtitle = "Interviews a candidate has confirmed appear here.";
+  }
 
   return (
     <AccountShell
@@ -22076,9 +22097,14 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
         <div className="mt-2">
           <TopBar
             title="Candidate Profile"
-            subtitle={contextJobId
-              ? `In the ${(jobs.find((j) => j.id === contextJobId) || {}).title || "role"} pipeline`
-              : "From your candidate database"}
+            subtitle={
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
+                <Icon name={contextJobId ? "briefcase" : "users"} className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} />
+                {contextJobId
+                  ? `In the ${(jobs.find((j) => j.id === contextJobId) || {}).title || "role"} pipeline`
+                  : "From your candidate database"}
+              </span>
+            }
             activities={activities}
             onOpenNotifications={onOpenNotifications}
             avatarUrl={avatarUrl}
@@ -22095,9 +22121,9 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               <h2 className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--ink)" }}>{parsed.name}</h2>
               {contextJobId && <StageBadge stage={stage} />}
             </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm" style={{ color: "var(--ink-3)" }}>
-              {parsed.email && <span>{parsed.email}</span>}
-              {parsed.phone && <span>{parsed.phone}</span>}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm" style={{ color: "var(--ink-3)" }}>
+              {parsed.email && <span className="inline-flex items-center gap-1.5 min-w-0"><Icon name="mail" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--ink-4)" }} /><span className="truncate">{parsed.email}</span></span>}
+              {parsed.phone && <span className="inline-flex items-center gap-1.5"><Icon name="phone" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--ink-4)" }} />{parsed.phone}</span>}
             </div>
             {(parsed.linkedin_url || parsed.portfolio_url) && (
               <div className="flex items-center gap-3 mt-2">
