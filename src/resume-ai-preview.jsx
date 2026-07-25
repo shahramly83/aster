@@ -15180,6 +15180,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [ivEmail, setIvEmail] = useState("");
   const [ivBusy, setIvBusy] = useState(false);
   const [ivNote, setIvNote] = useState(null);    // { type:'ok'|'err', msg }
+  const [insight, setInsight] = useState(null);  // { name, reason } for the AI-insight popup
   const openJobs = jobs.filter((j) => j.status === "open");
   const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
@@ -15493,7 +15494,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
                           <span className="min-w-0">
                             <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
-                            {a.fitReason && <span className="text-[11px] block mt-0.5" style={{ color: "var(--ink-3)", maxWidth: 520, lineHeight: 1.45 }}>{a.fitReason}</span>}
+                            {a.fitReason && (
+                              <button onClick={(e) => { e.stopPropagation(); setInsight({ name: a.name, reason: a.fitReason }); }} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                                <Icon name="star" className="w-3 h-3" /> AI insight
+                              </button>
+                            )}
                           </span>
                         </div>
                       </td>
@@ -15554,6 +15559,22 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         <div className="px-4 py-3 text-xs" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>Showing {rows.length} of {scoped.length} candidate{scoped.length === 1 ? "" : "s"}</div>
       </div>
       <BuyCreditsModal open={buyOpen} onClose={() => { setBuyOpen(false); reloadPurchasedAiRank?.(); }} plan={plan} kind="ai_rank" currency={currency} />
+
+      {/* AI insight popup (full rationale, kept out of the row) */}
+      {insight && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setInsight(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 act-shadow" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.05em" }}><Icon name="star" className="w-3.5 h-3.5" /> AI insight</span>
+                <h3 className="text-base font-bold font-display mt-0.5 truncate" style={{ color: "var(--ink)" }}>{insight.name}</h3>
+              </div>
+              <button onClick={() => setInsight(null)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{insight.reason}</p>
+          </div>
+        </div>
+      )}
 
       {/* Invite / manage interviewers modal */}
       {ivOpen && roleFilter && (() => {
