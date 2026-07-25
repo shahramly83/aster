@@ -15204,6 +15204,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [ivNote, setIvNote] = useState(null);    // { type:'ok'|'err', msg }
   const [insight, setInsight] = useState(null);  // { name, reason } for the AI-insight popup
   const [walletTip, setWalletTip] = useState(false); // credits breakdown tooltip
+  const [ivTip, setIvTip] = useState(false);          // interviewers breakdown tooltip
   const openJobs = jobs.filter((j) => j.status === "open");
   const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
@@ -15429,9 +15430,25 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   ))}
                 </div>
               )}
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 cursor-default" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title={`${activeCount} active · ${pendingCount} pending interviewer${pendingCount === 1 ? "" : "s"}`}>
-                <Icon name="users" className="w-3.5 h-3.5" /> {assigned.length}
-              </span>
+              <div className="relative" onMouseEnter={() => setIvTip(true)} onMouseLeave={() => setIvTip(false)}>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 cursor-default" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                  <Icon name="users" className="w-3.5 h-3.5" /> {assigned.length}
+                </span>
+                {ivTip && (
+                  <div className="absolute z-40 right-0 top-full mt-2 w-52 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+                    <span className="absolute -top-1.5 right-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+                    <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>Interviewers</p>
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#16A34A" }} /> Active</span>
+                      <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{activeCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#D97706" }} /> Pending</span>
+                      <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{pendingCount}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
               <button onClick={() => { setIvOpen(true); setIvNote(null); }} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">
                 <Icon name="userPlus" className="w-3.5 h-3.5" /> Invite Interviewer
               </button>
@@ -15561,42 +15578,46 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                     </tr>
                   );
                 };
-                if (rows.length === 0) {
-                  return <tr><td colSpan={6} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates match this view.</td></tr>;
+                // Always split into Strong matches and Non-matches, and always show
+                // BOTH section bars (with an empty state when a group has none).
+                const strong = rows.filter((a) => a.fit !== "other");
+                const other = rows.filter((a) => a.fit === "other");
+                const groupHeader = (label, n, color, bg) => (
+                  <tr key={`grp-${label}`}>
+                    <td colSpan={6} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
+                      <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.05em" }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: color }} /> {label}
+                        <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color, border: `1px solid ${color}33` }}>{n}</span>
+                      </span>
+                    </td>
+                  </tr>
+                );
+                const emptyRow = (key, text) => (
+                  <tr key={key}><td colSpan={6} className="px-4 py-4 text-center text-xs" style={{ color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>{text}</td></tr>
+                );
+                const out = [];
+                // Strong matches — always shown, always expanded.
+                out.push(groupHeader("Strong matches", strong.length, "#15803D", "rgba(21,128,61,.08)"));
+                if (strong.length) strong.forEach((a) => out.push(renderRow(a)));
+                else out.push(emptyRow("strong-empty", "No strong matches yet."));
+                // Non-matches — always shown as a collapsible bar (closed by default).
+                out.push(
+                  <tr key="grp-nonmatch" onClick={() => setNonMatchOpen((o) => !o)} className="cursor-pointer select-none">
+                    <td colSpan={6} className="px-4 py-2.5" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
+                      <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color: "#6B7280", letterSpacing: "0.05em" }}>
+                        <Icon name="chevronRight" className={`w-3.5 h-3.5 transition-transform ${nonMatchOpen ? "rotate-90" : ""}`} />
+                        Non-matches
+                        <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color: "#6B7280", border: "1px solid #6B728033" }}>{other.length}</span>
+                        <span className="text-[10px] font-medium normal-case tracking-normal" style={{ color: "var(--ink-3)" }}>{nonMatchOpen ? "" : "· click to expand"}</span>
+                      </span>
+                    </td>
+                  </tr>
+                );
+                if (nonMatchOpen) {
+                  if (other.length) other.forEach((a) => out.push(renderRow(a)));
+                  else out.push(emptyRow("nonmatch-empty", "No non-matches."));
                 }
-                // Always split the list into Strong matches and Non-matches (same
-                // AI-fit logic the Applicants board uses: fit === "other" is a non-match).
-                  const strong = rows.filter((a) => a.fit !== "other");
-                  const other = rows.filter((a) => a.fit === "other");
-                  const groupHeader = (label, n, color, bg) => (
-                    <tr key={`grp-${label}`}>
-                      <td colSpan={6} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
-                        <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.05em" }}>
-                          <span className="w-2 h-2 rounded-full" style={{ background: color }} /> {label}
-                          <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color, border: `1px solid ${color}33` }}>{n}</span>
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                  const out = [];
-                  if (strong.length) { out.push(groupHeader("Strong matches", strong.length, "#15803D", "rgba(21,128,61,.08)")); strong.forEach((a) => out.push(renderRow(a))); }
-                  if (other.length) {
-                    // Non-matches collapse into an accordion, closed by default.
-                    out.push(
-                      <tr key="grp-nonmatch" onClick={() => setNonMatchOpen((o) => !o)} className="cursor-pointer select-none">
-                        <td colSpan={6} className="px-4 py-2.5" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
-                          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color: "#6B7280", letterSpacing: "0.05em" }}>
-                            <Icon name="chevronRight" className={`w-3.5 h-3.5 transition-transform ${nonMatchOpen ? "rotate-90" : ""}`} />
-                            Non-matches
-                            <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color: "#6B7280", border: "1px solid #6B728033" }}>{other.length}</span>
-                            <span className="text-[10px] font-medium normal-case tracking-normal" style={{ color: "var(--ink-4)" }}>{nonMatchOpen ? "" : "· click to expand"}</span>
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                    if (nonMatchOpen) other.forEach((a) => out.push(renderRow(a)));
-                  }
-                  return out;
+                return out;
               })()}
             </tbody>
           </table>
