@@ -709,9 +709,11 @@ const readOverride = (overrides, candidateId, jobId = null) =>
 // Pipeline stage breakdown for a job. Includes the two exits (Declined, Rejected)
 // so the segments and legend add up to the headline applicant count, every
 // applicant is accounted for somewhere.
+// Shortlisted is a private bookmark (the star), never a pipeline stage — so it's
+// not listed here, and any candidate still on the old "shortlisted" stage folds
+// into Applied.
 const JOB_STAGES = [
   { key: "applied", label: "Applied", color: "var(--brand)" },
-  { key: "shortlisted", label: "Shortlisted", color: "#93C5FD" },
   { key: "interviewing", label: "Interview", color: "#6366F1" },
   { key: "offer", label: "Offer", color: "#F59E0B" },
   { key: "hired", label: "Hired", color: "#16A34A" },
@@ -720,7 +722,7 @@ const JOB_STAGES = [
 ];
 const stageCountsFor = (jobId) => {
   const c = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, declined: 0, rejected: 0 };
-  (APPLICANTS_BY_JOB[jobId] || []).forEach((a) => { if (c[a.baseStage] != null) c[a.baseStage]++; });
+  (APPLICANTS_BY_JOB[jobId] || []).forEach((a) => { const s = a.baseStage === "shortlisted" ? "applied" : a.baseStage; if (c[s] != null) c[s]++; });
   return c;
 };
 
@@ -13123,9 +13125,9 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
                   <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t" style={{ borderColor: color.line }}>
                     <div className="flex items-center gap-3 min-w-0">
-                      <button ref={jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? applicantsRef : undefined} onClick={() => { setActiveJobId(job.id); navigate("applicants", `/applicants/${job.id}`); }} className={`group/app inline-flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors ${jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? "tour-pulse" : ""}`} title="View applicants">
+                      <button ref={jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? applicantsRef : undefined} onClick={() => { setActiveJobId(job.id); navigate("pipeline", "/pipeline"); }} className={`group/app inline-flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors ${jobsTourOn && jobsTourStep === "applicants" && job.id === firstOpenJobId ? "tour-pulse" : ""}`} title="View pipeline">
                         <span className="flex w-8 h-8 items-center justify-center rounded-lg shrink-0" style={{ background: n > 0 ? color.tile : "rgba(255,255,255,0.7)", color: n > 0 ? color.ink : "var(--ink-3)" }}>
-                          <Icon name="users" className="w-4 h-4" />
+                          <Icon name="funnel" className="w-4 h-4" />
                         </span>
                         <span className="text-sm leading-tight text-left font-bold tnum group-hover/app:underline" style={{ color: "var(--ink)" }}>{n}</span>
                       </button>
@@ -15183,7 +15185,7 @@ const PIPE_STAGE_META = {
   declined: { label: "Declined", color: "#6B7280" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
-function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null, pendingInvites = [], matchRunsUsed = 0 }) {
+function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null, pendingInvites = [], matchRunsUsed = 0, activeJobId = null }) {
   const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
   const [ivOpen, setIvOpen] = useState(false);   // interviewer invite/manage expanded
   const [ivEmail, setIvEmail] = useState("");
@@ -15193,7 +15195,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [walletTip, setWalletTip] = useState(false); // credits breakdown tooltip
   const [ivTip, setIvTip] = useState(false);          // interviewers breakdown tooltip
   const openJobs = jobs.filter((j) => j.status === "open");
-  const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
+  const [roleFilter, setRoleFilter] = useState(() => (activeJobId && openJobs.some((j) => j.id === activeJobId)) ? activeJobId : (openJobs[0]?.id ?? null)); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
   const [stageFilter, setStageFilter] = useState(null); // click a funnel bar to filter the table
   const [q, setQ] = useState("");
@@ -28485,6 +28487,7 @@ export default function ResumeAIPreview() {
             userId={userId}
             pendingInvites={pendingInvites}
             matchRunsUsed={matchRunsUsed}
+            activeJobId={activeJobId}
           />
         )}
         {screen === "jobs" && (
