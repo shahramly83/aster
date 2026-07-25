@@ -15371,17 +15371,27 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
 
       {/* Candidate table */}
       <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
-        {/* AI Rank: only inside Applied, and only for a specific position (AI
-            ranks candidates against one role). Hidden by default and for All positions. */}
-        {stageFilter === "applied" && roleFilter !== "all" && (
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
-            <span className="text-xs" style={{ color: "var(--ink-3)" }}>Score these applied candidates against this position with AI.</span>
-            <button onClick={runRank} disabled={ranking} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
-              <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
-            </button>
-          </div>
-        )}
-        {rankMsg && stageFilter === "applied" && roleFilter !== "all" && (
+        {/* AI Rank: visible whenever the Applied stage is selected, but only
+            runnable for a specific position with 2+ applied candidates (AI ranks
+            against one role). Disabled state explains why. */}
+        {stageFilter === "applied" && (() => {
+          const appliedCount = scoped.filter((a) => a.stage === "applied").length;
+          const reason = roleFilter === "all"
+            ? "Pick a position above, then AI Rank scores its applied candidates."
+            : appliedCount < 2
+              ? "AI Rank needs at least 2 applied candidates for this position."
+              : "Score these applied candidates against this position with AI.";
+          const disabled = ranking || roleFilter === "all" || appliedCount < 2;
+          return (
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>{reason}</span>
+              <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
+              </button>
+            </div>
+          );
+        })()}
+        {rankMsg && stageFilter === "applied" && (
           <div className="px-4 py-2 text-xs border-b" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>{rankMsg}</div>
         )}
         <div className="overflow-x-auto">
@@ -15422,18 +15432,19 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                 if (stageFilter === "applied") {
                   const strong = rows.filter((a) => a.fit !== "other");
                   const other = rows.filter((a) => a.fit === "other");
-                  const groupHeader = (label, n, color) => (
+                  const groupHeader = (label, n, color, bg) => (
                     <tr key={`grp-${label}`}>
-                      <td colSpan={5} className="px-4 py-2" style={{ background: "var(--bg)", borderBottom: "1px solid var(--line)" }}>
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.04em" }}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} /> {label} <span className="tnum" style={{ color: "var(--ink-4)" }}>· {n}</span>
+                      <td colSpan={5} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
+                        <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.05em" }}>
+                          <span className="w-2 h-2 rounded-full" style={{ background: color }} /> {label}
+                          <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color, border: `1px solid ${color}33` }}>{n}</span>
                         </span>
                       </td>
                     </tr>
                   );
                   const out = [];
-                  if (strong.length) { out.push(groupHeader("Strong matches", strong.length, "#15803D")); strong.forEach((a) => out.push(renderRow(a))); }
-                  if (other.length) { out.push(groupHeader("Non-matches", other.length, "var(--ink-3)")); other.forEach((a) => out.push(renderRow(a))); }
+                  if (strong.length) { out.push(groupHeader("Strong matches", strong.length, "#15803D", "rgba(21,128,61,.08)")); strong.forEach((a) => out.push(renderRow(a))); }
+                  if (other.length) { out.push(groupHeader("Non-matches", other.length, "#6B7280", "rgba(107,114,128,.09)")); other.forEach((a) => out.push(renderRow(a))); }
                   return out;
                 }
                 return rows.map(renderRow);
