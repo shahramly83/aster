@@ -15174,7 +15174,7 @@ const PIPE_STAGE_META = {
   declined: { label: "Declined", color: "#6B7280" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
-function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null, pendingInvites = [] }) {
+function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null, pendingInvites = [], matchRunsUsed = 0 }) {
   const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
   const [ivOpen, setIvOpen] = useState(false);   // interviewer invite/manage expanded
   const [ivEmail, setIvEmail] = useState("");
@@ -15433,6 +15433,10 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         {/* AI Rank belongs to the Applied view (the default), where the ranking
             happens. Hidden on the other stages — nothing to rank there. */}
         {(stageFilter == null || stageFilter === "applied") && (() => {
+          // Credits left = this cycle's remaining monthly runs + purchased top-up.
+          const rankLimit = planLimits(plan).aiRunsPerMonth;
+          const runsLeft = rankLimit === Infinity ? Infinity : Math.max(0, rankLimit - matchRunsUsed);
+          const creditsLeft = runsLeft === Infinity ? Infinity : runsLeft + purchasedAiRank;
           const strongApplied = scoped.filter((a) => a.stage === "applied" && a.fit !== "other").length;
           const reason = !roleFilter
             ? "Pick a position, then AI Rank scores its strong-match candidates."
@@ -15448,11 +15452,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               </div>
               <div className="flex items-center gap-2.5">
                 {/* Credit wallet: balance at a glance + a one-tap Buy. */}
-                <div className="inline-flex items-center gap-2 rounded-xl px-2 py-1.5" style={{ background: "var(--brand-soft)" }}>
+                <div className="inline-flex items-center gap-2 rounded-xl px-2 py-1.5 cursor-default" style={{ background: "var(--brand-soft)" }} title={runsLeft === Infinity ? "Unlimited AI Rank on your plan" : `${runsLeft} monthly + ${purchasedAiRank} purchased`}>
                   <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg shrink-0" style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 4px 10px -4px rgba(var(--brand-rgb),0.7)" }}><Icon name="star" className="w-3.5 h-3.5" /></span>
                   <span className="leading-none pr-0.5">
-                    <span className="block text-sm font-extrabold tnum" style={{ color: "var(--brand)" }}>{purchasedAiRank}</span>
-                    <span className="block text-[10px] font-semibold mt-0.5" style={{ color: "var(--ink-3)" }}>credits</span>
+                    <span className="block text-sm font-extrabold tnum" style={{ color: "var(--brand)" }}>{creditsLeft === Infinity ? "∞" : creditsLeft}</span>
+                    <span className="block text-[10px] font-semibold mt-0.5" style={{ color: "var(--ink-3)" }}>credits left</span>
                   </span>
                   <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-lg px-2 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
                 </div>
@@ -28384,6 +28388,7 @@ export default function ResumeAIPreview() {
             reloadTeam={reloadTeam}
             userId={userId}
             pendingInvites={pendingInvites}
+            matchRunsUsed={matchRunsUsed}
           />
         )}
         {screen === "jobs" && (
