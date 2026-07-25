@@ -15161,7 +15161,6 @@ const candidateOutcome = (candidateId) => {
 // what the rest of the app shows.
 const PIPE_FUNNEL = [
   { key: "applied", label: "Applied", color: "var(--brand)" },
-  { key: "shortlisted", label: "Shortlisted", color: "#3B82F6" },
   { key: "interviewing", label: "Interview", color: "#6366F1" },
   { key: "offer", label: "Offer", color: "#D97706" },
   { key: "hired", label: "Hired", color: "#16A34A" },
@@ -15206,16 +15205,6 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const scoped = roleFilter === "all" ? apps : apps.filter((a) => a.jobId === roleFilter);
   const counts = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, declined: 0, rejected: 0 };
   scoped.forEach((a) => { if (counts[a.stage] != null) counts[a.stage]++; });
-  // Funnel reads as "candidates who reached this stage or beyond" (among those
-  // still active), so it decreases cleanly Applied → Hired. Exited candidates
-  // (rejected/declined) are shown separately rather than guessed into the funnel.
-  const reached = {
-    applied: counts.applied + counts.shortlisted + counts.interviewing + counts.offer + counts.hired,
-    shortlisted: counts.shortlisted + counts.interviewing + counts.offer + counts.hired,
-    interviewing: counts.interviewing + counts.offer + counts.hired,
-    offer: counts.offer + counts.hired,
-    hired: counts.hired,
-  };
   const exits = counts.rejected + counts.declined;
 
   const rows = scoped
@@ -15243,11 +15232,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const funnelEls = [];
   PIPE_FUNNEL.forEach((st, i) => {
     if (i > 0) {
-      const prev = PIPE_FUNNEL[i - 1].key;
-      const conv = reached[prev] > 0 ? Math.round((reached[st.key] / reached[prev]) * 100) : null;
       funnelEls.push(
-        <div key={`c${i}`} className="flex sm:flex-col items-center justify-center gap-0.5 px-1 shrink-0 sm:w-14">
-          <span className="text-xs font-bold tnum" style={{ color: "var(--ink-2)" }}>{conv != null ? `${conv}%` : "—"}</span>
+        <div key={`c${i}`} className="flex items-center justify-center px-1 shrink-0 sm:w-14">
           <Icon name="arrowRight" className="w-5 h-5 rotate-90 sm:rotate-0" style={{ color: "var(--brand)" }} />
         </div>
       );
@@ -15268,7 +15254,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       title="Pipeline"
       subtitle={
         <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-          <Icon name="funnel" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {scoped.length} candidate{scoped.length === 1 ? "" : "s"}{roleFilter === "all" ? ` across ${openJobs.length} open role${openJobs.length === 1 ? "" : "s"}` : ""}
+          <Icon name="users" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {scoped.length} candidate{scoped.length === 1 ? "" : "s"}
         </span>
       }
       navigate={navigate}
@@ -15320,10 +15306,6 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
 
       {/* End-to-end funnel */}
       <div className="rounded-2xl bg-white act-shadow border p-5 mb-4" style={{ borderColor: "var(--line)" }}>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>End-to-end pipeline</h2>
-          <span className="text-xs" style={{ color: "var(--ink-3)" }}>Click a stage to filter the list below · % is stage-to-stage conversion</span>
-        </div>
         <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-0">{funnelEls}</div>
         {exits > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
@@ -15336,24 +15318,6 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
 
       {/* Candidate table */}
       <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
-        <div className="flex items-center justify-between gap-3 p-4 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>Candidates <span className="tnum ml-0.5" style={{ color: "var(--ink-4)" }}>{rows.length}</span></span>
-            {stageFilter && (() => {
-              const m = PIPE_STAGE_META[stageFilter] || { label: stageFilter, color: "var(--brand)" };
-              return (
-                <button onClick={() => setStageFilter(null)} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors" style={{ background: `color-mix(in srgb, ${m.color} 13%, transparent)`, color: m.color }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.color }} /> {m.label}
-                  <Icon name="close" className="w-3 h-3" />
-                </button>
-              );
-            })()}
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
-            <Icon name="search" className="w-4 h-4" style={{ color: "var(--ink-4)" }} />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search candidates…" className="text-sm bg-transparent outline-none" style={{ color: "var(--ink)", minWidth: 180 }} />
-          </div>
-        </div>
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: 720, borderCollapse: "collapse" }}>
             <thead>
@@ -15373,8 +15337,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   <tr key={a.key} onClick={() => onViewCandidate?.(a.candidateId, a.jobId)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={34} />
-                        <span className="font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
+                        <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
+                        <span className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.jobTitle}</td>
