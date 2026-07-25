@@ -15491,7 +15491,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                           <span className="min-w-0">
                             <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
                             {a.fitReason && (
-                              <button onClick={(e) => { e.stopPropagation(); setInsight({ name: a.name, reason: a.fitReason }); }} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                              <button onClick={(e) => { e.stopPropagation(); setInsight(a); }} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                                 <Icon name="star" className="w-3 h-3" /> AI insight
                               </button>
                             )}
@@ -15556,18 +15556,33 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       </div>
       <BuyCreditsModal open={buyOpen} onClose={() => { setBuyOpen(false); reloadPurchasedAiRank?.(); }} plan={plan} kind="ai_rank" currency={currency} />
 
-      {/* AI insight popup (full rationale, kept out of the row) */}
+      {/* AI insight popup: candidate header (avatar + match ring) over a brand
+          wash, the reasoning below, and an Open-profile CTA. */}
       {insight && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setInsight(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 act-shadow" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="min-w-0">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.05em" }}><Icon name="star" className="w-3.5 h-3.5" /> AI insight</span>
-                <h3 className="text-base font-bold font-display mt-0.5 truncate" style={{ color: "var(--ink)" }}>{insight.name}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={() => setInsight(null)}>
+          <div className="w-full max-w-lg rounded-3xl bg-white overflow-hidden" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
+            <div className="relative px-6 pt-5 pb-5" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
+              <div className="relative flex items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase" style={{ color: "var(--brand)", letterSpacing: "0.09em" }}><Icon name="star" className="w-3.5 h-3.5" /> AI Insight</span>
+                <button onClick={() => setInsight(null)} aria-label="Close" className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/70 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
               </div>
-              <button onClick={() => setInsight(null)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+              <div className="relative flex items-center gap-3.5 mt-3">
+                <CandidateAvatar name={insight.name} hasPhoto={insight.hasPhoto} src={insight.avatar} size={52} />
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold font-display truncate" style={{ color: "var(--ink)" }}>{insight.name}</h3>
+                  <p className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{insight.jobTitle}</p>
+                </div>
+                {insight.match != null && <div className="ml-auto shrink-0"><MatchRing value={insight.match} size={52} stroke={5} filled /></div>}
+              </div>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{insight.reason}</p>
+            <div className="px-6 py-5">
+              <p className="text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{insight.fitReason}</p>
+            </div>
+            <div className="px-6 pb-6 flex items-center justify-end gap-2">
+              <button onClick={() => setInsight(null)} className="text-sm font-medium rounded-xl px-4 py-2 hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-2)" }}>Close</button>
+              <button onClick={() => { const t = insight; setInsight(null); onViewCandidate?.(t.candidateId, t.jobId); }} className="text-sm font-semibold rounded-xl px-4 py-2 brand-gradient text-white hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">Open profile <Icon name="arrowUpRight" className="w-4 h-4" /></button>
+            </div>
           </div>
         </div>
       )}
