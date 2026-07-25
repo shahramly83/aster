@@ -15174,9 +15174,8 @@ const PIPE_STAGE_META = {
   declined: { label: "Declined", color: "#6B7280" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
-function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {} }) {
+function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null }) {
   const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
-  const [addIvOpen, setAddIvOpen] = useState(false); // add-interviewer dropdown
   const openJobs = jobs.filter((j) => j.status === "open");
   const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
@@ -15369,60 +15368,21 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         })()}
       </div>
 
-      {/* Interviewers on this position: manage access any time; nudge when none. */}
-      {roleFilter && (() => {
-        const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
-        const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
-        const eligible = interviewers.filter((iv) => iv.role !== "owner" && !assignedIds.has(iv.id));
-        const nudge = assigned.length === 0 && scoped.length > 0;
-        return (
-          <div className="rounded-2xl act-shadow border p-4 mb-4" style={{ borderColor: nudge ? "#FED7AA" : "var(--line)", background: nudge ? "#FFFBF5" : "#fff" }}>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 min-w-0">
-                <Icon name="users" className="w-4 h-4" style={{ color: "var(--brand)" }} />
-                <span className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>Interviewers</span>
-                <span className="text-xs" style={{ color: "var(--ink-3)" }}>· they review candidates on this role</span>
-              </div>
-              <div className="relative">
-                <button onClick={() => setAddIvOpen((o) => !o)} disabled={eligible.length === 0} title={eligible.length === 0 ? "Invite teammates first" : undefined} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors hover:bg-[color:var(--brand-soft)] disabled:opacity-40 disabled:cursor-not-allowed" style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}>
-                  <Icon name="userPlus" className="w-3.5 h-3.5" /> Add interviewer
-                </button>
-                {addIvOpen && eligible.length > 0 && (
-                  <>
-                    <div className="fixed inset-0 z-30" onClick={() => setAddIvOpen(false)} />
-                    <div className="absolute z-40 right-0 top-full mt-1.5 w-60 rounded-xl border bg-white py-1 max-h-64 overflow-auto" style={{ borderColor: "var(--line)", boxShadow: "0 18px 40px -18px rgba(18,19,42,0.28)" }}>
-                      {eligible.map((iv) => (
-                        <button key={iv.id} onClick={async () => { setAddIvOpen(false); await onAssignInterviewer(roleFilter, iv.id); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-neutral-50 text-left">
-                          <CandidateAvatar name={iv.name} hasPhoto={false} size={26} showPhotoDot={false} />
-                          <span className="min-w-0"><span className="block truncate font-medium" style={{ color: "var(--ink)" }}>{iv.name}</span><span className="block text-[11px]" style={{ color: "var(--ink-3)" }}>{ROLE_LABELS[iv.role] || "Interviewer"}{iv.pending ? " · invited" : ""}</span></span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-            {assigned.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 mt-3">
-                {assigned.map((iv) => (
-                  <span key={iv.id} className="inline-flex items-center gap-2 rounded-full pl-1 pr-2 py-1" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
-                    <CandidateAvatar name={iv.name} hasPhoto={false} size={22} showPhotoDot={false} />
-                    <span className="text-xs font-medium" style={{ color: "var(--ink-2)" }}>{iv.name}</span>
-                    <button onClick={() => onUnassignInterviewer(roleFilter, iv.id)} aria-label={`Remove ${iv.name}`} className="ml-0.5 rounded-full p-0.5 hover:bg-neutral-200 transition-colors" style={{ color: "var(--ink-4)" }}><Icon name="close" className="w-3 h-3" /></button>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-3 text-xs flex items-center gap-2 flex-wrap" style={{ color: nudge ? "#9A3412" : "var(--ink-3)" }}>
-                <Icon name="alertCircle" className="w-3.5 h-3.5 shrink-0" />
-                {eligible.length === 0
-                  ? <span>No interviewer teammates yet. <button onClick={() => navigate("interviewers")} className="font-semibold underline" style={{ color: "var(--brand)" }}>Invite teammates first</button> so they can review candidates.</span>
-                  : <span>No interviewers on this role yet. Add teammates so they can review candidates and weigh in.</span>}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* Interviewers on this position: reuses the Applicants board panel, so you
+          can assign a teammate or invite a new interviewer by email inline. */}
+      {roleFilter && (
+        <JobInterviewersPanel
+          jobId={roleFilter}
+          team={interviewers}
+          assignedIds={new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id))}
+          canManage
+          currentUserId={userId}
+          onAssign={onAssignInterviewer}
+          onUnassign={onUnassignInterviewer}
+          navigate={navigate}
+          reloadTeam={reloadTeam}
+        />
+      )}
 
       {/* End-to-end funnel */}
       <div className="rounded-2xl bg-white act-shadow border p-5 mb-4" style={{ borderColor: "var(--line)" }}>
@@ -28325,6 +28285,8 @@ export default function ResumeAIPreview() {
             jobAssignments={jobAssignments}
             onAssignInterviewer={assignInterviewer}
             onUnassignInterviewer={unassignInterviewer}
+            reloadTeam={reloadTeam}
+            userId={userId}
           />
         )}
         {screen === "jobs" && (
