@@ -15174,7 +15174,8 @@ const PIPE_STAGE_META = {
   declined: { label: "Declined", color: "#6B7280" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
-function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {} }) {
+function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {} }) {
+  const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
   const openJobs = jobs.filter((j) => j.status === "open");
   const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
@@ -15200,7 +15201,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       const m = (MOCK_MATCHES[jobId] || []).find((x) => x.candidateId === a.candidateId);
       const raw = m ? (m.score > 1 ? m.score / 100 : m.score) : null;
       apps.push({
-        key: `${a.candidateId}:${jobId}`, candidateId: a.candidateId, jobId,
+        key: `${a.candidateId}:${jobId}`, candidateId: a.candidateId, applicationId: a.applicationId, jobId,
         name: cand?.parsed?.name || cand?.name || "Candidate",
         hasPhoto: cand?.hasPhoto, avatar: cand?.avatarUrl,
         jobTitle: job?.title || "Role",
@@ -15388,23 +15389,29 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           const reason = !roleFilter
             ? "Pick a position, then AI Rank scores its strong-match candidates."
             : strongApplied < 2
-              ? "AI Rank needs at least 2 strong-match applied candidates."
+              ? "AI Rank needs at least 2 candidates to score them."
               : "Score these strong-match candidates against this position with AI.";
           const disabled = ranking || !roleFilter || strongApplied < 2;
           return (
-            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
               <div className="min-w-0">
-                <span className="text-xs block" style={{ color: "var(--ink-3)" }}>{reason}</span>
-                <span className="text-[11px] mt-1 inline-flex items-center flex-wrap gap-x-1.5" style={{ color: "var(--ink-4)" }}>
-                  <Icon name="star" className="w-3 h-3" /> 1 credit / 10 candidates
-                  {purchasedAiRank > 0 && <span>· {purchasedAiRank} top-up left</span>}
-                  <span>·</span>
-                  <button onClick={() => navigate("billing")} className="font-semibold hover:underline" style={{ color: "var(--brand)" }}>Top up</button>
-                </span>
+                <span className="text-xs block font-medium" style={{ color: "var(--ink-2)" }}>{reason}</span>
+                <span className="text-[11px] mt-0.5 block" style={{ color: "var(--ink-4)" }}>1 AI Rank credit covers 10 candidates.</span>
               </div>
-              <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
-                <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
-              </button>
+              <div className="flex items-center gap-2.5">
+                {/* Credit wallet: balance at a glance + a one-tap Buy. */}
+                <div className="inline-flex items-center gap-2 rounded-xl px-2 py-1.5" style={{ background: "var(--brand-soft)" }}>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg shrink-0" style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 4px 10px -4px rgba(var(--brand-rgb),0.7)" }}><Icon name="star" className="w-3.5 h-3.5" /></span>
+                  <span className="leading-none pr-0.5">
+                    <span className="block text-sm font-extrabold tnum" style={{ color: "var(--brand)" }}>{purchasedAiRank}</span>
+                    <span className="block text-[10px] font-semibold mt-0.5" style={{ color: "var(--ink-3)" }}>credits</span>
+                  </span>
+                  <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-lg px-2 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+                </div>
+                <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
+                </button>
+              </div>
             </div>
           );
         })()}
@@ -15428,11 +15435,16 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   return (
                     <tr key={a.key} onClick={() => onViewCandidate?.(a.candidateId, a.jobId)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {(() => { const starred = shortlistedApps.has(a.applicationId); return (
+                            <button onClick={(e) => { e.stopPropagation(); onToggleShortlist(a.applicationId, a.candidateId); }} title={starred ? "Remove from shortlist" : "Shortlist"} aria-label={starred ? "Remove from shortlist" : "Shortlist"} className="shrink-0 p-0.5 transition-transform hover:scale-110" style={{ color: starred ? "#F5B301" : "var(--ink-4)" }}>
+                              <Icon name="star" className="w-4 h-4" style={{ fill: starred ? "#F5B301" : "none" }} />
+                            </button>
+                          ); })()}
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
                           <span className="min-w-0">
                             <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
-                            {a.fitReason && <span className="text-[11px] block" style={{ color: "var(--ink-3)", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.fitReason}>{a.fitReason}</span>}
+                            {a.fitReason && <span className="text-[11px] block mt-0.5" style={{ color: "var(--ink-3)", maxWidth: 520, lineHeight: 1.45 }}>{a.fitReason}</span>}
                           </span>
                         </div>
                       </td>
@@ -15495,6 +15507,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         </div>
         <div className="px-4 py-3 text-xs" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>Showing {rows.length} of {scoped.length} candidate{scoped.length === 1 ? "" : "s"}</div>
       </div>
+      <BuyCreditsModal open={buyOpen} onClose={() => { setBuyOpen(false); reloadPurchasedAiRank?.(); }} plan={plan} kind="ai_rank" currency={currency} />
     </AccountShell>
   );
 }
@@ -28251,6 +28264,10 @@ export default function ResumeAIPreview() {
             onOpenNotifications={markActivitiesRead}
             companyId={companyId}
             onRanked={() => { if (companyId) hydrateWorkspace(companyId); }}
+            plan={effectivePlan}
+            currency={preferredCurrency}
+            shortlistedApps={shortlistedApps}
+            onToggleShortlist={toggleShortlist}
           />
         )}
         {screen === "jobs" && (
