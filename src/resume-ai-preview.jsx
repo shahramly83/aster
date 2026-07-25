@@ -15871,6 +15871,8 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const [banner, setBanner] = useState(null);
   const [sending, setSending] = useState(false);
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
+  const [teamTab, setTeamTab] = useState("members"); // members | invitations
+  const [teamQ, setTeamQ] = useState("");            // name/email search
 
   // The Tenant card must show the workspace's REAL owner, taken from the team list
   // (role === 'owner'), NOT whoever is viewing. A hiring manager opening this page
@@ -16093,95 +16095,96 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
-          {/* Account owner, always a member, can't be removed */}
-          {(roleFilter === "all" || roleFilter === "admin") && (
-          <div className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
-            <div className="flex items-center gap-3">
-              <CandidateAvatar name={ownerName || "You"} hasPhoto={ownerIsYou && !!avatarUrl} src={ownerIsYou ? avatarUrl : null} size={48} showPhotoDot={false} />
-              <div className="min-w-0">
-                <p className="text-neutral-900 font-medium truncate">{ownerName || "You"}</p>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle("Tenant")}>Tenant{ownerIsYou ? " · You" : ""}</span>
-                </div>
-              </div>
-            </div>
-            {ownerEmail && <p className="text-xs text-neutral-500 mt-2.5 truncate pl-[60px]">{ownerEmail}</p>}
-          </div>
-          )}
+        {/* Members / Invitations tabs + search */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {(() => {
+            const memberCount = 1 + team.filter((iv) => iv.status !== "pending").length;
+            const inviteCount = team.filter((iv) => iv.status === "pending").length + pendingInvites.length;
+            return [["members", "Members", memberCount], ["invitations", "Invitations", inviteCount]].map(([k, label, n]) => (
+              <button key={k} onClick={() => setTeamTab(k)} className="text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors inline-flex items-center gap-2"
+                style={teamTab === k ? { background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--ink-3)", border: "1px solid var(--line)" }}>
+                {label} <span className="text-[11px] tnum px-1.5 py-0.5 rounded-full" style={teamTab === k ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-3)" }}>{n}</span>
+              </button>
+            ));
+          })()}
+          <label className="ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+            <Icon name="search" className="w-4 h-4" style={{ color: "var(--ink-4)" }} />
+            <input value={teamQ} onChange={(e) => setTeamQ(e.target.value)} placeholder="Search name or email…" className="text-sm bg-transparent outline-none" style={{ color: "var(--ink)", minWidth: 160 }} />
+          </label>
+        </div>
 
-          {/* Everyone except the Tenant (rendered above), ordered Hiring Managers
-              then Interviewers, active before pending within a role. The same order
-              applies to pending invites, so a waiting Hiring Manager still sorts
-              ahead of any Interviewer. */}
-          {[
-            ...team.map((iv) => ({ ...iv, _kind: "active" })),
-            ...pendingInvites.map((inv) => ({ ...inv, _kind: "pending" })),
-          ]
-            .filter((m) => roleFilter === "all" || m.role === roleFilter)
-            .sort((a, b) => {
-              const rank = (r) => (r === "admin" ? 0 : 1);   // Hiring Manager before Interviewer
-              if (rank(a.role) !== rank(b.role)) return rank(a.role) - rank(b.role);
-              if (a._kind !== b._kind) return a._kind === "active" ? -1 : 1; // active before pending
-              return 0;
-            })
-            .map((m) => m._kind === "active" ? (
-              <div key={`t-${m.id}`} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
-                <button
-                  onClick={() => setRemoving(m)}
-                  className="absolute top-4 right-4 text-xs text-neutral-400 hover:text-red-600 transition-colors"
-                >
-                  Remove
-                </button>
-                <div className="flex items-center gap-3 pr-16">
-                  <CandidateAvatar name={m.name} hasPhoto={false} size={48} showPhotoDot={false} />
-                  <div className="min-w-0">
-                    <p className="text-neutral-900 font-medium truncate">{m.name}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[m.role] || "Interviewer")}>{ROLE_LABELS[m.role] || "Interviewer"}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={m.status === "pending" ? { background: "#FEF3C7", color: "#92400E" } : { background: "#DCFCE7", color: "#166534" }}>
-                        {m.status === "pending" ? "Invite pending" : "Active"}
-                      </span>
-                    </div>
+        {/* Member table */}
+        <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+          <div className="overflow-x-auto">
+            {(() => {
+              // One flat list: the Tenant, active teammates, invited-but-not-yet-joined
+              // profiles, and pending email invitations. Kind drives the row's action.
+              const rows = [];
+              if (owner || ownerIsYou) rows.push({ id: owner?.id || "me", name: ownerName || "You", email: ownerEmail, role: "owner", kind: "owner" });
+              team.forEach((iv) => rows.push({ ...iv, kind: iv.status === "pending" ? "invitedProfile" : "active" }));
+              pendingInvites.forEach((inv) => rows.push({ id: inv.id, name: inv.email, email: inv.email, role: inv.role, kind: "invite" }));
+              const isMember = (k) => k === "owner" || k === "active";
+              const shown = rows.filter((r) => {
+                const tabOk = teamTab === "members" ? isMember(r.kind) : !isMember(r.kind);
+                const roleOk = roleFilter === "all" || r.role === roleFilter || (r.kind === "owner" && roleFilter === "admin");
+                const qOk = !teamQ || `${r.name} ${r.email}`.toLowerCase().includes(teamQ.toLowerCase());
+                return tabOk && roleOk && qOk;
+              });
+              if (shown.length === 0) {
+                return (
+                  <div className="px-5 py-14 text-center">
+                    <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>{teamTab === "members" ? "No members match this view." : "No pending invitations."}</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>{teamTab === "invitations" ? "Invite a teammate and they'll show here until they join." : "Try clearing the role filter or search."}</p>
                   </div>
-                </div>
-                <p className="text-xs text-neutral-500 mt-2.5 truncate pl-[60px]">{m.email}</p>
-                {scheduledCountFor(m) > 0 && (
-                  <p className="text-[11px] mt-2 pl-[60px] flex items-center gap-1" style={{ color: "var(--brand)" }}>
-                    <Icon name="calendar" className="w-3 h-3" /> {scheduledCountFor(m)} upcoming interview{scheduledCountFor(m) > 1 ? "s" : ""}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div key={`p-${m.id}`} className="relative flex flex-col rounded-2xl bg-white act-shadow p-5 border border-[color:var(--line)]">
-                <button
-                  onClick={() => revokeInvite(m)}
-                  disabled={revokeBusyId === m.id}
-                  className="absolute top-4 right-4 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40"
-                  style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}
-                >
-                  {revokeBusyId === m.id ? "Revoking…" : "Revoke"}
-                </button>
-                <div className="flex items-center gap-3 pr-20">
-                  <CandidateAvatar name={m.email} hasPhoto={false} size={48} showPhotoDot={false} />
-                  <div className="min-w-0">
-                    <p className="text-neutral-900 font-medium truncate">{m.email}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={roleTagStyle(ROLE_LABELS[m.role] || "Interviewer")}>{ROLE_LABELS[m.role] || "Interviewer"}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Invite pending</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          {roleFilter === "interviewer"
-            && team.filter((iv) => iv.role === "interviewer").length === 0
-            && pendingInvites.filter((inv) => inv.role === "interviewer").length === 0 && (
-            <div className="md:col-span-2 rounded-2xl border border-dashed px-5 py-8 text-center" style={{ borderColor: "var(--line-strong)" }}>
-              <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>No interviewers yet</p>
-              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Invite one, or switch the filter back to All roles.</p>
-            </div>
-          )}
+                );
+              }
+              return (
+                <table className="w-full" style={{ minWidth: 640, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      {["Member", "Email", "Role", "Status", ""].map((h, i) => (
+                        <th key={i} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderBottom: "1px solid var(--line)", textAlign: i === 4 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((r) => {
+                      const active = r.kind === "owner" || r.kind === "active";
+                      const roleLabel = r.kind === "owner" ? "Tenant" : (ROLE_LABELS[r.role] || "Interviewer");
+                      const upcoming = r.kind === "active" ? scheduledCountFor(r) : 0;
+                      return (
+                        <tr key={`${r.kind}-${r.id}`} className="transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <CandidateAvatar name={r.name} hasPhoto={r.kind === "owner" && ownerIsYou && !!avatarUrl} src={r.kind === "owner" && ownerIsYou ? avatarUrl : null} size={36} showPhotoDot={false} />
+                              <span className="min-w-0">
+                                <span className="font-semibold truncate block" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span>
+                                {upcoming > 0 && <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming</span>}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm truncate" style={{ color: "var(--ink-2)", maxWidth: 220 }}>{r.email || "—"}</td>
+                          <td className="px-4 py-3"><span className="text-[11px] px-2 py-1 rounded-lg font-semibold whitespace-nowrap" style={roleTagStyle(roleLabel)}>{roleLabel}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span></td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap" style={active ? { background: "#DCFCE7", color: "#166534" } : { background: "#FEF3C7", color: "#92400E" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? "#16A34A" : "#D97706" }} /> {active ? "Active" : "Invited"}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            {r.kind === "owner" ? (
+                              <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>
+                            ) : r.kind === "invite" ? (
+                              <button onClick={() => revokeInvite(r)} disabled={revokeBusyId === r.id} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>{revokeBusyId === r.id ? "Revoking…" : "Revoke"}</button>
+                            ) : (
+                              <button onClick={() => setRemoving(r)} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors hover:bg-red-50" style={{ color: "#DC2626" }}>Remove</button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Offer approvers: no-login approvers managed separately from the team. */}
