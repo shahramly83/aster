@@ -8,7 +8,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "e2e": "maestro test .maestro",
+    "e2e:signin": "maestro test .maestro/00-sign-in.yaml"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

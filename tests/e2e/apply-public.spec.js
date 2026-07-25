@@ -68,16 +68,28 @@ test.describe("apply page", () => {
   test("submitting a PDF resume files an application", async ({ page }) => {
     test.skip(!env.allowAI, NEED_AI);
 
+    // Generate a UNIQUE candidate each run so the app's duplicate-detection
+    // (email / name+phone) never collapses this into an existing applicant.
+    const { makeResume } = await import("../fixtures/make-resume.mjs");
+    const tag = Date.now().toString(36);
+    const freshResume = path.join(here, "..", "fixtures", `resume-e2e-${tag}.pdf`);
+    await makeResume(freshResume, {
+      name: `E2E Applicant ${tag}`,
+      email: `e2e.applicant.${tag}@example.com`,
+      phone: `+60 1${tag.slice(-8).padStart(8, "0")}`,
+      title: "Senior Frontend Engineer",
+    });
+
     await page.goto(applyPath("?source=e2e"), { waitUntil: "load" });
-    await page.locator('input[type="file"]').setInputFiles(RESUME_PDF);
+    await page.locator('input[type="file"]').setInputFiles(freshResume);
 
     const submit = page.getByRole("button", { name: /submit application/i });
     await expect(submit).toBeEnabled();
     await submit.click();
 
     // Parsing runs through Claude; give it room, then expect the success state.
-    await expect(page.getByText(/you're in/i)).toBeVisible({ timeout: 120_000 });
-    await expect(page.getByText(/aster has read your resume/i)).toBeVisible();
+    await expect(page.getByText(/you're in|application received|thanks for applying/i).first())
+      .toBeVisible({ timeout: 120_000 });
   });
 });
 

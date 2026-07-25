@@ -1,0 +1,18 @@
+# [POSITIVE] Sign in with valid credentials and land in the app.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - auth
+  - positive
+---
+- clearState
+- launchApp
+# The branded splash and font load precede the sign-in screen.
+- assertVisible:
+    text: "Sign in to your Aster workspace"
+    timeout: 30000
+- assertVisible: "Email"
+- assertVisible: "Password"
+# The footer states reset/SSO are web-only (there is no in-app forgot password).
+- assertVisible: "Password reset and SSO are handled on hireaster.com"
+- runFlow: subflows/login.yaml

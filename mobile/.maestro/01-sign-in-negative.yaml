@@ -1,0 +1,37 @@
+# [NEGATIVE] The sign-in button stays disabled until both fields are filled, and
+# bad credentials are rejected without entering the app.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - auth
+  - negative
+---
+- clearState
+- launchApp
+- assertVisible:
+    text: "Sign in to your Aster workspace"
+    timeout: 30000
+
+# 1) Empty form: the Sign in button is present but disabled (disabled={!email || !password}).
+- assertVisible:
+    text: "Sign in"
+    enabled: false
+
+# 2) Email only: still disabled.
+- tapOn: "you@company.com"
+- inputText: "someone@example.com"
+- hideKeyboard
+- assertVisible:
+    text: "Sign in"
+    enabled: false
+
+# 3) Wrong password: the button enables, but the sign-in is refused with an error
+#    and we never leave the auth screen.
+- tapOn: "••••••••"
+- inputText: "definitely-not-the-password"
+- hideKeyboard
+- tapOn: "Sign in"
+- assertVisible:
+    text: "Could not sign in.*|.*password.*"
+    timeout: 20000
+- assertVisible: "Sign in to your Aster workspace"

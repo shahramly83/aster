@@ -1,0 +1,55 @@
+# [POSITIVE + NEGATIVE] The offer sheet: opens with Compose/Upload modes, Upload
+# is web-only, and composing with empty terms is refused. Stops before sending,
+# so nothing is emailed.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - hiring
+  - offers
+  - negative
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+- tapOn:
+    text: "Positions"
+    optional: true
+- assertVisible:
+    text: "OPEN POSITIONS.*"
+    timeout: 20000
+
+- runFlow:
+    when:
+      notVisible: "No open positions"
+    commands:
+      - tapOn: { text: "View", index: 0 }
+      - tapOn: { text: "View profile", index: 0, optional: true }
+      # The Decision tab hosts "Make an offer" (manager, once scoring is done).
+      - tapOn: { text: "Decision", optional: true }
+      - runFlow:
+          when:
+            visible: "Make an offer"
+          commands:
+            - tapOn: "Make an offer"
+            - assertVisible:
+                text: "Make offer"
+                timeout: 15000
+            - assertVisible: "Compose in Aster"
+            - assertVisible: "Upload our letter"
+
+            # [NEGATIVE] Uploading is web-only on mobile.
+            - tapOn: "Upload our letter"
+            - assertVisible: "Uploading is on the web app"
+            - tapOn: "Compose here instead"
+
+            # [NEGATIVE] Sending with empty terms is refused with a field error.
+            - tapOn:
+                text: "Send offer|Send for approval"
+                optional: true
+            - assertVisible:
+                text: "Add the job title.*|Add the base salary.*|Pick a start date.*"
+            # Close the sheet without sending.
+            - tapOn:
+                text: "Close"
+                optional: true
+            - back

@@ -67,6 +67,17 @@ npm run e2e:report          # open the HTML report
 | `applicants.spec.js` | Strong/Non-Match/Hired split, free "Why:" on a non-match, shortlist star + filter, shortlist survives reload, AI Rank writes scores + Why | `WRITES`; rank needs `AI` |
 | `team-and-roles.spec.js` | team list + tenant badge, invite, add-interviewer excludes self, **interviewer only sees assigned roles**, interviewer blocked from manager screens, interviewer requests a role | `WRITES`, invite needs `EMAIL` |
 | `interviews.spec.js` | scheduled state, meeting link required + validated, sharing emails candidate + panel, panel swap grants job access | `WRITES`, share needs `EMAIL` |
+| `signup.spec.js` | workspace form, personal-email refusal, password match/mismatch | none |
+| `forgot-password.spec.js` | request form + validation, reset route never blank, neutral "check your email" | creds-free; **send** needs `EMAIL` |
+| `settings.spec.js` | settings sections, two-factor card, unsaved-changes bar, interviewer locked out | creds; **2FA enable** needs `EMAIL` |
+| `profile.spec.js` | completeness meter + items, password-change validation, first-job profile gate | creds |
+| `bulk-upload.spec.js` | dropzone + accepted types, ready batch, out-of-credits block | creds; **real screen** needs `AI` |
+| `credits-topup.spec.js` | plan-usage balances, Buy-credits modal, AI-Rank spend confirm, out-of-credits dead-end | creds |
+| `billing.spec.js` | plan grid, current-plan lock, portal + invoices, cycle toggle, owner-only gate | creds |
+| `hiring-pipeline.spec.js` | candidate tabs, scorecard submit gate, offer modal (Compose/Upload) + empty-terms refusal, reject modal | creds; **submit** needs `WRITES` |
+
+The whole plan (web + mobile + manual gaps) lives in `tests/E2E-TEST-PLAN.md`.
+Mobile flows are Maestro, in `mobile/.maestro/` (see its README).
 
 ## The rule the suite encodes
 

@@ -1,0 +1,50 @@
+# [POSITIVE + NEGATIVE] The scorecard: Submit is disabled until all four areas
+# are rated, then enables. This flow reaches a scorecard through the candidate
+# profile and asserts the gate; it stops short of submitting so it writes nothing.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - hiring
+  - positive
+  - negative
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+- tapOn:
+    text: "Positions"
+    optional: true
+- assertVisible:
+    text: "OPEN POSITIONS.*"
+    timeout: 20000
+
+- runFlow:
+    when:
+      notVisible: "No open positions"
+    commands:
+      - tapOn: { text: "View", index: 0 }
+      - tapOn: { text: "View profile", index: 0, optional: true }
+      # Reach the scorecard: either the "Add my scorecard" CTA or the Scorecards tab.
+      - tapOn: { text: "Scorecards", optional: true }
+      - tapOn:
+          text: "Start scoring|Add my scorecard|Add your scorecard"
+          optional: true
+      - runFlow:
+          when:
+            visible: "Rate each area.*"
+          commands:
+            # [NEGATIVE] Nothing rated yet -> Submit is disabled and the helper
+            # explains why.
+            - assertVisible: "Rate all four areas to submit."
+            - assertVisible:
+                text: "Submit scorecard"
+                enabled: false
+            # [POSITIVE] Rate all four criteria at "4" (Excellent).
+            - tapOn: { text: "4", index: 0 }
+            - tapOn: { text: "4", index: 1 }
+            - tapOn: { text: "4", index: 2 }
+            - tapOn: { text: "4", index: 3 }
+            # With every area rated, Submit becomes available.
+            - assertVisible:
+                text: "Submit scorecard"
+                enabled: true

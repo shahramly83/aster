@@ -17335,9 +17335,10 @@ function InviteHandoffCard({ firstName, slots = [], onPreview }) {
 }
 
 // A ready-to-use video room, so a manager without a Meet/Zoom/Teams link to hand
-// isn't stuck. Jitsi needs no account or install at either end, which is what
-// makes it safe to hand a candidate. Named per candidate so two interviews never
-// land in the same room.
+// isn't stuck. Runs on Jitsi's public server (no account or install at either
+// end, which is what makes it safe to hand a candidate); swap this one URL for a
+// self-hosted meet.hireaster.com room to put it on our own domain. Named per
+// candidate so two interviews never land in the same room.
 function makeMeetingRoom(candidateId) {
   const rand = Math.random().toString(36).slice(2, 10);
   const tag = String(candidateId || "iv").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
@@ -17584,15 +17585,15 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
           <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>
             Paste a Google Meet, Zoom or Teams link, or have Aster create a room. It goes to the candidate and each interviewer, with a note written for each.
           </p>
-          {/* Generate matches the mobile app. Names the platform: a Jitsi Meet
-              room, so nobody is guessing what they're about to send a candidate. */}
+          {/* One-click room: generates a ready-to-use video link (no account or
+              install needed at either end), matching the mobile app. */}
           <button
             type="button"
             onClick={() => { setLinkInput(makeMeetingRoom(candidate?.id)); setLinkShared(false); setShareErr(null); }}
             className="mb-2.5 inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all hover:-translate-y-px hover:bg-[color:var(--brand-soft)]"
             style={{ color: "var(--brand)", border: "1px solid var(--line-strong)" }}
           >
-            <Icon name="link" className="w-3.5 h-3.5" /> Create a Jitsi Meet room
+            <Icon name="link" className="w-3.5 h-3.5" /> Create a video room
           </button>
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">

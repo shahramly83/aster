@@ -16,6 +16,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.e2e.example
 
 # Editor directories and files
 .vscode/*
@@ -51,3 +52,6 @@ tests/e2e-run/shots/
 
 # Stripe test secrets (never commit)
 supabase/.env.stripe
+
+# E2E per-run generated resumes
+tests/fixtures/resume-e2e-*.pdf

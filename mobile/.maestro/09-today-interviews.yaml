@@ -1,0 +1,29 @@
+# [POSITIVE] The Interviews/Today screen: the segmented tabs render and switch.
+# The tab is labelled "Interviews" for managers and "Today" for interviewers.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - interviews
+  - positive
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+# Reach the interviews tab. Managers: 3rd tab "Interviews". Interviewers land here.
+- tapOn:
+    text: "Interviews|Today"
+    optional: true
+- assertVisible:
+    text: "UP NEXT|You're all set|Interviews you're on|Your panel interviews"
+    timeout: 20000
+
+# The segmented control (accessibilityLabel "<label>, <count>").
+- assertVisible:
+    text: "Up next,.*"
+# Switch to the Past segment and back.
+- tapOn:
+    text: "Past,.*"
+    optional: true
+- tapOn:
+    text: "Up next,.*"
+    optional: true

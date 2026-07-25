@@ -1,0 +1,19 @@
+# Maestro workspace config for the Aster mobile app.
+# Run the whole suite:   maestro test mobile/.maestro
+# Run one flow:          maestro test mobile/.maestro/00-sign-in.yaml
+# Override credentials:  maestro test -e ASTER_EMAIL=you@co.com -e ASTER_PASSWORD=... mobile/.maestro
+#
+# Flows are ordered by filename. Subflows in ./subflows are shared building
+# blocks (they are excluded from direct runs by the includeTags filter below).
+appId: com.hireaster.mobile
+
+# Only run top-level flows tagged `suite`; subflows are tagged `subflow`.
+includeTags:
+  - suite
+
+# Credentials. ASTER_EMAIL defaults to the seeded demo tenant; ASTER_PASSWORD is
+# intentionally blank — pass the real password on the CLI:
+#   maestro test -e ASTER_PASSWORD=... mobile/.maestro
+env:
+  ASTER_EMAIL: tenant@onlazy.com
+  ASTER_PASSWORD: CHANGE_ME

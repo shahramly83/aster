@@ -40,8 +40,23 @@ export async function signOut(page) {
 
 // Navigate to an in-app route and wait for the SPA to settle there.
 export async function goToApp(page, path) {
-  await page.goto(path, { waitUntil: "load" });
+  // A COLD page.goto to a deep authenticated route doesn't work here: when a
+  // session restores, the app routes to its default screen (the dashboard) and
+  // ignores the initial URL — deep-links only stick when navigated client-side
+  // (mirrors the "/schedule & /apply fall back on refresh" behaviour). So make
+  // sure the app shell is up, then drive the app's own history-based router with
+  // pushState + popstate, which it honours for every screen.
+  const inApp = await page.getByRole("button", { name: /notifications/i }).count().catch(() => 0);
+  if (!inApp) {
+    await page.goto("/dashboard", { waitUntil: "load" });
+    await page.waitForTimeout(1500);
+  }
+  // The dispatch can detach the frame mid-eval when the app navigates; swallow it.
+  await page.evaluate((p) => {
+    window.history.pushState({}, "", p);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, path).catch(() => {});
   await page.waitForURL((u) => u.pathname === path, { timeout: 20_000 }).catch(() => {});
-  // The app restores its session asynchronously; give it a beat to swap screens.
+  // Let the target screen mount and fetch its data.
   await page.waitForTimeout(1200);
 }

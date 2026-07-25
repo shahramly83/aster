@@ -1,0 +1,33 @@
+# Reusable sign-in building block. Included by the suite flows via runFlow.
+# Expects ASTER_EMAIL / ASTER_PASSWORD in the environment (see config.yaml).
+appId: com.hireaster.mobile
+tags:
+  - subflow
+---
+# The app may boot to the sign-in screen, or already be signed in from a prior
+# flow. If the sign-in title isn't there, assume we're already in and stop.
+- runFlow:
+    when:
+      visible: "Sign in to your Aster workspace"
+    commands:
+      - tapOn: "you@company.com"
+      - inputText: ${ASTER_EMAIL}
+      - hideKeyboard
+      # Password field placeholder is the bullet string rendered on screen.
+      - tapOn: "••••••••"
+      - inputText: ${ASTER_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Sign in"
+      # Biometric lock auto-dismisses on a device with no enrolled biometrics.
+      # If it does show, unlock through it.
+      - runFlow:
+          when:
+            visible: "Unlock"
+          commands:
+            - tapOn: "Unlock"
+      # We're in once the auth screen is gone. (The landing screen differs by
+      # role — manager: Analytics; interviewer: Today — so assert the negative,
+      # which holds for both.)
+      - extendedWaitUntil:
+          notVisible: "Sign in to your Aster workspace"
+          timeout: 30000

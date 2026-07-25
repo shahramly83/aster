@@ -1,0 +1,44 @@
+# [POSITIVE] Manager reviews a candidate: Positions -> a role -> a candidate ->
+# the profile tabs. Skips gracefully if the demo workspace has no open roles.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - hiring
+  - positive
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+# Go to the Positions tab (icon-only when inactive; tap by its label if focused,
+# else tap the briefcase icon by its accessibility/position).
+- tapOn:
+    text: "Positions"
+    optional: true
+- assertVisible:
+    text: "OPEN POSITIONS.*"
+    timeout: 20000
+
+# Open the first role card. If there are none, the empty state shows instead.
+- runFlow:
+    when:
+      notVisible: "No open positions"
+    commands:
+      - tapOn:
+          text: "View"
+          index: 0
+      # Job detail: hero stats and the AI Rank bar.
+      - assertVisible:
+          text: "AI Rank"
+          timeout: 20000
+      - assertVisible: "TO REVIEW"
+
+      # Open the first candidate.
+      - tapOn:
+          text: "View profile"
+          index: 0
+          optional: true
+      # Candidate profile sub-tabs.
+      - assertVisible:
+          text: "Profile"
+          timeout: 20000
+      - assertVisible: "Interview"

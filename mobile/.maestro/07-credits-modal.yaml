@@ -1,0 +1,30 @@
+# [POSITIVE] Manager opens the AI credits breakdown from the dashboard and sees
+# the "managed on web" note. (Mobile shows balances but never sells credits.)
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - credits
+  - positive
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+# Managers land on Analytics. Interviewers have no dashboard, so this is skipped.
+- runFlow:
+    when:
+      visible: "AI CREDITS"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: "AI CREDITS"
+          direction: DOWN
+      # Tap a credit legend row to open the CreditModal.
+      - tapOn:
+          text: "AI Rank|AI Insight|Applicant Screening"
+          index: 0
+      - assertVisible:
+          text: ".*credits|Out of.*credits"
+          timeout: 10000
+      # Balances are read-only on mobile; plan changes are web-only.
+      - assertVisible: "Plans are managed from your Aster web dashboard."
+      - tapOn: "Got it"

@@ -1,0 +1,20 @@
+# [POSITIVE] Open notifications from the header bell and confirm the screen renders
+# (opening it also clears the unread badge).
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - positive
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+# The bell is an icon-only control in the blue header (top-right). Tap by position.
+- tapOn:
+    point: "88%,7%"
+- assertVisible:
+    text: "Notifications"
+    timeout: 15000
+# Either there are rows, or the caught-up empty state — never a blank screen.
+- assertVisible:
+    text: "You're all caught up|Updates"
+- back

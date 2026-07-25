@@ -1,0 +1,28 @@
+# [POSITIVE] Open Settings from the header gear, verify the preference toggles,
+# then sign out — which returns to the auth screen.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - settings
+  - positive
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+# The gear is an icon-only control in the blue header, left of the bell.
+- tapOn:
+    point: "80%,7%"
+- assertVisible:
+    text: "Settings"
+    timeout: 15000
+- assertVisible: "PREFERENCES"
+- assertVisible: "Biometric unlock"
+- assertVisible: "Notifications"
+- assertVisible:
+    text: "Aster · v.*"
+
+# Sign out returns to the sign-in screen.
+- tapOn: "Sign out"
+- assertVisible:
+    text: "Sign in to your Aster workspace"
+    timeout: 20000

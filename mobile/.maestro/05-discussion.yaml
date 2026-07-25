@@ -1,0 +1,42 @@
+# [POSITIVE] Open a candidate's panel discussion and post a message.
+appId: com.hireaster.mobile
+tags:
+  - suite
+  - hiring
+  - positive
+---
+- launchApp
+- runFlow: subflows/login.yaml
+
+- tapOn:
+    text: "Positions"
+    optional: true
+- assertVisible:
+    text: "OPEN POSITIONS.*"
+    timeout: 20000
+
+- runFlow:
+    when:
+      notVisible: "No open positions"
+    commands:
+      - tapOn: { text: "View", index: 0 }
+      - tapOn: { text: "View profile", index: 0, optional: true }
+      # "Discuss with Panel" opens the discussion thread.
+      - tapOn:
+          text: "Discuss with Panel"
+          optional: true
+      - assertVisible:
+          text: "Private discussion about.*"
+          timeout: 20000
+      # Compose a message. The composer placeholder mentions @ mentions.
+      - tapOn: "Message the panel… use @ to tag"
+      - inputText: "Maestro smoke-test note, please ignore."
+      - hideKeyboard
+      # The send control is an arrow-up icon with no label; tap the composer's
+      # trailing edge. (If your build adds a testID to it, prefer that.)
+      - tapOn:
+          point: "92%,95%"
+      # The optimistic bubble appears (Sending… then a timestamp).
+      - assertVisible:
+          text: "Maestro smoke-test note, please ignore."
+          timeout: 15000
