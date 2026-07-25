@@ -13923,40 +13923,30 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const atTopPlan = plan === "elite" || plan === "enterprise";
   const showUpgrade = onUpgrade && !atTopPlan;
   return (
-    <div className="relative rounded-2xl p-5 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 18px 38px -18px rgba(var(--brand-rgb),0.7)" }}>
-      {/* Soft top-right sheen so the card reads premium, not a flat block. */}
+    <div className="relative rounded-2xl p-4 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 14px 30px -16px rgba(var(--brand-rgb),0.65)" }}>
       <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 85% at 100% 0%, rgba(255,255,255,0.20), transparent 55%)" }} />
-      <div className="relative flex items-start justify-between gap-3 mb-2.5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85 leading-snug" style={{ letterSpacing: "0.06em" }}>
-          {title}
-        </h3>
+      <div className="relative flex items-center justify-between gap-2 mb-1.5">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85 truncate" style={{ letterSpacing: "0.06em" }}>{title}</h3>
         {resetLabel && <ResetBadge label={resetLabel} />}
       </div>
-      <div className="relative flex items-baseline gap-1.5 mb-2.5">
-        <span className="text-2xl font-bold font-display tnum leading-none text-white">{shownUsed}</span>
-        <span className="text-sm text-white/70">/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
+      <div className="relative flex items-baseline gap-1.5 mb-2">
+        <span className="text-xl font-bold font-display tnum leading-none text-white">{shownUsed}</span>
+        <span className="text-xs text-white/70">/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
+        {typeof purchased === "number" && (
+          <span className="ml-auto text-[11px] tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} top-up` : "0 top-up"}</span>
+        )}
       </div>
-      <div className="relative h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>
+      <div className="relative h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#FBBF24" : "#fff" }} />
       </div>
-      {note && <p className="relative text-xs mt-2.5 leading-relaxed text-center" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
-      {/* Purchased-credits status sits above the action row so the two buttons
-          can share one line. */}
-      {typeof purchased === "number" && (
-        <div className="relative mt-3.5 flex items-baseline justify-between">
-          <span className="text-[11px] text-white/80">Purchased credits</span>
-          <span className="text-sm font-semibold tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} left` : "0 left"}</span>
-        </div>
-      )}
-      {/* Actions: two columns when both exist (Upgrade primary, Buy secondary),
-          full width when only one applies. */}
+      {note && <p className="relative text-[11px] mt-2 leading-relaxed" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
       {(showUpgrade || onBuyCredits) && (
-        <div className={`relative mt-3 ${showUpgrade && onBuyCredits ? "grid grid-cols-2 gap-2.5" : ""}`}>
+        <div className={`relative mt-3 ${showUpgrade && onBuyCredits ? "grid grid-cols-2 gap-2" : ""}`}>
           {showUpgrade && (
-            <button onClick={onUpgrade} className="w-full rounded-xl bg-white hover:bg-white/90 hover:-translate-y-0.5 text-sm font-semibold py-2.5 px-2 transition-all" style={{ color: "var(--brand)", boxShadow: "0 10px 22px -12px rgba(0,0,0,0.4)" }}>{upgradeLabel}</button>
+            <button onClick={onUpgrade} className="w-full rounded-lg bg-white hover:bg-white/90 text-xs font-semibold py-2 px-2 transition-colors" style={{ color: "var(--brand)" }}>{upgradeLabel}</button>
           )}
           {onBuyCredits && (
-            <button onClick={onBuyCredits} className={`w-full rounded-xl text-sm font-semibold py-2.5 px-2 transition-all hover:-translate-y-0.5 ${showUpgrade ? "bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)", boxShadow: "0 10px 22px -12px rgba(0,0,0,0.4)" }}>Buy credits</button>
+            <button onClick={onBuyCredits} className={`w-full rounded-lg text-xs font-semibold py-2 px-2 transition-colors ${showUpgrade ? "bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
           )}
         </div>
       )}
@@ -15575,8 +15565,14 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                     </tr>
                   );
                 };
-                // Always split into Strong matches and Non-matches, and always show
-                // BOTH section bars (with an empty state when a group has none).
+                // Strong / Non-matches grouping (with the always-on section bars +
+                // empty states) is ONLY for the Applied view — the default view or
+                // the Applied stage. Every other stage falls back to a flat list.
+                const isAppliedView = stageFilter == null || stageFilter === "applied";
+                if (!isAppliedView) {
+                  if (rows.length === 0) return <tr><td colSpan={6} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates in this stage.</td></tr>;
+                  return rows.map(renderRow);
+                }
                 const strong = rows.filter((a) => a.fit !== "other");
                 const other = rows.filter((a) => a.fit === "other");
                 const groupHeader = (label, n, color, bg) => (
