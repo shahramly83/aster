@@ -12980,22 +12980,52 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 lg:items-start">
           <div className="min-w-0">
         {filtered.length === 0 ? (
-          <div className="rounded-2xl bg-white act-shadow px-5 py-12 border text-center" style={{ borderColor: "var(--line)" }}>
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-              <Icon name="jobs" className="w-6 h-6" />
+          jobs.length === 0 ? (
+            // Premium first-run: a hero that sells the payoff, not a flat "nothing here" card.
+            <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+              <div className="relative px-6 py-12 text-center overflow-hidden">
+                {/* soft brand aura behind the mark */}
+                <div aria-hidden="true" className="pointer-events-none absolute left-1/2 -top-20 -translate-x-1/2 h-56 w-56 rounded-full blur-3xl opacity-60" style={{ background: "radial-gradient(circle, var(--brand-soft), transparent 70%)" }} />
+                <div className="relative mx-auto mb-5 w-16 h-16">
+                  <div className="absolute inset-0 rounded-2xl brand-gradient" style={{ boxShadow: "0 16px 34px -12px rgba(var(--brand-rgb),0.6)" }} />
+                  <div className="absolute inset-0 flex items-center justify-center text-white"><Icon name="jobs" className="w-7 h-7" /></div>
+                </div>
+                <h3 className="relative text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Post your first role</h3>
+                <p className="relative text-sm mt-1.5 mb-6 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                  Publish a job to get a shareable apply link. Aster reads, scores, and ranks every applicant, so you start from the best-fit shortlist instead of a pile of CVs.
+                </p>
+                <button onClick={() => navigate("newJob")} className="relative inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-xl brand-gradient text-white px-5 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
+                  <Icon name="jobs" className="w-4 h-4" /> Post a job
+                </button>
+              </div>
+              {/* What happens next: turns a dead-end into a 3-step preview */}
+              <div className="grid grid-cols-3 gap-px" style={{ background: "var(--line)", borderTop: "1px solid var(--line)" }}>
+                {[
+                  { n: "1", t: "Share the link", d: "Careers page + job boards" },
+                  { n: "2", t: "AI screens", d: "Every applicant scored" },
+                  { n: "3", t: "Hire the best", d: "Start from a shortlist" },
+                ].map((s) => (
+                  <div key={s.n} className="bg-white px-3 py-4 text-center">
+                    <div className="mx-auto mb-2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold tnum" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{s.n}</div>
+                    <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>{s.t}</p>
+                    <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--ink-3)" }}>{s.d}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>
-              {jobs.length === 0 ? "No job postings yet" : "No roles match your filters"}
-            </p>
-            <p className="text-xs mt-1 mb-4 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>
-              {jobs.length === 0 ? "Create your first role to start collecting and screening applicants." : "Try a different search, or clear the status filter."}
-            </p>
-            {jobs.length === 0 ? (
-              <button onClick={() => navigate("newJob")} className="text-sm rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 transition-colors">Post a job</button>
-            ) : jobs.length > 0 && (statusFilter !== "all" || q) ? (
-              <button onClick={() => { setSearch(""); setStatus("all"); }} className="text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Clear filters</button>
-            ) : null}
-          </div>
+          ) : (
+            // Filtered to nothing: a calm, minimal "no matches" state.
+            <div className="rounded-2xl bg-white act-shadow px-5 py-12 border text-center" style={{ borderColor: "var(--line)" }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                <Icon name="search" className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No roles match your filters</p>
+              <p className="text-xs mt-1 mb-4 max-w-xs mx-auto" style={{ color: "var(--ink-3)" }}>Try a different search, or clear the status filter.</p>
+              {(statusFilter !== "all" || q) ? (
+                <button onClick={() => { setSearch(""); setStatus("all"); }} className="text-sm font-medium rounded-xl border px-4 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Clear filters</button>
+              ) : null}
+            </div>
+          )
         ) : (
           <>
           {/* Cards, always on mobile; on desktop only when grid view is picked */}
@@ -14148,6 +14178,120 @@ function ConfirmDialog({ open, title, body, confirmLabel = "Continue", cancelLab
   );
 }
 
+// Out-of-the-box replacement for the plain "complete your profile" confirm
+// dialog. Instead of a text wall, it shows a progress ring + a live checklist of
+// exactly what's left, so the gate reads as momentum ("you're 60% there") not a
+// blocker. Each unfinished row is tappable and jumps straight into the profile.
+// Done/todo is conveyed by icon + weight + strike-through, never colour alone.
+function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
+  const panelRef = useRef(null);
+  const titleId = useId();
+  const bodyId = useId();
+  const done = items.filter((i) => i.done).length;
+  const total = items.length || 1;
+  const left = total - done;
+  const pct = Math.round((done / total) * 100);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key !== "Tab") return;
+      // Modal: trap Tab within the panel.
+      const els = panelRef.current?.querySelectorAll("button:not([disabled])");
+      if (!els?.length) return;
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement;
+    panelRef.current?.querySelector("button")?.focus();
+    return () => { if (opener instanceof HTMLElement) opener.focus(); };
+  }, [open]);
+
+  if (!open) return null;
+  const R = 30, CIRC = 2 * Math.PI * R;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm act-scrim-in" onClick={onClose} />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
+        className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl act-panel-in overflow-hidden"
+        style={{ border: "1px solid var(--line)" }}
+      >
+        {/* Header: live progress ring + status */}
+        <div className="flex items-center gap-4 p-5 pb-4" style={{ borderBottom: "1px solid var(--line)" }}>
+          <div className="relative shrink-0" style={{ width: 76, height: 76 }}>
+            <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
+              <circle cx="38" cy="38" r={R} fill="none" stroke="var(--line)" strokeWidth="6" />
+              <circle
+                cx="38" cy="38" r={R} fill="none" stroke="var(--brand)" strokeWidth="6" strokeLinecap="round"
+                strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - pct / 100)}
+                transform="rotate(-90 38 38)"
+                style={{ transition: "stroke-dashoffset .6s cubic-bezier(.4,0,.2,1)" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-base font-bold font-display tnum" style={{ color: "var(--brand)" }}>{pct}%</span>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <h3 id={titleId} className="text-[15px] font-semibold font-display" style={{ color: "var(--ink)" }}>You're almost ready to hire</h3>
+            <p id={bodyId} className="text-sm mt-0.5 leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              Finish {left} {left === 1 ? "item" : "items"} so your apply link and career page look ready for candidates.
+            </p>
+          </div>
+        </div>
+
+        {/* Live checklist: done rows are settled, remaining rows are actionable */}
+        <ul className="p-3">
+          {items.map((it, i) => (
+            <li key={i}>
+              {it.done ? (
+                <div className="flex items-center gap-3 rounded-xl px-2.5 py-2">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#DCFCE7" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  </span>
+                  <span className="text-sm" style={{ color: "var(--ink-3)", textDecoration: "line-through", textDecorationColor: "var(--line)" }}>{it.label}</span>
+                </div>
+              ) : (
+                <button
+                  onClick={onConfirm}
+                  className="w-full flex items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-neutral-50 group"
+                >
+                  <span className="w-6 h-6 rounded-full border-2 shrink-0" style={{ borderColor: "var(--line)" }} />
+                  <span className="text-sm font-medium flex-1" style={{ color: "var(--ink)" }}>{it.label}</span>
+                  <svg className="opacity-40 group-hover:opacity-100 transition-opacity" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-5 py-4" style={{ borderTop: "1px solid var(--line)" }}>
+          <button onClick={onClose} className="text-sm font-medium rounded-xl px-4 py-2.5 transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-2)" }}>Not now</button>
+          <button onClick={onConfirm} className="text-sm font-semibold rounded-xl text-white px-4 py-2.5 brand-gradient hover:opacity-95 transition-opacity inline-flex items-center gap-2">
+            Complete profile
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
   const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
@@ -15070,11 +15214,6 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
       {interviews.length === 0 ? (
         <div className="rounded-2xl bg-white act-shadow border px-6 py-14 sm:py-20 text-center" style={{ borderColor: "var(--line)" }}>
           <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>No interviews scheduled yet</p>
-          {!forInterviewer && (
-            <p className="text-sm mt-2 max-w-md mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              Send a candidate an interview invite. Once they pick a time, it shows up here with the position and their details.
-            </p>
-          )}
         </div>
       ) : (
         <>
@@ -20706,46 +20845,30 @@ function BillingCurrencyCard({ value, onChange }) {
 // or draw it; it's stored on your profile and stamped onto every offer you
 // compose, above your name, so the letter is signed off by the company before
 // the candidate counter-signs. Upload-mode offers use your own PDF instead.
-function OfferSignatureCard({ profile }) {
+// Controlled editor: the draft is reported up via onDraftChange, and the page's
+// global "Save changes" bar owns persistence (no per-card Save button). savedSig
+// is the persisted baseline; resetSignal bumps to re-seed the editor on Cancel.
+function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange }) {
   const [mode, setMode] = useState("type");           // 'type' | 'draw'
   const [typed, setTyped] = useState("");
   const [drawn, setDrawn] = useState(null);            // PNG data URI
-  const [saved, setSaved] = useState(undefined);       // current saved value; undefined = loading
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
 
+  // Seed the editor from the persisted baseline on load, re-seed on Cancel
+  // (resetSignal) or after a save updates the baseline.
   useEffect(() => {
-    let alive = true;
-    dbGetMyOfferSignature().then((s) => {
-      if (!alive) return;
-      setSaved(s || null);
-      if (s && s.startsWith("typed:")) { setMode("type"); setTyped(s.slice(6)); }
-      else if (s) { setMode("draw"); setDrawn(s); }
-      else setTyped(profile?.full_name || profile?.name || "");
-    });
-    return () => { alive = false; };
+    const s = savedSig;
+    if (s === undefined) return;                       // still loading
+    if (s && s.startsWith("typed:")) { setMode("type"); setTyped(s.slice(6)); setDrawn(null); }
+    else if (s) { setMode("draw"); setDrawn(s); setTyped(""); }
+    else { setTyped(""); setDrawn(null); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [savedSig, resetSignal]);
 
   const current = mode === "type" ? (typed.trim() ? `typed:${typed.trim()}` : null) : drawn;
-  const save = async () => {
-    setBusy(true); setMsg(null);
-    const err = await dbSaveMyOfferSignature(current);
-    setBusy(false);
-    if (err) { setMsg({ type: "err", text: err }); return; }
-    setSaved(current);
-    setMsg({ type: "ok", text: current ? "Signature saved. It'll appear on offers you compose." : "Signature cleared." });
-  };
-  const remove = async () => {
-    setBusy(true); setMsg(null);
-    const err = await dbSaveMyOfferSignature(null);
-    setBusy(false);
-    if (err) { setMsg({ type: "err", text: err }); return; }
-    setTyped(""); setDrawn(null); setSaved(null);
-    setMsg({ type: "ok", text: "Signature cleared." });
-  };
 
-  const dirty = current !== (saved ?? null);
+  // Push the draft up so the page's global Save bar can persist / diff it.
+  useEffect(() => { onDraftChange?.(current); }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div>
       <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
@@ -20753,7 +20876,7 @@ function OfferSignatureCard({ profile }) {
       </p>
       <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
         {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
-          <button key={k} type="button" onClick={() => { setMode(k); setMsg(null); }}
+          <button key={k} type="button" onClick={() => setMode(k)}
             className="text-xs font-semibold px-3.5 py-1.5 rounded-md transition-colors"
             style={mode === k ? { background: "#fff", color: "var(--brand)", boxShadow: "0 1px 2px rgba(16,19,42,.08)" } : { color: "var(--ink-3)" }}>
             {label}
@@ -20762,7 +20885,7 @@ function OfferSignatureCard({ profile }) {
       </div>
       {mode === "type" ? (
         <div>
-          <input value={typed} onChange={(e) => { setTyped(e.target.value); setMsg(null); }} placeholder="Type your full name"
+          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type your full name"
             className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }} />
           {typed.trim() && (
             <div className="mt-2 rounded-lg px-4 py-3 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff", minHeight: 60 }}>
@@ -20772,33 +20895,16 @@ function OfferSignatureCard({ profile }) {
         </div>
       ) : (
         <div>
-          {saved && !drawn && saved !== null && !saved.startsWith("typed:") && (
+          {savedSig && !drawn && !savedSig.startsWith("typed:") && (
             <div className="mb-2 rounded-lg px-4 py-2 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff" }}>
-              <img src={saved} alt="Saved signature" style={{ height: 48, maxWidth: 240, objectFit: "contain" }} />
+              <img src={savedSig} alt="Saved signature" style={{ height: 48, maxWidth: 240, objectFit: "contain" }} />
               <span className="text-[11px] ml-3" style={{ color: "var(--ink-3)" }}>Current — draw below to replace</span>
             </div>
           )}
-          <SignaturePad onChange={(d) => { setDrawn(d); setMsg(null); }} />
+          <SignaturePad onChange={(d) => setDrawn(d)} />
         </div>
       )}
-      <div className="flex items-center gap-2 mt-4">
-        <button onClick={save} disabled={busy || (mode === "type" ? !typed.trim() : (!drawn && !(saved && !saved.startsWith("typed:"))))}
-          className="text-sm rounded-xl brand-gradient text-white font-semibold px-5 py-2.5 transition-opacity hover:opacity-95 disabled:opacity-40">
-          {busy ? "Saving…" : "Save signature"}
-        </button>
-        {saved && (
-          <button onClick={remove} disabled={busy} className="text-sm rounded-xl border font-medium px-4 py-2.5 transition-colors hover:bg-[color:var(--bg)] disabled:opacity-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
-            Clear
-          </button>
-        )}
-      </div>
-      {msg && (
-        <div className="mt-3 rounded-lg px-3.5 py-2.5 text-sm" style={msg.type === "err"
-          ? { background: "#FEF2F2", border: "1px solid #FECACA", color: "#B42318" }
-          : { background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#166534" }}>
-          {msg.text}
-        </div>
-      )}
+      <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>Saved with the Save button at the bottom of the page.</p>
     </div>
   );
 }
@@ -20820,7 +20926,19 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   const [dCurrency, setDCurrency] = useState(preferredCurrency);
   useEffect(() => { setDCurrency(preferredCurrency); }, [preferredCurrency]);
 
-  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency;
+  // Offer signature also drafts here so the global Save bar owns it (no per-card
+  // Save button). sigBase = persisted baseline; dSig = live editor draft.
+  const [sigBase, setSigBase] = useState(undefined);   // undefined = loading
+  const [dSig, setDSig] = useState(null);
+  const [sigReset, setSigReset] = useState(0);         // bump to re-seed the editor on Cancel
+  useEffect(() => {
+    let alive = true;
+    dbGetMyOfferSignature().then((s) => { if (alive) { setSigBase(s || null); setDSig(s || null); } });
+    return () => { alive = false; };
+  }, []);
+  const sigDirty = sigBase !== undefined && dSig !== sigBase;
+
+  const dirty = JSON.stringify(dNotif) !== JSON.stringify(notifBase) || dCurrency !== preferredCurrency || sigDirty;
 
   const handleSave = async () => {
     setSaving(true); setSavedMsg(null); setConnectErr(null);
@@ -20831,9 +20949,14 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
         const res = await dbSetCompanyCurrency(dCurrency);
         if (!res?.ok) { setSaving(false); setConnectErr(res?.error || "Couldn't save the billing currency."); return; }
       }
+      if (sigDirty) {
+        const sErr = await dbSaveMyOfferSignature(dSig);
+        if (sErr) { setSaving(false); setConnectErr(sErr); return; }
+      }
     }
     if (dCurrency !== preferredCurrency) setPreferredCurrency(dCurrency);
     setProfile?.({ ...(profile || {}), notifications: dNotif });
+    setSigBase(dSig);
     setSaving(false);
     setSavedMsg("All changes saved.");
   };
@@ -20841,6 +20964,8 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
   const handleCancel = () => {
     setDNotif(notifBase);
     setDCurrency(preferredCurrency);
+    setDSig(sigBase);
+    setSigReset((n) => n + 1);
     setSavedMsg(null);
   };
 
@@ -20863,7 +20988,7 @@ function SettingsScreen({ navigate, plan = "launch", company = "", profile, setP
           </SettingsSection>
 
           <SettingsSection icon="offer" title="Offer signature" desc="Your sign-off, stamped on offer letters you compose">
-            <OfferSignatureCard profile={profile} />
+            <OfferSignatureCard savedSig={sigBase} resetSignal={sigReset} onDraftChange={setDSig} />
           </SettingsSection>
 
           <SettingsSection
@@ -27838,14 +27963,17 @@ export default function ResumeAIPreview() {
         </ErrorBoundary>
       </SidebarLayout>
       <NewJobModal open={newJobOpen} onClose={() => setNewJobOpen(false)} jobs={jobs} setJobs={setJobs} plan={effectivePlan} navigate={navigate} onCreate={canPersist ? (p) => dbCreateJob(companyId, userId, p) : null} onUpdate={canPersist ? (id, p) => dbUpdateJob(id, p) : null} jobPostBlocked={jobPostBlocked} jobPostUsage={jobPostUsage} onConsumeJobPost={consumeJobPost} />
-      {/* First-job gate: profile must be 100% (photo excluded) before posting. */}
-      <ConfirmDialog
+      {/* First-job gate: profile must be complete before posting. Shows a live
+          checklist of exactly what's left rather than a wall of copy. */}
+      <ProfileGateModal
         open={profileGate}
-        title="Complete your profile first"
-        body="Your profile needs to be 100% complete before you post your first job, so your apply link and career page look ready for candidates. The profile photo is optional and doesn't count."
-        confirmLabel="Complete profile"
-        cancelLabel="Not now"
-        icon="user"
+        items={[
+          { label: "Your name", done: !!(profile?.firstName && profile?.lastName) },
+          { label: "Phone number", done: !!profile?.phone },
+          { label: "Company name", done: !!company },
+          { label: "Company logo", done: !!companyLogoUrl },
+          { label: "Business address", done: !!companyAddressParts?.street },
+        ]}
         onConfirm={() => { setProfileGate(false); navigate("profile"); }}
         onClose={() => setProfileGate(false)}
       />
