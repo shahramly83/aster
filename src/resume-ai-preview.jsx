@@ -15176,6 +15176,10 @@ const PIPE_STAGE_META = {
 };
 function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null }) {
   const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
+  const [ivOpen, setIvOpen] = useState(false);   // interviewer invite/manage expanded
+  const [ivEmail, setIvEmail] = useState("");
+  const [ivBusy, setIvBusy] = useState(false);
+  const [ivNote, setIvNote] = useState(null);    // { type:'ok'|'err', msg }
   const openJobs = jobs.filter((j) => j.status === "open");
   const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
@@ -15256,6 +15260,28 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       onRanked();
     } catch (e) { setRankMsg(`Couldn't run AI Rank: ${e?.message || "try again."}`); }
     setRanking(false);
+  };
+
+  // Invite a new interviewer by email (interviewer role); assign once they join.
+  const sendInvite = async () => {
+    const em = ivEmail.trim();
+    if (!em || ivBusy) return;
+    setIvBusy(true); setIvNote(null);
+    try {
+      if (hasSupabase) {
+        const { data, error } = await supabase.functions.invoke("send-teammate-invite", { body: { email: em, role: "interviewer" } });
+        let reason = data?.error || "";
+        if (!reason && error?.context?.json) { try { const b = await error.context.json(); reason = b?.error || ""; } catch { /* ignore */ } }
+        if (error || reason) {
+          setIvNote({ type: "err", msg: /already|exists|duplicate/i.test(reason) ? "Already on your team or invited." : /seat|limit/i.test(reason) ? "No teammate seats left on your plan." : /permission|denied|forbidden/i.test(reason) ? "Only the tenant or a hiring manager can invite." : reason || "Couldn't send the invite." });
+          setIvBusy(false); return;
+        }
+        await reloadTeam();
+      }
+      setIvNote({ type: "ok", msg: `Invite sent to ${em}. Assign them here once they join.` });
+      setIvEmail("");
+    } catch { setIvNote({ type: "err", msg: "Couldn't send the invite." }); }
+    setIvBusy(false);
   };
 
   // Funnel elements built as a flat array (no React.Fragment in scope here). Bars
@@ -15368,21 +15394,67 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         })()}
       </div>
 
-      {/* Interviewers on this position: reuses the Applicants board panel, so you
-          can assign a teammate or invite a new interviewer by email inline. */}
-      {roleFilter && (
-        <JobInterviewersPanel
-          jobId={roleFilter}
-          team={interviewers}
-          assignedIds={new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id))}
-          canManage
-          currentUserId={userId}
-          onAssign={onAssignInterviewer}
-          onUnassign={onUnassignInterviewer}
-          navigate={navigate}
-          reloadTeam={reloadTeam}
-        />
-      )}
+      {/* Interviewers on this position: compact count + Invite Interviewer (right).
+          Clicking it reveals the invite field + manage/assign controls. */}
+      {roleFilter && (() => {
+        const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
+        const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
+        const addable = interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && !iv.pending && iv.id !== userId);
+        return (
+          <div className="mb-4">
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              {assigned.length > 0 && (
+                <div className="flex items-center mr-1">
+                  {assigned.slice(0, 4).map((iv, i) => (
+                    <span key={iv.id} className="rounded-full" style={{ marginLeft: i === 0 ? 0 : -8, boxShadow: "0 0 0 2px #fff", zIndex: 4 - i }}><CandidateAvatar name={iv.name} hasPhoto={false} size={24} showPhotoDot={false} /></span>
+                  ))}
+                </div>
+              )}
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title={`${assigned.length} interviewer${assigned.length === 1 ? "" : "s"} on this role`}>
+                <Icon name="users" className="w-3.5 h-3.5" /> {assigned.length}
+              </span>
+              <button onClick={() => { setIvOpen((o) => !o); setIvNote(null); }} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">
+                <Icon name="userPlus" className="w-3.5 h-3.5" /> Invite Interviewer
+              </button>
+            </div>
+            {ivOpen && (
+              <div className="mt-2 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                {assigned.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2.5">
+                    {assigned.map((iv) => (
+                      <span key={iv.id} className="inline-flex items-center gap-1.5 rounded-full pl-1 pr-1.5 py-0.5" style={{ background: "#fff", border: "1px solid var(--line)" }}>
+                        <CandidateAvatar name={iv.name} hasPhoto={false} size={20} showPhotoDot={false} />
+                        <span className="text-[11px] font-medium" style={{ color: "var(--ink-2)" }}>{iv.name}</span>
+                        <button onClick={() => onUnassignInterviewer(roleFilter, iv.id)} aria-label={`Remove ${iv.name}`} className="rounded-full p-0.5 hover:bg-neutral-200 transition-colors" style={{ color: "var(--ink-4)" }}><Icon name="close" className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {addable.length > 0 && (
+                  <div className="mb-2.5">
+                    <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Add from your team</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {addable.map((iv) => (
+                        <button key={iv.id} onClick={() => onAssignInterviewer(roleFilter, iv.id)} className="inline-flex items-center gap-1.5 rounded-full pl-1 pr-2.5 py-0.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", border: "1px solid var(--line-strong)", color: "var(--ink-2)" }}>
+                          <CandidateAvatar name={iv.name} hasPhoto={false} size={20} showPhotoDot={false} /> {iv.name} <Icon name="userPlus" className="w-3 h-3" style={{ color: "var(--brand)" }} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Invite a new interviewer</p>
+                <div className="flex items-center gap-2">
+                  <input type="email" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }} placeholder="interviewer@email.com" className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
+                  <button onClick={sendInvite} disabled={!ivEmail.trim() || ivBusy} className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                    <Icon name="userPlus" className="w-3.5 h-3.5" /> {ivBusy ? "Inviting…" : "Invite"}
+                  </button>
+                </div>
+                {ivNote && <p className="text-[11px] mt-2" style={{ color: ivNote.type === "err" ? "#B42318" : "#166534" }}>{ivNote.msg}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* End-to-end funnel */}
       <div className="rounded-2xl bg-white act-shadow border p-5 mb-4" style={{ borderColor: "var(--line)" }}>
@@ -24779,7 +24851,14 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
 
       <div className="mt-3">
         {needsTeam ? (
-          <div className="rounded-xl border border-dashed px-4 py-3.5" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
+          <div className="rounded-xl border border-dashed px-4 py-5" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
+            <div className="text-center">
+              <div className="mx-auto w-10 h-10 rounded-full flex items-center justify-center mb-2.5" style={{ background: "var(--brand-soft)" }}>
+                <Icon name="userPlus" className="w-5 h-5" style={{ color: "var(--brand)" }} />
+              </div>
+              <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>No interviewers on your team yet</p>
+              <p className="text-[11px] mt-1 mb-3 max-w-[18rem] mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Invite a teammate to review these candidates. They'll get an email to join, and you can assign them here once they're in.</p>
+            </div>
             {inviteMsg ? (
               <p className="text-[11px] rounded-lg px-3 py-2 text-center inline-flex items-start gap-1.5" style={{ color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0" }}><Icon name="check" className="w-3.5 h-3.5 mt-px shrink-0" /> {inviteMsg}</p>
             ) : (
@@ -24792,11 +24871,12 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
                   className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
                   style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }}
                 />
-                <button onClick={sendInvite} disabled={!inviteEmail.trim() || inviting} className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
-                  <Icon name="userPlus" className="w-3.5 h-3.5" /> {inviting ? "Inviting…" : "Invite Interviewer"}
+                <button onClick={sendInvite} disabled={!inviteEmail.trim() || inviting} className="shrink-0 text-xs font-semibold rounded-lg px-3 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  {inviting ? "Sending…" : "Send invite"}
                 </button>
               </div>
             )}
+            <button onClick={() => navigate("interviewers")} className="mt-2.5 block mx-auto text-[11px] font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage team</button>
           </div>
         ) : assigned.length === 0 ? (
           <p className="text-xs" style={{ color: "var(--ink-3)" }}>{canManage ? "No interviewers added yet. Use Add interviewer to assign a teammate." : "No interviewers added yet."}</p>
