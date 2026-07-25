@@ -15223,8 +15223,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     const extra = people.length - av.length;
     return (
       <button key={key} type="button" onClick={() => setStageFilter((s) => (s === key ? null : key))} className="flex-1 min-w-0 text-left focus:outline-none group">
-        <div className="rounded-xl px-4 py-3.5 transition-all group-hover:-translate-y-0.5"
-          style={{ background: "#fff", minHeight: 92, border: on ? `2px solid ${color}` : "1px solid var(--line)", boxShadow: on ? `0 10px 22px -12px ${color}` : "0 1px 2px rgba(16,19,42,.04)", opacity: dim ? 0.55 : 1 }}>
+        <div className="rounded-2xl px-4 py-4 transition-all group-hover:-translate-y-0.5"
+          style={{ background: `color-mix(in srgb, ${color} 5%, #fff)`, minHeight: 104, border: on ? `2px solid ${color}` : "1px solid var(--line)", boxShadow: on ? `0 16px 30px -12px ${color}` : "0 2px 5px rgba(16,19,42,.06), 0 14px 26px -16px rgba(16,19,42,.30)", opacity: dim ? 0.55 : 1 }}>
           <div className="flex items-center justify-between">
             <span className="text-2xl font-bold font-display tnum leading-none" style={{ color }}>{counts[key]}</span>
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
@@ -15233,8 +15233,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           {people.length > 0 && (
             <div className="flex items-center mt-2">
               {av.map((a, idx) => (
-                <span key={a.key} className="rounded-full" style={{ marginLeft: idx === 0 ? 0 : -8, boxShadow: "0 0 0 2px #fff", zIndex: 3 - idx }}>
-                  <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={22} showPhotoDot={false} />
+                <span key={a.key} className="rounded-full" style={{ marginLeft: idx === 0 ? 0 : -9, boxShadow: "0 0 0 2px #fff", zIndex: 3 - idx }}>
+                  <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={28} showPhotoDot={false} />
                 </span>
               ))}
               {extra > 0 && (
