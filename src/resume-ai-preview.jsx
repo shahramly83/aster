@@ -11048,60 +11048,82 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
     : `Extra ${meta.label.toLowerCase()} credits for when your monthly plan runs out. They kick in on their own once the plan is used up, and never expire.`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.45)" }}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow max-h-[90vh] overflow-y-auto">
-        <div className="flex items-start justify-between gap-3 mb-1">
-          <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{title}</h3>
-          <button onClick={onClose} aria-label="Close" className="-mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
-        </div>
-        <p className="text-sm mb-5" style={{ color: "var(--ink-2)" }}>{blurb}</p>
-
-        {pickKind ? (
-          <>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many of each?</label>
-            <div className="space-y-2">
-              {lines.map((l) => (
-                <div key={l.k} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: l.q > 0 ? "var(--brand)" : "var(--line)", background: "var(--bg)" }}>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xs font-semibold" style={{ color: "var(--ink)" }}>{l.label}</span>
-                    <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · {sym}{l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""}</span>
-                  </div>
-                  <input type="number" min="0" inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
-                    onChange={(e) => { const v = e.target.value; setQtys((s) => ({ ...s, [l.k]: v })); setErr(null); }}
-                    className="no-spin w-20 rounded-lg bg-white border px-2 py-1.5 text-sm text-right tnum focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">How many credits?</label>
-            <input type="number" min="1" value={qty} placeholder="0" onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
-          </>
-        )}
-
-        <div className="mt-4 rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-          {items.length === 0 ? (
-            <p className="text-xs text-center py-1" style={{ color: "var(--ink-3)" }}>Enter a quantity to see your total.</p>
-          ) : (
-            items.map((l) => (
-              <div key={l.k} className="flex items-center justify-between text-sm mb-1.5">
-                <span style={{ color: "var(--ink-2)" }}>{pickKind ? l.label : "Quantity"} <span className="tnum" style={{ color: "var(--ink-3)" }}>× {l.q.toLocaleString()}</span></span>
-                <span className="tnum font-medium" style={{ color: "var(--ink)" }}>{sym}{l.amount.toFixed(2)}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(10,11,30,0.5)", backdropFilter: "blur(2px)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-3xl bg-white overflow-hidden max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ boxShadow: "0 40px 80px -24px rgba(16,19,42,.55)" }}>
+        {/* Brand-washed header */}
+        <div className="relative px-5 pt-5 pb-4" style={{ background: "linear-gradient(135deg, var(--brand-soft), #fff)" }}>
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl shrink-0" style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 10px 20px -8px rgba(var(--brand-rgb),0.85)" }}><Icon name="star" className="w-5 h-5" /></span>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h3>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-2)" }}>Kick in when your plan runs out · never expire</p>
               </div>
-            ))
-          )}
-          <div className="flex items-center justify-between mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
-            <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Total</span>
-            <span className="text-lg font-bold font-display tnum" style={{ color: "var(--ink)" }}>{sym}{total.toFixed(2)}</span>
+            </div>
+            <button onClick={onClose} aria-label="Close" className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/70 transition-colors" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
           </div>
         </div>
-        {err && <p className="text-xs mt-3 rounded-lg px-3 py-2" style={{ color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA" }}>{err}</p>}
-        <div className="flex items-center gap-2 mt-5">
-          <button onClick={buy} disabled={busy || !items.length} className="flex-1 rounded-xl brand-gradient text-white text-sm font-semibold py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50">{busy ? "Starting checkout…" : `Pay ${sym}${total.toFixed(2)}`}</button>
-          <button onClick={onClose} className="rounded-xl border px-4 py-2.5 text-sm hover:bg-neutral-50 transition-colors" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+
+        <div className="px-5 pt-4 pb-5">
+          {pickKind ? (
+            <>
+              <label className="block text-[11px] font-bold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>How many of each?</label>
+              <div className="space-y-2">
+                {lines.map((l) => (
+                  <div key={l.k} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: l.q > 0 ? "var(--brand)" : "var(--line)", background: "var(--bg)" }}>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xs font-semibold" style={{ color: "var(--ink)" }}>{l.label}</span>
+                      <span className="block text-[10px] mt-0.5" style={{ color: "var(--ink-3)" }}>{l.sub} · {sym}{l.unit.toFixed(2)}/credit{disc ? ` · ${disc}% off` : ""}</span>
+                    </div>
+                    <input type="number" min="0" inputMode="numeric" value={qtys[l.k] ?? ""} placeholder="0"
+                      onChange={(e) => { const v = e.target.value; setQtys((s) => ({ ...s, [l.k]: v })); setErr(null); }}
+                      className="no-spin w-20 rounded-lg bg-white border px-2 py-1.5 text-sm text-right tnum focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="block text-[11px] font-bold uppercase mb-2" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>How many credits?</label>
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
+                {[10, 25, 50, 100].map((n) => {
+                  const on = Number(qty) === n;
+                  return (
+                    <button key={n} onClick={() => { setQty(String(n)); setErr(null); }} className="text-xs font-semibold rounded-lg px-3.5 py-1.5 transition-colors tnum" style={on ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>{n}</button>
+                  );
+                })}
+              </div>
+              <input type="number" min="1" value={qty} placeholder="Custom amount" onChange={(e) => { setQty(e.target.value); setErr(null); }} className="no-spin w-full rounded-xl bg-white border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-soft)] focus:border-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", color: "var(--ink)" }} />
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>{sym}{(lines[0]?.unit ?? 0).toFixed(2)} per credit{disc ? ` · ${disc}% off on your plan` : ""}</p>
+            </>
+          )}
+
+          {/* Total (brand card) */}
+          <div className="mt-4 rounded-2xl p-3.5" style={{ background: "var(--brand-soft)" }}>
+            {items.length === 0 ? (
+              <p className="text-xs text-center py-0.5" style={{ color: "var(--ink-3)" }}>Pick an amount to see your total.</p>
+            ) : (
+              items.map((l) => (
+                <div key={l.k} className="flex items-center justify-between text-xs mb-1" style={{ color: "var(--ink-2)" }}>
+                  <span>{pickKind ? l.label : "Credits"} <span className="tnum">× {l.q.toLocaleString()}</span></span>
+                  <span className="tnum">{sym}{l.amount.toFixed(2)}</span>
+                </div>
+              ))
+            )}
+            <div className="flex items-center justify-between mt-1.5 pt-2" style={{ borderTop: items.length ? "1px solid rgba(var(--brand-rgb),0.18)" : "none" }}>
+              <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Total</span>
+              <span className="text-xl font-extrabold font-display tnum" style={{ color: "var(--brand)" }}>{sym}{total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {err && <p className="text-xs mt-3 rounded-lg px-3 py-2" style={{ color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA" }}>{err}</p>}
+
+          <button onClick={buy} disabled={busy || !items.length} className="mt-4 w-full rounded-xl brand-gradient text-white text-sm font-bold py-3 hover:opacity-90 transition-opacity disabled:opacity-50" style={{ boxShadow: "0 14px 28px -12px rgba(var(--brand-rgb),0.8)" }}>{busy ? "Starting checkout…" : `Pay ${sym}${total.toFixed(2)}`}</button>
+          <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+            <Icon name="lock" className="w-3 h-3" /> Secure Stripe payment · credits added instantly
+          </div>
         </div>
-        <p className="text-[11px] text-neutral-400 mt-3 text-center">Secure one-time payment via Stripe. Credits are added the moment payment clears.</p>
       </div>
     </div>
   );
@@ -15181,6 +15203,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [ivBusy, setIvBusy] = useState(false);
   const [ivNote, setIvNote] = useState(null);    // { type:'ok'|'err', msg }
   const [insight, setInsight] = useState(null);  // { name, reason } for the AI-insight popup
+  const [walletTip, setWalletTip] = useState(false); // credits breakdown tooltip
   const openJobs = jobs.filter((j) => j.status === "open");
   const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
@@ -15451,11 +15474,37 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                 <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
                   <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
                 </button>
-                {/* Credit wallet: balance at a glance + a one-tap Buy. */}
-                <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }} title={runsLeft === Infinity ? "Unlimited AI Rank on your plan" : `${runsLeft} monthly + ${purchasedAiRank} purchased`}>
-                  <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
-                  <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--brand)" }}><span className="font-extrabold tnum">{creditsLeft === Infinity ? "∞" : creditsLeft}</span> credits left</span>
-                  <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+                {/* Credit wallet + menu-style hover breakdown. */}
+                <div className="relative" onMouseEnter={() => setWalletTip(true)} onMouseLeave={() => setWalletTip(false)}>
+                  <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
+                    <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+                    <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--brand)" }}><span className="font-extrabold tnum">{creditsLeft === Infinity ? "∞" : creditsLeft}</span> credits left</span>
+                    <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+                  </div>
+                  {walletTip && (
+                    <div className="absolute z-40 right-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+                      <span className="absolute -top-1.5 right-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+                      {runsLeft === Infinity ? (
+                        <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>Unlimited AI Rank on your plan.</p>
+                      ) : (
+                        <>
+                          <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Rank credits</p>
+                          <div className="flex items-center justify-between text-xs mb-2">
+                            <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} /> Monthly plan</span>
+                            <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{runsLeft}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#F5B301" }} /> Purchased</span>
+                            <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{purchasedAiRank}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                            <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
+                            <span className="font-extrabold tnum" style={{ color: "var(--brand)" }}>{creditsLeft}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -25975,7 +26024,7 @@ const AUTH_SCREENS = new Set(["landing", "login", "signup", "forgotPassword", "c
 // deep-links to one of these (W4) must be sent to /login, not shown the app shell
 // rendered over demo data. Public marketing/apply/booking screens are excluded.
 const WORKSPACE_SCREENS = new Set([
-  "dashboard", "candidates", "candidateProfile", "applicants", "interviews",
+  "dashboard", "pipeline", "candidates", "candidateProfile", "applicants", "interviews",
   "interviewers", "openRoles", "jobs", "search", "upload", "emailTemplates",
   "billing", "profile", "settings", "schedulePicker",
 ]);
