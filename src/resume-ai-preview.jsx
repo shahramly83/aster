@@ -15175,14 +15175,19 @@ const PIPE_STAGE_META = {
   rejected: { label: "Rejected", color: "#DC2626" },
 };
 function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {} }) {
-  const [roleFilter, setRoleFilter] = useState("all"); // "all" | jobId
-  const [roleOpen, setRoleOpen] = useState(false);      // role dropdown open
+  const openJobs = jobs.filter((j) => j.status === "open");
+  const [roleFilter, setRoleFilter] = useState(() => openJobs[0]?.id ?? null); // a specific active position (no "all")
+  const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
   const [stageFilter, setStageFilter] = useState(null); // click a funnel bar to filter the table
   const [q, setQ] = useState("");
   const [ranking, setRanking] = useState(false);        // AI Rank run in flight
   const [rankMsg, setRankMsg] = useState(null);
   const [nonMatchOpen, setNonMatchOpen] = useState(false); // Non-matches accordion (closed by default)
-  const openJobs = jobs.filter((j) => j.status === "open");
+  // Default to (and keep valid) the first active position as jobs load/change.
+  useEffect(() => {
+    if ((roleFilter == null || !openJobs.some((j) => j.id === roleFilter)) && openJobs[0]) setRoleFilter(openJobs[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openJobs.map((j) => j.id).join(",")]);
 
   // One row per application (candidate × job), with the effective stage.
   const apps = [];
@@ -15206,7 +15211,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     });
   });
 
-  const scoped = roleFilter === "all" ? apps : apps.filter((a) => a.jobId === roleFilter);
+  const scoped = roleFilter ? apps.filter((a) => a.jobId === roleFilter) : apps;
   const counts = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, declined: 0, rejected: 0 };
   scoped.forEach((a) => { if (counts[a.stage] != null) counts[a.stage]++; });
   const exits = counts.rejected + counts.declined;
@@ -15320,16 +15325,16 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
       {/* Role filter (dropdown, so it doesn't overflow when there are many roles) */}
       <div className="flex items-center gap-2 mb-4">
         {(() => {
-          const opts = [{ id: "all", title: "All positions" }, ...openJobs.map((j) => ({ id: j.id, title: j.title }))];
-          const countFor = (id) => id === "all" ? apps.length : apps.filter((a) => a.jobId === id).length;
-          const active = opts.find((o) => o.id === roleFilter) || opts[0];
+          const opts = openJobs.map((j) => ({ id: j.id, title: j.title }));
+          const countFor = (id) => apps.filter((a) => a.jobId === id).length;
+          const active = opts.find((o) => o.id === roleFilter) || opts[0] || { title: "No active positions" };
           return (
             <div className="relative">
               <button onClick={() => setRoleOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={roleOpen}
                 className="inline-flex items-center gap-2 rounded-xl bg-white border px-3.5 py-2 text-sm transition-colors hover:border-neutral-300"
                 style={{ borderColor: roleOpen ? "var(--brand)" : "var(--line-strong)", color: "var(--ink-2)" }}>
                 <Icon name="funnel" className="w-4 h-4" style={{ color: "var(--ink-3)" }} />
-                <span style={{ color: "var(--ink-3)" }}>Position:</span>
+                <span style={{ color: "var(--ink-3)" }}>Active Positions:</span>
                 <span className="font-medium truncate" style={{ color: "var(--ink)", maxWidth: 220 }}>{active.title}</span>
                 <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${roleOpen ? "rotate-180" : ""}`} style={{ color: "var(--ink-3)" }} />
               </button>
@@ -15377,12 +15382,12 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
             against one role). Disabled state explains why. */}
         {stageFilter === "applied" && (() => {
           const appliedCount = scoped.filter((a) => a.stage === "applied").length;
-          const reason = roleFilter === "all"
-            ? "Pick a position above, then AI Rank scores its applied candidates."
+          const reason = !roleFilter
+            ? "Pick a position, then AI Rank scores its applied candidates."
             : appliedCount < 2
               ? "AI Rank needs at least 2 applied candidates for this position."
               : "Score these applied candidates against this position with AI.";
-          const disabled = ranking || roleFilter === "all" || appliedCount < 2;
+          const disabled = ranking || !roleFilter || appliedCount < 2;
           return (
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
               <span className="text-xs" style={{ color: "var(--ink-3)" }}>{reason}</span>
@@ -15428,9 +15433,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                 if (rows.length === 0) {
                   return <tr><td colSpan={5} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates match this view.</td></tr>;
                 }
-                // Inside Applied, split into Strong matches and Non-matches (same
+                // Always split the list into Strong matches and Non-matches (same
                 // AI-fit logic the Applicants board uses: fit === "other" is a non-match).
-                if (stageFilter === "applied") {
                   const strong = rows.filter((a) => a.fit !== "other");
                   const other = rows.filter((a) => a.fit === "other");
                   const groupHeader = (label, n, color, bg) => (
@@ -15462,8 +15466,6 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                     if (nonMatchOpen) other.forEach((a) => out.push(renderRow(a)));
                   }
                   return out;
-                }
-                return rows.map(renderRow);
               })()}
             </tbody>
           </table>
