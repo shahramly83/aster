@@ -8795,6 +8795,7 @@ function Icon({ name, className = "w-5 h-5", style }) {
     chat: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>,
     shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>,
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    funnel: <><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z" /></>,
     target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
     offer: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h4a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.4z" /><circle cx="7.5" cy="7.5" r="1" /></>,
     hire: <><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></>,
@@ -8908,6 +8909,7 @@ function AnimatedAsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { key: "pipeline", label: "Pipeline", icon: "funnel" },
   { key: "jobs", label: "Job Postings", icon: "jobs" },
   { key: "interviews", label: "Interviews", icon: "calendar" },
   { key: "search", label: "Talent Pool", icon: "search" },
@@ -15150,6 +15152,223 @@ const candidateOutcome = (candidateId) => {
   }
   return null;
 };
+
+// The company-wide pipeline overview: where every candidate sits from Applied to
+// Hired, across all open roles. KPI cards + an end-to-end funnel + a searchable,
+// stage-filterable candidate table. Reads the live workspace data (applications,
+// stages, matches) with in-session stage overrides applied, so it always matches
+// what the rest of the app shows.
+const PIPE_FUNNEL = [
+  { key: "applied", label: "Applied", color: "var(--brand)" },
+  { key: "shortlisted", label: "Shortlisted", color: "#3B82F6" },
+  { key: "interviewing", label: "Interview", color: "#6366F1" },
+  { key: "offer", label: "Offer", color: "#D97706" },
+  { key: "hired", label: "Hired", color: "#16A34A" },
+];
+const PIPE_STAGE_META = {
+  applied: { label: "Applied", color: "var(--brand)" },
+  shortlisted: { label: "Shortlisted", color: "#2563EB" },
+  interviewing: { label: "Interview", color: "#6366F1" },
+  offer: { label: "Offer", color: "#B45309" },
+  hired: { label: "Hired", color: "#15803D" },
+  declined: { label: "Declined", color: "#6B7280" },
+  rejected: { label: "Rejected", color: "#DC2626" },
+};
+function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications }) {
+  const [roleFilter, setRoleFilter] = useState("all"); // "all" | jobId
+  const [tab, setTab] = useState("all");                // all | active | offer | hired | closed
+  const [q, setQ] = useState("");
+  const openJobs = jobs.filter((j) => j.status === "open");
+
+  // One row per application (candidate × job), with the effective stage.
+  const apps = [];
+  Object.entries(APPLICANTS_BY_JOB).forEach(([jobId, arr]) => {
+    (arr || []).forEach((a) => {
+      const stage = readOverride(stageOverrides, a.candidateId, jobId) ?? a.baseStage;
+      const cand = candidates.find((c) => c.id === a.candidateId);
+      const job = jobs.find((j) => j.id === jobId);
+      const m = (MOCK_MATCHES[jobId] || []).find((x) => x.candidateId === a.candidateId);
+      const raw = m ? (m.score > 1 ? m.score / 100 : m.score) : null;
+      apps.push({
+        key: `${a.candidateId}:${jobId}`, candidateId: a.candidateId, jobId,
+        name: cand?.parsed?.name || cand?.name || "Candidate",
+        hasPhoto: cand?.hasPhoto, avatar: cand?.avatarUrl,
+        jobTitle: job?.title || "Role",
+        stage, source: a.source || "Career Page",
+        appliedAt: a.appliedAt, appliedAtIso: a.appliedAtIso,
+        match: raw != null ? Math.round(raw * 100) : null,
+      });
+    });
+  });
+
+  const scoped = roleFilter === "all" ? apps : apps.filter((a) => a.jobId === roleFilter);
+  const counts = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, declined: 0, rejected: 0 };
+  scoped.forEach((a) => { if (counts[a.stage] != null) counts[a.stage]++; });
+  // Funnel reads as "candidates who reached this stage or beyond" (among those
+  // still active), so it decreases cleanly Applied → Hired. Exited candidates
+  // (rejected/declined) are shown separately rather than guessed into the funnel.
+  const reached = {
+    applied: counts.applied + counts.shortlisted + counts.interviewing + counts.offer + counts.hired,
+    shortlisted: counts.shortlisted + counts.interviewing + counts.offer + counts.hired,
+    interviewing: counts.interviewing + counts.offer + counts.hired,
+    offer: counts.offer + counts.hired,
+    hired: counts.hired,
+  };
+  const hiredAges = scoped.filter((a) => a.stage === "hired" && a.appliedAtIso)
+    .map((a) => Math.max(0, Math.floor((Date.now() - new Date(a.appliedAtIso).getTime()) / 86400000)));
+  const avgTth = hiredAges.length ? Math.round(hiredAges.reduce((s, n) => s + n, 0) / hiredAges.length) : null;
+  const exits = counts.rejected + counts.declined;
+
+  const grp = (s) => (s === "hired" ? "hired" : s === "offer" ? "offer" : (s === "declined" || s === "rejected") ? "closed" : "active");
+  const rows = scoped
+    .filter((a) => (tab === "all" || grp(a.stage) === tab) && (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
+    .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
+  const tabCounts = {
+    all: scoped.length,
+    active: scoped.filter((a) => grp(a.stage) === "active").length,
+    offer: counts.offer, hired: counts.hired, closed: exits,
+  };
+
+  const kpiCards = [
+    { label: "Total candidates", value: scoped.length, icon: "users", tint: "var(--brand-soft)", ink: "var(--brand)" },
+    { label: "Interviewing", value: counts.interviewing, icon: "calendar", tint: "rgba(99,102,241,.12)", ink: "#6366F1" },
+    { label: "Offers out", value: counts.offer, icon: "doc", tint: "rgba(180,83,9,.14)", ink: "#B45309" },
+    { label: "Hired", value: counts.hired, icon: "check", tint: "rgba(21,128,61,.14)", ink: "#15803D" },
+    { label: "Avg. time to hire", value: avgTth != null ? avgTth : "—", suffix: avgTth != null ? " days" : "", icon: "clock", tint: "var(--brand-soft)", ink: "var(--brand)" },
+  ];
+
+  // Funnel elements built as a flat array (no React.Fragment in scope here).
+  const funnelEls = [];
+  PIPE_FUNNEL.forEach((st, i) => {
+    if (i > 0) {
+      const prev = PIPE_FUNNEL[i - 1].key;
+      const conv = reached[prev] > 0 ? Math.round((reached[st.key] / reached[prev]) * 100) : null;
+      funnelEls.push(
+        <div key={`c${i}`} className="flex sm:flex-col items-center justify-center gap-1 px-1 shrink-0 sm:w-14">
+          <span className="text-xs font-bold tnum" style={{ color: "var(--ink-2)" }}>{conv != null ? `${conv}%` : "—"}</span>
+          <Icon name="chevronRight" className="w-4 h-4 rotate-90 sm:rotate-0" style={{ color: "var(--ink-4)" }} />
+        </div>
+      );
+    }
+    funnelEls.push(
+      <div key={st.key} className="flex-1 min-w-0">
+        <div className="rounded-xl px-4 py-4 relative overflow-hidden flex sm:flex-col items-center sm:items-start justify-between" style={{ background: st.color, minHeight: 84 }}>
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 130% at 100% 0%, rgba(255,255,255,0.22), transparent 60%)" }} />
+          <span className="relative text-2xl font-bold font-display tnum text-white leading-none">{reached[st.key]}</span>
+          <span className="relative text-xs font-semibold text-white/90 sm:mt-1">{st.label}</span>
+        </div>
+      </div>
+    );
+  });
+
+  return (
+    <AccountShell
+      title="Pipeline"
+      subtitle={
+        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+          <Icon name="funnel" className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} /> {scoped.length} candidate{scoped.length === 1 ? "" : "s"}{roleFilter === "all" ? ` across ${openJobs.length} open role${openJobs.length === 1 ? "" : "s"}` : ""}
+        </span>
+      }
+      navigate={navigate}
+      profile={profile}
+      avatarUrl={avatarUrl}
+      activities={activities}
+      onOpenNotifications={onOpenNotifications}
+    >
+      {/* Role filter */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <button onClick={() => setRoleFilter("all")} className="text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors" style={roleFilter === "all" ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>All roles</button>
+        {openJobs.map((j) => (
+          <button key={j.id} onClick={() => setRoleFilter(j.id)} className="text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors" style={roleFilter === j.id ? { background: "var(--brand)", color: "#fff" } : { background: "var(--bg)", color: "var(--ink-2)", border: "1px solid var(--line)" }}>{j.title}</button>
+        ))}
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+        {kpiCards.map((k) => (
+          <div key={k.label} className="rounded-2xl bg-white act-shadow border p-4" style={{ borderColor: "var(--line)" }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: k.tint, color: k.ink }}><Icon name={k.icon} className="w-4 h-4" /></div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>{k.label}</p>
+            <p className="text-2xl font-bold font-display tnum mt-0.5" style={{ color: "var(--ink)" }}>{k.value}{k.suffix ? <span className="text-sm font-semibold" style={{ color: "var(--ink-3)" }}>{k.suffix}</span> : null}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* End-to-end funnel */}
+      <div className="rounded-2xl bg-white act-shadow border p-5 mb-4" style={{ borderColor: "var(--line)" }}>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-sm font-bold font-display" style={{ color: "var(--ink)" }}>End-to-end pipeline</h2>
+          <span className="text-xs" style={{ color: "var(--ink-3)" }}>Candidates who reached each stage, with stage-to-stage conversion</span>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-0">{funnelEls}</div>
+        {exits > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
+            <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Exited</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(220,38,38,.1)", color: "#DC2626" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#DC2626" }} /> {counts.rejected} rejected</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "rgba(107,114,128,.12)", color: "#6B7280" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#9CA3AF" }} /> {counts.declined} declined</span>
+          </div>
+        )}
+      </div>
+
+      {/* Candidate table */}
+      <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+        <div className="flex items-center justify-between gap-3 p-4 flex-wrap">
+          <div className="inline-flex gap-1 rounded-xl p-1" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
+            {[["all", "All"], ["active", "Active"], ["offer", "Offer"], ["hired", "Hired"], ["closed", "Closed"]].map(([k, label]) => (
+              <button key={k} onClick={() => setTab(k)} className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5" style={tab === k ? { background: "#fff", color: "var(--ink)", boxShadow: "0 1px 2px rgba(16,19,42,.1)" } : { color: "var(--ink-3)" }}>{label} <span className="text-[10px] tnum" style={{ color: "var(--ink-4)" }}>{tabCounts[k]}</span></button>
+            ))}
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "#fff", border: "1px solid var(--line-strong)" }}>
+            <Icon name="search" className="w-4 h-4" style={{ color: "var(--ink-4)" }} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search candidates…" className="text-sm bg-transparent outline-none" style={{ color: "var(--ink)", minWidth: 180 }} />
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full" style={{ minWidth: 720, borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["Candidate", "Role", "Stage", "Source", "Applied", "Match"].map((h, i) => (
+                  <th key={h} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td colSpan={6} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates match this view.</td></tr>
+              ) : rows.map((a) => {
+                const meta = PIPE_STAGE_META[a.stage] || { label: a.stage, color: "var(--ink-3)" };
+                const mColor = a.match == null ? "var(--ink-4)" : a.match >= 80 ? "#15803D" : a.match >= 65 ? "#B45309" : "#DC2626";
+                return (
+                  <tr key={a.key} onClick={() => onViewCandidate?.(a.candidateId, a.jobId)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={34} />
+                        <span className="font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.jobTitle}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} /> {meta.label}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.source}</td>
+                    <td className="px-4 py-3 text-sm tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <span className="block h-1.5 rounded-full overflow-hidden" style={{ width: 48, background: "var(--line)" }}><span className="block h-full rounded-full" style={{ width: `${a.match ?? 0}%`, background: mColor }} /></span>
+                        <span className="text-xs font-bold tnum" style={{ color: mColor, minWidth: 34, textAlign: "right" }}>{a.match != null ? `${a.match}%` : "—"}</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 text-xs" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>Showing {rows.length} of {scoped.length} candidate{scoped.length === 1 ? "" : "s"}</div>
+      </div>
+    </AccountShell>
+  );
+}
 
 function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidate, role, profile, avatarUrl, activities = [], onOpenNotifications, currentUserId = null, companyId = null, scorecards = {}, scheduleRequests = [], interviewers = [] }) {
   const forInterviewer = isInterviewer(role);
@@ -25315,6 +25534,7 @@ const SCREEN_TO_PATH = {
   interviews: "/interviews",
   interviewers: "/interviewers",
   openRoles: "/open-roles",
+  pipeline: "/pipeline",
   jobs: "/jobs",
   search: "/search",
   upload: "/upload",
@@ -25354,6 +25574,7 @@ const PATH_TO_SCREEN = {
   "/interviews": "interviews",
   "/interviewers": "interviewers",
   "/open-roles": "openRoles",
+  "/pipeline": "pipeline",
   "/jobs": "jobs",
   "/search": "search",
   "/upload": "upload",
@@ -27788,6 +28009,19 @@ export default function ResumeAIPreview() {
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
+        {screen === "pipeline" && (
+          <PipelineScreen
+            navigate={navigate}
+            jobs={jobs}
+            candidates={MOCK_CANDIDATES}
+            onViewCandidate={viewCandidate}
+            stageOverrides={stageOverrides}
+            profile={profile}
+            avatarUrl={avatarUrl}
+            activities={activities}
+            onOpenNotifications={markActivitiesRead}
+          />
+        )}
         {screen === "jobs" && (
           <JobsScreen
             navigate={navigate}
