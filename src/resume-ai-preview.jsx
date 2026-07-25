@@ -15174,11 +15174,13 @@ const PIPE_STAGE_META = {
   declined: { label: "Declined", color: "#6B7280" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
-function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications }) {
+function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {} }) {
   const [roleFilter, setRoleFilter] = useState("all"); // "all" | jobId
   const [roleOpen, setRoleOpen] = useState(false);      // role dropdown open
   const [stageFilter, setStageFilter] = useState(null); // click a funnel bar to filter the table
   const [q, setQ] = useState("");
+  const [ranking, setRanking] = useState(false);        // AI Rank run in flight
+  const [rankMsg, setRankMsg] = useState(null);
   const openJobs = jobs.filter((j) => j.status === "open");
 
   // One row per application (candidate × job), with the effective stage.
@@ -15211,6 +15213,39 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const rows = scoped
     .filter((a) => (!stageFilter || a.stage === stageFilter) && (!q || `${a.name} ${a.jobTitle}`.toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1));
+
+  // AI Rank: score the selected position's applied candidates against the role,
+  // save the scores, and refresh so the list re-orders. Per-position only (AI
+  // ranks candidates against one role), so it's hidden for "All positions".
+  const runRank = async () => {
+    if (ranking || roleFilter === "all") return;
+    const job = jobs.find((j) => j.id === roleFilter);
+    if (!job || !hasSupabase) return;
+    const pool = scoped
+      .filter((a) => a.stage === "applied")
+      .map((a) => candidates.find((c) => c.id === a.candidateId))
+      .filter((c) => c && c.parsed)
+      .slice(0, 40);
+    if (pool.length < 2) { setRankMsg("AI Rank needs at least 2 applied candidates for this position."); return; }
+    const units = Math.max(1, Math.ceil(pool.length / 10)); // 1 credit / 10 applicants
+    setRanking(true); setRankMsg(null);
+    try {
+      const payload = pool.map((c) => ({
+        id: c.id, name: c.parsed?.name, role: c.parsed?.experience?.[0]?.title || null,
+        years: c.parsed?.years_of_experience ?? null, skills: c.parsed?.skills || [],
+      }));
+      const roleInfo = { title: job.title, description: job.description || "", requirements: job.requirements || [] };
+      const { data, error } = await supabase.functions.invoke("rank-candidates", { body: { role: roleInfo, candidates: payload, units, perUnit: 10 } });
+      if (data?.error === "limit_reached") { setRankMsg("Not enough AI Rank credits for this run. Top up under Billing."); setRanking(false); return; }
+      if (error || data?.error || !Array.isArray(data?.ranked)) throw new Error(data?.error || "rank failed");
+      const scores = data.ranked.filter((r) => r && r.id).map((r) => ({ candidateId: r.id, score: (Number(r.score) || 0) / 100, rationale: r.reason || "" }));
+      const saved = await dbSaveMatchScores(companyId, roleFilter, scores);
+      if (!saved?.ok) { setRankMsg(`Ranked, but couldn't save: ${saved?.error || "try again."}`); setRanking(false); return; }
+      setRankMsg(`Ranked ${scores.length} candidate${scores.length === 1 ? "" : "s"}. Refreshing…`);
+      onRanked();
+    } catch (e) { setRankMsg(`Couldn't run AI Rank: ${e?.message || "try again."}`); }
+    setRanking(false);
+  };
 
   // Funnel elements built as a flat array (no React.Fragment in scope here). Bars
   // show how many candidates are AT each stage right now (a move to Interview
@@ -15336,13 +15371,19 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
 
       {/* Candidate table */}
       <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
-        {/* AI Rank header: the list is ordered by AI match, best-fit first. */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
-          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-            <Icon name="star" className="w-3.5 h-3.5" /> AI Rank
-          </span>
-          <span className="text-xs" style={{ color: "var(--ink-3)" }}>Candidates ordered by AI match, best-fit first</span>
-        </div>
+        {/* AI Rank: only inside Applied, and only for a specific position (AI
+            ranks candidates against one role). Hidden by default and for All positions. */}
+        {stageFilter === "applied" && roleFilter !== "all" && (
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>Score these applied candidates against this position with AI.</span>
+            <button onClick={runRank} disabled={ranking} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+              <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
+            </button>
+          </div>
+        )}
+        {rankMsg && stageFilter === "applied" && roleFilter !== "all" && (
+          <div className="px-4 py-2 text-xs border-b" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>{rankMsg}</div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full" style={{ minWidth: 720, borderCollapse: "collapse" }}>
             <thead>
@@ -28156,6 +28197,8 @@ export default function ResumeAIPreview() {
             avatarUrl={avatarUrl}
             activities={activities}
             onOpenNotifications={markActivitiesRead}
+            companyId={companyId}
+            onRanked={() => { if (companyId) hydrateWorkspace(companyId); }}
           />
         )}
         {screen === "jobs" && (
