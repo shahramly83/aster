@@ -15174,7 +15174,7 @@ const PIPE_STAGE_META = {
   declined: { label: "Declined", color: "#6B7280" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
-function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null }) {
+function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null, pendingInvites = [] }) {
   const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
   const [ivOpen, setIvOpen] = useState(false);   // interviewer invite/manage expanded
   const [ivEmail, setIvEmail] = useState("");
@@ -15395,6 +15395,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         {roleFilter && (() => {
           const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
           const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
+          const activeCount = assigned.filter((iv) => !iv.pending).length;
+          const pendingCount = assigned.filter((iv) => iv.pending).length + pendingInvites.filter((inv) => inv.role === "interviewer").length;
           return (
             <div className="flex items-center gap-2">
               {assigned.length > 0 && (
@@ -15404,7 +15406,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   ))}
                 </div>
               )}
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title={`${assigned.length} interviewer${assigned.length === 1 ? "" : "s"} on this role`}>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 cursor-default" style={{ background: "var(--brand-soft)", color: "var(--brand)" }} title={`${activeCount} active · ${pendingCount} pending interviewer${pendingCount === 1 ? "" : "s"}`}>
                 <Icon name="users" className="w-3.5 h-3.5" /> {assigned.length}
               </span>
               <button onClick={() => { setIvOpen(true); setIvNote(null); }} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">
@@ -15558,6 +15560,10 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         const assignedIds = new Set(jobAssignments.filter((a) => a.job_id === roleFilter).map((a) => a.profile_id));
         const assigned = interviewers.filter((iv) => assignedIds.has(iv.id));
         const addable = interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && !iv.pending && iv.id !== userId);
+        // Typing filters existing teammates (suggest → assign) before inviting.
+        const q = ivEmail.trim().toLowerCase();
+        const suggestions = q ? interviewers.filter((iv) => iv.role === "interviewer" && !assignedIds.has(iv.id) && `${iv.name || ""} ${iv.email || ""}`.toLowerCase().includes(q)) : [];
+        const exactExisting = !!q && interviewers.some((iv) => (iv.email || "").toLowerCase() === q);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,11,30,0.45)" }} onClick={() => setIvOpen(false)}>
             <div className="w-full max-w-md rounded-2xl bg-white p-5 act-shadow" onClick={(e) => e.stopPropagation()}>
@@ -15575,7 +15581,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   ))}
                 </div>
               )}
-              {addable.length > 0 && (
+              {addable.length > 0 && !q && (
                 <div className="mb-3">
                   <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Add from your team</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -15589,11 +15595,24 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
               )}
               <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Invite interviewer</p>
               <div className="flex items-center gap-2">
-                <input type="email" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }} placeholder="interviewer@email.com" autoFocus className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
-                <button onClick={sendInvite} disabled={!ivEmail.trim() || ivBusy} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                <input type="text" value={ivEmail} onChange={(e) => { setIvEmail(e.target.value); setIvNote(null); }} onKeyDown={(e) => { if (e.key === "Enter" && !exactExisting) sendInvite(); }} placeholder="Search a teammate or type an email to invite" autoFocus className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--brand)]" style={{ borderColor: "var(--line-strong)", background: "#fff", color: "var(--ink)" }} />
+                <button onClick={sendInvite} disabled={!ivEmail.trim() || ivBusy || exactExisting} className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 brand-gradient text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
                   <Icon name="userPlus" className="w-4 h-4" /> {ivBusy ? "Inviting…" : "Invite"}
                 </button>
               </div>
+              {suggestions.length > 0 && (
+                <div className="mt-1.5 rounded-lg border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+                  <p className="px-3 py-1.5 text-[10px] font-bold uppercase" style={{ color: "var(--ink-3)", background: "var(--bg)", letterSpacing: "0.05em" }}>Already on your team, assign instead</p>
+                  {suggestions.slice(0, 5).map((iv) => (
+                    <button key={iv.id} onClick={() => { onAssignInterviewer(roleFilter, iv.id); setIvEmail(""); }} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 transition-colors">
+                      <CandidateAvatar name={iv.name} hasPhoto={false} size={22} showPhotoDot={false} />
+                      <span className="min-w-0"><span className="block truncate text-sm font-medium" style={{ color: "var(--ink)" }}>{iv.name}</span><span className="block truncate text-[11px]" style={{ color: "var(--ink-3)" }}>{iv.email}</span></span>
+                      <Icon name="userPlus" className="w-3.5 h-3.5 ml-auto shrink-0" style={{ color: "var(--brand)" }} />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {exactExisting && suggestions.length === 0 && <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>That teammate is already assigned to this role.</p>}
               {ivNote && <p className="text-xs mt-2.5" style={{ color: ivNote.type === "err" ? "#B42318" : "#166534" }}>{ivNote.msg}</p>}
             </div>
           </div>
@@ -28365,6 +28384,7 @@ export default function ResumeAIPreview() {
             onUnassignInterviewer={unassignInterviewer}
             reloadTeam={reloadTeam}
             userId={userId}
+            pendingInvites={pendingInvites}
           />
         )}
         {screen === "jobs" && (
