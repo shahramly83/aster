@@ -12986,14 +12986,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               <div className="relative px-6 py-12 text-center overflow-hidden">
                 {/* soft brand aura behind the mark */}
                 <div aria-hidden="true" className="pointer-events-none absolute left-1/2 -top-20 -translate-x-1/2 h-56 w-56 rounded-full blur-3xl opacity-60" style={{ background: "radial-gradient(circle, var(--brand-soft), transparent 70%)" }} />
-                <div className="relative mx-auto mb-5 w-16 h-16">
-                  <div className="absolute inset-0 rounded-2xl brand-gradient" style={{ boxShadow: "0 16px 34px -12px rgba(var(--brand-rgb),0.6)" }} />
-                  <div className="absolute inset-0 flex items-center justify-center text-white"><Icon name="jobs" className="w-7 h-7" /></div>
-                </div>
-                <h3 className="relative text-lg font-bold font-display" style={{ color: "var(--ink)" }}>Post your first role</h3>
-                <p className="relative text-sm mt-1.5 mb-6 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
-                  Publish a job to get a shareable apply link. Aster reads, scores, and ranks every applicant, so you start from the best-fit shortlist instead of a pile of CVs.
-                </p>
+                <h3 className="relative text-lg font-bold font-display mb-6" style={{ color: "var(--ink)" }}>Post your first role</h3>
                 <button onClick={() => navigate("newJob")} className="relative inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-xl brand-gradient text-white px-5 py-2.5 transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0" style={{ boxShadow: "0 12px 26px -12px rgba(var(--brand-rgb),0.75)" }}>
                   <Icon name="jobs" className="w-4 h-4" /> Post a job
                 </button>
@@ -20895,7 +20888,7 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange }) {
         </div>
       ) : (
         <div>
-          {savedSig && !drawn && !savedSig.startsWith("typed:") && (
+          {savedSig && !savedSig.startsWith("typed:") && (!drawn || drawn === savedSig) && (
             <div className="mb-2 rounded-lg px-4 py-2 flex items-center" style={{ border: "1px solid var(--line)", background: "#fff" }}>
               <img src={savedSig} alt="Saved signature" style={{ height: 48, maxWidth: 240, objectFit: "contain" }} />
               <span className="text-[11px] ml-3" style={{ color: "var(--ink-3)" }}>Current — draw below to replace</span>
