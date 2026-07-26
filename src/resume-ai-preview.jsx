@@ -15302,6 +15302,7 @@ const PROMOTED_STAGES = ["shortlisted", "interviewing", "offer", "hired"];
 const isStrongMatch = (a) => a?.fit !== "other" || PROMOTED_STAGES.includes(a?.stage);
 function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null, pendingInvites = [], matchRunsUsed = 0, activeJobId = null }) {
   const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
+  const [rankConfirm, setRankConfirm] = useState(false); // AI Rank confirm dialog
   const [ivOpen, setIvOpen] = useState(false);   // interviewer invite/manage expanded
   const [ivEmail, setIvEmail] = useState("");
   const [ivBusy, setIvBusy] = useState(false);
@@ -15396,6 +15397,10 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     } catch (e) { setRankMsg(`Couldn't run AI Rank: ${e?.message || "try again."}`); }
     setRanking(false);
   };
+  // Credit cost preview for the confirm dialog (1 credit per 10 applicants, pool
+  // capped at 40). Mirrors the pool runRank builds.
+  const rankPoolCount = Math.min(scoped.filter((a) => a.stage === "applied" && a.fit !== "other").length, 40);
+  const rankUnits = Math.max(1, Math.ceil(rankPoolCount / 10));
 
   // Invite a new interviewer by email (interviewer role); assign once they join.
   const sendInvite = async () => {
@@ -15598,7 +15603,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           return (
             <div className="flex items-center justify-end gap-3 px-4 py-3 border-b flex-wrap" style={{ borderColor: "var(--line)" }}>
               <div className="flex items-center gap-2.5">
-                <button onClick={runRank} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => setRankConfirm(true)} disabled={disabled} title={reason} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold brand-gradient text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
                   <Icon name="star" className="w-3.5 h-3.5" /> {ranking ? "Ranking…" : "AI Rank"}
                 </button>
                 {/* Credit wallet + menu-style hover breakdown. */}
@@ -15741,6 +15746,18 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         <div className="px-4 py-3 text-xs" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>Showing {rows.length} of {scoped.length} candidate{scoped.length === 1 ? "" : "s"}</div>
       </div>
       <BuyCreditsModal open={buyOpen} onClose={() => { setBuyOpen(false); reloadPurchasedAiRank?.(); }} plan={plan} kind="ai_rank" currency={currency} />
+      <ConfirmDialog
+        open={rankConfirm}
+        title="Run AI Rank?"
+        body={(() => {
+          const rl = planLimits(plan).aiRunsPerMonth;
+          const left = rl === Infinity ? Infinity : Math.max(0, rl - matchRunsUsed) + purchasedAiRank;
+          return `Scores your ${rankPoolCount} strong-match applicant${rankPoolCount === 1 ? "" : "s"} against this position and explains each fit.${rl === Infinity ? "" : ` Costs ${rankUnits} credit${rankUnits === 1 ? "" : "s"}, at 1 per 10 applicants. You have ${left} left.`}`;
+        })()}
+        confirmLabel={`Run AI Rank · ${rankUnits} credit${rankUnits === 1 ? "" : "s"}`}
+        onConfirm={() => { setRankConfirm(false); runRank(); }}
+        onClose={() => setRankConfirm(false)}
+      />
 
       {/* AI insight popup: candidate header (avatar + match ring) over a brand
           wash, the reasoning below, and an Open-profile CTA. */}
