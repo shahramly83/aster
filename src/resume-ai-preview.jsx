@@ -19837,7 +19837,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               )}
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-3 items-stretch mt-4">
+          <div className="grid gap-4 sm:grid-cols-3 items-stretch mt-8">
             {PLANS.filter((p) => p.key !== "enterprise").map((p) => {
               const cycleMatters = p.key !== "enterprise";
               // On a trial nothing is "current" yet: every tier stays buyable,
