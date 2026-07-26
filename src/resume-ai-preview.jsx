@@ -15296,8 +15296,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [nonMatchOpen, setNonMatchOpen] = useState(false); // Non-matches accordion (closed by default)
   const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank"); // top-up balance for the credit note
   // Default to (and keep valid) the first active position as jobs load/change.
+  // If the selected position is no longer open (closed while viewing), drop to
+  // another open one — or to null when nothing's open, so a closed job's
+  // candidates never linger in the pipeline.
   useEffect(() => {
-    if ((roleFilter == null || !openJobs.some((j) => j.id === roleFilter)) && openJobs[0]) setRoleFilter(openJobs[0].id);
+    if (roleFilter == null || !openJobs.some((j) => j.id === roleFilter)) setRoleFilter(openJobs[0]?.id ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openJobs.map((j) => j.id).join(",")]);
 
@@ -15325,7 +15328,9 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
     });
   });
 
-  const scoped = roleFilter ? apps.filter((a) => a.jobId === roleFilter) : apps;
+  // Pipeline is per active position only. No position selected (e.g. every job
+  // is closed) → show nothing, never the full cross-job list.
+  const scoped = roleFilter ? apps.filter((a) => a.jobId === roleFilter) : [];
   const counts = { applied: 0, shortlisted: 0, interviewing: 0, offer: 0, hired: 0, declined: 0, rejected: 0 };
   scoped.forEach((a) => { if (counts[a.stage] != null) counts[a.stage]++; });
   const exits = counts.rejected + counts.declined;
