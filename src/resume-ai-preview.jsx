@@ -15617,7 +15617,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
                     <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
                     <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--brand)" }}><span className="font-extrabold tnum">{creditsLeft === Infinity ? "∞" : creditsLeft}</span> credits left</span>
-                    <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+                    {!viewerIsInterviewer && <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>}
                   </div>
                   {walletTip && (
                     <div className="absolute z-40 right-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
@@ -15881,7 +15881,11 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
   // candidate stays visible from "requested" through the whole process.
   const bookedIds = new Set(booked.map((iv) => iv.candidateId));
   const pending = pendingRequestsFrom(scheduleRequests, candidates, jobs, interviewers, currentUserId, forInterviewer, bookedIds);
-  const interviews = [...pending, ...booked];
+  // Interviewers see only their live pipeline — upcoming or awaiting their action.
+  // A finished outcome (a hired/rejected candidate) is no longer an interview
+  // they're running, so it drops off "Your Interviews".
+  const allInterviews = [...pending, ...booked];
+  const interviews = forInterviewer ? allInterviews.filter((iv) => !["hired", "rejected", "declined"].includes(iv.stage)) : allInterviews;
 
   const jobForTitle = (title) => jobs.find((j) => j.title === title);
   // How many still need this interviewer's scorecard — surfaced in the subtitle.
@@ -15967,73 +15971,48 @@ function InterviewsScreen({ navigate, bookings, candidates, jobs, onViewCandidat
               );
             })}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {shown.map((iv) => {
-              const job = jobForTitle(iv.jobTitle);
-              const st = INTERVIEW_STAGE_META[iv.stage] || INTERVIEW_STAGE_META.completed;
-              return (
-                <button
-                  key={iv.candidateId}
-                  onClick={() => onViewCandidate(iv.candidateId, iv.jobId ?? job?.id ?? null, null, "interview")}
-                  className="w-full text-left rounded-2xl bg-white act-shadow border p-4 sm:p-5 hover:border-[color:var(--line-strong)] transition-colors flex items-center gap-4"
-                  style={{ borderColor: "var(--line)" }}
-                >
-                  {/* Date chip — a neutral placeholder while a time is still being picked */}
-                  {iv.start ? (
-                    <div className="w-14 shrink-0 text-center rounded-xl py-2" style={{ background: "var(--brand-soft)" }}>
-                      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--brand)" }}>{iv.month}</p>
-                      <p className="text-lg font-bold leading-none" style={{ color: "var(--ink)" }}>{iv.day}</p>
-                    </div>
-                  ) : (
-                    <div className="w-14 h-14 shrink-0 rounded-xl flex items-center justify-center" style={{ background: "var(--bg)", color: "var(--ink-3)" }}>
-                      <Icon name="calendar" className="w-5 h-5" />
-                    </div>
-                  )}
-
-                  {/* Candidate + position */}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</p>
-                    <p className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{iv.jobTitle}</p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                      {iv.dateLine ? (
-                        <>
-                          <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
-                            <Icon name="calendar" className="w-3 h-3" /> {iv.dateLine}
-                          </span>
-                          <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
-                            <Icon name="clock" className="w-3 h-3" /> {iv.time}
-                          </span>
-                        </>
-                      ) : iv.stage === "requested" ? (
-                        <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
-                          <Icon name="userPlus" className="w-3 h-3" /> {iv.requestedByMe ? "Requested by you" : `Requested by ${iv.requestedByName}`}, awaiting the hiring manager to schedule
-                        </span>
-                      ) : iv.stage === "reschedule" ? (
-                        <span className="text-xs flex items-center gap-1" style={{ color: "#B42318" }}>
-                          <Icon name="refresh" className="w-3 h-3" /> {iv.previousAt ? `Rescheduled from ${formatSlotDisplay(iv.previousAt)}. Propose new times` : "Rescheduled. Propose new times"}
-                        </span>
-                      ) : (
-                        <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
-                          <Icon name="clock" className="w-3 h-3" /> Times sent, waiting for the candidate to pick
-                        </span>
-                      )}
-                      {iv.interviewerName && (
-                        <span className="text-xs flex items-center gap-1" style={{ color: "var(--ink-3)" }}>
-                          <Icon name="users" className="w-3 h-3" /> {iv.interviewerName}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Process stage */}
-                  <div className="shrink-0">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1" style={{ background: st.bg, color: st.color }}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} /> {st.label}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+            <div className="overflow-x-auto">
+              <table className="w-full" style={{ minWidth: 680, borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Candidate", "Position", "When", "Stage"].map((h) => (
+                      <th key={h} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderBottom: "1px solid var(--line)", textAlign: "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((iv) => {
+                    const job = jobForTitle(iv.jobTitle);
+                    const st = INTERVIEW_STAGE_META[iv.stage] || INTERVIEW_STAGE_META.completed;
+                    const whenText = iv.stage === "requested"
+                      ? (iv.requestedByMe ? "Requested by you · awaiting scheduling" : `Requested · awaiting scheduling`)
+                      : iv.stage === "reschedule"
+                        ? "Reschedule · propose new times"
+                        : "Times sent · awaiting the candidate";
+                    return (
+                      <tr key={iv.candidateId} onClick={() => onViewCandidate(iv.candidateId, iv.jobId ?? job?.id ?? null, null, "interview")} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <CandidateAvatar name={iv.candidateName} hasPhoto={false} size={36} showPhotoDot={false} />
+                            <span className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{iv.candidateName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{iv.jobTitle}</td>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: "var(--ink-2)" }}>
+                          {iv.dateLine
+                            ? <span className="inline-flex items-center gap-1.5"><Icon name="calendar" className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} /> {iv.dateLine} · {iv.time}</span>
+                            : <span style={{ color: iv.stage === "reschedule" ? "#B42318" : "var(--ink-3)" }}>{whenText}</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1 whitespace-nowrap" style={{ background: st.bg, color: st.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} /> {st.label}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
