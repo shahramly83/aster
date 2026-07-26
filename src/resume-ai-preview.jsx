@@ -21669,9 +21669,11 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, n
 
   return (
     <div>
-      <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-        {intro || "Sign off the offer letters you compose in Aster. Your signature is placed above your name in the letter; the candidate then counter-signs. Upload-mode offers use the signature already on your own PDF."}
-      </p>
+      {intro !== "" && (
+        <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
+          {intro || "Sign off the offer letters you compose in Aster. Your signature is placed above your name in the letter; the candidate then counter-signs. Upload-mode offers use the signature already on your own PDF."}
+        </p>
+      )}
       <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
         {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
           <button key={k} type="button" onClick={() => setMode(k)}
@@ -21702,7 +21704,7 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, n
           <SignaturePad onChange={(d) => setDrawn(d)} />
         </div>
       )}
-      <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{note}</p>
+      {note ? <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{note}</p> : null}
     </div>
   );
 }
@@ -24741,7 +24743,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
           <>
             <textarea value={body} onChange={(e) => { setBody(e.target.value); setBodyEdited(true); }} rows={14} className={`${inputClass} mb-1.5 resize-y`} style={{ lineHeight: 1.6 }} disabled={!hasEmail} />
             <div className="flex items-center justify-between gap-2 mb-4">
-              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Edit the letter freely. The heading, greeting and signature are added automatically.</p>
+              <p className="text-xs" style={{ color: "var(--ink-3)" }}>Edit freely. The heading and greeting are added automatically.</p>
               {bodyEdited && <button type="button" onClick={() => { setBody(composeBody()); setBodyEdited(false); }} className="text-xs font-medium shrink-0 hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset from terms</button>}
             </div>
           </>
@@ -24810,8 +24812,8 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                 <OfferSignatureCard
                   savedSig={savedSig}
                   onDraftChange={(d) => { setSigDraft(d); if (d) setSigErr(false); }}
-                  intro="Sign off this letter before it goes to the candidate. Your signature sits above your name; the candidate then counter-signs."
-                  note="Saved to your profile and reused on future offers."
+                  intro=""
+                  note=""
                 />
               )}
             </div>
@@ -24841,7 +24843,6 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             {eligibleTeam.length === 0 ? (
               // No confirmed approvers yet: point to the Approvers list to add some.
               <div className="rounded-xl border border-dashed px-4 py-4 text-center" style={{ borderColor: "var(--line-strong)" }}>
-                <p className="text-xs mb-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>No approvers yet. Add approvers (they confirm by email, no account) to route offers for sign-off.</p>
                 <button type="button" onClick={() => onManageTeam && onManageTeam()} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
                   <Icon name="userPlus" className="w-4 h-4" /> Add approvers
                 </button>
@@ -24858,7 +24859,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             ) : (
               <p className="text-xs px-1" style={{ color: "var(--ink-4)" }}>All approvers have been added.</p>
             )}
-            <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>{hasApprovers ? "Each approver gets an email to review and approve, in order — no login needed. The offer reaches the candidate only after the last approval." : "Add approvers to require sign-off first. They approve straight from the email, no account needed."}</p>
+            {hasApprovers && <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>Approvers sign off in order by email; the candidate is emailed only after the last approval.</p>}
           </div>
         )}
 
