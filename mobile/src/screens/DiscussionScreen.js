@@ -92,6 +92,7 @@ export default function DiscussionScreen({ route, navigation }) {
   const [composerOpen, setComposerOpen] = useState(false);
   const [panelMembers, setPanelMembers] = useState([]); // assigned interviewers (attendees + email)
   const [sentInterview, setSentInterview] = useState(false); // an invite is out, awaiting the candidate
+  const [bookedInterview, setBookedInterview] = useState(false); // a time is confirmed (scheduled)
   const [blockedSlots, setBlockedSlots] = useState([]); // times a panel member is already booked
   const [selected, setSelected] = useState(() => new Set()); // slot ids the HM will offer
   const [override, setOverride] = useState(false); // HM proceeds before every vote
@@ -145,6 +146,7 @@ export default function DiscussionScreen({ route, navigation }) {
     setInterviewToken(iv?.token || null);
     setRescheduleNote(iv?.rescheduleNote || null);
     setSentInterview(iv?.status === "sent");
+    setBookedInterview(iv?.status === "scheduled");
     // For the manager (usually the poll creator), track whether the panel has
     // finished voting. Expected voters = assigned interviewers minus the creator.
     if (activePoll && manager && jobId) {
@@ -371,7 +373,10 @@ export default function DiscussionScreen({ route, navigation }) {
     else navigation.goBack();
   };
 
-  const canCreate = manager && (!poll || poll.status === "closed");
+  // Once a time is confirmed (or an invite is already out), a fresh availability
+  // poll is meaningless. activePoll is nulled in those states, so without this
+  // guard `!poll` would flip canCreate back on and re-show "Propose interview dates".
+  const canCreate = manager && !bookedInterview && !sentInterview && (!poll || poll.status === "closed");
 
   // Names to highlight in bubbles: the mentionable teammates plus me, so a
   // message that tags me shows my own "@name" lit up too.
