@@ -25813,9 +25813,46 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         </div>
         {aiRankInlineBtn}
         </div>
-        {/* Stage filter */}
+        {/* Pipeline-style funnel: stage bars for the current group; click one to
+            filter the table to that stage (click again to clear). Counts reflect
+            the current tab, like the old stage dropdown it replaces. */}
+        {(() => {
+          const FS = [["applied", "Applied", "var(--brand)"], ["interviewing", "Interview", "#6366F1"], ["offer", "Offer", "#D97706"], ["hired", "Hired", "#16A34A"]];
+          const rej = countFor("rejected") + countFor("declined");
+          const cell = (key, label, color, exit) => {
+            const n = key === "rejected" ? rej : countFor(key);
+            const on = stageFilter === key;
+            return (
+              <button onClick={() => setStageFilter(on ? "all" : key)} className="flex-1 text-left rounded-xl border p-3.5 transition-all" style={{ borderColor: on ? color : "var(--line)", background: on ? `color-mix(in srgb, ${color} 9%, #fff)` : "#fff" }}>
+                <div className="flex items-start justify-between">
+                  <span className="text-2xl font-bold font-display tnum leading-none" style={{ color: n > 0 ? "var(--ink)" : "var(--ink-4)" }}>{n}</span>
+                  <span className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ background: color }} />
+                </div>
+                <p className="text-xs font-medium mt-1.5" style={{ color: "var(--ink-2)" }}>{label}</p>
+              </button>
+            );
+          };
+          return (
+            <div className="rounded-2xl bg-white act-shadow border p-4 sm:p-5 mb-4" style={{ borderColor: "var(--line)" }}>
+              <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-0">
+                {FS.map(([key, label, color], i) => (
+                  <Fragment key={key}>
+                    {cell(key, label, color)}
+                    {i < FS.length - 1 && <div className="hidden sm:flex items-center px-1" style={{ color: "var(--ink-4)" }}><Icon name="chevronRight" className="w-4 h-4" /></div>}
+                  </Fragment>
+                ))}
+                {rej > 0 && (
+                  <>
+                    <div className="hidden sm:flex items-center px-1" style={{ color: "#DC2626" }}><Icon name="close" className="w-3.5 h-3.5" /></div>
+                    {cell("rejected", "Rejected", "#DC2626", true)}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+        {/* Shortlisted-only toggle (the stage dropdown is now the funnel above). */}
         <div className="flex items-center justify-end gap-3 mb-4">
-          <div className="flex items-center gap-2">
           <button
             onClick={() => setShortlistOnly((v) => !v)}
             title="Show only the candidates you've shortlisted"
@@ -25825,36 +25862,11 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
             <Icon name="star" className="w-4 h-4" style={shortlistOnly ? { fill: "currentColor" } : undefined} />
             <span>Shortlisted{shortlistCount ? ` · ${shortlistCount}` : ""}</span>
           </button>
-          <div className="relative" ref={filterMenuRef}>
-            <button
-              onClick={() => setFilterOpen((o) => !o)}
-              className="flex items-center gap-2 rounded-xl bg-white border border-neutral-200 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-300 transition-colors"
-            >
-              <span className="text-neutral-400">Filter:</span>
-              <span className="font-medium">{filterLabel(stageFilter)}</span>
-              <Icon name="chevronDown" className={`w-4 h-4 text-neutral-400 transition-transform ${filterOpen ? "rotate-180" : ""}`} />
+          {stageFilter !== "all" && (
+            <button onClick={() => setStageFilter("all")} className="text-sm rounded-xl border px-3 py-2 transition-colors hover:bg-neutral-50" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>
+              {filterLabel(stageFilter)} · Clear
             </button>
-            {filterOpen && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
-                <div className={`absolute z-40 right-0 ${filterUp ? "bottom-full mb-1" : "top-full mt-1"} w-48 rounded-xl border border-neutral-200 bg-white shadow-lg py-1`}>
-                  {filterOptions.map((key) => (
-                    <button
-                      key={key}
-                      onClick={() => { setStageFilter(key); setFilterOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 text-sm transition-colors ${
-                        stageFilter === key ? "text-neutral-900 bg-neutral-100 font-medium" : "text-neutral-700 hover:bg-neutral-50"
-                      }`}
-                    >
-                      <span>{filterLabel(key)}</span>
-                      <span className="text-xs text-neutral-400">{countFor(key)}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          </div>
+          )}
         </div>
         {rankNotice}
         {shownApps.length === 0 ? (
