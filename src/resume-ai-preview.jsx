@@ -8908,12 +8908,11 @@ function AnimatedAsterMark({ className = "w-9 h-9", color = "var(--brand)" }) {
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { key: "pipeline", label: "Pipeline", icon: "funnel" },
   { key: "jobs", label: "Job Postings", icon: "jobs" },
+  { key: "pipeline", label: "Pipeline", icon: "funnel" },
+  { key: "upload", label: "Bulk Upload", icon: "upload" },
   { key: "search", label: "Talent Pool", icon: "search" },
-  { key: "upload", label: "Resume Upload", icon: "upload" },
   // Team sits last in the workflow group, just above the Billing / Settings divider.
-  // The "interviewers" glyph is a calendar, which collided with Interviews above.
   { key: "interviewers", label: "Team", icon: "userPlus" },
 ];
 
