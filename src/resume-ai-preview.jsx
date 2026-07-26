@@ -10339,8 +10339,10 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   // Generic "is this moment inside the selected range" test (all-time passes everything).
   const inRangeMs = (ms) => isAllTime || (ms != null && ms >= rStart && ms <= rEnd);
   const appIsInRange = (a) => { const d = appliedDate(a); return inRangeMs(d ? d.getTime() : null); };
-  // Interviews list scoped to the range (all-time keeps the forward-looking upcoming set).
-  const shownInterviews = isAllTime ? upcomingInterviews : interviews.filter((iv) => iv.start && inRangeMs(iv.start.getTime()));
+  // "Upcoming Interviews" is a forward-looking list, not a period metric, so it
+  // stays future-only regardless of the selected date range — a past interview
+  // must never show here even if it falls inside the range.
+  const shownInterviews = upcomingInterviews;
   // Total apply-page views across every posting (cumulative; per-view timestamps
   // aren't kept, so this isn't date-scoped).
   const totalJobViews = jobs.reduce((s, j) => s + (j.viewStats?.total || 0), 0);
