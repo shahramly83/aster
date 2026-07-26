@@ -4867,7 +4867,7 @@ function HeroParsePreview() {
     return () => clearTimeout(t);
   }, []);
   return (
-    <div className="w-full max-w-sm rounded-2xl p-5 sm:p-6" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18)" }}>
+    <div className="w-full max-w-md mx-auto rounded-2xl p-5 sm:p-6" style={{ background: "#EBEEF5", border: "1px solid var(--line)", boxShadow: "0 30px 60px -30px rgba(15,27,51,0.18)" }}>
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs" style={{ color: "var(--ink-3)" }}>Screening resume</p>
         <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
