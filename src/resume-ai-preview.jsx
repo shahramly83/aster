@@ -15046,12 +15046,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         {/* ---------- Tab 2: Match by skills ---------- */}
         {tab === "skills" && (
           <>
-            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
-              <div className="flex items-start gap-3">
-                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>Match by skills or industry</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both.</p>
+            <div className="rounded-2xl p-5 sm:p-6 mb-5 relative overflow-hidden act-shadow" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03) 55%, #fff)", border: "1px solid var(--line)" }}>
+              <div aria-hidden="true" className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(var(--brand-rgb),0.12), transparent)" }} />
+              <div className="relative">
+                <div className="min-w-0">
+                  <p className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Match by skills or industry</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both.</p>
                   <div className="mt-3 grid sm:grid-cols-2 gap-3">
                     <div>
                       <FieldLabel hint="Every skill Aster has read from your candidates' resumes. Start typing to find one.">Skills</FieldLabel>
@@ -15119,10 +15119,11 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         {/* ---------- Tab 3: Match to a role ---------- */}
         {tab === "role" && (
           <>
-            <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
-              <div className="flex items-start gap-3">
+            <div className="rounded-2xl p-5 sm:p-6 mb-5 relative overflow-hidden act-shadow" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03) 55%, #fff)", border: "1px solid var(--line)" }}>
+              <div aria-hidden="true" className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(var(--brand-rgb),0.12), transparent)" }} />
+              <div className="relative">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
+                  <p className="text-base font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
                     Match to an open position
                     <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the position you pick, so you can invite the best fits to apply." />
                   </p>
