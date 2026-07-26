@@ -15295,6 +15295,11 @@ const PIPE_STAGE_META = {
   declined: { label: "Declined", color: "#6B7280" },
   rejected: { label: "Rejected", color: "#DC2626" },
 };
+// Stages that promote a candidate into "Strong matches" regardless of the AI's
+// original fit: a manager who shortlists or interviews a non-match has decided
+// they're worth pursuing, so they leave the talent pool and join the shortlist.
+const PROMOTED_STAGES = ["shortlisted", "interviewing", "offer", "hired"];
+const isStrongMatch = (a) => a?.fit !== "other" || PROMOTED_STAGES.includes(a?.stage);
 function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate, stageOverrides = {}, profile, avatarUrl, activities = [], onOpenNotifications, companyId = null, onRanked = () => {}, plan = "launch", currency = null, shortlistedApps = new Set(), onToggleShortlist = () => {}, interviewers = [], jobAssignments = [], onAssignInterviewer = () => {}, onUnassignInterviewer = () => {}, reloadTeam = async () => {}, userId = null, pendingInvites = [], matchRunsUsed = 0, activeJobId = null }) {
   const [buyOpen, setBuyOpen] = useState(false); // AI Rank buy-credits modal
   const [ivOpen, setIvOpen] = useState(false);   // interviewer invite/manage expanded
@@ -15691,8 +15696,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   if (rows.length === 0) return <tr><td colSpan={6} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates in this stage.</td></tr>;
                   return rows.map(renderRow);
                 }
-                const strong = rows.filter((a) => a.fit !== "other");
-                const other = rows.filter((a) => a.fit === "other");
+                const strong = rows.filter(isStrongMatch);
+                const other = rows.filter((a) => !isStrongMatch(a));
                 const groupHeader = (label, n, color, bg) => (
                   <tr key={`grp-${label}`}>
                     <td colSpan={6} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
@@ -25567,10 +25572,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
   const activeVisible = visible.filter((a) => !TERMINAL_STAGES.includes(a.stage));
   // Three tabs: Strong Matches (fit the role, fully ranked), Other Applicants
   // (kept in the talent pool, not ranked) and Hired (completed hires for this
-  // role). Unclassified = Strong. A recruiter who manually shortlists a
-  // non-match overrides the AI's call: the candidate moves into Strong Matches
-  // (and becomes eligible for AI Rank) instead of staying in the talent pool.
-  const isStrongFit = (a) => a.fit !== "other" || a.stage === "shortlisted";
+  // role). Unclassified = Strong. A recruiter who overrides the AI by advancing
+  // a non-match — shortlisting them, or scheduling an interview (or beyond) —
+  // promotes them into Strong Matches instead of leaving them in the talent pool.
+  const isStrongFit = isStrongMatch;
   const strongApplicants = activeVisible.filter(isStrongFit);
   const otherApplicants = activeVisible.filter((a) => !isStrongFit(a));
   const hiredApplicants = visible.filter((a) => a.stage === "hired");
@@ -25952,7 +25957,7 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
                           {act && <span className="shrink-0 inline-flex items-center text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>{act.label}</span>}
                         </span>
                         <span className="block text-[11px] truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</span>
-                        {a.fit === "other" && <span className="mt-1 inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title={a.fitReason || "Doesn't match this role's requirements."}>Not a match</span>}
+                        {!isStrongMatch(a) && <span className="mt-1 inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title={a.fitReason || "Doesn't match this role's requirements."}>Not a match</span>}
                       </span>
                     </div>
                   </td>
