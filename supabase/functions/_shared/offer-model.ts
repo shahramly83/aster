@@ -73,3 +73,34 @@ export async function emailApprover(
   const r = await sendEmail({ to: approval.approver_email, subject: `Approve the ${ctx.jobTitle} offer for ${ctx.candidateName}`, html });
   return r.ok;
 }
+
+// Whether an approver on an offer chain is ready to receive their approval
+// request. A still-pending (unconfirmed) offer_approver is HELD: the offer waits
+// at their step until they confirm their email, then approver-confirm releases
+// it. A confirmed offer_approver — or an active teammate — is ready immediately.
+export async function approverReady(admin: Admin, companyId: string, email: string): Promise<boolean> {
+  const e = String(email || "").trim();
+  if (!e) return false;
+  const { data: ap } = await admin.from("offer_approvers")
+    .select("status").eq("company_id", companyId).ilike("email", e).maybeSingle();
+  if (ap) return ap.status === "confirmed";
+  const { data: prof } = await admin.from("profiles")
+    .select("id").eq("company_id", companyId).eq("status", "active").ilike("email", e).maybeSingle();
+  return !!prof?.id;
+}
+
+// Email an approver ONLY if they're ready (confirmed). Returns whether the offer
+// is now held awaiting their confirmation. Used at submit and at each advance so
+// a pending approver never gets an approval request before they've confirmed.
+export async function emailApproverOrHold(
+  admin: Admin,
+  offer: Record<string, unknown>,
+  approval: { token: string; approver_email: string; approver_name?: string | null; step: number },
+  total: number,
+  base: string,
+): Promise<{ held: boolean; emailed: boolean }> {
+  const ready = await approverReady(admin, offer.company_id as string, approval.approver_email);
+  if (!ready) return { held: true, emailed: false };
+  const emailed = await emailApprover(admin, offer, approval, total, base);
+  return { held: false, emailed };
+}

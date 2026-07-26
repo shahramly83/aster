@@ -8028,14 +8028,6 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
         </div>
       </main>
 
-      {/* Floating "start" tag pointing to the field (once the letter is loaded) */}
-      {letter && !signed && (
-        <button onClick={scrollToSign} aria-label="Go to signature field"
-          className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 pl-3 pr-4 py-2.5 rounded-r-full text-xs font-bold shadow-lg brand-gradient text-white transition-transform hover:translate-x-0.5">
-          <Icon name="chevronRight" className="w-4 h-4" /> START
-        </button>
-      )}
-
       {/* Footer action bar */}
       <footer className="shrink-0 bg-white border-t z-20" style={{ borderColor: "var(--line)", paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex items-center gap-3 px-4 sm:px-6" style={{ minHeight: 68 }}>
@@ -22410,12 +22402,19 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [showOffer, setShowOffer] = useState(false);
   // Confirmed offer approvers (no-login list), loaded when the offer modal opens
   // so the approver picker shows only people who've confirmed by email.
+  // Load ALL approvers (confirmed + pending), so the offer modal can invite new
+  // ones inline and route through still-pending approvers (held until they
+  // confirm their email). `status` drives the confirmed/pending treatment.
   const [approverPool, setApproverPool] = useState([]);
+  const reloadApproverPool = React.useCallback(() => {
+    if (!companyId) return;
+    dbListApprovers(companyId).then((r) => setApproverPool((r || []).map((a) => ({ id: a.id, name: a.name || a.email, email: a.email, status: a.status || "pending" }))));
+  }, [companyId]);
   useEffect(() => {
     if (!companyId || !showOffer) return;
     let alive = true;
-    dbListApprovers(companyId, { confirmedOnly: true }).then((r) => {
-      if (alive) setApproverPool((r || []).map((a) => ({ id: a.id, name: a.name || a.email, email: a.email })));
+    dbListApprovers(companyId).then((r) => {
+      if (alive) setApproverPool((r || []).map((a) => ({ id: a.id, name: a.name || a.email, email: a.email, status: a.status || "pending" })));
     });
     return () => { alive = false; };
   }, [companyId, showOffer]);
@@ -23883,6 +23882,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             logoUrl={companyLogoUrl}
             defaultSignatory={profile?.full_name || profile?.name || ""}
             team={approverPool}
+            onReloadApprovers={reloadApproverPool}
             onManageTeam={() => { setShowOffer(false); navigate("interviewers"); }}
             resubmit={resubmitData}
             onClose={() => { setShowOffer(false); setResubmitData(null); }}
@@ -24525,7 +24525,7 @@ function renderOfferBold(text) {
   });
 }
 
-function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", logoUrl = null, defaultSignatory = "", team = [], onManageTeam, resubmit = null, onClose, onSend }) {
+function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency = "myr", companyName = "", logoUrl = null, defaultSignatory = "", team = [], onManageTeam, onReloadApprovers, resubmit = null, onClose, onSend }) {
   // Resubmit after a decline: pre-fill the letter, terms and approvers from the
   // declined offer so the hiring manager can revise before sending it round again.
   const r = resubmit || {};
@@ -24541,12 +24541,33 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   // Letter fields: who signs for the company, plus optional prose details.
   const [bodyEdited, setBodyEdited] = useState(!!r.body);  // resubmit keeps the saved letter as-is until re-edited
   const [letterView, setLetterView] = useState("write");  // 'write' | 'preview'
-  const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name}] internal sign-off
+  const [approvers, setApprovers] = useState(r.approvers || []);  // ordered [{email, name, status}] internal sign-off
   const hasApprovers = approvers.some((a) => a.email.trim());
-  // Approvers come from the company's confirmed approvers list (no accounts).
-  // Anyone confirmed who isn't already added can be picked.
+  // Approvers come from the company's approvers list (no accounts). Confirmed
+  // ones are ready; pending ones can still be added — the offer then holds at
+  // their step until they confirm their email.
   const eligibleTeam = (team || []).filter((m) => m.email);
-  const availableApprovers = eligibleTeam.filter((m) => !approvers.some((a) => (a.email || "").toLowerCase() === m.email.toLowerCase()));
+  const notAdded = (m) => !approvers.some((a) => (a.email || "").toLowerCase() === m.email.toLowerCase());
+  const availableConfirmed = eligibleTeam.filter((m) => m.status === "confirmed" && notAdded(m));
+  const availablePending = eligibleTeam.filter((m) => m.status !== "confirmed" && notAdded(m));
+  const addApproverToChain = (m) => setApprovers((l) => [...l, { id: m.id, email: m.email, name: m.name, status: m.status || "pending" }]);
+  // Inline "invite a new approver" form — mirrors the mobile offer sheet.
+  const [addOpen, setAddOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const [addMsg, setAddMsg] = useState(null); // { type:'ok'|'err', text }
+  const submitNewApprover = async () => {
+    const e = newEmail.trim().toLowerCase();
+    if (!e.includes("@")) { setAddMsg({ type: "err", text: "Enter a valid email." }); return; }
+    setAddBusy(true); setAddMsg(null);
+    const res = await dbAddApprover({ email: e, name: newName.trim() || null });
+    setAddBusy(false);
+    if (!res.ok) { setAddMsg({ type: "err", text: res.error || "Couldn't send the invite." }); return; }
+    setNewName(""); setNewEmail(""); setAddOpen(false);
+    setAddMsg({ type: "ok", text: "Invite sent. Add them below to include them in this offer — it'll hold at their step until they confirm." });
+    onReloadApprovers && onReloadApprovers();
+  };
   // Send mode: 'compose' (Aster builds the letter from terms) or 'upload' (HR
   // brings their own finished PDF and places one candidate signature box).
   const [mode, setMode] = useState("compose");
@@ -24831,40 +24852,63 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
                       <div className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{a.name || a.email}</div>
                       <div className="text-xs truncate" style={{ color: "var(--ink-3)" }}>{a.email}</div>
                     </div>
-                    {a.status === "approved" && <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>}
+                    {a.status === "approved"
+                      ? <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}>Approved</span>
+                      : a.status && a.status !== "confirmed"
+                        ? <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}><Icon name="clock" className="w-3 h-3" /> Pending</span>
+                        : null}
                     <button type="button" onClick={() => setApprovers((l) => l.filter((_, j) => j !== i))} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:bg-rose-50 hover:text-red-500 transition-colors" aria-label="Remove approver"><Icon name="close" className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
             )}
-            {eligibleTeam.length === 0 ? (
-              // No confirmed approvers yet: point to the Approvers list to add some.
-              <div className="rounded-xl border border-dashed px-4 py-4 text-center" style={{ borderColor: "var(--line-strong)" }}>
-                <button type="button" onClick={() => onManageTeam && onManageTeam()} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>
-                  <Icon name="userPlus" className="w-4 h-4" /> Add approvers
-                </button>
+            {/* Confirmed approvers, ready to add. */}
+            {availableConfirmed.length > 0 && (
+              <div className="space-y-1.5 mb-2">
+                {availableConfirmed.map((m) => (
+                  <button key={m.id} type="button" onClick={() => addApproverToChain(m)} className="w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors hover:border-[color:var(--brand)] hover:bg-[color:var(--brand-soft)]" style={{ borderColor: "var(--line-strong)" }}>
+                    <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{(m.name || m.email).slice(0, 2).toUpperCase()}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5"><span className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{m.name}</span><span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#DCFCE7", color: "#166534" }}><Icon name="check" className="w-2.5 h-2.5" /> Confirmed</span></span>
+                      <span className="block text-xs truncate" style={{ color: "var(--ink-3)" }}>{m.email}</span>
+                    </span>
+                    <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: "var(--brand)" }}><Icon name="userPlus" className="w-3.5 h-3.5" /> Add</span>
+                  </button>
+                ))}
               </div>
-            ) : availableApprovers.length > 0 ? (
-              <select
-                value=""
-                onChange={(e) => { const m = eligibleTeam.find((t) => t.id === e.target.value); if (m) setApprovers((l) => [...l, { id: m.id, email: m.email, name: m.name }]); }}
-                className={inputClass}
-              >
-                <option value="" disabled>+ Add an approver…</option>
-                {availableApprovers.map((m) => <option key={m.id} value={m.id}>{m.name}{m.name !== m.email ? ` · ${m.email}` : ""}</option>)}
-              </select>
-            ) : (
-              <p className="text-xs px-1" style={{ color: "var(--ink-4)" }}>All approvers have been added.</p>
             )}
-            {hasApprovers && <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>Approvers sign off in order by email; the candidate is emailed only after the last approval.</p>}
-          </div>
-        )}
-
-        {/* How the offer is delivered. */}
-        {hasEmail && (
-          <div className="flex items-center gap-2 mb-4 rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--ink-3)" }}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <span className="text-xs" style={{ color: "var(--ink-2)" }}>{hasApprovers ? <>Sent for <span className="font-medium">approval</span> first, then to the candidate to <span className="font-medium">sign with Aster Sign</span>.</> : <>Sent for e-signature with <span className="font-medium">Aster Sign</span>. The signed PDF is saved to the offer.</>}</span>
+            {/* Pending approvers — addable now; the offer holds at their step until they confirm their email. */}
+            {availablePending.length > 0 && (
+              <div className="space-y-1.5 mb-2">
+                {availablePending.map((m) => (
+                  <button key={m.id} type="button" onClick={() => addApproverToChain(m)} className="w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors hover:border-[color:var(--brand)]" style={{ borderColor: "var(--line)" }}>
+                    <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style={{ background: "#FEF3C7", color: "#92400E" }}>{(m.name || m.email).slice(0, 2).toUpperCase()}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5"><span className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{m.name}</span><span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#92400E" }}><Icon name="clock" className="w-2.5 h-2.5" /> Pending</span></span>
+                      <span className="block text-xs truncate" style={{ color: "var(--ink-3)" }}>{m.email}</span>
+                    </span>
+                    <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: "var(--brand)" }}><Icon name="userPlus" className="w-3.5 h-3.5" /> Add</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* Inline "invite a new approver" — no redirect to the Team page. */}
+            {addOpen ? (
+              <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: "var(--line-strong)", background: "var(--bg)" }}>
+                <input value={newName} onChange={(e) => { setNewName(e.target.value); setAddMsg(null); }} placeholder="Name (optional)" autoComplete="off" className={inputClass} />
+                <input type="email" value={newEmail} onChange={(e) => { setNewEmail(e.target.value); setAddMsg(null); }} placeholder="approver@email.com" autoComplete="off" className={inputClass} />
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => { setAddOpen(false); setAddMsg(null); }} className="flex-1 text-sm rounded-lg px-3 py-2 border font-medium transition-colors hover:bg-white" style={{ borderColor: "var(--line-strong)", color: "var(--ink-2)" }}>Cancel</button>
+                  <button type="button" onClick={submitNewApprover} disabled={addBusy || !newEmail.trim()} className="flex-1 text-sm rounded-lg px-3 py-2 brand-gradient text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-50">{addBusy ? "Sending…" : "Send invite"}</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => { setAddOpen(true); setAddMsg(null); }} className="w-full rounded-xl border border-dashed px-4 py-3 inline-flex items-center justify-center gap-1.5 text-sm font-semibold transition-colors hover:bg-[color:var(--bg)]" style={{ borderColor: "var(--line-strong)", color: "var(--brand)" }}>
+                <Icon name="userPlus" className="w-4 h-4" /> Invite a new approver
+              </button>
+            )}
+            {addMsg && <p className="text-xs mt-2 leading-relaxed" style={{ color: addMsg.type === "err" ? "#B42318" : "#166534" }}>{addMsg.text}</p>}
+            {hasApprovers && <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--ink-3)" }}>Approvers sign off in order by email; the candidate is emailed only after the last approval. A pending approver holds the offer at their step until they confirm.</p>}
           </div>
         )}
 
