@@ -12462,7 +12462,7 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
 function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob = null, onCreate, onUpdate, jobPostBlocked = false, jobPostUsage = { used: 0, limit: null, resetsAt: null }, onConsumeJobPost, requestMode = false, requesterId = null, requesterName = "" }) {
   if (!open) return null;
   const editing = !!initialJob;
-  const heading = requestMode ? "Request a new role" : editing ? "Edit job" : "New job posting";
+  const heading = requestMode ? "Request a new position" : editing ? "Edit job" : "New job posting";
   const sub = requestMode
     ? "Fill in the role you'd like to hire for. It goes to your hiring manager as a draft to review and publish."
     : editing ? "Update the details. Changes go live on the posting right away." : "Add the details, then share the link and rank applicants as they apply.";
