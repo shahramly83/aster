@@ -1347,11 +1347,14 @@ function ProcessStepper({ stage }) {
   }
   const steps = stepsFor(stage);
   const curIdx = steps.indexOf(stage);
+  // "hired" is the terminal success stage: the process is finished, so the final
+  // step is a checkmark (done), not an in-progress dot.
+  const complete = stage === "hired";
   return (
     <View style={{ flexDirection: "row" }}>
       {steps.map((k, i) => {
-        const done = curIdx > i;
-        const active = curIdx === i;
+        const done = curIdx > i || (complete && curIdx === i);
+        const active = curIdx === i && !complete;
         return (
           <View key={k} style={{ flex: 1, alignItems: "center" }}>
             <View style={styles.stepLine}>
