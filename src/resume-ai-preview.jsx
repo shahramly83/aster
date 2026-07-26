@@ -13747,37 +13747,42 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
             ) : (
             <div>
             <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-              Add where you're posting this so you can see which channels bring in the best applicants. Leave it blank for a plain link.
+              Tag where you're posting this so you can see which channels bring in the best applicants. Leave it blank for a plain link.
             </p>
 
-            <label className="block text-xs mb-1" style={{ color: "var(--ink-2)" }}>Source</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--ink-2)" }}>Source <span className="font-normal" style={{ color: "var(--ink-4)" }}>· optional</span></label>
             <input
               value={linkSource}
               onChange={(e) => setLinkSource(e.target.value)}
               placeholder="e.g. LinkedIn, Referral, JobStreet"
-              className="w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+              className="w-full rounded-xl bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]"
             />
 
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {SOURCE_PRESETS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setLinkSource(s)}
-                  className="text-xs rounded-full px-2.5 py-1 border transition-colors"
-                  style={
-                    linkSource === s
-                      ? { background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand)" }
-                      : { color: "var(--ink-2)", borderColor: "var(--line-strong)" }
-                  }
-                >
-                  {s}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {SOURCE_PRESETS.map((s) => {
+                const on = linkSource === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setLinkSource(on ? "" : s)}
+                    className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-3 py-1.5 border transition-all"
+                    style={on ? { background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", color: "var(--ink-2)", borderColor: "var(--line-strong)" }}
+                  >
+                    {on && <Icon name="check" className="w-3 h-3" />} {s}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mt-4 rounded-xl bg-neutral-50 border border-[color:var(--line)] px-3 py-2">
-              <p className="text-[11px] uppercase tracking-wide mb-0.5" style={{ color: "var(--ink-3)" }}>Link preview</p>
-              <p className="text-xs break-all select-all cursor-text" style={{ color: "var(--ink)" }}>{buildLink(linkJob.id, linkSource)}</p>
+            {/* Apply link, styled like the embed code card for consistency. */}
+            <div className="mt-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--line-strong)" }}>
+              <div className="flex items-center justify-between px-3.5 py-2" style={{ background: "var(--bg)", borderBottom: "1px solid var(--line)" }}>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}><Icon name="link" className="w-3 h-3" /> Apply link</span>
+                <button onClick={copyTaggedLink} className="inline-flex items-center gap-1.5 text-[11px] font-bold rounded-lg px-2.5 py-1 transition-colors" style={linkCopied === "ok" ? { background: "#DCFCE7", color: "#166534" } : { background: "var(--brand-soft)", color: "var(--brand)" }}>{linkCopied === "ok" ? "Copied ✓" : "Copy"}</button>
+              </div>
+              <div className="px-3.5 py-3 bg-white">
+                <p className="text-xs break-all select-all cursor-text" style={{ color: "var(--ink)", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{buildLink(linkJob.id, linkSource)}</p>
+              </div>
             </div>
 
             {linkCopied === "fail" && (
@@ -13788,10 +13793,10 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
 
             <button
               onClick={() => { const j = linkJob; closeLinkModal(); onPreviewApply && onPreviewApply(j); }}
-              className="text-sm font-medium mt-3 hover:opacity-70 transition-opacity"
+              className="inline-flex items-center gap-1 text-sm font-semibold mt-3.5 hover:opacity-70 transition-opacity"
               style={{ color: "var(--brand)" }}
             >
-              Preview the application page →
+              Preview the application page <Icon name="arrowRight" className="w-3.5 h-3.5" />
             </button>
 
             <div className="flex items-center justify-end gap-2 mt-5">
