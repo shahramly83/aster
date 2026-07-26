@@ -16222,7 +16222,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
   const [email, setEmail] = useState("");
   const [roleFilter, setRoleFilter] = useState("all"); // 'all' | 'admin' | 'interviewer'
   const [roleFilterOpen, setRoleFilterOpen] = useState(false);
-  const [inviteRole, setInviteRole] = useState("admin"); // 'admin' (Hiring Manager) | 'interviewer'
+  const [inviteRole, setInviteRole] = useState(null); // null (unpicked) | 'admin' (Hiring Manager) | 'interviewer' | 'approver'
   const [banner, setBanner] = useState(null);
   const [sending, setSending] = useState(false);
   const [removing, setRemoving] = useState(null); // interviewer pending removal (confirm modal)
@@ -16266,7 +16266,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       if (!res.ok) { setBanner(res.error || "Couldn't add that approver."); return; }
       reloadApprovers();
       setBanner(`Approver added. ${e} gets an email to confirm, no login needed.`);
-      setEmail(""); setApproverName(""); setInviteRole("admin"); setShowForm(false); setTeamTab("approvers");
+      setEmail(""); setApproverName(""); setInviteRole(null); setShowForm(false); setTeamTab("approvers");
       return;
     }
     if (atSeatCap) {
@@ -16329,7 +16329,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
       ? `${inviteEmail} was added back to your team. They keep their existing login and history.`
       : `Invite sent to ${inviteEmail}. They'll get an email with a link to join your workspace as ${roleWord === "interviewer" ? "an" : "a"} ${roleWord}.`);
     setEmail("");
-    setInviteRole("admin");
+    setInviteRole(null);
     setShowForm(false);
   };
 
@@ -16465,7 +16465,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           {/* Every plan can invite. The only limit is seats, so a full workspace is
               sent to billing rather than shown a locked button. */}
           <button
-            onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setShowForm(true); }}
+            onClick={() => { if (atSeatCap) { navigate("billing"); return; } setBanner(null); setInviteRole(null); setEmail(""); setApproverName(""); setShowForm(true); }}
             className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity inline-flex items-center justify-center gap-1.5 min-w-[172px]"
           >
             {atSeatCap ? "Seats full, upgrade" : <><Icon name="userPlus" className="w-4 h-4" /> Invite teammate</>}
@@ -16642,41 +16642,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 <Icon name="close" className="w-4 h-4" />
               </button>
             </div>
-            <div className="mt-5 space-y-3">
-              <div>
-                {inviteRole === "approver" ? (
-                  <>
-                    <label className={labelClass}>Name <span style={{ color: "var(--ink-4)" }}>(optional)</span></label>
-                    <input value={approverName} onChange={(e) => { setApproverName(e.target.value); setBanner(null); }} placeholder="e.g. Aisha Rahman" autoComplete="off" className={`${inputClass} mb-3`} />
-                    <label className={labelClass}>Email</label>
-                    <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="approver@email.com" autoComplete="off" className={inputClass} />
-                    <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Approvers confirm by email, any domain is fine and no seat is used.</p>
-                  </>
-                ) : (
-                  <>
-                    <label className={labelClass}>Work email</label>
-                    {tenantDomain ? (
-                      <>
-                        <div className="flex items-stretch rounded-xl bg-neutral-100 border border-neutral-200 overflow-hidden focus-within:ring-2" style={{ "--tw-ring-color": "var(--brand)" }}>
-                          <input
-                            autoFocus
-                            value={email}
-                            onChange={(e) => { setEmail(e.target.value.replace(/@.*$/, "").replace(/\s/g, "")); setBanner(null); }}
-                            placeholder="jane"
-                            autoComplete="off"
-                            aria-label="Work email name"
-                            className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-neutral-900 focus:outline-none"
-                          />
-                          <span className="flex items-center px-3 text-sm select-none whitespace-nowrap border-l border-neutral-200" style={{ background: "#EFEFF3", color: "var(--ink-3)" }}>@{tenantDomain}</span>
-                        </div>
-                        <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Only teammates on your <span className="font-medium">@{tenantDomain}</span> domain can be invited.</p>
-                      </>
-                    ) : (
-                      <input autoFocus type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
-                    )}
-                  </>
-                )}
-              </div>
+            <div className="mt-5 space-y-4">
               <div>
                 <label className={labelClass}>Role</label>
                 <div className="grid grid-cols-1 gap-2.5">
@@ -16714,11 +16680,47 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                   })}
                 </div>
               </div>
+              {inviteRole && (
+                <div className="act-panel-in">
+                  {inviteRole === "approver" ? (
+                    <>
+                      <label className={labelClass}>Name <span style={{ color: "var(--ink-4)" }}>(optional)</span></label>
+                      <input value={approverName} onChange={(e) => { setApproverName(e.target.value); setBanner(null); }} placeholder="e.g. Aisha Rahman" autoComplete="off" className={`${inputClass} mb-3`} />
+                      <label className={labelClass}>Email</label>
+                      <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="approver@email.com" autoComplete="off" className={inputClass} />
+                      <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Approvers confirm by email, any domain is fine and no seat is used.</p>
+                    </>
+                  ) : (
+                    <>
+                      <label className={labelClass}>Work email</label>
+                      {tenantDomain ? (
+                        <>
+                          <div className="flex items-stretch rounded-xl bg-neutral-100 border border-neutral-200 overflow-hidden focus-within:ring-2" style={{ "--tw-ring-color": "var(--brand)" }}>
+                            <input
+                              autoFocus
+                              value={email}
+                              onChange={(e) => { setEmail(e.target.value.replace(/@.*$/, "").replace(/\s/g, "")); setBanner(null); }}
+                              placeholder="jane"
+                              autoComplete="off"
+                              aria-label="Work email name"
+                              className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-neutral-900 focus:outline-none"
+                            />
+                            <span className="flex items-center px-3 text-sm select-none whitespace-nowrap border-l border-neutral-200" style={{ background: "#EFEFF3", color: "var(--ink-3)" }}>@{tenantDomain}</span>
+                          </div>
+                          <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-3)" }}>Only teammates on your <span className="font-medium">@{tenantDomain}</span> domain can be invited.</p>
+                        </>
+                      ) : (
+                        <input autoFocus type="email" value={email} onChange={(e) => { setEmail(e.target.value); setBanner(null); }} placeholder="jane@company.com" autoComplete="off" className={inputClass} />
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               {banner && <p className="text-sm" style={{ color: /sent/i.test(banner) ? "#166534" : "#DC2626" }}>{banner}</p>}
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => { setShowForm(false); setBanner(null); }} disabled={sending} className="text-sm rounded-xl px-4 py-2 border transition-colors hover:bg-neutral-50 disabled:opacity-40" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>Cancel</button>
-              <button onClick={handleAdd} disabled={sending || !email.trim()} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{sending ? "Sending…" : inviteRole === "approver" ? "Add approver" : "Send invite"}</button>
+              <button onClick={handleAdd} disabled={sending || !inviteRole || !email.trim()} className="text-sm rounded-xl brand-gradient hover:opacity-90 text-white font-medium px-4 py-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{sending ? "Sending…" : inviteRole === "approver" ? "Add approver" : "Send invite"}</button>
             </div>
             <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{inviteRole === "approver" ? "They confirm by email and can approve offers, no account, login or seat needed." : "They'll get an email to join your workspace. Teammates are included in your plan, they don't buy their own."}</p>
           </div>
