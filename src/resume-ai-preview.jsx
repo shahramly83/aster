@@ -26084,6 +26084,47 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
               </button>
             )}
           </div>
+        ) : isHiredView ? (
+          <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+            <div className="overflow-x-auto">
+              <table className="w-full" style={{ minWidth: 640, borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Candidate", "Role", "Hired", ""].map((h, i) => (
+                      <th key={i} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderBottom: "1px solid var(--line)", textAlign: i === 3 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((c) => {
+                    const role = currentRole(c);
+                    const jobsFor = appliedJobs[c.id] || [];
+                    const when = hiredDates[c.id] ? new Date(hiredDates[c.id]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null;
+                    return (
+                      <tr key={c.id} onClick={() => onViewCandidate(c.id)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)" }}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative shrink-0">
+                              <CandidateAvatar name={c.parsed?.name ?? c.fullName} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={36} showPhotoDot={false} />
+                              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white" style={{ background: "#16A34A", color: "#fff" }}><Icon name="check" className="w-2.5 h-2.5" /></span>
+                            </div>
+                            <span className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed?.name ?? c.fullName ?? c.fileName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)", maxWidth: 260 }}><span className="truncate block">{role || jobsFor[0] || "—"}</span></td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {when
+                            ? <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: "var(--ink-2)" }}><Icon name="calendar" className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} /> {when}</span>
+                            : <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> Hired</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right"><Icon name="chevronRight" className="w-5 h-5 inline-block" style={{ color: "var(--ink-3)" }} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 lg:gap-3">
             {visible.map((c) => {
