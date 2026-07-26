@@ -12197,8 +12197,8 @@ function NewJobForm({ jobs, setJobs, plan = "launch", navigate, onClose, initial
   // Textarea (one item per line) → clean array of bullets.
   const toLines = (v) => v.split("\n").map((s) => s.trim().replace(/^[-•]\s*/, "")).filter(Boolean);
 
-  const inputClass = "w-full rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400";
-  const labelClass = "block text-sm text-neutral-700 mb-1";
+  const inputClass = "w-full rounded-xl bg-white border border-[color:var(--line-strong)] px-3.5 py-2.5 text-neutral-900 text-sm placeholder:text-neutral-400 transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]";
+  const labelClass = "block text-xs font-semibold mb-1.5 text-[color:var(--ink-2)]";
 
   // A draft only needs a title; publishing needs a description too.
   const canDraft = !!title.trim();
@@ -12465,10 +12465,11 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
       {/* Backdrop does NOT close the modal: a long form shouldn't vanish on a
           stray outside click. Close only via the X or Cancel. */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-2xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
-        <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b" style={{ borderColor: "var(--line)" }}>
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="jobs" className="w-5 h-5" /></span>
+      <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-3xl bg-white overflow-hidden" style={{ border: "1px solid var(--line)", boxShadow: "0 44px 88px -36px rgba(18,19,42,0.6)" }}>
+        <div className="relative flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 overflow-hidden">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.10), rgba(var(--brand-rgb),0.02) 55%, transparent)" }} />
+          <div className="relative flex items-center gap-3 min-w-0">
+            <span className="flex w-11 h-11 items-center justify-center rounded-2xl brand-gradient text-white shrink-0 shadow-[0_12px_26px_-10px_rgba(var(--brand-rgb),0.85)]"><Icon name="jobs" className="w-5 h-5" /></span>
             <div className="min-w-0">
               <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{heading}</h2>
               <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>
@@ -14015,7 +14016,6 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
             </>
           )}
           {showReset && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {resetLabel}</p>}
-          {hint && <p className="text-[11px] mt-2.5 pt-2.5 leading-relaxed" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>{hint}</p>}
         </div>
       )}
     </div>
