@@ -17909,7 +17909,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
               {round2 ? "Candidate's suggested times" : "Panel availability"}
             </p>
             <p className="text-[11px] leading-tight" style={{ color: "var(--ink-3)" }}>
-              {round2 ? "They couldn't make the offered times" : canSelect ? `Pick the times to offer ${candName.split(" ")[0]}` : "Which times can the panel make?"}
+              {round2 ? "They couldn't make the offered times" : canSelect ? `Pick the times to offer ${candName.split(" ")[0]}` : assignedInterviewers.length === 0 ? "No interviewers on this role yet." : "Which times can the panel make?"}
             </p>
           </div>
         </div>
@@ -17946,9 +17946,6 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                 {iv.name}
               </span>
             ))}
-            {assignedInterviewers.length === 0 && (
-              <p className="text-[11px]" style={{ color: "var(--ink-3)" }}>No interviewers on this role yet.</p>
-            )}
           </div>
 
           {addingPanel && (
@@ -18007,20 +18004,17 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
         </div>
       )}
 
-      {/* No poll yet → HM can start one */}
-      {!poll && isManager && (
+      {/* No poll yet → HM can start one, but only once the role has at least one
+          interviewer to poll. With nobody to poll the poll is meaningless, so the
+          button is hidden entirely until an interviewer is added. */}
+      {!poll && isManager && requiredVoters.length > 0 && (
         !creating ? (
-          // With nobody to poll, the poll would open, report "0 of 0 voted" and
-          // unlock selection straight away — a slower "Schedule on my own". Block
-          // it, and point at the fix rather than just greying out.
           <div>
             <button
               type="button"
-              disabled={requiredVoters.length === 0}
               onClick={() => setCreating(true)}
-              title={requiredVoters.length === 0 ? "Add an interviewer to this role first" : undefined}
-              className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80 disabled:cursor-not-allowed disabled:hover:opacity-100"
-              style={{ color: requiredVoters.length === 0 ? "var(--ink-3)" : "var(--brand)" }}
+              className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80"
+              style={{ color: "var(--brand)" }}
             >
               <Icon name="plus" className="w-4 h-4" /> Run a panel availability poll
             </button>
@@ -18661,9 +18655,6 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
                 </span>
               ))}
             </div>
-            {assignedInterviewers.length === 0 && (
-              <p className="text-xs mt-1.5" style={{ color: "var(--ink-3)" }}>No interviewers assigned to this role yet. Assign them from the applicant list so they can score the interview.</p>
-            )}
           </div>
 
           {/* R3: the hiring manager offers a few times; the candidate picks one. */}
