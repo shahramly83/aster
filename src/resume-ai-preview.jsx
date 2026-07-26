@@ -26000,8 +26000,10 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
 
                   {/* AI Rank writes a per-candidate "why this fit" as part of the
                       single rank run, so we show it automatically here, free — no
-                      separate per-candidate credit. */}
-                  {ranked && match?.rationale && (
+                      separate per-candidate credit. Non-matches already show their
+                      own amber "Why not a match" note above, so skip this for them
+                      to avoid a duplicate "Why" block. */}
+                  {ranked && match?.rationale && a.fit !== "other" && (
                     <div className="mt-3 rounded-xl px-3 py-2.5" style={{ background: "rgba(var(--brand-rgb),0.05)", border: "1px solid rgba(var(--brand-rgb),0.13)" }}>
                       <div className="flex items-start gap-2">
                         <span className="shrink-0 mt-px" style={{ color: "var(--brand)" }}><Icon name="matching" className="w-3.5 h-3.5" /></span>
