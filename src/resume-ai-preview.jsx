@@ -26069,21 +26069,13 @@ function CandidateListScreen({ navigate, candidates, jobs = [], filter, onViewCa
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-2xl bg-white act-shadow border px-6 py-14 sm:py-16 text-center" style={{ borderColor: "var(--line)" }}>
-            <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-              <Icon name={isHiredView ? "hire" : q ? "search" : "users"} className="w-7 h-7" />
-            </div>
-            <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>
+          <div className="rounded-2xl bg-white act-shadow border px-6 py-20 sm:py-24 flex flex-col items-center justify-center text-center" style={{ borderColor: "var(--line)" }}>
+            <p className="text-xl sm:text-2xl font-bold font-display tracking-tight" style={{ color: "var(--ink)" }}>
               {q ? "No matches" : isHiredView ? "No hires yet" : `No ${title.toLowerCase()} yet`}
             </p>
-            <p className="text-sm mt-1.5 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-2)" }}>
-              {q ? <>Nothing matches &ldquo;{query}&rdquo;. Try a different name.</>
-                : isHiredView ? "When you mark a candidate hired, they'll appear here with the role and date."
-                : "As candidates move through your pipeline, they'll show up here."}
-            </p>
             {!q && (
-              <button onClick={() => navigate("search")} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-4 py-2.5 brand-gradient text-white transition-transform hover:-translate-y-0.5">
-                <Icon name="search" className="w-4 h-4" /> Browse candidates
+              <button onClick={() => navigate("search")} className="mt-6 inline-flex items-center text-sm font-semibold rounded-xl px-6 py-3 brand-gradient text-white transition-transform hover:-translate-y-0.5 shadow-[0_14px_34px_-14px_rgba(var(--brand-rgb),0.85)]">
+                Browse candidates
               </button>
             )}
           </div>
