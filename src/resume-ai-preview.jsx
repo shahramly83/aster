@@ -13342,22 +13342,24 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         return (
           <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`${dj.title} details`}>
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDetailJob(null)} />
-            <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-2xl bg-white overflow-hidden flex flex-col" style={{ border: "1px solid var(--line)", boxShadow: "0 24px 60px -24px rgba(18,19,42,0.5)" }}>
-              <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b shrink-0" style={{ borderColor: "var(--line)" }}>
-                <div className="flex items-start gap-3 min-w-0">
-                  <span className="flex w-11 h-11 items-center justify-center rounded-xl shrink-0" style={{ background: djColor.tile, color: djColor.ink }}><Icon name="jobs" className="w-5 h-5" /></span>
+            <div className="relative z-10 w-full max-w-2xl my-4 sm:my-8 rounded-3xl bg-white overflow-hidden flex flex-col" style={{ border: "1px solid var(--line)", boxShadow: "0 44px 88px -36px rgba(18,19,42,0.6)" }}>
+              <div className="relative flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 shrink-0 overflow-hidden">
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.12), rgba(var(--brand-rgb),0.03) 55%, transparent)" }} />
+                <div className="relative flex items-start gap-3.5 min-w-0">
+                  <span className="flex w-12 h-12 items-center justify-center rounded-2xl brand-gradient text-white shrink-0 shadow-[0_12px_28px_-10px_rgba(var(--brand-rgb),0.85)]"><Icon name="jobs" className="w-[22px] h-[22px]" /></span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{dj.title}</h2>
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0" style={dj.status === "open" ? { background: "#ECFDF3", color: "#15803D" } : { background: "#F1F1F4", color: "var(--ink-2)" }}>
+                      <h2 className="text-lg font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{dj.title}</h2>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0" style={dj.status === "open" ? { background: "#ECFDF3", color: "#15803D" } : { background: "#F1F1F4", color: "var(--ink-2)" }}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: dj.status === "open" ? "#22C55E" : "#9A9AA6" }} /> {dj.status}
                       </span>
                     </div>
-                    {dj.department && <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{dj.department}</p>}
+                    {dj.department && <p className="text-[11px] mt-1 font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>{dj.department}</p>}
                   </div>
                 </div>
-                <button onClick={() => setDetailJob(null)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
+                <button onClick={() => setDetailJob(null)} aria-label="Close" className="relative w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/70 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
               </div>
+              <div className="h-px shrink-0" style={{ background: "var(--line)" }} />
 
               <div className="px-5 sm:px-6 py-5 max-h-[70vh] overflow-y-auto space-y-6">
                 {/* Key facts */}
@@ -13371,7 +13373,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                     { label: "Applicants", value: String(djN) },
                   ].filter((f) => f.value);
                   return (
-                    <div className="rounded-xl border p-4 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                    <div className="rounded-2xl border p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4 bg-white act-shadow" style={{ borderColor: "var(--line)" }}>
                       {facts.map((f) => (
                         <div key={f.label} className="min-w-0">
                           <p className="text-[10px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{f.label}</p>
@@ -13409,11 +13411,11 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                       <p className="text-[11px] font-semibold uppercase tracking-wide mb-2 inline-flex items-center gap-1.5" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>
                         <Icon name="eye" className="w-3.5 h-3.5" /> Apply page views
                       </p>
-                      <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                      <div className="rounded-2xl border p-4 sm:p-5 bg-white act-shadow" style={{ borderColor: "var(--line)" }}>
                         <div className="grid grid-cols-3 gap-4">
-                          {[["Total views", vs.total], ["Unique visitors", vs.uniques], ["Views → applied", conv == null ? "—" : `${conv}%`]].map(([label, value]) => (
+                          {[["Total views", vs.total], ["Unique visitors", vs.uniques], ["Views → applied", conv == null ? "—" : `${conv}%`]].map(([label, value], i) => (
                             <div key={label} className="min-w-0">
-                              <p className="text-2xl font-bold font-display tnum" style={{ color: "var(--ink)" }}>{value}</p>
+                              <p className="text-2xl font-bold font-display tnum" style={{ color: i === 2 && conv != null ? "var(--brand)" : "var(--ink)" }}>{value}</p>
                               <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{label}</p>
                             </div>
                           ))}
