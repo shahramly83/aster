@@ -10345,6 +10345,9 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const appIsInRange = (a) => { const d = appliedDate(a); return inRangeMs(d ? d.getTime() : null); };
   // Interviews list scoped to the range (all-time keeps the forward-looking upcoming set).
   const shownInterviews = isAllTime ? upcomingInterviews : interviews.filter((iv) => iv.start && inRangeMs(iv.start.getTime()));
+  // Total apply-page views across every posting (cumulative; per-view timestamps
+  // aren't kept, so this isn't date-scoped).
+  const totalJobViews = jobs.reduce((s, j) => s + (j.viewStats?.total || 0), 0);
 
   // The six headline KPIs. Deltas are real where we have the history (candidates,
   // open roles, applications) and absent where we don't.
@@ -10565,7 +10568,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     {heroCard({ ...kpis[5], green: true })}
                     {heroCard(kpis[0])}
                     {heroCard({ label: "Open positions", value: openJobsInRange, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
-                    {heroCard({ label: "Awaiting Review", value: stageInRange("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
+                    {heroCard({ label: "Total Views", value: totalJobViews, icon: "eye", onClick: () => goToJobs(null) })}
                   </div>
 
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
