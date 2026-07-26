@@ -25899,7 +25899,77 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               <p className="text-xs mt-1 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--ink-3)" }}>Once candidates apply to this role, they&apos;ll show up here. Aster reads each resume and ranks the strong matches for you.</p>
             </div>
           )
-        ) : (
+        ) : (<>
+          <div className="rounded-2xl bg-white act-shadow border overflow-hidden" style={{ borderColor: "var(--line)" }}>
+          <div className="overflow-x-auto">
+          <table className="w-full" style={{ minWidth: 760, borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["Candidate", "Stage", "Source", "Applied", "Match"].map((h, i) => (
+                  <th key={h} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderBottom: "1px solid var(--line)", textAlign: i === 4 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+            {shownApps.map((a, idx) => {
+              const c = MOCK_CANDIDATES.find((cand) => cand.id === a.candidateId);
+              if (!c || !c.parsed) return null;
+              const role = c.parsed.experience?.[0]?.title ?? "Applicant";
+              const yrs = c.parsed.years_of_experience;
+              const descriptor = [seniorityFromYears(yrs), yrs != null ? `${yrs} yrs` : null, role].filter(Boolean).join(" · ");
+              const match = matchResults?.[a.candidateId];
+              const scoreVisible = idx < aiMatchLimit;
+              const ranked = !!match && scoreVisible;
+              const pct = ranked ? Math.round(match.score * 100) : null;
+              const meta = PIPE_STAGE_META[a.stage] || { label: a.stage, color: "var(--ink-3)" };
+              const starred = shortlistedApps.has(a.applicationId);
+              const isTop = !!matchResults && idx === 0 && ranked;
+              const act = activityFor(a);
+              return (
+                <tr key={a.candidateId} onClick={() => onViewCandidate(a.candidateId, activeJobId, a.stage)} className="cursor-pointer transition-colors hover:bg-[color:var(--bg)]" style={{ borderBottom: "1px solid var(--line)", background: isTop ? "rgba(var(--brand-rgb),0.04)" : undefined }}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <button onClick={(e) => { e.stopPropagation(); onToggleShortlist(a.applicationId, a.candidateId); }} aria-label={starred ? "Remove from shortlist" : "Shortlist"} title={starred ? "Shortlisted, click to remove" : "Shortlist"} className="shrink-0 p-0.5 transition-all hover:scale-110" style={{ color: starred ? "#F5B301" : "var(--ink-3)" }}>
+                        <Icon name="star" className="w-[18px] h-[18px]" style={{ fill: starred ? "#F5B301" : "none" }} />
+                      </button>
+                      <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={32} showPhotoDot={false} />
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{c.parsed.name}</span>
+                          {isTop && <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full brand-gradient text-white font-bold uppercase">Top</span>}
+                          {act && <span className="shrink-0 inline-flex items-center text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: act.bg, color: act.color }} title={act.label}>{act.label}</span>}
+                        </span>
+                        <span className="block text-[11px] truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{descriptor}</span>
+                        {a.fit === "other" && <span className="mt-1 inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FEF3E2", color: "#9A6B14" }} title={a.fitReason || "Doesn't match this role's requirements."}>Not a match</span>}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    {hiredIds.has(a.candidateId)
+                      ? <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "#DCFCE7", color: "#166534" }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} /> Hired</span>
+                      : isInterviewer(profile?.role)
+                        ? <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>
+                        : <StageControl stage={a.stage} rejectionEmailSent={a.rejectionEmailSent} />}
+                  </td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.source || "—"}</td>
+                  <td className="px-4 py-3 text-sm tnum" style={{ color: "var(--ink-3)" }}>{a.appliedAt}</td>
+                  <td className="px-4 py-3">
+                    <span className="flex justify-end">
+                      {pct != null
+                        ? <MatchRing value={pct} size={46} stroke={4} filled />
+                        : (match && !scoreVisible)
+                          ? <button onClick={(e) => { e.stopPropagation(); navigate("billing"); }} className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-3 h-3" /> score</button>
+                          : <span className="text-xs" style={{ color: "var(--ink-4)" }}>—</span>}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+            </tbody>
+          </table>
+          </div>
+          </div>
+          {false && (
           <div className="space-y-2">
             {shownApps.map((a, idx) => {
               const c = MOCK_CANDIDATES.find((cand) => cand.id === a.candidateId);
@@ -26016,6 +26086,8 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
               );
             })}
           </div>
+          )}
+        </>
         )}
       <ConfirmDialog
         open={!!confirmRun}
