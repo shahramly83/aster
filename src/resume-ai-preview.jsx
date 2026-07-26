@@ -11053,7 +11053,6 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
           <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb),0.14), transparent 58%)" }} />
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Icon name="star" className="w-6 h-6 shrink-0" style={{ color: "var(--brand)" }} />
               <div className="min-w-0">
                 <h3 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{title}</h3>
                 <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-2)" }}>Kick in when your plan runs out · never expire</p>
