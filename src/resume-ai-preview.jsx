@@ -18113,7 +18113,7 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
                 >
                   {/* Selection indicator — hidden for the round-2 HM (they Confirm, don't tick). */}
                   {!round2HM && (
-                    <span className="shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors" style={active ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "var(--line-strong)" }}>
+                    <span className="shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors" style={active ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "rgba(var(--brand-rgb),0.5)" }}>
                       {active && <Icon name="check" className="w-3.5 h-3.5" style={{ color: "#fff" }} />}
                     </span>
                   )}
@@ -18700,8 +18700,8 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
               so whatever the candidate picks is final (no back-and-forth). */}
           {slots.length > 0 && (
             <label className="flex items-start gap-2.5 mb-3 cursor-pointer select-none group">
-              <span className="mt-0.5 shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors group-hover:border-[color:var(--brand)]"
-                style={confirmedOffline ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "var(--line-strong)" }}>
+              <span className="mt-0.5 shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors group-hover:border-[color:var(--brand)]"
+                style={confirmedOffline ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "rgba(var(--brand-rgb),0.5)" }}>
                 {confirmedOffline && <Icon name="check" className="w-3.5 h-3.5" style={{ color: "#fff" }} />}
               </span>
               <input type="checkbox" checked={confirmedOffline} onChange={(e) => setConfirmedOffline(e.target.checked)} className="sr-only" />
