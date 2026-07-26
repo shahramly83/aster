@@ -22410,7 +22410,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // ones inline and route through still-pending approvers (held until they
   // confirm their email). `status` drives the confirmed/pending treatment.
   const [approverPool, setApproverPool] = useState([]);
-  const reloadApproverPool = React.useCallback(() => {
+  const reloadApproverPool = useCallback(() => {
     if (!companyId) return;
     dbListApprovers(companyId).then((r) => setApproverPool((r || []).map((a) => ({ id: a.id, name: a.name || a.email, email: a.email, status: a.status || "pending" }))));
   }, [companyId]);
