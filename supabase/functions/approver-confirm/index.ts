@@ -6,6 +6,7 @@
 //
 // Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { emailApprover, OFFER_COLS } from "../_shared/offer-model.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,16 +21,35 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   try {
-    const { token } = await req.json().catch(() => ({}));
+    const { token, origin } = await req.json().catch(() => ({}));
     if (!token) return json({ error: "token is required" }, 400);
+    const base = (typeof origin === "string" && origin.startsWith("http")) ? origin.replace(/\/$/, "") : "https://hireaster.com";
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: row } = await admin.from("offer_approvers")
       .select("id, company_id, email, name, status").eq("confirm_token", token).maybeSingle();
     if (!row) return json({ error: "not_found" }, 404);
 
-    if (row.status !== "confirmed") {
+    const wasPending = row.status !== "confirmed";
+    if (wasPending) {
       await admin.from("offer_approvers").update({ status: "confirmed", confirmed_at: new Date().toISOString() }).eq("id", row.id);
+      // Release any offers that were held at THIS approver's step (added to a
+      // chain before they'd confirmed). For each of their pending steps that is
+      // now the live turn (all prior steps approved) on an offer still pending
+      // approval, email them the approval request so the chain can proceed.
+      try {
+        const { data: mySteps } = await admin.from("offer_approvals")
+          .select("id, offer_id, step, token, approver_email, approver_name")
+          .eq("company_id", row.company_id).eq("status", "pending").ilike("approver_email", row.email);
+        for (const st of mySteps || []) {
+          const { data: prior } = await admin.from("offer_approvals").select("status").eq("offer_id", st.offer_id).lt("step", st.step);
+          if ((prior || []).some((p: { status: string }) => p.status !== "approved")) continue; // not their live turn yet
+          const { data: offer } = await admin.from("offers").select(OFFER_COLS).eq("id", st.offer_id).maybeSingle();
+          if (!offer || offer.approval_status !== "pending") continue; // declined/approved/closed
+          const { data: all } = await admin.from("offer_approvals").select("step").eq("offer_id", st.offer_id);
+          await emailApprover(admin, offer, st, (all || []).length || 1, base);
+        }
+      } catch (e) { console.error("release held offers", e); }
     }
 
     const { data: comp } = await admin.from("companies").select("name, logo_url").eq("id", row.company_id).maybeSingle();

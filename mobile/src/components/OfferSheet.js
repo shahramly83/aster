@@ -343,19 +343,23 @@ export default function OfferSheet({ visible, onClose, companyId, companyName, c
                 </>
               ) : null}
 
-              {/* Pending — awaiting email confirmation. */}
-              {pendingApprovers.length > 0 ? (
+              {/* Pending — awaiting email confirmation, but addable now. The offer
+                  holds at their step until they confirm their email. */}
+              {pendingApprovers.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).length > 0 ? (
                 <>
-                  <Text style={styles.apGroupLabel}>Awaiting confirmation</Text>
-                  {pendingApprovers.map((m) => (
-                    <View key={m.id} style={styles.apAddRow}>
+                  <Text style={styles.apGroupLabel}>Awaiting confirmation · tap to add (held until they confirm)</Text>
+                  {pendingApprovers.filter((m) => !selectedEmails.has((m.email || "").toLowerCase())).map((m) => (
+                    <Pressable key={m.id} onPress={() => pickApprover(m)} style={({ pressed }) => [styles.apAddRow, pressed && { backgroundColor: theme.bg }]}>
                       <View style={[styles.apAvatar, { backgroundColor: "#FEF3C7" }]}><Text style={[styles.apAvatarTxt, { color: "#92400E" }]}>{initialsOf(m.name || m.email)}</Text></View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink2 }]}>{m.name}</Text>
-                        <Text numberOfLines={1} style={[type.small, { color: theme.ink4 }]}>{m.email}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Text numberOfLines={1} style={[type.smallStrong, { color: theme.ink, flexShrink: 1 }]}>{m.name}</Text>
+                          <View style={styles.apPendingPill}><Feather name="clock" size={9} color="#92400E" /><Text style={[styles.apPendingTxt, { marginLeft: 3 }]}>Pending</Text></View>
+                        </View>
+                        <Text numberOfLines={1} style={[type.small, { color: theme.ink3 }]}>{m.email}</Text>
                       </View>
-                      <View style={styles.apPendingPill}><Feather name="clock" size={10} color="#92400E" /><Text style={[styles.apPendingTxt, { marginLeft: 4 }]}>Pending</Text></View>
-                    </View>
+                      <View style={styles.apAddBtn}><Feather name="plus" size={14} color={theme.brand} /><Text style={styles.apAddBtnTxt}>Add</Text></View>
+                    </Pressable>
                   ))}
                 </>
               ) : null}

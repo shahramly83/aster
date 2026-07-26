@@ -11,7 +11,7 @@
 // Secrets: RESEND_API_KEY. Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendEmail, companyShell, loadTemplate, renderTemplate, paragraphs, button } from "../_shared/email.ts";
-import { loadLetterContext, letterHtml, emailApprover, OFFER_COLS } from "../_shared/offer-model.ts";
+import { loadLetterContext, letterHtml, emailApproverOrHold, OFFER_COLS } from "../_shared/offer-model.ts";
 import { pushToUser, pushToCompanyAdmins } from "../_shared/push.ts";
 
 const CORS = {
@@ -102,11 +102,15 @@ Deno.serve(async (req) => {
     if (next) {
       const { data: nextRow } = await admin.from("offer_approvals").select("token, approver_email, approver_name, step").eq("offer_id", offer.id).eq("step", appr.step + 1).maybeSingle();
       if (nextRow) {
-        await emailApprover(admin, offer, nextRow, total, base);
-        try {
-          const { data: np } = await admin.from("profiles").select("id").eq("company_id", offer.company_id).eq("status", "active").ilike("email", nextRow.approver_email).maybeSingle();
-          if (np?.id) await pushToUser(admin, np.id, { title: "An offer needs your approval", body: `${ctx.candidateName} · ${ctx.jobTitle}`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_approval" } });
-        } catch (e) { console.error("next approver push", e); }
+        // Hold at the next step if that approver is a still-pending offer_approver;
+        // approver-confirm releases it (emails them) once they confirm their email.
+        const { held } = await emailApproverOrHold(admin, offer, nextRow, total, base);
+        if (!held) {
+          try {
+            const { data: np } = await admin.from("profiles").select("id").eq("company_id", offer.company_id).eq("status", "active").ilike("email", nextRow.approver_email).maybeSingle();
+            if (np?.id) await pushToUser(admin, np.id, { title: "An offer needs your approval", body: `${ctx.candidateName} · ${ctx.jobTitle}`, data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_approval" } });
+          } catch (e) { console.error("next approver push", e); }
+        }
       }
       await admin.from("activity_log").insert({ company_id: offer.company_id, type: "offer_approval_step", title: `Offer approval ${appr.step}/${total} for ${ctx.candidateName}`, description: `${appr.approver_name || appr.approver_email} approved. Sent to the next approver.`, candidate_id: offer.candidate_id });
       return json({ ok: true, result: "approved", next: true });

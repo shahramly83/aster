@@ -9,7 +9,7 @@
 //
 // Secrets: RESEND_API_KEY. Auto: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { emailApprover, OFFER_COLS } from "../_shared/offer-model.ts";
+import { emailApproverOrHold, OFFER_COLS } from "../_shared/offer-model.ts";
 import { pushToUser } from "../_shared/push.ts";
 
 const CORS = {
@@ -88,27 +88,32 @@ Deno.serve(async (req) => {
     const ordered = inserted.sort((a: { step: number }, b: { step: number }) => a.step - b.step);
     // Email the first approver whose turn is live (skips any carried-over approvals).
     const target = ordered.find((r: { status: string }) => r.status !== "approved") || ordered[0];
-    const sent = await emailApprover(admin, { ...offer, message: note ?? offer.message }, target, inserted.length, base);
-    if (!sent) console.error("approver email failed for", target.approver_email);
+    // Hold instead of email if the first approver is a still-pending offer_approver:
+    // the offer waits at their step until they confirm their email (approver-confirm
+    // then releases it). Confirmed approvers / teammates are emailed right away.
+    const { held } = await emailApproverOrHold(admin, { ...offer, message: note ?? offer.message }, target, inserted.length, base);
 
-    // Push the approver too, but only if their email belongs to an app account:
+    // Push the approver too, but only if their email belongs to an app account,
+    // and only if we actually emailed them (skip while held awaiting confirm):
     // approvers are free-typed and can be external (a CFO who never opens Aster),
     // so email stays the guaranteed channel and push is a bonus for teammates.
-    try {
-      const { data: prof } = await admin.from("profiles")
-        .select("id").eq("company_id", companyId).eq("status", "active")
-        .ilike("email", target.approver_email).maybeSingle();
-      if (prof?.id) {
-        const { data: cand } = await admin.from("candidates").select("full_name").eq("id", offer.candidate_id).maybeSingle();
-        await pushToUser(admin, prof.id, {
-          title: "An offer needs your approval",
-          body: `${cand?.full_name || "A candidate"} · ${offer.offer_job_title || "the role"}`,
-          data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_approval" },
-        });
-      }
-    } catch (e) { console.error("approver push failed", e); }
+    if (!held) {
+      try {
+        const { data: prof } = await admin.from("profiles")
+          .select("id").eq("company_id", companyId).eq("status", "active")
+          .ilike("email", target.approver_email).maybeSingle();
+        if (prof?.id) {
+          const { data: cand } = await admin.from("candidates").select("full_name").eq("id", offer.candidate_id).maybeSingle();
+          await pushToUser(admin, prof.id, {
+            title: "An offer needs your approval",
+            body: `${cand?.full_name || "A candidate"} · ${offer.offer_job_title || "the role"}`,
+            data: { url: `aster://candidate/${offer.candidate_id}`, type: "offer_approval" },
+          });
+        }
+      } catch (e) { console.error("approver push failed", e); }
+    }
 
-    return json({ ok: true, total: inserted.length, resumedAt: target.step });
+    return json({ ok: true, total: inserted.length, resumedAt: target.step, held });
   } catch (e) {
     console.error(e);
     return json({ error: "unexpected error", detail: String((e as Error)?.message || e) }, 500);
