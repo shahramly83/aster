@@ -13651,7 +13651,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   <input
                     value={embedAccent}
                     onChange={(e) => setEmbedAccent(e.target.value)}
-                    className="w-32 rounded-xl bg-neutral-100 border border-neutral-200 px-3 py-2 text-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                    className="w-32 rounded-xl bg-white border border-[color:var(--line-strong)] px-3 py-2 text-neutral-900 text-sm font-mono transition-colors focus:outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand-soft)]"
                   />
                   <span className="text-xs" style={{ color: "var(--ink-3)" }}>Match your site</span>
                 </div>
@@ -13704,11 +13704,29 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-neutral-900 px-3 py-3 mb-1 overflow-x-auto">
-                  <pre className="text-[11px] leading-relaxed select-all whitespace-pre" style={{ color: "#E6E8EF", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{buildEmbed(linkJob, embedScope, embedAccent)}</pre>
+                <p className="text-[11px] uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-3)" }}>Embed code</p>
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #2A2C39" }}>
+                  <div className="flex items-center justify-between px-3.5 py-2" style={{ background: "#15161E", borderBottom: "1px solid #2A2C39" }}>
+                    <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-wide" style={{ color: "#B7BCCB" }}>
+                      <span className="flex gap-1"><span className="w-2 h-2 rounded-full" style={{ background: "#FF5F57" }} /><span className="w-2 h-2 rounded-full" style={{ background: "#FEBC2E" }} /><span className="w-2 h-2 rounded-full" style={{ background: "#28C840" }} /></span>
+                      snippet.html
+                    </span>
+                    <button onClick={copyEmbed} className="inline-flex items-center gap-1.5 text-[11px] font-bold rounded-lg px-2.5 py-1 transition-colors" style={embedCopied === "ok" ? { background: "#123524", color: "#5EEA9A" } : { background: "#23252F", color: "#E6E8EF" }}>
+                      {embedCopied === "ok" ? "Copied ✓" : "Copy"}
+                    </button>
+                  </div>
+                  <div className="px-3.5 py-3 overflow-x-auto" style={{ background: "#1B1C26" }}>
+                    <pre className="text-[11px] leading-relaxed select-all whitespace-pre" style={{ color: "#E6E8EF", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{buildEmbed(linkJob, embedScope, embedAccent)}</pre>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 mt-2.5 rounded-lg px-3 py-2" style={{ background: "var(--brand-soft)" }}>
+                  <Icon name="alertCircle" className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--brand)" }} />
+                  <p className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                    Paste this just before the closing <span className="font-mono font-semibold" style={{ color: "var(--brand)" }}>&lt;/body&gt;</span> tag on any page. The apply form renders exactly where you paste it. No code changes on your side, works on any site (WordPress, Webflow, Shopify, plain HTML).
+                  </p>
                 </div>
                 {embedCopied === "fail" && (
-                  <p className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>Couldn't copy automatically. Select the snippet above and copy it.</p>
+                  <p className="text-xs mt-1.5" style={{ color: "var(--ink-2)" }}>Couldn't copy automatically. Select the snippet above and copy it.</p>
                 )}
 
                 <div className="flex items-center justify-end gap-2 mt-5">
