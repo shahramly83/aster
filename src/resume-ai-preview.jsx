@@ -21646,7 +21646,7 @@ function BillingCurrencyCard({ value, onChange }) {
 // Controlled editor: the draft is reported up via onDraftChange, and the page's
 // global "Save changes" bar owns persistence (no per-card Save button). savedSig
 // is the persisted baseline; resetSignal bumps to re-seed the editor on Cancel.
-function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange }) {
+function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange, intro, note = "Saved with the Save button at the bottom of the page." }) {
   const [mode, setMode] = useState("type");           // 'type' | 'draw'
   const [typed, setTyped] = useState("");
   const [drawn, setDrawn] = useState(null);            // PNG data URI
@@ -21670,7 +21670,7 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange }) {
   return (
     <div>
       <p className="text-sm mb-4" style={{ color: "var(--ink-2)" }}>
-        Sign off the offer letters you compose in Aster. Your signature is placed above your name in the letter; the candidate then counter-signs. Upload-mode offers use the signature already on your own PDF.
+        {intro || "Sign off the offer letters you compose in Aster. Your signature is placed above your name in the letter; the candidate then counter-signs. Upload-mode offers use the signature already on your own PDF."}
       </p>
       <div className="inline-flex rounded-lg p-0.5 mb-3" style={{ background: "var(--bg)", border: "1px solid var(--line)" }}>
         {[["type", "Type"], ["draw", "Draw"]].map(([k, label]) => (
@@ -21702,7 +21702,7 @@ function OfferSignatureCard({ savedSig, resetSignal = 0, onDraftChange }) {
           <SignaturePad onChange={(d) => setDrawn(d)} />
         </div>
       )}
-      <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>Saved with the Save button at the bottom of the page.</p>
+      <p className="text-xs mt-3" style={{ color: "var(--ink-3)" }}>{note}</p>
     </div>
   );
 }
@@ -24551,6 +24551,17 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
   const [pdfFile, setPdfFile] = useState(null);
   const [signField, setSignField] = useState(null);   // { page, x, y, w, h, origin }
   const [uploadErr, setUploadErr] = useState(null);
+  // Company signature. Compose-mode offers must be signed off by the sender
+  // before they reach the candidate, so we load any saved signature and, if
+  // there's none, force one to be captured here. `undefined` = still loading.
+  const [savedSig, setSavedSig] = useState(undefined);
+  const [sigDraft, setSigDraft] = useState(null);      // 'typed:Name' | PNG data URI
+  const [sigErr, setSigErr] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    dbGetMyOfferSignature().then((s) => { if (alive) { setSavedSig(s || null); setSigDraft(s || null); } });
+    return () => { alive = false; };
+  }, []);
   const pickPdf = (e) => {
     const f = e.target.files?.[0];
     if (e.target) e.target.value = "";  // allow re-picking the same file
@@ -24603,7 +24614,10 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     startDate: startDate || null,
     expiresAt: expiresAt || null,
     signatoryName: (defaultSignatory || "").trim() || null,
+    signatorySignature: sigDraft || null,
   };
+  // Compose offers must carry the sender's signature before they go out.
+  const composeNeedsSig = mode !== "upload" && !sigDraft;
 
   // Core terms are required before an offer can go out (draft-save aside): an
   // offer with no salary or start date should never reach an approver or candidate.
@@ -24623,6 +24637,10 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
     if (!startDate) e.startDate = "Add the start date.";
     setErr(e);
     if (Object.keys(e).length) { setLetterView("write"); return; }
+    // Force a company signature before the letter can go out.
+    if (composeNeedsSig) { setSigErr(true); return; }
+    // Reuse this signature on future offers.
+    if (sigDraft && sigDraft !== savedSig) dbSaveMyOfferSignature(sigDraft).catch(() => {});
     setSending(true);
     setTimeout(() => onSend(emailSent, terms, body, appr), emailSent ? 900 : 0);
   };
@@ -24779,6 +24797,28 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         </div>
         )}
 
+        {/* Company signature: compose offers must be signed off by the sender
+            before they reach the candidate. Upload offers carry the signature
+            already printed on HR's own PDF, so this is compose-only. */}
+        {mode !== "upload" && (
+          <div className="mb-5">
+            <label className={labelClass}>Your signature <span className="font-normal" style={{ color: composeNeedsSig ? "#B45309" : "var(--ink-4)" }}>· required</span></label>
+            <div className="rounded-xl border p-3.5" style={{ borderColor: sigErr && composeNeedsSig ? "#F59E0B" : "var(--line-strong)", background: "#fff" }}>
+              {savedSig === undefined ? (
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>Loading your signature…</p>
+              ) : (
+                <OfferSignatureCard
+                  savedSig={savedSig}
+                  onDraftChange={(d) => { setSigDraft(d); if (d) setSigErr(false); }}
+                  intro="Sign off this letter before it goes to the candidate. Your signature sits above your name; the candidate then counter-signs."
+                  note="Saved to your profile and reused on future offers."
+                />
+              )}
+            </div>
+            {sigErr && composeNeedsSig && <p className="text-xs mt-1.5 font-medium" style={{ color: "#B45309" }}>Add your signature to sign off the offer before sending.</p>}
+          </div>
+        )}
+
         {/* Approvals: ordered internal sign-off before the offer reaches the candidate. */}
         {hasEmail && (
           <div className="mb-5">
@@ -24843,7 +24883,7 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
             </button>
           )}
           {hasEmail && (
-            <button onClick={() => handleSend(true)} disabled={sending} className="text-sm rounded-xl px-5 py-2.5 brand-gradient hover:opacity-95 disabled:opacity-50 text-white font-semibold inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
+            <button onClick={() => handleSend(true)} disabled={sending || composeNeedsSig} title={composeNeedsSig ? "Add your signature first" : undefined} className="text-sm rounded-xl px-5 py-2.5 brand-gradient hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5" style={{ boxShadow: "0 12px 26px -14px rgba(var(--brand-rgb),0.85)" }}>
               <Icon name={hasApprovers ? "users" : "arrowUpRight"} className="w-4 h-4" /> {sending ? (hasApprovers ? "Submitting…" : "Sending…") : (hasApprovers ? (resubmit ? "Resubmit for approval" : "Submit for approval") : "Send offer")}
             </button>
           )}
@@ -28088,7 +28128,9 @@ export default function ResumeAIPreview() {
         // letter is signed off by the company before the candidate counter-signs.
         let sendTerms = terms;
         if (!isUpload && terms) {
-          const sig = await dbGetMyOfferSignature();
+          // Prefer the signature captured in the offer modal; fall back to the
+          // sender's saved one for any older caller that didn't include it.
+          const sig = terms.signatorySignature || await dbGetMyOfferSignature();
           if (sig) sendTerms = { ...terms, signatorySignature: sig };
         }
         const offer = await dbCreateOffer(companyId, { candidateId, jobId: viewCandidateJobId, terms: isUpload ? null : sendTerms, emailSent });
