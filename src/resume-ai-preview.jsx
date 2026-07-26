@@ -16044,14 +16044,19 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
       {/* No pending-polls card here. This screen is about roles; availability
           belongs on Interviews, where the same surface already lives. Two copies
           also meant voting in one left the other stale until a refetch. */}
-      <div className="mb-7 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ borderColor: "#CBD6F7", background: "var(--brand-soft)" }}>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Need to hire for something?</h2>
-          <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Draft the position and send it to your hiring manager to review and publish.</p>
+      <div className="mb-8 relative overflow-hidden rounded-3xl px-6 sm:px-8 py-7 sm:py-8" style={{ background: "linear-gradient(130deg, var(--brand) 0%, #2f47d6 52%, #5b78ff 100%)", boxShadow: "0 30px 60px -30px rgba(var(--brand-rgb),0.7)" }}>
+        <span aria-hidden="true" className="pointer-events-none absolute -top-16 -right-10 w-60 h-60 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,255,255,0.22), transparent)" }} />
+        <span aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-1/4 w-56 h-56 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,255,255,0.10), transparent)" }} />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-5 justify-between">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase rounded-full px-2.5 py-1 mb-3" style={{ background: "rgba(255,255,255,0.18)", color: "#fff", letterSpacing: "0.07em" }}><Icon name="briefcase" className="w-3 h-3" /> Hiring</span>
+            <h2 className="text-xl sm:text-2xl font-bold font-display text-white leading-tight tracking-tight">Need to hire for something?</h2>
+            <p className="text-sm mt-2 max-w-md leading-relaxed" style={{ color: "rgba(255,255,255,0.82)" }}>Draft the position and send it to your hiring manager to review and publish.</p>
+          </div>
+          <button onClick={onRequestRole} className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-white text-sm font-bold px-5 py-3.5 transition-transform hover:-translate-y-0.5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.55)]" style={{ color: "var(--brand)" }}>
+            <Icon name="plus" className="w-4 h-4" /> Request a new position
+          </button>
         </div>
-        <button onClick={onRequestRole} className="shrink-0 inline-flex items-center gap-1.5 rounded-xl brand-gradient text-white text-sm font-semibold px-4 py-2.5 hover:opacity-90 transition-opacity shadow-[0_10px_28px_-12px_rgba(var(--brand-rgb),0.55)]">
-          <Icon name="plus" className="w-4 h-4" /> Request a new position
-        </button>
       </div>
 
       <div className="mb-8">
@@ -16083,32 +16088,32 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
                 <button
                   key={j.id}
                   onClick={() => { setActiveJobId && setActiveJobId(j.id); navigate("applicants", `/applicants/${j.id}`); }}
-                  className="group text-left rounded-2xl bg-white act-shadow border p-4 transition-all hover:-translate-y-0.5 hover:border-[color:var(--line-strong)] hover:shadow-[0_18px_40px_-24px_rgba(15,27,51,0.35)]"
+                  className="group text-left rounded-2xl bg-white act-shadow border p-5 transition-all hover:-translate-y-0.5 hover:border-[color:var(--line-strong)] hover:shadow-[0_18px_40px_-24px_rgba(15,27,51,0.35)]"
                   style={{ borderColor: "var(--line)" }}
                 >
                   <div className="flex items-start gap-3">
-                    <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-4 h-4" /></span>
+                    <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="briefcase" className="w-[18px] h-[18px]" /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{j.title}</p>
+                      <p className="text-[15px] font-semibold truncate font-display" style={{ color: "var(--ink)" }}>{j.title}</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{n} candidate{n === 1 ? "" : "s"} in pipeline</p>
                     </div>
-                    <span className="shrink-0 inline-flex transition-transform group-hover:translate-x-0.5" style={{ color: "var(--ink-3)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>
+                    <span className="shrink-0 inline-flex w-8 h-8 rounded-full items-center justify-center border transition-all group-hover:border-[color:var(--brand)] group-hover:text-[color:var(--brand)] group-hover:translate-x-0.5" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}><Icon name="chevronRight" className="w-4 h-4" /></span>
                   </div>
 
-                  {live.length > 0 ? (
-                    <>
-                      {/* The split bar only earns its place when there is a mix to
-                          show. With everyone at one stage it stretches to 100% and
-                          becomes a coloured rule across the card, saying nothing
-                          the labelled count below doesn't already say. */}
-                      {live.length > 1 && (
-                        <div className="flex gap-0.5 mt-3.5 h-1 rounded-full overflow-hidden">
-                          {live.map((s) => (
-                            <span key={s.key} style={{ width: `${(s.n / total) * 100}%`, background: s.color }} />
-                          ))}
-                        </div>
-                      )}
-                      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${live.length > 1 ? "mt-2.5" : "mt-3"}`}>
+                  {n > 0 ? (
+                    <div className="mt-4">
+                      {/* Who's in the pipeline, at a glance. */}
+                      <div className="flex items-center -space-x-2 mb-3.5">
+                        {rows.slice(0, 5).map((a) => { const c = MOCK_CANDIDATES.find((x) => x.id === a.candidateId); return (
+                          <span key={a.candidateId} className="rounded-full" style={{ boxShadow: "0 0 0 2px #fff" }}><CandidateAvatar name={c?.parsed?.name || "Candidate"} hasPhoto={c?.hasPhoto} src={c?.avatarUrl} size={28} showPhotoDot={false} /></span>
+                        ); })}
+                        {n > 5 && <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--bg)", color: "var(--ink-3)", boxShadow: "0 0 0 2px #fff" }}>+{n - 5}</span>}
+                      </div>
+                      {/* Proportional pipeline bar, always on when there are candidates. */}
+                      <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+                        {live.map((s) => (<span key={s.key} style={{ width: `${(s.n / total) * 100}%`, background: s.color }} />))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 mt-2.5">
                         {live.map((s) => (
                           <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "var(--ink-2)" }}>
                             <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
@@ -16116,9 +16121,9 @@ function OpenRolesScreen({ navigate, jobs, jobAssignments = [], currentUserId = 
                           </span>
                         ))}
                       </div>
-                    </>
+                    </div>
                   ) : (
-                    <p className="text-[11px] mt-3.5" style={{ color: "var(--ink-3)" }}>No candidates yet. New applicants land here as they apply.</p>
+                    <p className="text-[11px] mt-4" style={{ color: "var(--ink-3)" }}>No candidates yet. New applicants land here as they apply.</p>
                   )}
                 </button>
               );
