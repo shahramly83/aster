@@ -16638,7 +16638,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
           <div className="w-full max-w-md rounded-2xl bg-white p-6 act-shadow">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{inviteRole === "approver" ? "Add an offer approver" : "Invite a teammate"}</h3>
+                <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>{inviteRole === "approver" ? "Add an approver" : "Invite a teammate"}</h3>
                 <p className="text-sm mt-0.5" style={{ color: "var(--ink-2)" }}>{inviteRole === "approver" ? "They sign off offers by email, no login or seat used." : "They get their own login to your workspace. Pick the role that fits."}</p>
               </div>
               <button onClick={() => setShowForm(false)} aria-label="Close" className="shrink-0 -mt-1 -mr-1 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-neutral-100" style={{ color: "var(--ink-3)" }}>
@@ -16682,11 +16682,11 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
               </div>
               <div>
                 <label className={labelClass}>Role</label>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 gap-2.5">
                   {[
                     { key: "admin", label: "Hiring Manager", desc: "Full access to hiring" },
                     { key: "interviewer", label: "Interviewer", desc: "Runs only their assigned interviews" },
-                    { key: "approver", label: "Offer approver", desc: "Signs off offers by email, no login or seat" },
+                    { key: "approver", label: "Approver", desc: "Signs off offers by email, no login or seat" },
                   ].map((r) => {
                     const on = inviteRole === r.key;
                     return (
@@ -16694,14 +16694,24 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                         key={r.key}
                         type="button"
                         onClick={() => { setInviteRole(r.key); setBanner(null); }}
-                        className="text-left rounded-xl border px-3 py-2.5 transition-colors"
-                        style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line-strong)", background: "#fff" }}
+                        className="text-left rounded-2xl border px-4 py-3 transition-all duration-150"
+                        style={on
+                          ? { borderColor: "var(--brand)", background: "linear-gradient(180deg, var(--brand-soft), #fff 85%)", boxShadow: "0 10px 24px -14px rgba(var(--brand-rgb),0.55)" }
+                          : { borderColor: "var(--line-strong)", background: "#fff" }}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold" style={{ color: on ? "var(--brand)" : "var(--ink)" }}>{r.label}</span>
-                          {on && <Icon name="check" className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />}
+                        <div className="flex items-center gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="shrink-0 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-colors"
+                            style={on ? { borderColor: "var(--brand)", background: "var(--brand)" } : { borderColor: "var(--line-strong)", background: "#fff" }}
+                          >
+                            {on && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#fff" }} />}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold leading-tight" style={{ color: on ? "var(--brand)" : "var(--ink)" }}>{r.label}</div>
+                            <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--ink-3)" }}>{r.desc}</p>
+                          </div>
                         </div>
-                        <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--ink-3)" }}>{r.desc}</p>
                       </button>
                     );
                   })}
