@@ -17948,36 +17948,49 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             ))}
           </div>
 
-          {addingPanel && (
-            <div className="mt-2 rounded-xl border p-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              {addablePanel.length === 0 ? (
-                <p className="text-[11px] px-1 py-1" style={{ color: "var(--ink-3)" }}>
-                  {interviewers.some((iv) => isInterviewer(iv.role))
-                    ? "Everyone with the interviewer role is already on this panel."
-                    : "No teammates have the interviewer role yet. Invite one from Team settings."}
-                </p>
-              ) : (
-                <div className="space-y-0.5 max-h-48 overflow-y-auto">
-                  {addablePanel.map((iv) => (
-                    <button
-                      key={iv.id}
-                      type="button"
-                      disabled={assignBusy === iv.id}
-                      onClick={() => addToPanel(iv)}
-                      className="w-full flex items-center gap-2 text-left rounded-lg px-2 py-1.5 transition-colors hover:bg-white disabled:opacity-50"
-                    >
-                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-xs font-medium truncate" style={{ color: "var(--ink)" }}>{iv.name}</span>
-                        {iv.email && <span className="block text-[10px] truncate" style={{ color: "var(--ink-3)" }}>{iv.email}</span>}
-                      </span>
-                      <span className="text-[11px] font-medium shrink-0" style={{ color: "var(--brand)" }}>{assignBusy === iv.id ? "Adding…" : "Add"}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+        </div>
+      )}
+
+      {/* Add-interviewer modal (matches the Pipeline "add interviewer" flow). */}
+      {addingPanel && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Add an interviewer">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm act-scrim-in" onClick={() => setAddingPanel(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white act-shadow act-panel-in p-5 sm:p-6" style={{ border: "1px solid var(--line)" }}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Add an interviewer</h3>
+                <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Add a teammate to this role's interview panel.</p>
+              </div>
+              <button onClick={() => setAddingPanel(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-100 transition-colors shrink-0" style={{ color: "var(--ink-3)" }}><Icon name="close" className="w-4 h-4" /></button>
             </div>
-          )}
+            {addablePanel.length === 0 ? (
+              <p className="text-sm rounded-xl border p-3.5" style={{ color: "var(--ink-2)", borderColor: "var(--line)", background: "var(--bg)" }}>
+                {interviewers.some((iv) => isInterviewer(iv.role))
+                  ? "Everyone with the interviewer role is already on this panel."
+                  : "No teammates have the interviewer role yet. Invite one from Team settings."}
+              </p>
+            ) : (
+              <div className="space-y-1.5 max-h-[22rem] overflow-y-auto -mx-1 px-1">
+                {addablePanel.map((iv) => (
+                  <button
+                    key={iv.id}
+                    type="button"
+                    disabled={assignBusy === iv.id}
+                    onClick={() => addToPanel(iv)}
+                    className="w-full flex items-center gap-3 text-left rounded-xl border px-3 py-2.5 transition-colors hover:border-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] disabled:opacity-50"
+                    style={{ borderColor: "var(--line-strong)" }}
+                  >
+                    <span className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{iv.name}</span>
+                      {iv.email && <span className="block text-xs truncate" style={{ color: "var(--ink-3)" }}>{iv.email}</span>}
+                    </span>
+                    <span className="text-xs font-bold shrink-0 rounded-full px-3 py-1.5" style={{ background: "var(--brand)", color: "#fff" }}>{assignBusy === iv.id ? "Adding…" : "Add"}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
