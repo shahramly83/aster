@@ -13899,7 +13899,7 @@ function ResetBadge({ label }) {
     setShift(Math.round(s));
   };
   return (
-    <span tabIndex={0} onMouseEnter={clamp} onFocus={clamp} className="relative group shrink-0 inline-flex items-center text-white/70 hover:text-white transition-colors outline-none cursor-help" aria-label={`Resets on ${label}`}>
+    <span tabIndex={0} onMouseEnter={clamp} onFocus={clamp} className="relative group shrink-0 inline-flex items-center text-[color:var(--ink-4)] hover:text-[color:var(--ink-2)] transition-colors outline-none cursor-help" aria-label={`Resets on ${label}`}>
       <Icon name="calendar" className="w-4 h-4" />
       <span ref={tipRef} className="pointer-events-none absolute right-0 top-full mt-2 whitespace-nowrap max-w-[calc(100vw-1rem)] rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 -translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-150 z-30"
         style={{ marginLeft: shift, background: "var(--ink)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>Resets on {label}</span>
@@ -13923,30 +13923,29 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const atTopPlan = plan === "elite" || plan === "enterprise";
   const showUpgrade = onUpgrade && !atTopPlan;
   return (
-    <div className="relative rounded-2xl p-4 overflow-hidden" style={{ background: "var(--brand)", boxShadow: "0 14px 30px -16px rgba(var(--brand-rgb),0.65)" }}>
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 85% at 100% 0%, rgba(255,255,255,0.20), transparent 55%)" }} />
-      <div className="relative flex items-center justify-between gap-2 mb-1.5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-white/85 truncate" style={{ letterSpacing: "0.06em" }}>{title}</h3>
+    <div className="relative rounded-2xl bg-white p-4 act-shadow" style={{ border: "1px solid var(--line)" }}>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{title}</h3>
         {resetLabel && <ResetBadge label={resetLabel} />}
       </div>
-      <div className="relative flex items-baseline gap-1.5 mb-2">
-        <span className="text-xl font-bold font-display tnum leading-none text-white">{shownUsed}</span>
-        <span className="text-xs text-white/70">/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
+      <div className="flex items-baseline gap-1.5 mb-2">
+        <span className="text-xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{shownUsed}</span>
+        <span className="text-xs" style={{ color: "var(--ink-3)" }}>/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
         {typeof purchased === "number" && (
-          <span className="ml-auto text-[11px] tnum" style={{ color: purchased > 0 ? "#fff" : "rgba(255,255,255,0.6)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} top-up` : "0 top-up"}</span>
+          <span className="ml-auto text-[11px] tnum" style={{ color: purchased > 0 ? "var(--brand)" : "var(--ink-4)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} top-up` : "0 top-up"}</span>
         )}
       </div>
-      <div className="relative h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.22)" }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#FBBF24" : "#fff" }} />
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#F59E0B" : "var(--brand)" }} />
       </div>
-      {note && <p className="relative text-[11px] mt-2 leading-relaxed" style={{ color: isDanger ? "#FDE68A" : "rgba(255,255,255,0.82)" }}>{note}</p>}
+      {note && <p className="text-[11px] mt-2 leading-relaxed" style={{ color: isDanger ? "#B45309" : "var(--ink-3)" }}>{note}</p>}
       {(showUpgrade || onBuyCredits) && (
-        <div className={`relative mt-3 ${showUpgrade && onBuyCredits ? "grid grid-cols-2 gap-2" : ""}`}>
+        <div className={`mt-3 ${showUpgrade && onBuyCredits ? "grid grid-cols-2 gap-2" : ""}`}>
           {showUpgrade && (
-            <button onClick={onUpgrade} className="w-full rounded-lg bg-white hover:bg-white/90 text-xs font-semibold py-2 px-2 transition-colors" style={{ color: "var(--brand)" }}>{upgradeLabel}</button>
+            <button onClick={onUpgrade} className="w-full rounded-lg brand-gradient text-white hover:opacity-90 text-xs font-semibold py-2 px-2 transition-opacity">{upgradeLabel}</button>
           )}
           {onBuyCredits && (
-            <button onClick={onBuyCredits} className={`w-full rounded-lg text-xs font-semibold py-2 px-2 transition-colors ${showUpgrade ? "bg-white/15 hover:bg-white/25 text-white ring-1 ring-inset ring-white/30" : "bg-white hover:bg-white/90"}`} style={showUpgrade ? undefined : { color: "var(--brand)" }}>Buy credits</button>
+            <button onClick={onBuyCredits} className={`w-full rounded-lg text-xs font-semibold py-2 px-2 transition-colors ${showUpgrade ? "hover:bg-[color:var(--brand-soft)]" : "brand-gradient text-white hover:opacity-90"}`} style={showUpgrade ? { color: "var(--brand)", border: "1px solid var(--line-strong)" } : undefined}>Buy credits</button>
           )}
         </div>
       )}
