@@ -807,7 +807,7 @@ const BRAND_STYLES = `
 .brand-text { background-image: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--brand); -webkit-text-fill-color: var(--brand); }
 .card-hover { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
 .card-hover:hover { box-shadow: 0 8px 24px -12px rgba(18,19,42,.16); border-color: var(--line-strong); }
-.act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.04), 0 1px 3px rgba(18,19,42,.02); }
+.act-shadow { box-shadow: 0 1px 2px rgba(18,19,42,.05), 0 10px 26px -14px rgba(18,19,42,.16); }
 /* Onboarding-tour: gently pulse the target action button; pop the bubble in
    with a spring; radar-ping the tail toward the target so the eye follows it. */
 @keyframes tourPulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(11,42,224,.18); } 50% { box-shadow: 0 0 0 6px rgba(11,42,224,.30); } }
@@ -19793,28 +19793,25 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               return (
                 <div
                   key={p.key}
-                  className="relative rounded-2xl border p-5 flex flex-col transition-shadow"
+                  className={`relative rounded-3xl border p-6 flex flex-col transition-all duration-200 hover:-translate-y-1 ${highlight ? "lg:-translate-y-2 lg:hover:-translate-y-3" : ""}`}
                   style={{
-                    borderColor: isCurrent ? "var(--brand)" : highlight ? "#C7D2FE" : "var(--line)",
-                    background: isCurrent ? "var(--brand-soft)" : "#fff",
-                    boxShadow: isCurrent
-                      ? "0 1px 2px rgba(18,19,42,0.04)"
-                      : highlight
-                        ? "0 18px 40px -24px rgba(var(--brand-rgb),0.45)"
-                        : "0 1px 2px rgba(18,19,42,0.04)",
-                    ...(isCurrent || highlight ? { outline: `1px solid ${isCurrent ? "var(--brand)" : "#C7D2FE"}`, outlineOffset: "-2px" } : {}),
+                    borderColor: isCurrent || highlight ? "var(--brand)" : "var(--line)",
+                    borderWidth: highlight ? 2 : 1,
+                    background: isCurrent ? "var(--brand-soft)" : highlight ? "linear-gradient(180deg, var(--brand-soft), #fff 42%)" : "#fff",
+                    boxShadow: highlight
+                      ? "0 34px 64px -26px rgba(var(--brand-rgb),0.55)"
+                      : isCurrent ? "0 1px 2px rgba(18,19,42,0.04)" : "0 2px 8px rgba(18,19,42,0.05)",
                   }}
                 >
+                  {highlight && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full brand-gradient text-white whitespace-nowrap" style={{ letterSpacing: "0.06em", boxShadow: "0 8px 18px -6px rgba(var(--brand-rgb),0.8)" }}>Most popular</span>
+                  )}
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <p className="font-semibold font-display text-[15px]" style={{ color: "var(--ink)" }}>{p.name}</p>
-                    {isCurrent
-                      ? <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand)", color: "#fff" }}>Current</span>
-                      : highlight
-                        ? <span className="text-[10px] px-2 py-0.5 rounded-full brand-gradient text-white font-semibold">Most popular</span>
-                        : null}
+                    <p className="font-bold font-display text-[15px]" style={{ color: "var(--ink)" }}>{p.name}</p>
+                    {isCurrent && <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--brand)", color: "#fff" }}>Current</span>}
                   </div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-bold font-display leading-none tnum" style={{ color: "var(--ink)" }}>{p.price}</span>
+                    <span className="text-4xl font-extrabold font-display leading-none tnum" style={{ color: "var(--ink)" }}>{p.price}</span>
                   </div>
                   {p.cadence && <p className="text-xs text-neutral-500 mt-1.5">{p.cadence}</p>}
                   {cycleMatters && cycle === "yearly" && yearlySaving(p.key) != null && (
