@@ -1131,7 +1131,7 @@ html { scrollbar-gutter: stable; }
 
 function Shell({ children }) {
   return (
-    <div className="act-app min-h-dvh" style={{ background: "#1B1C22" }}>
+    <div className="act-app min-h-dvh" style={{ background: "radial-gradient(135% 115% at 50% 0%, #2A2E3E 0%, #191B25 58%)" }}>
       <style dangerouslySetInnerHTML={{ __html: BRAND_STYLES }} />
       {children}
     </div>
@@ -9373,7 +9373,7 @@ function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen md:p-4" style={{ background: "#1B1C22" }}>
+    <div className="min-h-screen md:p-4" style={{ background: "radial-gradient(135% 115% at 50% 0%, #2A2E3E 0%, #191B25 58%)" }}>
       <div className="md:flex md:gap-4 md:items-start">
         {/* Desktop icon rail: a fixed 76px strip of icons. It used to expand to a
             236px labelled drawer via a dot-grid handle, which pushed the whole
@@ -15057,9 +15057,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         {/* ---------- Tab 2: Match by skills ---------- */}
         {tab === "skills" && (
           <>
-            <div className="rounded-2xl p-5 sm:p-6 mb-5 relative overflow-hidden act-shadow" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03) 55%, #fff)", border: "1px solid var(--line)" }}>
-              <div aria-hidden="true" className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(var(--brand-rgb),0.12), transparent)" }} />
-              <div className="relative">
+            <div className="rounded-2xl p-5 sm:p-6 mb-5 relative act-shadow" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03) 55%, #fff)", border: "1px solid var(--line)" }}>
+              <div>
                 <div className="min-w-0">
                   <p className="text-base font-bold font-display" style={{ color: "var(--ink)" }}>Match by skills or industry</p>
                   <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Search skills, an industry, or both.</p>
@@ -15130,9 +15129,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         {/* ---------- Tab 3: Match to a role ---------- */}
         {tab === "role" && (
           <>
-            <div className="rounded-2xl p-5 sm:p-6 mb-5 relative overflow-hidden act-shadow" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03) 55%, #fff)", border: "1px solid var(--line)" }}>
-              <div aria-hidden="true" className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(var(--brand-rgb),0.12), transparent)" }} />
-              <div className="relative">
+            <div className="rounded-2xl p-5 sm:p-6 mb-5 relative act-shadow" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-rgb),0.03) 55%, #fff)", border: "1px solid var(--line)" }}>
+              <div>
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
                     Match to an open position
@@ -16681,7 +16679,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                             <div className="flex items-center gap-3 min-w-0">
                               <CandidateAvatar name={r.name} hasPhoto={r.kind === "owner" && ownerIsYou && !!avatarUrl} src={r.kind === "owner" && ownerIsYou ? avatarUrl : null} size={36} showPhotoDot={false} />
                               <span className="min-w-0">
-                                <span className="font-semibold truncate block" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span>
+                                <span className="text-sm font-semibold truncate block" style={{ color: "var(--ink)" }}>{r.name}{r.kind === "owner" && ownerIsYou ? " · You" : ""}</span>
                                 {upcoming > 0 && <span className="text-[11px] inline-flex items-center gap-1" style={{ color: "var(--brand)" }}><Icon name="calendar" className="w-3 h-3" /> {upcoming} upcoming</span>}
                               </span>
                             </div>
@@ -17042,7 +17040,7 @@ function buildQuestionPool(p, roleTitle) {
   return pool;
 }
 
-function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, savedQuestions = null, onGenerate, canGenerate = false, canRegenerate = false }) {
+function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, savedQuestions = null, onGenerate, canGenerate = false, canRegenerate = false, creditWallet = null }) {
   const openJobs = jobs.filter((j) => j.status === "open");
   const fixedJob = contextJobId ? jobs.find((j) => j.id === contextJobId) : null;
   const [jobId, setJobId] = useState(fixedJob?.id ?? openJobs[0]?.id ?? "");
@@ -17201,13 +17199,16 @@ function InterviewQuestionsPanel({ candidate, jobs, contextJobId, isScheduled, s
 
       {!pool ? (
         canGenerate ? (
-          <button
-            onClick={generate}
-            disabled={generating || !activeJob}
-            className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
-          >
-            {generating ? "Generating…" : "Generate interview questions"}
-          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={generate}
+              disabled={generating || !activeJob}
+              className="rounded-xl brand-gradient hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium shadow-[0_6px_16px_-8px_rgba(var(--brand-rgb),0.7)] px-4 py-2 transition-colors"
+            >
+              {generating ? "Generating…" : "Generate interview questions"}
+            </button>
+            {creditWallet}
+          </div>
         ) : (
           <p className="text-sm text-neutral-500">The hiring manager hasn't generated the interview questions yet. They'll appear here for the whole panel once ready.</p>
         )
@@ -22387,6 +22388,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [purchasedAiInsight, reloadPurchasedAiInsight] = usePurchasedBalance("ai_insight");
   const [purchasedQuestions, reloadPurchasedQuestions] = usePurchasedBalance("interview_questions");
   const [insightTip, setInsightTip] = useState(false); // AI Insight credit wallet hover breakdown
+  const [questionTip, setQuestionTip] = useState(false); // AI Question credit wallet hover breakdown
   const [buyInsightOpen, setBuyInsightOpen] = useState(false);
   const [buyQuestionsOpen, setBuyQuestionsOpen] = useState(false);
   const [insightErr, setInsightErr] = useState(null);
@@ -22710,6 +22712,50 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // the context they need. The spend can't run away, because the result is
   // stored on the candidate — a profile is only ever analysed once, so whoever
   // opens it first pays and everyone after reads the same stored answer.
+  // AI Question credit wallet, shown inline next to the Generate button on the
+  // Interview tab (same pattern as the AI Insight wallet).
+  const qIsMgr = !isInterviewer(profile?.role);
+  const qMonthlyLeft = questionsLimit === Infinity ? Infinity : Math.max(questionsLimit - questionsUsed, 0);
+  const qPurchased = qIsMgr ? purchasedQuestions : 0;
+  const qTotalLeft = qMonthlyLeft === Infinity ? Infinity : qMonthlyLeft + qPurchased;
+  const qOut = qTotalLeft !== Infinity && qTotalLeft <= 0;
+  const questionWallet = questionsUnlimited ? null : (
+    <div className="relative shrink-0" onMouseEnter={() => setQuestionTip(true)} onMouseLeave={() => setQuestionTip(false)}>
+      <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
+        <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: qOut ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{qTotalLeft === Infinity ? "∞" : qTotalLeft}</span> credits left</span>
+        {qIsMgr && <button onClick={() => setBuyQuestionsOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>}
+      </div>
+      {questionTip && (
+        <div className="absolute z-40 left-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className="absolute -top-1.5 left-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+          <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Question credits</p>
+          {qIsMgr ? (
+            <>
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} /> Monthly plan</span>
+                <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{qMonthlyLeft}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#F5B301" }} /> Purchased</span>
+                <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{qPurchased}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
+                <span className="font-extrabold tnum" style={{ color: "var(--brand)" }}>{qTotalLeft}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-between text-xs">
+              <span style={{ color: "var(--ink-2)" }}>Workspace credits left</span>
+              <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{qMonthlyLeft}</span>
+            </div>
+          )}
+          <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {insightResetLabel}</p>
+        </div>
+      )}
+    </div>
+  );
   const INSIGHT_FEATURES = ["Total & leadership experience", "Domain exposure", "Employer tenure", "Employment gaps"];
   // AI Insight credit wallet, shown inline next to the Generate button (same as
   // the Pipeline AI Rank wallet) rather than as a sidebar meter.
@@ -23513,6 +23559,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
               onGenerate={onGenerateQuestions}
               canGenerate
               canRegenerate={!isInterviewer(profile?.role)}
+              creditWallet={questionWallet}
             />
           </div>
         )}
@@ -23998,24 +24045,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 not in CREDIT_KINDS and the DB meters them monthly-only), so a
                 button here would lead nowhere. Interviewers see the count but
                 not Upgrade, since billing is not their call. */}
-            {!questionsUnlimited && contextJobId && profileTab === "interview" && (
-              <UsageMeter
-                plan={plan}
-                title="AI Questions"
-                hint={isInterviewer(profile?.role)
-                  ? "Each generated set uses one of the workspace's credits, shared across the team. The panel reads one set per candidate and role."
-                  : "Each generated set uses one credit. Your plan includes a set number, which reset every 30 days from your signup date."}
-                used={questionsUsed} limit={questionsLimit} unit=""
-                danger={questionsUsed >= questionsLimit}
-                resetLabel={insightResetLabel}
-                {...(isInterviewer(profile?.role) ? {} : {
-                  onManage: () => navigate("billing"),
-                  onUpgrade: () => navigate("billing"),
-                  purchased: purchasedQuestions,
-                  onBuyCredits: () => setBuyQuestionsOpen(true),
-                })}
-              />
-            )}
+            {/* AI Question credit moved inline next to the Generate button. */}
             {quickFacts}
           </aside>
           {/* Mounted at the screen, not inside the AI Insights card. The card
