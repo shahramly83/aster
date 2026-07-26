@@ -22680,52 +22680,68 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // the context they need. The spend can't run away, because the result is
   // stored on the candidate — a profile is only ever analysed once, so whoever
   // opens it first pays and everyone after reads the same stored answer.
+  const INSIGHT_FEATURES = ["Total & leadership experience", "Domain exposure", "Employer tenure", "Employment gaps"];
   const aiInsightsCard = (
-    <div className="rounded-2xl p-4 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.07), rgba(90,120,248,0.06))", border: "1px solid var(--line)" }}>
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-8 h-8 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="matching" className="w-4 h-4" /></span>
-          <h2 className="text-sm font-semibold font-display" style={{ color: "var(--ink)" }}>AI Insights</h2>
-          <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." />
-        </div>
-        {insights && <span className="text-[11px] shrink-0 mt-1.5" style={{ color: "var(--ink-3)" }}>Generated {new Date(insights.generated_at).toLocaleDateString()}</span>}
-      </div>
-
-      {!insights ? (
-        outOfInsightCredits ? (
-          <div className="rounded-xl bg-white border p-4 flex items-start gap-3" style={{ borderColor: "var(--line)" }}>
-            <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-4 h-4" /></span>
+    <div className="rounded-2xl relative overflow-hidden" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,.05), 0 18px 40px -24px rgba(18,19,42,.26)" }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-24" style={{ background: "linear-gradient(180deg, rgba(var(--brand-rgb),0.10), transparent)" }} />
+      <div className="relative p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3 mb-3.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_10px_22px_-8px_rgba(var(--brand-rgb),0.8)]"><Icon name="matching" className="w-[18px] h-[18px]" /></span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold mb-2.5" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
-              {/* Buying is a billing action, so an interviewer gets the reason
-                  rather than a button that would bounce them off Billing. */}
-              {isInterviewer(profile?.role) ? (
-                <p className="text-xs" style={{ color: "var(--ink-2)" }}>Ask your hiring manager to top up.</p>
-              ) : (
-                <button onClick={() => setBuyInsightOpen(true)} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Buy credits</button>
-              )}
+              <h2 className="text-sm font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>AI Insights <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." /></h2>
+              <p className="text-[11px] font-medium" style={{ color: "var(--brand)" }}>A deeper read of this resume</p>
             </div>
           </div>
-        ) : (
-          <>
-            <p className="text-sm mb-3" style={{ color: "var(--ink-2)" }}>Run a deeper AI read of this resume: total and leadership experience, domain exposure, employer tenure, and any employment gaps.</p>
-            <button onClick={handleGenerate} disabled={generating} className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-90 text-white text-sm font-semibold px-4 py-2.5 inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
-              {generating
-                ? <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />
-                : <Icon name="matching" className="w-4 h-4" />}
-              {generating ? INSIGHT_STEPS[insightStep] : "Generate AI insights"}
-            </button>
-            {insightErr && <p role="alert" className="text-xs mt-2.5 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{insightErr}</p>}
-          </>
-        )
-      ) : (
-        // Once generated, the read is stored and shown for good (the credit was
-        // already spent), so there's no regenerate: a resume doesn't change.
-        <div className="rounded-xl bg-white border p-3.5" style={{ borderColor: "var(--line)" }}>
-          <InsightsDisplay insights={insights} />
+          {insights && <span className="text-[11px] shrink-0 mt-1" style={{ color: "var(--ink-3)" }}>Generated {new Date(insights.generated_at).toLocaleDateString()}</span>}
         </div>
-      )}
 
+        {!insights ? (
+          outOfInsightCredits ? (
+            <div className="rounded-xl bg-white border p-4 flex items-start gap-3" style={{ borderColor: "var(--line)" }}>
+              <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="lock" className="w-4 h-4" /></span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold mb-2.5" style={{ color: "var(--ink)" }}>You're out of AI insights</p>
+                {/* Buying is a billing action, so an interviewer gets the reason
+                    rather than a button that would bounce them off Billing. */}
+                {isInterviewer(profile?.role) ? (
+                  <p className="text-xs" style={{ color: "var(--ink-2)" }}>Ask your hiring manager to top up.</p>
+                ) : (
+                  <button onClick={() => setBuyInsightOpen(true)} className="rounded-xl brand-gradient hover:opacity-95 text-white text-xs font-semibold px-3.5 py-2 inline-flex items-center gap-1.5 transition-all hover:-translate-y-0.5 shadow-[0_10px_24px_-12px_rgba(var(--brand-rgb),0.8)]"><Icon name="arrowUpRight" className="w-3.5 h-3.5" /> Buy credits</button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-[13px] leading-relaxed mb-3.5" style={{ color: "var(--ink-2)" }}>Aster reads the full resume and returns a structured summary in seconds:</p>
+              <div className="grid sm:grid-cols-2 gap-2 mb-4">
+                {INSIGHT_FEATURES.map((f) => (
+                  <div key={f} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2" style={{ border: "1px solid var(--line)" }}>
+                    <span className="w-5 h-5 rounded-full brand-gradient text-white flex items-center justify-center shrink-0"><Icon name="check" className="w-3 h-3" /></span>
+                    <span className="text-xs font-medium truncate" style={{ color: "var(--ink-2)" }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button onClick={handleGenerate} disabled={generating} className="rounded-xl brand-gradient hover:opacity-95 disabled:opacity-90 text-white text-sm font-semibold px-4 py-2.5 inline-flex items-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
+                  {generating
+                    ? <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin shrink-0" />
+                    : <Icon name="star" className="w-4 h-4" />}
+                  {generating ? INSIGHT_STEPS[insightStep] : "Generate AI insights"}
+                </button>
+                {!generating && <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Uses 1 credit · saved to this candidate</span>}
+              </div>
+              {insightErr && <p role="alert" className="text-xs mt-2.5 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{insightErr}</p>}
+            </>
+          )
+        ) : (
+          // Once generated, the read is stored and shown for good (the credit was
+          // already spent), so there's no regenerate: a resume doesn't change.
+          <div className="rounded-xl bg-white border p-3.5" style={{ borderColor: "var(--line)" }}>
+            <InsightsDisplay insights={insights} />
+          </div>
+        )}
+      </div>
     </div>
   );
 
