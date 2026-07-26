@@ -726,13 +726,6 @@ function PastCardMini({ iv, tz, onPress }) {
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <View style={[styles.pastStatusDot, { backgroundColor: outcome.color }]} />
         <Text style={[type.small, { color: outcome.color, fontFamily: outcome.label === "Interview complete" ? undefined : "Inter_600SemiBold" }]}>{outcome.label}</Text>
-        {iv.meetingLink ? (
-          <>
-            <Text style={{ color: theme.ink4, marginHorizontal: 8 }}>·</Text>
-            <Feather name="video" size={12} color={theme.ink3} />
-            <Text style={[type.small, { color: theme.ink3, marginLeft: 5 }]}>Video call</Text>
-          </>
-        ) : null}
       </View>
     </Press>
   );
@@ -756,12 +749,6 @@ function PastCard({ iv, tz, onPress }) {
           <Text style={[type.smallStrong, { color: theme.ink2 }]} numberOfLines={1}>{iv.candidateName}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 1 }}>
             <Text style={[type.small, { color: theme.ink4, flexShrink: 1 }]} numberOfLines={1}>{iv.jobTitle}</Text>
-            {iv.meetingLink ? (
-              <View style={styles.videoTag}>
-                <Feather name="video" size={11} color={theme.brand} />
-                <Text style={styles.videoTagTxt}>Video</Text>
-              </View>
-            ) : null}
           </View>
         </View>
         <Feather name="chevron-right" size={18} color={theme.ink4} style={{ marginLeft: 6 }} />
