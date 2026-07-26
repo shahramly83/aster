@@ -19764,7 +19764,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               )}
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-3 items-stretch">
+          <div className="grid gap-4 sm:grid-cols-3 items-stretch mt-4">
             {PLANS.filter((p) => p.key !== "enterprise").map((p) => {
               const cycleMatters = p.key !== "enterprise";
               // On a trial nothing is "current" yet: every tier stays buyable,
@@ -19792,7 +19792,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
               return (
                 <div
                   key={p.key}
-                  className={`relative rounded-3xl border p-6 flex flex-col transition-all duration-200 hover:-translate-y-1 ${highlight ? "lg:-translate-y-2 lg:hover:-translate-y-3" : ""}`}
+                  className="relative rounded-3xl border p-6 flex flex-col transition-all duration-200 hover:-translate-y-1"
                   style={{
                     borderColor: isCurrent || highlight ? "var(--brand)" : "var(--line)",
                     borderWidth: highlight ? 2 : 1,
@@ -19821,8 +19821,8 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
                   <ul className="space-y-2.5 mb-5 flex-1">
                     {p.features.map((f) => (
                       <li key={f} className="flex items-start gap-2.5 text-[13px]" style={{ color: "var(--ink-2)" }}>
-                        <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full text-white brand-gradient">
-                          <Icon name="check" className="w-2.5 h-2.5" />
+                        <span className="mt-px shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded-full text-white brand-gradient" style={{ boxShadow: "0 3px 7px -3px rgba(var(--brand-rgb),0.7)" }}>
+                          <Icon name="check" className="w-3 h-3" />
                         </span>
                         <span className="leading-snug">{f}</span>
                       </li>
