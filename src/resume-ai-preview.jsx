@@ -10340,6 +10340,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     if (isAllTime) return new Set(rows.map((a) => a.candidateId)).size;
     return new Set(rows.filter((a) => { const d = appliedDate(a); return d && d.getTime() >= rStart && d.getTime() <= rEnd; }).map((a) => a.candidateId)).size;
   };
+  // Generic "is this moment inside the selected range" test (all-time passes everything).
+  const inRangeMs = (ms) => isAllTime || (ms != null && ms >= rStart && ms <= rEnd);
+  const appIsInRange = (a) => { const d = appliedDate(a); return inRangeMs(d ? d.getTime() : null); };
+  // Interviews list scoped to the range (all-time keeps the forward-looking upcoming set).
+  const shownInterviews = isAllTime ? upcomingInterviews : interviews.filter((iv) => iv.start && inRangeMs(iv.start.getTime()));
 
   // The six headline KPIs. Deltas are real where we have the history (candidates,
   // open roles, applications) and absent where we don't.
@@ -10392,7 +10397,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   // Closed / draft roles are excluded so this reflects where hiring is live now.
   const roleCounts = jobs
     .filter((j) => j.status === "open")
-    .map((j) => ({ label: j.title, value: applicantCountFor(j.id) }))
+    .map((j) => ({ label: j.title, value: isAllTime ? applicantCountFor(j.id) : (APPLICANTS_BY_JOB[j.id] || []).filter(appIsInRange).length }))
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value);
   // Top 5 roles by applicant count (View all shows the rest on the Jobs screen).
@@ -10402,7 +10407,7 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   // Application Source: distribution of where applicants came from.
   const sourcePalette = { "Career Page": "#0B2AE0", LinkedIn: "#3B82F6", Referral: "#93C5FD", JobStreet: "#A5B4FC", Indeed: "#6366F1", Glassdoor: "#22C55E", Database: "#C7D2FE", Others: "#D1D5DB" };
   const sourceCounts = {};
-  Object.values(APPLICANTS_BY_JOB).flat().forEach((a) => {
+  allApplicants.filter(appIsInRange).forEach((a) => {
     const src = a.source || "Others";
     sourceCounts[src] = (sourceCounts[src] || 0) + 1;
   });
@@ -10545,12 +10550,12 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                 // Shortlisted is a private bookmark (the star), not a stage. Anyone
                 // still carrying the old "shortlisted" stage counts as Applied here,
                 // so no one is dropped and no unreachable stage is advertised.
-                { label: "Applied", value: stageCount("applied") + stageCount("shortlisted"), tone: "flow" },
-                { label: "Interview", value: stageCount("interviewing"), tone: "flow" },
-                { label: "Offer", value: stageCount("offer"), tone: "flow" },
-                { label: "Hired", value: stageCount("hired"), tone: "win" },
-                { label: "Declined", value: stageCount("declined"), tone: "exit" },
-                { label: "Rejected", value: stageCount("rejected"), tone: "exit" },
+                { label: "Applied", value: stageInRange("applied") + stageInRange("shortlisted"), tone: "flow" },
+                { label: "Interview", value: stageInRange("interviewing"), tone: "flow" },
+                { label: "Offer", value: stageInRange("offer"), tone: "flow" },
+                { label: "Hired", value: stageInRange("hired"), tone: "win" },
+                { label: "Declined", value: stageInRange("declined"), tone: "exit" },
+                { label: "Rejected", value: stageInRange("rejected"), tone: "exit" },
               ];
               const fmax = Math.max(...funnel.map((f) => f.value), 1);
               return (
@@ -10559,8 +10564,8 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                     {heroCard({ ...kpis[5], green: true })}
                     {heroCard(kpis[0])}
-                    {heroCard({ label: "Open positions", value: stats.openJobs, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
-                    {heroCard({ label: "Awaiting Review", value: stageCount("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
+                    {heroCard({ label: "Open positions", value: openJobsInRange, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
+                    {heroCard({ label: "Awaiting Review", value: stageInRange("applied"), icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) })}
                   </div>
 
                   {/* Bottom row: Hiring funnel | Upcoming Interviews, equal height, fills remaining space */}
@@ -10622,15 +10627,15 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     <div className={`${cardClass} min-w-0 h-full flex flex-col`}>
                       {sectionHead(
                         "Upcoming Interviews",
-                        upcomingInterviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
+                        shownInterviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
                       )}
-                      {upcomingInterviews.length === 0 ? (
+                      {shownInterviews.length === 0 ? (
                         <div className="py-10 text-center flex-1 flex flex-col justify-center">
                           <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
                         </div>
                       ) : (
                         <div className="space-y-1 flex-1">
-                          {upcomingInterviews.slice(0, 3).map((iv) => (
+                          {shownInterviews.slice(0, 3).map((iv) => (
                             <button key={iv.candidateId} onClick={() => navigate("interviews")} className="w-full flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-neutral-50 text-left transition-colors">
                               <CandidateAvatar name={iv.candidateName} seed={iv.candidateName === "Candidate" ? iv.candidateId : iv.candidateName} hasPhoto={false} size={36} />
                               <div className="min-w-0 flex-1">
