@@ -13922,33 +13922,30 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   // not a self-serve tier. Hide the button in both cases.
   const atTopPlan = plan === "elite" || plan === "enterprise";
   const showUpgrade = onUpgrade && !atTopPlan;
+  // Compact pill: show what's left (monthly balance + any purchased top-up),
+  // matching the Pipeline credit pill. Simpler than the old card, same info.
+  const monthlyLeft = limit === Infinity ? Infinity : Math.max(limit - shownUsed, 0);
+  const purchasedNum = typeof purchased === "number" ? purchased : 0;
+  const totalLeft = monthlyLeft === Infinity ? Infinity : monthlyLeft + purchasedNum;
+  const leftDisplay = totalLeft === Infinity ? "∞" : totalLeft.toLocaleString();
+  const accent = isDanger && totalLeft <= 0 ? "#B45309" : "var(--brand)";
+  const resetHint = resetLabel && resetLabel !== "next cycle" ? `Resets ${resetLabel}. ` : "";
   return (
-    <div className="relative rounded-2xl bg-white p-4 act-shadow" style={{ border: "1px solid var(--line)" }}>
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{title}</h3>
-        {resetLabel && <ResetBadge label={resetLabel} />}
-      </div>
-      <div className="flex items-baseline gap-1.5 mb-2">
-        <span className="text-xl font-bold font-display tnum leading-none" style={{ color: "var(--ink)" }}>{shownUsed}</span>
-        <span className="text-xs" style={{ color: "var(--ink-3)" }}>/ {limit === Infinity ? "Unlimited" : limit} {unit}</span>
-        {typeof purchased === "number" && (
-          <span className="ml-auto text-[11px] tnum" style={{ color: purchased > 0 ? "var(--brand)" : "var(--ink-4)" }}>{purchased > 0 ? `+${purchased.toLocaleString()} top-up` : "0 top-up"}</span>
-        )}
-      </div>
-      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: out ? "#F59E0B" : "var(--brand)" }} />
-      </div>
-      {note && <p className="text-[11px] mt-2 leading-relaxed" style={{ color: isDanger ? "#B45309" : "var(--ink-3)" }}>{note}</p>}
-      {(showUpgrade || onBuyCredits) && (
-        <div className={`mt-3 ${showUpgrade && onBuyCredits ? "grid grid-cols-2 gap-2" : ""}`}>
-          {showUpgrade && (
-            <button onClick={onUpgrade} className="w-full rounded-lg brand-gradient text-white hover:opacity-90 text-xs font-semibold py-2 px-2 transition-opacity">{upgradeLabel}</button>
-          )}
-          {onBuyCredits && (
-            <button onClick={onBuyCredits} className={`w-full rounded-lg text-xs font-semibold py-2 px-2 transition-colors ${showUpgrade ? "hover:bg-[color:var(--brand-soft)]" : "brand-gradient text-white hover:opacity-90"}`} style={showUpgrade ? { color: "var(--brand)", border: "1px solid var(--line-strong)" } : undefined}>Buy credits</button>
-          )}
-        </div>
-      )}
+    <div
+      title={(resetHint + (hint || "")).trim() || undefined}
+      className="flex items-center gap-2 rounded-full pl-3.5 pr-1.5 py-1.5"
+      style={{ background: "var(--brand-soft)" }}
+    >
+      <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{title}</span>
+      <span className="ml-auto flex items-baseline gap-1 whitespace-nowrap">
+        <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
+        <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>left</span>
+      </span>
+      {onBuyCredits ? (
+        <button onClick={onBuyCredits} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+      ) : showUpgrade ? (
+        <button onClick={onUpgrade} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 brand-gradient text-white transition-opacity hover:opacity-90">Upgrade</button>
+      ) : null}
     </div>
   );
 }
