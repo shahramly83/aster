@@ -15310,7 +15310,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
   const [insight, setInsight] = useState(null);  // { name, reason } for the AI-insight popup
   const [walletTip, setWalletTip] = useState(false); // credits breakdown tooltip
   const [ivTip, setIvTip] = useState(false);          // interviewers breakdown tooltip
-  const openJobs = jobs.filter((j) => j.status === "open");
+  // Interviewers see this Pipeline too (routed here from their assigned roles),
+  // but scoped: only positions they're assigned to, and without the manager-only
+  // panel actions (invite/manage interviewers).
+  const viewerIsInterviewer = isInterviewer(profile?.role);
+  const openJobs = jobs.filter((j) => j.status === "open" && (!viewerIsInterviewer || jobAssignments.some((a) => a.job_id === j.id && a.profile_id === userId)));
   const [roleFilter, setRoleFilter] = useState(() => (activeJobId && openJobs.some((j) => j.id === activeJobId)) ? activeJobId : (openJobs[0]?.id ?? null)); // a specific active position (no "all")
   const [roleOpen, setRoleOpen] = useState(false);      // position dropdown open
   const [stageFilter, setStageFilter] = useState(null); // click a funnel bar to filter the table
@@ -15564,9 +15568,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   </div>
                 )}
               </div>
-              <button onClick={() => { setIvOpen(true); setIvNote(null); }} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">
-                <Icon name="userPlus" className="w-3.5 h-3.5" /> Invite Interviewer
-              </button>
+              {!viewerIsInterviewer && (
+                <button onClick={() => { setIvOpen(true); setIvNote(null); }} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 brand-gradient text-white hover:opacity-90 transition-opacity">
+                  <Icon name="userPlus" className="w-3.5 h-3.5" /> Invite Interviewer
+                </button>
+              )}
             </div>
           );
         })()}
@@ -28784,7 +28790,7 @@ export default function ResumeAIPreview() {
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
-        {screen === "pipeline" && (
+        {(screen === "pipeline" || (screen === "applicants" && isInterviewer(profile?.role))) && (
           <PipelineScreen
             navigate={navigate}
             jobs={jobs}
@@ -28973,7 +28979,7 @@ export default function ResumeAIPreview() {
             profile={profile}
           />
         )}
-        {screen === "applicants" && (
+        {screen === "applicants" && !isInterviewer(profile?.role) && (
           <ApplicantsScreen
             key={activeJobId}
             navigate={navigate}
