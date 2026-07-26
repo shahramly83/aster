@@ -10314,10 +10314,11 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     applications: pctChange(appIsos.filter((iso) => withinWindow(iso, 0, WINDOW)).length, appIsos.filter((iso) => withinWindow(iso, WINDOW, 2 * WINDOW)).length),
   };
 
-  // Range-scoped flow metric: New Applications counts applications whose applied
-  // date falls inside the dashboard's selected date range. Cumulative and
-  // point-in-time KPIs (candidates, open roles, interviews, offers, hires) are
-  // not date-scoped, so the picker only moves the flow count.
+  // Date-range scoping. Every headline metric that has a real per-record
+  // timestamp is counted only inside the selected range, so picking an empty
+  // past month reads 0 instead of the all-time total. Candidates use their
+  // created date, open roles their posted date, applications their applied
+  // date. Total Hires has no per-hire date here, so it stays cumulative.
   const appliedDate = (a) => {
     if (a.appliedAtIso) return new Date(a.appliedAtIso);
     const r = rankDay(a.appliedAt);
@@ -10326,15 +10327,25 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
   const rStart = range?.start ? startOfDay(range.start).getTime() : null;
   const rEnd = range?.end ? startOfDay(range.end).getTime() + 86399999
     : (range?.start ? startOfDay(range.start).getTime() + 86399999 : null);
-  const applicationsInRange = (rStart == null && rEnd == null)
+  const isAllTime = rStart == null && rEnd == null;
+  const inRangeIso = (iso) => { if (!iso) return false; const t = new Date(iso).getTime(); return t >= rStart && t <= rEnd; };
+  const applicationsInRange = isAllTime
     ? stats.applications
     : allApplicants.filter((a) => { const d = appliedDate(a); return d && d.getTime() >= rStart && d.getTime() <= rEnd; }).length;
+  const totalCandidatesInRange = isAllTime ? stats.totalCandidates : candPool.filter((c) => inRangeIso(c.createdAt)).length;
+  const openJobsInRange = isAllTime ? stats.openJobs : jobs.filter((j) => j.status === "open" && inRangeIso(j.posted_at)).length;
+  // Candidates in a given current stage whose application landed inside the range.
+  const stageInRange = (stage) => {
+    const rows = allApplicants.filter((a) => a.baseStage === stage);
+    if (isAllTime) return new Set(rows.map((a) => a.candidateId)).size;
+    return new Set(rows.filter((a) => { const d = appliedDate(a); return d && d.getTime() >= rStart && d.getTime() <= rEnd; }).map((a) => a.candidateId)).size;
+  };
 
   // The six headline KPIs. Deltas are real where we have the history (candidates,
   // open roles, applications) and absent where we don't.
   const kpis = [
-    { label: "Total Candidates", value: stats.totalCandidates, delta: deltas.totalCandidates, series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => navigate("search") },
-    { label: "Open Positions", value: stats.openJobs, delta: deltas.openJobs, series: flatSeries(stats.openJobs), icon: "briefcase", onClick: () => goToJobs("open") },
+    { label: "Total Candidates", value: totalCandidatesInRange, delta: deltas.totalCandidates, series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => navigate("search") },
+    { label: "Open Positions", value: openJobsInRange, delta: deltas.openJobs, series: flatSeries(stats.openJobs), icon: "briefcase", onClick: () => goToJobs("open") },
     { label: "New Applications", value: applicationsInRange, delta: deltas.applications, series: appsSeries, icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) },
     { label: "Interviews Scheduled", value: stats.interviewsScheduled, series: flatSeries(stats.interviewsScheduled), icon: "calendar", onClick: () => goToCandidates({ interview: true }) },
     { label: "Offers Pending", value: stats.offersPending, series: flatSeries(stats.offersPending), icon: "offer", onClick: () => goToJobs(null) },
@@ -14932,7 +14943,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
         <BackLink onClick={() => navigate("dashboard")}>← Dashboard</BackLink>
         <div className="mt-2">
           <TopBar
-            title="Candidate Search"
+            title="Talent Pool"
             subtitle={
               <span className="inline-flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#F1F1F4", color: "var(--ink-2)" }}>
@@ -22744,8 +22755,8 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
     </div>
   );
   const aiInsightsCard = (
-    <div className="rounded-2xl relative overflow-hidden" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,.05), 0 18px 40px -24px rgba(18,19,42,.26)" }}>
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-24" style={{ background: "linear-gradient(180deg, rgba(var(--brand-rgb),0.10), transparent)" }} />
+    <div className="rounded-2xl relative" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,.05), 0 18px 40px -24px rgba(18,19,42,.26)" }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-24 rounded-t-2xl" style={{ background: "linear-gradient(180deg, rgba(var(--brand-rgb),0.10), transparent)" }} />
       <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 mb-3.5">
           <div className="min-w-0">
