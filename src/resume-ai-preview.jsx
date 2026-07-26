@@ -18432,7 +18432,7 @@ function ScheduleInterviewPanel({ candidate, jobs, interviewers, onPreviewBookin
   };
 
   return (
-    <div className="rounded-2xl tool-card px-5 py-4">
+    <div>
       {bookingStatus === "scheduled" ? (
         <>
         {/* Confirmed interview, drawn as the calendar event it is: a date tile,
