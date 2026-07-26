@@ -13933,6 +13933,8 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const accent = isDanger && totalLeft <= 0 ? "#B45309" : "var(--brand)";
   const showReset = resetLabel && resetLabel !== "next cycle";
   const hasBreakdown = typeof purchased === "number";
+  // Credit meters read "credits left"; slot meters (open positions) just "left".
+  const leftNoun = hasBreakdown ? (totalLeft === 1 ? "credit left" : "credits left") : "left";
   return (
     <div className="relative" onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}>
       <div
@@ -13945,7 +13947,7 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
         <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{title}</span>
         <span className="ml-auto flex items-baseline gap-1 whitespace-nowrap">
           <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
-          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>left</span>
+          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>{leftNoun}</span>
         </span>
         {onBuyCredits ? (
           <button onClick={onBuyCredits} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
