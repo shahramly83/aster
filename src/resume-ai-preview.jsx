@@ -8082,8 +8082,12 @@ function OfferScreen({ data, token, done, onRespond, onSign }) {
               <SignaturePad onChange={setDrawnPng} />
             )}
 
-            <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
-              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 shrink-0 w-4 h-4 accent-[color:var(--brand)]" />
+            <label className="flex items-start gap-2.5 mt-4 cursor-pointer select-none group">
+              <span className="mt-0.5 shrink-0 w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center transition-colors group-hover:border-[color:var(--brand)]"
+                style={consent ? { background: "var(--brand)", borderColor: "var(--brand)" } : { background: "#fff", borderColor: "var(--line-strong)" }}>
+                {consent && <Icon name="check" className="w-3 h-3" style={{ color: "#fff" }} />}
+              </span>
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="sr-only" />
               <span className="text-[11px] leading-relaxed" style={{ color: "var(--ink-2)" }}>I agree to sign electronically and accept the terms in this letter. My electronic signature is legally binding.</span>
             </label>
 
