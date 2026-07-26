@@ -351,6 +351,10 @@ export default function CandidateProfileScreen({ route, navigation }) {
   const pendingInvite = interview?.status === "sent" ? interview : null;
   const rescheduling = interview?.status === "reschedule"; // candidate couldn't make the times, suggested their own
   const interviewDone = !!scheduledAt && new Date(scheduledAt).getTime() < Date.now();
+  // A hired candidate's interview is in the past by definition, even if the
+  // stored time is future. Drives display only (label + hiding the stale video
+  // link); the manager action gates keep using interviewDone.
+  const interviewOver = interviewDone || stage === "hired";
   // Show the interview flow once the candidate reaches interviewing (or there's
   // already an invite/booking).
   const showInterview = stage === "interviewing" || !!scheduledAt || !!pendingInvite || rescheduling;
@@ -765,14 +769,15 @@ export default function CandidateProfileScreen({ route, navigation }) {
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <View style={styles.ivIcon}><Feather name="calendar" size={18} color={theme.brand} /></View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[type.bodyStrong, { color: theme.ink }]}>{interviewDone ? "Interview held" : "Interview confirmed"}</Text>
+                      <Text style={[type.bodyStrong, { color: theme.ink }]}>{interviewOver ? "Interview held" : "Interview confirmed"}</Text>
                       <Text style={[type.small, { color: theme.ink2, marginTop: 1 }]}>{fmtInterviewRange(scheduledAt, scheduledEnd, profile.timezone)}</Text>
                     </View>
                   </View>
                   {/* Meeting link appears once the candidate has accepted. Generate a
                       room or paste one — nothing sends until the HM taps Share.
-                      Hidden once the interview has passed: nothing left to join. */}
-                  {!interviewDone && (
+                      Hidden once the interview has passed (or the candidate is
+                      hired): nothing left to join. */}
+                  {!interviewOver && (
                   <View style={styles.mlWrap}>
                     <Text style={[type.smallStrong, { color: theme.ink2, marginBottom: 8 }]}>Meeting link</Text>
                     {interview?.meetingLink ? (
