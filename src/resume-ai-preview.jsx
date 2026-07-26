@@ -15121,7 +15121,6 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <>
             <div className="rounded-2xl p-4 sm:p-5 mb-5 relative" style={{ background: "linear-gradient(135deg, rgba(85,112,245,0.06), rgba(90,120,248,0.05))", border: "1px solid var(--line)" }}>
               <div className="flex items-start gap-3">
-                <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_8px_20px_-8px_rgba(var(--brand-rgb),0.7)]"><Icon name="briefcase" className="w-4 h-4" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
                     Match to an open position
@@ -22375,6 +22374,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // blocked (and only then do we push to buy) when BOTH are empty.
   const [purchasedAiInsight, reloadPurchasedAiInsight] = usePurchasedBalance("ai_insight");
   const [purchasedQuestions, reloadPurchasedQuestions] = usePurchasedBalance("interview_questions");
+  const [insightTip, setInsightTip] = useState(false); // AI Insight credit wallet hover breakdown
   const [buyInsightOpen, setBuyInsightOpen] = useState(false);
   const [buyQuestionsOpen, setBuyQuestionsOpen] = useState(false);
   const [insightErr, setInsightErr] = useState(null);
@@ -22699,17 +22699,57 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   // stored on the candidate — a profile is only ever analysed once, so whoever
   // opens it first pays and everyone after reads the same stored answer.
   const INSIGHT_FEATURES = ["Total & leadership experience", "Domain exposure", "Employer tenure", "Employment gaps"];
+  // AI Insight credit wallet, shown inline next to the Generate button (same as
+  // the Pipeline AI Rank wallet) rather than as a sidebar meter.
+  const insightIsMgr = !isInterviewer(profile?.role);
+  const insMonthlyLeft = insightsLimit === Infinity ? Infinity : insightsLeft;
+  const insPurchased = insightIsMgr ? purchasedAiInsight : 0;
+  const insTotalLeft = insMonthlyLeft === Infinity ? Infinity : insMonthlyLeft + insPurchased;
+  const insightWallet = insightsUnlimited ? null : (
+    <div className="relative shrink-0" onMouseEnter={() => setInsightTip(true)} onMouseLeave={() => setInsightTip(false)}>
+      <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
+        <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: outOfInsightCredits ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{insTotalLeft === Infinity ? "∞" : insTotalLeft}</span> credits left</span>
+        {insightIsMgr && <button onClick={() => setBuyInsightOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>}
+      </div>
+      {insightTip && (
+        <div className="absolute z-40 left-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className="absolute -top-1.5 left-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+          <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Insight credits</p>
+          {insightIsMgr ? (
+            <>
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} /> Monthly plan</span>
+                <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{insMonthlyLeft}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#F5B301" }} /> Purchased</span>
+                <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{insPurchased}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
+                <span className="font-extrabold tnum" style={{ color: "var(--brand)" }}>{insTotalLeft}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-between text-xs">
+              <span style={{ color: "var(--ink-2)" }}>Workspace credits left</span>
+              <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{insMonthlyLeft}</span>
+            </div>
+          )}
+          <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {insightResetLabel}</p>
+        </div>
+      )}
+    </div>
+  );
   const aiInsightsCard = (
     <div className="rounded-2xl relative overflow-hidden" style={{ background: "#fff", border: "1px solid var(--line)", boxShadow: "0 1px 2px rgba(18,19,42,.05), 0 18px 40px -24px rgba(18,19,42,.26)" }}>
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-24" style={{ background: "linear-gradient(180deg, rgba(var(--brand-rgb),0.10), transparent)" }} />
       <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 mb-3.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-9 h-9 rounded-xl brand-gradient flex items-center justify-center text-white shrink-0 shadow-[0_10px_22px_-8px_rgba(var(--brand-rgb),0.8)]"><Icon name="matching" className="w-[18px] h-[18px]" /></span>
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>AI Insights <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." /></h2>
-              <p className="text-[11px] font-medium" style={{ color: "var(--brand)" }}>A deeper read of this resume</p>
-            </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold font-display flex items-center gap-1.5" style={{ color: "var(--ink)" }}>AI Insights <InfoHint dir="down" hint="An optional AI read of the resume that estimates total and leadership experience, time at each employer, and any gaps. Each run uses one of your monthly AI insight credits." /></h2>
+            <p className="text-[11px] font-medium mt-0.5" style={{ color: "var(--brand)" }}>A deeper read of this resume</p>
           </div>
           {insights && <span className="text-[11px] shrink-0 mt-1" style={{ color: "var(--ink-3)" }}>Generated {new Date(insights.generated_at).toLocaleDateString()}</span>}
         </div>
@@ -22731,11 +22771,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
             </div>
           ) : (
             <>
-              <p className="text-[13px] leading-relaxed mb-3.5" style={{ color: "var(--ink-2)" }}>Aster reads the full resume and returns a structured summary in seconds:</p>
               <div className="grid sm:grid-cols-2 gap-2 mb-4">
                 {INSIGHT_FEATURES.map((f) => (
                   <div key={f} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2" style={{ border: "1px solid var(--line)" }}>
-                    <span className="w-5 h-5 rounded-full brand-gradient text-white flex items-center justify-center shrink-0"><Icon name="check" className="w-3 h-3" /></span>
+                    <span className="shrink-0" style={{ color: "var(--brand)" }}><Icon name="check" className="w-4 h-4" /></span>
                     <span className="text-xs font-medium truncate" style={{ color: "var(--ink-2)" }}>{f}</span>
                   </div>
                 ))}
@@ -22747,7 +22786,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     : <Icon name="star" className="w-4 h-4" />}
                   {generating ? INSIGHT_STEPS[insightStep] : "Generate AI insights"}
                 </button>
-                {!generating && <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>Uses 1 credit · saved to this candidate</span>}
+                {insightWallet}
               </div>
               {insightErr && <p role="alert" className="text-xs mt-2.5 rounded-lg px-3 py-2" style={{ color: "#B42318", background: "#FEF3F2", border: "1px solid #FECDCA" }}>{insightErr}</p>}
             </>
@@ -23940,24 +23979,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                 the resume on Profile, Questions with the interview prep on
                 Interview. Stacking both on every tab meant one was always a
                 number with nothing on screen to spend it. */}
-            {!insightsUnlimited && (!contextJobId || profileTab === "profile") && (
-              <UsageMeter
-                plan={plan}
-                title="AI Insights"
-                hint={isInterviewer(profile?.role)
-                  ? "Each AI Insight run uses one of the workspace's credits, shared across the team. A candidate is only ever analysed once."
-                  : "Each AI Insight run uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."}
-                used={aiInsightsUsed} limit={insightsLimit} unit=""
-                danger={outOfInsightCredits}
-                resetLabel={insightResetLabel}
-                {...(isInterviewer(profile?.role) ? {} : {
-                  onManage: () => navigate("billing"),
-                  onUpgrade: () => navigate("billing"),
-                  purchased: purchasedAiInsight,
-                  onBuyCredits: () => setBuyInsightOpen(true),
-                })}
-              />
-            )}
+            {/* AI Insight credit moved inline next to the Generate button. */}
             {/* AI Questions, directly under AI Insights. Both are per-generation
                 credits spent from this screen, so the two balances belong
                 together. No Buy credits: question top-ups are not sold (they are
