@@ -22636,6 +22636,10 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   useEffect(() => {
     if (profileTab === "interview") { seenStatusRef.current = statusSignal; setGlowPulse(false); return; }
     if (seenStatusRef.current !== undefined && statusSignal && statusSignal !== seenStatusRef.current && offerResult) {
+      // Mark this status seen NOW, so the glow plays exactly once for the change.
+      // Without this the condition stays true and the glow re-fires on every
+      // re-render / tab switch until the timeout happens to land.
+      seenStatusRef.current = statusSignal;
       setGlowPulse(true);
       const t = setTimeout(() => setGlowPulse(false), 1900);   // play once, then off
       return () => clearTimeout(t);
@@ -23122,7 +23126,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                   return (
                     <button key={t.k} type="button" onClick={() => { if (!locked) setProfileTab(t.k); }} disabled={locked} aria-disabled={locked} title={locked ? "Opens once the hiring manager confirms the interview happened" : undefined} className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-lg px-6 py-2 transition-colors ${on ? "brand-gradient text-white" : ""} ${t.k === "interview" && interviewGlow ? "tab-glow" : ""} ${locked ? "cursor-not-allowed" : ""}`} style={on ? {} : { color: locked ? "var(--ink-3)" : "var(--ink-2)" }}>
                       <Icon name={locked ? "lock" : t.icon} className="w-4 h-4" style={locked ? { opacity: 0.85 } : undefined} /> {t.label}
-                      {t.k === "interview" && interviewGlow && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--brand)" }} />}
+                      {t.k === "interview" && interviewGlow && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: on ? "#fff" : "var(--brand)" }} />}
                     </button>
                   );
                 })}
