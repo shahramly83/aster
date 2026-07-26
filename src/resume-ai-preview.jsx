@@ -12888,52 +12888,6 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           />
         </div>
 
-        {/* Usage pills, inline above the search toolbar */}
-        <div className="flex flex-wrap items-center gap-2.5 mb-3">
-          {(() => {
-            const scrLimit = applicantParseUsage.limit ?? planLimits(plan).parseApplicant;
-            if (scrLimit == null) return null;
-            const scrUsed = applicantParseUsage.used || 0;
-            const scrBlocked = scrLimit !== Infinity && scrUsed >= scrLimit;
-            const scrOut = scrBlocked && purchasedApplicant <= 0;
-            const scrResetLabel = applicantParseUsage.resetsAt
-              ? new Date(applicantParseUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
-              : "next cycle";
-            return (
-              <UsageMeter
-                plan={plan}
-                title="Applicant screening"
-                hint="Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
-                used={scrUsed}
-                limit={scrLimit}
-                unit=""
-                danger={scrOut}
-                resetLabel={scrResetLabel}
-                onManage={() => navigate("billing")}
-                onUpgrade={scrOut ? () => navigate("billing") : undefined}
-                purchased={scrLimit === Infinity ? null : purchasedApplicant}
-                onBuyCredits={scrLimit === Infinity ? null : () => setBuyApplicantOpen(true)}
-              />
-            );
-          })()}
-          {jobPostUsage.limit != null && (
-            <UsageMeter
-              plan={plan}
-              title="Open positions"
-              hint="Your plan sets how many positions you can have open at once. Publishing a position (or reopening a closed one) takes a slot; closing one frees it. Drafts don't count."
-              used={jobPostUsage.used}
-              limit={jobPostUsage.limit}
-              unit=""
-              noun="slots"
-              note={jobPostBlocked
-                ? `All ${jobPostUsage.limit} open-position slots are in use. Close a position to post another.`
-                : undefined}
-              onManage={() => navigate("billing")}
-              onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
-            />
-          )}
-        </div>
-
         {/* Toolbar, search, status dropdown, and the primary New Job action */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <div className="relative w-full sm:w-72 lg:w-[calc(33.333%-0.833rem)]">
@@ -13306,9 +13260,51 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
         )}
           </div>{/* main column */}
 
-          <aside className="mt-5 lg:mt-0 space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {/* Usage pills moved inline above the search toolbar. */}
+          <aside className="mt-5 lg:mt-0 space-y-4 lg:sticky lg:top-4 lg:self-start">
+            {(() => {
+              const scrLimit = applicantParseUsage.limit ?? planLimits(plan).parseApplicant;
+              if (scrLimit == null) return null;
+              const scrUsed = applicantParseUsage.used || 0;
+              const scrBlocked = scrLimit !== Infinity && scrUsed >= scrLimit;
+              const scrOut = scrBlocked && purchasedApplicant <= 0;
+              // Credits reset on a 30-day cycle from signup, not the 1st of the month.
+              const scrResetLabel = applicantParseUsage.resetsAt
+                ? new Date(applicantParseUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+                : "next cycle";
+              return (
+                <UsageMeter
+                  plan={plan}
+                  title="Applicant screening"
+                  hint="Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
+                  used={scrUsed}
+                  limit={scrLimit}
+                  unit=""
+                  danger={scrOut}
+                  resetLabel={scrResetLabel}
+                  onManage={() => navigate("billing")}
+                  onUpgrade={scrOut ? () => navigate("billing") : undefined}
+                  purchased={scrLimit === Infinity ? null : purchasedApplicant}
+                  onBuyCredits={scrLimit === Infinity ? null : () => setBuyApplicantOpen(true)}
+                />
+              );
+            })()}
             <BuyCreditsModal open={buyApplicantOpen} onClose={() => setBuyApplicantOpen(false)} plan={plan} kind="applicant_screen" />
+            {jobPostUsage.limit != null && (
+              <UsageMeter
+                plan={plan}
+                title="Open positions"
+                hint="Your plan sets how many positions you can have open at once. Publishing a position (or reopening a closed one) takes a slot; closing one frees it. Drafts don't count."
+                used={jobPostUsage.used}
+                limit={jobPostUsage.limit}
+                unit=""
+                noun="slots"
+                note={jobPostBlocked
+                  ? `All ${jobPostUsage.limit} open-position slots are in use. Close a position to post another.`
+                  : undefined}
+                onManage={() => navigate("billing")}
+                onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
+              />
+            )}
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
               <div>
