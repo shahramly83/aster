@@ -18024,12 +18024,6 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
             >
               <Icon name="plus" className="w-4 h-4" /> Run a panel availability poll
             </button>
-            {requiredVoters.length === 0 && (
-              <p className="text-[11px] mt-1" style={{ color: "var(--ink-3)" }}>
-                Needs at least one interviewer on this role.{" "}
-                {canEditPanel && <button type="button" onClick={() => { setErr(null); setAddingPanel(true); }} className="font-medium underline" style={{ color: "var(--brand)" }}>Add one</button>}
-              </p>
-            )}
           </div>
         ) : (
           <div>
