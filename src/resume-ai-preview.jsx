@@ -12924,6 +12924,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               used={jobPostUsage.used}
               limit={jobPostUsage.limit}
               unit=""
+              noun="slots"
               note={jobPostBlocked
                 ? `All ${jobPostUsage.limit} open-position slots are in use. Close a position to post another.`
                 : undefined}
@@ -13910,7 +13911,7 @@ function ResetBadge({ label }) {
 
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
-function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade plan", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", noun = "credits", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade plan", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
   const [tip, setTip] = useState(false);
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
@@ -13933,8 +13934,8 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const accent = isDanger && totalLeft <= 0 ? "#B45309" : "var(--brand)";
   const showReset = resetLabel && resetLabel !== "next cycle";
   const hasBreakdown = typeof purchased === "number";
-  // Credit meters read "credits left"; slot meters (open positions) just "left".
-  const leftNoun = hasBreakdown ? (totalLeft === 1 ? "credit left" : "credits left") : "left";
+  // "N credits left" / "N slots left", singularised at 1.
+  const leftNoun = `${totalLeft === 1 ? noun.replace(/s$/, "") : noun} left`;
   return (
     <div className="relative" onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}>
       <div
