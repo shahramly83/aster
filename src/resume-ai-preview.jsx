@@ -14352,6 +14352,7 @@ function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
 function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
   const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
+  const [walletTip, setWalletTip] = useState(false); // AI Rank credit wallet hover breakdown
   const [confirmRun, setConfirmRun] = useState(null); // pending AI Rank action awaiting confirmation
   // Ask before spending a credit; truly-out-of-credits goes straight to billing.
   const askAiRank = (fn) => { if (outOfCredits) { setBuyAiRankOpen(true); return; } setConfirmRun(() => fn); };
@@ -14843,22 +14844,38 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const resetLabel = aiRankResetsAt
     ? new Date(aiRankResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : "in 30 days";
-  const planNote = limits.aiRunsPerMonth !== Infinity ? (
-    <>
-    <UsageMeter
-      plan={plan}
-      title="AI Rank"
-      hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
-      used={matchRunsUsed} limit={limits.aiRunsPerMonth} unit=""
-      danger={outOfRuns}
-      resetLabel={resetLabel}
-      onManage={() => navigate("billing")} onUpgrade={() => navigate("billing")}
-      purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
-      onBuyCredits={limits.aiRunsPerMonth === Infinity ? null : () => setBuyAiRankOpen(true)}
-    />
-    <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
-    </>
-  ) : null;
+  // AI Rank credit wallet, shown inline next to the AI Rank buttons (same as the
+  // Pipeline screen) instead of as a sidebar meter.
+  const aiRankMonthlyLeft = limits.aiRunsPerMonth === Infinity ? Infinity : Math.max(limits.aiRunsPerMonth - matchRunsUsed, 0);
+  const aiRankTotalLeft = aiRankMonthlyLeft === Infinity ? Infinity : aiRankMonthlyLeft + purchasedAiRank;
+  const aiRankWallet = limits.aiRunsPerMonth === Infinity ? null : (
+    <div className="relative shrink-0" onMouseEnter={() => setWalletTip(true)} onMouseLeave={() => setWalletTip(false)}>
+      <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
+        <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: outOfRuns && aiRankTotalLeft <= 0 ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{aiRankTotalLeft === Infinity ? "∞" : aiRankTotalLeft}</span> credits left</span>
+        <button onClick={() => setBuyAiRankOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+      </div>
+      {walletTip && (
+        <div className="absolute z-40 right-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className="absolute -top-1.5 right-7 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+          <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>AI Rank credits</p>
+          <div className="flex items-center justify-between text-xs mb-2">
+            <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} /> Monthly plan</span>
+            <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{aiRankMonthlyLeft}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#F5B301" }} /> Purchased</span>
+            <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{purchasedAiRank}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+            <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
+            <span className="font-extrabold tnum" style={{ color: "var(--brand)" }}>{aiRankTotalLeft}</span>
+          </div>
+          <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {resetLabel}</p>
+        </div>
+      )}
+    </div>
+  );
 
   const TABS = [
     { key: "browse", short: "By name", full: "Browse by name", icon: "users" },
@@ -15060,11 +15077,14 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                 <p className="text-sm" style={{ color: "var(--ink-2)" }}><span className="font-semibold" style={{ color: "var(--ink)" }}>{list.length}</span> {list.length === 1 ? "candidate" : "candidates"}{ranked ? " · ranked by fit" : ""} {ranked && <InfoHint dir="down" hint="A fit score from 0 to 100. The fuller the ring, the closer this person matches what you searched." />}</p>
                 <div className="flex items-center gap-3">
                   {!ranked && list.length > 0 && (skillTags.length > 0 || industryTags.length > 0) && (
+                    <>
                     <button onClick={() => askAiRank(runAiRank)} disabled={aiRanking} className="text-xs font-semibold rounded-lg brand-gradient text-white px-3 py-1.5 inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity disabled:opacity-60">
                       {aiRanking
                         ? <span className="w-3.5 h-3.5 rounded-full animate-spin" style={{ border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }} />
                         : <Icon name={outOfCredits ? "lock" : "matching"} className="w-3.5 h-3.5" />} {aiRanking ? rankStatus : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
+                    {aiRankWallet}
+                    </>
                   )}
                   <button onClick={() => { setSkillTags([]); setIndustryTags([]); setExpLevels([]); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Clear</button>
                 </div>
@@ -15089,7 +15109,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                     Match to an open position
                     <InfoHint dir="down" hint="These are the live job postings in your workspace. AI ranks your whole candidate database against the position you pick, so you can invite the best fits to apply." />
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
                     <JobSelect jobs={openJobs} value={matchJobId} onChange={(id) => { setMatchJobId(id); setMatchScores(null); }} disabled={openJobs.length === 0} placeholder="Select an open position…" />
                     <button onClick={() => askAiRank(runRoleMatch)} disabled={!matchJobId || matching}
                       className="shrink-0 rounded-xl brand-gradient hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2.5 flex items-center justify-center gap-2 transition-all enabled:hover:-translate-y-0.5 shadow-[0_12px_30px_-12px_rgba(var(--brand-rgb),0.8)]">
@@ -15098,6 +15118,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
                         : <Icon name={outOfCredits ? "lock" : "matching"} className="w-4 h-4" />}
                       {matching ? rankStatus : outOfCredits ? "Out of credits" : "AI Rank"}
                     </button>
+                    {aiRankWallet}
                   </div>
                   {openJobs.length === 0 && (
                     <p className="text-xs mt-2.5" style={{ color: "var(--ink-3)" }}>No open positions yet. Create one under Job Postings.</p>
@@ -15136,7 +15157,8 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
 
           {/* Sidebar, AI-run usage monitor + how search works (matches Bulk Upload) */}
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {planNote}
+            {/* AI Rank credit moved inline next to the AI Rank buttons. */}
+            <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
               <div>
