@@ -17692,7 +17692,7 @@ function buildInterviewOffer({ candidateId, slots, jobTitle, jobId, hmId, hmName
 // straight to the candidate from here — no separate scheduler step. Round 2 (the
 // candidate suggested their own times) shows those for the panel to weigh in; the
 // HM confirms one in the reschedule card.
-function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onMarksChange }) {
+function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUserId, booking, interviewers = [], assignedInterviewers = [], onInviteSent, onActiveChange, onAssignInterviewer, onUnassignInterviewer, onMarksChange }) {
   const isManager = !isInterviewer(profile?.role);
   const myName = `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "You";
   const candName = candidate?.parsed?.name || candidate?.full_name || "candidate";
@@ -17798,6 +17798,13 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
     setAssignBusy(null);
     if (error) { setErr(error); return; }
     setAddingPanel(false);
+  };
+  const removeFromPanel = async (iv) => {
+    if (!jobId || !onUnassignInterviewer) return;
+    setErr(null); setAssignBusy(iv.id);
+    const error = await onUnassignInterviewer(jobId, iv.id);
+    setAssignBusy(null);
+    if (error) setErr(error);
   };
 
   // Entering select mode: default to the two most-available times.
@@ -17947,9 +17954,14 @@ function PanelPoll({ candidate, jobId, jobTitle, profile, companyId, currentUser
         <div className="mb-3">
           <div className="flex flex-wrap items-center gap-1.5">
             {assignedInterviewers.map((iv) => (
-              <span key={iv.id} className="inline-flex items-center gap-1.5 text-[11px] rounded-full border px-2 py-1" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
+              <span key={iv.id} className="inline-flex items-center gap-1.5 text-[11px] rounded-full border pl-2 pr-1 py-1" style={{ borderColor: "var(--line)", color: "var(--ink-2)" }}>
                 <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-semibold" style={{ background: avatarColors(iv.name).bg, color: avatarColors(iv.name).color }}>{initials(iv.name)}</span>
                 {iv.name}
+                {canEditPanel && onUnassignInterviewer && (
+                  <button type="button" onClick={() => removeFromPanel(iv)} disabled={assignBusy === iv.id} aria-label={`Remove ${iv.name}`} title={`Remove ${iv.name}`} className="w-4 h-4 rounded-full flex items-center justify-center transition-colors hover:bg-neutral-200 disabled:opacity-40" style={{ color: "var(--ink-3)" }}>
+                    <Icon name="close" className="w-3 h-3" />
+                  </button>
+                )}
               </span>
             ))}
           </div>
@@ -22355,7 +22367,7 @@ function RequestInterviewControl({ applicationId, openRequest, requesterName, on
   );
 }
 
-function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onReleaseScorecards, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyLogoUrl = null, companyId = null, canPersist = false }) {
+function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPreviewBooking, contextJobId, initialStage, initialTab = null, onReschedule, booking: bookingProp, bookingsByJob = {}, onInviteSent, plan = "launch", scorecards = [], onSubmitScorecard, onSetAttendance, onReleaseScorecards, onSubstitute, stage: stageProp = null, onSetStage, onDelete, offer, onSendOffer, onRespondOffer, hiredIds = new Set(), profile, currentUserId = null, scheduleRequests = [], onRequestScheduling, savedQuestions = null, onGenerateQuestions, avatarUrl = null, activities = [], onOpenNotifications, aiInsightsUsed = 0, setAiInsightsUsed, questionsUsed = 0, insightsCache = {}, setInsightsCache, allBookings = {}, jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, cycleResetsAt = null, preferredCurrency = "myr", companyName = "", companyLogoUrl = null, companyId = null, canPersist = false }) {
   // The interview belongs to a specific (candidate, job). Prefer the per-job
   // booking for the role being viewed; fall back to the candidate-level prop (which
   // covers a just-scheduled interview before the next hydrate).
@@ -23535,6 +23547,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
           onInviteSent={onInviteSent}
           onActiveChange={setPollActive}
           onAssignInterviewer={onAssignInterviewer}
+          onUnassignInterviewer={onUnassignInterviewer}
         />
         {!pollActive && !(booking?.status === "reschedule" && booking?.candidateProposed) && (
           <ScheduleInterviewPanel
@@ -28923,6 +28936,7 @@ export default function ResumeAIPreview() {
             onOpenNotifications={markActivitiesRead}
             jobAssignments={jobAssignments}
             onAssignInterviewer={assignInterviewer}
+            onUnassignInterviewer={unassignInterviewer}
             aiInsightsUsed={aiInsightsUsed}
             setAiInsightsUsed={setAiInsightsUsed}
             questionsUsed={questionsUsed}
