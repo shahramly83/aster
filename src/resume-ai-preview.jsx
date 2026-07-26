@@ -10314,12 +10314,28 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
     applications: pctChange(appIsos.filter((iso) => withinWindow(iso, 0, WINDOW)).length, appIsos.filter((iso) => withinWindow(iso, WINDOW, 2 * WINDOW)).length),
   };
 
+  // Range-scoped flow metric: New Applications counts applications whose applied
+  // date falls inside the dashboard's selected date range. Cumulative and
+  // point-in-time KPIs (candidates, open roles, interviews, offers, hires) are
+  // not date-scoped, so the picker only moves the flow count.
+  const appliedDate = (a) => {
+    if (a.appliedAtIso) return new Date(a.appliedAtIso);
+    const r = rankDay(a.appliedAt);
+    return r == null ? null : new Date(nowMs - r * 86400000);
+  };
+  const rStart = range?.start ? startOfDay(range.start).getTime() : null;
+  const rEnd = range?.end ? startOfDay(range.end).getTime() + 86399999
+    : (range?.start ? startOfDay(range.start).getTime() + 86399999 : null);
+  const applicationsInRange = (rStart == null && rEnd == null)
+    ? stats.applications
+    : allApplicants.filter((a) => { const d = appliedDate(a); return d && d.getTime() >= rStart && d.getTime() <= rEnd; }).length;
+
   // The six headline KPIs. Deltas are real where we have the history (candidates,
   // open roles, applications) and absent where we don't.
   const kpis = [
     { label: "Total Candidates", value: stats.totalCandidates, delta: deltas.totalCandidates, series: flatSeries(stats.totalCandidates), icon: "users", onClick: () => navigate("search") },
     { label: "Open Positions", value: stats.openJobs, delta: deltas.openJobs, series: flatSeries(stats.openJobs), icon: "briefcase", onClick: () => goToJobs("open") },
-    { label: "New Applications", value: stats.applications, delta: deltas.applications, series: appsSeries, icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) },
+    { label: "New Applications", value: applicationsInRange, delta: deltas.applications, series: appsSeries, icon: "doc", onClick: () => goToCandidates({ source: "public_application" }) },
     { label: "Interviews Scheduled", value: stats.interviewsScheduled, series: flatSeries(stats.interviewsScheduled), icon: "calendar", onClick: () => goToCandidates({ interview: true }) },
     { label: "Offers Pending", value: stats.offersPending, series: flatSeries(stats.offersPending), icon: "offer", onClick: () => goToJobs(null) },
     { label: "Total Hires", value: stats.hiresThisMonth, series: flatSeries(stats.hiresThisMonth), icon: "hire", onClick: () => goToCandidates({ hired: true }) },
@@ -26892,9 +26908,10 @@ export default function ResumeAIPreview() {
     if (error) { console.error("mark_activities_seen failed:", error.message || error); return; }
     setActivitiesSeenAt(data || new Date().toISOString());
   };
-  // Dashboard date range, defaults to today (current date).
+  // Dashboard date range. Defaults to the last 30 days so the range-scoped
+  // metrics (New Applications) show meaningful data out of the box.
   const today0 = startOfDay(new Date());
-  const [dateRange, setDateRange] = useState({ start: today0, end: today0 });
+  const [dateRange, setDateRange] = useState({ start: addDays(today0, -29), end: today0 });
   const [previewRequest, setPreviewRequest] = useState(null);
   // The job whose public application page we're previewing (via a job's apply link).
   const [previewApplyJob, setPreviewApplyJob] = useState(null);
