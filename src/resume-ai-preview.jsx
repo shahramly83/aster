@@ -13910,6 +13910,7 @@ function ResetBadge({ label }) {
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
 function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade plan", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
+  const [tip, setTip] = useState(false);
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
   const isDanger = danger ?? out;
@@ -13929,23 +13930,65 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const totalLeft = monthlyLeft === Infinity ? Infinity : monthlyLeft + purchasedNum;
   const leftDisplay = totalLeft === Infinity ? "∞" : totalLeft.toLocaleString();
   const accent = isDanger && totalLeft <= 0 ? "#B45309" : "var(--brand)";
-  const resetHint = resetLabel && resetLabel !== "next cycle" ? `Resets ${resetLabel}. ` : "";
+  const showReset = resetLabel && resetLabel !== "next cycle";
+  const hasBreakdown = typeof purchased === "number";
   return (
-    <div
-      title={(resetHint + (hint || "")).trim() || undefined}
-      className="flex items-center gap-2 rounded-full pl-3.5 pr-1.5 py-1.5"
-      style={{ background: "var(--brand-soft)" }}
-    >
-      <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{title}</span>
-      <span className="ml-auto flex items-baseline gap-1 whitespace-nowrap">
-        <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
-        <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>left</span>
-      </span>
-      {onBuyCredits ? (
-        <button onClick={onBuyCredits} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
-      ) : showUpgrade ? (
-        <button onClick={onUpgrade} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 brand-gradient text-white transition-opacity hover:opacity-90">Upgrade</button>
-      ) : null}
+    <div className="relative" onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}>
+      <div
+        tabIndex={0}
+        onFocus={() => setTip(true)}
+        onBlur={() => setTip(false)}
+        className="flex items-center gap-2 rounded-full pl-3.5 pr-1.5 py-1.5 cursor-default outline-none"
+        style={{ background: "var(--brand-soft)" }}
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{title}</span>
+        <span className="ml-auto flex items-baseline gap-1 whitespace-nowrap">
+          <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
+          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>left</span>
+        </span>
+        {onBuyCredits ? (
+          <button onClick={onBuyCredits} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+        ) : showUpgrade ? (
+          <button onClick={onUpgrade} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 brand-gradient text-white transition-opacity hover:opacity-90">Upgrade</button>
+        ) : null}
+      </div>
+      {tip && (
+        <div className="absolute z-40 right-0 top-full mt-2 w-64 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
+          <span className="absolute -top-1.5 right-6 w-3 h-3 rotate-45 bg-white" style={{ borderLeft: "1px solid var(--line)", borderTop: "1px solid var(--line)" }} />
+          <p className="text-[10px] font-bold uppercase mb-2.5" style={{ color: "var(--ink-3)", letterSpacing: "0.06em" }}>{title}</p>
+          {totalLeft === Infinity ? (
+            <p className="text-xs leading-relaxed" style={{ color: "var(--ink-2)" }}>Unlimited on your plan.</p>
+          ) : hasBreakdown ? (
+            <>
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} /> Monthly plan</span>
+                <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{monthlyLeft}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="inline-flex items-center gap-2" style={{ color: "var(--ink-2)" }}><span className="w-2 h-2 rounded-full" style={{ background: "#F5B301" }} /> Purchased</span>
+                <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{purchasedNum}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
+                <span className="font-extrabold tnum" style={{ color: "var(--brand)" }}>{totalLeft.toLocaleString()}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span style={{ color: "var(--ink-2)" }}>Used this cycle</span>
+                <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{shownUsed} / {limit}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
+                <span className="font-semibold" style={{ color: "var(--ink)" }}>Remaining</span>
+                <span className="font-extrabold tnum" style={{ color: accent }}>{totalLeft.toLocaleString()}</span>
+              </div>
+            </>
+          )}
+          {showReset && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {resetLabel}</p>}
+          {hint && <p className="text-[11px] mt-2.5 pt-2.5 leading-relaxed" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--line)" }}>{hint}</p>}
+        </div>
+      )}
     </div>
   );
 }
