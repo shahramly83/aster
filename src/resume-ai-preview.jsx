@@ -24799,23 +24799,20 @@ function OfferModal({ candidateName, jobTitle, hasEmail = true, defaultCurrency 
         </div>
         )}
 
-        {/* Company signature: compose offers must be signed off by the sender
-            before they reach the candidate. Upload offers carry the signature
-            already printed on HR's own PDF, so this is compose-only. */}
-        {mode !== "upload" && (
+        {/* Company signature. Compose offers must be signed off by the sender
+            before they reach the candidate. If a signature is already saved in
+            Settings we use it silently; only when there's none do we force a
+            capture here. Upload offers carry the signature on HR's own PDF. */}
+        {mode !== "upload" && savedSig === null && (
           <div className="mb-5">
             <label className={labelClass}>Your signature <span className="font-normal" style={{ color: composeNeedsSig ? "#B45309" : "var(--ink-4)" }}>· required</span></label>
             <div className="rounded-xl border p-3.5" style={{ borderColor: sigErr && composeNeedsSig ? "#F59E0B" : "var(--line-strong)", background: "#fff" }}>
-              {savedSig === undefined ? (
-                <p className="text-xs" style={{ color: "var(--ink-3)" }}>Loading your signature…</p>
-              ) : (
-                <OfferSignatureCard
-                  savedSig={savedSig}
-                  onDraftChange={(d) => { setSigDraft(d); if (d) setSigErr(false); }}
-                  intro=""
-                  note=""
-                />
-              )}
+              <OfferSignatureCard
+                savedSig={savedSig}
+                onDraftChange={(d) => { setSigDraft(d); if (d) setSigErr(false); }}
+                intro=""
+                note=""
+              />
             </div>
             {sigErr && composeNeedsSig && <p className="text-xs mt-1.5 font-medium" style={{ color: "#B45309" }}>Add your signature to sign off the offer before sending.</p>}
           </div>
