@@ -55,3 +55,7 @@ supabase/.env.stripe
 
 # E2E per-run generated resumes
 tests/fixtures/resume-e2e-*.pdf
+
+# iOS screenshot working files (generated / raw captures)
+mobile/store-screens/raw/
+mobile/store-screens/out/
