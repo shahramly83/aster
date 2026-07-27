@@ -14002,10 +14002,10 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
         <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{title}</span>
         <span className="ml-auto flex items-baseline gap-1 whitespace-nowrap">
           <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
-          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>{leftNoun}</span>
+          <span className="text-[11px] font-bold" style={{ color: accent }}>{leftNoun}</span>
         </span>
         {onBuyCredits ? (
-          <button onClick={onBuyCredits} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+          <button onClick={onBuyCredits} className="shrink-0 text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>
         ) : showUpgrade ? (
           <button onClick={onUpgrade} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1 brand-gradient text-white transition-opacity hover:opacity-90">Upgrade</button>
         ) : null}
@@ -14034,16 +14034,17 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
           ) : (
             <>
               <div className="flex items-center justify-between text-xs mb-2">
-                <span style={{ color: "var(--ink-2)" }}>Used this cycle</span>
+                <span style={{ color: "var(--ink-2)" }}>{noun === "slots" ? "In use" : "Used this cycle"}</span>
                 <span className="font-bold tnum" style={{ color: "var(--ink)" }}>{shownUsed} / {limit}</span>
               </div>
               <div className="flex items-center justify-between text-xs pt-2.5" style={{ borderTop: "1px solid var(--line)" }}>
-                <span className="font-semibold" style={{ color: "var(--ink)" }}>Remaining</span>
+                <span className="font-semibold" style={{ color: "var(--ink)" }}>{noun === "slots" ? "Open now" : "Remaining"}</span>
                 <span className="font-extrabold tnum" style={{ color: accent }}>{totalLeft.toLocaleString()}</span>
               </div>
             </>
           )}
           {showReset && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {resetLabel}</p>}
+          {noun === "slots" && <p className="text-[11px] mt-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>Set by your plan. Slots never renew; closing a position frees one.</p>}
         </div>
       )}
     </div>
