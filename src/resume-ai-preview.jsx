@@ -15824,7 +15824,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                           <span className="min-w-0">
                             <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
                             {a.country && (
-                              <span className="inline-flex items-center gap-1 text-[11px] truncate" style={{ color: "var(--ink-3)" }}>
+                              <span className="flex items-center gap-1 text-[11px] truncate mt-0.5" style={{ color: "var(--ink-3)" }}>
                                 <Icon name="pin" className="w-3 h-3 shrink-0" /> {a.country}
                               </span>
                             )}
