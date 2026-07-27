@@ -4553,7 +4553,7 @@ function AppDownloadBand() {
               <div className="rounded-t-[2.6rem] pt-2.5 px-2.5" style={{ background: "#0B1020", boxShadow: "0 -6px 60px -18px rgba(6,17,90,0.45)" }}>
                 <div className="relative rounded-t-[2.1rem] overflow-hidden bg-black" style={{ aspectRatio: "1256 / 1564" }}>
                   <img src="/aster-app-dashboard.jpg" alt="Aster mobile app dashboard" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top" />
-                  <span className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-3.5 rounded-full" style={{ background: "#0B1020" }} />
+                  <span className="absolute top-2 left-1/2 -translate-x-1/2 w-9 h-2.5 rounded-full" style={{ background: "#0B1020" }} />
                 </div>
               </div>
             </div>
