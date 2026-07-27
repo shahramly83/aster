@@ -23508,7 +23508,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
                     {interviewWhen && <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--ink-3)" }}>{interviewWhen}</span>}
                   </div>
                   <h2 className="text-lg font-bold font-display mt-1.5 leading-tight" style={{ color: "var(--ink)" }}>{proceeded ? "Interview confirmed" : "Did the interview happen?"}</h2>
-                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{proceeded ? "You've confirmed this went ahead. The panel's scorecards are open — add yours or review the team's on the Scorecards step." : (interviewerAttendees.length > 0 ? "Confirm who joined, then collect the panel's scorecards. If it was a no-show or needs another time, reschedule instead." : "Go ahead and score. If it was a no-show or needs another time, reschedule instead.")}</p>
+                  {!proceeded && <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-2)" }}>{interviewerAttendees.length > 0 ? "Confirm who joined, then collect the panel's scorecards. If it was a no-show or needs another time, reschedule instead." : "Go ahead and score. If it was a no-show or needs another time, reschedule instead."}</p>}
                 </div>
               </div>
             </div>
