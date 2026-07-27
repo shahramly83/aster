@@ -9692,11 +9692,13 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
 // localStorage so it doesn't reset on every render/navigation; when it lapses the
 // window rolls forward another 3 days so the offer never dead-ends.
 const PROMO_CODE = "YEARLY10";
-function TrialPromoStrip({ accent, onSubscribeYearly }) {
+function TrialPromoStrip({ accent, daysLeft = null }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     try { navigator.clipboard?.writeText(PROMO_CODE); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* noop */ }
   };
+  // The offer expires with the trial, so the countdown is the trial's own days left.
+  const expiry = typeof daysLeft === "number" ? (daysLeft <= 1 ? "Ends today" : `Ends in ${daysLeft} days`) : null;
   return (
     <div className="hidden lg:flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-center" style={{ color: accent }}>
       <span className="font-bold">Extra 10% off yearly with</span>
@@ -9709,6 +9711,10 @@ function TrialPromoStrip({ accent, onSubscribeYearly }) {
         <span className="leading-none">{PROMO_CODE}</span>
         <span className="font-sans font-bold uppercase text-[9px] tracking-wider opacity-60 leading-none">{copied ? "Copied" : "Copy"}</span>
       </button>
+      {expiry && (<>
+        <span className="opacity-40">·</span>
+        <span className="font-semibold whitespace-nowrap">{expiry}</span>
+      </>)}
     </div>
   );
 }
@@ -10609,7 +10615,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <TrialPromoStrip accent={tone.accent} />
+                <TrialPromoStrip accent={tone.accent} daysLeft={left} />
                 <button
                   onClick={() => (onSubscribeYearly ? onSubscribeYearly() : navigate("billing"))}
                   className="text-sm text-white font-semibold px-4 py-2.5 rounded-xl shrink-0 transition-all hover:-translate-y-0.5 hover:opacity-95"
