@@ -4526,7 +4526,7 @@ function AppDownloadBand() {
       <div className="flex flex-col-reverse lg:flex-row items-center lg:items-end justify-center gap-8 lg:gap-16">
         <div className="max-w-md w-full pb-2 lg:pb-12">
             <p className="eyebrow brand-text mb-2">Mobile app</p>
-            <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire from your pocket.</h2>
+            <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire in One Tap</h2>
             <ul className="mt-5 space-y-2.5">
               {["Screen and rank candidates on the go", "Get notified the moment someone applies", "Face ID unlock, secure by default"].map((f) => (
                 <li key={f} className="flex items-center gap-2.5 text-sm text-neutral-700">
