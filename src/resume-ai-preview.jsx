@@ -4522,9 +4522,9 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // arrive in September, so the store badges are visual only (no links).
 function AppDownloadBand() {
   return (
-    <section className="w-full px-6 sm:px-10 lg:px-16 pt-6 sm:pt-10 pb-6 sm:pb-14 overflow-hidden">
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-6 sm:pb-14 overflow-hidden">
       <div className="grid lg:grid-cols-2 items-end gap-8 lg:gap-10">
-        <div className="order-2 lg:order-1 pb-8 sm:pb-12 lg:max-w-xl">
+        <div className="order-2 lg:order-1 pb-8 sm:pb-12 lg:max-w-md">
             <p className="eyebrow brand-text mb-2">Mobile app</p>
             <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire from your pocket.</h2>
             <ul className="mt-5 space-y-2.5">
@@ -4535,7 +4535,7 @@ function AppDownloadBand() {
                 </li>
               ))}
             </ul>
-            <div className="mt-7 flex flex-col sm:flex-row sm:flex-wrap gap-3">
+            <div className="mt-7 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
               <a href="https://play.google.com/store/apps/details?id=com.hireaster.mobile" target="_blank" rel="noreferrer" className="inline-flex w-full sm:w-auto justify-center sm:justify-start items-center gap-2.5 rounded-xl px-4 py-2.5 text-white transition-transform hover:-translate-y-0.5" style={{ background: "#0B1020" }}>
                 <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true"><path fill="#fff" d="M4 3.2 15 12 4 20.8V3.2z" /></svg>
                 <span className="text-left leading-none"><span className="block text-[9px] uppercase tracking-wide opacity-70">Get it on</span><span className="block text-sm font-semibold mt-0.5">Google Play</span></span>
@@ -4549,7 +4549,7 @@ function AppDownloadBand() {
           {/* The phone shows the top ~60% of the screen and bleeds off the bottom edge. */}
           <div className="order-1 lg:order-2 relative self-end justify-self-center lg:justify-self-end">
             <div className="pointer-events-none absolute -inset-10 rounded-[3rem] blur-3xl opacity-70" style={{ background: "radial-gradient(circle at 50% 40%, var(--brand-soft), transparent 70%)" }} />
-            <div className="relative w-[210px] sm:w-[250px] lg:w-[290px]">
+            <div className="relative w-[160px] sm:w-[220px] lg:w-[290px]">
               <div className="rounded-t-[2.6rem] pt-2.5 px-2.5" style={{ background: "#0B1020", boxShadow: "0 -6px 60px -18px rgba(6,17,90,0.45)" }}>
                 <div className="relative rounded-t-[2.1rem] overflow-hidden bg-black" style={{ aspectRatio: "1256 / 1564" }}>
                   <img src="/aster-app-dashboard.jpg" alt="Aster mobile app dashboard" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top" />
