@@ -11,7 +11,7 @@ this file is the listing + review metadata. Legal entity: **Oryx Digital Sdn Bhd
 
 | Field | Value |
 |---|---|
-| Name | **Aster** |
+| Name (store listing, must be globally unique) | **Aster: AI Hiring** (plain "Aster" is taken; home-screen name stays "Aster" via app.json) |
 | Subtitle (30 char) | **Hire faster with AI screening** |
 | Bundle ID | `com.hireaster.mobile` |
 | SKU | `aster-ios` |
