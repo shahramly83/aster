@@ -10287,26 +10287,89 @@ function RoleGauge({ segments, total }) {
     <div>
       <div className="relative mx-auto" style={{ maxWidth: 260 }}>
         <svg viewBox="0 0 200 160" className="w-full" aria-hidden="true">
-          <path d={arcPath(START, END)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={sw} strokeLinecap="round" />
+          <path d={arcPath(START, END)} fill="none" stroke="rgba(15,27,51,0.08)" strokeWidth={sw} strokeLinecap="round" />
           {arcs.map((a, i) => (a.ok ? (
             <path key={i} d={arcPath(a.a1, a.a2)} fill="none" stroke={a.color} strokeWidth={sw} strokeLinecap="round" />
           ) : null))}
         </svg>
         <div className="absolute inset-x-0 top-[54%] -translate-y-1/2 flex flex-col items-center">
-          <span className="text-[10px] font-semibold uppercase" style={{ color: "rgba(255,255,255,0.55)", letterSpacing: "0.09em" }}>Applicants</span>
-          <span className="text-3xl font-bold font-display tabular-nums text-white leading-none mt-1">{total.toLocaleString()}</span>
+          <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.09em" }}>Applicants</span>
+          <span className="text-3xl font-bold font-display tabular-nums leading-none mt-1" style={{ color: "var(--ink)" }}>{total.toLocaleString()}</span>
         </div>
       </div>
       <div className="mt-3 space-y-2">
         {segments.map((s) => (
           <div key={s.label} className="flex items-center gap-2.5 text-xs">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
-            <span className="flex-1 min-w-0 truncate" style={{ color: "rgba(255,255,255,0.82)" }}>{s.label}</span>
-            <span className="font-semibold tabular-nums text-white">{s.value} <span style={{ color: "rgba(255,255,255,0.45)" }}>({Math.round((s.value / total) * 100)}%)</span></span>
+            <span className="flex-1 min-w-0 truncate" style={{ color: "var(--ink-2)" }}>{s.label}</span>
+            <span className="font-semibold tabular-nums" style={{ color: "var(--ink)" }}>{s.value} <span style={{ color: "var(--ink-3)" }}>({Math.round((s.value / total) * 100)}%)</span></span>
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+// Candidates Journey as a flowing "river": nested symmetric purple ribbons that
+// swell or pinch with the count at each stage, with a white number pill sitting on
+// the stream at every stage and a faint gridline behind it. Ribbons are smooth
+// horizontal-tangent bezier bands (light outer -> deep core) for a layered look.
+function JourneyStream({ stages }) {
+  const W = 520, H = 200, cy = 100;
+  const maxHalf = 74, minHalf = 8;
+  const maxVal = Math.max(...stages.map((s) => s.value), 1);
+  const n = stages.length;
+  const padX = 56;
+  const xs = stages.map((_, i) => padX + (i * (W - 2 * padX)) / (n - 1));
+  const half = stages.map((s) => minHalf + (s.value / maxVal) * (maxHalf - minHalf));
+  // A thin lead-in / lead-out so the stream reaches both edges like the reference.
+  const withLeads = (frac) => {
+    const pts = xs.map((x, i) => ({ x, h: half[i] * frac }));
+    return [{ x: 0, h: half[0] * frac * 0.5 }, ...pts, { x: W, h: half[n - 1] * frac * 0.82 }];
+  };
+  const ribbon = (frac) => {
+    const pts = withLeads(frac).map((p) => ({ x: p.x, yTop: cy - p.h, yBot: cy + p.h }));
+    let d = `M ${pts[0].x} ${pts[0].yTop} `;
+    for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], dx = (b.x - a.x) / 2; d += `C ${a.x + dx} ${a.yTop} ${b.x - dx} ${b.yTop} ${b.x} ${b.yTop} `; }
+    d += `L ${pts[pts.length - 1].x} ${pts[pts.length - 1].yBot} `;
+    for (let i = pts.length - 1; i > 0; i--) { const a = pts[i], b = pts[i - 1], dx = (a.x - b.x) / 2; d += `C ${a.x - dx} ${a.yBot} ${b.x + dx} ${b.yBot} ${b.x} ${b.yBot} `; }
+    return d + "Z";
+  };
+  const layers = [
+    { frac: 1.0, color: "#D2DEFB" },
+    { frac: 0.64, color: "#7AA0F3" },
+    { frac: 0.3, color: "#1E45D6" },
+  ];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: "auto" }} role="img" aria-label="Candidate journey stream">
+      <defs>
+        <linearGradient id="jstreamBg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#EEF3FF" /><stop offset="1" stopColor="#FFFFFF" />
+        </linearGradient>
+        <filter id="jstreamPill" x="-30%" y="-60%" width="160%" height="220%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#0B2AE0" floodOpacity="0.18" />
+        </filter>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="url(#jstreamBg)" />
+      {layers.map((l, i) => <path key={i} d={ribbon(l.frac)} fill={l.color} />)}
+      {xs.map((x, i) => (
+        <line key={`g${i}`} x1={x} y1="10" x2={x} y2={H - 10} stroke="rgba(11,42,224,0.12)" strokeWidth="1" />
+      ))}
+      {stages.map((s, i) => {
+        const label = s.value.toLocaleString();
+        const w = Math.max(48, 22 + label.length * 11);
+        const win = s.tone === "win";
+        return (
+          <g key={s.label} transform={`translate(${xs[i]}, ${cy})`}>
+            <rect x={-w / 2} y={-15} width={w} height={30} rx={15} fill="#fff" filter="url(#jstreamPill)" />
+            <text x="0" y="1" textAnchor="middle" dominantBaseline="middle" fontSize="16" fontWeight="700" fontFamily="'Plus Jakarta Sans', sans-serif" fill={win ? "#16A34A" : "#0B2AE0"} style={{ fontVariantNumeric: "tabular-nums" }}>{label}</text>
+          </g>
+        );
+      })}
+      {stages.map((s, i) => (
+        <text key={`l${i}`} x={xs[i]} y={H - 12} textAnchor="middle" fontSize="12" fontWeight="600" fontFamily="'Plus Jakarta Sans', sans-serif" fill="rgba(11,42,224,0.72)">{s.label}</text>
+      ))}
+    </svg>
   );
 }
 
@@ -10498,8 +10561,8 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
   );
 
   const donutColors = ["#0B2AE0", "#3B82F6", "#6366F1", "#93C5FD", "#C7D2FE"];
-  // Vibrant, high-contrast palette for the Top Roles gauge (reads on the dark card).
-  const gaugeColors = ["#8B5CF6", "#14B8A6", "#22C55E", "#F59E0B", "#EC4899"];
+  // Blue family for the Top Roles gauge: distinct but all on-brand blues/cyans.
+  const gaugeColors = ["#0B2AE0", "#2563EB", "#3B82F6", "#38BDF8", "#0EA5E9"];
 
   // Top Roles: applicants per ACTIVE (open) role, derived from real applicant data.
   // Closed / draft roles are excluded so this reflects where hiring is live now.
@@ -10694,33 +10757,8 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                         const exits = funnel.filter((f) => f.tone === "exit");
                         return (
                           <div className="flex-1 flex flex-col justify-center pt-4">
-                            <div className="flex items-start">
-                              {path.map((f, i) => {
-                                const has = f.value > 0;
-                                const win = f.tone === "win";
-                                const fill = !has ? "var(--bg)" : win ? "#16A34A" : "var(--brand)";
-                                return (
-                                  <Fragment key={f.label}>
-                                    <div className="flex flex-col items-center gap-1.5 shrink-0" style={{ width: 54 }}>
-                                      <span
-                                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold tnum transition-colors"
-                                        style={has
-                                          ? { background: fill, color: "#fff" }
-                                          : { background: "var(--bg)", color: "var(--ink-3)", border: "1px solid var(--line-strong)" }}
-                                      >
-                                        {f.value}
-                                      </span>
-                                      <span className="text-[9px] text-center leading-tight" style={{ color: has ? "var(--ink-2)" : "var(--ink-3)" }}>{f.label}</span>
-                                    </div>
-                                    {/* The connector fills only once people have
-                                        actually reached the next stage, so the
-                                        line shows how far the pipeline runs. */}
-                                    {i < path.length - 1 && (
-                                      <span className="flex-1 h-0.5 mt-[18px] rounded-full min-w-2" style={{ background: path[i + 1].value > 0 ? "var(--brand)" : "var(--line)" }} />
-                                    )}
-                                  </Fragment>
-                                );
-                              })}
+                            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
+                              <JourneyStream stages={path} />
                             </div>
                             <div className="flex items-center gap-4 mt-4 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
                               <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Left the process</span>
@@ -10771,17 +10809,17 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
 
             {/* Top Roles + Application Source, in the left column right under the chart */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
-              <div className="rounded-2xl p-5 relative overflow-hidden act-shadow" style={{ background: "radial-gradient(120% 90% at 50% 0%, #262a45 0%, #14162a 62%)", border: "1px solid #2A2E4A" }}>
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold font-display text-white">Top Roles</h2>
-                  {roleTotal > 0 && (
-                    <button onClick={() => goToJobs(null)} aria-label="View all roles" className="transition-colors" style={{ color: "rgba(255,255,255,0.7)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
-                  )}
-                </div>
+              <div className={cardClass}>
+                {sectionHead(
+                  "Top Roles",
+                  roleTotal > 0 ? (
+                    <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
+                  ) : null
+                )}
                 {roleTotal === 0 ? (
                   <div className="py-8 text-center">
-                    <p className="text-sm" style={{ color: "rgba(255,255,255,0.82)" }}>No role activity yet.</p>
-                    <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>Applicants across your open roles will show up here.</p>
+                    <p className="text-sm" style={{ color: "var(--ink-2)" }}>No role activity yet.</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Applicants across your open roles will show up here.</p>
                   </div>
                 ) : (
                   <RoleGauge segments={roleSegments} total={roleTotal} />
