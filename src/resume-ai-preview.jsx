@@ -15490,6 +15490,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
         key: `${a.candidateId}:${jobId}`, candidateId: a.candidateId, applicationId: a.applicationId, jobId,
         name: cand?.parsed?.name || cand?.name || "Candidate",
         hasPhoto: cand?.hasPhoto, avatar: cand?.avatarUrl,
+        // Country from the parsed location (last comma-separated part, else the whole string).
+        country: (() => { const loc = (cand?.parsed?.location || "").trim(); return loc ? (loc.includes(",") ? loc.split(",").pop().trim() : loc) : null; })(),
         jobTitle: job?.title || "Role",
         stage, source: a.source || "Career Page",
         appliedAt: a.appliedAt, appliedAtIso: a.appliedAtIso,
@@ -15821,6 +15823,11 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
                           <span className="min-w-0">
                             <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
+                            {a.country && (
+                              <span className="inline-flex items-center gap-1 text-[11px] truncate" style={{ color: "var(--ink-3)" }}>
+                                <Icon name="pin" className="w-3 h-3 shrink-0" /> {a.country}
+                              </span>
+                            )}
                             {a.fitReason && (
                               <button onClick={(e) => { e.stopPropagation(); setInsight(a); }} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                                 <Icon name="star" className="w-3 h-3" /> AI insight
