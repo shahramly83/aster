@@ -10310,66 +10310,66 @@ function RoleGauge({ segments, total }) {
   );
 }
 
-// Candidates Journey as a flowing "river": nested symmetric purple ribbons that
-// swell or pinch with the count at each stage, with a white number pill sitting on
-// the stream at every stage and a faint gridline behind it. Ribbons are smooth
-// horizontal-tangent bezier bands (light outer -> deep core) for a layered look.
-function JourneyStream({ stages }) {
-  const W = 520, H = 200, cy = 100;
-  const maxHalf = 74, minHalf = 8;
-  const maxVal = Math.max(...stages.map((s) => s.value), 1);
-  const n = stages.length;
-  const padX = 56;
-  const xs = stages.map((_, i) => padX + (i * (W - 2 * padX)) / (n - 1));
-  const half = stages.map((s) => minHalf + (s.value / maxVal) * (maxHalf - minHalf));
-  // A thin lead-in / lead-out so the stream reaches both edges like the reference.
-  const withLeads = (frac) => {
-    const pts = xs.map((x, i) => ({ x, h: half[i] * frac }));
-    return [{ x: 0, h: half[0] * frac * 0.5 }, ...pts, { x: W, h: half[n - 1] * frac * 0.82 }];
-  };
-  const ribbon = (frac) => {
-    const pts = withLeads(frac).map((p) => ({ x: p.x, yTop: cy - p.h, yBot: cy + p.h }));
-    let d = `M ${pts[0].x} ${pts[0].yTop} `;
-    for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], dx = (b.x - a.x) / 2; d += `C ${a.x + dx} ${a.yTop} ${b.x - dx} ${b.yTop} ${b.x} ${b.yTop} `; }
-    d += `L ${pts[pts.length - 1].x} ${pts[pts.length - 1].yBot} `;
-    for (let i = pts.length - 1; i > 0; i--) { const a = pts[i], b = pts[i - 1], dx = (a.x - b.x) / 2; d += `C ${a.x - dx} ${a.yBot} ${b.x + dx} ${b.yBot} ${b.x} ${b.yBot} `; }
-    return d + "Z";
-  };
-  const layers = [
-    { frac: 1.0, color: "#D2DEFB" },
-    { frac: 0.64, color: "#7AA0F3" },
-    { frac: 0.3, color: "#1E45D6" },
-  ];
+// Candidates Journey as overlapping percentage bubbles: one circle per stage,
+// area-proportional to its share of the pipeline, clustered around the largest and
+// labelled with its percent. All-blue palette; a legend below spells out each stage.
+// Layout is deterministic (satellites placed on a fixed angular fan around the big
+// circle), then the whole cluster is auto-fit to the viewBox so nothing clips.
+function JourneyBubbles({ stages }) {
+  const items = stages.filter((s) => s.value > 0);
+  if (items.length === 0) return null;
+  const total = items.reduce((a, s) => a + s.value, 0) || 1;
+  const sorted = [...items].sort((a, b) => b.value - a.value);
+  const palette = ["#0B2AE0", "#5B8DEF", "#1E3A8A", "#2563EB", "#0EA5E9"];
+  const Rbig = 62;
+  const vmax = sorted[0].value;
+  const radii = sorted.map((s) => Math.max(22, Math.sqrt(s.value / vmax) * Rbig));
+  const angles = [-38, 26, 66, 112, 156]; // degrees, satellites fanned to the right
+  const centers = [{ x: 0, y: 0 }];
+  for (let i = 1; i < sorted.length; i++) {
+    const a = (angles[(i - 1) % angles.length] * Math.PI) / 180;
+    const dist = radii[0] + radii[i] - Math.min(radii[0], radii[i]) * 0.62;
+    centers.push({ x: Math.cos(a) * dist, y: -Math.sin(a) * dist });
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  centers.forEach((c, i) => {
+    minX = Math.min(minX, c.x - radii[i]); maxX = Math.max(maxX, c.x + radii[i]);
+    minY = Math.min(minY, c.y - radii[i]); maxY = Math.max(maxY, c.y + radii[i]);
+  });
+  const pad = 8;
+  const vb = `${minX - pad} ${minY - pad} ${maxX - minX + 2 * pad} ${maxY - minY + 2 * pad}`;
+  const bubbles = sorted.map((s, i) => ({
+    ...s, r: radii[i], cx: centers[i].x, cy: centers[i].y,
+    color: palette[i % palette.length], pct: Math.round((s.value / total) * 100),
+  }));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: "auto" }} role="img" aria-label="Candidate journey stream">
-      <defs>
-        <linearGradient id="jstreamBg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#EEF3FF" /><stop offset="1" stopColor="#FFFFFF" />
-        </linearGradient>
-        <filter id="jstreamPill" x="-30%" y="-60%" width="160%" height="220%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#0B2AE0" floodOpacity="0.18" />
-        </filter>
-      </defs>
-      <rect x="0" y="0" width={W} height={H} fill="url(#jstreamBg)" />
-      {layers.map((l, i) => <path key={i} d={ribbon(l.frac)} fill={l.color} />)}
-      {xs.map((x, i) => (
-        <line key={`g${i}`} x1={x} y1="10" x2={x} y2={H - 10} stroke="rgba(11,42,224,0.12)" strokeWidth="1" />
-      ))}
-      {stages.map((s, i) => {
-        const label = s.value.toLocaleString();
-        const w = Math.max(48, 22 + label.length * 11);
-        const win = s.tone === "win";
-        return (
-          <g key={s.label} transform={`translate(${xs[i]}, ${cy})`}>
-            <rect x={-w / 2} y={-15} width={w} height={30} rx={15} fill="#fff" filter="url(#jstreamPill)" />
-            <text x="0" y="1" textAnchor="middle" dominantBaseline="middle" fontSize="16" fontWeight="700" fontFamily="'Plus Jakarta Sans', sans-serif" fill={win ? "#16A34A" : "#0B2AE0"} style={{ fontVariantNumeric: "tabular-nums" }}>{label}</text>
-          </g>
-        );
-      })}
-      {stages.map((s, i) => (
-        <text key={`l${i}`} x={xs[i]} y={H - 12} textAnchor="middle" fontSize="12" fontWeight="600" fontFamily="'Plus Jakarta Sans', sans-serif" fill="rgba(11,42,224,0.72)">{s.label}</text>
-      ))}
-    </svg>
+    <div>
+      <div className="mx-auto" style={{ maxWidth: 268 }}>
+        <svg viewBox={vb} className="w-full" style={{ height: "auto" }} role="img" aria-label="Candidate journey">
+          <defs>
+            <filter id="jbubbleShadow" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#0B2AE0" floodOpacity="0.22" />
+            </filter>
+          </defs>
+          {/* Largest first (drawn at the back); smaller stages layer on top. */}
+          {bubbles.map((b) => (
+            <g key={b.label}>
+              <circle cx={b.cx} cy={b.cy} r={b.r} fill={b.color} filter="url(#jbubbleShadow)" />
+              <text x={b.cx} y={b.cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(11, b.r * 0.5)} fontWeight="800" fontFamily="'Plus Jakarta Sans', sans-serif" fill="#fff">{b.pct}%</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+      <div className="mt-3 space-y-2">
+        {bubbles.map((b) => (
+          <div key={b.label} className="flex items-center gap-2.5 text-xs">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: b.color }} />
+            <span className="flex-1 min-w-0 truncate" style={{ color: "var(--ink-2)" }}>{b.label}</span>
+            <span className="font-semibold tabular-nums" style={{ color: "var(--ink)" }}>{b.value} <span style={{ color: "var(--ink-3)" }}>({b.pct}%)</span></span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -10756,10 +10756,15 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                         const path = funnel.filter((f) => f.tone !== "exit");
                         const exits = funnel.filter((f) => f.tone === "exit");
                         return (
-                          <div className="flex-1 flex flex-col justify-center pt-4">
-                            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
-                              <JourneyStream stages={path} />
-                            </div>
+                          <div className="flex-1 flex flex-col justify-center pt-2">
+                            {path.every((f) => f.value === 0) ? (
+                              <div className="py-8 text-center">
+                                <p className="text-sm" style={{ color: "var(--ink-2)" }}>No candidates yet.</p>
+                                <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Your pipeline stages will show up here.</p>
+                              </div>
+                            ) : (
+                              <JourneyBubbles stages={path} />
+                            )}
                             <div className="flex items-center gap-4 mt-4 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
                               <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Left the process</span>
                               {exits.map((f) => (
