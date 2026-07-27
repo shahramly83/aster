@@ -10715,7 +10715,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                             ) : (
                               <JourneyRings stages={path} />
                             )}
-                            <div className="flex items-center gap-4 mt-4 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
+                            <div className="flex items-center justify-center gap-4 mt-4 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
                               <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Left the process</span>
                               {exits.map((f) => (
                                 <span key={f.label} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
