@@ -13392,7 +13392,7 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
                 onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
               />
             )}
-            <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+            <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)", boxShadow: "0 2px 5px rgba(16,19,42,.05), 0 16px 32px -20px rgba(16,19,42,.30)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
               <div>
                 {JOBS_HELP.map((item, i) => {
@@ -14787,7 +14787,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   const browseCard = (c) => {
     const role = c.parsed.experience?.[0]?.title;
     return (
-      <button key={c.id} onClick={() => onViewCandidate(c.id)} className="text-left rounded-2xl bg-white border p-4 flex items-start gap-3.5 group transition-all hover:-translate-y-0.5 shadow-[0_1px_2px_rgba(18,19,42,0.04)] hover:shadow-[0_14px_30px_-16px_rgba(18,19,42,0.22)]" style={{ borderColor: "var(--line)" }}>
+      <button key={c.id} onClick={() => onViewCandidate(c.id)} className="text-left rounded-2xl bg-white border p-4 flex items-start gap-3.5 group transition-all hover:-translate-y-0.5 shadow-[0_2px_5px_rgba(16,19,42,0.05),0_16px_32px_-20px_rgba(16,19,42,0.30)] hover:shadow-[0_14px_30px_-16px_rgba(18,19,42,0.22)]" style={{ borderColor: "var(--line)" }}>
         <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={44} showPhotoDot={false} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold truncate group-hover:underline" style={{ color: "var(--ink)" }}>{c.parsed.name}</p>
@@ -15269,7 +15269,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
           <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
             {/* AI Rank credit moved inline next to the AI Rank buttons. */}
             <BuyCreditsModal open={buyAiRankOpen} onClose={() => setBuyAiRankOpen(false)} plan={plan} kind="ai_rank" />
-            <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)" }}>
+            <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)", boxShadow: "0 2px 5px rgba(16,19,42,.05), 0 16px 32px -20px rgba(16,19,42,.30)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
               <div>
                 {SEARCH_HELP.map((item, i) => {
