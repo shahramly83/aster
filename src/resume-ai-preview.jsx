@@ -4523,8 +4523,8 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 function AppDownloadBand() {
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-6 sm:pb-14">
-      <div className="grid lg:grid-cols-2 items-end gap-8">
-        <div className="pb-8 sm:pb-12">
+      <div className="flex flex-col-reverse lg:flex-row items-center lg:items-end justify-center gap-8 lg:gap-16">
+        <div className="max-w-md w-full pb-2 lg:pb-12">
             <p className="eyebrow brand-text mb-2">Mobile app</p>
             <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire from your pocket.</h2>
             <ul className="mt-5 space-y-2.5">
@@ -4547,8 +4547,9 @@ function AppDownloadBand() {
             </div>
           </div>
           {/* The phone shows the top ~60% of the screen and bleeds off the bottom edge. */}
-          <div className="flex justify-center lg:justify-end self-end">
-            <div className="relative w-[260px]">
+          <div className="relative shrink-0 self-center lg:self-end">
+            <div className="pointer-events-none absolute -inset-10 rounded-[3rem] blur-3xl opacity-70" style={{ background: "radial-gradient(circle at 50% 40%, var(--brand-soft), transparent 70%)" }} />
+            <div className="relative w-[290px]">
               <div className="rounded-t-[2.6rem] pt-2.5 px-2.5" style={{ background: "#0B1020", boxShadow: "0 -6px 60px -18px rgba(6,17,90,0.45)" }}>
                 <div className="relative rounded-t-[2.1rem] overflow-hidden bg-black" style={{ aspectRatio: "1256 / 1564" }}>
                   <img src="/aster-app-dashboard.jpg" alt="Aster mobile app dashboard" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top" />
