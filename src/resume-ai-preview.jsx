@@ -4522,10 +4522,9 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // arrive in September, so the store badges are visual only (no links).
 function AppDownloadBand() {
   return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-6 sm:pb-14">
-      <div className="rounded-[2rem] border overflow-hidden" style={{ borderColor: "#DCE4F7", background: "linear-gradient(135deg, #F3F7FF, #ffffff 62%)" }}>
-        <div className="grid lg:grid-cols-2 items-end gap-8 px-8 sm:px-12 pt-8 sm:pt-12">
-          <div className="pb-8 sm:pb-12">
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-6 sm:pb-14">
+      <div className="grid lg:grid-cols-2 items-end gap-8">
+        <div className="pb-8 sm:pb-12">
             <p className="eyebrow brand-text mb-2">Mobile app</p>
             <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire from your pocket.</h2>
             <ul className="mt-5 space-y-2.5">
@@ -4559,7 +4558,6 @@ function AppDownloadBand() {
             </div>
           </div>
         </div>
-      </div>
     </section>
   );
 }
