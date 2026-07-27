@@ -9614,13 +9614,13 @@ function NotificationBell({ activities, onOpen, onActivityClick, compact = false
     <div className={`relative ${open ? "z-[120]" : ""}`}>
       <button
         onClick={toggle}
-        className={`relative rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors ${compact ? "w-11 h-11" : "w-12 h-12"}`}
+        className={`relative rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors ${compact ? "w-11 h-11" : "w-10 h-10"}`}
         style={{ background: "#E7E7EE", border: "1px solid var(--line-strong)" }}
         onMouseEnter={(e) => (e.currentTarget.style.background = "#DDDDE6")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "#E7E7EE")}
         aria-label="Notifications"
       >
-        <Icon name="bell" className={compact ? "w-[18px] h-[18px]" : "w-6 h-6"} />
+        <Icon name="bell" className={compact ? "w-[18px] h-[18px]" : "w-5 h-5"} />
         {unread > 0 && (
           <span className={`absolute rounded-full brand-gradient text-white font-semibold flex items-center justify-center ${compact ? "-top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[9px]" : "-top-1 -right-1 min-w-5 h-5 px-1 text-[11px]"}`}>
             {unread > 9 ? "9+" : unread}
