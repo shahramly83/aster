@@ -9375,7 +9375,7 @@ function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace
             content column across and reflowed the page. The hover labels do that
             job now without moving anything, so the handle and the expanded state
             are both gone. */}
-        <aside className="relative hidden md:flex w-[76px] shrink-0 flex-col py-5 rounded-[26px] sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)", boxShadow: "0 18px 50px -22px rgba(23,42,92,.28), 0 4px 14px -8px rgba(23,42,92,.15)" }}>
+        <aside className="relative hidden md:flex w-[76px] shrink-0 flex-col py-5 rounded-[26px] sticky top-4 self-start" style={{ height: "calc(100vh - 2rem)", background: "#fff", border: "1px solid var(--line)", boxShadow: "0 4px 12px -6px rgba(23,42,92,.16)" }}>
           <IconSidebar navigate={navigate} active={active} onDashboard={onDashboard} isFreshWorkspace={isFreshWorkspace} avatarUrl={avatarUrl} onSignOut={onSignOut} profile={profile} unreadCount={unreadCount} />
         </aside>
 
@@ -9403,7 +9403,7 @@ function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace
               <NotificationBell activities={activities} onOpen={onOpenNotifications} compact />
             </div>
           </div>
-          <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px] overflow-x-clip" style={{ background: "var(--card)", boxShadow: "0 18px 50px -22px rgba(23,42,92,.28), 0 4px 14px -8px rgba(23,42,92,.15)" }}>
+          <div className="min-h-screen md:min-h-[calc(100vh-2rem)] md:rounded-[26px] overflow-x-clip" style={{ background: "var(--card)", boxShadow: "0 4px 12px -6px rgba(23,42,92,.16)" }}>
             {children}
           </div>
         </div>
