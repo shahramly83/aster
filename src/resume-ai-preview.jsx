@@ -9719,22 +9719,19 @@ function TrialPromoStrip({ accent, onSubscribeYearly }) {
   const pad = (n) => String(n).padStart(2, "0");
   const timer = d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase rounded-full px-2.5 py-1 text-white" style={{ background: accent, letterSpacing: "0.04em" }}>
-        Extra 10% off yearly
-      </span>
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" style={{ color: accent }}>
+      <span className="font-bold">Extra 10% off yearly with</span>
       <button
         onClick={copy}
         title="Copy code"
-        className="inline-flex items-center gap-1.5 text-[11px] font-bold rounded-full pl-2.5 pr-2 py-1 transition-colors"
+        className="inline-flex items-center gap-1 font-mono font-bold tracking-wider rounded-md px-1.5 py-0.5 transition-colors"
         style={{ background: "#fff", color: accent, border: `1px dashed ${accent}` }}
       >
-        <span className="font-mono tracking-wider">{PROMO_CODE}</span>
-        <span className="opacity-70">{copied ? "Copied" : "Copy"}</span>
+        {PROMO_CODE}
+        <span className="font-sans font-semibold opacity-70">{copied ? "Copied" : "Copy"}</span>
       </button>
-      <span className="inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums" style={{ color: accent, opacity: 0.9 }}>
-        Ends in {timer}
-      </span>
+      <span className="opacity-40">·</span>
+      <span className="font-semibold tabular-nums opacity-90">ends in {timer}</span>
     </div>
   );
 }
