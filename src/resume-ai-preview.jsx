@@ -14064,56 +14064,35 @@ function ResetBadge({ label }) {
   );
 }
 
-// Cohesive plan-usage card: several metered items live in ONE panel with progress
-// bars, instead of a stack of separate pills. Each item:
-// { title, used, limit, noun, purchased, resetLabel, hint, danger, onBuy }.
-function UsagePanel({ items, onManage }) {
+// Combined usage card: the same simple "N credits left" pill rows, merged into ONE
+// brand-soft card (a divider between rows) instead of separate floating pills.
+// Each item: { title, used, limit, noun, purchased, danger, onBuy }.
+function UsagePanel({ items }) {
   const rows = (items || []).filter(Boolean);
   if (rows.length === 0) return null;
   return (
-    <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)", boxShadow: "0 2px 5px rgba(16,19,42,.05), 0 16px 32px -20px rgba(16,19,42,.30)" }}>
-      <div className="flex items-center justify-between mb-4 px-1">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Plan usage</h2>
-        {onManage && <button onClick={onManage} className="text-[11px] font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>}
-      </div>
-      <div className="space-y-4">
-        {rows.map((it, i) => {
-          const unlimited = it.limit === Infinity;
-          const purchasedNum = typeof it.purchased === "number" ? it.purchased : 0;
-          const monthlyLeft = unlimited ? Infinity : Math.max(0, it.limit - it.used);
-          const totalLeft = unlimited ? Infinity : monthlyLeft + purchasedNum;
-          const leftDisplay = unlimited ? "∞" : totalLeft.toLocaleString();
-          const noun = it.noun || "credits";
-          const leftNoun = totalLeft === 1 ? noun.replace(/s$/, "") : noun;
-          const cap = unlimited ? 1 : it.limit + purchasedNum;
-          const usedPct = unlimited ? 14 : Math.min(100, Math.max(2, Math.round((it.used / Math.max(1, cap)) * 100)));
-          const out = !unlimited && totalLeft <= 0;
-          const accent = out ? "#B45309" : "var(--brand)";
-          return (
-            <div key={it.title} className={i > 0 ? "pt-4" : ""} style={i > 0 ? { borderTop: "1px solid var(--line)" } : undefined}>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{it.title}</span>
-                  {it.hint && <InfoHint dir="down" hint={it.hint} />}
-                </span>
-                <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
-                  <span className="text-[11px] font-bold" style={{ color: accent }}>{leftNoun} left</span>
-                  {it.onBuy && <button onClick={it.onBuy} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
-                </span>
-              </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--brand-soft)" }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${usedPct}%`, background: out ? "#B45309" : "var(--brand)" }} />
-              </div>
-              <p className="text-[10px] mt-1.5" style={{ color: "var(--ink-3)" }}>
-                {unlimited
-                  ? "Unlimited on your plan"
-                  : `${it.used.toLocaleString()} of ${cap.toLocaleString()} ${noun === "slots" ? "in use" : "used"}${it.resetLabel && it.resetLabel !== "next cycle" && noun !== "slots" ? ` · resets ${it.resetLabel}` : ""}`}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+    <div className="rounded-2xl overflow-hidden" style={{ background: "var(--brand-soft)" }}>
+      {rows.map((it, i) => {
+        const unlimited = it.limit === Infinity;
+        const purchasedNum = typeof it.purchased === "number" ? it.purchased : 0;
+        const totalLeft = unlimited ? Infinity : Math.max(0, it.limit - it.used) + purchasedNum;
+        const leftDisplay = unlimited ? "∞" : totalLeft.toLocaleString();
+        const noun = it.noun || "credits";
+        const leftNoun = totalLeft === 1 ? noun.replace(/s$/, "") : noun;
+        const accent = it.danger && totalLeft <= 0 ? "#B45309" : "var(--brand)";
+        return (
+          <div key={it.title} className="flex items-center gap-2 pl-3.5 pr-1.5 py-2.5" style={i > 0 ? { borderTop: "1px solid rgba(var(--brand-rgb),0.14)" } : undefined}>
+            <span className="text-[11px] font-semibold uppercase tracking-wide truncate flex-1 min-w-0" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{it.title}</span>
+            <span className="flex items-baseline gap-1 whitespace-nowrap">
+              <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
+              <span className="text-[11px] font-bold" style={{ color: accent }}>{leftNoun} left</span>
+            </span>
+            {it.onBuy
+              ? <button onClick={it.onBuy} className="shrink-0 text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>
+              : <span className="shrink-0 w-1.5" />}
+          </div>
+        );
+      })}
     </div>
   );
 }
