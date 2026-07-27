@@ -9693,31 +9693,10 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
 // window rolls forward another 3 days so the offer never dead-ends.
 const PROMO_CODE = "YEARLY10";
 function TrialPromoStrip({ accent, onSubscribeYearly }) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
-  const deadline = useMemo(() => {
-    const WINDOW = 3 * 24 * 60 * 60 * 1000;
-    try {
-      const k = "aster_yearly_promo_ends";
-      let v = Number(localStorage.getItem(k));
-      if (!v || v <= Date.now()) { v = Date.now() + WINDOW; localStorage.setItem(k, String(v)); }
-      return v;
-    } catch { return Date.now() + WINDOW; }
-  }, []);
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
   const copy = () => {
     try { navigator.clipboard?.writeText(PROMO_CODE); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* noop */ }
   };
-  const total = Math.max(0, Math.floor((deadline - nowMs) / 1000));
-  const d = Math.floor(total / 86400);
-  const h = Math.floor((total % 86400) / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n) => String(n).padStart(2, "0");
-  const timer = d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
   return (
     <div className="hidden lg:flex items-center gap-x-2 text-[11px] whitespace-nowrap" style={{ color: accent }}>
       <span className="font-bold">Extra 10% off yearly with</span>
@@ -9730,8 +9709,6 @@ function TrialPromoStrip({ accent, onSubscribeYearly }) {
         {PROMO_CODE}
         <span className="font-sans font-semibold opacity-70">{copied ? "Copied" : "Copy"}</span>
       </button>
-      <span className="opacity-40">·</span>
-      <span className="font-semibold tabular-nums opacity-90">ends in {timer}</span>
     </div>
   );
 }
