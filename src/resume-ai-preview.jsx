@@ -10522,7 +10522,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value);
   // Top 5 roles by applicant count (View all shows the rest on the Jobs screen).
-  const roleSegments = roleCounts.slice(0, 5).map((r, i) => ({ ...r, color: gaugeColors[i % gaugeColors.length] }));
+  const roleSegments = roleCounts.slice(0, 5).map((r, i) => ({ ...r, color: donutColors[i % donutColors.length] }));
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
   // Application Source: distribution of where applicants came from.
@@ -10771,14 +10771,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                     <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
                   ) : null
                 )}
-                {roleTotal === 0 ? (
-                  <div className="py-8 text-center">
-                    <p className="text-sm" style={{ color: "var(--ink-2)" }}>No role activity yet.</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Applicants across your open roles will show up here.</p>
-                  </div>
-                ) : (
-                  <RoleGauge segments={roleSegments} total={roleTotal} />
-                )}
+                {donutBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
               </div>
               <div className={cardClass}>
                 {sectionHead(
