@@ -15823,15 +15823,19 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
                           <span className="min-w-0">
                             <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
-                            {a.country && (
-                              <span className="flex items-center gap-1 text-[11px] truncate mt-0.5" style={{ color: "var(--ink-3)" }}>
-                                <Icon name="pin" className="w-3 h-3 shrink-0" /> {a.country}
+                            {(a.country || a.fitReason) && (
+                              <span className="flex items-center gap-3 mt-1">
+                                {a.country && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] whitespace-nowrap" style={{ color: "var(--ink-3)" }}>
+                                    <Icon name="pin" className="w-3 h-3 shrink-0" /> {a.country}
+                                  </span>
+                                )}
+                                {a.fitReason && (
+                                  <button onClick={(e) => { e.stopPropagation(); setInsight(a); }} className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                                    <Icon name="star" className="w-3 h-3" /> AI insight
+                                  </button>
+                                )}
                               </span>
-                            )}
-                            {a.fitReason && (
-                              <button onClick={(e) => { e.stopPropagation(); setInsight(a); }} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                                <Icon name="star" className="w-3 h-3" /> AI insight
-                              </button>
                             )}
                           </span>
                         </div>
