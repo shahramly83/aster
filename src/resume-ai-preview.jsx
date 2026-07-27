@@ -4523,7 +4523,7 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 function AppDownloadBand() {
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-6 sm:pb-14 overflow-hidden">
-      <div className="flex flex-col-reverse lg:flex-row items-center lg:items-end justify-center gap-8 lg:gap-16">
+      <div className="flex flex-col-reverse lg:flex-row items-center lg:items-end justify-center gap-8 lg:gap-10">
         <div className="max-w-md w-full pb-2 lg:pb-12">
             <p className="eyebrow brand-text mb-2">Mobile app</p>
             <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire in One Tap</h2>
