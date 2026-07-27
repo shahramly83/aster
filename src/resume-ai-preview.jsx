@@ -2976,7 +2976,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
   const renderCompareValue = (val) => {
     if (val === true)
       return (
-        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white brand-gradient">
+        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
           <Icon name="check" className="w-3 h-3" />
         </span>
       );
@@ -3581,7 +3581,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                       <ul className="space-y-3">
                         {h.items.map((it) => (
                           <li key={it} className="flex items-start gap-2.5 text-sm">
-                            <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full text-white brand-gradient">
+                            <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                               <Icon name="check" className="w-2.5 h-2.5" />
                             </span>
                             <span className="text-neutral-700 leading-snug">{it}</span>
@@ -3644,7 +3644,7 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
                     <ul className="space-y-3">
                       {h.items.map((it) => (
                         <li key={it} className="flex items-start gap-2.5 text-sm">
-                          <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full text-white brand-gradient">
+                          <span className="mt-0.5 shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                             <Icon name="check" className="w-2.5 h-2.5" />
                           </span>
                           <span className="text-neutral-700 leading-snug">{it}</span>
@@ -20137,7 +20137,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
                   <ul className="space-y-2.5 mb-5 flex-1">
                     {p.features.map((f) => (
                       <li key={f} className="flex items-start gap-2.5 text-[13px]" style={{ color: "var(--ink-2)" }}>
-                        <span className="mt-px shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded-full text-white brand-gradient" style={{ boxShadow: "0 3px 7px -3px rgba(var(--brand-rgb),0.7)" }}>
+                        <span className="mt-px shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                           <Icon name="check" className="w-3 h-3" />
                         </span>
                         <span className="leading-snug">{f}</span>
