@@ -14911,7 +14911,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
       <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
         <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
         <span className="text-xs font-semibold whitespace-nowrap" style={{ color: outOfRuns && aiRankTotalLeft <= 0 ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{aiRankTotalLeft === Infinity ? "∞" : aiRankTotalLeft}</span> credits left</span>
-        <button onClick={() => setBuyAiRankOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>
+        <button onClick={() => setBuyAiRankOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>
       </div>
       {walletTip && (
         <div className="absolute z-40 right-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
@@ -15622,7 +15622,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
                     <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
                     <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--brand)" }}><span className="font-extrabold tnum">{creditsLeft === Infinity ? "∞" : creditsLeft}</span> credits left</span>
-                    {!viewerIsInterviewer && <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>}
+                    {!viewerIsInterviewer && <button onClick={() => setBuyOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
                   </div>
                   {walletTip && (
                     <div className="absolute z-40 right-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
@@ -22793,7 +22793,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
         <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
         <span className="text-xs font-semibold whitespace-nowrap" style={{ color: qOut ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{qTotalLeft === Infinity ? "∞" : qTotalLeft}</span> credits left</span>
-        {qIsMgr && <button onClick={() => setBuyQuestionsOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>}
+        {qIsMgr && <button onClick={() => setBuyQuestionsOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
       </div>
       {questionTip && (
         <div className="absolute z-40 left-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
@@ -22837,7 +22837,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
       <div className="inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 cursor-default" style={{ background: "var(--brand-soft)" }}>
         <Icon name="star" className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--brand)" }} />
         <span className="text-xs font-semibold whitespace-nowrap" style={{ color: outOfInsightCredits ? "#B45309" : "var(--brand)" }}><span className="font-extrabold tnum">{insTotalLeft === Infinity ? "∞" : insTotalLeft}</span> credits left</span>
-        {insightIsMgr && <button onClick={() => setBuyInsightOpen(true)} className="text-[11px] font-bold rounded-full px-2.5 py-1 transition-colors hover:bg-[color:var(--brand-soft)]" style={{ background: "#fff", color: "var(--brand)", border: "1px solid var(--line-strong)" }}>Buy</button>}
+        {insightIsMgr && <button onClick={() => setBuyInsightOpen(true)} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
       </div>
       {insightTip && (
         <div className="absolute z-40 left-0 top-full mt-2 w-56 rounded-xl bg-white p-3.5 act-panel-in" style={{ border: "1px solid var(--line)", boxShadow: "0 20px 44px -16px rgba(16,19,42,.42)" }}>
