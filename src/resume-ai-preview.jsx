@@ -8516,7 +8516,7 @@ function SignUpScreen({ navigate, logoUrl, onAuthed, setCompany, setProfile, sig
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ink-2)" }}>Selected plan</p>
                 <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{planLabel}</p>
-                <p className="text-[12px] mt-0.5 flex items-center gap-1.5 truncate" style={{ color: "var(--ink-2)" }}>
+                <p className="text-[12px] mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ color: "var(--ink-2)" }}>
                   {signupTrial ? (
                     <>
                       <span style={{ textDecoration: "line-through", opacity: 0.65 }}>{shownPrice}</span>
