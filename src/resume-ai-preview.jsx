@@ -10287,65 +10287,38 @@ function RoleGauge({ segments, total }) {
   );
 }
 
-// Candidates Journey as overlapping percentage bubbles: one circle per stage,
-// area-proportional to its share of the pipeline, clustered around the largest and
-// labelled with its percent. All-blue palette; a legend below spells out each stage.
-// Layout is deterministic (satellites placed on a fixed angular fan around the big
-// circle), then the whole cluster is auto-fit to the viewBox so nothing clips.
-function JourneyBubbles({ stages }) {
-  const items = stages.filter((s) => s.value > 0);
-  if (items.length === 0) return null;
-  const total = items.reduce((a, s) => a + s.value, 0) || 1;
-  const sorted = [...items].sort((a, b) => b.value - a.value);
-  const palette = ["#0B2AE0", "#5B8DEF", "#1E3A8A", "#2563EB", "#0EA5E9"];
-  const Rbig = 62;
-  const vmax = sorted[0].value;
-  const radii = sorted.map((s) => Math.max(22, Math.sqrt(s.value / vmax) * Rbig));
-  const angles = [-38, 26, 66, 112, 156]; // degrees, satellites fanned to the right
-  const centers = [{ x: 0, y: 0 }];
-  for (let i = 1; i < sorted.length; i++) {
-    const a = (angles[(i - 1) % angles.length] * Math.PI) / 180;
-    const dist = radii[0] + radii[i] - Math.min(radii[0], radii[i]) * 0.62;
-    centers.push({ x: Math.cos(a) * dist, y: -Math.sin(a) * dist });
-  }
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  centers.forEach((c, i) => {
-    minX = Math.min(minX, c.x - radii[i]); maxX = Math.max(maxX, c.x + radii[i]);
-    minY = Math.min(minY, c.y - radii[i]); maxY = Math.max(maxY, c.y + radii[i]);
-  });
-  const pad = 8;
-  const vb = `${minX - pad} ${minY - pad} ${maxX - minX + 2 * pad} ${maxY - minY + 2 * pad}`;
-  const bubbles = sorted.map((s, i) => ({
-    ...s, r: radii[i], cx: centers[i].x, cy: centers[i].y,
-    color: palette[i % palette.length], pct: Math.round((s.value / total) * 100),
-  }));
+// Candidates Journey as a row of activity rings: one small progress ring per stage
+// with a stage icon in the middle, the arc filled to that stage's share of the
+// busiest stage, and the count + label beneath. Blue arcs (green for Hired = a win).
+function JourneyRings({ stages }) {
+  const maxVal = Math.max(...stages.map((s) => s.value), 1);
+  const iconFor = { Applied: "users", Interview: "calendar", Offer: "mail", Hired: "check" };
+  const C = 2 * Math.PI * 19;
   return (
-    <div>
-      <div className="mx-auto" style={{ maxWidth: 268 }}>
-        <svg viewBox={vb} className="w-full" style={{ height: "auto" }} role="img" aria-label="Candidate journey">
-          <defs>
-            <filter id="jbubbleShadow" x="-40%" y="-40%" width="180%" height="180%">
-              <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#0B2AE0" floodOpacity="0.22" />
-            </filter>
-          </defs>
-          {/* Largest first (drawn at the back); smaller stages layer on top. */}
-          {bubbles.map((b) => (
-            <g key={b.label}>
-              <circle cx={b.cx} cy={b.cy} r={b.r} fill={b.color} filter="url(#jbubbleShadow)" />
-              <text x={b.cx} y={b.cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(11, b.r * 0.5)} fontWeight="800" fontFamily="'Plus Jakarta Sans', sans-serif" fill="#fff">{b.pct}%</text>
-            </g>
-          ))}
-        </svg>
-      </div>
-      <div className="mt-3 space-y-2">
-        {bubbles.map((b) => (
-          <div key={b.label} className="flex items-center gap-2.5 text-xs">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: b.color }} />
-            <span className="flex-1 min-w-0 truncate" style={{ color: "var(--ink-2)" }}>{b.label}</span>
-            <span className="font-semibold tabular-nums" style={{ color: "var(--ink)" }}>{b.value} <span style={{ color: "var(--ink-3)" }}>({b.pct}%)</span></span>
+    <div className="flex items-start justify-between gap-2 pt-2">
+      {stages.map((s) => {
+        const has = s.value > 0;
+        const frac = Math.max(0, Math.min(1, s.value / maxVal));
+        const color = s.tone === "win" ? "#16A34A" : "#0B2AE0";
+        return (
+          <div key={s.label} className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+            <div className="relative" style={{ width: 62, height: 62 }}>
+              <svg viewBox="0 0 44 44" className="w-full h-full -rotate-90" aria-hidden="true">
+                <circle cx="22" cy="22" r="19" fill="none" strokeWidth="4" stroke="rgba(15,27,51,0.08)" />
+                {has && (
+                  <circle cx="22" cy="22" r="19" fill="none" strokeWidth="4" stroke={color} strokeLinecap="round"
+                    strokeDasharray={C} strokeDashoffset={C * (1 - frac)} style={{ transition: "stroke-dashoffset 600ms ease" }} />
+                )}
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center" style={{ color: has ? color : "var(--ink-3)" }}>
+                <Icon name={iconFor[s.label] || "users"} className="w-5 h-5" />
+              </span>
+            </div>
+            <span className="text-lg font-bold font-display tnum leading-none" style={{ color: has ? "var(--ink)" : "var(--ink-3)" }}>{s.value}</span>
+            <span className="text-[10px] text-center leading-tight" style={{ color: has ? "var(--ink-2)" : "var(--ink-3)" }}>{s.label}</span>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -10740,7 +10713,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                                 <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Your pipeline stages will show up here.</p>
                               </div>
                             ) : (
-                              <JourneyBubbles stages={path} />
+                              <JourneyRings stages={path} />
                             )}
                             <div className="flex items-center gap-4 mt-4 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
                               <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)", letterSpacing: "0.05em" }}>Left the process</span>
