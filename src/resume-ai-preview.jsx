@@ -9686,6 +9686,59 @@ function TopBar({ title, subtitle, activities, onOpenNotifications, onActivityCl
   );
 }
 
+// Limited-time upsell shown inside the trial banner: an extra 10% off the yearly
+// plan, applied via a Stripe promo code at checkout (Stripe already has
+// allow_promotion_codes on). The countdown ticks live off a deadline persisted in
+// localStorage so it doesn't reset on every render/navigation; when it lapses the
+// window rolls forward another 3 days so the offer never dead-ends.
+const PROMO_CODE = "YEARLY10";
+function TrialPromoStrip({ accent, onSubscribeYearly }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [copied, setCopied] = useState(false);
+  const deadline = useMemo(() => {
+    const WINDOW = 3 * 24 * 60 * 60 * 1000;
+    try {
+      const k = "aster_yearly_promo_ends";
+      let v = Number(localStorage.getItem(k));
+      if (!v || v <= Date.now()) { v = Date.now() + WINDOW; localStorage.setItem(k, String(v)); }
+      return v;
+    } catch { return Date.now() + WINDOW; }
+  }, []);
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const copy = () => {
+    try { navigator.clipboard?.writeText(PROMO_CODE); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* noop */ }
+  };
+  const total = Math.max(0, Math.floor((deadline - nowMs) / 1000));
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  const timer = d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
+  return (
+    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase rounded-full px-2.5 py-1 text-white" style={{ background: accent, letterSpacing: "0.04em" }}>
+        Extra 10% off yearly
+      </span>
+      <button
+        onClick={copy}
+        title="Copy code"
+        className="inline-flex items-center gap-1.5 text-[11px] font-bold rounded-full pl-2.5 pr-2 py-1 transition-colors"
+        style={{ background: "#fff", color: accent, border: `1px dashed ${accent}` }}
+      >
+        <span className="font-mono tracking-wider">{PROMO_CODE}</span>
+        <span className="opacity-70">{copied ? "Copied" : "Copy"}</span>
+      </button>
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums" style={{ color: accent, opacity: 0.9 }}>
+        Ends in {timer}
+      </span>
+    </div>
+  );
+}
+
 // Shared full-width shell for the account screens (Interviewers, Profile, Billing,
 // Settings), so they match the Jobs / Candidate Search layout: a gradient canvas,
 // the TopBar header, and an optional right-hand usage/credit rail. Pass `rail` to
@@ -10255,7 +10308,7 @@ const JOURNEY_BAR_GRAD = {
   Rejected:    JOURNEY_GREY,
 };
 
-function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, questionsUsed = 0, company = "Your workspace" }) {
+function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, questionsUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   // "Upcoming" excludes interviews whose slot has already passed: once the time
@@ -10486,9 +10539,10 @@ function DashboardScreen({ navigate, jobs, candidates, bookings, setCandidateFil
                     ? "Your workspace is suspended when it ends. Subscribe to keep your jobs and candidates live."
                     : "Full Scale access during the trial. Subscribe before it ends to keep everything running."}
                 </p>
+                <TrialPromoStrip accent={tone.accent} />
               </div>
               <button
-                onClick={() => navigate("billing")}
+                onClick={() => (onSubscribeYearly ? onSubscribeYearly() : navigate("billing"))}
                 className="text-sm text-white font-semibold px-4 py-2.5 rounded-xl shrink-0 transition-all hover:-translate-y-0.5 hover:opacity-95"
                 style={{ background: tone.accent, boxShadow: `0 10px 24px -12px ${tone.accent}` }}
               >
@@ -19494,7 +19548,7 @@ function RestrictedScreen({ navigate, title, body }) {
   );
 }
 
-function BillingScreen({ navigate, plan, planCycle = "monthly", company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
+function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = null, onCycleIntentConsumed, company, companyAddress = "", companyRegNo = "", trialDaysLeft = 0, renewsAt = null, subStatus = null, scheduledPlan = null, scheduledCycle = null, scheduledEffective = null, initialCurrency = "usd", onEndTrial, profile, avatarUrl, activities = [], onOpenNotifications }) {
   const [msg, setMsg] = useState(() => {
     // A plan change reloads onto ?plan=changed|scheduled; surface a one-line
     // confirmation from the fresh page load.
@@ -19532,8 +19586,13 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", company, company
     const err = await onEndTrial?.();
     if (err) { setMsg(err); setEndingTrial(false); setConfirmEndTrial(false); }
   };
-  // The cycle the user is *previewing* in the picker (defaults to their saved cycle).
-  const [cycle, setCycle] = useState(planCycle);
+  // The cycle the user is *previewing* in the picker (defaults to their saved cycle,
+  // or the yearly intent when arriving from the trial promo's Subscribe button).
+  const [cycle, setCycle] = useState(initialCycle || planCycle);
+  useEffect(() => {
+    if (initialCycle) { setCycle(initialCycle); onCycleIntentConsumed?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
   // Gate every plan-change button while one request is in flight, so a double-click
@@ -27022,6 +27081,10 @@ export default function ResumeAIPreview() {
   useEffect(() => { setActiveTimezone(companyTimezone); }, [companyTimezone]);
   const [plan, setPlan] = useState("scale");
   const [planCycle, setPlanCycle] = useState("monthly");
+  // When the trial promo's Subscribe is clicked we want Billing to open already
+  // previewing the yearly cycle (that's where the extra-10% code applies). One-shot:
+  // read on the next Billing mount, then it's just a preview toggle again.
+  const [billingCycleIntent, setBillingCycleIntent] = useState(null);
   // Both hydrated from subscriptions on sign-in: days left when status is
   // 'trialing' (0 otherwise), and the current_period_end the plan renews on.
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
@@ -28698,6 +28761,7 @@ export default function ResumeAIPreview() {
         {screen === "dashboard" && (
           <DashboardScreen
             navigate={navigate}
+            onSubscribeYearly={() => { setBillingCycleIntent("yearly"); navigate("billing"); }}
             jobs={jobs}
             candidates={MOCK_CANDIDATES}
             bookings={bookings}
@@ -28779,7 +28843,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "billing" && isOwner(profile?.role) && (
-          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
+          <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} initialCycle={billingCycleIntent} onCycleIntentConsumed={() => setBillingCycleIntent(null)} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
         {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
