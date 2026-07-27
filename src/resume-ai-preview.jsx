@@ -10741,12 +10741,9 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                       )}
                       {shownInterviews.length === 0 ? (
                         <div className="py-10 text-center flex-1 flex flex-col items-center justify-center">
-                          <div className="relative mb-3.5">
-                            <span className="absolute inset-0 rounded-2xl blur-xl opacity-60" style={{ background: "var(--brand-soft)" }} />
-                            <span className="relative w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(150deg, var(--brand-soft), #fff)", border: "1px solid var(--line)", color: "var(--brand)" }}>
-                              <Icon name="calendar" className="w-7 h-7" />
-                            </span>
-                          </div>
+                          <span className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3.5" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                            <Icon name="calendar" className="w-5 h-5" />
+                          </span>
                           <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
                         </div>
                       ) : (
