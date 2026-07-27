@@ -20310,9 +20310,6 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
             ? <p className="text-sm text-neutral-600 mt-0.5 whitespace-pre-line">{companyAddress}</p>
             : <p className="text-sm text-neutral-400 mt-0.5">No billing address on file.</p>}
           {companyRegNo && <p className="text-xs text-neutral-500 mt-1.5">Registration no. {companyRegNo}</p>}
-          {(!companyAddress || !companyRegNo) && (
-            <p className="text-xs text-neutral-500 mt-2">Add your company address and registration number in Profile so they appear on every invoice.</p>
-          )}
           <p className="text-xs text-neutral-400 mt-3">Any applicable taxes are calculated at checkout and itemised on your Stripe invoice.</p>
         </div>
         </div>
