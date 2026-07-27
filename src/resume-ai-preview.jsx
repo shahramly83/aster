@@ -3478,8 +3478,8 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </div>
       </section>
 
-      {/* Solutions, the same platform, framed for who's buying */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
+      {/* Solutions, the same platform, framed for who's buying (hidden) */}
+      <section className="hidden max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
         <Reveal className="max-w-2xl mb-8 sm:mb-12">
           <p className="eyebrow brand-text mb-2">Solutions</p>
           <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>
