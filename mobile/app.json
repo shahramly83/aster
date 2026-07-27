@@ -18,7 +18,7 @@
         "NSFaceIDUsageDescription": "Unlock Aster with Face ID.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "package": "com.hireaster.mobile",

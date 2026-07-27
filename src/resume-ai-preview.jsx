@@ -12103,7 +12103,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
             />
             <BuyCreditsModal open={buyOpen} onClose={() => setBuyOpen(false)} plan={plan} />
 
-            <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4">
+            <div className="rounded-2xl bg-white border border-[color:var(--line)] p-4" style={{ boxShadow: "0 2px 5px rgba(16,19,42,.05), 0 16px 32px -20px rgba(16,19,42,.30)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
               <div className="divide-y" style={{ borderColor: "var(--line)" }}>
                 {UPLOAD_ACCEPT.map((item, i) => {
@@ -13406,48 +13406,39 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
           <aside className="mt-5 lg:mt-0 space-y-4 lg:sticky lg:top-4 lg:self-start">
             {(() => {
               const scrLimit = applicantParseUsage.limit ?? planLimits(plan).parseApplicant;
-              if (scrLimit == null) return null;
               const scrUsed = applicantParseUsage.used || 0;
-              const scrBlocked = scrLimit !== Infinity && scrUsed >= scrLimit;
+              const scrBlocked = scrLimit != null && scrLimit !== Infinity && scrUsed >= scrLimit;
               const scrOut = scrBlocked && purchasedApplicant <= 0;
               // Credits reset on a 30-day cycle from signup, not the 1st of the month.
               const scrResetLabel = applicantParseUsage.resetsAt
                 ? new Date(applicantParseUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
                 : "next cycle";
-              return (
-                <UsageMeter
-                  plan={plan}
-                  title="Applicant screening"
-                  hint="Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up."
-                  used={scrUsed}
-                  limit={scrLimit}
-                  unit=""
-                  danger={scrOut}
-                  resetLabel={scrResetLabel}
-                  onManage={() => navigate("billing")}
-                  onUpgrade={scrOut ? () => navigate("billing") : undefined}
-                  purchased={scrLimit === Infinity ? null : purchasedApplicant}
-                  onBuyCredits={scrLimit === Infinity ? null : () => setBuyApplicantOpen(true)}
-                />
-              );
+              const items = [];
+              if (scrLimit != null) items.push({
+                title: "Applicant screening",
+                hint: "Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up.",
+                used: scrUsed,
+                limit: scrLimit,
+                noun: "credits",
+                purchased: scrLimit === Infinity ? null : purchasedApplicant,
+                resetLabel: scrResetLabel,
+                danger: scrOut,
+                onBuy: scrLimit === Infinity ? null : () => setBuyApplicantOpen(true),
+              });
+              if (jobPostUsage.limit != null) items.push({
+                title: "Open positions",
+                hint: "Your plan sets how many positions you can have open at once. Publishing a position (or reopening a closed one) takes a slot; closing one frees it. Drafts don't count.",
+                used: jobPostUsage.used,
+                limit: jobPostUsage.limit,
+                noun: "slots",
+                purchased: null,
+                danger: jobPostBlocked,
+                onBuy: null,
+              });
+              if (items.length === 0) return null;
+              return <UsagePanel items={items} onManage={() => navigate("billing")} />;
             })()}
             <BuyCreditsModal open={buyApplicantOpen} onClose={() => setBuyApplicantOpen(false)} plan={plan} kind="applicant_screen" />
-            {jobPostUsage.limit != null && (
-              <UsageMeter
-                plan={plan}
-                title="Open positions"
-                hint="Your plan sets how many positions you can have open at once. Publishing a position (or reopening a closed one) takes a slot; closing one frees it. Drafts don't count."
-                used={jobPostUsage.used}
-                limit={jobPostUsage.limit}
-                unit=""
-                noun="slots"
-                note={jobPostBlocked
-                  ? `All ${jobPostUsage.limit} open-position slots are in use. Close a position to post another.`
-                  : undefined}
-                onManage={() => navigate("billing")}
-                onUpgrade={jobPostBlocked ? () => navigate("billing") : undefined}
-              />
-            )}
             <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)", boxShadow: "0 2px 5px rgba(16,19,42,.05), 0 16px 32px -20px rgba(16,19,42,.30)" }}>
               <h2 className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 px-1" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>How it works</h2>
               <div>
@@ -14070,6 +14061,60 @@ function ResetBadge({ label }) {
       <span ref={tipRef} className="pointer-events-none absolute right-0 top-full mt-2 whitespace-nowrap max-w-[calc(100vw-1rem)] rounded-lg px-3 py-2 text-[11px] font-normal normal-case tracking-normal leading-snug opacity-0 -translate-y-1 group-hover:translate-y-0 group-focus:translate-y-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-150 z-30"
         style={{ marginLeft: shift, background: "var(--ink)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}>Resets on {label}</span>
     </span>
+  );
+}
+
+// Cohesive plan-usage card: several metered items live in ONE panel with progress
+// bars, instead of a stack of separate pills. Each item:
+// { title, used, limit, noun, purchased, resetLabel, hint, danger, onBuy }.
+function UsagePanel({ items, onManage }) {
+  const rows = (items || []).filter(Boolean);
+  if (rows.length === 0) return null;
+  return (
+    <div className="rounded-2xl bg-white border p-4" style={{ borderColor: "var(--line)", boxShadow: "0 2px 5px rgba(16,19,42,.05), 0 16px 32px -20px rgba(16,19,42,.30)" }}>
+      <div className="flex items-center justify-between mb-4 px-1">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-2)", letterSpacing: "0.06em" }}>Plan usage</h2>
+        {onManage && <button onClick={onManage} className="text-[11px] font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Manage</button>}
+      </div>
+      <div className="space-y-4">
+        {rows.map((it, i) => {
+          const unlimited = it.limit === Infinity;
+          const purchasedNum = typeof it.purchased === "number" ? it.purchased : 0;
+          const monthlyLeft = unlimited ? Infinity : Math.max(0, it.limit - it.used);
+          const totalLeft = unlimited ? Infinity : monthlyLeft + purchasedNum;
+          const leftDisplay = unlimited ? "∞" : totalLeft.toLocaleString();
+          const noun = it.noun || "credits";
+          const leftNoun = totalLeft === 1 ? noun.replace(/s$/, "") : noun;
+          const cap = unlimited ? 1 : it.limit + purchasedNum;
+          const usedPct = unlimited ? 14 : Math.min(100, Math.max(2, Math.round((it.used / Math.max(1, cap)) * 100)));
+          const out = !unlimited && totalLeft <= 0;
+          const accent = out ? "#B45309" : "var(--brand)";
+          return (
+            <div key={it.title} className={i > 0 ? "pt-4" : ""} style={i > 0 ? { borderTop: "1px solid var(--line)" } : undefined}>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: "var(--ink-2)", letterSpacing: "0.05em" }}>{it.title}</span>
+                  {it.hint && <InfoHint dir="down" hint={it.hint} />}
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-extrabold tnum leading-none" style={{ color: accent }}>{leftDisplay}</span>
+                  <span className="text-[11px] font-bold" style={{ color: accent }}>{leftNoun} left</span>
+                  {it.onBuy && <button onClick={it.onBuy} className="text-[11px] font-bold rounded-full px-3 py-1 brand-gradient text-white transition-transform hover:-translate-y-px shadow-[0_5px_12px_-4px_rgba(var(--brand-rgb),0.75)]">Buy</button>}
+                </span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--brand-soft)" }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${usedPct}%`, background: out ? "#B45309" : "var(--brand)" }} />
+              </div>
+              <p className="text-[10px] mt-1.5" style={{ color: "var(--ink-3)" }}>
+                {unlimited
+                  ? "Unlimited on your plan"
+                  : `${it.used.toLocaleString()} of ${cap.toLocaleString()} ${noun === "slots" ? "in use" : "used"}${it.resetLabel && it.resetLabel !== "next cycle" && noun !== "slots" ? ` · resets ${it.resetLabel}` : ""}`}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
