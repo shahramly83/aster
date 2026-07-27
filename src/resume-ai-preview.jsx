@@ -10284,8 +10284,8 @@ function RoleGauge({ segments, total }) {
     return { ...s, a1, a2, ok: segSpan > GAP };
   });
   return (
-    <div>
-      <div className="relative mx-auto" style={{ maxWidth: 188 }}>
+    <div className="flex items-center gap-5">
+      <div className="relative shrink-0" style={{ width: 128 }}>
         <svg viewBox="0 0 200 160" className="w-full" aria-hidden="true">
           <path d={arcPath(START, END)} fill="none" stroke="rgba(15,27,51,0.08)" strokeWidth={sw} strokeLinecap="round" />
           {arcs.map((a, i) => (a.ok ? (
@@ -10293,11 +10293,11 @@ function RoleGauge({ segments, total }) {
           ) : null))}
         </svg>
         <div className="absolute inset-x-0 top-[54%] -translate-y-1/2 flex flex-col items-center">
-          <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.09em" }}>Applicants</span>
-          <span className="text-2xl font-bold font-display tabular-nums leading-none mt-1" style={{ color: "var(--ink)" }}>{total.toLocaleString()}</span>
+          <span className="text-[8px] font-semibold uppercase" style={{ color: "var(--ink-3)", letterSpacing: "0.08em" }}>Applicants</span>
+          <span className="text-xl font-bold font-display tabular-nums leading-none mt-0.5" style={{ color: "var(--ink)" }}>{total.toLocaleString()}</span>
         </div>
       </div>
-      <div className="mt-3 space-y-2">
+      <div className="flex-1 min-w-0 space-y-2">
         {segments.map((s) => (
           <div key={s.label} className="flex items-center gap-2.5 text-xs">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
