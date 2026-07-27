@@ -3478,6 +3478,47 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
         </div>
       </section>
 
+      {/* Mobile app, the real dashboard shown inside a phone frame */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
+        <div className="rounded-[2rem] border overflow-hidden" style={{ borderColor: "#DCE4F7", background: "linear-gradient(135deg, #F3F7FF, #ffffff 62%)" }}>
+          <div className="grid lg:grid-cols-2 items-center gap-10 lg:gap-6 p-8 sm:p-12">
+            <Reveal>
+              <p className="eyebrow brand-text mb-2">Mobile app</p>
+              <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire from your pocket.</h2>
+              <p className="text-neutral-500 mt-3 max-w-md">Review candidates, move the pipeline, schedule interviews and sign off offers, all from the Aster app. Your whole hiring process, wherever you are.</p>
+              <ul className="mt-5 space-y-2.5">
+                {["Screen and rank candidates on the go", "Get notified the moment someone applies", "Face ID unlock, secure by default"].map((f) => (
+                  <li key={f} className="flex items-center gap-2.5 text-sm text-neutral-700">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name="check" className="w-3 h-3" /></span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <a href="https://play.google.com/store/apps/details?id=com.hireaster.mobile" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-white transition-transform hover:-translate-y-0.5" style={{ background: "#0B1020" }}>
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true"><path fill="#fff" d="M4 3.2 15 12 4 20.8V3.2z" /></svg>
+                  <span className="text-left leading-none"><span className="block text-[9px] uppercase tracking-wide opacity-70">Get it on</span><span className="block text-sm font-semibold mt-0.5">Google Play</span></span>
+                </a>
+                <a href="https://apps.apple.com/app/id6795149827" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-white transition-transform hover:-translate-y-0.5" style={{ background: "#0B1020" }}>
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true"><path fill="#fff" d="M16.365 1.43c0 1.14-.42 2.2-1.11 2.99-.75.85-1.98 1.51-3.02 1.43-.13-1.1.43-2.27 1.09-3 .76-.85 2.07-1.47 3.04-1.42zM20.5 17.2c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.94-1.01-4.03-.99-2.09.01-2.52 1.01-4.06.99-1.73-.02-3.05-1.78-4.04-3.35C-.02 16.9-.32 12.36 1.14 9.94c1.03-1.72 2.66-2.72 4.19-2.72 1.56 0 2.54 1.03 3.83 1.03 1.25 0 2.01-1.03 3.82-1.03 1.36 0 2.8.74 3.83 2.02-3.36 1.84-2.82 6.63.9 7.99z" /></svg>
+                  <span className="text-left leading-none"><span className="block text-[9px] uppercase tracking-wide opacity-70">Download on the</span><span className="block text-sm font-semibold mt-0.5">App Store</span></span>
+                </a>
+              </div>
+            </Reveal>
+            <Reveal delay={100} className="flex justify-center lg:justify-end">
+              <div className="relative" style={{ width: 264 }}>
+                <div className="rounded-[2.6rem] p-2.5 shadow-[0_44px_90px_-30px_rgba(6,17,90,0.5)]" style={{ background: "#0B1020" }}>
+                  <div className="relative rounded-[2.1rem] overflow-hidden bg-black" style={{ aspectRatio: "1256 / 2607" }}>
+                    <img src="/aster-app-dashboard.jpg" alt="Aster mobile app dashboard" loading="lazy" className="w-full h-full object-cover object-top" />
+                    <span className="absolute top-2.5 left-1/2 -translate-x-1/2 w-20 h-5 rounded-full" style={{ background: "#0B1020" }} />
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
       {/* Solutions, the same platform, framed for who's buying */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-24">
         <Reveal className="max-w-2xl mb-8 sm:mb-12">
