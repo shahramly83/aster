@@ -9719,7 +9719,7 @@ function TrialPromoStrip({ accent, onSubscribeYearly }) {
   const pad = (n) => String(n).padStart(2, "0");
   const timer = d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" style={{ color: accent }}>
+    <div className="hidden lg:flex items-center gap-x-2 text-[11px] whitespace-nowrap" style={{ color: accent }}>
       <span className="font-bold">Extra 10% off yearly with</span>
       <button
         onClick={copy}
@@ -10536,15 +10536,17 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                     ? "Your workspace is suspended when it ends. Subscribe to keep your jobs and candidates live."
                     : "Full Scale access during the trial. Subscribe before it ends to keep everything running."}
                 </p>
-                <TrialPromoStrip accent={tone.accent} />
               </div>
-              <button
-                onClick={() => (onSubscribeYearly ? onSubscribeYearly() : navigate("billing"))}
-                className="text-sm text-white font-semibold px-4 py-2.5 rounded-xl shrink-0 transition-all hover:-translate-y-0.5 hover:opacity-95"
-                style={{ background: tone.accent, boxShadow: `0 10px 24px -12px ${tone.accent}` }}
-              >
-                Subscribe
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                <TrialPromoStrip accent={tone.accent} />
+                <button
+                  onClick={() => (onSubscribeYearly ? onSubscribeYearly() : navigate("billing"))}
+                  className="text-sm text-white font-semibold px-4 py-2.5 rounded-xl shrink-0 transition-all hover:-translate-y-0.5 hover:opacity-95"
+                  style={{ background: tone.accent, boxShadow: `0 10px 24px -12px ${tone.accent}` }}
+                >
+                  Subscribe
+                </button>
+              </div>
             </div>
           );
         })()}
