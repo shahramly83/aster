@@ -10734,8 +10734,15 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                         shownInterviews.length > 0 ? <button onClick={() => navigate("interviews")} aria-label="View all interviews" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button> : null
                       )}
                       {shownInterviews.length === 0 ? (
-                        <div className="py-10 text-center flex-1 flex flex-col justify-center">
-                          <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
+                        <div className="py-10 text-center flex-1 flex flex-col items-center justify-center">
+                          <div className="relative mb-3.5">
+                            <span className="absolute inset-0 rounded-2xl blur-xl opacity-60" style={{ background: "var(--brand-soft)" }} />
+                            <span className="relative w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(150deg, var(--brand-soft), #fff)", border: "1px solid var(--line)", color: "var(--brand)" }}>
+                              <Icon name="calendar" className="w-7 h-7" />
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No interviews scheduled yet</p>
+                          <p className="text-xs mt-1 max-w-[220px]" style={{ color: "var(--ink-3)" }}>Book an interview from the pipeline and it will show up here.</p>
                         </div>
                       ) : (
                         <div className="space-y-1 flex-1">
