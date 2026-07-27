@@ -10299,7 +10299,7 @@ function JourneyRings({ stages }) {
       {stages.map((s) => {
         const has = s.value > 0;
         const frac = Math.max(0, Math.min(1, s.value / maxVal));
-        const color = s.tone === "win" ? "#86EFAC" : "#AAC1F8";
+        const color = s.tone === "win" ? "#16A34A" : "#AAC1F8";
         return (
           <div key={s.label} className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
             <div className="relative" style={{ width: 62, height: 62 }}>
