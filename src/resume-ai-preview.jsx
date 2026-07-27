@@ -12590,7 +12590,6 @@ function NewJobModal({ open, onClose, jobs, setJobs, plan, navigate, initialJob 
         <div className="relative flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 overflow-hidden">
           <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.10), rgba(var(--brand-rgb),0.02) 55%, transparent)" }} />
           <div className="relative flex items-center gap-3 min-w-0">
-            <span className="flex w-11 h-11 items-center justify-center rounded-2xl brand-gradient text-white shrink-0 shadow-[0_12px_26px_-10px_rgba(var(--brand-rgb),0.85)]"><Icon name="jobs" className="w-5 h-5" /></span>
             <div className="min-w-0">
               <h2 className="text-base font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{heading}</h2>
               <p className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>{sub}</p>
