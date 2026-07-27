@@ -9703,11 +9703,11 @@ function TrialPromoStrip({ accent, onSubscribeYearly }) {
       <button
         onClick={copy}
         title="Copy code"
-        className="inline-flex items-center justify-center gap-1 leading-none font-mono font-bold tracking-wider rounded-md px-1.5 py-1 transition-colors"
+        className="inline-flex items-center justify-center gap-1 font-mono font-bold tracking-wider rounded-md px-1.5 py-1 transition-colors"
         style={{ background: "#fff", color: accent, border: `1px dashed ${accent}` }}
       >
-        {PROMO_CODE}
-        <span className="font-sans font-bold uppercase text-[9px] tracking-wider opacity-60">{copied ? "Copied" : "Copy"}</span>
+        <span className="leading-none">{PROMO_CODE}</span>
+        <span className="font-sans font-bold uppercase text-[9px] tracking-wider opacity-60 leading-none">{copied ? "Copied" : "Copy"}</span>
       </button>
     </div>
   );
