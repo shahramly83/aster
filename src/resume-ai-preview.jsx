@@ -9368,7 +9368,7 @@ function SidebarLayout({ navigate, active, onDashboard = false, isFreshWorkspace
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen md:p-4" style={{ background: "radial-gradient(135% 115% at 50% 0%, #DCE7FF 0%, #EEF3FF 58%)" }}>
+    <div className="min-h-screen md:p-4" style={{ background: "radial-gradient(135% 115% at 50% 0%, #C6D6F5 0%, #DCE6F8 58%)" }}>
       <div className="md:flex md:gap-4 md:items-start">
         {/* Desktop icon rail: a fixed 76px strip of icons. It used to expand to a
             236px labelled drawer via a dot-grid handle, which pushed the whole
