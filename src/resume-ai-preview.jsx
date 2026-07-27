@@ -10510,7 +10510,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
     </div>
   );
 
-  const donutColors = ["#0B2AE0", "#3B82F6", "#6366F1", "#93C5FD", "#C7D2FE"];
+  const donutColors = ["#6C8CF5", "#93C5FD", "#A5B4FC", "#C7D2FE", "#DCE4FB"];
   // Blue family for the Top Roles gauge: distinct but all on-brand blues/cyans.
   const gaugeColors = ["#0B2AE0", "#2563EB", "#3B82F6", "#38BDF8", "#0EA5E9"];
 
