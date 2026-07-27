@@ -9698,12 +9698,12 @@ function TrialPromoStrip({ accent, onSubscribeYearly }) {
     try { navigator.clipboard?.writeText(PROMO_CODE); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* noop */ }
   };
   return (
-    <div className="hidden lg:flex items-center gap-x-2 text-[11px] whitespace-nowrap" style={{ color: accent }}>
+    <div className="hidden lg:flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-center" style={{ color: accent }}>
       <span className="font-bold">Extra 10% off yearly with</span>
       <button
         onClick={copy}
         title="Copy code"
-        className="inline-flex items-center gap-1 font-mono font-bold tracking-wider rounded-md px-1.5 py-0.5 transition-colors"
+        className="inline-flex items-center justify-center gap-1 leading-none font-mono font-bold tracking-wider rounded-md px-1.5 py-1 transition-colors"
         style={{ background: "#fff", color: accent, border: `1px dashed ${accent}` }}
       >
         {PROMO_CODE}
