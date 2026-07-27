@@ -3800,11 +3800,11 @@ function LandingScreen({ navigate, goProduct, goSolution, goBlog = () => {}, goG
               ))}
             </div>
 
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <button onClick={() => goTrial()} className="font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>
+            <div className="mt-9 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3">
+              <button onClick={() => goTrial()} className="w-full sm:w-auto text-center font-semibold px-8 py-3.5 rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_16px_44px_-16px_rgba(6,17,90,0.7)]" style={{ background: "#fff", color: "var(--brand)" }}>
                 Create your workspace
               </button>
-              <a href="#pricing" className="px-6 py-3.5 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>
+              <a href="#pricing" className="w-full sm:w-auto text-center px-6 py-3.5 rounded-xl font-medium text-white transition-colors hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.4)" }}>
                 See pricing
               </a>
             </div>
@@ -4522,9 +4522,9 @@ function MarketingNav({ navigate, goProduct, goSolution = () => {}, goBlog = () 
 // arrive in September, so the store badges are visual only (no links).
 function AppDownloadBand() {
   return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-6 sm:pb-14">
-      <div className="flex flex-col-reverse lg:flex-row items-center lg:items-end justify-center gap-8 lg:gap-16">
-        <div className="max-w-md w-full pb-2 lg:pb-12">
+    <section className="w-full px-6 sm:px-10 lg:px-16 pt-6 sm:pt-10 pb-6 sm:pb-14 overflow-hidden">
+      <div className="grid lg:grid-cols-2 items-end gap-8 lg:gap-10">
+        <div className="order-2 lg:order-1 pb-8 sm:pb-12 lg:max-w-xl">
             <p className="eyebrow brand-text mb-2">Mobile app</p>
             <h2 className="font-display font-bold text-neutral-900" style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", letterSpacing: "-0.02em" }}>Hire from your pocket.</h2>
             <ul className="mt-5 space-y-2.5">
@@ -4535,19 +4535,19 @@ function AppDownloadBand() {
                 </li>
               ))}
             </ul>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <a href="https://play.google.com/store/apps/details?id=com.hireaster.mobile" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-white transition-transform hover:-translate-y-0.5" style={{ background: "#0B1020" }}>
+            <div className="mt-7 flex flex-col sm:flex-row sm:flex-wrap gap-3">
+              <a href="https://play.google.com/store/apps/details?id=com.hireaster.mobile" target="_blank" rel="noreferrer" className="inline-flex w-full sm:w-auto justify-center sm:justify-start items-center gap-2.5 rounded-xl px-4 py-2.5 text-white transition-transform hover:-translate-y-0.5" style={{ background: "#0B1020" }}>
                 <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true"><path fill="#fff" d="M4 3.2 15 12 4 20.8V3.2z" /></svg>
                 <span className="text-left leading-none"><span className="block text-[9px] uppercase tracking-wide opacity-70">Get it on</span><span className="block text-sm font-semibold mt-0.5">Google Play</span></span>
               </a>
-              <a href="https://apps.apple.com/app/id6795149827" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-white transition-transform hover:-translate-y-0.5" style={{ background: "#0B1020" }}>
-                <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true"><path fill="#fff" d="M16.365 1.43c0 1.14-.42 2.2-1.11 2.99-.75.85-1.98 1.51-3.02 1.43-.13-1.1.43-2.27 1.09-3 .76-.85 2.07-1.47 3.04-1.42zM20.5 17.2c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.94-1.01-4.03-.99-2.09.01-2.52 1.01-4.06.99-1.73-.02-3.05-1.78-4.04-3.35C-.02 16.9-.32 12.36 1.14 9.94c1.03-1.72 2.66-2.72 4.19-2.72 1.56 0 2.54 1.03 3.83 1.03 1.25 0 2.01-1.03 3.82-1.03 1.36 0 2.8.74 3.83 2.02-3.36 1.84-2.82 6.63.9 7.99z" /></svg>
+              <a href="https://apps.apple.com/app/id6795149827" target="_blank" rel="noreferrer" className="inline-flex w-full sm:w-auto justify-center sm:justify-start items-center gap-2.5 rounded-xl px-4 py-2.5 text-white transition-transform hover:-translate-y-0.5" style={{ background: "#0B1020" }}>
+                <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="#fff" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" /></svg>
                 <span className="text-left leading-none"><span className="block text-[9px] uppercase tracking-wide opacity-70">Download on the</span><span className="block text-sm font-semibold mt-0.5">App Store</span></span>
               </a>
             </div>
           </div>
           {/* The phone shows the top ~60% of the screen and bleeds off the bottom edge. */}
-          <div className="relative shrink-0 self-center lg:self-end">
+          <div className="order-1 lg:order-2 relative self-end justify-self-center lg:justify-self-end">
             <div className="pointer-events-none absolute -inset-10 rounded-[3rem] blur-3xl opacity-70" style={{ background: "radial-gradient(circle at 50% 40%, var(--brand-soft), transparent 70%)" }} />
             <div className="relative w-[290px]">
               <div className="rounded-t-[2.6rem] pt-2.5 px-2.5" style={{ background: "#0B1020", boxShadow: "0 -6px 60px -18px rgba(6,17,90,0.45)" }}>
