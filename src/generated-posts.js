@@ -3,6 +3,131 @@
 // prepending each new article so the newest sits first. Seeded empty.
 export const GENERATED_POSTS = [
   {
+    "slug": "should-you-tell-candidates-ai-screened-their-application",
+    "title": "Should you tell candidates AI screened their application?",
+    "category": "ai-hiring",
+    "excerpt": "Disclosure isn't just a legal box to tick. Here's how to tell candidates AI helped screen them, without eroding trust or overpromising.",
+    "author": {
+      "name": "Aster",
+      "role": "Content Studio"
+    },
+    "date": "2026-07-27",
+    "readMins": 5,
+    "tags": [
+      "transparency",
+      "candidate-experience",
+      "ai-hiring",
+      "compliance"
+    ],
+    "body": [
+      {
+        "p": "You've set up an AI screener. It reads every resume as it lands, pulls out skills and experience, and ranks applicants against the role. The shortlist is faster and more consistent than the old spreadsheet. Then a candidate emails: \"Was my application reviewed by a person, or by a machine?\""
+      },
+      {
+        "p": "It's a fair question, and more people are asking it. New rules in places like New York City and the EU now expect some form of disclosure when automated tools help make hiring decisions. But beyond compliance, how you answer that question shapes whether candidates trust your process. This is a practical guide to what to disclose, when, and how, without either hiding behind vague language or overselling what the AI actually does."
+      },
+      {
+        "h": "Start from what your AI actually does"
+      },
+      {
+        "p": "Before you write a single line of disclosure, get honest internally about the AI's role. There's a big difference between these three setups, and candidates deserve to know which one they're in:"
+      },
+      {
+        "ul": [
+          "**Assist:** the AI reads and ranks, but a person reviews the shortlist and every reject. The machine sorts the pile; humans decide.",
+          "**Filter:** the AI auto-advances or auto-rejects based on a score threshold, with no human looking at the bottom of the list.",
+          "**Decide:** the AI's output drives an outcome (an offer, a rejection) with no meaningful human review at any point."
+        ]
+      },
+      {
+        "p": "Most responsible setups, including how we recommend running Aster, sit firmly in the first bucket. The AI produces a ranked shortlist with reasons; a hiring manager still makes the call. That distinction matters, because \"an AI helped us organize applications and a recruiter reviewed your resume\" is both true and reassuring. \"An algorithm rejected you\" is neither reassuring nor, in a good process, accurate."
+      },
+      {
+        "note": "If you can't clearly say where a human enters the loop, that's not a disclosure problem. That's a process problem to fix first.",
+        "label": "Worth remembering"
+      },
+      {
+        "h": "Yes, tell them. Here's why it helps you"
+      },
+      {
+        "p": "Some teams worry that mentioning AI will scare candidates off or invite gaming. In practice, the opposite tends to happen. Candidates increasingly assume some automation is involved anyway. When you name it plainly, you look like a company that has its process together, not one hiding something."
+      },
+      {
+        "p": "Transparency also protects you. If a candidate later challenges a decision, a clear, documented disclosure and a record of human review is far stronger ground than \"we don't really talk about how we screen.\" And naming the AI's role sets accurate expectations: candidates understand that a fast rejection isn't a personal snub from a hiring manager who read every word, and a fast advance isn't a guarantee."
+      },
+      {
+        "quote": "Candidates don't resent that AI was involved. They resent finding out it was involved and being told it wasn't."
+      },
+      {
+        "h": "Where to put the disclosure"
+      },
+      {
+        "p": "You don't need a legal essay. You need one honest sentence in the places candidates actually look:"
+      },
+      {
+        "ul": [
+          "**On the job post or application form:** a short line at the point of applying, before anyone commits their time.",
+          "**In the confirmation email:** \"Here's what happens next\" is the natural home for a plain description of your screening process.",
+          "**In your privacy notice:** the fuller detail (what data is processed, how, retention) lives here, linked from the above."
+        ]
+      },
+      {
+        "p": "Keep the tone matter-of-fact. Something like: \"We use an AI tool to read and organize applications so our team can review them quickly. A member of our hiring team reviews candidates before any decision is made.\" That's it. No hype, no hedging."
+      },
+      {
+        "h": "What candidates are really asking"
+      },
+      {
+        "p": "When someone asks whether a machine reviewed them, they usually want to know four things. Good disclosure answers all four:"
+      },
+      {
+        "ul": [
+          "**Did a human see my application?** Say plainly whether, and at what stage, a person reviews.",
+          "**What was I judged on?** Point to the role's actual requirements. This is why a clear job post matters: the AI ranks against what you asked for.",
+          "**Can I get feedback or a second look?** Offer a real channel, even if it's just a reply address.",
+          "**What happens to my data?** Link the privacy detail; don't make them dig."
+        ]
+      },
+      {
+        "p": "You don't have to expose the internals of your model or a candidate's exact score. But you should be able to explain, in human terms, what the role required and why the process works the way it does."
+      },
+      {
+        "h": "Be honest about what AI can't do"
+      },
+      {
+        "p": "Disclosure is also a chance to keep your own expectations in check. An AI screener is good at reading structured information consistently: skills, years of experience, whether someone has done the thing the role needs. It's fast and it doesn't get tired at resume number 200, which is exactly where human reviewers get sloppy."
+      },
+      {
+        "p": "It is not good at judging things that aren't on the page. It can't tell you whether someone will thrive on your team, how they'll handle ambiguity, or whether a non-obvious background is actually a great fit. It can misread an unconventional resume. That's precisely why the human review step isn't a formality; it's the part of the process that catches what ranking misses. Say that out loud, both to your team and, in spirit, to candidates: **the AI narrows the pile, people make the decision.**"
+      },
+      {
+        "h": "A few lines to avoid"
+      },
+      {
+        "p": "Some phrasing does more harm than good. Steer clear of:"
+      },
+      {
+        "ul": [
+          "\"Our advanced AI evaluates your fit and potential.\" It sounds like the machine is judging character. Overclaims, and unsettles people.",
+          "\"Applications are automatically processed.\" Vague enough to imply no human is involved even when one is.",
+          "Silence, then a rejection minutes after applying. If your timing makes automation obvious, own it upfront rather than letting candidates infer it."
+        ]
+      },
+      {
+        "p": "The goal is language that a candidate would find fair if they read it out loud to a friend. If it sounds evasive or grandiose, rewrite it."
+      },
+      {
+        "h": "Make disclosure the easy default"
+      },
+      {
+        "p": "The reason teams skip disclosure usually isn't bad intent. It's that adding it feels like one more task. So build it in once and forget it: bake the sentence into your application template, your confirmation email, and your privacy notice, and keep a human review step that's real, not theatrical. Then when a candidate asks whether a machine reviewed them, your answer is already true, already written, and already fair."
+      },
+      {
+        "p": "That's the quiet advantage of getting this right. A shortlist that used to take two weeks can take an afternoon, and you can be completely open about how, because there's nothing to hide. The AI reads the pile. Your team decides. Candidates know the score, in every sense."
+      }
+    ]
+  },
+  {
     "slug": "designing-a-take-home-assignment-candidates-wont-resent",
     "title": "Designing a take-home assignment candidates won't resent",
     "category": "interviewing",
