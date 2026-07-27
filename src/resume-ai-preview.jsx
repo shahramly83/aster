@@ -10254,6 +10254,62 @@ function FeatureCard({ onAction }) {
   );
 }
 
+// Segmented semicircular gauge for Top Roles: one bright rounded arc per role,
+// sized by applicant share, on a dark card with the running total in the middle.
+// Arcs are drawn as sampled polylines (round caps + joins) so we sidestep SVG
+// arc-flag direction quirks and get clean rounded ends every time.
+function RoleGauge({ segments, total }) {
+  const cx = 100, cy = 100, R = 82, sw = 15;
+  const START = 210, END = -30;      // 240° sweep, opening at the bottom
+  const span = START - END;
+  const GAP = 6;                      // degrees of breathing room between arcs
+  const polar = (ang) => { const r = (ang * Math.PI) / 180; return [cx + R * Math.cos(r), cy - R * Math.sin(r)]; };
+  const arcPath = (a1, a2) => {
+    const steps = Math.max(2, Math.round(Math.abs(a1 - a2) / 3));
+    let d = "";
+    for (let i = 0; i <= steps; i++) {
+      const a = a1 + ((a2 - a1) * i) / steps;
+      const [x, y] = polar(a);
+      d += (i === 0 ? "M" : "L") + x.toFixed(2) + " " + y.toFixed(2) + " ";
+    }
+    return d.trim();
+  };
+  let cursor = START;
+  const arcs = segments.map((s) => {
+    const frac = total > 0 ? s.value / total : 0;
+    const segSpan = frac * span;
+    const a1 = cursor - GAP / 2;
+    const a2 = cursor - segSpan + GAP / 2;
+    cursor -= segSpan;
+    return { ...s, a1, a2, ok: segSpan > GAP };
+  });
+  return (
+    <div>
+      <div className="relative mx-auto" style={{ maxWidth: 260 }}>
+        <svg viewBox="0 0 200 160" className="w-full" aria-hidden="true">
+          <path d={arcPath(START, END)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={sw} strokeLinecap="round" />
+          {arcs.map((a, i) => (a.ok ? (
+            <path key={i} d={arcPath(a.a1, a.a2)} fill="none" stroke={a.color} strokeWidth={sw} strokeLinecap="round" />
+          ) : null))}
+        </svg>
+        <div className="absolute inset-x-0 top-[54%] -translate-y-1/2 flex flex-col items-center">
+          <span className="text-[10px] font-semibold uppercase" style={{ color: "rgba(255,255,255,0.55)", letterSpacing: "0.09em" }}>Applicants</span>
+          <span className="text-3xl font-bold font-display tabular-nums text-white leading-none mt-1">{total.toLocaleString()}</span>
+        </div>
+      </div>
+      <div className="mt-3 space-y-2">
+        {segments.map((s) => (
+          <div key={s.label} className="flex items-center gap-2.5 text-xs">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+            <span className="flex-1 min-w-0 truncate" style={{ color: "rgba(255,255,255,0.82)" }}>{s.label}</span>
+            <span className="font-semibold tabular-nums text-white">{s.value} <span style={{ color: "rgba(255,255,255,0.45)" }}>({Math.round((s.value / total) * 100)}%)</span></span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------- Plan limits & upgrade gating ----------
 // Central definition of what each plan allows, per the locked pricing matrix.
 // Display names: free = "Launch", starter = "Scale", professional = "Elite",
@@ -10442,6 +10498,8 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
   );
 
   const donutColors = ["#0B2AE0", "#3B82F6", "#6366F1", "#93C5FD", "#C7D2FE"];
+  // Vibrant, high-contrast palette for the Top Roles gauge (reads on the dark card).
+  const gaugeColors = ["#8B5CF6", "#14B8A6", "#22C55E", "#F59E0B", "#EC4899"];
 
   // Top Roles: applicants per ACTIVE (open) role, derived from real applicant data.
   // Closed / draft roles are excluded so this reflects where hiring is live now.
@@ -10451,7 +10509,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value);
   // Top 5 roles by applicant count (View all shows the rest on the Jobs screen).
-  const roleSegments = roleCounts.slice(0, 5).map((r, i) => ({ ...r, color: donutColors[i % donutColors.length] }));
+  const roleSegments = roleCounts.slice(0, 5).map((r, i) => ({ ...r, color: gaugeColors[i % gaugeColors.length] }));
   const roleTotal = roleSegments.reduce((s, r) => s + r.value, 0);
 
   // Application Source: distribution of where applicants came from.
@@ -10713,14 +10771,21 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
 
             {/* Top Roles + Application Source, in the left column right under the chart */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
-              <div className={cardClass}>
-                {sectionHead(
-                  "Top Roles",
-                  roleTotal > 0 ? (
-                    <button onClick={() => goToJobs(null)} aria-label="View all roles" className="hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
-                  ) : null
+              <div className="rounded-2xl p-5 relative overflow-hidden act-shadow" style={{ background: "radial-gradient(120% 90% at 50% 0%, #262a45 0%, #14162a 62%)", border: "1px solid #2A2E4A" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold font-display text-white">Top Roles</h2>
+                  {roleTotal > 0 && (
+                    <button onClick={() => goToJobs(null)} aria-label="View all roles" className="transition-colors" style={{ color: "rgba(255,255,255,0.7)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.7)")}><Icon name="arrowUpRight" className="w-5 h-5" /></button>
+                  )}
+                </div>
+                {roleTotal === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm" style={{ color: "rgba(255,255,255,0.82)" }}>No role activity yet.</p>
+                    <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>Applicants across your open roles will show up here.</p>
+                  </div>
+                ) : (
+                  <RoleGauge segments={roleSegments} total={roleTotal} />
                 )}
-                {donutBody(roleSegments, roleTotal, "No role activity yet.", "Applicants across your open roles will show up here.")}
               </div>
               <div className={cardClass}>
                 {sectionHead(
