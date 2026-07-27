@@ -10741,8 +10741,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                               <Icon name="calendar" className="w-7 h-7" />
                             </span>
                           </div>
-                          <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>No interviews scheduled yet</p>
-                          <p className="text-xs mt-1 max-w-[220px]" style={{ color: "var(--ink-3)" }}>Book an interview from the pipeline and it will show up here.</p>
+                          <p className="text-sm" style={{ color: "var(--ink-2)" }}>No interviews scheduled yet.</p>
                         </div>
                       ) : (
                         <div className="space-y-1 flex-1">
