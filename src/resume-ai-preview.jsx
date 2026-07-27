@@ -16835,7 +16835,7 @@ function InterviewersScreen({ navigate, interviewers, setInterviewers, pendingIn
                 return (
                   <div className="px-5 py-14 text-center">
                     <p className="text-sm font-medium" style={{ color: "var(--ink-2)" }}>{teamTab === "members" ? "No members match this view." : "No pending invitations."}</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>{teamTab === "invitations" ? "Invite a teammate and they'll show here until they join." : "Try clearing the role filter or search."}</p>
+                    {teamTab !== "invitations" && <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>Try clearing the role filter or search.</p>}
                   </div>
                 );
               }
