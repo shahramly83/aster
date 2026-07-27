@@ -15086,12 +15086,12 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
               )}
             </div>
             {q && (
-              <div className="flex items-center justify-end mt-4 mb-3">
+              <div className="flex items-center justify-end mt-4 -mb-1">
                 <button onClick={() => { setQuery(""); setPage(1); }} className="text-xs font-medium hover:opacity-70 transition-opacity" style={{ color: "var(--brand)" }}>Reset</button>
               </div>
             )}
             {list.length === 0 ? emptyState("No candidates found", q ? `Nothing matches "${query}". Try a different name.` : "Your database is empty.", null) : (<>
-              <div className="grid sm:grid-cols-2 gap-3">
+              <div className="grid sm:grid-cols-2 gap-3 mt-5">
                 {browseItems.map((c) => browseCard(c))}
                 {lockedList.length > 0 && (
                   <div className="relative pt-1 sm:col-span-2">
