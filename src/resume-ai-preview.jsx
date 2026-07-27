@@ -20227,7 +20227,7 @@ function BillingScreen({ navigate, plan, planCycle = "monthly", initialCycle = n
               </button>
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">
+            <p className="text-xs text-neutral-500">
               {onTrial
                 ? "No payment method yet. You'll add a card when you subscribe."
                 : "No payment method on file."}
