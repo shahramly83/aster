@@ -10647,7 +10647,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                 <button onClick={k.onClick} className={`text-left w-full rounded-3xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 flex flex-col ${k.dark || k.green ? "act-shadow" : "border act-shadow"}`} style={k.green ? { background: "#ECFDF5", border: "1px solid #A7F3D0" } : k.dark ? { background: "var(--brand-soft)", border: "1px solid #CBD8F5" } : { background: "#fff", borderColor: "var(--line)" }}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={k.green ? { background: "#16A34A", color: "#fff" } : k.dark ? { background: "var(--brand)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
+                      <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={(k.green || k.greenIcon) ? { background: "#16A34A", color: "#fff" } : k.dark ? { background: "var(--brand)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={k.icon} className="w-5 h-5" /></span>
                       <div className="min-w-0">
                         <p className="text-sm truncate" style={{ color: "var(--ink-2)" }}>{k.label}</p>
                         <div className="flex items-end gap-2">
@@ -10686,7 +10686,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                 <div className="flex-1 flex flex-col gap-4 md:gap-5">
                   {/* Stats, 2×2: Total Candidates | New Applications · Total Job Postings | Total Hires */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                    {heroCard({ ...kpis[5], green: true })}
+                    {heroCard({ ...kpis[5], greenIcon: true })}
                     {heroCard(kpis[0])}
                     {heroCard({ label: "Open positions", value: openJobsInRange, icon: "jobs", delta: deltas.openJobs, onClick: () => goToJobs("open") })}
                     {heroCard({ label: "Total Views", value: totalJobViews, icon: "eye", onClick: () => goToJobs(null) })}
