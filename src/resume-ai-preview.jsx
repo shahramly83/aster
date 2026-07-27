@@ -4549,11 +4549,11 @@ function AppDownloadBand() {
           {/* The phone shows the top ~60% of the screen and bleeds off the bottom edge. */}
           <div className="relative shrink-0 self-center lg:self-end">
             <div className="pointer-events-none absolute -inset-10 rounded-[3rem] blur-3xl opacity-70" style={{ background: "radial-gradient(circle at 50% 40%, var(--brand-soft), transparent 70%)" }} />
-            <div className="relative w-[210px] sm:w-[250px] lg:w-[290px]">
+            <div className="relative w-[220px] sm:w-[250px] lg:w-[290px]">
               <div className="rounded-t-[2.6rem] pt-2.5 px-2.5" style={{ background: "#0B1020", boxShadow: "0 -6px 60px -18px rgba(6,17,90,0.45)" }}>
                 <div className="relative rounded-t-[2.1rem] overflow-hidden bg-black" style={{ aspectRatio: "1256 / 1564" }}>
                   <img src="/aster-app-dashboard.jpg" alt="Aster mobile app dashboard" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top" />
-                  <span className="absolute top-2.5 left-1/2 -translate-x-1/2 w-20 h-5 rounded-full" style={{ background: "#0B1020" }} />
+                  <span className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-3.5 rounded-full" style={{ background: "#0B1020" }} />
                 </div>
               </div>
             </div>
