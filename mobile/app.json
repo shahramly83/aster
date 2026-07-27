@@ -12,11 +12,13 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.hireaster.mobile",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Unlock Aster with Face ID."
-      }
+        "NSFaceIDUsageDescription": "Unlock Aster with Face ID.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "3"
     },
     "android": {
       "package": "com.hireaster.mobile",
