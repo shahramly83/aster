@@ -10374,7 +10374,7 @@ const JOURNEY_BAR_GRAD = {
   Rejected:    JOURNEY_GREY,
 };
 
-function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, questionsUsed = 0, company = "Your workspace" }) {
+function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, candidates, bookings, setCandidateFilter, setJobStatusFilter, profile, activities, onOpenNotifications, range, setRange, plan = "launch", trialDaysLeft = 0, onEndTrial, hiredIds = new Set(), avatarUrl = null, parseUsage = { used: 0, limit: null }, applicantParseUsage = { used: 0, limit: null }, matchRunsUsed = 0, aiInsightsUsed = 0, questionsUsed = 0, company = "Your workspace" }) {
   // Real scheduled interviews, derived from confirmed bookings.
   const interviews = scheduledInterviewsFrom(bookings, candidates);
   // "Upcoming" excludes interviews whose slot has already passed: once the time
@@ -10899,7 +10899,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, jobs, candidates, bookin
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {candidates.filter((c) => c.parsed).slice(0, 7).map((c, i) => (
-                      <button key={c.id} onClick={() => goToCandidates(null)} title={c.parsed.name} className={`shrink-0 ${i >= 5 ? "hidden sm:block" : ""}`}>
+                      <button key={c.id} onClick={() => (onViewCandidate ? onViewCandidate(c.id) : goToCandidates(null))} title={c.parsed.name} aria-label={`View ${c.parsed.name}`} className={`shrink-0 rounded-full transition-transform hover:-translate-y-0.5 hover:opacity-90 ${i >= 5 ? "hidden sm:block" : ""}`}>
                         <CandidateAvatar name={c.parsed.name} hasPhoto={c.hasPhoto} src={c.avatarUrl} size={38} />
                       </button>
                     ))}
@@ -28818,6 +28818,7 @@ export default function ResumeAIPreview() {
           <DashboardScreen
             navigate={navigate}
             onSubscribeYearly={() => { setBillingCycleIntent("yearly"); navigate("billing"); }}
+            onViewCandidate={viewCandidate}
             jobs={jobs}
             candidates={MOCK_CANDIDATES}
             bookings={bookings}
