@@ -13480,7 +13480,6 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               <div className="relative flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 shrink-0 overflow-hidden">
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.12), rgba(var(--brand-rgb),0.03) 55%, transparent)" }} />
                 <div className="relative flex items-start gap-3.5 min-w-0">
-                  <span className="flex w-12 h-12 items-center justify-center rounded-2xl brand-gradient text-white shrink-0 shadow-[0_12px_28px_-10px_rgba(var(--brand-rgb),0.85)]"><Icon name="jobs" className="w-[22px] h-[22px]" /></span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-lg font-bold font-display leading-tight" style={{ color: "var(--ink)" }}>{dj.title}</h2>
