@@ -11,12 +11,15 @@ export async function loadSession() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("company_id, full_name, role, avatar_path, calendar_provider, companies ( name, slug, plan, timezone )")
+    .select("company_id, full_name, role, avatar_path, calendar_provider, companies ( name, slug, plan, timezone, subscriptions ( status, current_period_end ) )")
     .eq("id", user.id)
     .maybeSingle();
   if (error || !data) return null;
 
   const co = data.companies || {};
+  // subscriptions.company_id is unique so PostgREST embeds a single row, but
+  // tolerate the array shape too (same handling as the web session loader).
+  const sub = (Array.isArray(co.subscriptions) ? co.subscriptions[0] : co.subscriptions) || {};
   const rawName = (data.full_name || "").trim();
   // Treat a bare email in full_name as "no name set", same rule as web.
   const looksLikeEmail = /\S+@\S+\.\S+/.test(rawName) && !/\s/.test(rawName);
@@ -32,6 +35,11 @@ export async function loadSession() {
     company: co.name || "Your workspace",
     companySlug: co.slug || null,
     plan: co.plan || "launch",
+    // Billing state, so the dashboard can say "Trial ends in 11d" instead of
+    // promising a credit reset the trial will never reach: the AI cycle is 30 days
+    // and the trial is 14, so a trialing workspace never sees one.
+    subStatus: sub.status || null,
+    trialEndsAt: sub.status === "trialing" ? sub.current_period_end || null : null,
     timezone: co.timezone || undefined,
     avatarPath: data.avatar_path || null,
     calendarProvider: data.calendar_provider || null,

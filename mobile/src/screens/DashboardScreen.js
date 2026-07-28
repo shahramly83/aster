@@ -107,6 +107,11 @@ export default function DashboardScreen({ navigation }) {
     : a.health >= 40 ? "#FBBF24"   // amber  · fair
     : "#FB7185";                   // red    · needs work
   const resetDays = credits ? daysUntil(credits.resetsAt) : null;
+  // On the trial there is no reset to promise: the credit cycle is 30 days and the
+  // trial is 14, so it always ends first. Count down the thing that actually
+  // happens instead. The cycle itself starts on the first payment (0137).
+  const trialDays = daysUntil(profile?.trialEndsAt);
+  const onTrial = trialDays != null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.brand }} edges={["top"]}>
@@ -205,7 +210,11 @@ export default function DashboardScreen({ navigation }) {
         <View style={{ paddingHorizontal: space(5), marginTop: space(6) }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: space(3) }}>
             <Text style={[type.label, { color: theme.onBrandMuted }]}>AI CREDITS</Text>
-            {resetDays != null ? (
+            {onTrial ? (
+              <Text style={[type.small, { color: theme.onBrandFaint }]}>
+                {trialDays === 0 ? "Trial ends today" : `Trial ends in ${trialDays}d`}
+              </Text>
+            ) : resetDays != null ? (
               <Text style={[type.small, { color: theme.onBrandFaint }]}>Resets in {resetDays}d</Text>
             ) : null}
           </View>
@@ -225,8 +234,11 @@ export default function DashboardScreen({ navigation }) {
                       <View style={[styles.legendDot, { backgroundColor: it.color }]} />
                       <View style={{ flex: 1 }}>
                         <Text style={[type.smallStrong, { color: theme.onBrand }]} numberOfLines={1}>{it.label}</Text>
-                        <Text style={[type.small, { color: out ? "#FFC2C2" : theme.onBrandMuted }]}>
-                          {it.unlimited ? "Unlimited" : out ? "Fully used" : `${it.remaining} of ${it.limit} left`}
+                        {/* Compact "498/500 left": the legend column is ~90dp next
+                            to the rings, and the spelled-out "of" wrapped the word
+                            "left" onto its own line once limits hit 3 digits. */}
+                        <Text style={[type.small, { color: out ? "#FFC2C2" : theme.onBrandMuted }]} numberOfLines={1}>
+                          {it.unlimited ? "Unlimited" : out ? "Fully used" : `${it.remaining}/${it.limit} left`}
                         </Text>
                       </View>
                       {out ? (
@@ -243,7 +255,7 @@ export default function DashboardScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      <CreditModal item={creditModal} credits={credits} onClose={() => setCreditModal(null)} />
+      <CreditModal item={creditModal} credits={credits} trialEndsAt={profile?.trialEndsAt} onClose={() => setCreditModal(null)} />
     </SafeAreaView>
   );
 }
@@ -251,12 +263,17 @@ export default function DashboardScreen({ navigation }) {
 // Out-of-credits (and per-credit) detail, styled after the CreditsState concept:
 // what's used up, when it refreshes (with a progress bar), what still works, and a
 // note that plans are managed on the web.
-function CreditModal({ item, credits, onClose }) {
+function CreditModal({ item, credits, trialEndsAt = null, onClose }) {
   if (!item) return null;
   const out = !item.unlimited && item.remaining <= 0;
-  const days = daysUntil(credits?.resetsAt);
-  const dateLabel = fmtDate(credits?.resetsAt);
-  const fill = days != null ? Math.max(4, Math.min(100, Math.round(((30 - days) / 30) * 100))) : 6;
+  // On the trial the 30-day refresh never arrives (the trial ends on day 14), so
+  // count down to the date that actually applies and say so.
+  const trialDays = daysUntil(trialEndsAt);
+  const onTrial = trialDays != null;
+  const days = onTrial ? trialDays : daysUntil(credits?.resetsAt);
+  const dateLabel = fmtDate(onTrial ? trialEndsAt : credits?.resetsAt);
+  const cycleLen = onTrial ? 14 : 30;
+  const fill = days != null ? Math.max(4, Math.min(100, Math.round(((cycleLen - days) / cycleLen) * 100))) : 6;
   const others = (credits?.items || [])
     .filter((x) => x.key !== item.key && (x.unlimited || x.remaining > 0))
     .map((x) => x.label);
@@ -277,9 +294,13 @@ function CreditModal({ item, credits, onClose }) {
           <Text style={styles.mBody}>
             {item.unlimited
               ? `${item.label} is unlimited on your plan. `
-              : out
-                ? `Your ${item.limit} monthly ${item.label} credits are used up. They refresh on `
-                : `You have ${item.remaining} of ${item.limit} ${item.label} credits left this cycle. They refresh on `}
+              : onTrial
+                ? (out
+                    ? `Your ${item.limit} trial ${item.label} credits are used up. Your trial ends on `
+                    : `You have ${item.remaining} of ${item.limit} ${item.label} credits left in your trial. It ends on `)
+                : out
+                  ? `Your ${item.limit} monthly ${item.label} credits are used up. They refresh on `
+                  : `You have ${item.remaining} of ${item.limit} ${item.label} credits left this cycle. They refresh on `}
             {!item.unlimited ? <Text style={{ fontFamily: "Inter_700Bold", color: theme.ink }}>{dateLabel}</Text> : null}
             {!item.unlimited && days != null ? `, ${days} day${days === 1 ? "" : "s"} from now.` : !item.unlimited ? "." : ""}
           </Text>
@@ -287,7 +308,7 @@ function CreditModal({ item, credits, onClose }) {
           {!item.unlimited ? (
             <View style={styles.mBar}>
               <View style={styles.mBarHead}>
-                <Text style={[type.smallStrong, { color: theme.ink }]}>Next refresh</Text>
+                <Text style={[type.smallStrong, { color: theme.ink }]}>{onTrial ? "Trial ends" : "Next refresh"}</Text>
                 <Text style={[type.smallStrong, { color: theme.brand }]}>{days != null ? `${days} day${days === 1 ? "" : "s"}` : "—"}</Text>
               </View>
               <View style={styles.mBarTrack}><View style={[styles.mBarFill, { width: `${fill}%` }]} /></View>

@@ -10857,7 +10857,7 @@ function DashboardScreen({ navigate, onSubscribeYearly, onViewCandidate, jobs, c
                       <div className="flex items-center justify-between mb-3.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Plan usage</p>
-                          <InfoHint dir="up" hint="How much of this cycle's AI plan you have used across screening, ranking, insights and interview questions. Limits reset on your 30-day cycle from signup." />
+                          <InfoHint dir="up" hint="How much of this cycle's AI plan you have used across screening, ranking, insights and interview questions. Limits reset on your 30-day cycle, counted from the day your plan starts." />
                         </div>
                         {isOwner(profile?.role) && (
                           <button onClick={() => navigate("billing")} className="text-xs hover:opacity-80 transition-opacity" style={{ color: "var(--ink-2)" }}>Manage</button>
@@ -11277,7 +11277,7 @@ function BuyCreditsModal({ open, onClose, plan = "launch", kind = "resume_screen
   );
 }
 
-function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun, onUpdateRun }) {
+function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, onImported, parseUsage = { used: 0, limit: null }, importHistory = [], onSaveRun, onUpdateRun, trialEndsAt = null }) {
   const limits = planLimits(plan);
   // Bulk upload is its own pool (resumeUploads), separate from applicant parsing
   // (parseApplicant) which is metered server-side as inbound applicants arrive.
@@ -11306,10 +11306,16 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
   // Real parses used this cycle, from the server meter. Refreshed after each
   // import (onImported re-runs hydrateWorkspace, which refetches parse usage).
   const usedThisMonth = parseUsage?.used ?? 0;
-  // Credits reset on a 30-day cycle from signup, not the 1st of the month.
+  // Credits reset on a 30-day cycle from the day the plan is paid for (0137), not the 1st of the month.
   const uploadResetLabel = parseUsage?.resetsAt
     ? new Date(parseUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : "next cycle";
+  // On the trial there is no monthly reset to wait for: the cycle is 30 days, the
+  // trial ends on day 14, and the paid cycle only starts at the first payment
+  // (0137). Point them at subscribing rather than at a date that never arrives.
+  const resetSentence = trialEndsAt
+    ? "subscribe to a plan to start a fresh monthly allowance"
+    : `your monthly plan resets ${uploadResetLabel}`;
   const monthlyRemaining = uploadLimit === Infinity ? Infinity : Math.max(0, uploadLimit - usedThisMonth);
   // Effective allowance = what's left in the monthly pool PLUS any purchased top-up.
   // Uploads spend the monthly pool first (enforced server-side), and spill into the
@@ -11679,7 +11685,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                 </span>
                 <p className="text-base font-semibold font-display" style={{ color: "var(--ink)" }}>You're out of screening credits</p>
                 <p className="text-sm mt-1.5 max-w-md mx-auto" style={{ color: "var(--ink-3)" }}>
-                  You've used your {uploadLimit} monthly screenings on the {planName} plan, and any credits you bought. Buy more to keep going, or your monthly plan resets {uploadResetLabel}.
+                  You've used your {uploadLimit} monthly screenings on the {planName} plan, and any credits you bought. Buy more to keep going, or {resetSentence}.
                 </p>
                 <button onClick={() => setBuyOpen(true)} className="mt-5 inline-flex items-center gap-2 rounded-xl brand-gradient hover:opacity-90 text-white text-sm font-semibold px-5 py-2.5 transition-opacity">
                   <Icon name="upload" className="w-4 h-4" /> Buy credits
@@ -11774,7 +11780,7 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
                       </p>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: "#B91C1C" }}>
                         {outOfQuota
-                          ? `You've used your monthly plan and any purchased credits. Buy more to keep screening, or your monthly plan resets ${uploadResetLabel}.`
+                          ? `You've used your monthly plan and any purchased credits. Buy more to keep screening, or ${resetSentence}.`
                           : <>This batch has {files.length} resume{files.length === 1 ? "" : "s"}, but you have {remaining} credit{remaining === 1 ? "" : "s"} left (monthly plus purchased). Remove {files.length - remaining}, or buy more credits.</>}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2.5">
@@ -12101,10 +12107,11 @@ function UploadScreen({ navigate, plan = "launch", hiredIds = new Set(), profile
             <UsageMeter
               plan={plan}
               title="Resume screening"
-              hint="Each resume Aster screens uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
+              hint="Each resume Aster screens uses one credit. Your plan includes a set number of credits, which reset every 30 days from the day your plan starts."
               used={usedThisMonth} limit={uploadLimit} unit=""
               danger={outOfQuota}
               resetLabel={uploadLimit === Infinity ? null : uploadResetLabel}
+              trialEndsAt={trialEndsAt}
               onManage={() => navigate("billing")}
               onUpgrade={uploadLimit === Infinity ? undefined : () => navigate("billing")}
               purchased={uploadLimit === Infinity ? null : purchasedBalance}
@@ -13417,14 +13424,14 @@ function JobsScreen({ navigate, jobs, setJobs, setActiveJobId, jobStatusFilter, 
               const scrUsed = applicantParseUsage.used || 0;
               const scrBlocked = scrLimit != null && scrLimit !== Infinity && scrUsed >= scrLimit;
               const scrOut = scrBlocked && purchasedApplicant <= 0;
-              // Credits reset on a 30-day cycle from signup, not the 1st of the month.
+              // Credits reset on a 30-day cycle from the day the plan is paid for (0137), not the 1st of the month.
               const scrResetLabel = applicantParseUsage.resetsAt
                 ? new Date(applicantParseUsage.resetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
                 : "next cycle";
               const items = [];
               if (scrLimit != null) items.push({
                 title: "Applicant screening",
-                hint: "Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date. Buy extra credits to keep screening once it's used up.",
+                hint: "Every applicant Aster screens against one of your roles uses one credit. Your plan includes a set number of credits, which reset every 30 days from the day your plan starts. Buy extra credits to keep screening once it's used up.",
                 used: scrUsed,
                 limit: scrLimit,
                 noun: "credits",
@@ -14106,7 +14113,7 @@ function UsagePanel({ items }) {
 
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
-function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", noun = "credits", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade plan", plan = null, purchased = null, onBuyCredits = null, resetLabel = null }) {
+function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", noun = "credits", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade plan", plan = null, purchased = null, onBuyCredits = null, resetLabel = null, trialEndsAt = null }) {
   const [tip, setTip] = useState(false);
   const out = limit !== Infinity && used >= limit;
   const pct = limit === Infinity ? 4 : Math.max(Math.min((used / limit) * 100, 100), 4);
@@ -14128,6 +14135,12 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
   const leftDisplay = totalLeft === Infinity ? "∞" : totalLeft.toLocaleString();
   const accent = isDanger && totalLeft <= 0 ? "#B45309" : "var(--brand)";
   const showReset = resetLabel && resetLabel !== "next cycle";
+  // On the trial the credit cycle never comes round: it runs 30 days and the trial
+  // ends on day 14, so "Resets 12 Aug" promises a refresh that cannot arrive.
+  // Count down the trial instead. The paid cycle starts on the first payment (0137).
+  const trialLabel = trialEndsAt
+    ? new Date(`${trialEndsAt}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : null;
   const hasBreakdown = typeof purchased === "number";
   // "N credits left" / "N slots left", singularised at 1.
   const leftNoun = `${totalLeft === 1 ? noun.replace(/s$/, "") : noun} left`;
@@ -14184,7 +14197,9 @@ function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "use
               </div>
             </>
           )}
-          {showReset && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {resetLabel}</p>}
+          {trialLabel
+            ? <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Trial ends {trialLabel}</p>
+            : showReset && <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {resetLabel}</p>}
           {noun === "slots" && <p className="text-[11px] mt-2.5 leading-relaxed" style={{ color: "var(--ink-3)" }}>Set by your plan. Slots never renew; closing a position frees one.</p>}
         </div>
       )}
@@ -14548,7 +14563,7 @@ function ProfileGateModal({ open, items = [], onConfirm, onClose }) {
   );
 }
 
-function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
+function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewApply, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, trialEndsAt = null, hiredIds = new Set(), profile, avatarUrl = null, activities = [], onOpenNotifications, persist }) {
   const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   const [walletTip, setWalletTip] = useState(false); // AI Rank credit wallet hover breakdown
@@ -15039,10 +15054,15 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
   );
   // Runs-left note shown under both AI panels.
   // AI-match-runs usage, same meter method as the Upload screen's "Usage this month".
-  // Credits reset every 30 days from signup; show the next reset date.
+  // Credits reset every 30 days from the day the plan is paid for; show the next reset date.
   const resetLabel = aiRankResetsAt
     ? new Date(aiRankResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
     : "in 30 days";
+  // On the trial the 30-day reset never lands (the trial ends on day 14), so count
+  // down the trial instead. The paid cycle starts at the first payment (0137).
+  const trialLabel = trialEndsAt
+    ? new Date(`${trialEndsAt}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : null;
   // AI Rank credit wallet, shown inline next to the AI Rank buttons (same as the
   // Pipeline screen) instead of as a sidebar meter.
   const aiRankMonthlyLeft = limits.aiRunsPerMonth === Infinity ? Infinity : Math.max(limits.aiRunsPerMonth - matchRunsUsed, 0);
@@ -15070,7 +15090,7 @@ function SearchScreen({ navigate, candidates, jobs, onViewCandidate, onPreviewAp
             <span className="font-semibold" style={{ color: "var(--ink)" }}>Total left</span>
             <span className="font-extrabold tnum" style={{ color: "var(--brand)" }}>{aiRankTotalLeft}</span>
           </div>
-          <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>Resets {resetLabel}</p>
+          <p className="text-[11px] mt-2.5" style={{ color: "var(--ink-3)" }}>{trialLabel ? `Trial ends ${trialLabel}` : `Resets ${resetLabel}`}</p>
         </div>
       )}
     </div>
@@ -22606,7 +22626,7 @@ function CandidateProfileScreen({ navigate, candidate, jobs, interviewers, onPre
   const [insightErr, setInsightErr] = useState(null);
   const outOfInsightCredits = outOfInsights && purchasedAiInsight <= 0;
   const insightsOnPurchased = outOfInsights && purchasedAiInsight > 0;
-  // All plan meters share one 30-day cycle from signup, so the AI Rank reset date
+  // All plan meters share one 30-day cycle from the plan start, so the AI Rank reset date
   // (passed as cycleResetsAt) is the AI Insight reset date too.
   const insightResetLabel = cycleResetsAt
     ? new Date(cycleResetsAt + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
@@ -25504,7 +25524,7 @@ function JobInterviewersPanel({ jobId, team, assignedIds, canManage, currentUser
   );
 }
 
-function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {}, scheduleRequests = [] }) {
+function ApplicantsScreen({ navigate, companyId, trialEndsAt = null, jobs, activeJobId, onViewCandidate, stageOverrides = {}, onStageChange, plan = "launch", matchRunsUsed = 0, setMatchRunsUsed, aiRankResetsAt = null, bookings = {}, hiredIds = new Set(), profile, avatarUrl, activities = [], onOpenNotifications, interviewers = [], jobAssignments = [], onAssignInterviewer, onUnassignInterviewer, onCloseJob, reloadTeam = async () => {}, shortlistedApps = new Set(), onToggleShortlist = () => {}, scheduleRequests = [] }) {
   const [purchasedAiRank, reloadPurchasedAiRank] = usePurchasedBalance("ai_rank");
   const [buyAiRankOpen, setBuyAiRankOpen] = useState(false);
   // Match the Candidate Search AI Rank meter's wording exactly (same shared pool).
@@ -25865,12 +25885,13 @@ function ApplicantsScreen({ navigate, companyId, jobs, activeJobId, onViewCandid
         <UsageMeter
           plan={plan}
           title="AI Rank"
-          hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from your signup date."
+          hint="Each AI Rank uses one credit. Your plan includes a set number of credits, which reset every 30 days from the day your plan starts."
           used={matchRunsUsed}
           limit={limits.aiRunsPerMonth}
           unit=""
           danger={outOfRuns}
           resetLabel={aiRankResetLabel}
+          trialEndsAt={trialEndsAt}
           onUpgrade={railIsInterviewer ? undefined : () => navigate("billing")}
           upgradeLabel="Upgrade plan"
           purchased={limits.aiRunsPerMonth === Infinity ? null : purchasedAiRank}
@@ -27199,7 +27220,7 @@ export default function ResumeAIPreview() {
   // by application, independent of AI Rank order and pipeline stage, so a re-rank
   // never loses a reviewer's picks.
   const [shortlistedApps, setShortlistedApps] = useState(() => new Set());
-  const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from signup)
+  const [aiRankResetsAt, setAiRankResetsAt] = useState(null); // next 30-day credit reset (from the plan start)
   // Job posting is a concurrent OPEN-role limit (plan maxJobs), not a monthly
   // credit: closing a role frees a slot, reopening takes one. Derived live from
   // the jobs list so posting/closing updates the meter at once. resetsAt stays
@@ -28941,7 +28962,7 @@ export default function ResumeAIPreview() {
         {screen === "billing" && isOwner(profile?.role) && (
           <BillingScreen navigate={navigate} plan={plan} planCycle={planCycle} initialCycle={billingCycleIntent} onCycleIntentConsumed={() => setBillingCycleIntent(null)} company={company} companyAddress={companyAddress} companyRegNo={companyRegNo} trialDaysLeft={trialActive ? trialDaysLeft : 0} renewsAt={renewsAt} subStatus={subStatus} scheduledPlan={scheduledPlan} scheduledCycle={scheduledCycle} scheduledEffective={scheduledEffective} initialCurrency={preferredCurrency} onEndTrial={endTrial} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />
         )}
-        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
+        {screen === "upload" && <UploadScreen navigate={navigate} plan={effectivePlan} trialEndsAt={trialActive ? renewsAt : null} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} onImported={() => { if (companyId) hydrateWorkspace(companyId, { keepImportHistory: true }); }} parseUsage={parseUsage} importHistory={importHistory} onSaveRun={saveImportRun} onUpdateRun={updateImportRun} />}
         {screen === "emailTemplates" && <EmailTemplatesScreen navigate={navigate} plan={effectivePlan} logoUrl={logoUrl} company={company} companyId={companyId} canPersist={canPersist} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} />}
         {(screen === "pipeline" || (screen === "applicants" && isInterviewer(profile?.role))) && (
           <PipelineScreen
@@ -28999,7 +29020,7 @@ export default function ResumeAIPreview() {
           />
         )}
         {screen === "search" && (
-          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} aiRankResetsAt={aiRankResetsAt} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} persist={searchStateRef} />
+          <SearchScreen navigate={navigate} candidates={MOCK_CANDIDATES} jobs={jobs} onViewCandidate={viewCandidate} onPreviewApply={handlePreviewApply} plan={effectivePlan} trialEndsAt={trialActive ? renewsAt : null} matchRunsUsed={matchRunsUsed} setMatchRunsUsed={setMatchRunsUsed} aiRankResetsAt={aiRankResetsAt} hiredIds={hiredIds} profile={profile} avatarUrl={avatarUrl} activities={activities} onOpenNotifications={markActivitiesRead} persist={searchStateRef} />
         )}
         {screen === "interviews" && (
           <InterviewsScreen
@@ -29137,6 +29158,7 @@ export default function ResumeAIPreview() {
             key={activeJobId}
             navigate={navigate}
             companyId={companyId}
+            trialEndsAt={trialActive ? renewsAt : null}
             jobs={jobs}
             activeJobId={activeJobId}
             onViewCandidate={viewCandidate}

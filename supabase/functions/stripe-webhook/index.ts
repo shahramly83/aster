@@ -318,11 +318,20 @@ Deno.serve(async (req) => {
   if (status === "active") {
     // Read the current plan first so we only run downgrade/upgrade housekeeping on
     // an ACTUAL plan change, not on every renewal or metadata-only event.
-    const { data: coRow } = await admin.from("companies").select("plan").eq("id", companyId).maybeSingle();
+    const { data: coRow } = await admin.from("companies")
+      .select("plan, status, deleted_at, credit_anchor_at").eq("id", companyId).maybeSingle();
     const prevPlan = coRow?.plan || null;
 
     const companyUpdate: Record<string, unknown> = { status: "active", deleted_at: null, purge_after: null };
     if (planEnum) companyUpdate.plan = planEnum;
+    // The 30-day credit cycle runs from the day the plan is paid for, not from
+    // signup (0137). Stamp the anchor on the first payment, and again when a
+    // workspace that had lapsed comes back — renewing late buys a fresh 30 days,
+    // not the tail of a cycle that ran out while they were locked out. A renewal
+    // of a subscription that never lapsed leaves the anchor alone, so an ordinary
+    // monthly charge doesn't hand out a second allowance mid-cycle.
+    const wasLapsed = !!coRow?.deleted_at || coRow?.status === "suspended" || coRow?.status === "churned";
+    if (!coRow?.credit_anchor_at || wasLapsed) companyUpdate.credit_anchor_at = new Date().toISOString();
     const { error } = await admin.from("companies").update(companyUpdate).eq("id", companyId);
     if (error) { console.error("companies activate", error.message, companyUpdate); return await fail("company update failed", error.message); }
 
