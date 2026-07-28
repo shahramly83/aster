@@ -445,19 +445,34 @@ export async function loadOpenPositions(companyId, { manager = false, assignedJo
   const jobIds = rows.map((j) => j.id);
   const { data: apps } = await supabase
     .from("applications")
-    .select("job_id, stage")
+    .select("job_id, stage, fit")
     .eq("company_id", companyId)
     .in("job_id", jobIds);
   const countsByJob = {};
+  const pipelineByJob = {};
   (apps || []).forEach((a) => {
     (countsByJob[a.job_id] ||= {});
     const s = a.stage || "applied";
     countsByJob[a.job_id][s] = (countsByJob[a.job_id][s] || 0) + 1;
+    // "In pipeline" must mean the same thing here as inside the role: strong
+    // matches still in the running. Summing every stage counted the talent pool
+    // ("other" fit) plus hired/rejected/declined, so a card could promise 2 in
+    // pipeline and the role open with 0. A manual shortlist overrides the AI
+    // verdict, same rule as JobDetailScreen.
+    const inRunning = !["hired", "rejected", "declined"].includes(s) && (a.fit !== "other" || s === "shortlisted");
+    if (inRunning) {
+      (pipelineByJob[a.job_id] ||= {});
+      pipelineByJob[a.job_id][s] = (pipelineByJob[a.job_id][s] || 0) + 1;
+    }
   });
 
   return rows.map((j) => {
+    // counts = every application (the hired tally counts everyone hired, whatever
+    // their fit). pipelineCounts = only those still in the running, which is what
+    // the card's "in pipeline" number, stage bar and "to review" chip read from.
     const counts = countsByJob[j.id] || {};
-    const total = Object.values(counts).reduce((s, n) => s + n, 0);
+    const pipelineCounts = pipelineByJob[j.id] || {};
+    const total = Object.values(pipelineCounts).reduce((s, n) => s + n, 0);
     return {
       id: j.id,
       title: j.title,
@@ -466,6 +481,7 @@ export async function loadOpenPositions(companyId, { manager = false, assignedJo
       postedAt: j.created_at,
       aiRankedAt: j.ai_ranked_at || null,
       counts,
+      pipelineCounts,
       applicantCount: total,
     };
   });

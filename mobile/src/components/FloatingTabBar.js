@@ -20,12 +20,12 @@ const ICONS = {
 
 // Content padding a scrollable tab screen should reserve so nothing hides behind
 // the floating (absolutely-positioned) bar.
-export const TAB_CLEARANCE = 108;
+export const TAB_CLEARANCE = 118;
 
 export default function FloatingTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
   return (
-    <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+    <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 14) + 10 }]}>
       <View style={[styles.bar, shadow.float]}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];

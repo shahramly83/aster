@@ -106,10 +106,18 @@ export default function OpenPositionsScreen({ navigation }) {
 }
 
 function RoleCard({ job, onPress }) {
+  // Everything except the hire tally reads the in-running counts, so this card says
+  // the same thing the role says when you open it. Hired stays a count of everyone
+  // hired for the role (same split as JobDetailScreen).
+  const pipe = job.pipelineCounts || job.counts;
   const total = job.applicantCount || 0;
   const hired = job.counts.hired || 0;
-  const toReview = (job.counts.interviewing || 0) + (job.counts.offer || 0);
-  const shortlisted = job.counts.shortlisted || 0;
+  const toReview = (pipe.interviewing || 0) + (pipe.offer || 0);
+  const shortlisted = pipe.shortlisted || 0;
+  // The bar still draws the whole funnel, hires included, so the green segment
+  // doesn't disappear just because hires sit outside the in-running count.
+  const barCounts = { ...pipe, hired };
+  const barTotal = total + hired;
   // Every card looks the same — translucent white on the blue. The centred card
   // is shown by position + the dots, not by a colour change.
   const fgMuted = "rgba(255,255,255,0.74)";
@@ -147,8 +155,8 @@ function RoleCard({ job, onPress }) {
 
         {/* pipeline bar — keeps its stage colours */}
         <View style={[styles.pipe, { backgroundColor: "rgba(255,255,255,0.22)" }]}>
-          {total > 0 && PIPE.map((k) => {
-            const n = job.counts[k] || 0;
+          {barTotal > 0 && PIPE.map((k) => {
+            const n = barCounts[k] || 0;
             if (!n) return null;
             return <View key={k} style={{ flex: n, backgroundColor: stageColor(k) }} />;
           })}
