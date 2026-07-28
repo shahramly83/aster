@@ -15891,16 +15891,16 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                             </button>
                           ); })()}
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
-                          <span className="min-w-0">
-                            <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
+                          {/* Name and the insight chip on one line. With the country
+                              moved to its own column the chip was left sitting alone
+                              on a second row, which made every candidate cell two
+                              lines tall for one small button. */}
+                          <span className="min-w-0 flex items-center gap-2.5">
+                            <span className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{a.name}</span>
                             {a.fitReason && (
-                              <span className="flex items-center gap-3 mt-1">
-                                {a.fitReason && (
-                                  <button onClick={(e) => { e.stopPropagation(); setInsight(a); }} className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
-                                    <Icon name="star" className="w-3 h-3" /> AI insight
-                                  </button>
-                                )}
-                              </span>
+                              <button onClick={(e) => { e.stopPropagation(); setInsight(a); }} className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                                <Icon name="star" className="w-3 h-3" /> AI insight
+                              </button>
                             )}
                           </span>
                         </div>
