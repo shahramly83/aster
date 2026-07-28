@@ -17,7 +17,7 @@ import AiInsight from "../components/AiInsight";
 import AiQuestions from "../components/AiQuestions";
 import { useDialog } from "../components/Dialog";
 import { theme, type, space, radius, shadow } from "../theme";
-import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange } from "@aster/shared";
+import { recommendationMeta, averageRating, stageLabel, stageColor, fmtInterviewTime, fmtInterviewRange, SCORE_CRITERIA } from "@aster/shared";
 
 // The hiring process, in order. Offer/Hired are shown but managed on web.
 // The hiring process proper. "shortlisted" is deliberately NOT here: it is a
@@ -71,6 +71,63 @@ function slotRange(startIso, endIso) {
   if (!endIso) return `${date} · ${_hm(startIso)} ${_ap(startIso)}`;
   const same = _ap(startIso) === _ap(endIso);
   return `${date} · ${_hm(startIso)}${same ? "" : ` ${_ap(startIso)}`}–${_hm(endIso)} ${_ap(endIso)}`;
+}
+
+// One interviewer's scorecard. The old row showed the average and nothing else,
+// so the four scores that MAKE the average — the actual substance of a scorecard,
+// and the only way to see WHERE someone was strong or weak — never appeared on
+// this screen at all. Now the average leads, the breakdown sits beside it as
+// filled pips, and the notes read as the quote they are.
+function ScorecardCard({ card, mine }) {
+  const meta = recommendationMeta(card.recommendation);
+  const avg = averageRating(card.ratings);
+  return (
+    <Card style={{ marginBottom: space(2.5) }}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Avatar name={card.interviewerName || "Panel member"} size={30} />
+        <Text style={[type.smallStrong, { color: theme.ink, flex: 1, marginLeft: 9 }]} numberOfLines={1}>
+          {mine ? "You" : (card.interviewerName || "Panel member")}
+        </Text>
+        {/* Recommendation as a labelled pill, not small coloured text: it is the
+            verdict, and colour alone never carries it. */}
+        <View style={[styles.recPill, { backgroundColor: meta.bg }]}>
+          <Text style={[styles.recPillTxt, { color: meta.color }]} numberOfLines={1}>{meta.label}</Text>
+        </View>
+      </View>
+
+      <View style={styles.scoreBody}>
+        <View style={styles.scoreBig}>
+          <Text style={[styles.scoreBigNum, { color: meta.color }]}>{avg.toFixed(1)}</Text>
+          <Text style={styles.scoreBigOf}>OUT OF 4</Text>
+        </View>
+        {/* Four criteria as pips. A bar would read as a percentage; these are
+            whole-number ratings out of four, so show four slots and fill them. */}
+        <View style={{ flex: 1, marginLeft: space(4) }}>
+          {SCORE_CRITERIA.map((crit, i) => {
+            const v = Number(card.ratings?.[crit.key]) || 0;
+            return (
+              <View key={crit.key} style={[styles.critRow, i > 0 && { marginTop: 7 }]}>
+                <Text style={styles.critLabel} numberOfLines={1}>{crit.label}</Text>
+                <View style={{ flexDirection: "row", gap: 4 }}>
+                  {[1, 2, 3, 4].map((n) => (
+                    <View key={n} style={[styles.pip, n <= v && { backgroundColor: meta.color }]} />
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {card.notes ? (
+        <View style={styles.scoreNote}>
+          <Text style={[type.small, { color: theme.ink2, lineHeight: 20 }]}>&ldquo;{card.notes}&rdquo;</Text>
+        </View>
+      ) : (
+        <Text style={[type.small, { color: theme.ink4, marginTop: space(3) }]}>No notes left.</Text>
+      )}
+    </Card>
+  );
 }
 
 // The "current" hiring-journey step: a solid dot with a pulsing halo behind it,
@@ -1050,7 +1107,6 @@ export default function CandidateProfileScreen({ route, navigation }) {
                 // set. Waiting on the hiring manager only meant turning up
                 // unprepared when they hadn't got to it.
                 <Card>
-                  <Text style={[type.small, { color: theme.ink3, marginBottom: space(3) }]}>Generate questions tailored to {nameOf().split(" ")[0]}'s resume and this role. The whole panel sees the same set.</Text>
                   <Button title={genQ ? "Generating…" : "Generate questions"} icon={genQ ? undefined : "zap"} onPress={genQuestions} disabled={genQ} />
                 </Card>
               )}
@@ -1149,25 +1205,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
               )
             ) : (
               <>
-                {cards.map((c) => {
-                  const meta = recommendationMeta(c.recommendation);
-                  return (
-                    <Card key={c.id} style={{ marginBottom: space(2.5), flexDirection: "row", alignItems: "flex-start" }}>
-                      <View style={[styles.recScore, { backgroundColor: meta.bg }]}>
-                        <Text style={{ color: meta.color, fontFamily: "Inter_700Bold", fontSize: 15, fontVariant: ["tabular-nums"] }}>{averageRating(c.ratings).toFixed(1)}</Text>
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                          <Text style={[type.smallStrong, { color: theme.ink, flex: 1 }]} numberOfLines={1}>
-                            {c.interviewerId === profile.userId ? "You" : (c.interviewerName || "Panel member")}
-                          </Text>
-                          <Text style={[type.small, { color: meta.color, marginLeft: 8 }]}>{meta.label}</Text>
-                        </View>
-                        {c.notes ? <Text style={[type.small, { color: theme.ink2, marginTop: 3 }]} numberOfLines={4}>{c.notes}</Text> : <Text style={[type.small, { color: theme.ink4, marginTop: 3 }]}>No notes</Text>}
-                      </View>
-                    </Card>
-                  );
-                })}
+                {cards.map((c) => (
+                  <ScorecardCard
+                    key={c.id}
+                    card={c}
+                    mine={c.interviewerId === profile.userId}
+                  />
+                ))}
                 {canScore && !myCard && !(manager && decisionReady) ? (
                   <Button title="Add my scorecard" icon="plus" variant="secondary" onPress={() => navigation.navigate("Scorecard", { candidateId, jobId, candidateName: name, existing: null })} style={{ marginTop: space(3) }} />
                 ) : null}
@@ -1476,7 +1520,16 @@ const styles = StyleSheet.create({
   timelineItem: { marginTop: space(4), paddingTop: space(4), borderTopWidth: 1, borderTopColor: theme.line2 },
   certRow: { flexDirection: "row", alignItems: "center", paddingVertical: space(2.5) },
   skill: { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
-  recScore: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  recPill: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, marginLeft: 8 },
+  recPillTxt: { fontFamily: "Inter_700Bold", fontSize: 11.5 },
+  scoreBody: { flexDirection: "row", alignItems: "center", marginTop: space(3.5) },
+  scoreBig: { alignItems: "center", minWidth: 58 },
+  scoreBigNum: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 34, lineHeight: 38, letterSpacing: -1, fontVariant: ["tabular-nums"] },
+  scoreBigOf: { fontFamily: "Inter_600SemiBold", fontSize: 9, letterSpacing: 0.6, color: theme.ink4, marginTop: 1 },
+  critRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  critLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: theme.ink3, flexShrink: 1, marginRight: 10 },
+  pip: { width: 13, height: 5, borderRadius: 3, backgroundColor: theme.line },
+  scoreNote: { marginTop: space(3.5), paddingTop: space(3), borderTopWidth: 1, borderTopColor: theme.line2 },
   segbar: { flexDirection: "row", alignSelf: "flex-start", backgroundColor: theme.bg, borderRadius: radius.pill, padding: 4, marginTop: space(4), borderWidth: 1, borderColor: theme.line },
   segItem: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 38, paddingHorizontal: 18, borderRadius: radius.pill },
   segItemOn: { backgroundColor: theme.brand },

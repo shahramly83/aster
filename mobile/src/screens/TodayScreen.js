@@ -453,11 +453,6 @@ export default function TodayScreen({ navigation }) {
                     : (manager ? `Waiting for ${first} to pick a time` : `Waiting for ${first} to pick a time`);
                   return (
                     <View key={iv.id} style={styles.pendCard}>
-                      {/* Status rail: the card's state is readable before a single
-                          word is, and it replaces a badge that competed with the
-                          "NEEDS YOUR ACTION" heading right above it. */}
-                      <View style={[styles.pendRail, { backgroundColor: st.rail }]} />
-
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={44} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
@@ -547,7 +542,6 @@ export default function TodayScreen({ navigation }) {
                        Two cards in one tab that meant "something is owed" used to
                        look like two different components. */
                     <View key={iv.id} style={styles.pendCard}>
-                      <View style={[styles.pendRail, { backgroundColor: pill.color }]} />
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={44} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
@@ -696,19 +690,23 @@ function HeroCard({ iv, tz, onOpen }) {
   const cd = countdown(iv.scheduledAt);
   return (
     <Press onPress={onOpen} scaleTo={0.98}>
-      <LinearGradient colors={["#2B5BFF", "#123AF0", "#0A1E9E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+      {/* White on a soft shadow, matching every other card on this screen. The
+          blue gradient made upcoming interviews a different species from the poll,
+          action and past cards they sit beside, and it forced a second set of
+          on-brand text colours that existed nowhere else in the app. */}
+      <View style={styles.hero}>
         <View style={[styles.countChip, cd.live && styles.countChipLive]}>
-          {cd.live ? <LiveDot /> : <Feather name="clock" size={12} color="#fff" />}
-          <Text style={styles.countTxt}>{cd.label}</Text>
+          {cd.live ? <LiveDot /> : <Feather name="clock" size={12} color={cd.live ? "#fff" : theme.brand} />}
+          <Text style={[styles.countTxt, cd.live && { color: "#fff" }]}>{cd.label}</Text>
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: space(3) }}>
-          <View style={styles.heroAvatar}><Avatar uri={iv.avatarUrl} name={iv.candidateName} size={46} /></View>
+          <Avatar uri={iv.avatarUrl} name={iv.candidateName} size={46} />
           <View style={{ flex: 1, marginLeft: 13 }}>
             <Text style={styles.heroName} numberOfLines={1}>{iv.candidateName}</Text>
             <Text style={styles.heroRole} numberOfLines={1}>{iv.jobTitle}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-              <Feather name="calendar" size={13} color="rgba(255,255,255,0.8)" />
+              <Feather name="calendar" size={13} color={theme.ink4} />
               <Text style={styles.heroTimeInline} numberOfLines={1}>{fmtInterviewTime(iv.scheduledAt, tz)}</Text>
             </View>
           </View>
@@ -717,17 +715,17 @@ function HeroCard({ iv, tz, onOpen }) {
         <View style={styles.heroActions}>
           {iv.meetingLink ? (
             <Press onPress={() => Linking.openURL(iv.meetingLink)} haptic="light" style={styles.joinBtn}>
-              <Feather name="video" size={16} color={theme.brand} />
+              <Feather name="video" size={16} color="#fff" />
               <Text style={styles.joinTxt}>Join video call</Text>
             </Press>
           ) : (
             <Press onPress={onOpen} haptic="light" style={styles.detailsBtn}>
               <Text style={styles.detailsTxt}>View details</Text>
-              <Feather name="arrow-right" size={15} color="#fff" />
+              <Feather name="arrow-right" size={15} color={theme.brand} />
             </Press>
           )}
         </View>
-      </LinearGradient>
+      </View>
     </Press>
   );
 }
@@ -879,14 +877,18 @@ const styles = StyleSheet.create({
   // Blocked-interview card: same surface as pollCard, plus a status rail bleeding
   // to the card's edge. overflow:hidden keeps the rail inside the corner radius,
   // and the extra left padding stops content sitting on top of it.
+  // Plain white on a shadow, like every other card here. A colour rail down the
+  // edge was clearer in theory, but Android does not clip children to the border
+  // radius once elevation is set, so it drew as a straight bar poking outside the
+  // rounded corners. The tinted strip below already names the state in colour,
+  // icon and words, so nothing is lost.
   pendCard: {
-    backgroundColor: theme.card, borderRadius: 26, overflow: "hidden",
-    paddingHorizontal: space(4), paddingVertical: space(4), paddingLeft: space(4) + 6,
+    backgroundColor: theme.card, borderRadius: 26,
+    paddingHorizontal: space(4), paddingVertical: space(4),
     marginBottom: space(3),
     shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14,
     shadowOffset: { width: 0, height: 5 }, elevation: 3,
   },
-  pendRail: { position: "absolute", left: 0, top: 0, bottom: 0, width: 6 },
   pendStrip: {
     flexDirection: "row", alignItems: "flex-start", borderRadius: radius.sm,
     paddingHorizontal: 11, paddingVertical: 10, marginTop: space(3.5),
@@ -1000,30 +1002,36 @@ const styles = StyleSheet.create({
   upCountTxt: { fontFamily: "Inter_700Bold", fontSize: 11.5, color: theme.brand, letterSpacing: 0.2 },
   weekPill: { ...type.smallStrong, color: theme.brand, backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5, overflow: "hidden" },
 
-  hero: { borderRadius: 22, padding: space(3.5), overflow: "hidden", shadowColor: "#0A1E9E", shadowOpacity: 0.26, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  hero: { backgroundColor: theme.card, borderRadius: 26, padding: space(4), overflow: "hidden", shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   heroMark: { position: "absolute", top: -26, right: -30 },
-  countChip: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.pill, paddingHorizontal: 12, height: 30 },
+  countChip: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: theme.brandSoft, borderRadius: radius.pill, paddingHorizontal: 12, height: 30 },
   countChipLive: { backgroundColor: "#16A34A" },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" },
-  countTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#fff", marginLeft: 7, letterSpacing: 0.2 },
-  heroAvatar: { borderRadius: 30, borderWidth: 2, borderColor: "rgba(255,255,255,0.5)" },
-  heroName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 18, letterSpacing: -0.4, color: "#fff" },
-  heroRole: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: "rgba(255,255,255,0.82)", marginTop: 1 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#fff" }, // sits on the green live chip
+  countTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.brand, marginLeft: 7, letterSpacing: 0.2 },
+  heroName: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 18, letterSpacing: -0.4, color: theme.ink },
+  heroRole: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: theme.ink3, marginTop: 1 },
   heroTimeRow: { flexDirection: "row", alignItems: "center", marginTop: space(3), backgroundColor: "rgba(255,255,255,0.12)", alignSelf: "flex-start", borderRadius: radius.md, paddingHorizontal: 11, paddingVertical: 7 },
   heroTime: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#fff", marginLeft: 8 },
-  heroTimeInline: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "rgba(255,255,255,0.9)", marginLeft: 6 },
+  heroTimeInline: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: theme.ink2, marginLeft: 6 },
   heroActions: { marginTop: space(3) },
-  joinBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderRadius: radius.md, height: 46 },
-  joinTxt: { fontFamily: "Inter_700Bold", fontSize: 15, color: theme.brand, marginLeft: 8 },
-  detailsBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.md, height: 46 },
-  detailsTxt: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff", marginRight: 8 },
+  joinBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: theme.brand, borderRadius: radius.md, height: 46 },
+  joinTxt: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff", marginLeft: 8 },
+  detailsBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: theme.brandSoft, borderRadius: radius.md, height: 46 },
+  detailsTxt: { fontFamily: "Inter_700Bold", fontSize: 15, color: theme.brand, marginRight: 8 },
 
   tl: { flexDirection: "row", alignItems: "center", backgroundColor: theme.card, borderRadius: radius.card, padding: space(3.5), shadowColor: "#1A1A22", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   timePill: { backgroundColor: theme.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, marginRight: 12, minWidth: 62, alignItems: "center" },
   timePillTxt: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: theme.brand, fontVariant: ["tabular-nums"] },
   dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: theme.ink4, marginHorizontal: 8 },
   // Past interview: quiet, flat card with a mini date rail on the left.
-  pastMini: { backgroundColor: theme.card, borderRadius: radius.card, padding: space(4), borderWidth: 1, borderColor: theme.line },
+  // Same white-on-shadow surface as the poll and action cards. A hairline border
+  // instead of elevation made past interviews read as a different kind of object
+  // on a screen where every other card is lifted off the background.
+  pastMini: {
+    backgroundColor: theme.card, borderRadius: 26, padding: space(4),
+    shadowColor: "#1A1A22", shadowOpacity: 0.06, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 }, elevation: 3,
+  },
   // Date stamp: past interviews span days, so when it happened is a primary cue
   // rather than a grey aside next to the chevron.
   pastStamp: {
