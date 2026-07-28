@@ -548,9 +548,13 @@ export default function CandidateProfileScreen({ route, navigation }) {
               })}
             </ScrollView>
             {lockNote ? (
-              <Text style={[type.small, { color: theme.ink3, textAlign: "center", marginTop: space(2) }]}>
-                {lockNote}
-              </Text>
+              /* A tinted notice attached to the tabs it explains. As centred grey
+                 text floating between the tab bar and the section heading it read
+                 as an error message about the page, not an answer to the tap. */
+              <View style={styles.lockNote}>
+                <Feather name="lock" size={13} color="#B45309" style={{ marginTop: 1 }} />
+                <Text style={[type.small, { color: "#B45309", marginLeft: 8, flex: 1, lineHeight: 18 }]}>{lockNote}</Text>
+              </View>
             ) : null}
 
             <Animated.View style={{ opacity: tabAnim, transform: [{ translateX: tabAnim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
@@ -1026,13 +1030,18 @@ export default function CandidateProfileScreen({ route, navigation }) {
                     Waiting for {nameOf().split(" ")[0]} to pick one of these
                   </Text>
 
-                  {/* Date tiles rather than a run-together line: the weekday and
-                      date sit above the window, so a time is scannable. */}
-                  <View style={styles.tileWrap}>
+                  {/* One option per row, numbered. A two-column grid wrapped
+                      2-then-1 and left the third orphaned on its own line, and
+                      with three near-identical dates the eye had nothing to
+                      anchor to. */}
+                  <View style={{ marginTop: space(3) }}>
                     {pendingInvite.proposedSlots.map((s, i) => (
-                      <View key={i} style={styles.slotTile}>
-                        <Text style={styles.slotTileDay}>{fmtInterviewTime(s.start, profile?.timezone).split(",").slice(0, 2).join(",")}</Text>
-                        <Text style={styles.slotTileTime}>{slotRange(s.start, s.end).split("·").slice(-1)[0].trim()}</Text>
+                      <View key={i} style={[styles.slotTile, i > 0 && { marginTop: 8 }]}>
+                        <View style={styles.slotTileNum}><Text style={styles.slotTileNumTxt}>{i + 1}</Text></View>
+                        <View style={{ flex: 1, marginLeft: 11 }}>
+                          <Text style={styles.slotTileDay} numberOfLines={1}>{slotDayLabel(s.start)}</Text>
+                          <Text style={styles.slotTileTime} numberOfLines={1}>{slotRange(s.start, s.end).split("·").slice(-1)[0].trim()}</Text>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -1603,13 +1612,15 @@ const styles = StyleSheet.create({
   trackLine: { flex: 1, height: 1, backgroundColor: theme.line, marginTop: 4, marginHorizontal: 6 },
   // Offered times, one tile each. A pill of run-together text is the least
   // readable shape for a date, and it buried the substance of the card.
-  tileWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: space(3) },
   // Two per row, filling the card. Content-width tiles left a ragged right edge
   // and wasted the space a phone has least of. flexGrow lets an odd last tile
   // take the full row rather than sitting stranded at half width.
-  slotTile: { flexGrow: 1, flexBasis: "46%", backgroundColor: theme.bg, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10 },
+  lockNote: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FEF3C7", borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: space(3) },
+  slotTile: { flexDirection: "row", alignItems: "center", backgroundColor: theme.bg, borderRadius: radius.md, borderWidth: 1, borderColor: theme.line, paddingHorizontal: 12, paddingVertical: 11 },
+  slotTileNum: { width: 22, height: 22, borderRadius: 11, backgroundColor: theme.brandSoft, alignItems: "center", justifyContent: "center" },
+  slotTileNumTxt: { fontFamily: "Inter_700Bold", fontSize: 11, color: theme.brand },
   slotTileDay: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: theme.brand, textTransform: "uppercase", letterSpacing: 0.3 },
-  slotTileTime: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: theme.ink, marginTop: 2 },
+  slotTileTime: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, letterSpacing: -0.2, color: theme.ink, marginTop: 2, fontVariant: ["tabular-nums"] },
   noteBox: { flexDirection: "row", alignItems: "flex-start", marginTop: space(3), padding: space(3), backgroundColor: theme.line2, borderRadius: radius.md },
   ivHappenCard: { marginTop: space(5), borderRadius: radius.lg, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
   ivHappenHead: { paddingHorizontal: space(4), paddingTop: space(4), paddingBottom: space(1) },

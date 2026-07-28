@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { View, Text, Switch, ScrollView, Pressable, StyleSheet, Modal, ActivityIndicator, Keyboard } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -174,19 +174,24 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
   // script face, and it made the mobile signature a different artefact from the
   // one the web app produces. The pad renders a real PNG (SignaturePad), which is
   // what the offer PDF embeds.
-  const [toPng, setToPng] = useState(null); // () => dataUrl, or null while empty
+  // The pad hands back a LAZY encoder, so the PNG is only rasterised when you
+  // actually save. It has to live in a ref: passing a function to a setState
+  // setter makes React treat it as an updater and call it immediately, storing
+  // the string it returns, so `toPng()` then threw "not a function" on save.
+  const toPngRef = useRef(null);
+  const [hasInk, setHasInk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  useEffect(() => { if (visible) { setErr(null); setToPng(null); } }, [visible]);
+  useEffect(() => { if (visible) { setErr(null); toPngRef.current = null; setHasInk(false); } }, [visible]);
 
   const save = async () => {
     Keyboard.dismiss();
-    if (!toPng) return;
+    if (!toPngRef.current) return;
     setBusy(true); setErr(null);
     let val = null;
     try {
-      val = toPng();
+      val = toPngRef.current();
     } catch (e2) {
       setBusy(false); setErr("Couldn't save that signature. Try drawing it again."); return;
     }
@@ -201,7 +206,7 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
     const e = await saveMyOfferSignature(null);
     setBusy(false);
     if (e) { setErr(e); return; }
-    setToPng(null); onSaved?.(null); onClose();
+    toPngRef.current = null; setHasInk(false); onSaved?.(null); onClose();
   };
 
   return (
@@ -211,12 +216,8 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
         <View style={[styles.sheet, { paddingBottom: insets.bottom + space(3) }]}>
           <View style={styles.sheetHandle} />
           <Text style={[type.h3, { color: theme.ink }]}>Offer signature</Text>
-          <Text style={[type.small, { color: theme.ink3, marginTop: 4, lineHeight: 19 }]}>
-            Sign off the offers you compose. It's placed above your name in the letter; the candidate then counter-signs.
-          </Text>
-
           <View style={{ marginTop: space(4) }}>
-            <SignaturePad onChange={setToPng} />
+            <SignaturePad onChange={(fn) => { toPngRef.current = fn; setHasInk(!!fn); }} />
           </View>
 
           {err ? <Text style={[type.small, { color: theme.danger, marginTop: 10 }]}>{err}</Text> : null}
@@ -227,7 +228,7 @@ function OfferSignatureSheet({ visible, initial, name, onClose, onSaved }) {
                 <Text style={[type.smallStrong, { color: theme.ink2 }]}>Clear</Text>
               </Pressable>
             ) : null}
-            <Pressable onPress={save} disabled={busy || !toPng} style={[styles.sigBtn, { backgroundColor: toPng ? theme.brand : theme.line, flex: 1 }]}>
+            <Pressable onPress={save} disabled={busy || !hasInk} style={[styles.sigBtn, { backgroundColor: hasInk ? theme.brand : theme.line, flex: 1 }]}>
               {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[type.smallStrong, { color: "#fff" }]}>Save signature</Text>}
             </Pressable>
           </View>
