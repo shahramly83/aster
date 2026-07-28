@@ -14111,6 +14111,54 @@ function UsagePanel({ items }) {
   );
 }
 
+// Country flags for the applicants table. Emoji flags are not an option: Windows
+// ships no flag glyphs and renders them as bare letters, so half the users would
+// see "MY" where a flag should be. flagcdn serves a small PNG per ISO code, and
+// anything not in the map falls back to the country name as text rather than a
+// broken image.
+const COUNTRY_CODES = {
+  malaysia: "my", singapore: "sg", indonesia: "id", thailand: "th", philippines: "ph",
+  vietnam: "vn", "viet nam": "vn", brunei: "bn", cambodia: "kh", myanmar: "mm", laos: "la",
+  india: "in", pakistan: "pk", bangladesh: "bd", "sri lanka": "lk", nepal: "np",
+  china: "cn", "hong kong": "hk", taiwan: "tw", japan: "jp", "south korea": "kr", korea: "kr",
+  australia: "au", "new zealand": "nz",
+  "united kingdom": "gb", uk: "gb", england: "gb", ireland: "ie",
+  "united states": "us", usa: "us", us: "us", canada: "ca",
+  germany: "de", france: "fr", spain: "es", italy: "it", netherlands: "nl", poland: "pl",
+  portugal: "pt", sweden: "se", norway: "no", denmark: "dk", finland: "fi", switzerland: "ch",
+  "united arab emirates": "ae", uae: "ae", "saudi arabia": "sa", qatar: "qa",
+  "south africa": "za", nigeria: "ng", kenya: "ke", egypt: "eg",
+  brazil: "br", mexico: "mx", argentina: "ar", chile: "cl",
+};
+function CountryCell({ country }) {
+  if (!country) return <span className="text-sm" style={{ color: "var(--ink-4)" }}>&mdash;</span>;
+  const code = COUNTRY_CODES[String(country).trim().toLowerCase()];
+  if (!code) return <span className="text-sm truncate" style={{ color: "var(--ink-2)" }}>{country}</span>;
+  return (
+    <span tabIndex={0} className="relative group inline-flex items-center outline-none" aria-label={country}>
+      <img
+        src={`https://flagcdn.com/w40/${code}.png`}
+        srcSet={`https://flagcdn.com/w80/${code}.png 2x`}
+        width={22}
+        height={16}
+        alt=""
+        loading="lazy"
+        className="rounded-[3px] shrink-0"
+        style={{ boxShadow: "0 0 0 1px rgba(16,19,42,0.10)", objectFit: "cover" }}
+      />
+      {/* Name on hover/focus, so the column stays one flag wide without losing
+          the label for anyone who does not recognise it. */}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-medium opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 group-focus:opacity-100 group-focus:translate-y-0 transition-all duration-150 z-30"
+        style={{ background: "var(--ink)", color: "#fff", boxShadow: "0 12px 30px -10px rgba(18,19,42,0.5)" }}
+      >
+        {country}
+      </span>
+    </span>
+  );
+}
+
 // One standardized plan-usage meter, shared across every screen (AI match runs,
 // resume parsing, AI insights) so they all look and behave identically.
 function UsageMeter({ title, hint, hintAlign = "right", used, limit, unit = "used", noun = "credits", note, danger, onManage, onUpgrade, upgradeLabel = "Upgrade plan", plan = null, purchased = null, onBuyCredits = null, resetLabel = null, trialEndsAt = null }) {
@@ -15823,8 +15871,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
           <table className="w-full" style={{ minWidth: 720, borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {["Candidate", "Position", "Stage", "Source", "Applied", "Match"].map((h, i) => (
-                  <th key={h} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
+                {["Candidate", "Position", "Country", "Stage", "Source", "Applied", "Match"].map((h, i) => (
+                  <th key={h} className="text-[11px] font-semibold uppercase tracking-wide px-4 py-2.5" style={{ color: "var(--ink-3)", background: "var(--bg)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", textAlign: i === 6 ? "right" : "left", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -15845,13 +15893,8 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                           <CandidateAvatar name={a.name} hasPhoto={a.hasPhoto} src={a.avatar} size={32} />
                           <span className="min-w-0">
                             <span className="text-[13px] font-semibold truncate block" style={{ color: "var(--ink)" }}>{a.name}</span>
-                            {(a.country || a.fitReason) && (
+                            {a.fitReason && (
                               <span className="flex items-center gap-3 mt-1">
-                                {a.country && (
-                                  <span className="inline-flex items-center gap-1 text-[11px] whitespace-nowrap" style={{ color: "var(--ink-3)" }}>
-                                    <Icon name="pin" className="w-3 h-3 shrink-0" /> {a.country}
-                                  </span>
-                                )}
                                 {a.fitReason && (
                                   <button onClick={(e) => { e.stopPropagation(); setInsight(a); }} className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors hover:opacity-90" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
                                     <Icon name="star" className="w-3 h-3" /> AI insight
@@ -15863,6 +15906,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: "var(--ink-2)" }}>{a.jobTitle}</td>
+                      <td className="px-4 py-3"><CountryCell country={a.country} /></td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} /> {meta.label}</span>
                       </td>
@@ -15881,14 +15925,14 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                 // the Applied stage. Every other stage falls back to a flat list.
                 const isAppliedView = stageFilter == null || stageFilter === "applied";
                 if (!isAppliedView) {
-                  if (rows.length === 0) return <tr><td colSpan={6} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates in this stage.</td></tr>;
+                  if (rows.length === 0) return <tr><td colSpan={7} className="text-center text-sm px-4 py-10" style={{ color: "var(--ink-3)" }}>No candidates in this stage.</td></tr>;
                   return rows.map(renderRow);
                 }
                 const strong = rows.filter(isStrongMatch);
                 const other = rows.filter((a) => !isStrongMatch(a));
                 const groupHeader = (label, n, color, bg) => (
                   <tr key={`grp-${label}`}>
-                    <td colSpan={6} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
+                    <td colSpan={7} className="px-4 py-2.5" style={{ background: bg, borderTop: "1px solid var(--line)", borderBottom: `1px solid ${color}22` }}>
                       <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color, letterSpacing: "0.05em" }}>
                         <span className="w-2 h-2 rounded-full" style={{ background: color }} /> {label}
                         <span className="tnum rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "#fff", color, border: `1px solid ${color}33` }}>{n}</span>
@@ -15897,7 +15941,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                   </tr>
                 );
                 const emptyRow = (key, text) => (
-                  <tr key={key}><td colSpan={6} className="px-4 py-4 text-center text-xs" style={{ color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>{text}</td></tr>
+                  <tr key={key}><td colSpan={7} className="px-4 py-4 text-center text-xs" style={{ color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>{text}</td></tr>
                 );
                 const out = [];
                 // Strong matches — always shown, always expanded.
@@ -15907,7 +15951,7 @@ function PipelineScreen({ navigate, jobs = [], candidates = [], onViewCandidate,
                 // Non-matches — always shown as a collapsible bar (closed by default).
                 out.push(
                   <tr key="grp-nonmatch" onClick={() => setNonMatchOpen((o) => !o)} className="cursor-pointer select-none">
-                    <td colSpan={6} className="px-4 py-2.5" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
+                    <td colSpan={7} className="px-4 py-2.5" style={{ background: "rgba(107,114,128,.09)", borderTop: "1px solid var(--line)", borderBottom: "1px solid #6B728022" }}>
                       <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide" style={{ color: "#6B7280", letterSpacing: "0.05em" }}>
                         <Icon name="chevronRight" className={`w-3.5 h-3.5 transition-transform ${nonMatchOpen ? "rotate-90" : ""}`} />
                         Non-matches
